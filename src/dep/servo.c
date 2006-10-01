@@ -60,7 +60,7 @@ void updateDelay(TimeInternal *send_time, TimeInternal *recv_time,
   owd_filt->nsec_prev = ptpClock->one_way_delay.nanoseconds;
   ptpClock->one_way_delay.nanoseconds = owd_filt->y;
   
-  DBG("delay filter %ld, %ld\n", owd_filt->y, owd_filt->s_exp);
+  DBG("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
 }
 
 void updateOffset(TimeInternal *send_time, TimeInternal *recv_time,
@@ -86,7 +86,7 @@ void updateOffset(TimeInternal *send_time, TimeInternal *recv_time,
   ofm_filt->nsec_prev = ptpClock->offset_from_master.nanoseconds;
   ptpClock->offset_from_master.nanoseconds = ofm_filt->y;
   
-  DBGV("offset filter %ld\n", ofm_filt->y);
+  DBGV("offset filter %d\n", ofm_filt->y);
 }
 
 void updateClock(RunTimeOpts *rtOpts, PtpClock *ptpClock)
@@ -144,14 +144,14 @@ void updateClock(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   if(rtOpts->displayStats)
     displayStats(rtOpts, ptpClock);
   
-  DBGV("master-to-slave delay:   %10lds %11ldns\n",
+  DBGV("master-to-slave delay:   %10ds %11dns\n",
     ptpClock->master_to_slave_delay.seconds, ptpClock->master_to_slave_delay.nanoseconds);
-  DBGV("slave-to-master delay:   %10lds %11ldns\n",
+  DBGV("slave-to-master delay:   %10ds %11dns\n",
     ptpClock->slave_to_master_delay.seconds, ptpClock->slave_to_master_delay.nanoseconds);
-  DBGV("one-way delay:           %10lds %11ldns\n",
+  DBGV("one-way delay:           %10ds %11dns\n",
     ptpClock->one_way_delay.seconds, ptpClock->one_way_delay.nanoseconds);
-  DBG("offset from master:      %10lds %11ldns\n",
+  DBG("offset from master:      %10ds %11dns\n",
     ptpClock->offset_from_master.seconds, ptpClock->offset_from_master.nanoseconds);
-  DBG("observed drift: %10ld\n", ptpClock->observed_drift);
+  DBG("observed drift: %10d\n", ptpClock->observed_drift);
 }
 

@@ -454,7 +454,7 @@ Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
   {
     time->seconds = tv->tv_sec;
     time->nanoseconds = tv->tv_usec*1000;
-    DBGV("kernel recv time stamp %lus %ldns\n", time->seconds, time->nanoseconds);
+    DBGV("kernel recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
   }
   else
   {

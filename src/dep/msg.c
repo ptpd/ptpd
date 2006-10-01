@@ -44,9 +44,9 @@ void msgUnpackHeader(void *buf, MsgHeader *header)
 void msgUnpackSync(void *buf, MsgSync *sync)
 {
   sync->originTimestamp.seconds = flip32(*(UInteger32*)(buf + 40));
-  DBGV("msgUnpackSync: originTimestamp.seconds %lu\n", sync->originTimestamp.seconds);
+  DBGV("msgUnpackSync: originTimestamp.seconds %u\n", sync->originTimestamp.seconds);
   sync->originTimestamp.nanoseconds = flip32(*(Integer32*)(buf + 44));
-  DBGV("msgUnpackSync: originTimestamp.nanoseconds %ld\n", sync->originTimestamp.nanoseconds);
+  DBGV("msgUnpackSync: originTimestamp.nanoseconds %d\n", sync->originTimestamp.nanoseconds);
   sync->epochNumber = flip16(*(UInteger16*)(buf + 48));
   DBGV("msgUnpackSync: epochNumber %d\n", sync->epochNumber);
   sync->currentUTCOffset = flip16(*(Integer16*)(buf + 50));
@@ -96,7 +96,7 @@ void msgUnpackSync(void *buf, MsgSync *sync)
   sync->estimatedMasterVariance = flip16(*(Integer16*)(buf + 114));
   DBGV("msgUnpackSync: estimatedMasterVariance %d\n", sync->estimatedMasterVariance);
   sync->estimatedMasterDrift = flip32(*(Integer32*)(buf + 116));
-  DBGV("msgUnpackSync: estimatedMasterDrift %ld\n", sync->estimatedMasterDrift);
+  DBGV("msgUnpackSync: estimatedMasterDrift %d\n", sync->estimatedMasterDrift);
   sync->utcReasonable = *(UInteger8*)(buf + 123);
   DBGV("msgUnpackSync: utcReasonable %d\n", sync->utcReasonable);
 }
@@ -108,17 +108,17 @@ void msgUnpackFollowUp(void *buf, MsgFollowUp *follow)
   follow->associatedSequenceId = flip16(*(UInteger16*)(buf + 42));
   DBGV("msgUnpackFollowUp: associatedSequenceId %u\n", follow->associatedSequenceId);
   follow->preciseOriginTimestamp.seconds = flip32(*(UInteger32*)(buf + 44));
-  DBGV("msgUnpackFollowUp: preciseOriginTimestamp.seconds %lu\n", follow->preciseOriginTimestamp.seconds);
+  DBGV("msgUnpackFollowUp: preciseOriginTimestamp.seconds %u\n", follow->preciseOriginTimestamp.seconds);
   follow->preciseOriginTimestamp.nanoseconds = flip32(*(Integer32*)(buf + 48));
-  DBGV("msgUnpackFollowUp: preciseOriginTimestamp.nanoseconds %ld\n", follow->preciseOriginTimestamp.nanoseconds);
+  DBGV("msgUnpackFollowUp: preciseOriginTimestamp.nanoseconds %d\n", follow->preciseOriginTimestamp.nanoseconds);
 }
 
 void msgUnpackDelayResp(void *buf, MsgDelayResp *resp)
 {
   resp->delayReceiptTimestamp.seconds = flip32(*(UInteger32*)(buf + 40));
-  DBGV("msgUnpackDelayResp: delayReceiptTimestamp.seconds %lu\n", resp->delayReceiptTimestamp.seconds);
+  DBGV("msgUnpackDelayResp: delayReceiptTimestamp.seconds %u\n", resp->delayReceiptTimestamp.seconds);
   resp->delayReceiptTimestamp.nanoseconds = flip32(*(Integer32*)(buf + 44));
-  DBGV("msgUnpackDelayResp: delayReceiptTimestamp.nanoseconds %ld\n", resp->delayReceiptTimestamp.nanoseconds);
+  DBGV("msgUnpackDelayResp: delayReceiptTimestamp.nanoseconds %d\n", resp->delayReceiptTimestamp.nanoseconds);
   resp->requestingSourceCommunicationTechnology = *(UInteger8*)(buf + 49);
   DBGV("msgUnpackDelayResp: requestingSourceCommunicationTechnology %d\n", resp->requestingSourceCommunicationTechnology);
   memcpy(resp->requestingSourceUuid, (buf + 50), 6);

@@ -172,11 +172,11 @@ void displayManagement(MsgHeader *header, MsgManagement *manage)
     displayHeader(header);
     printf("  managementMessageKey %hhu (PTP_MM_CURRENT_DATA_SET)\n", manage->managementMessageKey);
     printf("  stepsRemoved %hu\n", manage->payload.current.stepsRemoved);
-    printf("  offsetFromMaster %s%lu.%09ld\n",
+    printf("  offsetFromMaster %s%u.%09d\n",
       manage->payload.current.offsetFromMaster.nanoseconds & 0x80000000 ? "-" : "",
       manage->payload.current.offsetFromMaster.seconds,
       manage->payload.current.offsetFromMaster.nanoseconds & ~0x80000000);
-    printf("  oneWayDelay %s%lu.%09ld\n",
+    printf("  oneWayDelay %s%u.%09d\n",
       manage->payload.current.oneWayDelay.nanoseconds & 0x80000000 ? "-" : "",
       manage->payload.current.oneWayDelay.seconds,
       manage->payload.current.oneWayDelay.nanoseconds & ~0x80000000);
@@ -198,7 +198,7 @@ void displayManagement(MsgHeader *header, MsgManagement *manage)
     printf("  parentVariance %hd\n", manage->payload.parent.parentVariance);
     printf("  parentStats %hhu\n", manage->payload.parent.parentStats);
     printf("  observedVariance %hd\n", manage->payload.parent.observedVariance);
-    printf("  observedDrift %ld\n", manage->payload.parent.observedDrift);
+    printf("  observedDrift %d\n", manage->payload.parent.observedDrift);
     printf("  utcReasonable %hhu\n", manage->payload.parent.utcReasonable);
     printf("  grandmasterCommunicationTechnology %hhu\n", manage->payload.parent.grandmasterCommunicationTechnology);
     printf("  grandmasterUuidField %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
@@ -248,7 +248,7 @@ void displayManagement(MsgHeader *header, MsgManagement *manage)
     printf("\n");
     displayHeader(header);
     printf("  managementMessageKey %hhu (PTP_MM_GLOBAL_TIME_DATA_SET)\n", manage->managementMessageKey);
-    printf("  localTime %s%lu.%09ld\n",
+    printf("  localTime %s%u.%09d\n",
       manage->payload.globalTime.localTime.nanoseconds & 0x80000000 ? "-" : "",
       manage->payload.globalTime.localTime.seconds,
       manage->payload.globalTime.localTime.nanoseconds & ~0x80000000);

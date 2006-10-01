@@ -54,7 +54,7 @@ void fromInternalTime(TimeInternal *internal, TimeRepresentation *external, Bool
     external->nanoseconds = labs(internal->nanoseconds);
   }
   
-  DBGV("fromInternalTime: %10lds %11ldns -> %10lus %11ldns\n",
+  DBGV("fromInternalTime: %10ds %11dns -> %10us %11dns\n",
     internal->seconds, internal->nanoseconds,
     external->seconds, external->nanoseconds);
 }
@@ -74,7 +74,7 @@ void toInternalTime(TimeInternal *internal, TimeRepresentation *external, Boolea
     internal->nanoseconds = external->nanoseconds;
   }
   
-  DBGV("toInternalTime: %10lds %11ldns <- %10lus %11ldns\n",
+  DBGV("toInternalTime: %10ds %11dns <- %10us %11dns\n",
     internal->seconds, internal->nanoseconds,
     external->seconds, external->nanoseconds);
 }

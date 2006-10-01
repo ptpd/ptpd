@@ -37,16 +37,16 @@ void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   if(ptpClock->port_state == PTP_SLAVE)
   {
     len += sprintf(sbuf + len,
-      ", %s%ld.%09ld" ", %s%ld.%09ld",
+      ", %s%d.%09d" ", %s%d.%09d",
       rtOpts->csvStats ? "" : "owd: ",
       ptpClock->one_way_delay.seconds,
-      labs(ptpClock->one_way_delay.nanoseconds),
+      abs(ptpClock->one_way_delay.nanoseconds),
       rtOpts->csvStats ? "" : "ofm: ",
       ptpClock->offset_from_master.seconds,
-      labs(ptpClock->offset_from_master.nanoseconds));
+      abs(ptpClock->offset_from_master.nanoseconds));
     
     len += sprintf(sbuf + len, 
-      ", %s%ld" ", %s%d",
+      ", %s%d" ", %s%d",
       rtOpts->csvStats ? "" : "drift: ", ptpClock->observed_drift,
       rtOpts->csvStats ? "" : "var: ", ptpClock->observed_variance);
   }
@@ -88,7 +88,7 @@ void setTime(TimeInternal *time)
   tv.tv_usec = time->nanoseconds/1000;
   settimeofday(&tv, 0);
   
-  NOTIFY("resetting system clock to %lds %ldns\n", time->seconds, time->nanoseconds);
+  NOTIFY("resetting system clock to %ds %dns\n", time->seconds, time->nanoseconds);
 }
 
 UInteger16 getRand(UInteger32 *seed)

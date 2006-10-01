@@ -13,7 +13,7 @@ void catch_alarm(int sig)
     elapsed.seconds += 1;
   }
   
-  DBGV("catch_alarm: elapsed %lu %ld\n", elapsed.seconds, elapsed.nanoseconds);
+  DBGV("catch_alarm: elapsed %u %d\n", elapsed.seconds, elapsed.nanoseconds);
 }
 
 void initTimer(void)

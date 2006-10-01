@@ -296,7 +296,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   
   DBGV("event Receipt of Message\n   type %d\n"
     "   uuid %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n"
-    "   sequence %d\n   time %lus %ldns\n",
+    "   sequence %d\n   time %us %dns\n",
     ptpClock->msgTmpHeader.control,
     ptpClock->msgTmpHeader.sourceUuid[0], ptpClock->msgTmpHeader.sourceUuid[1], ptpClock->msgTmpHeader.sourceUuid[2],
     ptpClock->msgTmpHeader.sourceUuid[3], ptpClock->msgTmpHeader.sourceUuid[4], ptpClock->msgTmpHeader.sourceUuid[5],

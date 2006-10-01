@@ -7,10 +7,10 @@ typedef enum {FALSE=0, TRUE} Boolean;
 typedef char Octet;
 typedef signed char Integer8;
 typedef signed short Integer16;
-typedef signed long Integer32;
+typedef signed int Integer32;
 typedef unsigned char UInteger8;
 typedef unsigned short UInteger16;
-typedef unsigned long UInteger32;
+typedef unsigned int UInteger32;
 
 typedef struct {
   Integer32  nsec_prev, y;
