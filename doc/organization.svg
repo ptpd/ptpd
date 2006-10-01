@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   version="1.0"
+   width="600"
+   height="300"
+   id="svg2">
+  <defs
+     id="defs3" />
+  <g
+     id="layer1">
+    <rect
+       width="537.60052"
+       height="90.038086"
+       x="32"
+       y="41"
+       style="fill:#b9f7b9;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect5125" />
+    <rect
+       width="107.4166"
+       height="60.643112"
+       x="409.04169"
+       y="21.356888"
+       style="fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect6665" />
+    <rect
+       width="539.01831"
+       height="89.862396"
+       x="31"
+       y="190.62921"
+       style="fill:#f7bcbc;fill-opacity:1;stroke:#000000;stroke-opacity:1"
+       id="rect9023" />
+    <rect
+       width="79.138618"
+       height="100.41978"
+       x="343.86139"
+       y="110"
+       style="fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect8973" />
+    <rect
+       width="89.388191"
+       height="73.291954"
+       x="142.61182"
+       y="198.91443"
+       style="fill:#f7bcbc;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect9013" />
+    <rect
+       width="89.578773"
+       height="101.717"
+       x="187.90994"
+       y="109"
+       style="fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect8981" />
+    <rect
+       width="81.134224"
+       height="38.52906"
+       x="476.97614"
+       y="110.3124"
+       style="fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect8989" />
+    <rect
+       width="80.564644"
+       height="57.965923"
+       x="119.93536"
+       y="89.955513"
+       style="fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect8999" />
+    <rect
+       width="40.650223"
+       height="111.63338"
+       x="43.5"
+       y="96.366623"
+       style="fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect1470" />
+    <text
+       x="231.82481"
+       y="153.29747"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text4581"
+       xml:space="preserve"><tspan
+         x="231.82481"
+         y="153.29747"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan4583">Net</tspan><tspan
+         x="231.82481"
+         y="175.79747"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan4585">Layer</tspan></text>
+    <text
+       x="159.34317"
+       y="114.12207"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text4593"
+       xml:space="preserve"><tspan
+         x="159.34317"
+         y="114.12207"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan4597">Msg</tspan><tspan
+         x="159.34317"
+         y="136.62207"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan4599">Packer</tspan></text>
+    <text
+       x="300.39597"
+       y="90.984863"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text4601"
+       xml:space="preserve"><tspan
+         x="300.39597"
+         y="90.984863"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan4605">Protocol Engine</tspan></text>
+    <text
+       x="463.44873"
+       y="45.236061"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text4607"
+       xml:space="preserve"><tspan
+         x="463.44873"
+         y="45.236061"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan4611">BMC</tspan><tspan
+         x="463.44873"
+         y="67.736061"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan12405">Algorithm</tspan></text>
+    <text
+       x="-152.28439"
+       y="68.632729"
+       transform="matrix(0,-1,1,0,0,0)"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text4613"
+       xml:space="preserve"><tspan
+         x="-152.28439"
+         y="68.632729"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan4615">Start-up</tspan></text>
+    <text
+       x="187.20483"
+       y="229.08727"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text4617"
+       xml:space="preserve"><tspan
+         x="187.20483"
+         y="229.08727"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan4621">Time</tspan><tspan
+         x="187.20483"
+         y="251.58727"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan4623">Stamp</tspan></text>
+    <text
+       x="381.80273"
+       y="155.67033"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text4625"
+       xml:space="preserve"><tspan
+         x="381.80273"
+         y="155.67033"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;font-family:Bitstream Vera Sans"
+         id="tspan4629">Clock</tspan><tspan
+         x="381.80273"
+         y="178.17033"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;font-family:Bitstream Vera Sans"
+         id="tspan4631">Servo</tspan></text>
+    <text
+       x="300.46521"
+       y="242.27086"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text4633"
+       xml:space="preserve"><tspan
+         x="300.46521"
+         y="242.27086"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan4635">Kernel</tspan></text>
+    <text
+       x="518.01343"
+       y="136.28738"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text5363"
+       xml:space="preserve"><tspan
+         x="518.01343"
+         y="136.28738"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Bitstream Vera Sans"
+         id="tspan5365">Timers</tspan></text>
+  </g>
+</svg>
