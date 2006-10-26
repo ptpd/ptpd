@@ -299,7 +299,8 @@ UInteger8 bmcStateDecision(MsgHeader *header, MsgSync *sync, RunTimeOpts *rtOpts
     s1(header, sync, ptpClock);
     return PTP_PASSIVE;
   }
-  else if(bmcDataSetComparison(&ptpClock->msgTmpHeader, &ptpClock->msgTmp.sync, header, sync, ptpClock) > 0)
+  else if(bmcDataSetComparison(&ptpClock->msgTmpHeader, &ptpClock->msgTmp.sync, header, sync, ptpClock) > 0
+    && ptpClock->msgTmp.sync.grandmasterClockStratum != 255)
   {
     m1(ptpClock);
     return PTP_MASTER;

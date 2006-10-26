@@ -99,6 +99,7 @@ void doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   switch(ptpClock->port_state)
   {
   case PTP_LISTENING:
+  case PTP_PASSIVE:
   case PTP_SLAVE:
   case PTP_MASTER:
     if(ptpClock->record_update)
@@ -134,7 +135,7 @@ void doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
       DBG("event SYNC_RECEIPT_TIMEOUT_EXPIRES\n");
       ptpClock->number_foreign_records = 0;
       ptpClock->foreign_record_i = 0;
-      if(!rtOpts->slaveOnly)
+      if(!rtOpts->slaveOnly && ptpClock->clock_stratum != 255)
       {
         m1(ptpClock);
         toState(PTP_MASTER, rtOpts, ptpClock);
