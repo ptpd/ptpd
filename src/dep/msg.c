@@ -220,10 +220,10 @@ UInteger8 msgUnloadManagement(void *buf, MsgManagement *manage,
     
   case PTP_MM_UPDATE_DEFAULT_DATA_SET:
     if(!rtOpts->slaveOnly)
-      rtOpts->clockStratum = *(UInteger8*)(buf + 63);
-    memcpy(rtOpts->clockIdentifier, buf + 64, 4);
-    rtOpts->clockVariance = flip16(*(Integer16*)(buf + 70));
-    rtOpts->clockPreferred = *(UInteger8*)(buf + 75);
+      ptpClock->clock_stratum = *(UInteger8*)(buf + 63);
+    memcpy(ptpClock->clock_identifier, buf + 64, 4);
+    ptpClock->clock_variance = flip16(*(Integer16*)(buf + 70));
+    ptpClock->preferred = *(UInteger8*)(buf + 75);
     rtOpts->syncInterval = *(UInteger8*)(buf + 79);
     memcpy(rtOpts->subdomainName, buf + 80, 16);
     break;
