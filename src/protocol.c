@@ -410,7 +410,6 @@ void handleSync(MsgHeader *header, Octet *msgIbuf, TimeInternal *time, Boolean i
       DBGV("SYNC_RECEIPT_TIMER reset\n");
       timerStart(SYNC_RECEIPT_TIMER, PTP_SYNC_RECEIPT_TIMEOUT(ptpClock->sync_interval), ptpClock->itimer);
     }
-    break;
     
   case PTP_MASTER:
   default:
