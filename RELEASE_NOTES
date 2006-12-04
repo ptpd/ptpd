@@ -5,13 +5,15 @@ v1b5, 3 December 2006:
 
 PTPd is now ported to *BSD. Also, there are small fixes for 64-bit
 architectures, better interface search on Linux, and disallow master mode if the
-stratum is 255 for 1588 spec compliance. Finally, there is a fairly large change
-to separate the internal time representation from the external IEEE 1588 time
+stratum is 255 for 1588 spec compliance. There is a fairly large change to
+separate the internal time representation from the external IEEE 1588 time
 representation. This significantly simplifies the time arithmetic functions, and
 it should allow PTPd to work properly after 2038 despite the fact that the Linux
 clock will rollover. PTPd should run seamlessly through 2038 as a slave, but to
 run PTPd as a master after 2038, you need to set the 'half epoch' flag with the
-'-h' command line option.
+'-h' command line option. Finally, there is a change so that PTPd no longer
+needs a kernel modification to retrieve send time stamps. PTPd now retrieves
+send time stamps from looped back received messages.
 
    -kendall
 
