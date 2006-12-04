@@ -1,26 +1,27 @@
 # Makefile for ptpd
 
+RM = rm -f
 CFLAGS = -Wall
-#CPPFLAGS = -DPTPD_DBG
+#CPPFLAGS = -DPTPD_DBG -DPTPD_NO_DAEMON
 
-executable = ptpd
-objects = ptpd.o arith.o bmc.o probe.o protocol.o
-headers = ptpd.h constants.h datatypes.h
+PROG = ptpd
+OBJ  = ptpd.o arith.o bmc.o probe.o protocol.o \
+	dep/msg.o dep/net.o dep/servo.o dep/startup.o dep/sys.o dep/timer.o
+HDR  = ptpd.h constants.h datatypes.h \
+	dep/ptpd_dep.h dep/constants_dep.h dep/datatypes_dep.h
 
-dep_dir = dep/
-dep_objects = msg.o net.o servo.o startup.o sys.o timer.o
-dep_headers = ptpd_dep.h constants_dep.h datatypes_dep.h
 
-objects += $(addprefix $(dep_dir),$(dep_objects))
-headers += $(addprefix $(dep_dir),$(dep_headers))
+.c.o:
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
-all: $(executable)
+all: $(PROG)
 
-$(executable): $(objects)
+$(PROG): $(OBJ)
+	$(CC) $(LDFLAGS) -o $@ $(OBJ)
 
-$(objects): $(headers)
+$(OBJ): $(HDR)
 
-clean:
-	-@$(RM) $(objects) $(executable)
-	
-.PHONY: clean
+clean: FORCE
+	$(RM) $(PROG) $(OBJ)
+
+FORCE:
