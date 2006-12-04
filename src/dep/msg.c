@@ -106,7 +106,7 @@ void msgUnpackDelayReq(void *buf, MsgDelayReq *req) {}
 void msgUnpackFollowUp(void *buf, MsgFollowUp *follow)
 {
   follow->associatedSequenceId = flip16(*(UInteger16*)(buf + 42));
-  DBG("msgUnpackFollowUp: associatedSequenceId %u\n", follow->associatedSequenceId);
+  DBGV("msgUnpackFollowUp: associatedSequenceId %u\n", follow->associatedSequenceId);
   follow->preciseOriginTimestamp.seconds = flip32(*(UInteger32*)(buf + 44));
   DBGV("msgUnpackFollowUp: preciseOriginTimestamp.seconds %u\n", follow->preciseOriginTimestamp.seconds);
   follow->preciseOriginTimestamp.nanoseconds = flip32(*(Integer32*)(buf + 48));
