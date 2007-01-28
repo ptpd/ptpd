@@ -3,7 +3,7 @@
 #include "../ptpd.h"
 
 #define TIMER_INTERVAL 1
-Integer32 elapsed;
+int elapsed;
 
 void catch_alarm(int sig)
 {
@@ -31,7 +31,7 @@ void initTimer(void)
 void timerUpdate(IntervalTimer *itimer)
 {
   Integer16 i;
-  Integer32 delta;
+  int delta;
   
   delta = elapsed;
   elapsed = 0;
