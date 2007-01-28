@@ -2,18 +2,14 @@
 
 #include "../ptpd.h"
 
-TimeRepresentation elapsed;
+#define TIMER_INTERVAL 1
+Integer32 elapsed;
 
 void catch_alarm(int sig)
 {
-  elapsed.nanoseconds += TIMER_INTERVAL;
-  while(elapsed.nanoseconds >= 1000000000)
-  {
-    elapsed.nanoseconds -= 1000000000;
-    elapsed.seconds += 1;
-  }
+  elapsed += TIMER_INTERVAL;
   
-  DBGV("catch_alarm: elapsed %u %d\n", elapsed.seconds, elapsed.nanoseconds);
+  DBGV("catch_alarm: elapsed %d\n", elapsed);
 }
 
 void initTimer(void)
@@ -24,12 +20,9 @@ void initTimer(void)
   
   signal(SIGALRM, SIG_IGN);
   
-  elapsed.seconds = 0;
-  elapsed.nanoseconds = 0;
-  itimer.it_interval.tv_sec = 0;
-  itimer.it_interval.tv_usec = TIMER_INTERVAL/1000;
-  itimer.it_value.tv_sec = 0;
-  itimer.it_value.tv_usec = itimer.it_interval.tv_usec;
+  elapsed = 0;
+  itimer.it_value.tv_sec = itimer.it_interval.tv_sec = TIMER_INTERVAL;
+  itimer.it_value.tv_usec = itimer.it_interval.tv_usec = 0;
   
   signal(SIGALRM, catch_alarm);
   setitimer(ITIMER_REAL, &itimer, 0);
@@ -40,8 +33,8 @@ void timerUpdate(IntervalTimer *itimer)
   Integer16 i;
   Integer32 delta;
   
-  delta = elapsed.seconds;
-  elapsed.seconds = 0;
+  delta = elapsed;
+  elapsed = 0;
   
   if(delta <= 0)
     return;
