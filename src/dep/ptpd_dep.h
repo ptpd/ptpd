@@ -20,44 +20,42 @@
 
 
 /* system messages */
-#define ERROR(x...) fprintf(stderr, "ptpd!: " x)
-#define PERROR(x...) perror("ptpd!: " x)
-#define NOTIFY(x...) fprintf(stderr, "ptpd: " x)
+#define ERROR(x, ...)  fprintf(stderr, "(ptpd error) " x, ##__VA_ARGS__)
+#define PERROR(x, ...) fprintf(stderr, "(ptpd error) " x ": %m", ##__VA_ARGS__)
+#define NOTIFY(x, ...) fprintf(stderr, "(ptpd notice) " x, ##__VA_ARGS__)
 
 /* debug messages */
 #ifdef PTPD_DBGV
 #define PTPD_DBG
-#define DBGV(x...) printf("(debug) " x)
+#define DBGV(x, ...) fprintf(stderr, "(ptpd debug) " x, ##__VA_ARGS__)
 #else
-#define DBGV(x...)
+#define DBGV(x, ...)
 #endif
 
 #ifdef PTPD_DBG
-#define DBG(x...) printf("(debug) " x)
-#define DBGFLUSH() fflush(stdout)
+#define DBG(x, ...)  fprintf(stderr, "(ptpd debug) " x, ##__VA_ARGS__)
 #else
-#define DBG(x...)
-#define DBGFLUSH()
+#define DBG(x, ...)
 #endif
 
 /* endian corrections */
 #if defined(PTPD_MSBF)
-#define shift8(x,y)       ( (x) << ((3-y)<<3) )
-#define shift16(x,y)      ( (x) << ((1-y)<<4) )
+#define shift8(x,y)   ( (x) << ((3-y)<<3) )
+#define shift16(x,y)  ( (x) << ((1-y)<<4) )
 #elif defined(PTPD_LSBF)
-#define shift8(x,y)       ( (x) << ((y)<<3) )
-#define shift16(x,y)      ( (x) << ((y)<<4) )
+#define shift8(x,y)   ( (x) << ((y)<<3) )
+#define shift16(x,y)  ( (x) << ((y)<<4) )
 #endif
 
-#define flip16(x)         htons(x)
-#define flip32(x)         htonl(x)
+#define flip16(x) htons(x)
+#define flip32(x) htonl(x)
 
 /* i don't know any target platforms that do not have htons and htonl,
    but here are generic funtions just in case */
 /*
 #if defined(PTPD_MSBF)
-#define flip16(x)         (x)
-#define flip32(x)         (x)
+#define flip16(x) (x)
+#define flip32(x) (x)
 #elif defined(PTPD_LSBF)
 static inline Integer16 flip16(Integer16 x)
 {
@@ -73,9 +71,9 @@ static inline Integer32 flip32(x)
 */
 
 /* bit array manipulation */
-#define getFlag(x,y)      !!(*(UInteger8*)((x)+((y)<8?1:0)) & ( 1<<((y)<8?(y):(y)-8) ))
-#define setFlag(x,y)      (*(UInteger8*)((x)+((y)<8?1:0)) |= 1<<((y)<8?(y):(y)-8) )
-#define clearFlag(x,y)    (*(UInteger8*)((x)+((y)<8?1:0)) &= ~(1<<((y)<8?(y):(y)-8)) )
+#define getFlag(x,y)  !!( *(UInteger8*)((x)+((y)<8?1:0)) &   (1<<((y)<8?(y):(y)-8)) )
+#define setFlag(x,y)    ( *(UInteger8*)((x)+((y)<8?1:0)) |=   1<<((y)<8?(y):(y)-8)  )
+#define clearFlag(x,y)  ( *(UInteger8*)((x)+((y)<8?1:0)) &= ~(1<<((y)<8?(y):(y)-8)) )
 
 
 /* msg.c */

@@ -2,7 +2,7 @@
 
 RM = rm -f
 CFLAGS = -Wall
-#CPPFLAGS = -DPTPD_DBG -DPTPD_NO_DAEMON
+CPPFLAGS = -DPTPD_DBG -DPTPD_NO_DAEMON
 
 PROG = ptpd
 OBJ  = ptpd.o arith.o bmc.o probe.o protocol.o \
@@ -21,7 +21,5 @@ $(PROG): $(OBJ)
 
 $(OBJ): $(HDR)
 
-clean: FORCE
+clean:
 	$(RM) $(PROG) $(OBJ)
-
-FORCE:

@@ -274,12 +274,15 @@ void toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
   Boolean isFromSelf;
-  TimeInternal wait, time = { 0, 0 };
+  TimeInternal time = { 0, 0 };
   
-  wait.seconds = PTP_SYNC_INTERVAL_TIMEOUT(ptpClock->sync_interval);
-  wait.nanoseconds = 0;
-  if(!ptpClock->message_activity)
-    netSelect(&wait, &ptpClock->netPath);
+  if(!ptpClock->message_activity && !netSelect(0, &ptpClock->netPath))
+  {
+    DBGV("handle: nothing\n");
+    return;
+  }
+  else
+    DBGV("handle: something\n");
   
   if(netRecvEvent(0, ptpClock->msgIbuf, &time, &ptpClock->netPath))
   {
@@ -331,7 +334,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     break;
     
    default:
-    DBG("handleMessage: unrecognized message\n");
+    DBG("handle: unrecognized message\n");
     break;
   }
 }

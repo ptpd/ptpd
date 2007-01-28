@@ -382,7 +382,7 @@ Boolean netSelect(TimeInternal *timeout, NetPath *netPath)
 {
   int nfds;
   fd_set readfds;
-  struct timeval tv;
+  struct timeval tv, *tv_ptr;
   
   if(timeout < 0)
     return FALSE;
@@ -391,15 +391,21 @@ Boolean netSelect(TimeInternal *timeout, NetPath *netPath)
   FD_SET(netPath->eventSock, &readfds);
   FD_SET(netPath->generalSock, &readfds);
   
-  tv.tv_sec = timeout->seconds;
-  tv.tv_usec = timeout->nanoseconds/1000;
+  if(timeout)
+  {
+    tv.tv_sec = timeout->seconds;
+    tv.tv_usec = timeout->nanoseconds/1000;
+    tv_ptr = &tv;
+  }
+  else
+    tv_ptr = 0;
   
   if(netPath->eventSock > netPath->generalSock)
     nfds = netPath->eventSock;
   else
     nfds = netPath->generalSock;
   
-  return select(nfds + 1, &readfds, 0, 0, &tv) > 0;
+  return select(nfds + 1, &readfds, 0, 0, tv_ptr) > 0;
 }
 
 Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *netPath)

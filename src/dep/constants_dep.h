@@ -84,7 +84,6 @@
 
 /* others */
 
-#define TIMER_INTERVAL  250000000    /* in nsec */
 #define SCREEN_BUFSZ  128
 #define SCREEN_MAXSZ  80
 
