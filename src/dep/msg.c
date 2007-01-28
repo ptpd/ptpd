@@ -3,7 +3,7 @@
 
 #include "../ptpd.h"
 
-Boolean msgPeek(void *buf)
+Boolean msgPeek(void *buf, ssize_t length)
 {
   /* not imlpemented yet */
   return TRUE;

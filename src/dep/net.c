@@ -378,7 +378,7 @@ Boolean netShutdown(NetPath *netPath)
   return TRUE;
 }
 
-Boolean netSelect(TimeInternal *timeout, NetPath *netPath)
+int netSelect(TimeInternal *timeout, NetPath *netPath)
 {
   int nfds;
   fd_set readfds;
@@ -408,8 +408,9 @@ Boolean netSelect(TimeInternal *timeout, NetPath *netPath)
   return select(nfds + 1, &readfds, 0, 0, tv_ptr) > 0;
 }
 
-Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *netPath)
+ssize_t netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *netPath)
 {
+  ssize_t ret;
   struct msghdr msg;
   struct iovec vec[1];
   struct sockaddr_in from_addr;
@@ -436,17 +437,18 @@ Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
   msg.msg_controllen = sizeof(cmsg_un.data);
   msg.msg_flags = 0;
   
-  if(recvmsg(netPath->eventSock, &msg, MSG_DONTWAIT) <= 0)
-    return FALSE;
+  ret = recvmsg(netPath->eventSock, &msg, MSG_DONTWAIT);
+  if(ret <= 0)
+    return 0;
   
   /* get time stamp of packet */
   if(!time)
-    return FALSE;
+    return 0;
   
   if(msg.msg_controllen < sizeof(struct cmsghdr) || msg.msg_flags & MSG_CTRUNC)
   {
     PERROR("short or truncated cmsghdr!\n");
-    return FALSE;
+    return 0;
   }
   
   tv = 0;
@@ -468,33 +470,36 @@ Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
        because the time recorded could be well after the message receive,
        which would put a big spike in the offset signal sent to the clock servo */
     DBG("error getting recieve time\n");
-    return FALSE;
+    return 0;
   }
 
   /* save address */
   if(address)
     memcpy(address, inet_ntoa(from_addr.sin_addr), NET_ADDRESS_LENGTH);
   
-  return TRUE;
+  return ret;
 }
 
-Boolean netRecvGeneral(Octet *address, Octet *buf, NetPath *netPath)
+ssize_t netRecvGeneral(Octet *address, Octet *buf, NetPath *netPath)
 {
+  ssize_t ret;
   struct sockaddr_in addr;
   socklen_t addr_len = sizeof(struct sockaddr_in);
   
-  if(recvfrom(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT, (struct sockaddr *)&addr, &addr_len) <= 0)
-    return FALSE;
+  ret = recvfrom(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT, (struct sockaddr *)&addr, &addr_len);
+  if(ret <= 0)
+    return 0;
   
   /* save address */
   if(address)
     memcpy(address, inet_ntoa(addr.sin_addr), NET_ADDRESS_LENGTH);
     
-  return TRUE;
+  return ret;
 }
 
-Boolean netSendEvent(Octet *address, Octet *buf, UInteger16 length, NetPath *netPath)
+ssize_t netSendEvent(Octet *address, Octet *buf, UInteger16 length, NetPath *netPath)
 {
+  ssize_t ret;
   struct sockaddr_in addr;
   
   addr.sin_family = AF_INET;
@@ -504,17 +509,19 @@ Boolean netSendEvent(Octet *address, Octet *buf, UInteger16 length, NetPath *net
   else
     addr.sin_addr.s_addr = netPath->bcastAddr;
   
-  if(sendto(netPath->eventSock, buf, length, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0)
+  ret = sendto(netPath->eventSock, buf, length, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+  if(ret <= 0)
   {
     DBGV("error sending event message\n");
-    return FALSE;
+    return 0;
   }
   
-  return TRUE;
+  return ret;
 }
 
-Boolean netSendGeneral(Octet *address, Octet *buf, UInteger16 length, NetPath *netPath)
+ssize_t netSendGeneral(Octet *address, Octet *buf, UInteger16 length, NetPath *netPath)
 {
+  ssize_t ret;
   struct sockaddr_in addr;
   
   addr.sin_family = AF_INET;
@@ -524,12 +531,13 @@ Boolean netSendGeneral(Octet *address, Octet *buf, UInteger16 length, NetPath *n
   else
     addr.sin_addr.s_addr = netPath->bcastAddr;
   
-  if(sendto(netPath->generalSock, buf, length, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0)
+  ret = sendto(netPath->generalSock, buf, length, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+  if(ret <= 0)
   {
     DBG("error sending general message\n");
-    return FALSE;
+    return 0;
   }
   
-  return TRUE;
+  return ret;
 }
 

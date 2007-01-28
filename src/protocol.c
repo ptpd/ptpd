@@ -7,11 +7,11 @@ void doState(RunTimeOpts*,PtpClock*);
 void toState(UInteger8,RunTimeOpts*,PtpClock*);
 
 void handle(RunTimeOpts*,PtpClock*);
-void handleSync(MsgHeader*,Octet*,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
-void handleFollowUp(MsgHeader*,Octet*,Boolean,RunTimeOpts*,PtpClock*);
-void handleDelayReq(MsgHeader*,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
-void handleDelayResp(MsgHeader*,Octet*,Boolean,RunTimeOpts*,PtpClock*);
-void handleManagement(MsgHeader*,Octet*,Boolean,RunTimeOpts*,PtpClock*);
+void handleSync(MsgHeader*,Octet*,ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+void handleFollowUp(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+void handleDelayReq(MsgHeader*,Octet*,ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+void handleDelayResp(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+void handleManagement(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
 
 void issueSync(RunTimeOpts*,PtpClock*);
 void issueFollowup(TimeInternal*,RunTimeOpts*,PtpClock*);
@@ -273,6 +273,7 @@ void toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 /* check and handle received messages */
 void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
+  ssize_t length;
   Boolean isFromSelf;
   TimeInternal time = { 0, 0 };
   
@@ -284,17 +285,45 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   else
     DBGV("handle: something\n");
   
-  if(netRecvEvent(0, ptpClock->msgIbuf, &time, &ptpClock->netPath))
+  length = netRecvEvent(0, ptpClock->msgIbuf, &time, &ptpClock->netPath);
+  if(length < 0)
+  {
+    PERROR("failed to receive on the event socket");
+    toState(PTP_FAULTY, rtOpts, ptpClock);
+    return;
+  }
+  else if(!length)
+  {
+    length = netRecvGeneral(0, ptpClock->msgIbuf, &ptpClock->netPath);
+    if(length < 0)
+    {
+      PERROR("failed to receive on the general socket");
+      toState(PTP_FAULTY, rtOpts, ptpClock);
+      return;
+    }
+    else if(!length)
+    {
+      DBG("expected something but nothing");
+      return;
+    }
+    /* else length > 0 */
+  }
+  else /* length > 0 */
   {
     subTime(&time, &time, &rtOpts->inboundLatency);
   }
-  else if(!netRecvGeneral(0, ptpClock->msgIbuf, &ptpClock->netPath))
-    return;
-    
+  
   ptpClock->message_activity = TRUE;
   
-  if(!msgPeek(ptpClock->msgIbuf))
+  if(!msgPeek(ptpClock->msgIbuf, length))
     return;
+  
+  if(length < HEADER_LENGTH)
+  {
+    ERROR("message shorter than header length\n");
+    toState(PTP_FAULTY, rtOpts, ptpClock);
+    return;
+  }
   
   msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
   
@@ -314,23 +343,23 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   switch(ptpClock->msgTmpHeader.control)
   {
   case PTP_SYNC_MESSAGE:
-    handleSync(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, &time, isFromSelf, rtOpts, ptpClock);
+    handleSync(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, length, &time, isFromSelf, rtOpts, ptpClock);
     break;
     
   case PTP_FOLLOWUP_MESSAGE:
-    handleFollowUp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, isFromSelf, rtOpts, ptpClock);
+    handleFollowUp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, length, isFromSelf, rtOpts, ptpClock);
     break;
     
   case PTP_DELAY_REQ_MESSAGE:
-    handleDelayReq(&ptpClock->msgTmpHeader, &time, isFromSelf, rtOpts, ptpClock);
+    handleDelayReq(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, length, &time, isFromSelf, rtOpts, ptpClock);
     break;
     
   case PTP_DELAY_RESP_MESSAGE:
-    handleDelayResp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, isFromSelf, rtOpts, ptpClock);
+    handleDelayResp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, length, isFromSelf, rtOpts, ptpClock);
     break;
     
   case PTP_MANAGEMENT_MESSAGE:
-    handleManagement(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, isFromSelf, rtOpts, ptpClock);
+    handleManagement(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, length, isFromSelf, rtOpts, ptpClock);
     break;
     
    default:
@@ -339,10 +368,17 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   }
 }
 
-void handleSync(MsgHeader *header, Octet *msgIbuf, TimeInternal *time, Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+void handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length, TimeInternal *time, Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
   MsgSync *sync;
   TimeInternal originTimestamp;
+  
+  if(length < SYNC_PACKET_LENGTH)
+  {
+    ERROR("short sync message\n");
+    toState(PTP_FAULTY, rtOpts, ptpClock);
+    return;
+  }
   
   switch(ptpClock->port_state)
   {
@@ -435,10 +471,17 @@ void handleSync(MsgHeader *header, Octet *msgIbuf, TimeInternal *time, Boolean i
   }
 }
 
-void handleFollowUp(MsgHeader *header, Octet *msgIbuf, Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+void handleFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length, Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
   MsgFollowUp *follow;
   TimeInternal preciseOriginTimestamp;
+  
+  if(length < FOLLOW_UP_PACKET_LENGTH)
+  {
+    ERROR("short folow up message\n");
+    toState(PTP_FAULTY, rtOpts, ptpClock);
+    return;
+  }
   
   switch(ptpClock->port_state)
   {
@@ -484,8 +527,15 @@ void handleFollowUp(MsgHeader *header, Octet *msgIbuf, Boolean isFromSelf, RunTi
   }
 }
 
-void handleDelayReq(MsgHeader *header, TimeInternal *time, Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+void handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length, TimeInternal *time, Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
+  if(length < DELAY_REQ_PACKET_LENGTH)
+  {
+    ERROR("short delay request message\n");
+    toState(PTP_FAULTY, rtOpts, ptpClock);
+    return;
+  }
+  
   switch(ptpClock->port_state)
   {
   case PTP_MASTER:
@@ -531,9 +581,16 @@ void handleDelayReq(MsgHeader *header, TimeInternal *time, Boolean isFromSelf, R
   }
 }
 
-void handleDelayResp(MsgHeader *header, Octet *msgIbuf, Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+void handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length, Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
   MsgDelayResp *resp;
+  
+  if(length < DELAY_RESP_PACKET_LENGTH)
+  {
+    ERROR("short delay request message\n");
+    toState(PTP_FAULTY, rtOpts, ptpClock);
+    return;
+  }
   
   switch(ptpClock->port_state)
   {
@@ -581,7 +638,7 @@ void handleDelayResp(MsgHeader *header, Octet *msgIbuf, Boolean isFromSelf, RunT
   }
 }
 
-void handleManagement(MsgHeader *header, Octet *msgIbuf, Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+void handleManagement(MsgHeader *header, Octet *msgIbuf, ssize_t length, Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
   MsgManagement *manage;
   

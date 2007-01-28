@@ -77,7 +77,7 @@ static inline Integer32 flip32(x)
 
 
 /* msg.c */
-Boolean msgPeek(void*);
+Boolean msgPeek(void*,ssize_t);
 void msgUnpackHeader(void*,MsgHeader*);
 void msgUnpackSync(void*,MsgSync*);
 void msgUnpackDelayReq(void*,MsgDelayReq*);
@@ -98,11 +98,11 @@ UInteger16 msgPackManagementResponse(void*,MsgHeader*,MsgManagement*,PtpClock*);
 /* linux API dependent */
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
 Boolean netShutdown(NetPath*);
-Boolean netSelect(TimeInternal*,NetPath*);
-Boolean netRecvEvent(Octet*,Octet*,TimeInternal*,NetPath*);
-Boolean netRecvGeneral(Octet*,Octet*,NetPath*);
-Boolean netSendEvent(Octet*,Octet*,UInteger16,NetPath*);
-Boolean netSendGeneral(Octet*,Octet*,UInteger16,NetPath*);
+int netSelect(TimeInternal*,NetPath*);
+ssize_t netRecvEvent(Octet*,Octet*,TimeInternal*,NetPath*);
+ssize_t netRecvGeneral(Octet*,Octet*,NetPath*);
+ssize_t netSendEvent(Octet*,Octet*,UInteger16,NetPath*);
+ssize_t netSendGeneral(Octet*,Octet*,UInteger16,NetPath*);
 
 /* servo.c */
 void initClock(RunTimeOpts*,PtpClock*);
