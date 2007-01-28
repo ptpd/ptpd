@@ -273,17 +273,29 @@ void toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 /* check and handle received messages */
 void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
+  int ret;
   ssize_t length;
   Boolean isFromSelf;
   TimeInternal time = { 0, 0 };
   
-  if(!ptpClock->message_activity && !netSelect(0, &ptpClock->netPath))
+  if(!ptpClock->message_activity)
   {
-    DBGV("handle: nothing\n");
-    return;
+    ret = netSelect(0, &ptpClock->netPath);
+    if(ret < 0)
+    {
+      PERROR("failed to poll sockets");
+      toState(PTP_FAULTY, rtOpts, ptpClock);
+      return;
+    }
+    else if(!ret)
+    {
+      DBGV("handle: nothing\n");
+      return;
+    }
+    /* else length > 0 */
   }
-  else
-    DBGV("handle: something\n");
+  
+  DBGV("handle: something\n");
   
   length = netRecvEvent(0, ptpClock->msgIbuf, &time, &ptpClock->netPath);
   if(length < 0)
@@ -303,7 +315,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     }
     else if(!length)
     {
-      DBG("expected something but nothing");
+      DBG("expected something but nothing\n");
       return;
     }
     /* else length > 0 */

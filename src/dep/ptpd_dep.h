@@ -7,6 +7,7 @@
 #include<stdio.h>
 #include<string.h>
 #include<unistd.h>
+#include<errno.h>
 #include<signal.h>
 #include<fcntl.h>
 #include<sys/stat.h>
@@ -21,7 +22,7 @@
 
 /* system messages */
 #define ERROR(x, ...)  fprintf(stderr, "(ptpd error) " x, ##__VA_ARGS__)
-#define PERROR(x, ...) fprintf(stderr, "(ptpd error) " x ": %m", ##__VA_ARGS__)
+#define PERROR(x, ...) fprintf(stderr, "(ptpd error) " x ": %m\n", ##__VA_ARGS__)
 #define NOTIFY(x, ...) fprintf(stderr, "(ptpd notice) " x, ##__VA_ARGS__)
 
 /* debug messages */

@@ -380,7 +380,7 @@ Boolean netShutdown(NetPath *netPath)
 
 int netSelect(TimeInternal *timeout, NetPath *netPath)
 {
-  int nfds;
+  int ret, nfds;
   fd_set readfds;
   struct timeval tv, *tv_ptr;
   
@@ -405,7 +405,14 @@ int netSelect(TimeInternal *timeout, NetPath *netPath)
   else
     nfds = netPath->generalSock;
   
-  return select(nfds + 1, &readfds, 0, 0, tv_ptr) > 0;
+  ret = select(nfds + 1, &readfds, 0, 0, tv_ptr) > 0;
+  if(ret < 0)
+  {
+    if(errno == EAGAIN || errno == EINTR)
+      return 0;
+  }
+  
+  return ret;
 }
 
 ssize_t netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *netPath)
@@ -439,7 +446,12 @@ ssize_t netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
   
   ret = recvmsg(netPath->eventSock, &msg, MSG_DONTWAIT);
   if(ret <= 0)
-    return 0;
+  {
+    if(errno == EAGAIN || errno == EINTR)
+      return 0;
+    
+    return ret;
+  }
   
   /* get time stamp of packet */
   if(!time)
@@ -488,7 +500,12 @@ ssize_t netRecvGeneral(Octet *address, Octet *buf, NetPath *netPath)
   
   ret = recvfrom(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT, (struct sockaddr *)&addr, &addr_len);
   if(ret <= 0)
-    return 0;
+  {
+    if(errno == EAGAIN || errno == EINTR)
+      return 0;
+    
+    return ret;
+  }
   
   /* save address */
   if(address)
@@ -511,10 +528,7 @@ ssize_t netSendEvent(Octet *address, Octet *buf, UInteger16 length, NetPath *net
   
   ret = sendto(netPath->eventSock, buf, length, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
   if(ret <= 0)
-  {
     DBGV("error sending event message\n");
-    return 0;
-  }
   
   return ret;
 }
@@ -533,10 +547,7 @@ ssize_t netSendGeneral(Octet *address, Octet *buf, UInteger16 length, NetPath *n
   
   ret = sendto(netPath->generalSock, buf, length, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
   if(ret <= 0)
-  {
     DBG("error sending general message\n");
-    return 0;
-  }
   
   return ret;
 }
