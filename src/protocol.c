@@ -706,7 +706,7 @@ void issueManagement(MsgHeader *header, MsgManagement *manage, RunTimeOpts *rtOp
 /* add or update an entry in the foreign master data set */
 MsgSync * addForeign(Octet *buf, MsgHeader *header, PtpClock *ptpClock)
 {
-  Integer16 i, j;
+  int i, j;
   Boolean found = FALSE;
   
   DBGV("updateForeign\n");

@@ -30,8 +30,7 @@ void initTimer(void)
 
 void timerUpdate(IntervalTimer *itimer)
 {
-  Integer16 i;
-  int delta;
+  int i, delta;
   
   delta = elapsed;
   elapsed = 0;
