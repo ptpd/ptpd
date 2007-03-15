@@ -318,11 +318,6 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
       DBG("expected something but nothing\n");
       return;
     }
-    /* else length > 0 */
-  }
-  else /* length > 0 */
-  {
-    subTime(&time, &time, &rtOpts->inboundLatency);
   }
   
   ptpClock->message_activity = TRUE;
@@ -351,6 +346,11 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   isFromSelf = ptpClock->msgTmpHeader.sourceCommunicationTechnology == ptpClock->port_communication_technology
     && ptpClock->msgTmpHeader.sourcePortId == ptpClock->port_id_field
     && !memcmp(ptpClock->msgTmpHeader.sourceUuid, ptpClock->port_uuid_field, PTP_UUID_LENGTH);
+  
+  /* subtract the inbound latency adjustment if it is not a loop back and the
+     time stamp seems reasonable */
+  if(!isFromSelf && time.seconds > 0)
+    subTime(&time, &time, &rtOpts->inboundLatency);
   
   switch(ptpClock->msgTmpHeader.control)
   {
