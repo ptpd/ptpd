@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   version="1.0"
+   width="700"
+   height="250"
+   id="svg2">
+  <defs
+     id="defs3" />
+  <g
+     id="layer1">
+    <path
+       d="M 74,202.5 L 452.5,202.5 L 452.5,80"
+       style="fill:none;fill-opacity:0.75;fill-rule:evenodd;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="path3663" />
+    <polyline
+       points="16510,6352 19685,6352"
+       id="polyline2275"
+       style="fill:none;stroke:#000000;stroke-width:27.03482819;stroke-miterlimit:4;stroke-dasharray:none"
+       transform="matrix(3.861393e-2,0,0,3.543307e-2,-160.516,-66.07086)" />
+    <polyline
+       points="5080,4447 14605,4447"
+       id="polyline2277"
+       style="fill:none;stroke:#000000;stroke-width:27.88088608;stroke-miterlimit:4;stroke-dasharray:none"
+       transform="matrix(3.630597e-2,0,0,3.543307e-2,-103.732,-89.83858)" />
+    <polyline
+       points="8890,4447 8890,6352"
+       id="polyline2279"
+       style="fill:none;stroke:#000000;stroke-width:28.22222328;stroke-miterlimit:4"
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)" />
+    <polyline
+       points="5080,6987 8890,6987"
+       id="polyline2281"
+       style="fill:none;stroke:#000000;stroke-width:22.10805321;stroke-miterlimit:4;stroke-dasharray:none"
+       transform="matrix(5.774179e-2,0,0,3.543307e-2,-212.3245,-89.83858)" />
+    <polyline
+       points="15557,5082 14605,5082 14605,3812 16510,3812 16510,5082 15557,5082"
+       id="polyline2289"
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-98.65352,-89.83858)"
+       style="fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:28.22222328;stroke-miterlimit:4;stroke-opacity:1" />
+    <polyline
+       points="15240,7622 13970,7622 13970,5717 16510,5717 16510,7622 15240,7622"
+       id="polyline2303"
+       transform="matrix(3.972112e-2,0,0,3.543307e-2,-152.7534,-89.84251)"
+       style="font-size:494px;font-weight:400;fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:28.22222328;stroke-miterlimit:4;stroke-opacity:1;font-family:Nimbus Roman No9 L" />
+    <polygon
+       points="9525,6996 9524,6964 9522,6933 9518,6901 9512,6870 9505,6839 9496,6809 9485,6779 9474,6749 9460,6720 9445,6692 9429,6665 9411,6638 9392,6613 9372,6588 9350,6565 9327,6542 9304,6521 9279,6501 9253,6482 9226,6465 9198,6449 9170,6434 9140,6421 9111,6409 9080,6399 9049,6390 9018,6383 8986,6377 8954,6373 8922,6371 8890,6370 8890,6370 8858,6371 8826,6373 8794,6377 8762,6383 8731,6390 8700,6399 8669,6409 8640,6421 8610,6434 8582,6449 8554,6465 8527,6482 8501,6501 8476,6521 8453,6542 8430,6565 8408,6588 8388,6613 8369,6638 8351,6665 8335,6692 8320,6720 8306,6749 8295,6779 8284,6809 8275,6839 8268,6870 8262,6901 8258,6933 8256,6964 8255,6996 8255,6996 8256,7028 8258,7059 8262,7091 8268,7122 8275,7153 8284,7183 8295,7213 8306,7243 8320,7272 8335,7300 8351,7327 8369,7354 8388,7379 8408,7404 8430,7427 8453,7450 8476,7471 8501,7491 8527,7510 8554,7527 8582,7543 8610,7558 8640,7571 8669,7583 8700,7593 8731,7602 8762,7609 8794,7615 8826,7619 8858,7621 8890,7622 8890,7622 8922,7621 8954,7619 8986,7615 9018,7609 9049,7602 9080,7593 9111,7583 9140,7571 9170,7558 9198,7543 9226,7527 9253,7510 9279,7491 9304,7471 9327,7450 9350,7427 9372,7404 9392,7379 9411,7354 9429,7327 9445,7300 9460,7272 9474,7243 9485,7213 9496,7183 9505,7153 9512,7122 9518,7091 9522,7059 9524,7028 9525,6996 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)"
+       style="font-size:494px;font-weight:400;fill:#ffffff;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2313" />
+    <polygon
+       points="6985,4447 6680,4345 6680,4548 6985,4447 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)"
+       style="font-size:494px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2325" />
+    <polyline
+       points="20955,5715 20955,5323"
+       id="polyline2541"
+       transform="matrix(3.543307e-2,0,0,7.65343e-2,-101.2348,-298.1284)"
+       style="font-size:494px;font-weight:400;fill:none;stroke:#000000;stroke-width:19.20293236;stroke-miterlimit:4;stroke-dasharray:none;font-family:Nimbus Roman No9 L" />
+    <polygon
+       points="19685,5717 22225,5717 22225,7622 19685,7622 19685,5717 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-101,-66.07086)"
+       style="font-size:494px;font-weight:400;fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:28.22222328;stroke-miterlimit:4;stroke-opacity:1;font-family:Nimbus Roman No9 L"
+       id="polygon2333" />
+    <polygon
+       points="22225,3811 22223,3747 22218,3682 22210,3619 22199,3555 22184,3492 22167,3431 22146,3370 22122,3310 22095,3251 22065,3194 22033,3139 21997,3085 21959,3033 21919,2983 21875,2935 21830,2890 21782,2847 21732,2806 21681,2768 21627,2732 21571,2700 21514,2670 21456,2643 21396,2619 21335,2598 21273,2581 21211,2566 21147,2555 21083,2547 21019,2542 20955,2540 20955,2540 20891,2542 20827,2547 20763,2555 20699,2566 20637,2581 20575,2598 20514,2619 20454,2643 20396,2670 20339,2700 20283,2732 20229,2768 20178,2806 20128,2847 20080,2890 20035,2935 19991,2983 19951,3033 19913,3085 19877,3139 19845,3194 19815,3251 19788,3310 19764,3370 19743,3431 19726,3492 19711,3555 19700,3619 19692,3682 19687,3747 19685,3811 19685,3811 19687,3875 19692,3940 19700,4003 19711,4067 19726,4130 19743,4191 19764,4252 19788,4312 19815,4371 19845,4428 19877,4483 19913,4537 19951,4589 19991,4639 20035,4687 20080,4732 20128,4775 20178,4816 20229,4854 20283,4890 20339,4922 20396,4952 20454,4979 20514,5003 20575,5024 20637,5041 20699,5056 20763,5067 20827,5075 20891,5080 20955,5082 20955,5082 21019,5080 21083,5075 21147,5067 21211,5056 21273,5041 21335,5024 21396,5003 21456,4979 21514,4952 21571,4922 21627,4890 21681,4854 21732,4816 21782,4775 21830,4732 21875,4687 21919,4639 21959,4589 21997,4537 22033,4483 22065,4428 22095,4371 22122,4312 22146,4252 22167,4191 22184,4130 22199,4067 22210,4003 22218,3940 22223,3875 22225,3811 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-101,-65.07086)"
+       style="font-size:494px;font-weight:400;fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:28.22222328;stroke-miterlimit:4;stroke-opacity:1;font-family:Nimbus Roman No9 L"
+       id="polygon2349" />
+    <polygon
+       points="3175,3812 5080,3812 5080,8892 3175,8892 3175,3812 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)"
+       style="font-size:494px;font-weight:400;fill:#ffffff;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2361" />
+    <polyline
+       points="4127,8892 3175,8892 3175,3812 5080,3812 5080,8892 4127,8892"
+       id="polyline2365"
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)"
+       style="font-size:494px;font-weight:400;fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:28.22222328;stroke-miterlimit:4;stroke-opacity:1;font-family:Nimbus Roman No9 L" />
+    <polygon
+       points="12065,4456 12064,4424 12062,4393 12058,4361 12052,4330 12045,4299 12036,4269 12025,4239 12014,4209 12000,4180 11985,4152 11969,4125 11951,4098 11932,4073 11912,4048 11890,4025 11867,4002 11844,3981 11819,3961 11793,3942 11766,3925 11738,3909 11710,3894 11680,3881 11651,3869 11620,3859 11589,3850 11558,3843 11526,3837 11494,3833 11462,3831 11430,3830 11430,3830 11398,3831 11366,3833 11334,3837 11302,3843 11271,3850 11240,3859 11209,3869 11180,3881 11150,3894 11122,3909 11094,3925 11067,3942 11041,3961 11016,3981 10993,4002 10970,4025 10948,4048 10928,4073 10909,4098 10891,4125 10875,4152 10860,4180 10846,4209 10835,4239 10824,4269 10815,4299 10808,4330 10802,4361 10798,4393 10796,4424 10795,4456 10795,4456 10796,4488 10798,4519 10802,4551 10808,4582 10815,4613 10824,4643 10835,4673 10846,4703 10860,4732 10875,4760 10891,4787 10909,4814 10928,4839 10948,4864 10970,4887 10993,4910 11016,4931 11041,4951 11067,4970 11094,4987 11122,5003 11150,5018 11180,5031 11209,5043 11240,5053 11271,5062 11302,5069 11334,5075 11366,5079 11398,5081 11430,5082 11430,5082 11462,5081 11494,5079 11526,5075 11558,5069 11589,5062 11620,5053 11651,5043 11680,5031 11710,5018 11738,5003 11766,4987 11793,4970 11819,4951 11844,4931 11867,4910 11890,4887 11912,4864 11932,4839 11951,4814 11969,4787 11985,4760 12000,4732 12014,4703 12025,4673 12036,4643 12045,4613 12052,4582 12058,4551 12062,4519 12064,4488 12065,4456 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)"
+       style="font-size:423px;font-weight:400;fill:#ffffff;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2407" />
+    <polyline
+       points="11430,5082 11430,6352"
+       style="font-size:494px;font-weight:400;fill:none;stroke:#000000;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polyline2423"
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)" />
+    <polygon
+       points="8890,5717 8991,5412 8788,5412 8890,5717 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)"
+       style="font-size:423px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2435" />
+    <polygon
+       points="6985,6987 6680,6885 6680,7088 6985,6987 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)"
+       style="font-size:423px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2443" />
+    <polygon
+       points="10160,4447 9855,4345 9855,4548 10160,4447 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-96.1555,-89.83858)"
+       style="font-size:423px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2451" />
+    <polygon
+       points="10160,6987 9855,6885 9855,7088 10160,6987 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-94.1555,-89.95669)"
+       style="font-size:423px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2459" />
+    <polygon
+       points="13335,4447 13030,4345 13030,4548 13335,4447 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)"
+       style="font-size:423px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2467" />
+    <polygon
+       points="6985,8257 6680,8155 6680,8358 6985,8257 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-89.83858)"
+       style="font-size:423px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2485" />
+    <polygon
+       points="18415,6352 18110,6250 18110,6453 18415,6352 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-65.83858)"
+       style="font-size:423px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2493" />
+    <polyline
+       points="11748,7622 10796,7622 10796,6352 12701,6352 12701,7622 11748,7622"
+       id="polyline2505"
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-95.2987,-89.83858)"
+       style="font-size:423px;font-weight:400;fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:28.22222328;stroke-miterlimit:4;stroke-opacity:1;font-family:Nimbus Roman No9 L" />
+    <polygon
+       points="11430,5717 11328,6021 11531,6021 11430,5717 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-99.311,-97.83858)"
+       style="font-size:494px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2513" />
+    <polygon
+       points="15240,7622 15138,7926 15341,7926 15240,7622 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-87.38581,-85.07086)"
+       style="font-size:494px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2521" />
+    <polygon
+       points="15240,5717 15341,5412 15138,5412 15240,5717 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-87.38581,-92.76377)"
+       style="font-size:494px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2529" />
+    <polygon
+       points="20955,5080 20853,5384 21056,5384 20955,5080 "
+       transform="matrix(3.543307e-2,0,0,3.543307e-2,-101.2171,-61.83858)"
+       style="font-size:494px;font-weight:400;fill:#000000;stroke:none;stroke-width:28.22222328;stroke-miterlimit:4;font-family:Nimbus Roman No9 L"
+       id="polygon2537" />
+    <text
+       x="452.10867"
+       y="141.56526"
+       style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+       id="text2151"
+       xml:space="preserve"><tspan
+         x="452.10867"
+         y="141.56526"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Arial"
+         id="tspan2153">PI</tspan><tspan
+         x="452.10867"
+         y="164.06526"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Arial"
+         id="tspan2155">controller</tspan></text>
+    <text
+       x="142.27893"
+       y="43"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text2157"
+       xml:space="preserve"><tspan
+         x="144.38831"
+         y="43"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan2159">master-to-slave </tspan><tspan
+         x="142.27893"
+         y="58"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan2161">delay</tspan></text>
+    <text
+       x="142.41797"
+       y="133.58594"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text2163"
+       xml:space="preserve"><tspan
+         x="142.41797"
+         y="133.58594"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan2165">slave-to-master</tspan><tspan
+         x="142.41797"
+         y="148.58594"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan2167">delay</tspan></text>
+    <text
+       x="142.60547"
+       y="193.11719"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text2169"
+       xml:space="preserve"><tspan
+         x="142.60547"
+         y="193.11719"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan2173">interval</tspan></text>
+    <text
+       x="257.41992"
+       y="148.11719"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text2175"
+       xml:space="preserve"><tspan
+         x="257.41992"
+         y="148.11719"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan2177">1/2</tspan></text>
+    <text
+       x="341.03125"
+       y="107"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text2179"
+       xml:space="preserve"><tspan
+         x="341.03125"
+         y="107"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan2181">one-way</tspan><tspan
+         x="341.03125"
+         y="122"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan2183">delay</tspan></text>
+    <text
+       x="295.59073"
+       y="164.17467"
+       style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+       id="text2185"
+       xml:space="preserve"><tspan
+         x="295.59073"
+         y="164.17467"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Arial"
+         id="tspan2187">LP IIR</tspan></text>
+    <text
+       x="424.57254"
+       y="74.174667"
+       style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+       id="text2189"
+       xml:space="preserve"><tspan
+         x="424.57254"
+         y="74.174667"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Arial"
+         id="tspan2191">LP FIR</tspan></text>
+    <text
+       x="369.19922"
+       y="43"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text2193"
+       xml:space="preserve"><tspan
+         x="369.19922"
+         y="43"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan2197">offset from</tspan><tspan
+         x="369.19922"
+         y="58"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan2199">master</tspan></text>
+    <text
+       x="547.66797"
+       y="133.11719"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text3653"
+       xml:space="preserve"><tspan
+         x="547.66797"
+         y="133.11719"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan3657">tick rate</tspan><tspan
+         x="547.66797"
+         y="148.11719"
+         style="text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle"
+         id="tspan3659">adjustment</tspan></text>
+    <path
+       d="M 205 97.5 A 22.5 22.5 0 1 1  160,97.5 A 22.5 22.5 0 1 1  205 97.5 z"
+       transform="translate(33.18899,60.23228)"
+       style="fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="path2206" />
+    <text
+       x="209.06204"
+       y="162.70938"
+       style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+       id="text3665"
+       xml:space="preserve"><tspan
+         x="209.06204"
+         y="162.70938"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Arial"
+         id="tspan3667">∑</tspan></text>
+    <path
+       d="M 205 97.5 A 22.5 22.5 0 1 1  160,97.5 A 22.5 22.5 0 1 1  205 97.5 z"
+       transform="translate(123.189,-29.76772)"
+       style="fill:#b9f7b9;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="path3660" />
+    <text
+       x="299.06204"
+       y="72.709381"
+       style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+       id="text3669"
+       xml:space="preserve"><tspan
+         x="299.06204"
+         y="72.709381"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;font-family:Arial"
+         id="tspan3671">∑</tspan></text>
+    <text
+       x="641.42212"
+       y="165.67467"
+       style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+       id="text3673"
+       xml:space="preserve"><tspan
+         x="641.42212"
+         y="165.67467"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Arial"
+         id="tspan3677">Kernel</tspan><tspan
+         x="641.42212"
+         y="188.17467"
+         style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Arial"
+         id="tspan3679">FLL</tspan></text>
+    <text
+       x="616.56104"
+       y="76.675018"
+       style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+       id="text3681"
+       xml:space="preserve"><tspan
+         x="616.56104"
+         y="76.675018"
+         id="tspan3683">Clock</tspan></text>
+    <text
+       x="24.329134"
+       y="141.5692"
+       style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Arial"
+       id="text3685"
+       xml:space="preserve"><tspan
+         x="24.329134"
+         y="141.5692"
+         id="tspan3687">PTPd</tspan></text>
+    <text
+       x="292.41992"
+       y="102.11719"
+       style="font-size:12px;font-style:normal;font-weight:normal;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:Bitstream Vera Sans"
+       id="text8772"
+       xml:space="preserve"><tspan
+         x="292.41992"
+         y="102.11719"
+         style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;font-family:Arial"
+         id="tspan8774">–</tspan></text>
+  </g>
+</svg>
