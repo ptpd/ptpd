@@ -244,7 +244,7 @@ Boolean netInit(NetPath *netPath, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
   /* find a network interface */
   if( !(interfaceAddr.s_addr = findIface(rtOpts->ifaceName, &ptpClock->port_communication_technology,
-    ptpClock->port_uuid_field, !rtOpts->directAddress, netPath)) )
+    ptpClock->port_uuid_field, !rtOpts->directAddress[0], netPath)) )
     return FALSE;
   
   temp = 1;  /* allow address reuse */
