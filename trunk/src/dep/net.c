@@ -423,7 +423,7 @@ ssize_t netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
   struct sockaddr_in from_addr;
   union {
       struct cmsghdr cm;
-      char data[CMSG_SPACE(sizeof(struct timeval))];
+      char control[CMSG_SPACE(sizeof(struct timeval))];
   } cmsg_un;
   struct cmsghdr *cmsg;
   struct timeval *tv;
@@ -440,8 +440,8 @@ ssize_t netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
   msg.msg_namelen = sizeof(from_addr);
   msg.msg_iov = vec;
   msg.msg_iovlen = 1;
-  msg.msg_control = cmsg_un.data;
-  msg.msg_controllen = sizeof(cmsg_un.data);
+  msg.msg_control = cmsg_un.control;
+  msg.msg_controllen = sizeof(cmsg_un.control);
   msg.msg_flags = 0;
   
   ret = recvmsg(netPath->eventSock, &msg, MSG_DONTWAIT);
@@ -453,13 +453,30 @@ ssize_t netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
     return ret;
   }
   
+  if(msg.msg_flags&MSG_TRUNC)
+  {
+    ERROR("received truncated message\n");
+    return 0;
+  }
+  
   /* get time stamp of packet */
   if(!time)
-    return 0;
-  
-  if(msg.msg_controllen < sizeof(struct cmsghdr) || msg.msg_flags & MSG_CTRUNC)
   {
-    PERROR("short or truncated cmsghdr!\n");
+    ERROR("null receive time stamp argument\n");
+    return 0;
+  }
+  
+  if(msg.msg_flags&MSG_CTRUNC)
+  {
+    ERROR("received truncated ancillary data\n");
+    return 0;
+  }
+  
+  if(msg.msg_controllen < sizeof(cmsg_un.control))
+  {
+    ERROR("received short ancillary data (%d/%d)\n",
+      msg.msg_controllen, sizeof(cmsg_un.control));
+    
     return 0;
   }
   
@@ -481,7 +498,7 @@ ssize_t netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
     /* do not try to get by with recording the time here, better to fail
        because the time recorded could be well after the message receive,
        which would put a big spike in the offset signal sent to the clock servo */
-    DBG("error getting recieve time\n");
+    DBG("no recieve time stamp\n");
     return 0;
   }
 
