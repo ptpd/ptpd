@@ -475,7 +475,7 @@ ssize_t netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
   if(msg.msg_controllen < sizeof(cmsg_un.control))
   {
     ERROR("received short ancillary data (%d/%d)\n",
-      msg.msg_controllen, sizeof(cmsg_un.control));
+      msg.msg_controllen, (int)sizeof(cmsg_un.control));
     
     return 0;
   }
