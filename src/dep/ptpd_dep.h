@@ -100,10 +100,10 @@ UInteger16 msgPackManagementResponse(void*,MsgHeader*,MsgManagement*,PtpClock*);
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
 Boolean netShutdown(NetPath*);
 int netSelect(TimeInternal*,NetPath*);
-ssize_t netRecvEvent(Octet*,Octet*,TimeInternal*,NetPath*);
-ssize_t netRecvGeneral(Octet*,Octet*,NetPath*);
-ssize_t netSendEvent(Octet*,Octet*,UInteger16,NetPath*);
-ssize_t netSendGeneral(Octet*,Octet*,UInteger16,NetPath*);
+ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*);
+ssize_t netRecvGeneral(Octet*,NetPath*);
+ssize_t netSendEvent(Octet*,UInteger16,NetPath*);
+ssize_t netSendGeneral(Octet*,UInteger16,NetPath*);
 
 /* servo.c */
 void initClock(RunTimeOpts*,PtpClock*);

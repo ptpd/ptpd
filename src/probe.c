@@ -12,7 +12,7 @@ void probe(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
   UInteger16 i;
   UInteger16 length;
-  TimeInternal interval, now, finish;
+  TimeInternal interval, now, finish, timestamp;
   
   /* check */
   if(rtOpts->probe_management_key == PTP_MM_UPDATE_DEFAULT_DATA_SET
@@ -55,7 +55,7 @@ void probe(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     
     printf("\n(sending managementMessageKey %hhu)\n", ptpClock->msgTmp.manage.managementMessageKey); 
     
-    if(!netSendGeneral(0, ptpClock->msgObuf, length, &ptpClock->netPath))
+    if(!netSendGeneral(ptpClock->msgObuf, length, &ptpClock->netPath))
     {
       ERROR("failed to send message\n");
       return;
@@ -73,9 +73,9 @@ void probe(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     interval.nanoseconds = 0;
     netSelect(&interval, &ptpClock->netPath);
     
-    netRecvEvent(0, ptpClock->msgIbuf, 0, &ptpClock->netPath);
+    netRecvEvent(ptpClock->msgIbuf, &timestamp, &ptpClock->netPath);
     
-    if(netRecvGeneral(0, ptpClock->msgIbuf, &ptpClock->netPath))
+    if(netRecvGeneral(ptpClock->msgIbuf, &ptpClock->netPath))
     {
       msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
       

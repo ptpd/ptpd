@@ -22,7 +22,7 @@ typedef struct {
 } one_way_delay_filter;
 
 typedef struct {
-  Integer32 eventSock, generalSock, bcastAddr;
+  Integer32 eventSock, generalSock, multicastAddr, unicastAddr;
 } NetPath;
 
 #endif

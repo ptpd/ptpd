@@ -61,7 +61,7 @@ UInteger8 lookupCommunicationTechnology(UInteger8 communicationTechnology)
 }
 
 UInteger32 findIface(Octet *ifaceName, UInteger8 *communicationTechnology,
-  Octet *uuid, Boolean multicast, NetPath *netPath)
+  Octet *uuid, NetPath *netPath)
 {
 #if defined(linux)
 
@@ -75,7 +75,7 @@ UInteger32 findIface(Octet *ifaceName, UInteger8 *communicationTechnology,
   
   memset(data.ifc_buf,0,data.ifc_len);
   
-  flags = IFF_UP|IFF_RUNNING|(multicast?IFF_MULTICAST:0);
+  flags = IFF_UP|IFF_RUNNING|IFF_MULTICAST;
   
   /* look for an interface if none specified */
   if(ifaceName[0] != '\0')
@@ -161,7 +161,7 @@ UInteger32 findIface(Octet *ifaceName, UInteger8 *communicationTechnology,
       continue;
     if ((ifv4->ifa_flags & IFF_LOOPBACK))
       continue;
-    if (multicast && (ifv4->ifa_flags & IFF_MULTICAST) == 0)
+    if ((ifv4->ifa_flags & IFF_MULTICAST) == 0)
       continue;
     if (ifv4->ifa_addr->sa_family != AF_INET)  /* must have IPv4 address */
       continue;
@@ -244,7 +244,7 @@ Boolean netInit(NetPath *netPath, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
   /* find a network interface */
   if( !(interfaceAddr.s_addr = findIface(rtOpts->ifaceName, &ptpClock->port_communication_technology,
-    ptpClock->port_uuid_field, !rtOpts->directAddress[0], netPath)) )
+    ptpClock->port_uuid_field, netPath)) )
     return FALSE;
   
   temp = 1;  /* allow address reuse */
@@ -255,7 +255,7 @@ Boolean netInit(NetPath *netPath, RunTimeOpts *rtOpts, PtpClock *ptpClock)
   }
 
   /* bind sockets */
-  /* need INADDR_ANY to allow receipt of multicast and unicast messages */
+  /* need INADDR_ANY to allow receipt of multi-cast and uni-cast messages */
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
   addr.sin_port = htons(PTP_EVENT_PORT);
@@ -276,34 +276,31 @@ Boolean netInit(NetPath *netPath, RunTimeOpts *rtOpts, PtpClock *ptpClock)
   *(Integer16*)ptpClock->event_port_address = PTP_EVENT_PORT;
   *(Integer16*)ptpClock->general_port_address = PTP_GENERAL_PORT;
   
-  /* set socket to a unicast address if specified (useful for testing) */
-  if(rtOpts->directAddress[0])
+  /* send a uni-cast address if specified (useful for testing) */
+  if(rtOpts->unicastAddress[0])
   {
-    if(!inet_aton(rtOpts->directAddress, &netAddr))
-      return FALSE;
-    
-    netPath->bcastAddr = netAddr.s_addr;
-    
-    s = rtOpts->directAddress;
-    for(i = 0; i < SUBDOMAIN_ADDRESS_LENGTH; ++i)
+    if(!inet_aton(rtOpts->unicastAddress, &netAddr))
     {
-      ptpClock->subdomain_address[i] = strtol(s, &s, 0);
-      
-      if(!s)
-        break;
-      
-      ++s;
+      ERROR("failed to encode uni-cast address: %s\n", rtOpts->unicastAddress);
+      return FALSE;
     }
     
-    return TRUE;
+    netPath->unicastAddr = netAddr.s_addr;
   }
+  else
+    netPath->unicastAddr = 0;
   
   /* resolve PTP subdomain */
   if(!lookupSubdomainAddress(rtOpts->subdomainName, addrStr))
     return FALSE;
   
-  inet_aton(addrStr, &netAddr);
-  netPath->bcastAddr = netAddr.s_addr;
+  if(!inet_aton(addrStr, &netAddr))
+  {
+    ERROR("failed to encode multi-cast address: %s\n", addrStr);
+    return FALSE;
+  }
+  
+  netPath->multicastAddr = netAddr.s_addr;
   
   s = addrStr;
   for(i = 0; i < SUBDOMAIN_ADDRESS_LENGTH; ++i)
@@ -322,7 +319,7 @@ Boolean netInit(NetPath *netPath, RunTimeOpts *rtOpts, PtpClock *ptpClock)
   if( setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_IF, &imr.imr_interface.s_addr, sizeof(struct in_addr)) < 0
     || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_IF, &imr.imr_interface.s_addr, sizeof(struct in_addr)) < 0 )
   {
-    PERROR("failed to set multicast send interface");
+    PERROR("failed to enable multi-cast on the interface");
     return FALSE;
   }
   
@@ -330,25 +327,34 @@ Boolean netInit(NetPath *netPath, RunTimeOpts *rtOpts, PtpClock *ptpClock)
   if( setsockopt(netPath->eventSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(struct ip_mreq))  < 0
     || setsockopt(netPath->generalSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(struct ip_mreq)) < 0 )
   {
-    PERROR("failed to join multicast group for receiving");
+    PERROR("failed to join the multi-cast group");
     return FALSE;
   }
 
-  /*set socket time to life to 1 */
+  /* set socket time-to-live to 1 */
   temp = 1;
-  setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL, &temp, sizeof(int));
-  setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL, &temp, sizeof(int));
+  if( setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL, &temp, sizeof(int)) < 0
+    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL, &temp, sizeof(int)) < 0 )
+  {
+    PERROR("failed to set the multi-cast time-to-live");
+    return FALSE;
+  }
   
-  temp = 1;  /* allow loopback */
-  setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, &temp, sizeof(int));
-  setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, &temp, sizeof(int));
+  /* enable loopback */
+  temp = 1;
+  if( setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, &temp, sizeof(int)) < 0
+    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, &temp, sizeof(int)) < 0 )
+  {
+    PERROR("failed to enable multi-cast loopback");
+    return FALSE;
+  }
 
   /* make timestamps available through recvmsg() */
   temp = 1;
-  if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMP, &temp, sizeof(int)) == -1
-    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMP, &temp, sizeof(int)) == -1)
+  if( setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMP, &temp, sizeof(int)) < 0
+    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMP, &temp, sizeof(int)) < 0 )
   {
-    PERROR("accurate timestamps not possible: setsockopt(SO_TIMESTAMP) failed");
+    PERROR("failed to enable receive time stamps");
     return FALSE;
   }
 
@@ -361,11 +367,14 @@ Boolean netShutdown(NetPath *netPath)
 {
   struct ip_mreq imr;
 
-  imr.imr_multiaddr.s_addr = netPath->bcastAddr;
+  imr.imr_multiaddr.s_addr = netPath->multicastAddr;
   imr.imr_interface.s_addr = htonl(INADDR_ANY);
 
   setsockopt(netPath->eventSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, &imr, sizeof(struct ip_mreq));
   setsockopt(netPath->generalSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, &imr, sizeof(struct ip_mreq));
+  
+  netPath->multicastAddr = 0;
+  netPath->unicastAddr = 0;
   
   if(netPath->eventSock > 0)
     close(netPath->eventSock);
@@ -415,7 +424,7 @@ int netSelect(TimeInternal *timeout, NetPath *netPath)
   return ret;
 }
 
-ssize_t netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *netPath)
+ssize_t netRecvEvent(Octet *buf, TimeInternal *time, NetPath *netPath)
 {
   ssize_t ret;
   struct msghdr msg;
@@ -502,14 +511,10 @@ ssize_t netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
     return 0;
   }
 
-  /* save address */
-  if(address)
-    memcpy(address, inet_ntoa(from_addr.sin_addr), NET_ADDRESS_LENGTH);
-  
   return ret;
 }
 
-ssize_t netRecvGeneral(Octet *address, Octet *buf, NetPath *netPath)
+ssize_t netRecvGeneral(Octet *buf, NetPath *netPath)
 {
   ssize_t ret;
   struct sockaddr_in addr;
@@ -524,47 +529,55 @@ ssize_t netRecvGeneral(Octet *address, Octet *buf, NetPath *netPath)
     return ret;
   }
   
-  /* save address */
-  if(address)
-    memcpy(address, inet_ntoa(addr.sin_addr), NET_ADDRESS_LENGTH);
-    
   return ret;
 }
 
-ssize_t netSendEvent(Octet *address, Octet *buf, UInteger16 length, NetPath *netPath)
+ssize_t netSendEvent(Octet *buf, UInteger16 length, NetPath *netPath)
 {
   ssize_t ret;
   struct sockaddr_in addr;
   
   addr.sin_family = AF_INET;
   addr.sin_port = htons(PTP_EVENT_PORT);
-  if(address)
-    inet_aton(address, &addr.sin_addr);
-  else
-    addr.sin_addr.s_addr = netPath->bcastAddr;
+  addr.sin_addr.s_addr = netPath->multicastAddr;
   
   ret = sendto(netPath->eventSock, buf, length, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
   if(ret <= 0)
-    DBGV("error sending event message\n");
+    DBG("error sending multi-cast event message\n");
+  
+  if(netPath->unicastAddr)
+  {
+    addr.sin_addr.s_addr = netPath->unicastAddr;
+    
+    ret = sendto(netPath->eventSock, buf, length, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    if(ret <= 0)
+      DBG("error sending uni-cast event message\n");
+  }
   
   return ret;
 }
 
-ssize_t netSendGeneral(Octet *address, Octet *buf, UInteger16 length, NetPath *netPath)
+ssize_t netSendGeneral(Octet *buf, UInteger16 length, NetPath *netPath)
 {
   ssize_t ret;
   struct sockaddr_in addr;
   
   addr.sin_family = AF_INET;
   addr.sin_port = htons(PTP_GENERAL_PORT);
-  if(address)
-    inet_aton(address, &addr.sin_addr);
-  else
-    addr.sin_addr.s_addr = netPath->bcastAddr;
+  addr.sin_addr.s_addr = netPath->multicastAddr;
   
   ret = sendto(netPath->generalSock, buf, length, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
   if(ret <= 0)
-    DBG("error sending general message\n");
+    DBG("error sending multi-cast general message\n");
+  
+  if(netPath->unicastAddr)
+  {
+    addr.sin_addr.s_addr = netPath->unicastAddr;
+    
+    ret = sendto(netPath->eventSock, buf, length, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    if(ret <= 0)
+      DBG("error sending uni-cast general message\n");
+  }
   
   return ret;
 }

@@ -15,7 +15,7 @@ int main(int argc, char **argv)
   memcpy(rtOpts.clockIdentifier, IDENTIFIER_DFLT, PTP_CODE_STRING_LENGTH);
   rtOpts.clockVariance = DEFAULT_CLOCK_VARIANCE;
   rtOpts.clockStratum = DEFAULT_CLOCK_STRATUM;
-  rtOpts.directAddress[0] = 0;
+  rtOpts.unicastAddress[0] = 0;
   rtOpts.inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
   rtOpts.outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
   rtOpts.noResetClock = DEFAULT_NO_RESET_CLOCK;

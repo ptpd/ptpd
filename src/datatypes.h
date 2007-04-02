@@ -334,7 +334,7 @@ typedef struct {
   Boolean  noAdjust;
   Boolean  displayStats;
   Boolean  csvStats;
-  Octet  directAddress[NET_ADDRESS_LENGTH];
+  Octet  unicastAddress[NET_ADDRESS_LENGTH];
   Integer16  ap, ai;
   Integer16  s;
   TimeInternal  inboundLatency, outboundLatency;
