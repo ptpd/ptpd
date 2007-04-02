@@ -297,7 +297,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   
   DBGV("handle: something\n");
   
-  length = netRecvEvent(0, ptpClock->msgIbuf, &time, &ptpClock->netPath);
+  length = netRecvEvent(ptpClock->msgIbuf, &time, &ptpClock->netPath);
   if(length < 0)
   {
     PERROR("failed to receive on the event socket");
@@ -306,7 +306,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   }
   else if(!length)
   {
-    length = netRecvGeneral(0, ptpClock->msgIbuf, &ptpClock->netPath);
+    length = netRecvGeneral(ptpClock->msgIbuf, &ptpClock->netPath);
     if(length < 0)
     {
       PERROR("failed to receive on the general socket");
@@ -314,10 +314,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
       return;
     }
     else if(!length)
-    {
-      DBG("expected something but nothing\n");
       return;
-    }
   }
   
   ptpClock->message_activity = TRUE;
@@ -461,6 +458,10 @@ void handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length, TimeInternal 
       DBGV("SYNC_RECEIPT_TIMER reset\n");
       timerStart(SYNC_RECEIPT_TIMER, PTP_SYNC_RECEIPT_TIMEOUT(ptpClock->sync_interval), ptpClock->itimer);
     }
+    else
+    {
+      DBGV("handleSync: unwanted\n");
+    }
     
   case PTP_MASTER:
   default:
@@ -529,7 +530,7 @@ void handleFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length, Boolean i
     }
     else
     {
-      DBG("handleFollowUp: unwanted\n");
+      DBGV("handleFollowUp: unwanted\n");
     }
     break;
     
@@ -688,6 +689,10 @@ void handleManagement(MsgHeader *header, Octet *msgIbuf, ssize_t length, Boolean
       break;
     }
   }
+  else
+  {
+    DBG("handleManagement: unwanted\n");
+  }
 }
 
 /* pack and send various messages */
@@ -703,7 +708,7 @@ void issueSync(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   fromInternalTime(&internalTime, &originTimestamp, ptpClock->halfEpoch);
   msgPackSync(ptpClock->msgObuf, FALSE, &originTimestamp, ptpClock);
   
-  if(!netSendEvent(0, ptpClock->msgObuf, SYNC_PACKET_LENGTH, &ptpClock->netPath))
+  if(!netSendEvent(ptpClock->msgObuf, SYNC_PACKET_LENGTH, &ptpClock->netPath))
     toState(PTP_FAULTY, rtOpts, ptpClock);
   else
     DBGV("sent sync message\n");
@@ -718,7 +723,7 @@ void issueFollowup(TimeInternal *time, RunTimeOpts *rtOpts, PtpClock *ptpClock)
   fromInternalTime(time, &preciseOriginTimestamp, ptpClock->halfEpoch);
   msgPackFollowUp(ptpClock->msgObuf, ptpClock->last_sync_event_sequence_number, &preciseOriginTimestamp, ptpClock);
   
-  if(!netSendGeneral(0, ptpClock->msgObuf, FOLLOW_UP_PACKET_LENGTH, &ptpClock->netPath))
+  if(!netSendGeneral(ptpClock->msgObuf, FOLLOW_UP_PACKET_LENGTH, &ptpClock->netPath))
     toState(PTP_FAULTY, rtOpts, ptpClock);
   else
     DBGV("sent followup message\n");
@@ -736,7 +741,7 @@ void issueDelayReq(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   fromInternalTime(&internalTime, &originTimestamp, ptpClock->halfEpoch);
   msgPackDelayReq(ptpClock->msgObuf, FALSE, &originTimestamp, ptpClock);
   
-  if(!netSendEvent(0, ptpClock->msgObuf, DELAY_REQ_PACKET_LENGTH, &ptpClock->netPath))
+  if(!netSendEvent(ptpClock->msgObuf, DELAY_REQ_PACKET_LENGTH, &ptpClock->netPath))
     toState(PTP_FAULTY, rtOpts, ptpClock);
   else
     DBGV("sent delay request message\n");
@@ -751,7 +756,7 @@ void issueDelayResp(TimeInternal *time, MsgHeader *header, RunTimeOpts *rtOpts, 
   fromInternalTime(time, &delayReceiptTimestamp, ptpClock->halfEpoch);
   msgPackDelayResp(ptpClock->msgObuf, header, &delayReceiptTimestamp, ptpClock);
   
-  if(!netSendGeneral(0, ptpClock->msgObuf, DELAY_RESP_PACKET_LENGTH, &ptpClock->netPath))
+  if(!netSendGeneral(ptpClock->msgObuf, DELAY_RESP_PACKET_LENGTH, &ptpClock->netPath))
     toState(PTP_FAULTY, rtOpts, ptpClock);
   else
     DBGV("sent delay response message\n");
@@ -766,7 +771,7 @@ void issueManagement(MsgHeader *header, MsgManagement *manage, RunTimeOpts *rtOp
   if(!(length = msgPackManagementResponse(ptpClock->msgObuf, header, manage, ptpClock)))
     return;
   
-  if(!netSendGeneral(0, ptpClock->msgObuf, length, &ptpClock->netPath))
+  if(!netSendGeneral(ptpClock->msgObuf, length, &ptpClock->netPath))
     toState(PTP_FAULTY, rtOpts, ptpClock);
   else
     DBGV("sent management message\n");

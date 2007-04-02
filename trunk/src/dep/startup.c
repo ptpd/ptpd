@@ -64,7 +64,7 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
 "-w NUMBER         specify one way delay filter stiffness\n"
 "\n"
 "-b NAME           bind PTP to network interface NAME\n"
-"-u ADDRESS        don't multicast, send messages unicast to ADDRESS\n"
+"-u ADDRESS        also send uni-cast to ADDRESS\n"
 "-l NUMBER,NUMBER  specify inbound, outbound latency in nsec\n"
 "\n"
 "-o NUMBER         specify current UTC offset\n"
@@ -140,7 +140,7 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
       break;
       
     case 'u':
-      strncpy(rtOpts->directAddress, optarg, NET_ADDRESS_LENGTH);
+      strncpy(rtOpts->unicastAddress, optarg, NET_ADDRESS_LENGTH);
       break;
       
     case 'l':
