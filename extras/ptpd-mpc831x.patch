@@ -1,0 +1,609 @@
+diff --git a/src/Makefile b/src/Makefile
+index 871e229..ef128c7 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -4,12 +4,25 @@ RM = rm -f
+ CFLAGS = -Wall
+ #CPPFLAGS = -DPTPD_DBG -DPTPD_NO_DAEMON
+ 
++# In case this is an MPC831X system, define CONFIG_MPC831X
++CONFIG_MPC831X=1
++
++
++# Nothing to be changed below this line
++
+ PROG = ptpd
+ OBJ  = ptpd.o arith.o bmc.o probe.o protocol.o \
+-	dep/msg.o dep/net.o dep/servo.o dep/startup.o dep/sys.o dep/timer.o
++	dep/msg.o dep/net.o dep/servo.o dep/startup.o dep/sys.o dep/timer.o 
+ HDR  = ptpd.h constants.h datatypes.h \
+-	dep/ptpd_dep.h dep/constants_dep.h dep/datatypes_dep.h
+-
++	dep/ptpd_dep.h dep/constants_dep.h dep/datatypes_dep.h 
++
++ifeq ($(CONFIG_MPC831X), 1)
++CFLAGS = -Wall -DPTPD_DBG -DCONFIG_MPC831X
++LDFLAGS = -static
++OBJ += mpc831x.o
++HDR += mpc831x.h
++CC=powerpc-e300c3-linux-gcc
++endif
+ 
+ .c.o:
+ 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+diff --git a/src/dep/constants_dep.h b/src/dep/constants_dep.h
+index 4c36854..d066629 100644
+--- a/src/dep/constants_dep.h
++++ b/src/dep/constants_dep.h
+@@ -56,8 +56,11 @@
+ # endif
+ #endif
+ 
+-
++#ifdef CONFIG_MPC831X
++#define ADJ_FREQ_MAX  524288
++#else
+ #define ADJ_FREQ_MAX  512000
++#endif
+ 
+ /* UDP/IPv4 dependent */
+ 
+diff --git a/src/dep/msg.c b/src/dep/msg.c
+index 97fe997..e22933c 100644
+--- a/src/dep/msg.c
++++ b/src/dep/msg.c
+@@ -2,6 +2,10 @@
+ /* see spec annex d */
+ 
+ #include "../ptpd.h"
++#ifdef CONFIG_MPC831X
++#include "../mpc831x.h"
++#endif
++
+ 
+ Boolean msgPeek(void *buf)
+ {
+@@ -44,9 +48,9 @@ void msgUnpackHeader(void *buf, MsgHeader *header)
+ void msgUnpackSync(void *buf, MsgSync *sync)
+ {
+   sync->originTimestamp.seconds = flip32(*(UInteger32*)(buf + 40));
+-  DBGV("msgUnpackSync: originTimestamp.seconds %u\n", sync->originTimestamp.seconds);
++  DBG("msgUnpackSync: originTimestamp.seconds %u\n", sync->originTimestamp.seconds);
+   sync->originTimestamp.nanoseconds = flip32(*(Integer32*)(buf + 44));
+-  DBGV("msgUnpackSync: originTimestamp.nanoseconds %d\n", sync->originTimestamp.nanoseconds);
++  DBG("msgUnpackSync: originTimestamp.nanoseconds %d\n", sync->originTimestamp.nanoseconds);
+   sync->epochNumber = flip16(*(UInteger16*)(buf + 48));
+   DBGV("msgUnpackSync: epochNumber %d\n", sync->epochNumber);
+   sync->currentUTCOffset = flip16(*(Integer16*)(buf + 50));
+@@ -215,6 +219,7 @@ UInteger8 msgUnloadManagement(void *buf, MsgManagement *manage,
+     externalTime.seconds = flip32(*(UInteger32*)(buf + 60));
+     externalTime.nanoseconds = flip32(*(Integer32*)(buf + 64));
+     toInternalTime(&internalTime, &externalTime, &ptpClock->halfEpoch);
++    printf( "PTP_MM_SET_TIME\n" );
+     setTime(&internalTime);
+     break;
+     
+@@ -618,8 +623,12 @@ UInteger16 msgPackManagementResponse(void *buf, MsgHeader *header, MsgManagement
+   case PTP_MM_GET_GLOBAL_TIME_DATA_SET:
+     *(UInteger8*)(buf + 55) = PTP_MM_GLOBAL_TIME_DATA_SET;
+     *(Integer32*)(buf + 56) = shift16(flip16(24), 1);
+-    
++  
++#ifdef CONFIG_MPC831X
++    mpc831x_get_curr_time(&internalTime);
++#else
+     getTime(&internalTime);
++#endif
+     fromInternalTime(&internalTime, &externalTime, ptpClock->halfEpoch);
+     *(Integer32*)(buf + 60) = flip32(externalTime.seconds);
+     *(Integer32*)(buf + 64) = flip32(externalTime.nanoseconds);
+diff --git a/src/dep/net.c b/src/dep/net.c
+index c773eeb..7b306f6 100644
+--- a/src/dep/net.c
++++ b/src/dep/net.c
+@@ -1,6 +1,9 @@
+ /* net.c */
+ 
+ #include "../ptpd.h"
++#ifdef CONFIG_MPC831X
++#include "../mpc831x.h"
++#endif
+ 
+ Boolean lookupSubdomainAddress(Octet *subdomainName, Octet *subdomainAddress)
+ {
+@@ -139,7 +142,11 @@ UInteger32 findIface(Octet *ifaceName, UInteger8 *communicationTechnology,
+     PERROR("failed to get ip address");
+     return 0;
+   }
+-  
++ 
++#ifdef CONFIG_MPC831X
++  memcpy(mpc831x_if_name, ifaceName, IFACE_NAME_LENGTH);
++#endif
++ 
+   return ((struct sockaddr_in *)&device[i].ifr_addr)->sin_addr.s_addr;
+ 
+ #elif defined(BSD_INTERFACE_FUNCTIONS)
+@@ -231,6 +238,9 @@ Boolean netInit(NetPath *netPath, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+   struct ip_mreq imr;
+   char addrStr[NET_ADDRESS_LENGTH];
+   char *s;
++#ifdef CONFIG_MPC831X
++  mpc831x_netPath = netPath;
++#endif
+   
+   DBG("netInit\n");
+   
+@@ -402,7 +412,8 @@ Boolean netSelect(TimeInternal *timeout, NetPath *netPath)
+   return select(nfds + 1, &readfds, 0, 0, &tv) > 0;
+ }
+ 
+-Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *netPath)
++Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *netPath,
++			UInteger8 port_state)
+ {
+   struct msghdr msg;
+   struct iovec vec[1];
+@@ -452,9 +463,22 @@ Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
+   
+   if(tv)
+   {
++#ifdef CONFIG_MPC831X
++    DBGV( "MPC831X port_state : %d\n", port_state );
++    if (port_state == PTP_MASTER)
++    {
++    	mpc831x_get_tx_time(time);
++    }
++    else
++    {
++    	mpc831x_get_rx_time(time);
++    }
++    DBGV("MPC831X recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
++#else
+     time->seconds = tv->tv_sec;
+     time->nanoseconds = tv->tv_usec*1000;
+     DBGV("kernel recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
++#endif
+   }
+   else
+   {
+diff --git a/src/dep/ptpd_dep.h b/src/dep/ptpd_dep.h
+index 29c6a09..d44ae51 100644
+--- a/src/dep/ptpd_dep.h
++++ b/src/dep/ptpd_dep.h
+@@ -101,7 +101,7 @@ UInteger16 msgPackManagementResponse(void*,MsgHeader*,MsgManagement*,PtpClock*);
+ Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
+ Boolean netShutdown(NetPath*);
+ Boolean netSelect(TimeInternal*,NetPath*);
+-Boolean netRecvEvent(Octet*,Octet*,TimeInternal*,NetPath*);
++Boolean netRecvEvent(Octet*,Octet*,TimeInternal*,NetPath*, UInteger8);
+ Boolean netRecvGeneral(Octet*,Octet*,NetPath*);
+ Boolean netSendEvent(Octet*,Octet*,UInteger16,NetPath*);
+ Boolean netSendGeneral(Octet*,Octet*,UInteger16,NetPath*);
+diff --git a/src/dep/servo.c b/src/dep/servo.c
+index ae2da3b..f9f766f 100644
+--- a/src/dep/servo.c
++++ b/src/dep/servo.c
+@@ -1,9 +1,13 @@
+ #include "../ptpd.h"
++#ifdef CONFIG_MPC831X
++#include "../mpc831x.h"
++#endif
++
+ 
+ void initClock(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+ {
+   DBG("initClock\n");
+-  
++ 
+   /* clear vars */
+   ptpClock->master_to_slave_delay.seconds = ptpClock->master_to_slave_delay.nanoseconds = 0;
+   ptpClock->slave_to_master_delay.seconds = ptpClock->slave_to_master_delay.nanoseconds = 0;
+@@ -103,9 +107,17 @@ void updateClock(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+     {
+       if(!rtOpts->noResetClock)
+       {
++#ifdef CONFIG_MPC831X
++	mpc831x_get_curr_time(&timeTmp);
++#else
+         getTime(&timeTmp);
++#endif
+         subTime(&timeTmp, &timeTmp, &ptpClock->offset_from_master);
++#ifdef CONFIG_MPC831X
++	mpc831x_set_curr_time(&timeTmp);
++#else
+         setTime(&timeTmp);
++#endif
+         initClock(rtOpts, ptpClock);
+       }
+       else
+diff --git a/src/dep/sys.c b/src/dep/sys.c
+index 5206d34..84834f1 100644
+--- a/src/dep/sys.c
++++ b/src/dep/sys.c
+@@ -1,6 +1,10 @@
+ /* sys.c */
+ 
+ #include "../ptpd.h"
++#ifdef CONFIG_MPC831X
++#include "../mpc831x.h"
++#endif
++
+ 
+ void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+ {
+@@ -73,20 +77,28 @@ Boolean nanoSleep(TimeInternal *t)
+ 
+ void getTime(TimeInternal *time)
+ {
++#ifdef CONFIG_MPC831X
++  mpc831x_get_curr_time(time);
++#else 
+   struct timeval tv;
+-  
++
+   gettimeofday(&tv, 0);
+   time->seconds = tv.tv_sec;
+   time->nanoseconds = tv.tv_usec*1000;
++#endif
+ }
+ 
+ void setTime(TimeInternal *time)
+ {
++#ifdef CONFIG_MPC831X
++  mpc831x_set_curr_time(time);
++#else
+   struct timeval tv;
+   
+   tv.tv_sec = time->seconds;
+   tv.tv_usec = time->nanoseconds/1000;
+   settimeofday(&tv, 0);
++#endif
+   
+   NOTIFY("resetting system clock to %ds %dns\n", time->seconds, time->nanoseconds);
+ }
+@@ -99,7 +111,7 @@ UInteger16 getRand(UInteger32 *seed)
+ Boolean adjFreq(Integer32 adj)
+ {
+   struct timex t;
+-  
++
+   if(adj > ADJ_FREQ_MAX)
+     adj = ADJ_FREQ_MAX;
+   else if(adj < -ADJ_FREQ_MAX)
+@@ -107,7 +119,13 @@ Boolean adjFreq(Integer32 adj)
+   
+   t.modes = MOD_FREQUENCY;
+   t.freq = adj*((1<<16)/1000);
+-  
++
++#ifdef CONFIG_MPC831X
++  mpc831x_adj_addend(adj);
++  return( 1 );
++#else
+   return !adjtimex(&t);
++#endif
++
+ }
+ 
+diff --git a/src/mpc831x.c b/src/mpc831x.c
+new file mode 100644
+index 0000000..e09ef6d
+--- /dev/null
++++ b/src/mpc831x.c
+@@ -0,0 +1,148 @@
++#include "ptpd.h"
++#include "mpc831x.h"
++#include <unistd.h>
++
++#define NSEC		((unsigned long long)1000000000)
++
++#define	BOARD_TIME_TO_SEC(board_time)	\
++	((uint32_t)(board_time/NSEC))
++	
++#define BOARD_TIME_TO_NSEC(board_time, board_time_sec)\
++	((uint32_t)(board_time - (((unsigned long long)board_time_sec) * NSEC)))
++
++void mpc831x_get_curr_time(TimeInternal *time)
++{
++	struct ifreq 		if_data;
++	struct mpc831x_cnt	hw_cnt;
++	unsigned long long	board_time = 0;
++
++	if_data.ifr_data = (void *)(&hw_cnt);
++	memcpy(if_data.ifr_name, mpc831x_if_name, IFACE_NAME_LENGTH);
++	if(!ioctl(mpc831x_netPath->eventSock, PTP_GET_CNT, &if_data))
++	{
++		board_time = hw_cnt.high;
++		board_time = (board_time << 32) | hw_cnt.low;
++		//DBG( "mpc831x_get_curr_time board_time = %llu\n", board_time );
++
++		time->seconds = BOARD_TIME_TO_SEC(board_time);
++		time->nanoseconds = BOARD_TIME_TO_NSEC(board_time, time->seconds);
++		DBG( "mpc831x_get_curr_time seconds (%d), nanoseconds (%d)\n", \
++			time->seconds, time->nanoseconds );
++	} 
++	else
++	{
++		perror( "Error in mpc831x_get_curr_time()" );
++	}
++}
++
++void mpc831x_set_curr_time(TimeInternal *time)
++{
++	struct ifreq 		if_data;
++	struct mpc831x_cnt	hw_cnt;
++	unsigned long long	board_time = 0;
++
++	board_time = ((unsigned long long)time->seconds) * ((unsigned long long)1000000000) + 
++		     	((unsigned long long)time->nanoseconds);
++
++	board_time = board_time/1000;
++	board_time = board_time*1000;
++
++	hw_cnt.high = (board_time >> 32) & 0xffffffff;
++	hw_cnt.low = (board_time) & 0xffffffff;
++
++	if_data.ifr_data = (void *)(&hw_cnt);
++	memcpy(if_data.ifr_name, mpc831x_if_name, IFACE_NAME_LENGTH);
++	if(!ioctl(mpc831x_netPath->eventSock, PTP_SET_CNT, &if_data))
++	{
++                //DBG( "mpc831x_set_curr_time board_time = %llu Hex (0x%llx)\n", board_time, board_time );
++		DBG( "mpc831x_set_curr_time seconds (%d), nanoseconds (%d)\n", \
++			time->seconds, time->nanoseconds );
++	} 
++	else
++	{
++		perror( "Error in mpc831x_set_curr_time()" );
++	}
++}
++
++void mpc831x_get_tx_time(TimeInternal *time)
++{
++	struct ifreq 		if_data;
++	struct mpc831x_cnt	hw_cnt;
++	unsigned long long	board_time = 0;
++
++	if_data.ifr_data = (void *)(&hw_cnt);
++	memcpy(if_data.ifr_name, mpc831x_if_name, IFACE_NAME_LENGTH);
++	if(!ioctl(mpc831x_netPath->eventSock, PTP_GET_TX_TIMESTAMP, &if_data))
++	{
++		board_time = hw_cnt.high;
++                board_time = (board_time << 32) | hw_cnt.low;
++                //DBG( "mpc831x_get_tx_time board_time = %llu\n", board_time );
++		
++		time->seconds = BOARD_TIME_TO_SEC(board_time);
++		time->nanoseconds = BOARD_TIME_TO_NSEC(board_time, time->seconds);
++		DBG( "mpc831x_get_tx_time seconds (%d), nanoseconds (%d)\n", \
++			time->seconds, time->nanoseconds );
++	} 
++	else
++	{
++		perror( "Error in mpc831x_get_tx_time()" );
++	}
++}
++
++void mpc831x_get_rx_time(TimeInternal *time)
++{
++	struct ifreq 		if_data;
++	struct mpc831x_cnt	hw_cnt;
++	unsigned long long	board_time;
++
++	if_data.ifr_data = (void *)(&hw_cnt);
++	memcpy(if_data.ifr_name, mpc831x_if_name, IFACE_NAME_LENGTH);
++	if(!ioctl(mpc831x_netPath->eventSock, PTP_GET_RX_TIMESTAMP, &if_data))
++	{
++		board_time = hw_cnt.high;
++                board_time = (board_time << 32) | hw_cnt.low;
++                //DBG( "mpc831x_get_rx_time board_time = %llu\n", board_time );
++
++		time->seconds = BOARD_TIME_TO_SEC(board_time);
++		time->nanoseconds = BOARD_TIME_TO_NSEC(board_time, time->seconds);
++		DBG( "mpc831x_get_rx_time seconds (%d), nanoseconds (%d)\n", \
++			time->seconds, time->nanoseconds );
++	} 
++	else
++	{
++		perror( "Error in mpc831x_get_rx_time()" );
++	}
++}
++
++void mpc831x_adj_freq(Integer32 freq)
++{
++ 	struct ifreq    if_data;
++
++	if_data.ifr_data = (void *)(&freq);
++	memcpy(if_data.ifr_name, mpc831x_if_name, IFACE_NAME_LENGTH);
++	if( !ioctl(mpc831x_netPath->eventSock, PTP_ADJ_FREQ, &if_data) )
++	{
++		DBG( "Set frequency in mpc831x_adj_freq (%d)\n", freq );
++	}
++	else
++	{
++		perror( "Error in mpc831x_adj_freq" );
++	}
++}
++
++void mpc831x_adj_addend(Integer32 adj)
++{
++ 	struct ifreq    if_data;
++
++	if_data.ifr_data = (void *)(&adj);
++	memcpy(if_data.ifr_name, mpc831x_if_name, IFACE_NAME_LENGTH);
++	if( !ioctl(mpc831x_netPath->eventSock, PTP_ADJ_ADDEND, &if_data) )
++	{
++		DBG( "Set addend in mpc831x_adj_addend (%d)\n", adj );
++	}
++	else
++	{
++		perror( "Error in mpc831x_adj_addend" );
++	}
++}
++
+diff --git a/src/mpc831x.h b/src/mpc831x.h
+new file mode 100644
+index 0000000..363e0bf
+--- /dev/null
++++ b/src/mpc831x.h
+@@ -0,0 +1,32 @@
++#ifndef MPC831X_H
++#define MPC831X_H
++
++#include <linux/types.h>
++
++/* Various IOCTL's supported by our driver */
++#define PTP_GET_RX_TIMESTAMP    SIOCDEVPRIVATE
++#define PTP_GET_TX_TIMESTAMP    (SIOCDEVPRIVATE + 1)
++#define PTP_SET_CNT             (SIOCDEVPRIVATE + 2)
++#define PTP_GET_CNT             (SIOCDEVPRIVATE + 3)
++#define PTP_ADJ_FREQ            (SIOCDEVPRIVATE + 4)
++#define PTP_ADJ_ADDEND		(SIOCDEVPRIVATE + 5)
++
++struct mpc831x_cnt
++{
++	uint32_t	high;
++	uint32_t	low;
++};
++
++/* Global variables containing interface information */
++NetPath *mpc831x_netPath;
++char mpc831x_if_name[IFACE_NAME_LENGTH];
++
++
++void mpc831x_get_curr_time(TimeInternal *time);
++void mpc831x_set_curr_time(TimeInternal *time);
++void mpc831x_get_tx_time(TimeInternal *time);
++void mpc831x_get_rx_time(TimeInternal *time);
++void mpc831x_adj_freq(Integer32 freq);
++void mpc831x_adj_addend(Integer32 adj);
++
++#endif //MPC831X_H
+diff --git a/src/probe.c b/src/probe.c
+index 5454e30..8e7a1b9 100644
+--- a/src/probe.c
++++ b/src/probe.c
+@@ -64,7 +64,7 @@ void probe(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+     if(rtOpts->probe_management_key > 0)
+       break;
+   }
+-  
++ 
+   getTime(&finish);
+   finish.seconds += PTP_SYNC_INTERVAL_TIMEOUT(ptpClock->sync_interval);
+   for(;;)
+@@ -73,7 +73,7 @@ void probe(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+     interval.nanoseconds = 0;
+     netSelect(&interval, &ptpClock->netPath);
+     
+-    netRecvEvent(0, ptpClock->msgIbuf, 0, &ptpClock->netPath);
++    netRecvEvent(0, ptpClock->msgIbuf, 0, &ptpClock->netPath, ptpClock->port_state);
+     
+     if(netRecvGeneral(0, ptpClock->msgIbuf, &ptpClock->netPath))
+     {
+@@ -90,6 +90,7 @@ void probe(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+       fflush(stdout);
+     }
+     
++    printf( "getTime probe (now)\n" ); 
+     getTime(&now);
+     if( now.seconds > finish.seconds || (now.seconds == finish.seconds
+       && now.nanoseconds > finish.nanoseconds) )
+diff --git a/src/protocol.c b/src/protocol.c
+index 4ae14d4..20d9562 100644
+--- a/src/protocol.c
++++ b/src/protocol.c
+@@ -1,6 +1,9 @@
+ /* protocol.c */
+ 
+ #include "ptpd.h"
++#ifdef CONFIG_MPC831X
++#include "mpc831x.h"
++#endif
+ 
+ Boolean doInit(RunTimeOpts*,PtpClock*);
+ void doState(RunTimeOpts*,PtpClock*);
+@@ -281,7 +284,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+   if(!ptpClock->message_activity)
+     netSelect(&wait, &ptpClock->netPath);
+   
+-  if(netRecvEvent(0, ptpClock->msgIbuf, &time, &ptpClock->netPath))
++  if(netRecvEvent(0, ptpClock->msgIbuf, &time, &ptpClock->netPath, ptpClock->port_state))
+   {
+     subTime(&time, &time, &rtOpts->inboundLatency);
+   }
+@@ -496,6 +499,10 @@ void handleDelayReq(MsgHeader *header, TimeInternal *time, Boolean isFromSelf, R
+       || header->sourceCommunicationTechnology == PTP_DEFAULT
+       || ptpClock->clock_communication_technology == PTP_DEFAULT )
+     {
++#ifdef CONFIG_MPC831X
++      /* Get the RX time from our HW counter */
++      mpc831x_get_rx_time(time);
++#endif
+       issueDelayResp(time, &ptpClock->msgTmpHeader, rtOpts, ptpClock);
+     }
+     
+@@ -505,6 +512,11 @@ void handleDelayReq(MsgHeader *header, TimeInternal *time, Boolean isFromSelf, R
+     if(isFromSelf)
+     {
+       DBG("handleDelayReq: self\n");
++
++#ifdef CONFIG_MPC831X
++      /* Get the TX time from our HW counter */
++      mpc831x_get_tx_time(time);
++#endif
+       
+       ptpClock->delay_req_send_time.seconds = time->seconds;
+       ptpClock->delay_req_send_time.nanoseconds = time->nanoseconds;
+@@ -540,7 +552,7 @@ void handleDelayResp(MsgHeader *header, Octet *msgIbuf, Boolean isFromSelf, RunT
+       DBG("handleDelayResp: ignore from self\n");
+       return;
+     }
+-    
++   
+     resp = &ptpClock->msgTmp.resp;
+     msgUnpackDelayResp(ptpClock->msgIbuf, resp);
+     
+@@ -554,11 +566,12 @@ void handleDelayResp(MsgHeader *header, Octet *msgIbuf, Boolean isFromSelf, RunT
+       && !memcmp(header->sourceUuid, ptpClock->parent_uuid, PTP_UUID_LENGTH) )
+     {
+       ptpClock->sentDelayReq = FALSE;
+-      
++    
+       toInternalTime(&ptpClock->delay_req_receive_time, &resp->delayReceiptTimestamp, &ptpClock->halfEpoch);
+       
+       if(ptpClock->delay_req_send_time.seconds)
+       {
++        DBG( "handleDelayResp: from master\n" );
+         updateDelay(&ptpClock->delay_req_send_time, &ptpClock->delay_req_receive_time,
+           &ptpClock->owd_filt, rtOpts, ptpClock);
+         
+@@ -626,7 +639,8 @@ void issueSync(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+   
+   ++ptpClock->last_sync_event_sequence_number;
+   ptpClock->grandmaster_sequence_number = ptpClock->last_sync_event_sequence_number;
+-  
++ 
++  printf( "getTime issueSync\n" ); 
+   getTime(&internalTime);
+   fromInternalTime(&internalTime, &originTimestamp, ptpClock->halfEpoch);
+   msgPackSync(ptpClock->msgObuf, FALSE, &originTimestamp, ptpClock);
+@@ -660,14 +674,16 @@ void issueDelayReq(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+   ptpClock->sentDelayReq = TRUE;
+   ptpClock->sentDelayReqSequenceId = ++ptpClock->last_sync_event_sequence_number;
+   
++  printf( "getTime issueDelayReq\n" ); 
+   getTime(&internalTime);
+   fromInternalTime(&internalTime, &originTimestamp, ptpClock->halfEpoch);
+   msgPackDelayReq(ptpClock->msgObuf, FALSE, &originTimestamp, ptpClock);
+   
+   if(!netSendEvent(0, ptpClock->msgObuf, DELAY_REQ_PACKET_LENGTH, &ptpClock->netPath))
+     toState(PTP_FAULTY, rtOpts, ptpClock);
+-  else
++  else{
+     DBGV("sent delay request message\n");
++  }
+ }
+ 
+ void issueDelayResp(TimeInternal *time, MsgHeader *header, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+
+ 	  	 
