@@ -1,5 +1,10 @@
 RELEASE_NOTES for PTPd
 
+v1rc1, 17 June 2007:
+
+This release fixes a regression in v1b5 that broke unicast support. It also adds
+a PTPd patch posted on the website for 1588 hardware support on MPC8313E
+processors.
 
 v1b5, 3 December 2006:
 
