@@ -342,6 +342,13 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     ptpClock->msgTmpHeader.sequenceId,
     time.seconds, time.nanoseconds);
   
+  if( memcmp(ptpClock->msgTmpHeader.subdomain, ptpClock->subdomain_name,
+    PTP_SUBDOMAIN_NAME_LENGTH) )
+  {
+    DBGV("ignore message from subdomain %s\n", ptpClock->msgTmpHeader.subdomain);
+    return;
+  }
+  
   isFromSelf = ptpClock->msgTmpHeader.sourceCommunicationTechnology == ptpClock->port_communication_technology
     && ptpClock->msgTmpHeader.sourcePortId == ptpClock->port_id_field
     && !memcmp(ptpClock->msgTmpHeader.sourceUuid, ptpClock->port_uuid_field, PTP_UUID_LENGTH);
