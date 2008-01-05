@@ -1,297 +1,329 @@
-diff --git a/src/Makefile b/src/Makefile
-index 871e229..ef128c7 100644
---- a/src/Makefile
-+++ b/src/Makefile
-@@ -4,12 +4,25 @@ RM = rm -f
- CFLAGS = -Wall
- #CPPFLAGS = -DPTPD_DBG -DPTPD_NO_DAEMON
- 
-+# In case this is an MPC831X system, define CONFIG_MPC831X
-+CONFIG_MPC831X=1
+Index: extras/ptpd.spec
+===================================================================
+--- extras/ptpd.spec	(revision 0)
++++ extras/ptpd.spec	(revision 0)
+@@ -0,0 +1,61 @@
++#**************************************
++#
++#Copyright notice:
++#
++#Author: Alan K. Bartky, Bartky Networks, 
++#        alan@bartky.net, www.bartky.net
++#
++#Copyright (c) 2007 Alan K. Bartky
++#
++#Permission is hereby granted to use, copy, modify, and distribute this software
++#for any purpose and without fee, provided that this notice appears in all
++#copies of this file and any derivative works. 
++#
++#The author makes no representations about the suitability of this
++#software for any purpose. This software is provided "as is" without express or
++#implied warranty.
++#
++#***************************************
++%define pfx /opt/freescale/rootfs/%{_target_cpu}
++
++Summary         : The PTP daemon which implements the IEEE 1588v1 Precision Time protocol (PTP)
++Name            : ptpd
++Version         : 1rc1
++Release         : RC1
++License         : BSD
++Vendor          : Bartky Networks (www.bartky.net)
++Packager        : Alan K. Bartky (alan@bartky.net)
++Group           : System Environment/Daemons
++URL             : http://sourceforge.net/projects/ptpd/
++Source          : %{name}-%{version}.tar.gz
++Patch0          : %{name}-%{version}-mpc831x.patch
++BuildRoot       : %{_tmppath}/%{name}
++Prefix          : %{pfx}
++
++%Description
++%{summary}
++
++%Prep
++%setup 
++%patch0 -p1
++
++%Build
++cd src
++make all
++#./configure --prefix=%{_prefix} --host=$CFGHOST --build=%{_build}
++
++%Install
++rm -rf $RPM_BUILD_ROOT
++#make install DESTDIR=$RPM_BUILD_ROOT/%{pfx}
++for i in usr/sbin 
++do
++    mkdir -p $RPM_BUILD_ROOT/%{pfx}/$i
++done
++cp -a src/ptpd $RPM_BUILD_ROOT/%{pfx}/usr/sbin
++
++%Clean
++rm -rf $RPM_BUILD_ROOT
++
++%Files
++%defattr(-,root,root)
++%{pfx}/*
+Index: extras/PTPD_MPC8313_SETUP_README.txt
+===================================================================
+--- extras/PTPD_MPC8313_SETUP_README.txt	(revision 0)
++++ extras/PTPD_MPC8313_SETUP_README.txt	(revision 0)
+@@ -0,0 +1,202 @@
++Instructions on prepping ptpd version 1rc1 for MPC8313E-RDB board 
++under a Freescale LTIB environment
++
++**************************************
++
++Copyright notice:
++
++Author: Alan K. Bartky, Bartky Networks, 
++        alan@bartky.net, www.bartky.net
++
++Copyright (c) 2007 Alan K. Bartky
++
++Permission is hereby granted to use, copy, modify, and distribute this file
++for any purpose and without fee, provided that this notice appears in all
++copies of this file and any derivative works. 
++
++The author makes no representations about the suitability of this
++software for any purpose. This software is provided "as is" without express or
++implied warranty.
++
++***************************************
++Comments/corrections are welcome.
++
++Revision: 0.1 2007-08-29  - First version of this file.
++
++Steps to get ptpd code to work.  
++
++NOTE: These steps assume that the ptpd code tar file and
++the correct MPC8313 patch file have been downloaded and copied to a working
++directory and also that the Freescale Linux Target Image Builder (LTIB)
++has been properely installed, built and the based code has been 
++verified on a known good MPC8313E-RDB board.
++
++*****
++
++Step A: Manually apply the MPC831x patch to test it and to get the
++ptpd.spec file needed for setting up LTIB:
++
++******
++
++Change to a working directory (in this example, I am using
++/home/alan)
++
++Un-tar the files (version 1rc1 extracts to a directory named ptpd)
++
++ alan@raptor:~$ tar -xvvf ptpd_1rc1.tar.tar
++
++We are only using this as a temp process to get some files we need
++to proceed, so rename the ptpd directory:
++
++ alan@raptor:~$ mv ptpd ptpd-temp
++
++To apply the patch use a manual patch command as follows
++(assumes you have copied the patch file to your working
++directory):
++
++ alan@raptor:~$ cd ptpd-temp
++ alan@raptor:~/ptpd-temp$ patch -p1 <../ptpd-1rc1-mpc831x.patch
++
++Copy the spec file to your working directory
++
++ alan@raptor:~/ptpd-temp$ cp extras/ptpd.spec ..
++ alan@raptor:~/ptpd-temp$ cd ..
++ alan@raptor:~$
++
++In version 1rc1, this will extract the files to a directory called ptpd.
++The first step in prepping for LTIB, is to rename the directory
++to include the version number (used several places in LTIB scripts).
++
++ alan@raptor:~$ mv ptpd ptpd-1rc1
++
++******
++
++Step B: Create and setupnew gzip tar files and md5 checksum files 
++with version numbers to make LTIB happy (otherwise, I got failures 
++at multiple points when running setups and builds).
++
++******
++
++If not already there, go to your working directory with the 
++tar file and the patch file in it.
++
++Unzip from the downloaded file again (this time we are not going
++to apply the patch and let LTIB do it using the .spec
++file we just extracted)
++
++ alan@raptor:~$ tar -xvvf ptpd_1rc1.tar.tar
++
++This time we are going to raname the directory to include the
++revision 
++
++ alan@raptor:~$ mv ptpd ptpd-1rc1
++
++Now we create a new gzip tar file and an associated md5 checksum file:
++
++ alan@raptor:~$ tar -zcvf ptpd-1rc1.tar.gz ptpd-1rc1
++
++ alan@raptor:~$ md5sum ptpd-1rc1.tar.gz > ptpd-1rc1.tar.gz.md5
++
++We also need an md5 checksum file for the patch as well:
++
++ alan@raptor:~$ md5sum ptpd-1rc1-mpc831x.patch > ptpd-1rc1-mpc831x.patch.md5
++
++Now we have all the files we need, now they have to be copied
++to the right directories, first we copy the package files to
++the Freescale package directories:
++
++ alan@raptor:~$ cp ptpd-1rc1.tar.gz* /opt/freescale/pkgs/
++ alan@raptor:~$ cp ptpd-1rc1-mpc831x.patch* /opt/freescale/pkgs
++
++Now we setup the ptpd.spec file to be in the correct location.
++Go to <ltib directory name>/dist/<lfs directory name> example:
++
++ alan@raptor:~$ cd ltib-mpc8313erdb-20070718/
++ alan@raptor:~/ltib-mpc8313erdb-20070718$ cd dist/lfs-5.1/
++ alan@raptor:~/ltib-mpc8313erdb-20070718/dist/lfs-5.1$
++
++Make a new directory for ptpd
++
++ alan@raptor:~/ltib-mpc8313erdb-20070718/dist/lfs-5.1$ mkdir ptpd
++ alan@raptor:~/ltib-mpc8313erdb-20070718/dist/lfs-5.1$ cd ptpd
++
++Copy the ptpd.spec file from your working directory (this
++example is using /home/alan):
++
++ alan@raptor:~/ltib-mpc8313erdb-20070718/dist/lfs-5.1/ptpd$ cp /home/alan/ptpd.spec .
++
++This completes all the package and spec file setup, you can now setup
++the LTIB to install, build and deploy :-)
++
++******
++
++Step C: Installing, building and deploying ptpd
++
++******
++
++If you did all the above steps correctly, you can now perform the LTIB
++prep step by going to your ltib directory and running the -m prep option:
++
++ alan@raptor:~/ltib-mpc8313erdb-20070718$ ./ltib -m prep -p ptpd.spec
++
++Assuming you did all the previous steps correct, LTIB should automatically
++run rpm, setup the main file structure and automatically apply
++the MPC831x patch.  You should now have no copy or patch error messages
++and a new ptpd-1rc1 directory under the ltib rpm/BUILD directory.  You can 
++now try a build.
++
++ alan@raptor:~/ltib-mpc8313erdb-20070718$ ./ltib -m scbuild -p ptpd.spec
++
++Assuming the build goes OK, you can try a deploy operation:
++
++ alan@raptor:~/ltib-mpc8313erdb-20070718$ ./ltib -m scdeploy -p ptpd.spec
++
++If all this works, the root filesystem should now be all set and have
++the ptpd executable loaded under /usr/sbin of the target root filesystem.
++
++I have tested this code running on two MPC8313E-RDB boards hooked back to
++back via a gigabit Ethernet running on ETSEC2 (lower right connector of
++the 6 port ethernet connector bloc).  If you use my makefile, it turns on
++all debugging, so if you want to turn it off, just modify the makefile.
++
++The simplist way I have found to run this test is run ptpd on one device
++as preffered clock:
++
++ /usr/sbin ptpd -c -b eth1 -p
++
++and then run the other as non-preffered clock (without -p):
++
++ /usr/sbin ptpd -c -b eth1
++
++****************
++
++Final note/caution on using MPC8313E-RDB distribution from 
++Freescale (Beta version as of 2007-07-18 and also the 
++previous version)
++
++****************
++
++During the time that it took for me to get ptpd running using the 
++patch as previously posted, I found I was able to get ptpd
++to compile without too much trouble, but the same was not the
++case for the MPC8313E-RDB Linux BSP from Freescale.  I spent
++a huge amount of time hunting down and then fixing to the best of
++my ability several bugs in the kernel Ethernet driver HW timestamping
++code and also other problems in the Marvell PHY chip initialization
++(I am an experienced programmer, but a linux newbie, so it
++took me much longer than expected to get the Freescale code
++part to work).
++
++Note that if you do not also modify the Beta kernel driver code
++with fixes in this area, the ptpd HW timestamping will not work!
++
++As this Beta code is all maintained by Freescale, I did not post any
++of these fixes on the ptpd sourceforge.net site.  If you are interested
++in help in this area you can contact me by email at alan@bartky.net
 +
 +
-+# Nothing to be changed below this line
++- Alan K. Bartky
++  Owner, Bartky Networks (Network protocol and system design)
++  www.bartky.net
++  alan@bartky.net
 +
- PROG = ptpd
- OBJ  = ptpd.o arith.o bmc.o probe.o protocol.o \
--	dep/msg.o dep/net.o dep/servo.o dep/startup.o dep/sys.o dep/timer.o
-+	dep/msg.o dep/net.o dep/servo.o dep/startup.o dep/sys.o dep/timer.o 
- HDR  = ptpd.h constants.h datatypes.h \
--	dep/ptpd_dep.h dep/constants_dep.h dep/datatypes_dep.h
--
-+	dep/ptpd_dep.h dep/constants_dep.h dep/datatypes_dep.h 
-+
-+ifeq ($(CONFIG_MPC831X), 1)
-+CFLAGS = -Wall -DPTPD_DBG -DCONFIG_MPC831X
-+LDFLAGS = -static
-+OBJ += mpc831x.o
-+HDR += mpc831x.h
-+CC=powerpc-e300c3-linux-gcc
-+endif
- 
- .c.o:
- 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
-diff --git a/src/dep/constants_dep.h b/src/dep/constants_dep.h
-index 4c36854..d066629 100644
---- a/src/dep/constants_dep.h
-+++ b/src/dep/constants_dep.h
-@@ -56,8 +56,11 @@
- # endif
- #endif
- 
--
-+#ifdef CONFIG_MPC831X
-+#define ADJ_FREQ_MAX  524288
-+#else
- #define ADJ_FREQ_MAX  512000
-+#endif
- 
- /* UDP/IPv4 dependent */
- 
-diff --git a/src/dep/msg.c b/src/dep/msg.c
-index 97fe997..e22933c 100644
---- a/src/dep/msg.c
-+++ b/src/dep/msg.c
-@@ -2,6 +2,10 @@
- /* see spec annex d */
- 
- #include "../ptpd.h"
-+#ifdef CONFIG_MPC831X
-+#include "../mpc831x.h"
-+#endif
-+
- 
- Boolean msgPeek(void *buf)
- {
-@@ -44,9 +48,9 @@ void msgUnpackHeader(void *buf, MsgHeader *header)
- void msgUnpackSync(void *buf, MsgSync *sync)
- {
-   sync->originTimestamp.seconds = flip32(*(UInteger32*)(buf + 40));
--  DBGV("msgUnpackSync: originTimestamp.seconds %u\n", sync->originTimestamp.seconds);
-+  DBG("msgUnpackSync: originTimestamp.seconds %u\n", sync->originTimestamp.seconds);
-   sync->originTimestamp.nanoseconds = flip32(*(Integer32*)(buf + 44));
--  DBGV("msgUnpackSync: originTimestamp.nanoseconds %d\n", sync->originTimestamp.nanoseconds);
-+  DBG("msgUnpackSync: originTimestamp.nanoseconds %d\n", sync->originTimestamp.nanoseconds);
-   sync->epochNumber = flip16(*(UInteger16*)(buf + 48));
-   DBGV("msgUnpackSync: epochNumber %d\n", sync->epochNumber);
-   sync->currentUTCOffset = flip16(*(Integer16*)(buf + 50));
-@@ -215,6 +219,7 @@ UInteger8 msgUnloadManagement(void *buf, MsgManagement *manage,
-     externalTime.seconds = flip32(*(UInteger32*)(buf + 60));
-     externalTime.nanoseconds = flip32(*(Integer32*)(buf + 64));
-     toInternalTime(&internalTime, &externalTime, &ptpClock->halfEpoch);
-+    printf( "PTP_MM_SET_TIME\n" );
-     setTime(&internalTime);
-     break;
-     
-@@ -618,8 +623,12 @@ UInteger16 msgPackManagementResponse(void *buf, MsgHeader *header, MsgManagement
-   case PTP_MM_GET_GLOBAL_TIME_DATA_SET:
-     *(UInteger8*)(buf + 55) = PTP_MM_GLOBAL_TIME_DATA_SET;
-     *(Integer32*)(buf + 56) = shift16(flip16(24), 1);
--    
-+  
-+#ifdef CONFIG_MPC831X
-+    mpc831x_get_curr_time(&internalTime);
-+#else
-     getTime(&internalTime);
-+#endif
-     fromInternalTime(&internalTime, &externalTime, ptpClock->halfEpoch);
-     *(Integer32*)(buf + 60) = flip32(externalTime.seconds);
-     *(Integer32*)(buf + 64) = flip32(externalTime.nanoseconds);
-diff --git a/src/dep/net.c b/src/dep/net.c
-index c773eeb..7b306f6 100644
---- a/src/dep/net.c
-+++ b/src/dep/net.c
+Index: src/protocol.c
+===================================================================
+--- src/protocol.c	(revision 35)
++++ src/protocol.c	(working copy)
 @@ -1,6 +1,9 @@
- /* net.c */
+ /* protocol.c */
  
- #include "../ptpd.h"
+ #include "ptpd.h"
 +#ifdef CONFIG_MPC831X
-+#include "../mpc831x.h"
++#include "mpc831x.h"
 +#endif
  
- Boolean lookupSubdomainAddress(Octet *subdomainName, Octet *subdomainAddress)
- {
-@@ -139,7 +142,11 @@ UInteger32 findIface(Octet *ifaceName, UInteger8 *communicationTechnology,
-     PERROR("failed to get ip address");
-     return 0;
-   }
--  
-+ 
-+#ifdef CONFIG_MPC831X
-+  memcpy(mpc831x_if_name, ifaceName, IFACE_NAME_LENGTH);
-+#endif
-+ 
-   return ((struct sockaddr_in *)&device[i].ifr_addr)->sin_addr.s_addr;
- 
- #elif defined(BSD_INTERFACE_FUNCTIONS)
-@@ -231,6 +238,9 @@ Boolean netInit(NetPath *netPath, RunTimeOpts *rtOpts, PtpClock *ptpClock)
-   struct ip_mreq imr;
-   char addrStr[NET_ADDRESS_LENGTH];
-   char *s;
-+#ifdef CONFIG_MPC831X
-+  mpc831x_netPath = netPath;
-+#endif
+ Boolean doInit(RunTimeOpts*,PtpClock*);
+ void doState(RunTimeOpts*,PtpClock*);
+@@ -299,7 +302,11 @@
    
-   DBG("netInit\n");
+   DBGV("handle: something\n");
    
-@@ -402,7 +412,8 @@ Boolean netSelect(TimeInternal *timeout, NetPath *netPath)
-   return select(nfds + 1, &readfds, 0, 0, &tv) > 0;
- }
- 
--Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *netPath)
-+Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *netPath,
-+			UInteger8 port_state)
- {
-   struct msghdr msg;
-   struct iovec vec[1];
-@@ -452,9 +463,22 @@ Boolean netRecvEvent(Octet *address, Octet *buf, TimeInternal *time, NetPath *ne
-   
-   if(tv)
-   {
 +#ifdef CONFIG_MPC831X
-+    DBGV( "MPC831X port_state : %d\n", port_state );
-+    if (port_state == PTP_MASTER)
-+    {
-+    	mpc831x_get_tx_time(time);
-+    }
-+    else
-+    {
-+    	mpc831x_get_rx_time(time);
-+    }
-+    DBGV("MPC831X recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
++  length = netRecvEvent(ptpClock->msgIbuf, &time, &ptpClock->netPath, ptpClock->port_state);
 +#else
-     time->seconds = tv->tv_sec;
-     time->nanoseconds = tv->tv_usec*1000;
-     DBGV("kernel recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
+   length = netRecvEvent(ptpClock->msgIbuf, &time, &ptpClock->netPath);
 +#endif
-   }
-   else
+   if(length < 0)
    {
-diff --git a/src/dep/ptpd_dep.h b/src/dep/ptpd_dep.h
-index 29c6a09..d44ae51 100644
---- a/src/dep/ptpd_dep.h
-+++ b/src/dep/ptpd_dep.h
-@@ -101,7 +101,7 @@ UInteger16 msgPackManagementResponse(void*,MsgHeader*,MsgManagement*,PtpClock*);
- Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
- Boolean netShutdown(NetPath*);
- Boolean netSelect(TimeInternal*,NetPath*);
--Boolean netRecvEvent(Octet*,Octet*,TimeInternal*,NetPath*);
-+Boolean netRecvEvent(Octet*,Octet*,TimeInternal*,NetPath*, UInteger8);
- Boolean netRecvGeneral(Octet*,Octet*,NetPath*);
- Boolean netSendEvent(Octet*,Octet*,UInteger16,NetPath*);
- Boolean netSendGeneral(Octet*,Octet*,UInteger16,NetPath*);
-diff --git a/src/dep/servo.c b/src/dep/servo.c
-index ae2da3b..f9f766f 100644
---- a/src/dep/servo.c
-+++ b/src/dep/servo.c
-@@ -1,9 +1,13 @@
- #include "../ptpd.h"
-+#ifdef CONFIG_MPC831X
-+#include "../mpc831x.h"
-+#endif
-+
- 
- void initClock(RunTimeOpts *rtOpts, PtpClock *ptpClock)
- {
-   DBG("initClock\n");
--  
-+ 
-   /* clear vars */
-   ptpClock->master_to_slave_delay.seconds = ptpClock->master_to_slave_delay.nanoseconds = 0;
-   ptpClock->slave_to_master_delay.seconds = ptpClock->slave_to_master_delay.nanoseconds = 0;
-@@ -103,9 +107,17 @@ void updateClock(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+     PERROR("failed to receive on the event socket");
+@@ -571,6 +578,10 @@
+       || header->sourceCommunicationTechnology == PTP_DEFAULT
+       || ptpClock->clock_communication_technology == PTP_DEFAULT )
      {
-       if(!rtOpts->noResetClock)
-       {
 +#ifdef CONFIG_MPC831X
-+	mpc831x_get_curr_time(&timeTmp);
-+#else
-         getTime(&timeTmp);
++      /* Get the RX time from HW counter instead of value passed in function call */
++      mpc831x_get_rx_time(time);
 +#endif
-         subTime(&timeTmp, &timeTmp, &ptpClock->offset_from_master);
+       issueDelayResp(time, &ptpClock->msgTmpHeader, rtOpts, ptpClock);
+     }
+     
+@@ -581,6 +592,10 @@
+     {
+       DBG("handleDelayReq: self\n");
+       
 +#ifdef CONFIG_MPC831X
-+	mpc831x_set_curr_time(&timeTmp);
-+#else
-         setTime(&timeTmp);
++      /* Get the TX time from HW counter instead of value passed in function call */
++      mpc831x_get_tx_time(time);
 +#endif
-         initClock(rtOpts, ptpClock);
-       }
-       else
-diff --git a/src/dep/sys.c b/src/dep/sys.c
-index 5206d34..84834f1 100644
---- a/src/dep/sys.c
-+++ b/src/dep/sys.c
-@@ -1,6 +1,10 @@
- /* sys.c */
- 
- #include "../ptpd.h"
-+#ifdef CONFIG_MPC831X
-+#include "../mpc831x.h"
-+#endif
-+
- 
- void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
- {
-@@ -73,20 +77,28 @@ Boolean nanoSleep(TimeInternal *t)
- 
- void getTime(TimeInternal *time)
- {
-+#ifdef CONFIG_MPC831X
-+  mpc831x_get_curr_time(time);
-+#else 
-   struct timeval tv;
--  
-+
-   gettimeofday(&tv, 0);
-   time->seconds = tv.tv_sec;
-   time->nanoseconds = tv.tv_usec*1000;
-+#endif
- }
- 
- void setTime(TimeInternal *time)
- {
-+#ifdef CONFIG_MPC831X
-+  mpc831x_set_curr_time(time);
-+#else
-   struct timeval tv;
-   
-   tv.tv_sec = time->seconds;
-   tv.tv_usec = time->nanoseconds/1000;
-   settimeofday(&tv, 0);
-+#endif
-   
-   NOTIFY("resetting system clock to %ds %dns\n", time->seconds, time->nanoseconds);
- }
-@@ -99,7 +111,7 @@ UInteger16 getRand(UInteger32 *seed)
- Boolean adjFreq(Integer32 adj)
- {
-   struct timex t;
--  
-+
-   if(adj > ADJ_FREQ_MAX)
-     adj = ADJ_FREQ_MAX;
-   else if(adj < -ADJ_FREQ_MAX)
-@@ -107,7 +119,13 @@ Boolean adjFreq(Integer32 adj)
-   
-   t.modes = MOD_FREQUENCY;
-   t.freq = adj*((1<<16)/1000);
--  
-+
-+#ifdef CONFIG_MPC831X
-+  mpc831x_adj_addend(adj);
-+  return( 1 );
-+#else
-   return !adjtimex(&t);
-+#endif
-+
- }
- 
-diff --git a/src/mpc831x.c b/src/mpc831x.c
-new file mode 100644
-index 0000000..e09ef6d
---- /dev/null
-+++ b/src/mpc831x.c
-@@ -0,0 +1,148 @@
+       ptpClock->delay_req_send_time.seconds = time->seconds;
+       ptpClock->delay_req_send_time.nanoseconds = time->nanoseconds;
+       
+Index: src/mpc831x.c
+===================================================================
+--- src/mpc831x.c	(revision 0)
++++ src/mpc831x.c	(revision 0)
+@@ -0,0 +1,149 @@
 +#include "ptpd.h"
 +#include "mpc831x.h"
 +#include <unistd.h>
@@ -318,9 +350,9 @@ index 0000000..e09ef6d
 +		board_time = (board_time << 32) | hw_cnt.low;
 +		//DBG( "mpc831x_get_curr_time board_time = %llu\n", board_time );
 +
-+		time->seconds = BOARD_TIME_TO_SEC(board_time);
++		time->seconds     = BOARD_TIME_TO_SEC( board_time);
 +		time->nanoseconds = BOARD_TIME_TO_NSEC(board_time, time->seconds);
-+		DBG( "mpc831x_get_curr_time seconds (%d), nanoseconds (%d)\n", \
++		DBG( "mpc831x_get_curr_time %9.9d.%9.9d\n", \
 +			time->seconds, time->nanoseconds );
 +	} 
 +	else
@@ -349,7 +381,7 @@ index 0000000..e09ef6d
 +	if(!ioctl(mpc831x_netPath->eventSock, PTP_SET_CNT, &if_data))
 +	{
 +                //DBG( "mpc831x_set_curr_time board_time = %llu Hex (0x%llx)\n", board_time, board_time );
-+		DBG( "mpc831x_set_curr_time seconds (%d), nanoseconds (%d)\n", \
++		DBG( "mpc831x_set_curr_time %9.9d.%9.9d\n", \
 +			time->seconds, time->nanoseconds );
 +	} 
 +	else
@@ -374,7 +406,7 @@ index 0000000..e09ef6d
 +		
 +		time->seconds = BOARD_TIME_TO_SEC(board_time);
 +		time->nanoseconds = BOARD_TIME_TO_NSEC(board_time, time->seconds);
-+		DBG( "mpc831x_get_tx_time seconds (%d), nanoseconds (%d)\n", \
++		DBG( "mpc831x_get_tx_time   %9.9d.%9.9d\n", \
 +			time->seconds, time->nanoseconds );
 +	} 
 +	else
@@ -399,7 +431,7 @@ index 0000000..e09ef6d
 +
 +		time->seconds = BOARD_TIME_TO_SEC(board_time);
 +		time->nanoseconds = BOARD_TIME_TO_NSEC(board_time, time->seconds);
-+		DBG( "mpc831x_get_rx_time seconds (%d), nanoseconds (%d)\n", \
++		DBG( "mpc831x_get_rx_time   %9.9d.%9.9d\n", \
 +			time->seconds, time->nanoseconds );
 +	} 
 +	else
@@ -440,12 +472,215 @@ index 0000000..e09ef6d
 +	}
 +}
 +
-diff --git a/src/mpc831x.h b/src/mpc831x.h
-new file mode 100644
-index 0000000..363e0bf
---- /dev/null
-+++ b/src/mpc831x.h
-@@ -0,0 +1,32 @@
++/* eof mpc831x.c */
+Index: src/dep/sys.c
+===================================================================
+--- src/dep/sys.c	(revision 35)
++++ src/dep/sys.c	(working copy)
+@@ -1,6 +1,9 @@
+ /* sys.c */
+ 
+ #include "../ptpd.h"
++#ifdef CONFIG_MPC831X
++#include "../mpc831x.h"
++#endif
+ 
+ void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+ {
+@@ -73,20 +76,28 @@
+ 
+ void getTime(TimeInternal *time)
+ {
++#ifdef CONFIG_MPC831X
++  mpc831x_get_curr_time(time);
++#else
+   struct timeval tv;
+   
+   gettimeofday(&tv, 0);
+   time->seconds = tv.tv_sec;
+   time->nanoseconds = tv.tv_usec*1000;
++#endif
+ }
+ 
+ void setTime(TimeInternal *time)
+ {
++#ifdef CONFIG_MPC831X
++  mpc831x_set_curr_time(time);
++#else
+   struct timeval tv;
+   
+   tv.tv_sec = time->seconds;
+   tv.tv_usec = time->nanoseconds/1000;
+   settimeofday(&tv, 0);
++#endif
+   
+   NOTIFY("resetting system clock to %ds %dns\n", time->seconds, time->nanoseconds);
+ }
+@@ -98,16 +109,23 @@
+ 
+ Boolean adjFreq(Integer32 adj)
+ {
++#ifndef CONFIG_MPC831X
+   struct timex t;
++#endif
+   
+   if(adj > ADJ_FREQ_MAX)
+     adj = ADJ_FREQ_MAX;
+   else if(adj < -ADJ_FREQ_MAX)
+     adj = -ADJ_FREQ_MAX;
+   
++#ifdef CONFIG_MPC831X
++  mpc831x_adj_addend(adj);
++  return (TRUE);
++#else
+   t.modes = MOD_FREQUENCY;
+   t.freq = adj*((1<<16)/1000);
+-  
++
+   return !adjtimex(&t);
++#endif
+ }
+ 
+Index: src/dep/ptpd_dep.h
+===================================================================
+--- src/dep/ptpd_dep.h	(revision 35)
++++ src/dep/ptpd_dep.h	(working copy)
+@@ -100,7 +100,11 @@
+ Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
+ Boolean netShutdown(NetPath*);
+ int netSelect(TimeInternal*,NetPath*);
++#ifdef CONFIG_MPC831X
++ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*,UInteger8);
++#else
+ ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*);
++#endif
+ ssize_t netRecvGeneral(Octet*,NetPath*);
+ ssize_t netSendEvent(Octet*,UInteger16,NetPath*);
+ ssize_t netSendGeneral(Octet*,UInteger16,NetPath*);
+Index: src/dep/net.c
+===================================================================
+--- src/dep/net.c	(revision 35)
++++ src/dep/net.c	(working copy)
+@@ -1,6 +1,9 @@
+ /* net.c */
+ 
+ #include "../ptpd.h"
++#ifdef CONFIG_MPC831X
++#include "../mpc831x.h"
++#endif
+ 
+ Boolean lookupSubdomainAddress(Octet *subdomainName, Octet *subdomainAddress)
+ {
+@@ -139,7 +142,10 @@
+     PERROR("failed to get ip address");
+     return 0;
+   }
+-  
++#ifdef CONFIG_MPC831X
++  memcpy(mpc831x_if_name, ifaceName, IFACE_NAME_LENGTH);
++#endif
++
+   return ((struct sockaddr_in *)&device[i].ifr_addr)->sin_addr.s_addr;
+ 
+ #elif defined(BSD_INTERFACE_FUNCTIONS)
+@@ -233,7 +239,11 @@
+   char *s;
+   
+   DBG("netInit\n");
+-  
++
++#ifdef CONFIG_MPC831X
++  mpc831x_netPath = netPath;
++#endif
++
+   /* open sockets */
+   if( (netPath->eventSock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP) ) < 0
+     || (netPath->generalSock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP) ) < 0 )
+@@ -424,7 +434,11 @@
+   return ret;
+ }
+ 
++#ifdef CONFIG_MPC831X
++ssize_t netRecvEvent(Octet *buf, TimeInternal *time, NetPath *netPath, UInteger8 port_state)
++#else
+ ssize_t netRecvEvent(Octet *buf, TimeInternal *time, NetPath *netPath)
++#endif
+ {
+   ssize_t ret;
+   struct msghdr msg;
+@@ -497,11 +511,26 @@
+   }
+   
+   if(tv)
++#ifdef CONFIG_MPC831X
+   {
++    if (port_state == PTP_MASTER)
++    {
++      mpc831x_get_tx_time(time);
++      DBGV("netRecvEvent mpc831x_get_tx_time %us %9.9dns\n", time->seconds, time->nanoseconds);
++    }
++    else
++    {
++      mpc831x_get_rx_time(time);
++      DBGV("netRecvEvent mpc831x_get_rx_time %us %9.9dns\n", time->seconds, time->nanoseconds);
++    }
++  }
++#else
++  {
+     time->seconds = tv->tv_sec;
+     time->nanoseconds = tv->tv_usec*1000;
+     DBGV("kernel recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
+   }
++#endif
+   else
+   {
+     /* do not try to get by with recording the time here, better to fail
+Index: src/dep/constants_dep.h
+===================================================================
+--- src/dep/constants_dep.h	(revision 35)
++++ src/dep/constants_dep.h	(working copy)
+@@ -57,7 +57,11 @@
+ #endif
+ 
+ 
++#ifdef CONFIG_MPC831X
++#define ADJ_FREQ_MAX  524288
++#else
+ #define ADJ_FREQ_MAX  512000
++#endif
+ 
+ /* UDP/IPv4 dependent */
+ 
+Index: src/probe.c
+===================================================================
+--- src/probe.c	(revision 35)
++++ src/probe.c	(working copy)
+@@ -1,4 +1,7 @@
+ #include "ptpd.h"
++#ifdef CONFIG_MPC831X
++#include "mpc831x.h"
++#endif
+ 
+ #define KEY_ARRAY_LEN 6
+ UInteger8 management_key_array[KEY_ARRAY_LEN] = 
+@@ -73,7 +76,11 @@
+     interval.nanoseconds = 0;
+     netSelect(&interval, &ptpClock->netPath);
+     
++#ifdef CONFIG_MPC831X
++    netRecvEvent(ptpClock->msgIbuf, &timestamp, &ptpClock->netPath, ptpClock->port_state);
++#else
+     netRecvEvent(ptpClock->msgIbuf, &timestamp, &ptpClock->netPath);
++#endif
+     
+     if(netRecvGeneral(ptpClock->msgIbuf, &ptpClock->netPath))
+     {
+Index: src/mpc831x.h
+===================================================================
+--- src/mpc831x.h	(revision 0)
++++ src/mpc831x.h	(revision 0)
+@@ -0,0 +1,34 @@
++/* mpc831x.h */
 +#ifndef MPC831X_H
 +#define MPC831X_H
 +
@@ -478,132 +713,49 @@ index 0000000..363e0bf
 +void mpc831x_adj_addend(Integer32 adj);
 +
 +#endif //MPC831X_H
-diff --git a/src/probe.c b/src/probe.c
-index 5454e30..8e7a1b9 100644
---- a/src/probe.c
-+++ b/src/probe.c
-@@ -64,7 +64,7 @@ void probe(RunTimeOpts *rtOpts, PtpClock *ptpClock)
-     if(rtOpts->probe_management_key > 0)
-       break;
-   }
--  
-+ 
-   getTime(&finish);
-   finish.seconds += PTP_SYNC_INTERVAL_TIMEOUT(ptpClock->sync_interval);
-   for(;;)
-@@ -73,7 +73,7 @@ void probe(RunTimeOpts *rtOpts, PtpClock *ptpClock)
-     interval.nanoseconds = 0;
-     netSelect(&interval, &ptpClock->netPath);
-     
--    netRecvEvent(0, ptpClock->msgIbuf, 0, &ptpClock->netPath);
-+    netRecvEvent(0, ptpClock->msgIbuf, 0, &ptpClock->netPath, ptpClock->port_state);
-     
-     if(netRecvGeneral(0, ptpClock->msgIbuf, &ptpClock->netPath))
-     {
-@@ -90,6 +90,7 @@ void probe(RunTimeOpts *rtOpts, PtpClock *ptpClock)
-       fflush(stdout);
-     }
-     
-+    printf( "getTime probe (now)\n" ); 
-     getTime(&now);
-     if( now.seconds > finish.seconds || (now.seconds == finish.seconds
-       && now.nanoseconds > finish.nanoseconds) )
-diff --git a/src/protocol.c b/src/protocol.c
-index 4ae14d4..20d9562 100644
---- a/src/protocol.c
-+++ b/src/protocol.c
-@@ -1,6 +1,9 @@
- /* protocol.c */
++/* eof mpc831x.h */
+Index: src/Makefile
+===================================================================
+--- src/Makefile	(revision 35)
++++ src/Makefile	(working copy)
+@@ -4,12 +4,40 @@
+ CFLAGS = -Wall
+ #CPPFLAGS = -DPTPD_DBG -DPTPD_NO_DAEMON
  
- #include "ptpd.h"
-+#ifdef CONFIG_MPC831X
-+#include "mpc831x.h"
-+#endif
- 
- Boolean doInit(RunTimeOpts*,PtpClock*);
- void doState(RunTimeOpts*,PtpClock*);
-@@ -281,7 +284,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
-   if(!ptpClock->message_activity)
-     netSelect(&wait, &ptpClock->netPath);
-   
--  if(netRecvEvent(0, ptpClock->msgIbuf, &time, &ptpClock->netPath))
-+  if(netRecvEvent(0, ptpClock->msgIbuf, &time, &ptpClock->netPath, ptpClock->port_state))
-   {
-     subTime(&time, &time, &rtOpts->inboundLatency);
-   }
-@@ -496,6 +499,10 @@ void handleDelayReq(MsgHeader *header, TimeInternal *time, Boolean isFromSelf, R
-       || header->sourceCommunicationTechnology == PTP_DEFAULT
-       || ptpClock->clock_communication_technology == PTP_DEFAULT )
-     {
-+#ifdef CONFIG_MPC831X
-+      /* Get the RX time from our HW counter */
-+      mpc831x_get_rx_time(time);
-+#endif
-       issueDelayResp(time, &ptpClock->msgTmpHeader, rtOpts, ptpClock);
-     }
-     
-@@ -505,6 +512,11 @@ void handleDelayReq(MsgHeader *header, TimeInternal *time, Boolean isFromSelf, R
-     if(isFromSelf)
-     {
-       DBG("handleDelayReq: self\n");
++# In case this is an MPC831X system, define CONFIG_MPC831X
++CONFIG_MPC831X=1
 +
-+#ifdef CONFIG_MPC831X
-+      /* Get the TX time from our HW counter */
-+      mpc831x_get_tx_time(time);
-+#endif
-       
-       ptpClock->delay_req_send_time.seconds = time->seconds;
-       ptpClock->delay_req_send_time.nanoseconds = time->nanoseconds;
-@@ -540,7 +552,7 @@ void handleDelayResp(MsgHeader *header, Octet *msgIbuf, Boolean isFromSelf, RunT
-       DBG("handleDelayResp: ignore from self\n");
-       return;
-     }
--    
-+   
-     resp = &ptpClock->msgTmp.resp;
-     msgUnpackDelayResp(ptpClock->msgIbuf, resp);
-     
-@@ -554,11 +566,12 @@ void handleDelayResp(MsgHeader *header, Octet *msgIbuf, Boolean isFromSelf, RunT
-       && !memcmp(header->sourceUuid, ptpClock->parent_uuid, PTP_UUID_LENGTH) )
-     {
-       ptpClock->sentDelayReq = FALSE;
--      
-+    
-       toInternalTime(&ptpClock->delay_req_receive_time, &resp->delayReceiptTimestamp, &ptpClock->halfEpoch);
-       
-       if(ptpClock->delay_req_send_time.seconds)
-       {
-+        DBG( "handleDelayResp: from master\n" );
-         updateDelay(&ptpClock->delay_req_send_time, &ptpClock->delay_req_receive_time,
-           &ptpClock->owd_filt, rtOpts, ptpClock);
-         
-@@ -626,7 +639,8 @@ void issueSync(RunTimeOpts *rtOpts, PtpClock *ptpClock)
-   
-   ++ptpClock->last_sync_event_sequence_number;
-   ptpClock->grandmaster_sequence_number = ptpClock->last_sync_event_sequence_number;
--  
-+ 
-+  printf( "getTime issueSync\n" ); 
-   getTime(&internalTime);
-   fromInternalTime(&internalTime, &originTimestamp, ptpClock->halfEpoch);
-   msgPackSync(ptpClock->msgObuf, FALSE, &originTimestamp, ptpClock);
-@@ -660,14 +674,16 @@ void issueDelayReq(RunTimeOpts *rtOpts, PtpClock *ptpClock)
-   ptpClock->sentDelayReq = TRUE;
-   ptpClock->sentDelayReqSequenceId = ++ptpClock->last_sync_event_sequence_number;
-   
-+  printf( "getTime issueDelayReq\n" ); 
-   getTime(&internalTime);
-   fromInternalTime(&internalTime, &originTimestamp, ptpClock->halfEpoch);
-   msgPackDelayReq(ptpClock->msgObuf, FALSE, &originTimestamp, ptpClock);
-   
-   if(!netSendEvent(0, ptpClock->msgObuf, DELAY_REQ_PACKET_LENGTH, &ptpClock->netPath))
-     toState(PTP_FAULTY, rtOpts, ptpClock);
--  else
-+  else{
-     DBGV("sent delay request message\n");
-+  }
- }
+ PROG = ptpd
+ OBJ  = ptpd.o arith.o bmc.o probe.o protocol.o \
+ 	dep/msg.o dep/net.o dep/servo.o dep/startup.o dep/sys.o dep/timer.o
+ HDR  = ptpd.h constants.h datatypes.h \
+ 	dep/ptpd_dep.h dep/constants_dep.h dep/datatypes_dep.h
  
- void issueDelayResp(TimeInternal *time, MsgHeader *header, RunTimeOpts *rtOpts, PtpClock *ptpClock)
-
- 	  	 
++ifeq ($(CONFIG_MPC831X), 1)
++#
++# for full  debug messages define -DPTPD_DBGV below
++# for basic debug messages define -DPTPD_DBG  below
++# for no    debug messages remove the debug define
++#
++# -DCONFIG_MPC831X is defined to use MPC831X timestamping, 
++# otherwise system timer is used
++#
++CFLAGS = -Wall -DPTPD_DBGV -DCONFIG_MPC831X
++LDFLAGS = -static
++OBJ += mpc831x.o
++HDR += mpc831x.h
++#
++# Makefile from original patch for ptpd version 1b5 used CC 
++# as a specific gcc filename spec of powerpc-e300c3-linux-gcc.  
++# This does not work# with the LTIB environment, 
++# where you just use gcc (LTIB maps gcc to the right type and
++# version of the compiler for the target.
++#
++# original patch from Freescale was:      CC=powerpc-e300c3-linux-gcc
++# changed to work in an LTIB environment: CC=gcc
++#
++CC=gcc
++endif
+ 
+ .c.o:
+ 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
