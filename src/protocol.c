@@ -336,14 +336,25 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   
   msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
   
-  DBGV("event Receipt of Message\n   type %d\n"
+  DBGV("event Receipt of Message\n"
+    "   version %d\n"
+    "   type %d\n"
     "   uuid %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n"
-    "   sequence %d\n   time %us %dns\n",
+    "   sequence %d\n"
+    "   time %us %dns\n",
+    ptpClock->msgTmpHeader.versionPTP,
     ptpClock->msgTmpHeader.control,
-    ptpClock->msgTmpHeader.sourceUuid[0], ptpClock->msgTmpHeader.sourceUuid[1], ptpClock->msgTmpHeader.sourceUuid[2],
-    ptpClock->msgTmpHeader.sourceUuid[3], ptpClock->msgTmpHeader.sourceUuid[4], ptpClock->msgTmpHeader.sourceUuid[5],
+    ptpClock->msgTmpHeader.sourceUuid[0], ptpClock->msgTmpHeader.sourceUuid[1],
+    ptpClock->msgTmpHeader.sourceUuid[2], ptpClock->msgTmpHeader.sourceUuid[3],
+    ptpClock->msgTmpHeader.sourceUuid[4], ptpClock->msgTmpHeader.sourceUuid[5],
     ptpClock->msgTmpHeader.sequenceId,
     time.seconds, time.nanoseconds);
+  
+  if(ptpClock->msgTmpHeader.versionPTP != VERSION_PTP)
+  {
+    DBGV("ignore version %d message\n", ptpClock->msgTmpHeader.versionPTP);
+    return;
+  }
   
   if( memcmp(ptpClock->msgTmpHeader.subdomain, ptpClock->subdomain_name,
     PTP_SUBDOMAIN_NAME_LENGTH) )
