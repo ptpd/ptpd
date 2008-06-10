@@ -155,6 +155,9 @@ void doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     
     handle(rtOpts, ptpClock);
     
+    if(rtOpts->slaveOnly || ptpClock->clock_stratum == 255)
+      toState(PTP_LISTENING, rtOpts, ptpClock);
+    
     break;
     
   case PTP_DISABLED:
