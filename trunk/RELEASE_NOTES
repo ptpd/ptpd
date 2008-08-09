@@ -1,5 +1,14 @@
 RELEASE_NOTES for PTPd
 
+v1.0.0, 9 August 2008:
+
+The long over due 1.0 release. A few small fixes, the most notable of which is a
+fix to check the revision of an IEEE-1588 message to prevent PTPd from
+interfering with IEEE-1588 v2 devices on the same network. There are some extras
+thanks to contributors, including an updated MPC8313E patch, a QNX patch, and a
+man page. PTPd v1 will be branched in the repository, and work toward IEEE-1588
+v2 will begin on the trunk.
+
 v1rc1, 17 June 2007:
 
 This release fixes a regression in v1b5 that broke unicast support. It also adds
