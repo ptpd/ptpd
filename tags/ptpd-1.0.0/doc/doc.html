@@ -1,0 +1,210 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
+<title>PTPd Source Documentation</title>
+</head>
+
+<body>
+
+<h1>PTPd Source Code Documentation</h1>
+
+<p>
+This is a brief overview of PTPd's source code intended to aid developers looking through PTPd.
+</p>
+
+<p> This documentation is incomplete, and it will be worked on as time permits.
+More information, particularly on PTPd's clock servo, is available in <a
+href="ptpd_2005_1588_conference_paper.pdf">this paper</a> written for the 2005
+Conference on IEEE 1588. </p>
+
+
+<h2>The IEEE 1588 Precision Time Protocol</h2>
+
+<p> The PTP daemon (PTPd) implements the Precision Time protocol (PTP) as
+defined by the IEEE 1588 standard. PTP was developed to provide very precise
+time coordination of LAN connected computers. The IEEE 1558 specification
+dictates most of PTPd's operation, so one should obtain a copy of the spec
+before going through PTPd's source code. PTPd keeps all of the names used in the
+spec, so it should be easy to match up PTPd's source code with the spec.
+Descriptions herein will assume knowledge of the spec. </p>
+
+<h2>Playing with PTPd</h2>
+
+<p> The best way to become familiar with a program is to use it. One should be
+able to run PTPd on standard Linux systems without much trouble. To better
+observe the operation of PTPd, compile it with the PTPD_DBG flag to have the
+program produce debugging output, and run PTPd with the '-c' argument to prevent
+it from backgrounding itself. </p>
+
+<p> PTPd coordinates the local clock by adjusting the effective tick rate, or
+<i>slewing</i>, the clock. This is a slow but precise process. To quickly
+coordinate a local clock that is off by more than one second, PTPd will reset
+the clock instead of slewing. This results in a step change in the time base,
+which can can cause problems for applications that require a smooth and
+monotonically increasing time base. The '-x' option will prevent PTPd from
+resetting the clock, while still allowing it to adjust the clock frequency.
+(This is different from the '-t' option that entirely prevents PTPd from
+adjusting the clock.)</p>
+
+<p> For PTPd to operate, it must be run on at least two computers connected
+through an Ethernet hub or switch. It is possible to have PTPd coordinate two
+(and only two) computers through a routed connection by running PTPd on each
+computer with the '-u' argument followed by the IP address of the other
+computer. </p>
+
+<p> PTPd can send management messages to query PTP nodes on a LAN or a PTPd
+server on the same machine. To send a management message, run PTPd with the '-k
+NUMBER' option, where the number is the management message key to send, or zero
+to send a sweep of different management messages. To query only a local PTPd
+server, bind the program to the loopback device with '-b lo'. </p>
+
+<p> PTPd should be able to coordinate the clocks of your computers within tens
+of microseconds. The default distribution achieved coordination below ten
+microseconds running on fairly busy embedded systems with 66MHz m68k processors.
+For the best performance, you will need to tweak the servo gains with the '-a'
+command line argument. Also, you must compensate for asymmetric inbound versus
+outbound message latency with the '-l' argument. This will remove any constant
+offset in the time coordination. As a rule of thumb, you can eliminate a time
+offset T by specifying an inbound and outbound latency that have a difference of
+2*T. </p>
+
+<p> PTPd's precision is dependent upon the precision of message send and receive
+time stamps. PTPd previously required a kernel patch to improve its precision,
+but now it needs only a Berkeley sockets interface that has the
+<tt>SO_TIMESTAMP</tt> socket option. PTPd uses a few platform specific APIs to
+query network interfaces, but otherwise it should be very portable to any Posix
+platform that implements David Mills' <tt>ntp_adjtime</tt>/<tt>adtimex</tt>
+system call. PTPd runs on Linux, uClinux, NetBSD, and FreeBSD. </p>
+
+<p> While it is fairly easy to get PTPd to provide a precisely coordinated time
+base, it is much more difficult to use the coordinated time base. This is
+because platforms like Linux do not provide interfaces to generate precisely
+timed events. Projects like RTAI are working on 'real-time' turnaround in Linux.
+</p>
+
+<h2>PTPd's Source Code Organization</h2>
+
+<p> PTPd's source is grouped into a few components. The component delineations
+are based on the functionality defined by the spec, but the delineations are not
+specifically defined by the spec. </p>
+
+<p> The following is a block diagram of PTPd's major components, in which
+occlusion indicates interfaces between components. </p>
+
+<p><object type="image/svg+xml" data="organization.svg" width="600" height="300">
+<a href="organization.svg">[organization block diagram]</a></object></p>
+
+<p> In general, PTPd's source is divided into platform-independent and
+platform-dependent code. Platform-independent code is located in the top level
+of the PTPd source tree, and platform-dependent code is located the
+<tt>dep/</tt> sub-directory. </p>
+
+<p> PTPd's major source code components are: </p>
+
+<dl><dt><b>Protocol Engine</b>, <tt>protocol.c</tt></dt>
+
+<dd> The main protocol state machine defined in the spec. The state machine is
+implemented as a forever loop with cases for each state. It is called with
+<tt>protocol()</tt> after start-up, and only returns on an error. Normal
+execution is expected to be halted externally and asynchronously. The loop
+sleeps in a select() call on the network sockets. The primary states, handled by
+<tt>doState()</tt>, are master, slave, inactive, and faulty. State transitions,
+handled by <tt>toState()</tt>, occur primarily due to the results of the BMC
+algorithm. The primary events are message receives, which are checked for in
+<tt>handle()</tt>, and timer expiration. The primary actions are message sends,
+which are done in <tt>issue()</tt>, timer resets, regular runs of the BMC
+algorithm, foreign master data updates, and system clock servo updates after
+sync message receipts. </dd>
+
+<dt><b>BMC</b>, <tt>bmc.c</tt></dt>
+
+<dd> The Best Master Clock algorithm defined by the spec. It is called with
+<tt>bmc()</tt>, and it returns the proper state, master or slave, based on the
+reported clock statistics of other PTP clocks that have sent Sync messages
+(foreign masters). </dd>
+
+<dt><b>Clock Servo</b>, <tt>dep/servo.c</tt></dt>
+
+<dd> The clock servo computes the offset-from-master from the master-to-slave
+delay and slave-to-master delays. It uses the offset-from-master to compute
+clock tick rate adjustments to minimize the offset-from-master. The clock servo
+also performs filtering to remove jitter from its input. </dd>
+
+<dt><b>Message Packer</b>, <tt>dep/msg.c</tt></dt>
+
+<dd> Gathers data into and extracts data from PTP messages, the format of which
+is defined by the spec. </dd>
+
+<dt><b>Network Layer</b>, <tt>dep/net.c</tt></dt>
+
+<dd> Initializes connections, sends, and receives data between PTP clocks.
+The network layer also retrieves time stamps for Event messages from the Time
+Stamp component. </dd>
+
+<dt><b>Time Stamp</b></dt>
+
+<dd> Records message send and receive times. The send and receive times are used
+to compute the master-to-slave and slave-to-master delay. The delays are then
+used to coordinate slave clocks with master clock time. Time stamps should be
+recorded as close to the networking hardware as possible. This minimizes jitter
+in the time stamps, which is the most significant detriment to PTPd's clock
+coordination. </dd>
+
+<dt><b>Timer</b>, <tt>dep/timer.c</tt></dt>
+
+<dd> Low resolution interval timers used in the protocol engine. The timers
+control periodic Sync message sends by masters, Delay Request sends by slaves, periodic
+runs of the BMC (state change events), and Sync receive timeouts. </dd>
+
+<dt><b>Start-up</b>, <tt>dep/startup.c</tt></dt>
+
+<dd> Sets the program's execution state, and retrieves run-time options from the
+user. </dd>
+
+<dt><b>Other code</b></dt>
+
+<dd> The <tt>ptpd.c</tt> file contains the execution entry point. The
+<tt>ptpd</tt> header files contain function prototype declarations. The
+<tt>datatypes</tt> header files contain structure and data type declarations.
+Finally, the <tt>constants</tt> header files contain constant declarations.
+</dd></dl>
+
+<h2>PTPd's Clock Servo</h2>
+
+<p> The IEEE 1588 spec does not define how the offset from master produced by a
+PTP slave is used to bring the slave clock into coordination with master clock
+time. This procedure, called clock discipline, is not trivial, and there are
+many possible design approaches and trade-offs. For these reasons, this
+documentation devotes a section exclusively to the clock servo component. </p>
+
+<p> The following shows the message send and receive paths in a typical system
+running PTPd, along with the associated time stamps that form the basis of the
+master-to-slave and slave-to-master delay measurements. </p>
+
+<p>
+<object type="image/svg+xml" data="data_paths.svg" width="700" height="250">
+<a href="data_paths.svg">[data path diagram]</a></object>
+</p>
+
+<p> The following is a system diagram of PTPd's clock servo. The FIR filtering
+of the offset from master input is a simple, two-sample average. The IIR
+filtering of the input one-way delay is described below. The PI controller that
+mediates the tick rate adjustment output has the difference equation: <tt>y[n] =
+e[n]/Ap + a[n]</tt>, <tt>a[n] = e[n]/Ai + a[n-1]</tt>. </p>
+
+<p><object type="image/svg+xml" data="clock_servo.svg" width="700" height="250">
+<a href="clock_servo.svg">[clock servo system diagram]</a></object></p>
+
+<p> The following are plots of the frequency response of the one-way delay
+filter. It is a variable cutoff/delay low-pass, infinite impulse response (IIR)
+filter. The one-way delay filter has the difference equation: <tt>s*y[n] -
+(s-1)*y[n-1] = x[n]/2 + x[n-1]/2</tt>, where increasing the stiffness
+(<tt>s</tt>) lowers the cutoff and increases the delay. </p>
+
+<p><object type="image/svg+xml" data="filter.svg" width="640" height="512">
+<a href="filter.svg">[offset filter plot]</a></object></p>
+
+</body>
+</html>
+
