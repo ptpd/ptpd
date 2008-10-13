@@ -5,6 +5,8 @@
 
 /* platform dependent */
 
+#include <limits.h>
+
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__)
 #error Not ported to this architecture, please update.
 #endif
