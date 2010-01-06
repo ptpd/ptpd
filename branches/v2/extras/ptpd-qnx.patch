@@ -1,0 +1,277 @@
+Index: src/dep/servo.c
+===================================================================
+--- src/dep/servo.c	(revision 36)
++++ src/dep/servo.c	(working copy)
+@@ -150,8 +150,11 @@
+     ptpClock->slave_to_master_delay.seconds, ptpClock->slave_to_master_delay.nanoseconds);
+   DBGV("one-way delay:           %10ds %11dns\n",
+     ptpClock->one_way_delay.seconds, ptpClock->one_way_delay.nanoseconds);
+-  DBG("offset from master:      %10ds %11dns\n",
+-    ptpClock->offset_from_master.seconds, ptpClock->offset_from_master.nanoseconds);
++  DBG("offset from master:      %10ds %11dns / %+8.3fms / %+.3fus\n",
++      ptpClock->offset_from_master.seconds, 
++      ptpClock->offset_from_master.nanoseconds, 
++      (double)ptpClock->offset_from_master.nanoseconds / 1000000.,
++      (double)ptpClock->offset_from_master.nanoseconds / 1000.);
+   DBG("observed drift: %10d\n", ptpClock->observed_drift);
+ }
+ 
+Index: src/dep/sys.c
+===================================================================
+--- src/dep/sys.c	(revision 36)
++++ src/dep/sys.c	(working copy)
+@@ -71,13 +71,89 @@
+   return TRUE;
+ }
+ 
++#ifdef __QNXNTO__
++typedef struct {
++  _uint64 int_count;
++  _uint64 last_tsc;
++  _uint64 last_clock;
++  _uint64 tsc_step;
++  _uint64 clock_step;
++} no_page_area;
++
++const struct sigevent* timer_handler(void* area, int id) {
++  struct timespec tp;
++  uint64_t new_clock;
++  no_page_area* a = (no_page_area*)area;
++  uint64_t new_tsc = ClockCycles();
++  uint64_t new_tsc_step = new_tsc - a->last_tsc;
++  int s = 100;
++  int f = 40;
++  if(a->tsc_step == 0)
++    f = 0;
++  a->tsc_step = (f * a->tsc_step + (s - f) * new_tsc_step) / s;
++  a->last_tsc = new_tsc;
++  a->int_count ++;
++
++  clock_gettime(CLOCK_REALTIME, &tp);
++  new_clock = timespec2nsec(&tp);
++  a->clock_step = new_clock - a->last_clock;
++  a->last_clock = new_clock;  
++  return NULL;
++}
++#endif
++
+ void getTime(TimeInternal *time)
+ {
++#ifdef __QNXNTO__
++  static no_page_area* area = NULL;
++  static no_page_area a;
++  int ret;
++  uint64_t tsc_offset;
++  double step_part;
++  uint64_t clock_offset;
++  struct timespec tp;
++
++  if(!area) {
++    // register interrupt handler and reserve memory
++    area = (no_page_area*)malloc(sizeof(no_page_area));  
++    area->int_count = 0;
++    area->tsc_step = 0;
++    area->clock_step = 0;
++    area->last_tsc = ClockCycles();
++    clock_gettime(CLOCK_REALTIME, &tp);
++    area->last_clock = timespec2nsec(&tp); 
++    if(ThreadCtl(_NTO_TCTL_IO, 0) == -1) {
++      perror("ThreadCtrl");
++      return;
++    }
++    ret = InterruptAttach(0, timer_handler, area, sizeof(no_page_area), _NTO_INTR_FLAGS_END | _NTO_INTR_FLAGS_TRK_MSK);
++    if(ret == -1) {
++      perror("InterruptAttach");
++      return ;
++    }
++    time->seconds = tp.tv_sec;
++    time->nanoseconds = tp.tv_nsec;
++    return;
++  }
++  memcpy(&a, area, sizeof(no_page_area));
++
++  tsc_offset = ClockCycles() - a.last_tsc;
++  step_part = (double)tsc_offset / (double)a.tsc_step;
++  clock_offset = (uint64_t)(step_part * (double)a.clock_step);
++  if(a.int_count < 2)
++    clock_offset = 0;
++  nsec2timespec(&tp, a.last_clock + clock_offset);
++
++  time->seconds = tp.tv_sec;
++  time->nanoseconds = tp.tv_nsec;
++  return;  
++#else
+   struct timeval tv;
+   
+   gettimeofday(&tv, 0);
+   time->seconds = tv.tv_sec;
+   time->nanoseconds = tv.tv_usec*1000;
++#endif
+ }
+ 
+ void setTime(TimeInternal *time)
+@@ -98,6 +174,13 @@
+ 
+ Boolean adjFreq(Integer32 adj)
+ {
++#ifdef __QNXNTO__
++  struct _clockadjust new;
++  new.tick_count = 1;
++  new.tick_nsec_inc = adj / new.tick_count;
++
++  return ClockAdjust(CLOCK_REALTIME, &new, NULL) != -1;
++#else
+   struct timex t;
+   
+   if(adj > ADJ_FREQ_MAX)
+@@ -109,5 +192,6 @@
+   t.freq = adj*((1<<16)/1000);
+   
+   return !adjtimex(&t);
++#endif
+ }
+ 
+Index: src/dep/ptpd_dep.h
+===================================================================
+--- src/dep/ptpd_dep.h	(revision 36)
++++ src/dep/ptpd_dep.h	(working copy)
+@@ -13,16 +13,22 @@
+ #include<sys/stat.h>
+ #include<time.h>
+ #include<sys/time.h>
+-#include<sys/timex.h>
+ #include<sys/socket.h>
+ #include<sys/select.h>
+ #include<sys/ioctl.h>
+ #include<arpa/inet.h>
+ 
++#ifndef __QNXNTO__
++# include<sys/timex.h>
++#endif
+ 
+ /* system messages */
+ #define ERROR(x, ...)  fprintf(stderr, "(ptpd error) " x, ##__VA_ARGS__)
+-#define PERROR(x, ...) fprintf(stderr, "(ptpd error) " x ": %m\n", ##__VA_ARGS__)
++#ifndef __QNXNTO__
++# define PERROR(x, ...) fprintf(stderr, "(ptpd error) " x ": %m\n", ##__VA_ARGS__)
++#else
++# define PERROR(x, ...) fprintf(stderr, "(ptpd error) " x , ##__VA_ARGS__); perror(" ")
++#endif
+ #define NOTIFY(x, ...) fprintf(stderr, "(ptpd notice) " x, ##__VA_ARGS__)
+ 
+ /* debug messages */
+Index: src/dep/net.c
+===================================================================
+--- src/dep/net.c	(revision 36)
++++ src/dep/net.c	(working copy)
+@@ -226,6 +226,12 @@
+ Boolean netInit(NetPath *netPath, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+ {
+   int temp, i;
++#ifdef __QNXNTO__
++  unsigned char tempc;
++# define temp_value tempc
++#else
++# define temp_value temp
++#endif
+   struct in_addr interfaceAddr, netAddr;
+   struct sockaddr_in addr;
+   struct ip_mreq imr;
+@@ -332,18 +338,18 @@
+   }
+ 
+   /* set socket time-to-live to 1 */
+-  temp = 1;
+-  if( setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL, &temp, sizeof(int)) < 0
+-    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL, &temp, sizeof(int)) < 0 )
++  temp_value = 1;
++  if( setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL, &temp_value, sizeof(temp_value)) < 0
++      || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL, &temp_value, sizeof(temp_value)) < 0 ) 
+   {
+     PERROR("failed to set the multi-cast time-to-live");
+     return FALSE;
+   }
+   
+   /* enable loopback */
+-  temp = 1;
+-  if( setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, &temp, sizeof(int)) < 0
+-    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, &temp, sizeof(int)) < 0 )
++  temp_value = 1;
++  if( setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, &temp_value, sizeof(temp_value)) < 0
++    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, &temp_value, sizeof(temp_value)) < 0 )
+   {
+     PERROR("failed to enable multi-cast loopback");
+     return FALSE;
+@@ -510,7 +516,11 @@
+     DBG("no recieve time stamp\n");
+     return 0;
+   }
+-
++#ifdef __QNXNTO__
++  /* always overwrite SO_TIMESTAMP value  of QNX. it gets only incremented
++     every 8ms. */
++  getTime(time);
++#endif
+   return ret;
+ }
+ 
+Index: src/dep/constants_dep.h
+===================================================================
+--- src/dep/constants_dep.h	(revision 36)
++++ src/dep/constants_dep.h	(working copy)
+@@ -5,7 +5,7 @@
+ 
+ /* platform dependent */
+ 
+-#if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__)
++#if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) && !defined(__QNXNTO__)
+ #error Not ported to this architecture, please update.
+ #endif
+ 
+@@ -26,7 +26,30 @@
+ #endif
+ #endif /* linux */
+ 
++#ifdef __QNXNTO__
++# include <netinet/in.h>
++# include <net/if.h>
++# include <net/if_dl.h>
++# include <net/if_types.h>
++# include <net/if_ether.h>
++# include <sys/types.h>
++# include <sys/socket.h>
++# include <ifaddrs.h>
++# include <sys/neutrino.h>
++# define BSD_INTERFACE_FUNCTIONS
++# define IFACE_NAME_LENGTH         IF_NAMESIZE
++# define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
+ 
++# include<sys/param.h>
++# if BYTE_ORDER == LITTLE_ENDIAN
++#  define PTPD_LSBF
++# elif BYTE_ORDER == BIG_ENDIAN
++#  define PTPD_MSBF
++# endif
++#endif /* qnx */
++
++
++
+ #if defined(__NetBSD__) || defined(__FreeBSD__)
+ # include <sys/types.h>
+ # include <sys/socket.h>
+Index: src/Makefile
+===================================================================
+--- src/Makefile	(revision 36)
++++ src/Makefile	(working copy)
+@@ -4,6 +4,11 @@
+ CFLAGS = -Wall
+ #CPPFLAGS = -DPTPD_DBG -DPTPD_NO_DAEMON
+ 
++ARCH=$(shell uname)
++ifeq ($(ARCH),QNX)
++LDFLAGS=-lsocket
++endif
++
+ PROG = ptpd
+ OBJ  = ptpd.o arith.o bmc.o probe.o protocol.o \
+ 	dep/msg.o dep/net.o dep/servo.o dep/startup.o dep/sys.o dep/timer.o

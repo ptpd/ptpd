@@ -1,0 +1,148 @@
+RELEASE_NOTES for PTPd
+
+v1.0.0, 9 August 2008:
+
+The long over due 1.0 release. A few small fixes, the most notable of which is a
+fix to check the revision of an IEEE-1588 message to prevent PTPd from
+interfering with IEEE-1588 v2 devices on the same network. There are some extras
+thanks to contributors, including an updated MPC8313E patch, a QNX patch, and a
+man page. PTPd v1 will be branched in the repository, and work toward IEEE-1588
+v2 will begin on the trunk.
+
+v1rc1, 17 June 2007:
+
+This release fixes a regression in v1b5 that broke unicast support. It also adds
+a PTPd patch posted on the website for 1588 hardware support on MPC8313E
+processors.
+
+v1b5, 3 December 2006:
+
+PTPd is now ported to *BSD. Also, there are small fixes for 64-bit
+architectures, better interface search on Linux, and disallow master mode if the
+stratum is 255 for 1588 spec compliance. There is a fairly large change to
+separate the internal time representation from the external IEEE 1588 time
+representation. This significantly simplifies the time arithmetic functions, and
+it should allow PTPd to work properly after 2038 despite the fact that the Linux
+clock will rollover. PTPd should run seamlessly through 2038 as a slave, but to
+run PTPd as a master after 2038, you need to set the 'half epoch' flag with the
+'-h' command line option. Finally, there is a change so that PTPd no longer
+needs a kernel modification to retrieve send time stamps. PTPd now retrieves
+send time stamps from looped back received messages.
+
+   -kendall
+
+
+v1b4, 28 June 2006:
+
+More fixes, including some to make PTPd work with the PTPManager program. The
+default UTC offset has also been changed again. Now it is zero to comply with
+the 1588 spec, which says that unless a clock is otherwise synced to UTC, it
+should report a UTC offset of zero. The '-t' option (don't adjust the clock) has
+been fixed so that it also prevents zeroing the frequency at start up. The
+ability to query a network with management messages has been added with the '-k'
+option. Finally, PTPd's timer and polling mechanism has been changed to allow it
+to respond immediately to received messages.
+
+   -kendall
+
+
+v1b3, 6 March 2006:
+
+There has been some useful feedback since the last release. This release
+contains some requested bug fixes including an update of the default UTC offset.
+This release also adds a requested slave-only mode. Thanks to everyone for the
+input.
+
+   -kendall
+
+
+v1b2, 8 December 2005:
+
+There has been no feedback from the previous release, so this release does not
+contain any significant changes to the source. This release is just the few
+minor source changes still sitting in CVS, along with some cleaning of the extra
+bits like the documentation and tools. Also, I have removed the 'parpp' tool
+from the distribution because its use is not straightforward, and I think it may
+be more confusing than helpful to casual users. Finally, I included a PDF of the
+paper I wrote for the 2005 Conference on IEEE 1588 to make up for my languishing
+source code documentation effort.
+
+   -kendall
+
+
+v1b1, 18 October 2005:
+
+The site seems to be getting some downloads, so I want this latest code out
+there. There are only small changes. The number of foreign master records now
+has a command-line option. Also, the the 'Q' randomization of Delay Request
+messages is essentially disabled because I realized it was not implemented
+correctly. This is no big deal, because PTPd's Delay Requests do not occur in a
+consistent part of the Sync interval window, so they are implicitly randomized.
+Anyway, PTPd has been plug-fested a couple of times, and everything seems to
+work well, so I am comfortable calling this a beta release. Hopefully people
+will try the program out and help shake out some bugs.
+
+   -kendall
+
+
+v1a4, 24 September 2005:
+
+A fair amount of changes, most of which I do not recall. Fixing support for all
+of the management messages is one that comes to mind. A fix that sets socket
+reuse is another one. Also, there's a fix to the initial clock reset that
+allows it to start up very close to master clock time. In general, this release
+is more stream-lining and tightening up core functionality. I think that the
+protocol stack and the clock servo are feature complete for v1. I will be
+testing this release at the IEEE 1588 conference in Zurich. After that, I will
+probably tag my next release as beta.
+
+   -kendall
+
+
+v1a3, 17 August 2005:
+
+Lots of changes. PTPd functions essentially the same as before, but the code has
+been reorganized and trimmed. Also, PTPd now has a real clock servo, and there
+is a hook for kernel send time stamps. The stock Linux kernel does not have
+a send time stamp, so you'll have to implement your own. I'd be glad to provide
+instructions how or kernel patches if anyone is interested. PTPd has shown the
+ability to hold coordination solidly within 10us running on a 66MHz M68k.
+
+   -kendall
+
+
+v1a2, 4 June 2005:
+
+PTPd can now be built with 'make'. It also includes a little bit of usage
+information in README. This release also fixes a broken clock servo that
+caused a slave with a time greater than master clock time to run away from
+master clock time. Finally, it includes an updated 'parpp' that hopefully
+can be used to precisely quantify the precision of clock coordination.
+
+   -kendall
+
+
+v1a1, 25 May 2005:
+
+This is the first public source code release of PTPd. The source has been
+compiled with gcc and tested on an x86 Linux machine. The code may work on
+big-endian machines as well, but it will only work on 32-bit Linux machines.
+
+This release also includes a kernel module that generates a pulse-per-second
+(PPS) on the most significant data bit of a PC parallel port. The PPS
+generated by PTP systems can be used to verify their clock coordination. The
+included PPS generator is not precise, so it does not provide a good way to
+quantify the time coordination precision.
+
+All of this code is a work in progress. Please feel free to mess around with
+it and use it as you wish. While I can offer no support, I welcome any
+questions/comments on porting, bugs, features, or anything else. One
+exception, please do not ask me what PTP is. One can learn more about PTP
+from the IEEE 1588 specification, and one can join the LXI Consortium to
+work with the companies using PTP.
+
+Finally, this release is not intended to be a functional PTP system
+(although one can be built from it using 'gcc ptpd.c -o ptpd'). It should
+not be too hard to figure out how to use it if you dig into the source.
+
+   -kendall
