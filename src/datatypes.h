@@ -1,285 +1,329 @@
-/* datatypes.h */
+#ifndef DATATYPES_H_
+#define DATATYPES_H_
 
-#ifndef DATATYPES_H
-#define DATATYPES_H
+/*Struct defined in spec*/
 
+
+/**
+*\file
+* \brief Main structures used in ptpdv2
+* 
+* This header file defines structures defined by the spec, 
+main program data structure, and all messages structures
+ */
+
+
+/** 
+* \brief The TimeInterval type represents time intervals
+ */
 typedef struct {
-  UInteger32 seconds;
-  Integer32 nanoseconds;  
-} TimeRepresentation;
+	Integer64 scaledNanoseconds;
+} TimeInterval;
 
+/**
+* \brief The Timestamp type represents a positive time with respect to the epoch
+ */
+typedef struct  {
+	UInteger48 secondsField;
+	UInteger32 nanosecondsField;
+} Timestamp;
+
+/**
+* \brief The ClockIdentity type identifies a clock
+ */
+typedef Octet ClockIdentity[CLOCK_IDENTITY_LENGTH];
+
+/**
+* \brief The PortIdentity identifies a PTP port.
+ */
+typedef struct {
+	ClockIdentity clockIdentity;
+	UInteger16 portNumber;
+} PortIdentity;
+
+/**
+* \brief The PortAdress type represents the protocol address of a PTP port
+ */
+typedef struct {
+	Enumeration16 networkProtocol;
+	UInteger16 adressLength;
+	Octet* adressField;
+} PortAdress;
+
+/**
+* \brief The ClockQuality represents the quality of a clock
+ */
+typedef struct {
+	UInteger8 clockClass;
+	Enumeration8 clockAccuracy;
+	UInteger16 offsetScaledLogVariance;
+} ClockQuality;
+
+/**
+* \brief The TLV type represents TLV extension fields
+ */
+typedef struct {
+	Enumeration16 tlvType;
+	UInteger16 lengthField;
+	Octet* valueField;
+} TLV;
+
+/**
+* \brief The PTPText data type is used to represent textual material in PTP messages
+ */
+typedef struct {
+	UInteger8 lengthField;
+	Octet* textField;
+} PTPText;
+	
+/**
+* \brief The FaultRecord type is used to construct fault logs
+ */
+typedef struct {
+	UInteger16 faultRecordLength;
+	Timestamp faultTime;
+	Enumeration8 severityCode;
+	PTPText faultName;
+	PTPText faultValue;
+	PTPText faultDescription;
+} FaultRecord;
+
+
+/** 
+* \brief The common header for all PTP messages (Table 18 of the spec)
+ */
+/* Message header */
+typedef struct {
+ 	Nibble transportSpecific;
+ 	Enumeration4 messageType;
+ 	UInteger4 versionPTP;
+ 	UInteger16 messageLength;
+ 	UInteger8 domainNumber;
+ 	Octet flagField[2];
+ 	Integer64 correctionfield;
+	PortIdentity sourcePortIdentity;
+ 	UInteger16 sequenceId;
+ 	UInteger8 controlField;
+ 	Integer8 logMessageInterval;
+} MsgHeader;
+
+
+/** 
+* \brief Announce message fields (Table 25 of the spec)
+ */
+/*Announce Message */
+typedef struct {
+	Timestamp originTimestamp;
+	Integer16 currentUtcOffset;
+	UInteger8 grandmasterPriority1;
+	ClockQuality grandmasterClockQuality;
+	UInteger8 grandmasterPriority2;
+	ClockIdentity grandmasterIdentity;
+	UInteger16 stepsRemoved;
+	Enumeration8 timeSource;
+}MsgAnnounce;
+
+
+/** 
+* \brief Sync message fields (Table 26 of the spec)
+ */
+/*Sync Message */
+typedef struct {
+	Timestamp originTimestamp;
+}MsgSync;
+
+/**
+* \brief DelayReq message fields (Table 26 of the spec)
+ */
+/*DelayReq Message */
+typedef struct {
+	Timestamp originTimestamp;
+}MsgDelayReq;
+
+/**
+* \brief DelayResp message fields (Table 30 of the spec)
+ */
+/*delayResp Message*/
+typedef struct {
+	Timestamp receiveTimestamp;
+	PortIdentity requestingPortIdentity;
+}MsgDelayResp;
+
+/** 
+* \brief FollowUp message fields (Table 27 of the spec)
+ */
+/*Follow-up Message*/
+typedef struct {
+	Timestamp preciseOriginTimestamp;
+}MsgFollowUp;
+
+/** 
+* \brief PDelayReq message fields (Table 29 of the spec)
+ */
+/*PdelayReq Message*/
+typedef struct {
+	Timestamp originTimestamp;
+
+}MsgPDelayReq;
+
+/** 
+* \brief PDelayResp message fields (Table 30 of the spec)
+ */
+/*PdelayResp Message*/
+typedef struct {
+	Timestamp requestReceiptTimestamp;
+	PortIdentity requestingPortIdentity;
+}MsgPDelayResp;
+
+/** 
+* \brief PDelayRespFollowUp message fields (Table 31 of the spec)
+ */
+/*PdelayRespFollowUp Message*/
+typedef struct {
+	Timestamp responseOriginTimestamp;
+	PortIdentity requestingPortIdentity;
+}MsgPDelayRespFollowUp;
+
+/** 
+* \brief Signaling message fields (Table 33 of the spec)
+ */
+/*Signaling Message*/
+typedef struct {
+	PortIdentity targetPortIdentity;
+	char* tlv;
+}MsgSignaling;
+
+/** 
+* \brief Management message fields (Table 37 of the spec)
+ */
+/*management Message*/
+typedef struct {
+	PortIdentity targetPortIdentity;
+	UInteger8 startingBoundaryHops;
+	UInteger8 boundaryHops;
+	Enumeration4 actionField;	
+	char* tlv;
+}MsgManagement;
+
+
+
+/** 
+* \brief Time structure to handle Linux time information 
+ */
 typedef struct {
   Integer32 seconds;
   Integer32 nanoseconds;  
 } TimeInternal;
 
+/** 
+* \brief Structure used as a timer
+ */
 typedef struct {
   Integer32  interval;
   Integer32  left;
   Boolean expire;
 } IntervalTimer;
 
-/* Message header */
-typedef struct {
-  UInteger16  versionPTP;
-  UInteger16  versionNetwork;
-  Octet subdomain[PTP_SUBDOMAIN_NAME_LENGTH];
-  UInteger8  messageType;
-  UInteger8  sourceCommunicationTechnology;
-  Octet  sourceUuid[PTP_UUID_LENGTH];
-  UInteger16  sourcePortId;
-  UInteger16  sequenceId;
-  UInteger8  control;
-  Octet  flags[2];
-  
-} MsgHeader;
 
-/* Sync or Delay_Req message */
-typedef struct {
-  TimeRepresentation  originTimestamp;
-  UInteger16  epochNumber;
-  Integer16  currentUTCOffset;
-  UInteger8  grandmasterCommunicationTechnology;
-  Octet  grandmasterClockUuid[PTP_UUID_LENGTH];
-  UInteger16  grandmasterPortId;
-  UInteger16  grandmasterSequenceId;
-  UInteger8  grandmasterClockStratum;
-  Octet  grandmasterClockIdentifier[PTP_CODE_STRING_LENGTH];
-  Integer16  grandmasterClockVariance;
-  Boolean  grandmasterPreferred;
-  Boolean  grandmasterIsBoundaryClock;
-  Integer8  syncInterval;
-  Integer16  localClockVariance;
-  UInteger16  localStepsRemoved;
-  UInteger8  localClockStratum;
-  Octet  localClockIdentifer[PTP_CODE_STRING_LENGTH];
-  UInteger8  parentCommunicationTechnology;
-  Octet  parentUuid[PTP_UUID_LENGTH];
-  UInteger16  parentPortField;
-  Integer16  estimatedMasterVariance;
-  Integer32  estimatedMasterDrift;
-  Boolean  utcReasonable;
-  
-} MsgSync;
-
-typedef MsgSync MsgDelayReq;
-
-/* Follow_Up message */
-typedef struct {
-  UInteger16  associatedSequenceId;
-  TimeRepresentation  preciseOriginTimestamp;
-  
-} MsgFollowUp;
-
-/* Delay_Resp message */
-typedef struct {
-  TimeRepresentation  delayReceiptTimestamp;
-  UInteger8  requestingSourceCommunicationTechnology;
-  Octet  requestingSourceUuid[PTP_UUID_LENGTH];
-  UInteger16  requestingSourcePortId;
-  UInteger16  requestingSourceSequenceId;
-  
-} MsgDelayResp;
-
-/* Management message */
-typedef union
-{
-  struct ClockIdentity
-  {
-    UInteger8  clockCommunicationTechnology;
-    Octet  clockUuidField[PTP_UUID_LENGTH];
-    UInteger16  clockPortField;
-    Octet  manufacturerIdentity[MANUFACTURER_ID_LENGTH];
-  } clockIdentity;
-  
-  struct DefaultData
-  {
-    UInteger8  clockCommunicationTechnology;
-    Octet  clockUuidField[PTP_UUID_LENGTH];
-    UInteger16  clockPortField;
-    UInteger8  clockStratum;
-    Octet  clockIdentifier[PTP_CODE_STRING_LENGTH];
-    Integer16  clockVariance;
-    Boolean  clockFollowupCapable;
-    Boolean  preferred;
-    Boolean  initializable;
-    Boolean  externalTiming;
-    Boolean  isBoundaryClock;
-    Integer8  syncInterval;
-    Octet  subdomainName[PTP_SUBDOMAIN_NAME_LENGTH];
-    UInteger16  numberPorts;
-    UInteger16  numberForeignRecords;
-  } defaultData;
-  
-  struct Current
-  {
-    UInteger16  stepsRemoved;
-    TimeRepresentation  offsetFromMaster;
-    TimeRepresentation  oneWayDelay;
-  } current;
-  
-  struct Parent
-  {
-    UInteger8  parentCommunicationTechnology;
-    Octet  parentUuid[PTP_UUID_LENGTH];
-    UInteger16  parentPortId;
-    UInteger16  parentLastSyncSequenceNumber;
-    Boolean  parentFollowupCapable;
-    Boolean  parentExternalTiming;
-    Integer16  parentVariance;
-    Boolean  parentStats;
-    Integer16  observedVariance;
-    Integer32  observedDrift;
-    Boolean  utcReasonable;
-    UInteger8  grandmasterCommunicationTechnology;
-    Octet  grandmasterUuidField[PTP_UUID_LENGTH];
-    UInteger16  grandmasterPortIdField;
-    UInteger8  grandmasterStratum;
-    Octet  grandmasterIdentifier[PTP_CODE_STRING_LENGTH];
-    Integer16  grandmasterVariance;
-    Boolean  grandmasterPreferred;
-    Boolean  grandmasterIsBoundaryClock;
-    UInteger16  grandmasterSequenceNumber;
-  } parent;
-  
-  struct Port
-  {
-    UInteger16  returnedPortNumber;
-    UInteger8  portState;
-    UInteger16  lastSyncEventSequenceNumber;
-    UInteger16  lastGeneralEventSequenceNumber;
-    UInteger8  portCommunicationTechnology;
-    Octet  portUuidField[PTP_UUID_LENGTH];
-    UInteger16  portIdField;
-    Boolean  burstEnabled;
-    UInteger8  subdomainAddressOctets;
-    UInteger8  eventPortAddressOctets;
-    UInteger8  generalPortAddressOctets;
-    Octet  subdomainAddress[SUBDOMAIN_ADDRESS_LENGTH];
-    Octet  eventPortAddress[PORT_ADDRESS_LENGTH];
-    Octet  generalPortAddress[PORT_ADDRESS_LENGTH];
-  } port;
-  
-  struct GlobalTime
-  {
-    TimeRepresentation  localTime;
-    Integer16  currentUtcOffset;
-    Boolean  leap59;
-    Boolean  leap61;
-    UInteger16  epochNumber;
-  } globalTime;
-  
-  struct Foreign
-  {
-    UInteger16  returnedPortNumber;
-    UInteger16  returnedRecordNumber;
-    UInteger8  foreignMasterCommunicationTechnology;
-    Octet  foreignMasterUuid[PTP_UUID_LENGTH];
-    UInteger16  foreignMasterPortId;
-    UInteger16  foreignMasterSyncs;
-  } foreign;
-  
-} MsgManagementPayload;
-
-typedef struct {
-  UInteger8  targetCommunicationTechnology;
-  Octet  targetUuid[PTP_UUID_LENGTH];
-  UInteger16  targetPortId;
-  Integer16  startingBoundaryHops;
-  Integer16  boundaryHops;
-  UInteger8  managementMessageKey;
-  UInteger16  parameterLength;
-  UInteger16  recordKey;
-  
-  MsgManagementPayload payload;
-} MsgManagement;
-
+/** 
+* \brief ForeignMasterRecord is used to manage foreign masters
+ */
 typedef struct
 {
-  UInteger8  foreign_master_communication_technology;
-  Octet  foreign_master_uuid[PTP_UUID_LENGTH];
-  UInteger16  foreign_master_port_id;
-  UInteger16  foreign_master_syncs;
+  PortIdentity foreignMasterPortIdentity;
+  UInteger16 foreignMasterAnnounceMessages;
   
-  MsgHeader  header;
-  MsgSync  sync;
+  //This one is not in the spec
+  MsgAnnounce  announce;
+  MsgHeader    header;
+  
 } ForeignMasterRecord;
 
+
+/**
+ * \struct PtpClock
+ * \brief Main program data structure
+ */
 /* main program data structure */
 typedef struct {
   /* Default data set */
-  UInteger8  clock_communication_technology;
-  Octet  clock_uuid_field[PTP_UUID_LENGTH];
-  UInteger16  clock_port_id_field;
-  UInteger8  clock_stratum;
-  Octet  clock_identifier[PTP_CODE_STRING_LENGTH];
-  Integer16  clock_variance;
-  Boolean  clock_followup_capable;
-  Boolean  preferred;
-  Boolean  initializable;
-  Boolean  external_timing;
-  Boolean  is_boundary_clock;
-  Integer8  sync_interval;
-  Octet  subdomain_name[PTP_SUBDOMAIN_NAME_LENGTH];
-  UInteger16  number_ports;
-  UInteger16  number_foreign_records;
+  
+    	/*Static members*/
+		Boolean twoStepFlag;
+		ClockIdentity clockIdentity;
+		UInteger16 numberPorts;
+		
+		/*Dynamic members*/
+		ClockQuality clockQuality;
+		
+		/*Configurable members*/
+		UInteger8 priority1;
+		UInteger8 priority2;
+		UInteger8 domainNumber;
+		Boolean slaveOnly;
+	
   
   /* Current data set */
-  UInteger16  steps_removed;
-  TimeInternal  offset_from_master;
-  TimeInternal  one_way_delay;
+  
+  		/*Dynamic members*/
+  		UInteger16 stepsRemoved;
+  		TimeInternal offsetFromMaster;
+  		TimeInternal meanPathDelay;
+
   
   /* Parent data set */
-  UInteger8  parent_communication_technology;
-  Octet  parent_uuid[PTP_UUID_LENGTH];
-  UInteger16  parent_port_id;
-  UInteger16  parent_last_sync_sequence_number;
-  Boolean  parent_followup_capable;
-  Boolean  parent_external_timing;
-  Integer16  parent_variance;
-  Boolean  parent_stats;
-  Integer16  observed_variance;
-  Integer32  observed_drift;
-  Boolean  utc_reasonable;
-  UInteger8  grandmaster_communication_technology;
-  Octet  grandmaster_uuid_field[PTP_UUID_LENGTH];
-  UInteger16  grandmaster_port_id_field;
-  UInteger8  grandmaster_stratum;
-  Octet  grandmaster_identifier[PTP_CODE_STRING_LENGTH];
-  Integer16  grandmaster_variance;
-  Boolean  grandmaster_preferred;
-  Boolean  grandmaster_is_boundary_clock;
-  UInteger16  grandmaster_sequence_number;
   
+  		/*Dynamic members*/
+  		PortIdentity parentPortIdentity;
+  		Boolean parentStats;
+  		UInteger16 observedParentOffsetScaledLogVariance;
+  		Integer32 observedParentClockPhaseChangeRate;
+  		ClockIdentity grandmasterIdentity;
+  		ClockQuality grandmasterClockQuality;
+  		UInteger8 grandmasterPriority1;
+  		UInteger8 grandmasterPriority2;
+  		
   /* Global time properties data set */
-  Integer16  current_utc_offset;
-  Boolean  leap_59;
-  Boolean  leap_61;
-  UInteger16  epoch_number;
+  
+  		/*Dynamic members*/
+  		Integer16 currentUtcOffset;
+  		Boolean currentUtcOffsetValid;
+  		Boolean leap59;
+  		Boolean leap61;
+  		Boolean timeTraceable;
+  		Boolean frequencyTraceable;
+  		Boolean ptpTimescale;
+  		Enumeration8 timeSource;
   
   /* Port configuration data set */
-  UInteger8  port_state;
-  UInteger16  last_sync_event_sequence_number;
-  UInteger16  last_general_event_sequence_number;
-  Octet  subdomain_address[SUBDOMAIN_ADDRESS_LENGTH];
-  Octet  event_port_address[PORT_ADDRESS_LENGTH];
-  Octet  general_port_address[PORT_ADDRESS_LENGTH];
-  UInteger8  port_communication_technology;
-  Octet  port_uuid_field[PTP_UUID_LENGTH];
-  UInteger16  port_id_field;
-  Boolean  burst_enabled;
+  		
+  		/*Static members*/
+  		PortIdentity portIdentity;
+  		
+  		/*Dynamic members*/
+  		Enumeration8 portState;
+  		Integer8 logMinDelayReqInterval;
+  		TimeInternal peerMeanPathDelay;
+  		
+  		/*Configurable members*/
+  		Integer8 logAnnounceInterval;
+  		UInteger8 announceReceiptTimeout;
+  		Integer8 logSyncInterval;
+  		Enumeration8 delayMechanism;
+  		Integer8 logMinPdelayReqInterval;
+  		UInteger4 versionNumber;
+
   
   /* Foreign master data set */
-  ForeignMasterRecord *foreign;
+ForeignMasterRecord *foreign;
   
   /* Other things we need for the protocol */
-  Boolean halfEpoch;
-  
+  UInteger16 number_foreign_records;
   Integer16  max_foreign_records;
   Integer16  foreign_record_i;
   Integer16  foreign_record_best;
   Boolean  record_update;
-  UInteger32 random_seed;
+  
   
   MsgHeader msgTmpHeader;
   
@@ -287,25 +331,49 @@ typedef struct {
     MsgSync  sync;
     MsgFollowUp  follow;
     MsgDelayReq  req;
-    MsgDelayResp  resp;
+    MsgDelayResp resp;
+    MsgPDelayReq  preq;
+    MsgPDelayResp  presp;
+    MsgPDelayRespFollowUp  prespfollow;
     MsgManagement  manage;
+    MsgAnnounce  announce;
+    MsgSignaling signaling;
   } msgTmp;
+  
   
   Octet msgObuf[PACKET_SIZE];
   Octet msgIbuf[PACKET_SIZE];
   
   TimeInternal  master_to_slave_delay;
   TimeInternal  slave_to_master_delay;
+  Integer32 	observed_drift;
   
-  TimeInternal  delay_req_receive_time;
-  TimeInternal  delay_req_send_time;
+  TimeInternal  pdelay_req_receive_time;
+  TimeInternal  pdelay_req_send_time;
+  TimeInternal  pdelay_resp_receive_time;
+  TimeInternal  pdelay_resp_send_time;
   TimeInternal  sync_receive_time;
+  TimeInternal  delay_req_send_time;
+  TimeInternal  delay_req_receive_time;
+  MsgHeader		PdelayReqHeader;
+  MsgHeader		delayReqHeader;
+  TimeInternal	pdelayMS;
+  TimeInternal	pdelaySM;
+  TimeInternal  delayMS;
+  TimeInternal	delaySM;
+  TimeInternal  lastSyncCorrectionField;
+  TimeInternal  lastPdelayRespCorrectionField;
   
-  UInteger16  Q;
-  UInteger16  R;
+
+  double  R;
   
-  Boolean  sentDelayReq;
+  Boolean  sentPDelayReq;
+  UInteger16  sentPDelayReqSequenceId;
   UInteger16  sentDelayReqSequenceId;
+  UInteger16  sentSyncSequenceId;
+  UInteger16  sentAnnounceSequenceId;
+  UInteger16  recvPDelayReqSequenceId;
+  UInteger16  recvSyncSequenceId;
   Boolean  waitingForFollow;
   
   offset_from_master_filter  ofm_filt;
@@ -317,34 +385,41 @@ typedef struct {
   
   NetPath netPath;
   
+  /*Usefull to init network stuff*/
+  UInteger8 port_communication_technology;
+  Octet port_uuid_field[PTP_UUID_LENGTH];
+  
 } PtpClock;
 
+/**
+ * \struct RunTimeOpts
+ * \brief Program options set at run-time
+ */
 /* program options set at run-time */
 typedef struct {
-  Integer8  syncInterval;
-  Octet  subdomainName[PTP_SUBDOMAIN_NAME_LENGTH];
-  Octet  clockIdentifier[PTP_CODE_STRING_LENGTH];
-  UInteger32  clockVariance;
-  UInteger8  clockStratum;
-  Boolean  clockPreferred;
-  Integer16  currentUtcOffset;
-  UInteger16  epochNumber;
-  Octet  ifaceName[IFACE_NAME_LENGTH];
-  Boolean  noResetClock;
-  Boolean  noAdjust;
-  Boolean  displayStats;
-  Boolean  csvStats;
-  Octet  unicastAddress[NET_ADDRESS_LENGTH];
-  Integer16  ap, ai;
-  Integer16  s;
+	
+  Integer8		announceInterval;	
+  Integer8		syncInterval;
+  ClockQuality	clockQuality;
+  UInteger8		priority1;
+  UInteger8		priority2;
+  UInteger8		domainNumber;
+  Boolean		slaveOnly;
+  Integer16		currentUtcOffset;
+  Octet			ifaceName[IFACE_NAME_LENGTH];
+  Boolean		noResetClock;
+  Boolean		noAdjust;
+  Boolean		displayStats;
+  Boolean		csvStats;
+  Octet			unicastAddress[NET_ADDRESS_LENGTH];
+  Integer16		ap, ai;
+  Integer16 	s;
   TimeInternal  inboundLatency, outboundLatency;
-  Integer16  max_foreign_records;
-  Boolean  slaveOnly;
-  Boolean  probe;
-  UInteger8  probe_management_key;
-  UInteger16  probe_record_key;
-  Boolean  halfEpoch;
+  Integer16  	max_foreign_records;
+  Boolean 		ethernet_mode;
+  Boolean       E2E_mode;
+  Boolean		offset_first_updated;
   
 } RunTimeOpts;
 
-#endif
+#endif /*DATATYPES_H_*/

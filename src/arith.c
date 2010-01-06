@@ -2,81 +2,132 @@
  
 #include "ptpd.h"
 
-/* from annex C of the spec */
-UInteger32 crc_algorithm(Octet *buf, Integer16 length)
+
+void integer64_to_internalTime(Integer64 bigint,TimeInternal *internal)
 {
-  Integer16 i;
-  UInteger8 data;
-  UInteger32 polynomial = 0xedb88320, crc = 0xffffffff;
-  
-  while(length-- > 0)
-  {
-    data = *(UInteger8 *)(buf++);
-    
-    for(i=0; i<8; i++)
-    {
-      if((crc^data)&1)
-      {
-        crc = (crc>>1);
-        crc ^= polynomial;
-      }
-      else
-      {
-        crc = (crc>>1);
-      }
-      data >>= 1;
-    }
-  }
-  
-  return crc^0xffffffff;
+	int s_msb;
+	double ns_msb;
+	double temp;
+	int entire;
+	char  *p_lsb,*p_msb;
+	Boolean negative = FALSE;
+
+	p_lsb=&bigint.lsb;
+	p_msb=&bigint.msb;
+	
+	/*Test if bigint is a negative number*/
+	negative = ((bigint.msb & 0x80000000) == 0x80000000);
+	
+	if (!negative)
+	{
+	  /*Positive case*/
+		
+			/*fractional nanoseconds are excluded (see 5.3.2)*/
+			bigint.lsb = bigint.lsb>>16; 
+			/*copy two least significant octet of msb to most significant octet of lsb*/
+			*(p_lsb+2)=*p_msb;
+			*(p_lsb+3)=*(p_msb+1);
+			bigint.msb = bigint.msb>>16;
+		
+			internal->nanoseconds = bigint.lsb % 1000000000;
+			internal->seconds = bigint.lsb / 1000000000;
+			
+			/*(2^32 / 10^9) = 4,294967296*/
+			s_msb = 4*bigint.msb;
+			ns_msb = 0.294967296*(double)bigint.msb;
+			entire = (int)ns_msb;
+			s_msb += entire;
+			ns_msb -= entire;
+			ns_msb *= 1000000000;
+			internal->nanoseconds = (float)internal->nanoseconds + (float)ns_msb;
+			internal->seconds += s_msb;
+			normalizeTime(internal);
+			
+	}
+	 /*End of positive Case*/
+			
+	else
+	{	 /*Negative case*/
+
+			/*Take the two complement*/
+			bigint.lsb = ~bigint.lsb;
+			bigint.msb = ~bigint.msb;
+			
+			if (bigint.lsb == 0xffffffff){
+				bigint.lsb = 0;
+				bigint.msb++;
+			}
+			else{
+			bigint.lsb++;
+			}
+			
+			/*fractional nanoseconds are excluded (see 5.3.2)*/
+			bigint.lsb = bigint.lsb>>16; 
+			/*copy two least significant octet of msb to most significant octet of lsb*/
+			*(p_lsb+2)=*p_msb;
+			*(p_lsb+3)=*(p_msb+1);
+			bigint.msb = bigint.msb>>16;
+
+			internal->nanoseconds = bigint.lsb % 1000000000;
+			internal->seconds = bigint.lsb / 1000000000;
+		
+			/*(2^32 / 10^9) = 4,294967296*/
+			s_msb = 4*bigint.msb;
+			ns_msb = 0.294967296*(double)bigint.msb;
+			entire = (int)ns_msb;
+			s_msb += entire;
+			ns_msb -= entire;
+			ns_msb *= 1000000000;
+			
+			internal->nanoseconds = (float)internal->nanoseconds + (float)ns_msb;
+			internal->seconds += s_msb;
+			normalizeTime(internal);
+			
+			internal->nanoseconds = -internal->nanoseconds;
+			internal->seconds = -internal->seconds;
+	}
+		/*End of negative Case*/
 }
 
-UInteger32 sum(Octet *buf, Integer16 length)
+
+void fromInternalTime(TimeInternal *internal, Timestamp *external)
 {
-  UInteger32 sum = 0;
   
-  while(length-- > 0)
-    sum += *(UInteger8 *)(buf++);
-  
-  return sum;
+  /*fromInternalTime is only used to convert time given by the system to a timestamp
+   * As a consequence, no negative value can normally be found in (internal)
+   
+   * Note that offsets are also represented with TimeInternal structure, and can be negative, 
+   * but offset are never convert into Timestamp so there is no problem here.*/
+   
+   if ((internal->seconds & ~INT_MAX) || (internal->nanoseconds & ~INT_MAX))
+   {
+   	DBG("Negative value canno't be converted into timestamp \n");
+   	return;
+   }
+   else
+   {  
+  	external->secondsField.lsb = internal->seconds;
+  	external->nanosecondsField = internal->nanoseconds;
+  	external->secondsField.msb = 0; 
+   }
+
 }
 
-void fromInternalTime(TimeInternal *internal, TimeRepresentation *external, Boolean halfEpoch)
+void toInternalTime(TimeInternal *internal, Timestamp *external)
 {
-  external->seconds = labs(internal->seconds) + halfEpoch * INT_MAX;
-  
-  if(internal->seconds < 0 || internal->nanoseconds < 0)
-  {
-    external->nanoseconds = labs(internal->nanoseconds) | ~INT_MAX;
-  }
-  else
-  {
-    external->nanoseconds = labs(internal->nanoseconds);
-  }
-  
-  DBGV("fromInternalTime: %10ds %11dns -> %10us %11dns\n",
-    internal->seconds, internal->nanoseconds,
-    external->seconds, external->nanoseconds);
-}
-
-void toInternalTime(TimeInternal *internal, TimeRepresentation *external, Boolean *halfEpoch)
-{
-  *halfEpoch = external->seconds / INT_MAX;
-  
-  if(external->nanoseconds & ~INT_MAX)
-  {
-    internal->seconds = -(external->seconds % INT_MAX);
-    internal->nanoseconds = -(external->nanoseconds & INT_MAX);
-  }
-  else
-  {
-    internal->seconds = external->seconds % INT_MAX;
-    internal->nanoseconds = external->nanoseconds;
-  }
-  
-  DBGV("toInternalTime: %10ds %11dns <- %10us %11dns\n",
-    internal->seconds, internal->nanoseconds,
-    external->seconds, external->nanoseconds);
+	
+	/*Program will not run after 2038...*/
+	if (external->secondsField.lsb < INT_MAX)
+	{
+		internal->seconds = external->secondsField.lsb;
+		internal->nanoseconds = external->nanosecondsField;
+	}
+	
+	else
+	{
+		DBG("Clock servo canno't be executed : seconds field is higher than signed integer (32bits) \n");
+   		return;
+	}
 }
 
 void normalizeTime(TimeInternal *r)
