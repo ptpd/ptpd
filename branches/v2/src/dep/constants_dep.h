@@ -1,11 +1,19 @@
+
 /* constants_dep.h */
 
 #ifndef CONSTANTS_DEP_H
 #define CONSTANTS_DEP_H
 
-/* platform dependent */
+/**
+*\file
+* \brief Plateform-dependent constants definition
+* 
+* This header defines all includes and constants which are plateform-dependent
+* 
+* ptpdv2 is only implemented for linux, NetBSD and FreeBSD
+ */
 
-#include <limits.h>
+/* platform dependent */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__)
 #error Not ported to this architecture, please update.
@@ -19,6 +27,8 @@
 #define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
 
 #define IFCONF_LENGTH 10
+
+#define BSD_INTERFACE_FUNCTIONS
 
 #include<endian.h>
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -58,30 +68,24 @@
 # endif
 #endif
 
-
+#define CLOCK_IDENTITY_LENGTH 8
 #define ADJ_FREQ_MAX  512000
 
 /* UDP/IPv4 dependent */
 
 #define SUBDOMAIN_ADDRESS_LENGTH  4
 #define PORT_ADDRESS_LENGTH       2
+#define PTP_UUID_LENGTH			  6
+#define CLOCK_IDENTITY_LENGTH	  8
+#define FLAG_FIELD_LENGTH		  2
 
-#define PACKET_SIZE  300
+#define PACKET_SIZE  300 //ptpdv1 value kept because of use of TLV...
 
 #define PTP_EVENT_PORT    319
 #define PTP_GENERAL_PORT  320
 
 #define DEFAULT_PTP_DOMAIN_ADDRESS     "224.0.1.129"
-#define ALTERNATE_PTP_DOMAIN1_ADDRESS  "224.0.1.130"
-#define ALTERNATE_PTP_DOMAIN2_ADDRESS  "224.0.1.131"
-#define ALTERNATE_PTP_DOMAIN3_ADDRESS  "224.0.1.132"
-
-#define HEADER_LENGTH             40
-#define SYNC_PACKET_LENGTH        124
-#define DELAY_REQ_PACKET_LENGTH   124
-#define FOLLOW_UP_PACKET_LENGTH   52
-#define DELAY_RESP_PACKET_LENGTH  60
-#define MANAGEMENT_PACKET_LENGTH  136
+#define PEER_PTP_DOMAIN_ADDRESS     "224.0.0.107"
 
 #define MM_STARTING_BOUNDARY_HOPS  0x7fff
 
@@ -89,6 +93,4 @@
 
 #define SCREEN_BUFSZ  128
 #define SCREEN_MAXSZ  80
-
-#endif
-
+#endif /*CONSTANTS_DEP_H_*/

@@ -44,13 +44,15 @@ void ptpdShutdown()
 PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpts)
 {
   int c, fd = -1, nondaemon = 0, noclose = 0;
-  
+
   /* parse command line arguments */
-  while( (c = getopt(argc, argv, "?cf:dDxta:w:b:u:l:o:e:hy:m:gps:i:v:n:k:r")) != -1 ) {
+  while( (c = getopt(argc, argv, "?cf:dDxta:w:b:u:l:o:n:y:m:gv:r:s:p:q:i:eh")) != -1 ) {
     switch(c) {
     case '?':
       printf(
 "\nUsage:  ptpd [OPTION]\n\n"
+"Ptpdv2 runs on UDP/IP , P2P mode by default\n"
+"\n"
 "-?                show this page\n"
 "\n"
 "-c                run in command line (non-daemon) mode\n"
@@ -65,24 +67,28 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
 "\n"
 "-b NAME           bind PTP to network interface NAME\n"
 "-u ADDRESS        also send uni-cast to ADDRESS\n"
+"-e                run in ethernet mode (level2) \n"
+"-h                run in End to End mode \n"
 "-l NUMBER,NUMBER  specify inbound, outbound latency in nsec\n"
+
 "\n"
 "-o NUMBER         specify current UTC offset\n"
-"-e NUMBER         specify epoch NUMBER\n"
-"-h                specify half epoch\n"
+"-i NUMBER         specify PTP domain number\n"
+
 "\n"
+"-n NUMBER         specify announce interval in 2^NUMBER sec\n"
 "-y NUMBER         specify sync interval in 2^NUMBER sec\n"
 "-m NUMBER         specify max number of foreign master records\n"
 "\n"
 "-g                run as slave only\n"
-"-p                make this a preferred clock\n"
-"-s NUMBER         specify system clock stratum\n"
-"-i NAME           specify system clock identifier\n"
 "-v NUMBER         specify system clock allen variance\n"
+"-r NUMBER         specify system clock accuracy\n"
+"-s NUMBER         specify system clock class\n"
+"-p NUMBER         specify priority1 attribute\n"
+"-q NUMBER         specify priority2 attribute\n"
+
 "\n"
-"-n NAME           specify PTP subdomain name (not related to IP or DNS)\n"
-"\n"
-"-k NUMBER,NUMBER  send a management message of key, record, then exit\n"
+//"-k NUMBER,NUMBER  send a management message of key, record, then exit\n"  implemented later..
 "\n"
       );
       *ret = 0;
@@ -91,6 +97,7 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
     case 'c':
       nondaemon = 1;
       break;
+    
       
     case 'f':
       if((fd = creat(optarg, 0400)) != -1)
@@ -153,17 +160,17 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
       rtOpts->currentUtcOffset = strtol(optarg, &optarg, 0);
       break;
       
-    case 'e':
-      rtOpts->epochNumber = strtoul(optarg, &optarg, 0);
+    case 'i':
+      rtOpts->domainNumber = strtol(optarg, &optarg, 0);
       break;
-      
-    case 'h':
-      rtOpts->halfEpoch = TRUE;
-      break;
-      
+          
     case 'y':
       rtOpts->syncInterval = strtol(optarg, 0, 0);
       break;
+      
+     case 'n':
+     rtOpts->announceInterval=strtol(optarg, 0, 0);
+     break;
       
     case 'm':
       rtOpts->max_foreign_records = strtol(optarg, 0, 0);
@@ -175,46 +182,36 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
       rtOpts->slaveOnly = TRUE;
       break;
       
-    case 'p':
-      rtOpts->clockPreferred = TRUE;
-      break;
-      
-    case 's':
-      rtOpts->clockStratum = strtol(optarg, 0, 0);
-      if(rtOpts->clockStratum <= 0)
-        rtOpts->clockStratum = 255;
-      break;
-      
-    case 'i':
-      memset(rtOpts->clockIdentifier, 0, PTP_CODE_STRING_LENGTH);
-      strncpy(rtOpts->clockIdentifier, optarg, PTP_CODE_STRING_LENGTH);
-      break;
-      
     case 'v':
-      rtOpts->clockVariance = strtol(optarg, 0, 0);
-      break;
-      
-    case 'n':
-      memset(rtOpts->subdomainName, 0, PTP_SUBDOMAIN_NAME_LENGTH);
-      strncpy(rtOpts->subdomainName, optarg, PTP_SUBDOMAIN_NAME_LENGTH);
-      break;
-      
-    case 'k':
-      rtOpts->probe = TRUE;
-      
-      rtOpts->probe_management_key = strtol(optarg, &optarg, 0);
-      if(optarg[0])
-        rtOpts->probe_record_key = strtol(optarg+1, 0, 0);
-      
-      nondaemon = 1;
+      rtOpts->clockQuality.offsetScaledLogVariance = strtol(optarg, 0, 0);
       break;
       
     case 'r':
-      ERROR("The '-r' option has been removed because it is now the default behaviour.\n");
-      ERROR("Use the '-x' option to disable clock resetting.\n");
-      *ret = 1;
-      return 0;
+      rtOpts->clockQuality.clockAccuracy = strtol(optarg, 0, 0);
+      break;
+    
+    case 's':
+      rtOpts->clockQuality.clockClass = strtol(optarg, 0, 0);
+      break;
       
+    case 'p':
+      rtOpts->priority1 = strtol(optarg, 0, 0);
+      break;
+      
+    case 'q':
+      rtOpts->priority2 = strtol(optarg, 0, 0);
+      break;
+      
+   case 'e':
+      rtOpts->ethernet_mode = TRUE;
+      PERROR("Not implemented yet !");
+      return 0;
+      break;
+      
+   case 'h':
+	   rtOpts->E2E_mode = TRUE;
+	   break;
+            
     default:
       *ret = 1;
       return 0;
@@ -245,6 +242,11 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
     }
   }
   
+  /*Init to 0 net buffer*/
+  memset(ptpClock->msgIbuf,0,PACKET_SIZE);
+  memset(ptpClock->msgObuf,0,PACKET_SIZE);
+  
+  
 #ifndef PTPD_NO_DAEMON
   if(!nondaemon)
   {
@@ -257,12 +259,12 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
     DBG("running as daemon\n");
   }
 #endif
-  
+
   signal(SIGINT, catch_close);
   signal(SIGTERM, catch_close);
   signal(SIGHUP, catch_close);
   
   *ret = 0;
+     
   return ptpClock;
 }
-

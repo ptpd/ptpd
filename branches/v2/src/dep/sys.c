@@ -4,7 +4,7 @@
 
 void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-  static int start = 1;
+static int start = 1;
   static char sbuf[SCREEN_BUFSZ];
   char *s;
   int len = 0;
@@ -12,13 +12,13 @@ void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   if(start && rtOpts->csvStats)
   {
     start = 0;
-    printf("state, one way delay, offset from master, drift, variance");
+    printf("state, one way delay, offset from master, drift");
     fflush(stdout);
   }
   
   memset(sbuf, ' ', SCREEN_BUFSZ);
   
-  switch(ptpClock->port_state)
+  switch(ptpClock->portState)
   {
   case PTP_INITIALIZING:  s = "init";  break;
   case PTP_FAULTY:        s = "flt";   break;
@@ -34,21 +34,22 @@ void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   
   len += sprintf(sbuf + len, "%s%s", rtOpts->csvStats ? "\n": "\rstate: ", s);
   
-  if(ptpClock->port_state == PTP_SLAVE)
+  if(ptpClock->portState == PTP_SLAVE)
   {
     len += sprintf(sbuf + len,
       ", %s%d.%09d" ", %s%d.%09d",
       rtOpts->csvStats ? "" : "owd: ",
-      ptpClock->one_way_delay.seconds,
-      abs(ptpClock->one_way_delay.nanoseconds),
+      ptpClock->meanPathDelay.seconds,
+      ptpClock->meanPathDelay.nanoseconds,
+      //abs(ptpClock->meanPathDelay.nanoseconds),
       rtOpts->csvStats ? "" : "ofm: ",
-      ptpClock->offset_from_master.seconds,
-      abs(ptpClock->offset_from_master.nanoseconds));
+      ptpClock->offsetFromMaster.seconds,
+      ptpClock->offsetFromMaster.nanoseconds);
+      //abs(ptpClock->offsetFromMaster.nanoseconds));
     
     len += sprintf(sbuf + len, 
-      ", %s%d" ", %s%d",
-      rtOpts->csvStats ? "" : "drift: ", ptpClock->observed_drift,
-      rtOpts->csvStats ? "" : "var: ", ptpClock->observed_variance);
+      ", %s%d" ,
+      rtOpts->csvStats ? "" : "drift: ", ptpClock->observed_drift);
   }
   
   write(1, sbuf, rtOpts->csvStats ? len : SCREEN_MAXSZ + 1);
@@ -91,9 +92,9 @@ void setTime(TimeInternal *time)
   NOTIFY("resetting system clock to %ds %dns\n", time->seconds, time->nanoseconds);
 }
 
-UInteger16 getRand(UInteger32 *seed)
+double getRand()
 {
-  return rand_r((unsigned int*)seed);
+  return ((rand() * 1.0)/RAND_MAX);
 }
 
 Boolean adjFreq(Integer32 adj)
@@ -110,4 +111,3 @@ Boolean adjFreq(Integer32 adj)
   
   return !adjtimex(&t);
 }
-
