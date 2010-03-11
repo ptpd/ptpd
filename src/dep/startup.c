@@ -44,7 +44,7 @@ void ptpdShutdown()
 PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpts)
 {
   int c, fd = -1, nondaemon = 0, noclose = 0;
-
+  
   /* parse command line arguments */
   while( (c = getopt(argc, argv, "?cf:dDxta:w:b:u:l:o:n:y:m:gv:r:s:p:q:i:eh")) != -1 ) {
     switch(c) {
@@ -259,7 +259,7 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
     DBG("running as daemon\n");
   }
 #endif
-
+  
   signal(SIGINT, catch_close);
   signal(SIGTERM, catch_close);
   signal(SIGHUP, catch_close);

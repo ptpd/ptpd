@@ -31,7 +31,7 @@ void timerUpdate(IntervalTimer *itimer)
 {
 
   int i, delta;
-
+  
   delta = elapsed;
   elapsed = 0;
   
@@ -72,7 +72,7 @@ void timerStart(UInteger16 index, float interval, IntervalTimer *itimer)
 
 Boolean timerExpired(UInteger16 index, IntervalTimer *itimer)
 {
- timerUpdate(itimer);
+  timerUpdate(itimer);
   
   if(index >= TIMER_ARRAY_SIZE)
     return FALSE;

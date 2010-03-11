@@ -4,7 +4,7 @@
 
 void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-static int start = 1;
+  static int start = 1;
   static char sbuf[SCREEN_BUFSZ];
   char *s;
   int len = 0;

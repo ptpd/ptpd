@@ -40,16 +40,16 @@ void addForeign(Octet*,MsgHeader*,PtpClock*);
 void protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
   DBG("event POWERUP\n");
- 
+  
   toState(PTP_INITIALIZING, rtOpts, ptpClock);
-
+  
   for(;;)
   {
     if(ptpClock->portState != PTP_INITIALIZING)
       doState(rtOpts, ptpClock);
     else if(!doInit(rtOpts, ptpClock))
       return;
-
+    
     if(ptpClock->message_activity)
       DBGV("activity\n");
     else
@@ -196,7 +196,7 @@ void toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 Boolean doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
   DBG("manufacturerIdentity: %s\n", MANUFACTURER_ID);
-
+  
   /* initialize networking */
   netShutdown(&ptpClock->netPath);
   if(!netInit(&ptpClock->netPath, rtOpts, ptpClock))
@@ -205,12 +205,12 @@ Boolean doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     toState(PTP_FAULTY, rtOpts, ptpClock);
     return FALSE;
   }
-
+  
   /* initialize other stuff */
   initData(rtOpts, ptpClock);
   initTimer();
   initClock(rtOpts, ptpClock);
-  m1(ptpClock); 
+  m1(ptpClock);
   msgPackHeader(ptpClock->msgObuf, ptpClock);
   
   toState(PTP_LISTENING, rtOpts, ptpClock);
@@ -222,7 +222,7 @@ Boolean doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 void doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
   UInteger8 state;
-
+  
   ptpClock->message_activity = FALSE;
 
   switch(ptpClock->portState)
@@ -242,7 +242,7 @@ void doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
         toState(state, rtOpts, ptpClock);
     }
     break;
-
+    
   default:
     break;
   }
@@ -251,11 +251,11 @@ void doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   {
   case PTP_FAULTY:
     /* imaginary troubleshooting */
-
+    
     DBG("event FAULT_CLEARED\n");
     toState(PTP_INITIALIZING, rtOpts, ptpClock);
     return;
-
+    
   case PTP_LISTENING:
   case PTP_PASSIVE:
   case PTP_UNCALIBRATED:
@@ -339,7 +339,7 @@ void doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   case PTP_DISABLED:
     handle(rtOpts, ptpClock);
     break;
-
+    
   default:
     DBG("(doState) do unrecognized state\n");
     break;
@@ -355,7 +355,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   ssize_t length;
   Boolean isFromSelf;
   TimeInternal time = { 0, 0 };
-
+  
   if(!ptpClock->message_activity)
   {
 
@@ -374,9 +374,9 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     }
     /* else length > 0 */
   }
-
+  
   DBGV("handle: something\n");
-
+  
   length = netRecvEvent(ptpClock->msgIbuf, &time, &ptpClock->netPath);
   if(length < 0)
   {
@@ -396,7 +396,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     else if(!length)
       return;
   }
-
+  
   ptpClock->message_activity = TRUE;
 
   if(length < HEADER_LENGTH)
@@ -405,7 +405,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     toState(PTP_FAULTY, rtOpts, ptpClock);
     return;
   }
-	
+  
   msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
 
 
