@@ -50,8 +50,8 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
     switch(c) {
     case '?':
       printf(
-"\nUsage:  ptpd [OPTION]\n\n"
-"Ptpdv2 runs on UDP/IP , P2P mode by default\n"
+"\nUsage:  ptpv2d [OPTION]\n\n"
+"Ptpv2d runs on UDP/IP , P2P mode by default\n"
 "\n"
 "-?                show this page\n"
 "\n"
