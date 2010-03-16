@@ -5,7 +5,7 @@ CFLAGS = -Wall
 #CPPFLAGS = -DPTPD_DBG -DPTPD_NO_DAEMON
 LDFLAGS = -lm
 
-PROG = ptpd
+PROG = ptpv2d
 #OBJ  = ptpd.o arith.o bmc.o probe.o protocol.o \
 	dep/msg.o dep/net.o dep/servo.o dep/startup.o dep/sys.o dep/timer.o
 OBJ  = ptpd.o arith.o bmc.o protocol.o display.o\
