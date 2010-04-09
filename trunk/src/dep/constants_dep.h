@@ -26,36 +26,36 @@
 #elif __BYTE_ORDER == __BIG_ENDIAN
 #define PTPD_MSBF
 #endif
-#endif /* linux */
+#endif					/* linux */
 
 
 #if defined(__NetBSD__) || defined(__FreeBSD__)
-# include <sys/types.h>
-# include <sys/socket.h>
-# include <netinet/in.h>
-# include <net/if.h>
-# include <net/if_dl.h>
-# include <net/if_types.h>
-# if defined(__FreeBSD__)
-#  include <net/ethernet.h>
-#  include <sys/uio.h>
-# else
-#  include <net/if_ether.h>
-# endif
-# include <ifaddrs.h>
-# define IFACE_NAME_LENGTH         IF_NAMESIZE
-# define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
+#if defined(__FreeBSD__)
+#include <net/ethernet.h>
+#include <sys/uio.h>
+#else
+#include <net/if_ether.h>
+#endif
+#include <ifaddrs.h>
+#define IFACE_NAME_LENGTH         IF_NAMESIZE
+#define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
 
-# define IFCONF_LENGTH 10
+#define IFCONF_LENGTH 10
 
-# define adjtimex ntp_adjtime
+#define adjtimex ntp_adjtime
 
-# include <machine/endian.h>
-# if BYTE_ORDER == LITTLE_ENDIAN
-#   define PTPD_LSBF
-# elif BYTE_ORDER == BIG_ENDIAN
-#   define PTPD_MSBF
-# endif
+#include <machine/endian.h>
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define PTPD_LSBF
+#elif BYTE_ORDER == BIG_ENDIAN
+#define PTPD_MSBF
+#endif
 #endif
 
 
@@ -91,4 +91,3 @@
 #define SCREEN_MAXSZ  80
 
 #endif
-
