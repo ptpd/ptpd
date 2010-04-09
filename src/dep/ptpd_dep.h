@@ -78,62 +78,63 @@ static inline Integer32 flip32(x)
 
 
 /* msg.c */
-Boolean msgPeek(void*,ssize_t);
-void msgUnpackHeader(void*,MsgHeader*);
-void msgUnpackSync(void*,MsgSync*);
-void msgUnpackDelayReq(void*,MsgDelayReq*);
-void msgUnpackFollowUp(void*,MsgFollowUp*);
-void msgUnpackDelayResp(void*,MsgDelayResp*);
-void msgUnpackManagement(void*,MsgManagement*);
-UInteger8 msgUnloadManagement(void*,MsgManagement*,PtpClock*,RunTimeOpts*);
-void msgUnpackManagementPayload(void *buf, MsgManagement *manage);
-void msgPackHeader(void*,PtpClock*);
-void msgPackSync(void*,Boolean,TimeRepresentation*,PtpClock*);
-void msgPackDelayReq(void*,Boolean,TimeRepresentation*,PtpClock*);
-void msgPackFollowUp(void*,UInteger16,TimeRepresentation*,PtpClock*);
-void msgPackDelayResp(void*,MsgHeader*,TimeRepresentation*,PtpClock*);
-UInteger16 msgPackManagement(void*,MsgManagement*,PtpClock*);
-UInteger16 msgPackManagementResponse(void*,MsgHeader*,MsgManagement*,PtpClock*);
+Boolean	msgPeek(void *, ssize_t);
+void	msgUnpackHeader(void *, MsgHeader *);
+void	msgUnpackSync(void *, MsgSync *);
+void	msgUnpackDelayReq(void *, MsgDelayReq *);
+void	msgUnpackFollowUp(void *, MsgFollowUp *);
+void	msgUnpackDelayResp(void *, MsgDelayResp *);
+void	msgUnpackManagement(void *, MsgManagement *);
+UInteger8 msgUnloadManagement(void *, MsgManagement *, PtpClock *, RunTimeOpts *);
+void	msgUnpackManagementPayload(void *buf, MsgManagement * manage);
+void	msgPackHeader(void *, PtpClock *);
+void	msgPackSync(void *, Boolean, TimeRepresentation *, PtpClock *);
+void	msgPackDelayReq(void *, Boolean, TimeRepresentation *, PtpClock *);
+void	msgPackFollowUp(void *, UInteger16, TimeRepresentation *, PtpClock *);
+void	msgPackDelayResp(void *, MsgHeader *, TimeRepresentation *, PtpClock *);
+UInteger16 msgPackManagement(void *, MsgManagement *, PtpClock *);
+UInteger16 msgPackManagementResponse(void *, MsgHeader *, MsgManagement *, PtpClock *);
 
 /* net.c */
 /* linux API dependent */
-Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
-Boolean netShutdown(NetPath*);
-int netSelect(TimeInternal*,NetPath*);
-ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*);
-ssize_t netRecvGeneral(Octet*,NetPath*);
-ssize_t netSendEvent(Octet*,UInteger16,NetPath*);
-ssize_t netSendGeneral(Octet*,UInteger16,NetPath*);
+Boolean	netInit(NetPath *, RunTimeOpts *, PtpClock *);
+Boolean	netShutdown(NetPath *);
+int	netSelect(TimeInternal *, NetPath *);
+ssize_t	netRecvEvent(Octet *, TimeInternal *, NetPath *);
+ssize_t	netRecvGeneral(Octet *, NetPath *);
+ssize_t	netSendEvent(Octet *, UInteger16, NetPath *);
+ssize_t	netSendGeneral(Octet *, UInteger16, NetPath *);
 
 /* servo.c */
-void initClock(RunTimeOpts*,PtpClock*);
-void updateDelay(TimeInternal*,TimeInternal*,
-  one_way_delay_filter*,RunTimeOpts*,PtpClock*);
-void updateOffset(TimeInternal*,TimeInternal*,
-  offset_from_master_filter*,RunTimeOpts*,PtpClock*);
-void updateClock(RunTimeOpts*,PtpClock*);
+void	initClock(RunTimeOpts *, PtpClock *);
+void 
+updateDelay(TimeInternal *, TimeInternal *,
+    one_way_delay_filter *, RunTimeOpts *, PtpClock *);
+void 
+updateOffset(TimeInternal *, TimeInternal *,
+    offset_from_master_filter *, RunTimeOpts *, PtpClock *);
+void	updateClock(RunTimeOpts *, PtpClock *);
 
 /* startup.c */
 /* unix API dependent */
-PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
-void ptpdShutdown(void);
+PtpClock *ptpdStartup(int, char **, Integer16 *, RunTimeOpts *);
+void	ptpdShutdown(void);
 
 /* sys.c */
 /* unix API dependent */
-void displayStats(RunTimeOpts*,PtpClock*);
-Boolean nanoSleep(TimeInternal*);
-void getTime(TimeInternal*);
-void setTime(TimeInternal*);
-UInteger16 getRand(UInteger32*);
-Boolean adjFreq(Integer32);
+void	displayStats(RunTimeOpts *, PtpClock *);
+Boolean	nanoSleep(TimeInternal *);
+void	getTime(TimeInternal *);
+void	setTime(TimeInternal *);
+UInteger16 getRand(UInteger32 *);
+Boolean	adjFreq(Integer32);
 
 /* timer.c */
-void initTimer(void);
-void timerUpdate(IntervalTimer*);
-void timerStop(UInteger16,IntervalTimer*);
-void timerStart(UInteger16,UInteger16,IntervalTimer*);
-Boolean timerExpired(UInteger16,IntervalTimer*);
+void	initTimer(void);
+void	timerUpdate(IntervalTimer *);
+void	timerStop(UInteger16, IntervalTimer *);
+void	timerStart(UInteger16, UInteger16, IntervalTimer *);
+Boolean	timerExpired(UInteger16, IntervalTimer *);
 
 
 #endif
-
