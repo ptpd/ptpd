@@ -2,22 +2,43 @@
 
 #include "../ptpd.h"
 
+
+int isTimeInternalNegative( const TimeInternal *p )
+{
+  return (p->seconds < 0) || (p->nanoseconds < 0 );
+}
+
+
+int snprint_TimeInternal( char *s, int max_len, const TimeInternal *p )
+{
+  int len = 0;
+
+  if ( isTimeInternalNegative( p ) )
+    len += snprintf(&s[len], max_len - len, "-");
+
+  len += snprintf(&s[len], max_len - len, "%d.%09d",
+      abs(p->seconds), abs(p->nanoseconds) );
+
+  return len;
+}
+
+
 void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
   static int start = 1;
   static char sbuf[SCREEN_BUFSZ];
   char *s;
   int len = 0;
-  
-  if(start && rtOpts->csvStats)
+
+  if (start && rtOpts->csvStats)
   {
     start = 0;
     printf("state, one way delay, offset from master, drift");
     fflush(stdout);
   }
-  
-  memset(sbuf, ' ', SCREEN_BUFSZ);
-  
+
+  memset(sbuf, ' ', sizeof(sbuf));
+
   switch(ptpClock->portState)
   {
   case PTP_INITIALIZING:  s = "init";  break;
@@ -31,27 +52,32 @@ void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   case PTP_DISABLED:      s = "dsbl";  break;
   default:                s = "?";     break;
   }
-  
-  len += sprintf(sbuf + len, "%s%s", rtOpts->csvStats ? "\n": "\rstate: ", s);
-  
-  if(ptpClock->portState == PTP_SLAVE)
+
+  len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s",
+                  rtOpts->csvStats ? "\n": "\rstate: ", s);
+
+  if (ptpClock->portState == PTP_SLAVE)
   {
-    len += sprintf(sbuf + len,
-      ", %s%d.%09d" ", %s%d.%09d",
-      rtOpts->csvStats ? "" : "owd: ",
-      ptpClock->meanPathDelay.seconds,
-      ptpClock->meanPathDelay.nanoseconds,
-      //abs(ptpClock->meanPathDelay.nanoseconds),
-      rtOpts->csvStats ? "" : "ofm: ",
-      ptpClock->offsetFromMaster.seconds,
-      ptpClock->offsetFromMaster.nanoseconds);
-      //abs(ptpClock->offsetFromMaster.nanoseconds));
-    
-    len += sprintf(sbuf + len, 
-      ", %s%d" ,
+    len += snprintf(sbuf + len, sizeof(sbuf) - len, ", " );
+
+    if (rtOpts->csvStats)
+      len += snprintf(sbuf + len, sizeof(sbuf) - len, "owd: " );
+
+    len += snprint_TimeInternal( sbuf + len, sizeof(sbuf) - len,
+                                 &ptpClock->meanPathDelay );
+
+    len += snprintf(sbuf + len, sizeof(sbuf) - len, ", " );
+
+    if (rtOpts->csvStats)
+      len += snprintf(sbuf + len, sizeof(sbuf) - len, "ofm: " );
+
+    len += snprint_TimeInternal( sbuf + len, sizeof(sbuf) - len,
+                                 &ptpClock->meanPathDelay );
+
+    len += sprintf(sbuf + len, ", %s%d",
       rtOpts->csvStats ? "" : "drift: ", ptpClock->observed_drift);
   }
-  
+
   write(1, sbuf, rtOpts->csvStats ? len : SCREEN_MAXSZ + 1);
 }
 
