@@ -3,21 +3,21 @@
 #include "../ptpd.h"
 
 
-int isTimeInternalNegative( const TimeInternal *p )
+int isTimeInternalNegative(const TimeInternal *p)
 {
-  return (p->seconds < 0) || (p->nanoseconds < 0 );
+  return (p->seconds < 0) || (p->nanoseconds < 0);
 }
 
 
-int snprint_TimeInternal( char *s, int max_len, const TimeInternal *p )
+int snprint_TimeInternal(char *s, int max_len, const TimeInternal *p)
 {
   int len = 0;
 
-  if ( isTimeInternalNegative( p ) )
+  if( isTimeInternalNegative( p ) )
     len += snprintf(&s[len], max_len - len, "-");
 
   len += snprintf(&s[len], max_len - len, "%d.%09d",
-      abs(p->seconds), abs(p->nanoseconds) );
+      abs(p->seconds), abs(p->nanoseconds));
 
   return len;
 }
@@ -30,7 +30,7 @@ void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   char *s;
   int len = 0;
 
-  if (start && rtOpts->csvStats)
+  if(start && rtOpts->csvStats)
   {
     start = 0;
     printf("state, one way delay, offset from master, drift");
@@ -56,23 +56,23 @@ void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s",
                   rtOpts->csvStats ? "\n": "\rstate: ", s);
 
-  if (ptpClock->portState == PTP_SLAVE)
+  if(ptpClock->portState == PTP_SLAVE)
   {
-    len += snprintf(sbuf + len, sizeof(sbuf) - len, ", " );
+    len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
+
+    if(rtOpts->csvStats)
+      len += snprintf(sbuf + len, sizeof(sbuf) - len, "owd: ");
+
+    len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+                                &ptpClock->meanPathDelay);
+
+    len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
     if (rtOpts->csvStats)
-      len += snprintf(sbuf + len, sizeof(sbuf) - len, "owd: " );
+      len += snprintf(sbuf + len, sizeof(sbuf) - len, "ofm: ");
 
-    len += snprint_TimeInternal( sbuf + len, sizeof(sbuf) - len,
-                                 &ptpClock->meanPathDelay );
-
-    len += snprintf(sbuf + len, sizeof(sbuf) - len, ", " );
-
-    if (rtOpts->csvStats)
-      len += snprintf(sbuf + len, sizeof(sbuf) - len, "ofm: " );
-
-    len += snprint_TimeInternal( sbuf + len, sizeof(sbuf) - len,
-                                 &ptpClock->meanPathDelay );
+    len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+                                &ptpClock->offsetFromMaster);
 
     len += sprintf(sbuf + len, ", %s%d",
       rtOpts->csvStats ? "" : "drift: ", ptpClock->observed_drift);
