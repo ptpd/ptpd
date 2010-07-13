@@ -7,13 +7,13 @@
 /**
 *\file
 * \brief Main structures used in ptpdv2
-* 
-* This header file defines structures defined by the spec, 
+*
+* This header file defines structures defined by the spec,
 main program data structure, and all messages structures
  */
 
 
-/** 
+/**
 * \brief The TimeInterval type represents time intervals
  */
 typedef struct {
@@ -75,7 +75,7 @@ typedef struct {
 	UInteger8 lengthField;
 	Octet* textField;
 } PTPText;
-	
+
 /**
 * \brief The FaultRecord type is used to construct fault logs
  */
@@ -89,7 +89,7 @@ typedef struct {
 } FaultRecord;
 
 
-/** 
+/**
 * \brief The common header for all PTP messages (Table 18 of the spec)
  */
 /* Message header */
@@ -108,7 +108,7 @@ typedef struct {
 } MsgHeader;
 
 
-/** 
+/**
 * \brief Announce message fields (Table 25 of the spec)
  */
 /*Announce Message */
@@ -124,7 +124,7 @@ typedef struct {
 }MsgAnnounce;
 
 
-/** 
+/**
 * \brief Sync message fields (Table 26 of the spec)
  */
 /*Sync Message */
@@ -149,7 +149,7 @@ typedef struct {
 	PortIdentity requestingPortIdentity;
 }MsgDelayResp;
 
-/** 
+/**
 * \brief FollowUp message fields (Table 27 of the spec)
  */
 /*Follow-up Message*/
@@ -157,7 +157,7 @@ typedef struct {
 	Timestamp preciseOriginTimestamp;
 }MsgFollowUp;
 
-/** 
+/**
 * \brief PDelayReq message fields (Table 29 of the spec)
  */
 /*PdelayReq Message*/
@@ -166,7 +166,7 @@ typedef struct {
 
 }MsgPDelayReq;
 
-/** 
+/**
 * \brief PDelayResp message fields (Table 30 of the spec)
  */
 /*PdelayResp Message*/
@@ -175,7 +175,7 @@ typedef struct {
 	PortIdentity requestingPortIdentity;
 }MsgPDelayResp;
 
-/** 
+/**
 * \brief PDelayRespFollowUp message fields (Table 31 of the spec)
  */
 /*PdelayRespFollowUp Message*/
@@ -184,7 +184,7 @@ typedef struct {
 	PortIdentity requestingPortIdentity;
 }MsgPDelayRespFollowUp;
 
-/** 
+/**
 * \brief Signaling message fields (Table 33 of the spec)
  */
 /*Signaling Message*/
@@ -193,7 +193,7 @@ typedef struct {
 	char* tlv;
 }MsgSignaling;
 
-/** 
+/**
 * \brief Management message fields (Table 37 of the spec)
  */
 /*management Message*/
@@ -201,21 +201,21 @@ typedef struct {
 	PortIdentity targetPortIdentity;
 	UInteger8 startingBoundaryHops;
 	UInteger8 boundaryHops;
-	Enumeration4 actionField;	
+	Enumeration4 actionField;
 	char* tlv;
 }MsgManagement;
 
 
 
-/** 
-* \brief Time structure to handle Linux time information 
+/**
+* \brief Time structure to handle Linux time information
  */
 typedef struct {
   Integer32 seconds;
-  Integer32 nanoseconds;  
+  Integer32 nanoseconds;
 } TimeInternal;
 
-/** 
+/**
 * \brief Structure used as a timer
  */
 typedef struct {
@@ -225,18 +225,18 @@ typedef struct {
 } IntervalTimer;
 
 
-/** 
+/**
 * \brief ForeignMasterRecord is used to manage foreign masters
  */
 typedef struct
 {
   PortIdentity foreignMasterPortIdentity;
   UInteger16 foreignMasterAnnounceMessages;
-  
+
   //This one is not in the spec
   MsgAnnounce  announce;
   MsgHeader    header;
-  
+
 } ForeignMasterRecord;
 
 
@@ -247,32 +247,32 @@ typedef struct
 /* main program data structure */
 typedef struct {
   /* Default data set */
-  
+
     	/*Static members*/
 		Boolean twoStepFlag;
 		ClockIdentity clockIdentity;
 		UInteger16 numberPorts;
-		
+
 		/*Dynamic members*/
 		ClockQuality clockQuality;
-		
+
 		/*Configurable members*/
 		UInteger8 priority1;
 		UInteger8 priority2;
 		UInteger8 domainNumber;
 		Boolean slaveOnly;
-	
-  
+
+
   /* Current data set */
-  
+
   		/*Dynamic members*/
   		UInteger16 stepsRemoved;
   		TimeInternal offsetFromMaster;
   		TimeInternal meanPathDelay;
 
-  
+
   /* Parent data set */
-  
+
   		/*Dynamic members*/
   		PortIdentity parentPortIdentity;
   		Boolean parentStats;
@@ -282,9 +282,9 @@ typedef struct {
   		ClockQuality grandmasterClockQuality;
   		UInteger8 grandmasterPriority1;
   		UInteger8 grandmasterPriority2;
-  		
+
   /* Global time properties data set */
-  
+
   		/*Dynamic members*/
   		Integer16 currentUtcOffset;
   		Boolean currentUtcOffsetValid;
@@ -294,17 +294,17 @@ typedef struct {
   		Boolean frequencyTraceable;
   		Boolean ptpTimescale;
   		Enumeration8 timeSource;
-  
+
   /* Port configuration data set */
-  		
+
   		/*Static members*/
   		PortIdentity portIdentity;
-  		
+
   		/*Dynamic members*/
   		Enumeration8 portState;
   		Integer8 logMinDelayReqInterval;
   		TimeInternal peerMeanPathDelay;
-  		
+
   		/*Configurable members*/
   		Integer8 logAnnounceInterval;
   		UInteger8 announceReceiptTimeout;
@@ -313,20 +313,20 @@ typedef struct {
   		Integer8 logMinPdelayReqInterval;
   		UInteger4 versionNumber;
 
-  
+
   /* Foreign master data set */
 ForeignMasterRecord *foreign;
-  
+
   /* Other things we need for the protocol */
   UInteger16 number_foreign_records;
   Integer16  max_foreign_records;
   Integer16  foreign_record_i;
   Integer16  foreign_record_best;
   Boolean  record_update;
-  
-  
+
+
   MsgHeader msgTmpHeader;
-  
+
   union {
     MsgSync  sync;
     MsgFollowUp  follow;
@@ -339,15 +339,15 @@ ForeignMasterRecord *foreign;
     MsgAnnounce  announce;
     MsgSignaling signaling;
   } msgTmp;
-  
-  
+
+
   Octet msgObuf[PACKET_SIZE];
   Octet msgIbuf[PACKET_SIZE];
-  
+
   TimeInternal  master_to_slave_delay;
   TimeInternal  slave_to_master_delay;
   Integer32 	observed_drift;
-  
+
   TimeInternal  pdelay_req_receive_time;
   TimeInternal  pdelay_req_send_time;
   TimeInternal  pdelay_resp_receive_time;
@@ -363,10 +363,10 @@ ForeignMasterRecord *foreign;
   TimeInternal	delaySM;
   TimeInternal  lastSyncCorrectionField;
   TimeInternal  lastPdelayRespCorrectionField;
-  
+
 
   double  R;
-  
+
   Boolean  sentPDelayReq;
   UInteger16  sentPDelayReqSequenceId;
   UInteger16  sentDelayReqSequenceId;
@@ -375,20 +375,20 @@ ForeignMasterRecord *foreign;
   UInteger16  recvPDelayReqSequenceId;
   UInteger16  recvSyncSequenceId;
   Boolean  waitingForFollow;
-  
+
   offset_from_master_filter  ofm_filt;
   one_way_delay_filter  owd_filt;
-  
+
   Boolean message_activity;
-  
+
   IntervalTimer  itimer[TIMER_ARRAY_SIZE];
-  
+
   NetPath netPath;
-  
+
   /*Usefull to init network stuff*/
   UInteger8 port_communication_technology;
   Octet port_uuid_field[PTP_UUID_LENGTH];
-  
+
 } PtpClock;
 
 /**
@@ -397,8 +397,8 @@ ForeignMasterRecord *foreign;
  */
 /* program options set at run-time */
 typedef struct {
-	
-  Integer8		announceInterval;	
+
+  Integer8		announceInterval;
   Integer8		syncInterval;
   ClockQuality	clockQuality;
   UInteger8		priority1;
@@ -419,7 +419,7 @@ typedef struct {
   Boolean 		ethernet_mode;
   Boolean       E2E_mode;
   Boolean		offset_first_updated;
-  
+
 } RunTimeOpts;
 
 #endif /*DATATYPES_H_*/

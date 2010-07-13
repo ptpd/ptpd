@@ -4,15 +4,15 @@
 /**
 *\file
 * \brief Default values and constants used in ptpdv2
-* 
+*
 * This header file includes all default values used during initialization
 * and enumeration defined in the spec
  */
- 
+
  #define MANUFACTURER_ID \
   "MaceG VanKempen;2.0.0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
- 
- 
+
+
 /* implementation specific constants */
 #define DEFAULT_INBOUND_LATENCY      	0       /* in nsec */
 #define DEFAULT_OUTBOUND_LATENCY     	0       /* in nsec */
@@ -29,7 +29,7 @@
 #define DEFAULT_DELAYREQ_INTERVAL	 	3
 #define DEFAULT_SYNC_INTERVAL           0 //-7 in 802.1AS
 #define DEFAULT_SYNC_RECEIPT_TIMEOUT 	3
-#define DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT 6 // 3 by default	
+#define DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT 6 // 3 by default
 #define DEFAULT_QUALIFICATION_TIMEOUT	2
 #define DEFAULT_FOREIGN_MASTER_TIME_WINDOW 4
 #define DEFAULT_FOREIGN_MASTER_THRESHOLD 2
@@ -66,7 +66,7 @@
 #define PDELAY_RESP_FOLLOW_UP_LENGTH  			54
 #define MANAGEMENT_LENGTH		 				48
 /** \}*/
-	
+
 /*Enumeration defined in tables of the spec*/
 
 /**
@@ -108,7 +108,7 @@ enum {
 enum {
   PDELAYREQ_INTERVAL_TIMER=0,/**<\brief Timer handling the PdelayReq Interval*/
   DELAYREQ_INTERVAL_TIMER,/**<\brief Timer handling the delayReq Interva*/
-  SYNC_INTERVAL_TIMER,/**<\brief Timer handling Interval between master sends two Syncs messages */ 
+  SYNC_INTERVAL_TIMER,/**<\brief Timer handling Interval between master sends two Syncs messages */
   ANNOUNCE_RECEIPT_TIMER,/**<\brief Timer handling announce receipt timeout*/
   ANNOUNCE_INTERVAL_TIMER, /**<\brief Timer handling interval before master sends two announce messages*/
   TIMER_ARRAY_SIZE  /* this one is non-spec */
@@ -136,9 +136,9 @@ enum {
 	PDELAY_RESP_FOLLOW_UP,
 	ANNOUNCE,
 	SIGNALING,
-	MANAGEMENT,	
+	MANAGEMENT,
 };
-	
+
 enum {
   PTP_ETHER,PTP_DEFAULT
 };

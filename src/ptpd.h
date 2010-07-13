@@ -13,7 +13,7 @@
 /**
 *\file
 * \brief Main functions used in ptpdv2
-* 
+*
 * This header file includes all others headers.
 * It defines functions which are not dependant of the operating system.
  */
@@ -36,7 +36,7 @@
 /* arith.c */
 
 /**
- * \brief Convert Integer64 into TimeInternal structure 
+ * \brief Convert Integer64 into TimeInternal structure
  */
 void integer64_to_internalTime(Integer64,TimeInternal*);
 /**
@@ -50,8 +50,8 @@ void fromInternalTime(TimeInternal*,Timestamp*);
 void toInternalTime(TimeInternal*,Timestamp*);
 
 /**
- * \brief Use to normalize a TimeInternal structure 
- * 
+ * \brief Use to normalize a TimeInternal structure
+ *
  * The nanosecondsField member must always be less than 10⁹
  * This function is used after adding or substracting TimeInternal
  */
@@ -74,7 +74,7 @@ void subTime(TimeInternal*,TimeInternal*,TimeInternal*);
 /* bmc.c */
 /**
  * \brief Compare data set of foreign masters and local data set
- * \return The recommended state for the port 
+ * \return The recommended state for the port
  */
 UInteger8 bmc(ForeignMasterRecord*,RunTimeOpts*,PtpClock*);
 

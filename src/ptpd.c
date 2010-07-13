@@ -8,8 +8,8 @@ int main(int argc, char **argv)
 {
   PtpClock *ptpClock;
   Integer16 ret;
-  
-  /* initialize run-time options to default values */ 
+
+  /* initialize run-time options to default values */
   rtOpts.announceInterval = DEFAULT_ANNOUNCE_INTERVAL;
   rtOpts.syncInterval = DEFAULT_SYNC_INTERVAL;
   rtOpts.clockQuality.clockAccuracy = DEFAULT_CLOCK_ACCURACY;
@@ -32,12 +32,12 @@ int main(int argc, char **argv)
   /*Initialize run time options with command line arguments*/
   if( !(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts)) )
     return ret;
- 
+
 	/* do the protocol engine */
     protocol(&rtOpts, ptpClock); //forever loop..
 
   ptpdShutdown();
-  
+
   NOTIFY("self shutdown, probably due to an error\n");
 
   return 1;

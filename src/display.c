@@ -29,7 +29,7 @@ void timestamp_display(Timestamp *timestamp) {
 
 /**\brief Display a Clockidentity Structure*/
 void clockIdentity_display(ClockIdentity clockIdentity){
-		
+
 printf(
     "ClockIdentity : %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
     clockIdentity[0], clockIdentity[1], clockIdentity[2],
@@ -41,7 +41,7 @@ printf(
 
 /**\brief Display MAC address*/
 void clockUUID_display(Octet *sourceUuid){
-		
+
 printf(
     "sourceUuid %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
     sourceUuid[0], sourceUuid[1], sourceUuid[2],
@@ -54,7 +54,7 @@ printf(
 /**\brief Display Network info*/
 void netPath_display(NetPath *net){
 	struct in_addr addr;
-	
+
 	printf("eventSock : %d \n",net->eventSock);
 	printf("generalSock : %d \n",net->generalSock);
 	addr.s_addr=net->multicastAddr;
@@ -63,7 +63,7 @@ void netPath_display(NetPath *net){
 	printf("peerMulticastAddress : %s \n",inet_ntoa(addr));
 	addr.s_addr=net->unicastAddr;
 	printf("unicastAddress : %s \n",inet_ntoa(addr));
-}	
+}
 
 /**\brief Display a IntervalTimer Structure*/
 void intervalTimer_display(IntervalTimer *ptimer){
@@ -79,13 +79,13 @@ void intervalTimer_display(IntervalTimer *ptimer){
 void timeInterval_display(TimeInterval *timeInterval){
 	integer64_display(&timeInterval->scaledNanoseconds);
 }
-	
 
-/**\brief Display a Portidentity Structure*/	
-void portIdentity_display(PortIdentity *portIdentity){	
+
+/**\brief Display a Portidentity Structure*/
+void portIdentity_display(PortIdentity *portIdentity){
 	clockIdentity_display((char*)portIdentity->clockIdentity);
 	printf("port number : %d \n",portIdentity->portNumber);
-	
+
 }
 
 /**\brief Display a Clockquality Structure*/
@@ -98,12 +98,12 @@ void clockQuality_display (ClockQuality *clockQuality){
 
 /**\brief Display the Network Interface Name*/
 void iFaceName_display(Octet *iFaceName){
-	
+
 int i ;
-printf("iFaceName : "); 
+printf("iFaceName : ");
 
 for (i=0;i<IFACE_NAME_LENGTH;i++){
-	printf("%c",iFaceName[i]); 
+	printf("%c",iFaceName[i]);
 }
 printf("\n");
 
@@ -111,16 +111,16 @@ printf("\n");
 
 /**\brief Display an Unicast Adress*/
 void unicast_display(Octet *unicast){
-	
+
 int i ;
-printf("Unicast adress : "); 
+printf("Unicast adress : ");
 
 for (i=0;i<NET_ADDRESS_LENGTH;i++){
-	printf("%c",unicast[i]); 
+	printf("%c",unicast[i]);
 }
 printf("\n");
 
-}	
+}
 
 
 /**\brief Display Sync message*/
@@ -193,13 +193,13 @@ void msgPDelayRespFollowUp_display(MsgPDelayRespFollowUp *prespfollow){
 timestamp_display(&prespfollow->responseOriginTimestamp);
 portIdentity_display(&prespfollow->requestingPortIdentity);
 }
-	
+
 /**\brief Display runTimeOptions structure*/
 void displayRunTimeOpts(RunTimeOpts* rtOpts){
 
 printf("---Run time Options Display-- \n");
 printf("\n");
-printf("announceInterval : %d \n",rtOpts->announceInterval);	
+printf("announceInterval : %d \n",rtOpts->announceInterval);
 printf("syncInterval : %d \n",rtOpts->syncInterval);
 clockQuality_display(&(rtOpts->clockQuality));
 printf("priority1 : %d \n",rtOpts->priority1);
@@ -228,13 +228,13 @@ printf("\n");
 
 /**\brief Display Default data set of a PtpClock*/
 void displayDefault (PtpClock *ptpClock){
-	
+
 printf("---Ptp Clock Default Data Set-- \n");
 printf("\n");
 printf("twoStepFlag : %d \n",ptpClock->twoStepFlag);
 clockIdentity_display(ptpClock->clockIdentity);
 printf("numberPorts : %d \n",ptpClock->numberPorts);
-clockQuality_display(&(ptpClock->clockQuality));		
+clockQuality_display(&(ptpClock->clockQuality));
 printf("priority1 : %d \n",ptpClock->priority1);
 printf("priority2 : %d \n",ptpClock->priority2);
 printf("domainNumber : %d \n",ptpClock->domainNumber);
@@ -245,7 +245,7 @@ printf("\n");
 
 /**\brief Display Current data set of a PtpClock*/
 void displayCurrent (PtpClock *ptpClock){
-	
+
 printf("---Ptp Clock Current Data Set-- \n");
 printf("\n");
 
@@ -261,26 +261,26 @@ printf("\n");
 
 /**\brief Display Parent data set of a PtpClock*/
 void displayParent (PtpClock *ptpClock){
-	
+
 printf("---Ptp Clock Parent Data Set-- \n");
 printf("\n");
 portIdentity_display(&(ptpClock->parentPortIdentity));
 printf("parentStats : %d \n",ptpClock->parentStats);
 printf("observedParentOffsetScaledLogVariance : %d \n",ptpClock->observedParentOffsetScaledLogVariance);
-printf("observedParentClockPhaseChangeRate : %d \n",ptpClock->observedParentClockPhaseChangeRate); 
-printf("--GrandMaster--\n"); 		
+printf("observedParentClockPhaseChangeRate : %d \n",ptpClock->observedParentClockPhaseChangeRate);
+printf("--GrandMaster--\n");
 clockIdentity_display(ptpClock->grandmasterIdentity);
-clockQuality_display(&ptpClock->grandmasterClockQuality);		
+clockQuality_display(&ptpClock->grandmasterClockQuality);
 printf("grandmasterpriority1 : %d \n",ptpClock->grandmasterPriority1);
-printf("grandmasterpriority2 : %d \n",ptpClock->grandmasterPriority2); 		
+printf("grandmasterpriority2 : %d \n",ptpClock->grandmasterPriority2);
 printf("\n");
 }
-	
-/**\brief Display Global data set of a PtpClock*/	
+
+/**\brief Display Global data set of a PtpClock*/
 void displayGlobal (PtpClock *ptpClock){
-	
+
 printf("---Ptp Clock Global Time Data Set-- \n");
-printf("\n");	
+printf("\n");
 
 printf("currentUtcOffset : %d \n",ptpClock->currentUtcOffset);
 printf("currentUtcOffsetValid : %d \n",ptpClock->currentUtcOffsetValid);
@@ -290,12 +290,12 @@ printf("timeTraceable : %d \n",ptpClock->timeTraceable);
 printf("frequencyTraceable : %d \n",ptpClock->frequencyTraceable);
 printf("ptpTimescale : %d \n",ptpClock->ptpTimescale);
 printf("timeSource : %d \n",ptpClock->timeSource);
-printf("\n");		
+printf("\n");
 }
 
 /**\brief Display Port data set of a PtpClock*/
 void displayPort (PtpClock *ptpClock){
-	
+
 printf("---Ptp Clock Port Data Set-- \n");
 printf("\n");
 
@@ -310,46 +310,46 @@ printf("logSyncInterval : %d \n",ptpClock->logSyncInterval);
 printf("delayMechanism : %d \n",ptpClock->delayMechanism);
 printf("logMinPdelayReqInterval : %d \n",ptpClock->logMinPdelayReqInterval);
 printf("versionNumber : %d \n",ptpClock->versionNumber);
-printf("\n");		
+printf("\n");
 }
-	
+
 /**\brief Display ForeignMaster data set of a PtpClock*/
 void displayForeignMaster (PtpClock *ptpClock){
-	
+
 	ForeignMasterRecord *foreign;
 	int i;
-	
+
 	if (ptpClock->number_foreign_records > 0){
-		
+
 		printf("---Ptp Clock Foreign Data Set-- \n");
 		printf("\n");
 		printf("There is %d Foreign master Recorded \n",ptpClock->number_foreign_records);
 		foreign = ptpClock->foreign;
 
 			for (i=0;i<ptpClock->number_foreign_records;i++){
-	
+
 				portIdentity_display(&foreign->foreignMasterPortIdentity);
 				printf("number of Announce message received : %d \n",foreign->foreignMasterAnnounceMessages);
 				msgHeader_display(&foreign->header);
 				msgAnnounce_display(&foreign->announce);
-				
+
 				foreign++;
 			}
 
 	}
-	
-	else 
+
+	else
 	{printf("No Foreign masters recorded \n");}
-	
+
 	printf("\n");
 
-	
+
 }
 
 /**\brief Display other data set of a PtpClock*/
 
 void displayOthers (PtpClock *ptpClock){
-	
+
 int i ;
 
 //Usefull to display name of timers
@@ -385,26 +385,26 @@ timeInternal_display(&ptpClock->sync_receive_time);
 printf("\n");
 printf("R : %f \n",ptpClock->R);
 printf("sentPdelayReq : %d \n",ptpClock->sentPDelayReq);
-printf("sentPDelayReqSequenceId : %d \n",ptpClock->sentPDelayReqSequenceId);  
+printf("sentPDelayReqSequenceId : %d \n",ptpClock->sentPDelayReqSequenceId);
 printf("waitingForFollow : %d \n",ptpClock->waitingForFollow);
 printf("\n");
 printf("Offset from master filter : \n");
 printf("nsec_prev : %d \n",ptpClock->ofm_filt.nsec_prev);
-printf("y : %d \n",ptpClock->ofm_filt.y);  
+printf("y : %d \n",ptpClock->ofm_filt.y);
 printf("\n");
 printf("One way delay filter : \n");
 printf("nsec_prev : %d \n",ptpClock->owd_filt.nsec_prev);
-printf("y : %d \n",ptpClock->owd_filt.y); 
+printf("y : %d \n",ptpClock->owd_filt.y);
 printf("s_exp : %d \n",ptpClock->owd_filt.s_exp);
 printf("\n");
-printf("observed_drift : %d \n",ptpClock->observed_drift); 
+printf("observed_drift : %d \n",ptpClock->observed_drift);
 printf("message activity %d \n",ptpClock->message_activity);
 printf("\n");
 
 for (i=0;i<TIMER_ARRAY_SIZE;i++){
 	printf("%s : \n",timer[i]);
 	intervalTimer_display(&ptpClock->itimer[i]);
-	printf("\n");	
+	printf("\n");
 }
 
 netPath_display(&ptpClock->netPath);
@@ -416,23 +416,23 @@ printf("\n");
 
 /**\brief Display Buffer in & out of a PtpClock*/
 void displayBuffer (PtpClock *ptpClock){
-	
+
 	int i;
 	int j;
 	j=0;
-	
+
 	printf("PtpClock Buffer Out  \n");
 	printf("\n");
-	
+
  	for (i=0;i<PACKET_SIZE;i++){
  		printf(":%02hhx",ptpClock->msgObuf[i]);
  		j++;
- 		
+
  		if (j==8){
  			printf(" ");
- 			
+
  		}
- 		
+
  		if (j==16){
  			printf("\n");
  			j=0;
@@ -441,18 +441,18 @@ void displayBuffer (PtpClock *ptpClock){
  printf("\n");
  j=0;
  printf("\n");
- 
+
 	printf("PtpClock Buffer In  \n");
 	printf("\n");
  	for (i=0;i<PACKET_SIZE;i++){
  		printf(":%02hhx",ptpClock->msgIbuf[i]);
  		j++;
- 		
+
  		if (j==8){
  			printf(" ");
- 			
+
  		}
- 		
+
  		if (j==16){
  			printf("\n");
  			j=0;
@@ -467,7 +467,7 @@ void displayBuffer (PtpClock *ptpClock){
 
 /**\brief Display All data set of a PtpClock*/
 void displayPtpClock (PtpClock *ptpClock){
-	
+
 displayDefault (ptpClock);
 displayCurrent (ptpClock);
 displayParent (ptpClock);
@@ -476,6 +476,6 @@ displayPort(ptpClock);
 displayForeignMaster(ptpClock);
 displayBuffer(ptpClock);
 displayOthers (ptpClock);
-	
+
 }
 
