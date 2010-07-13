@@ -1073,7 +1073,6 @@ void handlePDelayRespFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 
 if (!rtOpts->E2E_mode)
  {
-	Boolean isFromCurrentParent = FALSE;
 	TimeInternal responseOriginTimestamp;
 	TimeInternal correctionField;
 	

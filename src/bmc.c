@@ -380,6 +380,9 @@ UInteger8 bmcStateDecision (MsgHeader *header,MsgAnnounce *announce,RunTimeOpts 
 
 	}
 
+	// MB: Is this the return code below correct?
+	// Anyway, it's a valid return code.
+	return PTP_FAULTY;
 }
 
 

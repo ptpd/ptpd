@@ -484,8 +484,8 @@ ssize_t netRecvEvent(Octet *buf, TimeInternal *time, NetPath *netPath)
 
   if(msg.msg_controllen < sizeof(cmsg_un.control))
   {
-    ERROR("received short ancillary data (%d/%d)\n",
-      msg.msg_controllen, (int)sizeof(cmsg_un.control));
+    ERROR("received short ancillary data (%ld/%ld)\n",
+      (long) msg.msg_controllen, (long) sizeof(cmsg_un.control));
 
     return 0;
   }
@@ -577,8 +577,8 @@ ssize_t netRecvGeneral(Octet *buf,TimeInternal *time, NetPath *netPath)
 
   if(msg.msg_controllen < sizeof(cmsg_un.control))
   {
-    ERROR("received short ancillary data (%d/%d)\n",
-      msg.msg_controllen, (int)sizeof(cmsg_un.control));
+    ERROR("received short ancillary data (%ld/%ld)\n",
+      (long) msg.msg_controllen, (long) sizeof(cmsg_un.control));
 
     return 0;
   }

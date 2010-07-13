@@ -133,6 +133,9 @@ void msgAnnounce_display(MsgAnnounce*);
 void msgSync_display(MsgSync *sync);
 void msgFollowUp_display(MsgFollowUp*);
 void msgPDelayReq_display(MsgPDelayReq*);
+void msgUnpackDelayResp(void *,MsgDelayResp *);
+void msgPackDelayReq(void *,Timestamp *,PtpClock *);
+void msgPackDelayResp(void *,MsgHeader *,Timestamp *,PtpClock *);
 
 
 #endif /*PTPD_H_*/
