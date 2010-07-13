@@ -378,6 +378,7 @@ void handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   DBGV("handle: something\n");
   
   length = netRecvEvent(ptpClock->msgIbuf, &time, &ptpClock->netPath);
+  time.seconds += ptpClock->currentUtcOffset;
   if(length < 0)
   {
     PERROR("failed to receive on the event socket");
