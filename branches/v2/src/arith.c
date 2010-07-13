@@ -7,13 +7,12 @@ void integer64_to_internalTime(Integer64 bigint,TimeInternal *internal)
 {
 	int s_msb;
 	double ns_msb;
-	double temp;
 	int entire;
-	char  *p_lsb,*p_msb;
+	char  *p_lsb, *p_msb;
 	Boolean negative = FALSE;
 
-	p_lsb=&bigint.lsb;
-	p_msb=&bigint.msb;
+	p_lsb = (char *) &bigint.lsb;  // lsb type is unsigned int
+	p_msb = (char *) &bigint.msb;  // msb type is int
 
 	/*Test if bigint is a negative number*/
 	negative = ((bigint.msb & 0x80000000) == 0x80000000);
