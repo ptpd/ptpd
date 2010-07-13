@@ -508,7 +508,7 @@ ssize_t netRecvEvent(Octet *buf, TimeInternal *time, NetPath *netPath)
     /* do not try to get by with recording the time here, better to fail
        because the time recorded could be well after the message receive,
        which would put a big spike in the offset signal sent to the clock servo */
-    DBG("no recieve time stamp\n");
+    DBG("no receive time stamp\n");
     return 0;
   }
 
@@ -601,7 +601,7 @@ ssize_t netRecvGeneral(Octet *buf,TimeInternal *time, NetPath *netPath)
     /* do not try to get by with recording the time here, better to fail
        because the time recorded could be well after the message receive,
        which would put a big spike in the offset signal sent to the clock servo */
-    DBG("no recieve time stamp\n");
+    DBG("no receive time stamp\n");
     return 0;
   }
 
