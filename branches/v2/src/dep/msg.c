@@ -30,14 +30,14 @@ void msgPackHeader(void *buf, PtpClock *ptpClock)
 	*(UInteger8*)(buf+0) = transport;
 	*(UInteger4*)(buf+1) = ptpClock->versionNumber;
 	*(UInteger8*)(buf+4) = ptpClock->domainNumber;
-	
-	if (ptpClock->twoStepFlag) 
+
+	if (ptpClock->twoStepFlag)
 		*(UInteger8*)(buf+6) = TWO_STEP_FLAG;
-	
+
 	memset((buf+8),0,8);
 	memcpy((buf+20),ptpClock->portIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
 	*(UInteger16*)(buf+28) = flip16(ptpClock->portIdentity.portNumber);
-	*(UInteger8*)(buf+33) = 0x7F; //Default value (spec Table 24) 	
+	*(UInteger8*)(buf+33) = 0x7F; //Default value (spec Table 24)
 
 }
 
@@ -54,7 +54,7 @@ void msgPackSync(void *buf,Timestamp *originTimestamp,PtpClock *ptpClock)
 	*(UInteger8*)(buf+32)=0x00; //Table 23
 	*(Integer8*)(buf+33) = ptpClock->logSyncInterval;
 	memset((buf+8),0,8);
-	
+
 	/*Sync message*/
 	*(UInteger16*)(buf+34) = flip16(originTimestamp->secondsField.msb);
 	*(UInteger32*)(buf+36) = flip32(originTimestamp->secondsField.lsb);
@@ -71,7 +71,7 @@ void msgUnpackSync(void *buf,MsgSync *sync)
 
 
 
-/*Pack Announce message into OUT buffer of ptpClock*/ 
+/*Pack Announce message into OUT buffer of ptpClock*/
 void msgPackAnnounce(void *buf,PtpClock *ptpClock)
 {
 	/*changes in header*/
@@ -81,7 +81,7 @@ void msgPackAnnounce(void *buf,PtpClock *ptpClock)
 	*(UInteger16*)(buf+30)=flip16(ptpClock->sentAnnounceSequenceId);
 	*(UInteger8*)(buf+32)=0x05; //Table 23
 	*(Integer8*)(buf+33) = ptpClock->logAnnounceInterval;
-	
+
 	/*Announce message*/
 	memset((buf+34),0,10);
 	*(Integer16*)(buf+44)=flip16(ptpClock->currentUtcOffset);
@@ -122,7 +122,7 @@ void msgPackFollowUp(void *buf,Timestamp *preciseOriginTimestamp,PtpClock *ptpCl
 	*(UInteger16*)(buf+30)=flip16(ptpClock->sentSyncSequenceId-1);//sentSyncSequenceId has already been incremented in "issueSync"
 	*(UInteger8*)(buf+32)=0x02; //Table 23
 	*(Integer8*)(buf+33) = ptpClock->logSyncInterval;
-	
+
 	/*Follow_up message*/
 	*(UInteger16*)(buf+34) = flip16(preciseOriginTimestamp->secondsField.msb);
 	*(UInteger32*)(buf+36) = flip32(preciseOriginTimestamp->secondsField.lsb);
@@ -149,12 +149,12 @@ void msgPackPDelayReq(void *buf,Timestamp *originTimestamp,PtpClock *ptpClock)
 	*(UInteger8*)(buf+32) = 0x05; //Table 23
 	*(Integer8*)(buf+33) = 0x7F; //Table 24
 	memset((buf+8),0,8);
-	
+
 	/*Pdelay_req message*/
 	*(UInteger16*)(buf+34) = flip16(originTimestamp->secondsField.msb);
 	*(UInteger32*)(buf+36) = flip32(originTimestamp->secondsField.lsb);
 	*(UInteger32*)(buf+40) = flip32(originTimestamp->nanosecondsField);
-	
+
 	memset((buf+44),0,10); // RAZ reserved octets
 }
 
@@ -220,17 +220,17 @@ void msgPackPDelayResp(void *buf,MsgHeader *header,Timestamp *requestReceiptTime
 
 
 	*(UInteger16*)(buf+30)= flip16(header->sequenceId);
-	
+
 	*(UInteger8*)(buf+32) = 0x05; //Table 23
 	*(Integer8*)(buf+33) = 0x7F; //Table 24
-	
+
 	/*Pdelay_resp message*/
 	*(UInteger16*)(buf+34) = flip16(requestReceiptTimestamp->secondsField.msb);
 	*(UInteger32*)(buf+36) = flip32(requestReceiptTimestamp->secondsField.lsb);
 	*(UInteger32*)(buf+40) = flip32(requestReceiptTimestamp->nanosecondsField);
 	memcpy((buf+44),header->sourcePortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
 	*(UInteger16*)(buf+52) = flip16(header->sourcePortIdentity.portNumber);
-	
+
 }
 
 
@@ -283,11 +283,11 @@ void msgPackPDelayRespFollowUp(void *buf,MsgHeader *header,Timestamp *responseOr
 	*(UInteger16*)(buf+30)= flip16(ptpClock->PdelayReqHeader.sequenceId);
 	*(UInteger8*)(buf+32) = 0x05; //Table 23
 	*(Integer8*)(buf+33) = 0x7F; //Table 24
-	
+
 	/*Copy correctionField of PdelayReqMessage*/
 	*(Integer32*)(buf+8) = flip32(header->correctionfield.msb);
 	*(Integer32*)(buf+12) = flip32(header->correctionfield.lsb);
-	
+
 	/*Pdelay_resp_follow_up message*/
 	*(UInteger16*)(buf+34) = flip16(responseOriginTimestamp->secondsField.msb);
 	*(UInteger32*)(buf+36) = flip32(responseOriginTimestamp->secondsField.lsb);

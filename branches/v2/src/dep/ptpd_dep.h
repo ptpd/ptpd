@@ -154,7 +154,7 @@ PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
 void ptpdShutdown(void);
 /** \}*/
 
-/** \name sys.c (Linux API dependent) 
+/** \name sys.c (Linux API dependent)
  * -Manage timing system API*/
  /**\{*/
 void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock);
@@ -165,7 +165,7 @@ double getRand();
 Boolean adjFreq(Integer32);
 /** \}*/
 
-/** \name timer.c (Linux API dependent) 
+/** \name timer.c (Linux API dependent)
  * -Handle with timers*/
  /**\{*/
 void initTimer(void);

@@ -7,36 +7,36 @@ PtpClock *ptpClock;
 void catch_close(int sig)
 {
   char *s;
-  
+
   ptpdShutdown();
-  
+
   switch(sig)
   {
   case SIGINT:
     s = "interrupt";
     break;
-    
+
   case SIGTERM:
     s = "terminate";
     break;
-    
+
   case SIGHUP:
     s = "hangup";
     break;
-    
+
   default:
     s = "?";
   }
-  
+
   NOTIFY("shutdown on %s signal\n", s);
-  
+
   exit(0);
 }
 
 void ptpdShutdown()
 {
   netShutdown(&ptpClock->netPath);
-  
+
   free(ptpClock->foreign);
   free(ptpClock);
 }
@@ -44,7 +44,7 @@ void ptpdShutdown()
 PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpts)
 {
   int c, fd = -1, nondaemon = 0, noclose = 0;
-  
+
   /* parse command line arguments */
   while( (c = getopt(argc, argv, "?cf:dDxta:w:b:u:l:o:n:y:m:gv:r:s:p:q:i:eh")) != -1 ) {
     switch(c) {
@@ -93,12 +93,12 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
       );
       *ret = 0;
       return 0;
-      
+
     case 'c':
       nondaemon = 1;
       break;
-    
-      
+
+
     case 'f':
       if((fd = creat(optarg, 0400)) != -1)
       {
@@ -109,115 +109,115 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
       else
         PERROR("could not open output file");
       break;
-      
+
     case 'd':
 #ifndef PTPD_DBG
       rtOpts->displayStats = TRUE;
 #endif
       break;
-      
+
     case 'D':
 #ifndef PTPD_DBG
       rtOpts->displayStats = TRUE;
       rtOpts->csvStats = TRUE;
 #endif
       break;
-      
+
     case 'x':
       rtOpts->noResetClock = TRUE;
       break;
-      
+
     case 't':
       rtOpts->noAdjust = TRUE;
       break;
-      
+
     case 'a':
       rtOpts->ap = strtol(optarg, &optarg, 0);
       if(optarg[0])
         rtOpts->ai = strtol(optarg+1, 0, 0);
       break;
-      
+
     case 'w':
       rtOpts->s = strtol(optarg, &optarg, 0);
       break;
-      
+
     case 'b':
       memset(rtOpts->ifaceName, 0, IFACE_NAME_LENGTH);
       strncpy(rtOpts->ifaceName, optarg, IFACE_NAME_LENGTH);
       break;
-      
+
     case 'u':
       strncpy(rtOpts->unicastAddress, optarg, NET_ADDRESS_LENGTH);
       break;
-      
+
     case 'l':
       rtOpts->inboundLatency.nanoseconds = strtol(optarg, &optarg, 0);
       if(optarg[0])
         rtOpts->outboundLatency.nanoseconds = strtol(optarg+1, 0, 0);
       break;
-      
+
     case 'o':
       rtOpts->currentUtcOffset = strtol(optarg, &optarg, 0);
       break;
-      
+
     case 'i':
       rtOpts->domainNumber = strtol(optarg, &optarg, 0);
       break;
-          
+
     case 'y':
       rtOpts->syncInterval = strtol(optarg, 0, 0);
       break;
-      
+
      case 'n':
      rtOpts->announceInterval=strtol(optarg, 0, 0);
      break;
-      
+
     case 'm':
       rtOpts->max_foreign_records = strtol(optarg, 0, 0);
       if(rtOpts->max_foreign_records < 1)
         rtOpts->max_foreign_records = 1;
       break;
-      
+
     case 'g':
       rtOpts->slaveOnly = TRUE;
       break;
-      
+
     case 'v':
       rtOpts->clockQuality.offsetScaledLogVariance = strtol(optarg, 0, 0);
       break;
-      
+
     case 'r':
       rtOpts->clockQuality.clockAccuracy = strtol(optarg, 0, 0);
       break;
-    
+
     case 's':
       rtOpts->clockQuality.clockClass = strtol(optarg, 0, 0);
       break;
-      
+
     case 'p':
       rtOpts->priority1 = strtol(optarg, 0, 0);
       break;
-      
+
     case 'q':
       rtOpts->priority2 = strtol(optarg, 0, 0);
       break;
-      
+
    case 'e':
       rtOpts->ethernet_mode = TRUE;
       PERROR("Not implemented yet !");
       return 0;
       break;
-      
+
    case 'h':
 	   rtOpts->E2E_mode = TRUE;
 	   break;
-            
+
     default:
       *ret = 1;
       return 0;
     }
   }
-  
+
   ptpClock = (PtpClock*)calloc(1, sizeof(PtpClock));
   if(!ptpClock)
   {
@@ -241,12 +241,12 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
       DBG("allocated %d bytes for foreign master data\n", (int)(rtOpts->max_foreign_records*sizeof(ForeignMasterRecord)));
     }
   }
-  
+
   /*Init to 0 net buffer*/
   memset(ptpClock->msgIbuf,0,PACKET_SIZE);
   memset(ptpClock->msgObuf,0,PACKET_SIZE);
-  
-  
+
+
 #ifndef PTPD_NO_DAEMON
   if(!nondaemon)
   {
@@ -259,12 +259,12 @@ PtpClock * ptpdStartup(int argc, char **argv, Integer16 *ret, RunTimeOpts *rtOpt
     DBG("running as daemon\n");
   }
 #endif
-  
+
   signal(SIGINT, catch_close);
   signal(SIGTERM, catch_close);
   signal(SIGHUP, catch_close);
-  
+
   *ret = 0;
-     
+
   return ptpClock;
 }

@@ -7,9 +7,9 @@
 /**
 *\file
 * \brief Plateform-dependent constants definition
-* 
+*
 * This header defines all includes and constants which are plateform-dependent
-* 
+*
 * ptpdv2 is only implemented for linux, NetBSD and FreeBSD
  */
 
