@@ -1,3 +1,12 @@
+/**
+ * @file   servo.c
+ * @date   Tue Jul 20 16:19:19 2010
+ * 
+ * @brief  Code which implements the clock servo in software.
+ * 
+ * 
+ */
+
 #include "../ptpd.h"
 
 void 

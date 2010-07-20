@@ -1,4 +1,11 @@
-/* ptpd.h */
+/**
+ * @file   ptpd.h
+ * @date   Tue Jul 20 16:15:04 2010
+ * 
+ * @brief  Bulk include file for the daemon, has all necessary local headers.
+ * 
+ * 
+ */
 
 #ifndef PTPD_H
 #define PTPD_H

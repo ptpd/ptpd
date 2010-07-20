@@ -1,4 +1,12 @@
-/* startup.c */
+/**
+ * @file   startup.c
+ * @date   Wed Jun 23 09:33:27 2010
+ * 
+ * @brief  Code to handle daemon startup, including command line args
+ * 
+ * The function in this file are called when the daemon starts up
+ * and include the getopt() command line argument parsing.
+ */
 
 #include "../ptpd.h"
 

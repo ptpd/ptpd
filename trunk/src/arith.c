@@ -1,4 +1,11 @@
-/* arith.c */
+/**
+ * @file   arith.c
+ * @date   Tue Jul 20 16:12:51 2010
+ * 
+ * @brief  Time format conversion routines and additional math functions.
+ * 
+ * 
+ */
 
 #include "ptpd.h"
 

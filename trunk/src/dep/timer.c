@@ -1,4 +1,11 @@
-/* timer.c */
+/**
+ * @file   timer.c
+ * @date   Wed Jun 23 09:41:26 2010
+ * 
+ * @brief  The timers which run the state machine.
+ * 
+ * Timers in the PTP daemon are run off of the signal system.  
+ */
 
 #include "../ptpd.h"
 

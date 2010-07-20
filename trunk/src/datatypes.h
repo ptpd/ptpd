@@ -1,4 +1,12 @@
-/* datatypes.h */
+/**
+ * @file   datatypes.h
+ * @date   Wed Jun 23 09:37:14 2010
+ * 
+ * @brief  All of the datatypes used by the daemon.
+ * 
+ * 
+ */
+
 
 #ifndef DATATYPES_H
 #define DATATYPES_H

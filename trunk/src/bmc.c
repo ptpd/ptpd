@@ -1,4 +1,12 @@
-/* bmc.c */
+/**
+ * @file   bmc.c
+ * @date   Wed Jun 23 09:36:09 2010
+ * 
+ * @brief  Best master clock selection code.
+ * 
+ * The functions in this file are used by the daemon to select the
+ * best master clock from any number of possibilities.
+ */
 
 #include "ptpd.h"
 
