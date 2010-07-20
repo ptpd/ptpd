@@ -1,4 +1,11 @@
-/* net.c */
+/**
+ * @file   net.c
+ * @date   Tue Jul 20 16:17:49 2010
+ * 
+ * @brief  Functions to interact with the network sockets and NIC driver.
+ * 
+ * 
+ */
 
 #include "../ptpd.h"
 

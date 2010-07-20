@@ -1,3 +1,12 @@
+/**
+ * @file   probe.c
+ * @date   Tue Jul 20 16:13:30 2010
+ * 
+ * @brief  Management packet handling
+ * 
+ * 
+ */
+
 #include "ptpd.h"
 
 #define KEY_ARRAY_LEN 6

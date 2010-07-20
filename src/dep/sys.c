@@ -1,4 +1,11 @@
-/* sys.c */
+/**
+ * @file   sys.c
+ * @date   Tue Jul 20 16:19:46 2010
+ * 
+ * @brief  Code to call kernel time routines and also display server statistics.
+ * 
+ * 
+ */
 
 #include "../ptpd.h"
 

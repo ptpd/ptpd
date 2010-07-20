@@ -1,5 +1,13 @@
-/* msg.c */
-/* see spec annex d */
+/**
+ * @file   msg.c
+ * @author George Neville-Neil <gnn@neville-neil.com>
+ * @date   Tue Jul 20 16:17:05 2010
+ * 
+ * @brief  Functions to pack and unpack messages.
+ * 
+ * See spec annex d
+ */
+
 
 #include "../ptpd.h"
 

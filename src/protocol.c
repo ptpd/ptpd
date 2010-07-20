@@ -1,4 +1,11 @@
-/* protocol.c */
+/**
+ * @file   protocol.c
+ * @date   Wed Jun 23 09:40:39 2010
+ * 
+ * @brief  The code that handles the IEEE-1588 protocol and state machine
+ * 
+ * 
+ */
 
 #include "ptpd.h"
 

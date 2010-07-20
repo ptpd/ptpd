@@ -1,9 +1,14 @@
-/* constants_dep.h */
+/**
+ * @file   constants_dep.h
+ * @date   Tue Jul 20 16:16:23 2010
+ * 
+ * @brief  Platform dependent constants
+ * 
+ * 
+ */
 
 #ifndef CONSTANTS_DEP_H
 #define CONSTANTS_DEP_H
-
-/* platform dependent */
 
 #include <limits.h>
 

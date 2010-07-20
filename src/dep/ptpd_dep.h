@@ -1,4 +1,11 @@
-/* ptpd_dep.h */
+/**
+ * @file   ptpd_dep.h
+ * @date   Tue Jul 20 16:18:39 2010
+ * 
+ * @brief  External definitions for inclusion elsewhere.
+ * 
+ * 
+ */
 
 #ifndef PTPD_DEP_H
 #define PTPD_DEP_H

@@ -1,4 +1,11 @@
-/* datatypes_dep.h */
+/**
+ * @file   datatypes_dep.h
+ * @date   Tue Jul 20 16:16:48 2010
+ * 
+ * @brief  Platform dependent datatypes.
+ * 
+ * 
+ */
 
 #ifndef DATATYPES_DEP_H
 #define DATATYPES_DEP_H

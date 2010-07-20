@@ -1,4 +1,11 @@
-/* constants.h */
+/**
+ * @file   constants.h
+ * @date   Wed Jun 23 10:02:39 2010
+ * 
+ * @brief  All of the defined constants for the daemon.
+ * 
+ * 
+ */
 
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
