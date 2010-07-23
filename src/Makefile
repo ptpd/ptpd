@@ -6,8 +6,6 @@ CFLAGS = -Wall
 LDFLAGS = -lm
 
 PROG = ptpv2d
-#OBJ  = ptpd.o arith.o bmc.o probe.o protocol.o \
-	dep/msg.o dep/net.o dep/servo.o dep/startup.o dep/sys.o dep/timer.o
 OBJ  = ptpd.o arith.o bmc.o protocol.o display.o\
 	dep/msg.o dep/net.o dep/servo.o dep/startup.o dep/sys.o dep/timer.o
 HDR  = ptpd.h constants.h datatypes.h \
