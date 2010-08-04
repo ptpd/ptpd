@@ -95,5 +95,4 @@
 #define SCREEN_BUFSZ  128
 #define SCREEN_MAXSZ  80
 
-#define MAXDELAYNS 100000000 /* (100ms) */
 #endif
