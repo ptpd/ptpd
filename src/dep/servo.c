@@ -34,8 +34,19 @@ updateDelay(TimeInternal * send_time, TimeInternal * recv_time,
     one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	Integer16 s;
+	TimeInternal test_slave_to_master_delay;
 
 	DBGV("updateDelay\n");
+
+	/* XXX: Hack around bad delays */
+	subTime(&test_slave_to_master_delay, recv_time, send_time);
+	if ((test_slave_to_master_delay.seconds > 0) ||
+	    (test_slave_to_master_delay.nanoseconds > MAXDELAYNS)) {
+                NOTIFY("slave to master delay exceeds tolerance %ds %dns\n", 
+                       test_slave_to_master_delay.seconds,
+                       test_slave_to_master_delay.nanoseconds);
+                return;
+        }
 
 	/* calc 'slave_to_master_delay' */
 	subTime(&ptpClock->slave_to_master_delay, recv_time, send_time);
@@ -78,6 +89,17 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
     offset_from_master_filter * ofm_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	DBGV("updateOffset\n");
+
+	/* XXX: Hack around bad delays */
+	TimeInternal test_master_to_slave_delay;
+	subTime(&test_master_to_slave_delay, recv_time, send_time);
+	if ((test_master_to_slave_delay.seconds > 0) ||
+	    (test_master_to_slave_delay.nanoseconds > MAXDELAYNS)) {
+                NOTIFY("master to slave delay exceeds tolerance %ds %dns\n", 
+                       test_master_to_slave_delay.seconds,
+                       test_master_to_slave_delay.nanoseconds);
+                return;
+        }
 
 	/* calc 'master_to_slave_delay' */
 	subTime(&ptpClock->master_to_slave_delay, recv_time, send_time);
