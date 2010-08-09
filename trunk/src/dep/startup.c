@@ -12,6 +12,11 @@
 
 PtpClock *ptpClock;
 
+/** 
+ * Signal handler for catching a close signal
+ * 
+ * @param sig 
+ */
 void 
 catch_close(int sig)
 {
@@ -28,10 +33,6 @@ catch_close(int sig)
 		s = "terminate";
 		break;
 
-	case SIGHUP:
-		s = "hangup";
-		break;
-
 	default:
 		s = "?";
 	}
@@ -39,6 +40,40 @@ catch_close(int sig)
 	NOTIFY("shutdown on %s signal\n", s);
 
 	exit(0);
+}
+
+/** 
+ * Signal handler for HUP which tells us to swap the log file.
+ * 
+ * @param sig 
+ */
+void 
+catch_sighup(int sig)
+{
+	if(!logToFile())
+		NOTIFY("SIGHUP failed\n");
+	else
+		NOTIFY("I've been SIGHUP'd\n");
+}
+
+/** 
+ * Log output to a file
+ * 
+ * 
+ * @return True if success, False if failure
+ */
+int 
+logToFile()
+{
+	extern RunTimeOpts rtOpts;
+	if(rtOpts.logFd != -1)
+		close(rtOpts.logFd);
+	
+	if((rtOpts.logFd = creat(rtOpts.file, 0444)) != -1) {
+		dup2(rtOpts.logFd, STDOUT_FILENO);
+		dup2(rtOpts.logFd, STDERR_FILENO);
+	}
+	return rtOpts.logFd != -1;
 }
 
 void 
@@ -53,10 +88,10 @@ ptpdShutdown()
 PtpClock *
 ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 {
-	int c, fd = -1, nondaemon = 0, noclose = 0;
+	int c, nondaemon = 0, noclose = 0;
 
 	/* parse command line arguments */
-	while ((c = getopt(argc, argv, "?cf:dDxta:w:b:u:l:o:e:hy:m:gps:i:v:n:k:r")) != -1) {
+	while ((c = getopt(argc, argv, "?cf:dDxta:w:b:u:l:o:e:hy:m:gpSs:i:v:n:k:rT:")) != -1) {
 		switch (c) {
 		case '?':
 			printf(
@@ -64,7 +99,9 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			    "-?                show this page\n"
 			    "\n"
 			    "-c                run in command line (non-daemon) mode\n"
-			    "-f FILE           send output to FILE\n"
+			    "-f FILE           send stats to FILE\n"
+			    "-S		       send output to syslog \n"
+			    "-T                set multicast time to live\n"
 			    "-d                display stats\n"
 			    "-D                display stats in .csv format\n"
 			    "\n"
@@ -101,13 +138,18 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		case 'c':
 			nondaemon = 1;
 			break;
-
+ 
+		case 'S':
+			rtOpts->useSysLog = TRUE;
+			break;
+		case 'T':
+			rtOpts->ttl = atoi(optarg);
+			break;
 		case 'f':
-			if ((fd = creat(optarg, 0400)) != -1) {
-				dup2(fd, STDOUT_FILENO);
-				dup2(fd, STDERR_FILENO);
+			strncpy(rtOpts->file, optarg, PATH_MAX);
+			if(logToFile())
 				noclose = 1;
-			} else
+			else
 				PERROR("could not open output file");
 			break;
 
@@ -260,7 +302,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 	signal(SIGINT, catch_close);
 	signal(SIGTERM, catch_close);
-	signal(SIGHUP, catch_close);
+	signal(SIGHUP, catch_sighup);
 
 	*ret = 0;
 	return ptpClock;

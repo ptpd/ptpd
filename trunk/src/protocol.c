@@ -40,6 +40,8 @@ protocol(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	toState(PTP_INITIALIZING, rtOpts, ptpClock);
 
+	DBGV("Debug Initializing...");
+
 	for (;;) {
 		if (ptpClock->port_state != PTP_INITIALIZING)
 			doState(rtOpts, ptpClock);
@@ -273,6 +275,8 @@ toState(UInteger8 state, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		DBG("to unrecognized state\n");
 		break;
 	}
+
+	NOTIFY("Port state changed to %s\n", translatePortState(ptpClock));
 
 	if (rtOpts->displayStats)
 		displayStats(rtOpts, ptpClock);

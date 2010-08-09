@@ -16,7 +16,6 @@
 #include "datatypes.h"
 #include "dep/ptpd_dep.h"
 
-
 /* arith.c */
 UInteger32 crc_algorithm(Octet *, Integer16);
 UInteger32 sum(Octet *, Integer16);

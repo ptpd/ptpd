@@ -37,6 +37,9 @@ main(int argc, char **argv)
 	rtOpts.ai = DEFAULT_AI;
 	rtOpts.max_foreign_records = DEFUALT_MAX_FOREIGN_RECORDS;
 	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
+	rtOpts.logFd = -1;
+	rtOpts.useSysLog = FALSE;
+	rtOpts.ttl = 1;
 
 	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts)))
 		return ret;

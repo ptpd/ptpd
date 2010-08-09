@@ -12,7 +12,7 @@
 
 /* implementation specific constants */
 #define MANUFACTURER_ID \
-  "Kendall;1rc1\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+  "PTPD;1.2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 
 #define DEFUALT_SYNC_INTERVAL        1
 #define DEFAULT_UTC_OFFSET           0
