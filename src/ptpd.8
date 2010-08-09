@@ -1,5 +1,5 @@
 .\" -*- nroff -*"
-.TH ptpd 8 "September 22, 2007" "version 1rc1" "Precision Time Protocol daemon"
+.TH ptpd 8 "August 9, 2010" "version 1.2" "Precision Time Protocol daemon"
 .SH NAME
 ptpd \- Precision Time Protocol daemon
 .SH SYNOPSIS
@@ -7,10 +7,12 @@ ptpd \- Precision Time Protocol daemon
 
 [-?]
 [-c]
+[-S]
 [-f]
 [-d]
 [-D]
 [-x]
+[-t]
 [-t]
 [-a NUMBER,NUMBER]
 [-w NUMBER]
@@ -30,9 +32,9 @@ ptpd \- Precision Time Protocol daemon
 [-k NUMBER,NUMBER]
 
 .SH DESCRIPTION
-Implements the Precision Time Protocol (PTP) as defined by the IEEE
-1588 standard. PTP was developed to provide very precise time
-coordination of LAN connected computers.
+Implements version 1 of the Precision Time Protocol (PTP) as defined
+by the IEEE 1588 standard. PTP was developed to provide very precise
+time coordination of LAN connected computers.
 .PP
 PTPd is a complete implementation of the IEEE 1588 specification for a
 standard (non-boundary) clock. PTPd has been tested with and is known
@@ -50,6 +52,9 @@ display a short help text
 .B \-c
 run in command line (non-daemon) mode
 .TP
+.B \-S
+log information to syslog
+.TP
 .B \-f FILE
 send output to FILE
 .TP
@@ -64,6 +69,9 @@ do not reset the clock if off by more than one second
 .TP
 .B \-t
 do not adjust the system clock
+.TP
+.B \-T
+set multicast TTL for packets.  Defaults to 1.
 .TP
 .B \-a NUMBER,NUMBER
 specify clock servo P and I attenuations
@@ -113,7 +121,15 @@ specify PTP subdomain name (not related to IP or DNS)
 .B \-k NUMBER,NUMBER
 send a management message of key, record, then exit
 
-.SH AUTHOR
-Kendall Correll <kendall_c@users.sourceforge.net>. This manual page
-was written by Andrew Straw <strawman@astraw.com> for the Debian
-Project (but may be used by others).
+.SH AUTHORS
+.PP
+Originally written and maintained by Kendall Correll
+<kendall_c@users.sourceforge.net>
+.PP
+Steven Kreuzer <skreuzer@freebsd.org> 
+.PP
+George Neville-Neil <gnn@freebsd.org>
+.PP
+This manual page was originally written by Andrew Straw
+<strawman@astraw.com> for the Debian Project (but may be used by
+others).

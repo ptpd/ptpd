@@ -25,23 +25,26 @@
 #include<sys/select.h>
 #include<sys/ioctl.h>
 #include<arpa/inet.h>
-
+#include<stdarg.h>
+#include<syslog.h>
+#include<limits.h>
 
 /* system messages */
-#define ERROR(x, ...)  fprintf(stderr, "(ptpd error) " x, ##__VA_ARGS__)
-#define PERROR(x, ...) fprintf(stderr, "(ptpd error) " x ": %m\n", ##__VA_ARGS__)
-#define NOTIFY(x, ...) fprintf(stderr, "(ptpd notice) " x, ##__VA_ARGS__)
+#define ERROR(x, ...)  message(LOG_ERR, x, ##__VA_ARGS__)
+#define PERROR(x, ...) message(LOG_ERR, x ": %m\n", ##__VA_ARGS__)
+#define NOTIFY(x, ...) message(LOG_NOTICE, x, ##__VA_ARGS__)
+#define INFO(x, ...)   message(LOG_INFO, x, ##__VA_ARGS__)
 
 /* debug messages */
 #ifdef PTPD_DBGV
 #define PTPD_DBG
-#define DBGV(x, ...) fprintf(stderr, "(ptpd debug) " x, ##__VA_ARGS__)
+#define DBGV(x, ...) message(LOG_DEBUG, x, ##__VA_ARGS__)
 #else
 #define DBGV(x, ...)
 #endif
 
 #ifdef PTPD_DBG
-#define DBG(x, ...)  fprintf(stderr, "(ptpd debug) " x, ##__VA_ARGS__)
+#define DBG(x, ...) message(LOG_DEBUG, x, ##__VA_ARGS__) 
 #else
 #define DBG(x, ...)
 #endif
@@ -124,11 +127,14 @@ void	updateClock(RunTimeOpts *, PtpClock *);
 
 /* startup.c */
 /* unix API dependent */
+int logToFile();
 PtpClock *ptpdStartup(int, char **, Integer16 *, RunTimeOpts *);
 void	ptpdShutdown(void);
 
 /* sys.c */
+char *translatePortState(PtpClock *ptpClock);
 /* unix API dependent */
+void	message(int priority, const char *format, ...);
 void	displayStats(RunTimeOpts *, PtpClock *);
 Boolean	nanoSleep(TimeInternal *);
 void	getTime(TimeInternal *);

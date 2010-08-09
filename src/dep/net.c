@@ -191,10 +191,11 @@ findIface(Octet * ifaceName, UInteger8 * communicationTechnology,
 		ERROR("\"%s\" is not an ethernet interface!\n", ifh->ifa_name);
 		return FALSE;
 	}
-	printf("==> %s %s %s\n", ifv4->ifa_name,
+
+	DBG("==> %s %s %s\n", ifv4->ifa_name,
 	    inet_ntoa(((struct sockaddr_in *)ifv4->ifa_addr)->sin_addr),
-	    ether_ntoa((struct ether_addr *)LLADDR((struct sockaddr_dl *)ifh->ifa_addr))
-	    );
+	    ether_ntoa((struct ether_addr *)
+		       LLADDR((struct sockaddr_dl *)ifh->ifa_addr)));
 
 	*communicationTechnology = PTP_ETHER;
 	memcpy(ifaceName, ifh->ifa_name, IFACE_NAME_LENGTH);
@@ -302,10 +303,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		PERROR("failed to join the multi-cast group");
 		return FALSE;
 	}
-	/* set socket time-to-live to 1 */
-	temp = 1;
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL, &temp, sizeof(int)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL, &temp, sizeof(int)) < 0) {
+	/* set socket time-to-live */
+	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL, &rtOpts->ttl, sizeof(int)) < 0
+	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL, &rtOpts->ttl, sizeof(int)) < 0) {
 		PERROR("failed to set the multi-cast time-to-live");
 		return FALSE;
 	}

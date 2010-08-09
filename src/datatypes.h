@@ -343,6 +343,10 @@ typedef struct {
 	UInteger8 probe_management_key;
 	UInteger16 probe_record_key;
 	Boolean	halfEpoch;
+	char file[PATH_MAX];
+	int logFd;
+	Boolean useSysLog;
+	int ttl;
 
 }	RunTimeOpts;
 
