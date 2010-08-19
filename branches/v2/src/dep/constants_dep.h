@@ -93,4 +93,6 @@
 
 #define SCREEN_BUFSZ  128
 #define SCREEN_MAXSZ  80
+
+#define MAXTIMESTR 32
 #endif /*CONSTANTS_DEP_H_*/

@@ -1,10 +1,13 @@
+/**
+ * @file   ptpd_dep.h
+ * 
+ * @brief  External definitions for inclusion elsewhere.
+ * 
+ * 
+ */
+
 #ifndef PTPD_DEP_H_
 #define PTPD_DEP_H_
-
-/**
-*\file
-* \brief Functions used in ptpdv2 which are platform-dependent
- */
 
 #include<stdlib.h>
 #include<stdio.h>
@@ -23,13 +26,18 @@
 #include<sys/select.h>
 #include<sys/ioctl.h>
 #include<arpa/inet.h>
+#include<stdarg.h>
+#include<syslog.h>
+#include<limits.h>
 
  /** \name System messages*/
  /**\{*/
 
-#define ERROR(x, ...)  fprintf(stderr, "(ptpd error) " x, ##__VA_ARGS__)
-#define PERROR(x, ...) fprintf(stderr, "(ptpd error) " x ": %m\n", ##__VA_ARGS__)
-#define NOTIFY(x, ...) fprintf(stderr, "(ptpd notice) " x, ##__VA_ARGS__)
+#define ERROR(x, ...)  message(LOG_ERR, x, ##__VA_ARGS__)
+#define PERROR(x, ...) message(LOG_ERR, x ": %m\n", ##__VA_ARGS__)
+#define NOTIFY(x, ...) message(LOG_NOTICE, x, ##__VA_ARGS__)
+#define INFO(x, ...)   message(LOG_INFO, x, ##__VA_ARGS__)
+
 /** \}*/
 
 /** \name Debug messages*/
@@ -37,13 +45,13 @@
 
 #ifdef PTPD_DBGV
 #define PTPD_DBG
-#define DBGV(x, ...) fprintf(stderr, "(ptpd debug) " x, ##__VA_ARGS__)
+#define DBGV(x, ...) message(LOG_DEBUG, x, ##__VA_ARGS__)
 #else
 #define DBGV(x, ...)
 #endif
 
 #ifdef PTPD_DBG
-#define DBG(x, ...)  fprintf(stderr, "(ptpd debug) " x, ##__VA_ARGS__)
+#define DBG(x, ...) message(LOG_DEBUG, x, ##__VA_ARGS__)
 #else
 #define DBG(x, ...)
 #endif
@@ -120,7 +128,7 @@ UInteger16 msgPackManagement(void*,MsgManagement*,PtpClock*);
 UInteger16 msgPackManagementResponse(void*,MsgHeader*,MsgManagement*,PtpClock*);
 /** \}*/
 
-/** \name net.c (Linux API dependent)
+/** \name net.c (Unix API dependent)
  * -Init network stuff, send and receive datas*/
  /**\{*/
 
@@ -147,16 +155,18 @@ void updateOffset(TimeInternal*,TimeInternal*,
 void updateClock(RunTimeOpts*,PtpClock*);
 /** \}*/
 
-/** \name startup.c (Linux API dependent)
+/** \name startup.c (Unix API dependent)
  * -Handle with runtime options*/
  /**\{*/
+int logToFile();
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
 void ptpdShutdown(void);
 /** \}*/
 
-/** \name sys.c (Linux API dependent)
+/** \name sys.c (Unix API dependent)
  * -Manage timing system API*/
  /**\{*/
+void message(int priority, const char *format, ...);
 void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock);
 Boolean nanoSleep(TimeInternal*);
 void getTime(TimeInternal*);
@@ -165,7 +175,7 @@ double getRand();
 Boolean adjFreq(Integer32);
 /** \}*/
 
-/** \name timer.c (Linux API dependent)
+/** \name timer.c (Unix API dependent)
  * -Handle with timers*/
  /**\{*/
 void initTimer(void);

@@ -6,11 +6,13 @@ ptpv2d \- Precision Time Protocol daemon (1588-2008)
 .B ptpv2d
 [?]
 [-c]
+[-S]
 [-f FILE]
 [-d]
 [-D]
 [-x]
 [-t]
+[-T ttl]
 [-a NUMBER,NUMBER]
 [-w NUMBER]
 [-b NAME]
@@ -51,6 +53,9 @@ display a short help text
 .B \-c
 run in command line (non-daemon) mode
 .TP
+.B \-S
+log information to syslog
+.TP
 .B \-f FILE
 send output to FILE
 .TP
@@ -65,6 +70,9 @@ do not reset the clock if off by more than one second
 .TP
 .B \-t
 do not adjust the system clock
+.TP
+.B \-T
+set multicast TTL for packets.  Defaults to 1.
 .TP
 .B \-a NUMBER,NUMBER
 specify clock servo P and I attenuations
@@ -121,5 +129,12 @@ specify priority1 attribute
 specify priority2 attribute
 
 .SH AUTHOR
-Gael Mace <gael_mace@users.sourceforge.net> & Alexandre Van Kempen. This manual page
-was written by Gael Mace for any Linux environment project.
+Gael Mace <gael_mace@users.sourceforge.net> & Alexandre Van
+Kempen. 
+.PP
+Steven Kreuzer <skreuzer@freebsd.org> 
+.PP
+George Neville-Neil <gnn@freebsd.org>
+.PP
+This manual page was written by Gael Mace for any Linux
+environment project.

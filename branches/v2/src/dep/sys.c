@@ -32,61 +32,83 @@ snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
 }
 
 
+void
+message(int priority, const char *format, ...)
+{
+	extern RunTimeOpts rtOpts;
+	va_list ap;
+	va_start(ap, format);
+	if(rtOpts.useSysLog) {
+		static Boolean logOpened;
+		if(!logOpened) {
+			openlog("ptpd", 0, LOG_USER);
+			logOpened = TRUE;
+		}
+		vsyslog(priority, format, ap);
+	} else {
+		fprintf(stderr, "(ptpd %s) ",
+			priority == LOG_EMERG ? "emergency" :
+			priority == LOG_ALERT ? "alert" :
+			priority == LOG_CRIT ? "critical" :
+			priority == LOG_ERR ? "error" :
+			priority == LOG_WARNING ? "warning" :
+			priority == LOG_NOTICE ? "notice" :
+			priority == LOG_INFO ? "info" :
+			priority == LOG_DEBUG ? "debug" :
+			"???");
+		vfprintf(stderr, format, ap);
+	}
+	va_end(ap);
+}
+
+char *
+translatePortState(PtpClock *ptpClock)
+{
+	char *s;
+	switch(ptpClock->portState) {
+	case PTP_INITIALIZING:  s = "init";  break;
+	case PTP_FAULTY:        s = "flt";   break;
+	case PTP_LISTENING:     s = "lstn";  break;
+	case PTP_PASSIVE:       s = "pass";  break;
+	case PTP_UNCALIBRATED:  s = "uncl";  break;
+	case PTP_SLAVE:         s = "slv";   break;
+	case PTP_PRE_MASTER:    s = "pmst";  break;
+	case PTP_MASTER:        s = "mst";   break;
+	case PTP_DISABLED:      s = "dsbl";  break;
+	default:                s = "?";     break;
+	}
+	return s;
+}
+
 void 
 displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	static int start = 1;
 	static char sbuf[SCREEN_BUFSZ];
-	char *s;
 	int len = 0;
+	struct timeval now;
+	char time_str[MAXTIMESTR];
 
 	if (start && rtOpts->csvStats) {
 		start = 0;
-		printf("state, one way delay, offset from master, drift");
+		printf("timestamp, state, one way delay, offset from master, "
+		       "drift, variance");
 		fflush(stdout);
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
 
-	switch (ptpClock->portState) {
-	case PTP_INITIALIZING:
-		s = "init";
-		break;
-	case PTP_FAULTY:
-		s = "flt";
-		break;
-	case PTP_LISTENING:
-		s = "lstn";
-		break;
-	case PTP_PASSIVE:
-		s = "pass";
-		break;
-	case PTP_UNCALIBRATED:
-		s = "uncl";
-		break;
-	case PTP_SLAVE:
-		s = "slv";
-		break;
-	case PTP_PRE_MASTER:
-		s = "pmst";
-		break;
-	case PTP_MASTER:
-		s = "mst";
-		break;
-	case PTP_DISABLED:
-		s = "dsbl";
-		break;
-	default:
-		s = "?";
-		break;
-	}
+	gettimeofday(&now, 0);
+	strftime(time_str, MAXTIMESTR, "%m/%d/%Y %X", localtime(&now.tv_sec));
 
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s",
-	    rtOpts->csvStats ? "\n" : "\rstate: ", s);
+	len += sprintf(sbuf + len, "%s%s:%06d, %s", 
+		       rtOpts->csvStats ? "\n" : "\rstate: ", 
+		       time_str, (int)now.tv_usec,
+		       translatePortState(ptpClock));
 
 	if (ptpClock->portState == PTP_SLAVE) {
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
-		if (rtOpts->csvStats)
+		if (!rtOpts->csvStats)
 			len += snprintf(sbuf + len, 
 					sizeof(sbuf) - len, "owd: ");
 
@@ -95,7 +117,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
-		if (rtOpts->csvStats)
+		if (!rtOpts->csvStats)
 			len += snprintf(sbuf + len, sizeof(sbuf) - len, 
 					"ofm: ");
 

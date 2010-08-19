@@ -246,148 +246,148 @@ typedef struct
  */
 /* main program data structure */
 typedef struct {
-  /* Default data set */
+	/* Default data set */
 
-    	/*Static members*/
-		Boolean twoStepFlag;
-		ClockIdentity clockIdentity;
-		UInteger16 numberPorts;
+	/*Static members*/
+	Boolean twoStepFlag;
+	ClockIdentity clockIdentity;
+	UInteger16 numberPorts;
 
-		/*Dynamic members*/
-		ClockQuality clockQuality;
+	/*Dynamic members*/
+	ClockQuality clockQuality;
 
-		/*Configurable members*/
-		UInteger8 priority1;
-		UInteger8 priority2;
-		UInteger8 domainNumber;
-		Boolean slaveOnly;
-
-
-  /* Current data set */
-
-  		/*Dynamic members*/
-  		UInteger16 stepsRemoved;
-  		TimeInternal offsetFromMaster;
-  		TimeInternal meanPathDelay;
+	/*Configurable members*/
+	UInteger8 priority1;
+	UInteger8 priority2;
+	UInteger8 domainNumber;
+	Boolean slaveOnly;
 
 
-  /* Parent data set */
+	/* Current data set */
 
-  		/*Dynamic members*/
-  		PortIdentity parentPortIdentity;
-  		Boolean parentStats;
-  		UInteger16 observedParentOffsetScaledLogVariance;
-  		Integer32 observedParentClockPhaseChangeRate;
-  		ClockIdentity grandmasterIdentity;
-  		ClockQuality grandmasterClockQuality;
-  		UInteger8 grandmasterPriority1;
-  		UInteger8 grandmasterPriority2;
-
-  /* Global time properties data set */
-
-  		/*Dynamic members*/
-  		Integer16 currentUtcOffset;
-  		Boolean currentUtcOffsetValid;
-  		Boolean leap59;
-  		Boolean leap61;
-  		Boolean timeTraceable;
-  		Boolean frequencyTraceable;
-  		Boolean ptpTimescale;
-  		Enumeration8 timeSource;
-
-  /* Port configuration data set */
-
-  		/*Static members*/
-  		PortIdentity portIdentity;
-
-  		/*Dynamic members*/
-  		Enumeration8 portState;
-  		Integer8 logMinDelayReqInterval;
-  		TimeInternal peerMeanPathDelay;
-
-  		/*Configurable members*/
-  		Integer8 logAnnounceInterval;
-  		UInteger8 announceReceiptTimeout;
-  		Integer8 logSyncInterval;
-  		Enumeration8 delayMechanism;
-  		Integer8 logMinPdelayReqInterval;
-  		UInteger4 versionNumber;
+	/*Dynamic members*/
+	UInteger16 stepsRemoved;
+	TimeInternal offsetFromMaster;
+	TimeInternal meanPathDelay;
 
 
-  /* Foreign master data set */
-ForeignMasterRecord *foreign;
+	/* Parent data set */
 
-  /* Other things we need for the protocol */
-  UInteger16 number_foreign_records;
-  Integer16  max_foreign_records;
-  Integer16  foreign_record_i;
-  Integer16  foreign_record_best;
-  Boolean  record_update;
+	/*Dynamic members*/
+	PortIdentity parentPortIdentity;
+	Boolean parentStats;
+	UInteger16 observedParentOffsetScaledLogVariance;
+	Integer32 observedParentClockPhaseChangeRate;
+	ClockIdentity grandmasterIdentity;
+	ClockQuality grandmasterClockQuality;
+	UInteger8 grandmasterPriority1;
+	UInteger8 grandmasterPriority2;
 
+	/* Global time properties data set */
 
-  MsgHeader msgTmpHeader;
+	/*Dynamic members*/
+	Integer16 currentUtcOffset;
+	Boolean currentUtcOffsetValid;
+	Boolean leap59;
+	Boolean leap61;
+	Boolean timeTraceable;
+	Boolean frequencyTraceable;
+	Boolean ptpTimescale;
+	Enumeration8 timeSource;
 
-  union {
-    MsgSync  sync;
-    MsgFollowUp  follow;
-    MsgDelayReq  req;
-    MsgDelayResp resp;
-    MsgPDelayReq  preq;
-    MsgPDelayResp  presp;
-    MsgPDelayRespFollowUp  prespfollow;
-    MsgManagement  manage;
-    MsgAnnounce  announce;
-    MsgSignaling signaling;
-  } msgTmp;
+	/* Port configuration data set */
 
+	/*Static members*/
+	PortIdentity portIdentity;
 
-  Octet msgObuf[PACKET_SIZE];
-  Octet msgIbuf[PACKET_SIZE];
-
-  TimeInternal  master_to_slave_delay;
-  TimeInternal  slave_to_master_delay;
-  Integer32 	observed_drift;
-
-  TimeInternal  pdelay_req_receive_time;
-  TimeInternal  pdelay_req_send_time;
-  TimeInternal  pdelay_resp_receive_time;
-  TimeInternal  pdelay_resp_send_time;
-  TimeInternal  sync_receive_time;
-  TimeInternal  delay_req_send_time;
-  TimeInternal  delay_req_receive_time;
-  MsgHeader		PdelayReqHeader;
-  MsgHeader		delayReqHeader;
-  TimeInternal	pdelayMS;
-  TimeInternal	pdelaySM;
-  TimeInternal  delayMS;
-  TimeInternal	delaySM;
-  TimeInternal  lastSyncCorrectionField;
-  TimeInternal  lastPdelayRespCorrectionField;
+	/*Dynamic members*/
+	Enumeration8 portState;
+	Integer8 logMinDelayReqInterval;
+	TimeInternal peerMeanPathDelay;
+ 
+	/*Configurable members*/
+	Integer8 logAnnounceInterval;
+	UInteger8 announceReceiptTimeout;
+	Integer8 logSyncInterval;
+	Enumeration8 delayMechanism;
+	Integer8 logMinPdelayReqInterval;
+	UInteger4 versionNumber;
 
 
-  double  R;
+	/* Foreign master data set */
+	ForeignMasterRecord *foreign;
 
-  Boolean  sentPDelayReq;
-  UInteger16  sentPDelayReqSequenceId;
-  UInteger16  sentDelayReqSequenceId;
-  UInteger16  sentSyncSequenceId;
-  UInteger16  sentAnnounceSequenceId;
-  UInteger16  recvPDelayReqSequenceId;
-  UInteger16  recvSyncSequenceId;
-  Boolean  waitingForFollow;
+	/* Other things we need for the protocol */
+	UInteger16 number_foreign_records;
+	Integer16  max_foreign_records;
+	Integer16  foreign_record_i;
+	Integer16  foreign_record_best;
+	Boolean  record_update;
 
-  offset_from_master_filter  ofm_filt;
-  one_way_delay_filter  owd_filt;
 
-  Boolean message_activity;
+	MsgHeader msgTmpHeader;
 
-  IntervalTimer  itimer[TIMER_ARRAY_SIZE];
+	union {
+		MsgSync  sync;
+		MsgFollowUp  follow;
+		MsgDelayReq  req;
+		MsgDelayResp resp;
+		MsgPDelayReq  preq;
+		MsgPDelayResp  presp;
+		MsgPDelayRespFollowUp  prespfollow;
+		MsgManagement  manage;
+		MsgAnnounce  announce;
+		MsgSignaling signaling;
+	} msgTmp;
 
-  NetPath netPath;
 
-  /*Usefull to init network stuff*/
-  UInteger8 port_communication_technology;
-  Octet port_uuid_field[PTP_UUID_LENGTH];
+	Octet msgObuf[PACKET_SIZE];
+	Octet msgIbuf[PACKET_SIZE];
+
+	TimeInternal  master_to_slave_delay;
+	TimeInternal  slave_to_master_delay;
+	Integer32 	observed_drift;
+
+	TimeInternal  pdelay_req_receive_time;
+	TimeInternal  pdelay_req_send_time;
+	TimeInternal  pdelay_resp_receive_time;
+	TimeInternal  pdelay_resp_send_time;
+	TimeInternal  sync_receive_time;
+	TimeInternal  delay_req_send_time;
+	TimeInternal  delay_req_receive_time;
+	MsgHeader		PdelayReqHeader;
+	MsgHeader		delayReqHeader;
+	TimeInternal	pdelayMS;
+	TimeInternal	pdelaySM;
+	TimeInternal  delayMS;
+	TimeInternal	delaySM;
+	TimeInternal  lastSyncCorrectionField;
+	TimeInternal  lastPdelayRespCorrectionField;
+
+
+	double  R;
+
+	Boolean  sentPDelayReq;
+	UInteger16  sentPDelayReqSequenceId;
+	UInteger16  sentDelayReqSequenceId;
+	UInteger16  sentSyncSequenceId;
+	UInteger16  sentAnnounceSequenceId;
+	UInteger16  recvPDelayReqSequenceId;
+	UInteger16  recvSyncSequenceId;
+	Boolean  waitingForFollow;
+
+	offset_from_master_filter  ofm_filt;
+	one_way_delay_filter  owd_filt;
+
+	Boolean message_activity;
+
+	IntervalTimer  itimer[TIMER_ARRAY_SIZE];
+
+	NetPath netPath;
+
+	/*Usefull to init network stuff*/
+	UInteger8 port_communication_technology;
+	Octet port_uuid_field[PTP_UUID_LENGTH];
 
 } PtpClock;
 
@@ -397,28 +397,31 @@ ForeignMasterRecord *foreign;
  */
 /* program options set at run-time */
 typedef struct {
-
-  Integer8		announceInterval;
-  Integer8		syncInterval;
-  ClockQuality	clockQuality;
-  UInteger8		priority1;
-  UInteger8		priority2;
-  UInteger8		domainNumber;
-  Boolean		slaveOnly;
-  Integer16		currentUtcOffset;
-  Octet			ifaceName[IFACE_NAME_LENGTH];
-  Boolean		noResetClock;
-  Boolean		noAdjust;
-  Boolean		displayStats;
-  Boolean		csvStats;
-  Octet			unicastAddress[NET_ADDRESS_LENGTH];
-  Integer16		ap, ai;
-  Integer16 	s;
-  TimeInternal  inboundLatency, outboundLatency;
-  Integer16  	max_foreign_records;
-  Boolean 		ethernet_mode;
-  Boolean       E2E_mode;
-  Boolean		offset_first_updated;
+	Integer8 announceInterval;
+	Integer8 syncInterval;
+	ClockQuality clockQuality;
+	UInteger8 priority1;
+	UInteger8 priority2;
+	UInteger8 domainNumber;
+	Boolean	slaveOnly;
+	Integer16 currentUtcOffset;
+	Octet ifaceName[IFACE_NAME_LENGTH];
+	Boolean	noResetClock;
+	Boolean	noAdjust;
+	Boolean	displayStats;
+	Boolean	csvStats;
+	Octet unicastAddress[NET_ADDRESS_LENGTH];
+	Integer16 ap, ai;
+	Integer16 s;
+	TimeInternal inboundLatency, outboundLatency;
+	Integer16 max_foreign_records;
+	Boolean ethernet_mode;
+	Boolean E2E_mode;
+	Boolean	offset_first_updated;
+	char file[PATH_MAX];
+	int logFd;
+	Boolean useSysLog;
+	int ttl;
 
 } RunTimeOpts;
 

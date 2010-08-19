@@ -372,11 +372,11 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 
 	/* set socket time-to-live to 1 */
-	temp = 1;
+
 	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL, 
-		       &temp, sizeof(int)) < 0
+		       &rtOpts->ttl, sizeof(int)) < 0
 	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL, 
-			  &temp, sizeof(int)) < 0) {
+			  &rtOpts->ttl, sizeof(int)) < 0) {
 		PERROR("failed to set the multi-cast time-to-live");
 		return FALSE;
 	}
