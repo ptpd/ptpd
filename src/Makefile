@@ -1,8 +1,8 @@
 # Makefile for ptpd
 
 RM = rm -f
-CFLAGS = -Wall
-#CPPFLAGS = -DPTPD_DBG -DPTPD_NO_DAEMON
+CFLAGS = -Wall -g -DBSD_INTERFACE_FUNCTIONS
+#CPPFLAGS =  -DPTPD_DBG -DPTPD_NO_DAEMON 
 LDFLAGS = -lm
 
 PROG = ptpv2d

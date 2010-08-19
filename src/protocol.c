@@ -51,6 +51,8 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	
 	toState(PTP_INITIALIZING, rtOpts, ptpClock);
 	
+	DBGV("Debug Initializing...");
+
 	for(;;)
 	{
 		if(ptpClock->portState != PTP_INITIALIZING)
