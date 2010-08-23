@@ -23,7 +23,7 @@ main(int argc, char **argv)
 	Integer16 ret;
 
 	/* initialize run-time options to reasonable values */
-	rtOpts.syncInterval = DEFUALT_SYNC_INTERVAL;
+	rtOpts.syncInterval = DEFAULT_SYNC_INTERVAL;
 	memcpy(rtOpts.subdomainName, DEFAULT_PTP_DOMAIN_NAME, PTP_SUBDOMAIN_NAME_LENGTH);
 	memcpy(rtOpts.clockIdentifier, IDENTIFIER_DFLT, PTP_CODE_STRING_LENGTH);
 	rtOpts.clockVariance = DEFAULT_CLOCK_VARIANCE;
@@ -35,7 +35,7 @@ main(int argc, char **argv)
 	rtOpts.s = DEFAULT_DELAY_S;
 	rtOpts.ap = DEFAULT_AP;
 	rtOpts.ai = DEFAULT_AI;
-	rtOpts.max_foreign_records = DEFUALT_MAX_FOREIGN_RECORDS;
+	rtOpts.max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
 	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
 	rtOpts.logFd = -1;
 	rtOpts.useSysLog = FALSE;

@@ -14,7 +14,7 @@
 #define MANUFACTURER_ID \
   "PTPD;1.2\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 
-#define DEFUALT_SYNC_INTERVAL        1
+#define DEFAULT_SYNC_INTERVAL        1
 #define DEFAULT_UTC_OFFSET           0
 #define DEFAULT_CLOCK_VARIANCE       (-4000)
 #define DEFAULT_CLOCK_STRATUM        4
@@ -24,7 +24,7 @@
 #define DEFAULT_AP                   10
 #define DEFAULT_AI                   1000
 #define DEFAULT_DELAY_S              6
-#define DEFUALT_MAX_FOREIGN_RECORDS  5
+#define DEFAULT_MAX_FOREIGN_RECORDS  5
 
 /* features, only change to refelect changes in implementation */
 #define CLOCK_FOLLOWUP    TRUE
