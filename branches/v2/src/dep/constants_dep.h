@@ -28,8 +28,6 @@
 
 #define IFCONF_LENGTH 10
 
-#define BSD_INTERFACE_FUNCTIONS
-
 #include<endian.h>
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define PTPD_LSBF
