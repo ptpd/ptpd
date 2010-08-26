@@ -158,7 +158,7 @@ void updateClock(RunTimeOpts*,PtpClock*);
 /** \name startup.c (Unix API dependent)
  * -Handle with runtime options*/
  /**\{*/
-int logToFile();
+int logToFile(void);
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
 void ptpdShutdown(void);
 /** \}*/
@@ -171,7 +171,7 @@ void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock);
 Boolean nanoSleep(TimeInternal*);
 void getTime(TimeInternal*);
 void setTime(TimeInternal*);
-double getRand();
+double getRand(void);
 Boolean adjFreq(Integer32);
 /** \}*/
 

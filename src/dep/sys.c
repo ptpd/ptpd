@@ -32,8 +32,45 @@ snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
 }
 
 
+int 
+snprint_ClockIdentity(char *s, int max_len, const ClockIdentity id, const char *info)
+{
+	int len = 0;
+	int i;
+
+	if (info)
+		len += snprintf(&s[len], max_len - len, "%s", info);
+
+	for (i = 0; ;) {
+		len += snprintf(&s[len], max_len - len, "%02x", (unsigned char) id[i]);
+
+		if (++i >= CLOCK_IDENTITY_LENGTH)
+			break;
+
+		// uncomment the line below to print a separator after each byte except the last one
+		// len += snprintf(&s[len], max_len - len, "%s", "-");
+	}
+
+	return len;
+}
+
+
+int 
+snprint_PortIdentity(char *s, int max_len, const PortIdentity *id, const char *info)
+{
+	int len = 0;
+
+	if (info)
+		len += snprintf(&s[len], max_len - len, "%s", info);
+
+	len += snprint_ClockIdentity(&s[len], max_len - len, id->clockIdentity, NULL);
+	len += snprintf(&s[len], max_len - len, "/%02x", (unsigned) id->portNumber);
+	return len;
+}
+
+
 void
-message(int priority, const char *format, ...)
+message(int priority, const char * format, ...)
 {
 	extern RunTimeOpts rtOpts;
 	va_list ap;
@@ -98,14 +135,23 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	memset(sbuf, ' ', sizeof(sbuf));
 
 	gettimeofday(&now, 0);
-	strftime(time_str, MAXTIMESTR, "%m/%d/%Y %X", localtime(&now.tv_sec));
+	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&now.tv_sec));
 
-	len += sprintf(sbuf + len, "%s%s:%06d, %s", 
-		       rtOpts->csvStats ? "\n" : "\rstate: ", 
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s:%06d, %s",
+		       rtOpts->csvStats ? "\n" : "\rstate: ",
 		       time_str, (int)now.tv_usec,
 		       translatePortState(ptpClock));
 
 	if (ptpClock->portState == PTP_SLAVE) {
+		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
+			 &ptpClock->parentPortIdentity, " ");
+
+		// if grandmaster ID differs from parent port ID then also print GM ID
+		if (memcmp(ptpClock->grandmasterIdentity, ptpClock->parentPortIdentity.clockIdentity, CLOCK_IDENTITY_LENGTH)) {
+			len += snprint_ClockIdentity(sbuf + len, sizeof(sbuf) - len,
+					ptpClock->grandmasterIdentity, " GM:");
+		}
+
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
 		if (!rtOpts->csvStats)
@@ -171,7 +217,7 @@ setTime(TimeInternal * time)
 }
 
 double 
-getRand()
+getRand(void)
 {
 	return ((rand() * 1.0) / RAND_MAX);
 }
