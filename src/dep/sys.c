@@ -9,17 +9,77 @@
 
 #include "../ptpd.h"
 
-void 
+
+int 
+isTimeInternalNegative(const TimeInternal * p)
+{
+	return (p->seconds < 0) || (p->nanoseconds < 0);
+}
+
+
+int 
+snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
+{
+	int len = 0;
+
+	if (isTimeInternalNegative(p))
+		len += snprintf(&s[len], max_len - len, "-");
+
+	len += snprintf(&s[len], max_len - len, "%d.%09d",
+	    abs(p->seconds), abs(p->nanoseconds));
+
+	return len;
+}
+
+
+
+int 
+snprint_ClockIdentity(char *s, int max_len, const Octet uuid[PTP_UUID_LENGTH], const char *info)
+{
+	int len = 0;
+	int i;
+
+	if (info)
+		len += snprintf(&s[len], max_len - len, "%s", info);
+
+	for (i = 0; ;) {
+		len += snprintf(&s[len], max_len - len, "%02x", (unsigned char) uuid[i]);
+
+		if (++i >= PTP_UUID_LENGTH)
+			break;
+
+		// uncomment the line below to print a separator after each byte except the last one
+		// len += snprintf(&s[len], max_len - len, "%s", "-");
+	}
+
+	return len;
+}
+
+
+int 
+snprint_PortIdentity(char *s, int max_len, const Octet uuid[PTP_UUID_LENGTH],
+                     UInteger16 portId, const char *info)
+{
+	int len = 0;
+
+	if (info)
+		len += snprintf(&s[len], max_len - len, "%s", info);
+
+	len += snprint_ClockIdentity(&s[len], max_len - len, uuid, NULL);
+	len += snprintf(&s[len], max_len - len, ":%02x", portId);
+	return len;
+}
+
+
+void
 message(int priority, const char *format, ...)
 {
 	extern RunTimeOpts rtOpts;
 	va_list ap;
 	va_start(ap, format);
-	if(rtOpts.useSysLog)
-	{
+	if(rtOpts.useSysLog) {
 		static Boolean logOpened;
-		if(!logOpened)
-		{
+		if(!logOpened) {
 			openlog("ptpd", 0, LOG_USER);
 			logOpened = TRUE;
 		}
@@ -44,8 +104,7 @@ char *
 translatePortState(PtpClock *ptpClock)
 {
 	char *s;
-	switch(ptpClock->port_state)
-	{
+	switch(ptpClock->port_state) {
 	case PTP_INITIALIZING:  s = "init";  break;
 	case PTP_FAULTY:        s = "flt";   break;
 	case PTP_LISTENING:     s = "lstn";  break;
@@ -71,33 +130,51 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if (start && rtOpts->csvStats) {
 		start = 0;
-		printf("timestamp, state, one way delay, offset from master, drift, variance");
+		printf("timestamp, state, one way delay, offset from master, "
+		       "drift, variance");
 		fflush(stdout);
 	}
-	memset(sbuf, ' ', SCREEN_BUFSZ);
+	memset(sbuf, ' ', sizeof(sbuf));
 
 	gettimeofday(&now, 0);
-	strftime(time_str, MAXTIMESTR, "%m/%d/%Y %X", localtime(&now.tv_sec));
+	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&now.tv_sec));
 
-	len += sprintf(sbuf + len, "%s%s:%06d, %s", 
-		       rtOpts->csvStats ? "\n" : "\rstate: ", 
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s:%06d, %s",
+		       rtOpts->csvStats ? "\n" : "\rstate: ",
 		       time_str, (int)now.tv_usec,
 		       translatePortState(ptpClock));
 
 	if (ptpClock->port_state == PTP_SLAVE) {
-		len += sprintf(sbuf + len,
-		    ", %s%d.%09d" ", %s%d.%09d",
-		    rtOpts->csvStats ? "" : "owd: ",
-		    ptpClock->one_way_delay.seconds,
-		    abs(ptpClock->one_way_delay.nanoseconds),
-		    rtOpts->csvStats ? "" : "ofm: ",
-		    ptpClock->offset_from_master.seconds,
-		    abs(ptpClock->offset_from_master.nanoseconds));
+		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
+			 ptpClock->parent_uuid, ptpClock->parent_port_id, " ");
 
-		len += sprintf(sbuf + len,
-		    ", %s%d" ", %s%d",
-		    rtOpts->csvStats ? "" : "drift: ", ptpClock->observed_drift,
-		    rtOpts->csvStats ? "" : "var: ", ptpClock->observed_variance);
+		// if grandmaster ID differs from parent port ID then also print GM ID
+		if (memcmp(ptpClock->grandmaster_uuid_field, ptpClock->parent_uuid, PTP_UUID_LENGTH)) {
+			len += snprint_ClockIdentity(sbuf + len, sizeof(sbuf) - len,
+					ptpClock->grandmaster_uuid_field, " GM:");
+		}
+
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
+
+		if (!rtOpts->csvStats)
+			len += snprintf(sbuf + len, 
+					sizeof(sbuf) - len, "owd: ");
+
+		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+		    &ptpClock->one_way_delay);
+
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
+
+		if (!rtOpts->csvStats)
+			len += snprintf(sbuf + len, sizeof(sbuf) - len, 
+					"ofm: ");
+
+		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+		    &ptpClock->offset_from_master);
+
+		len += sprintf(sbuf + len, ", %s%d",
+		    rtOpts->csvStats ? "" : "drift: ", 
+			       ptpClock->observed_drift);
 	}
 	write(1, sbuf, rtOpts->csvStats ? len : SCREEN_MAXSZ + 1);
 }
@@ -137,7 +214,8 @@ setTime(TimeInternal * time)
 	tv.tv_usec = time->nanoseconds / 1000;
 	settimeofday(&tv, 0);
 
-	NOTIFY("resetting system clock to %ds %dns\n", time->seconds, time->nanoseconds);
+	NOTIFY("resetting system clock to %ds %dns\n", 
+	       time->seconds, time->nanoseconds);
 }
 
 UInteger16 
