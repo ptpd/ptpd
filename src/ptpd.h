@@ -1,8 +1,10 @@
 /**
  * @file   ptpd.h
+ * @mainpage Ptpd Documentation
+ * @authors Martin Burnicki, Alexandre van Kempen, Steven Kreuzer, 
+ *          George Neville-Neil
+ * @version 1.0
  * @date   Tue Jul 20 16:15:04 2010
- * 
- * @brief  Bulk include file for the daemon, has all necessary local headers.
  * 
  * 
  */

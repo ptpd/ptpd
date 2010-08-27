@@ -131,7 +131,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if (start && rtOpts->csvStats) {
 		start = 0;
 		printf("timestamp, state, one way delay, offset from master, "
-		       "drift, variance");
+		       "slave to master, master to slave, drift, variance");
 		fflush(stdout);
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
@@ -148,10 +148,25 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 			 ptpClock->parent_uuid, ptpClock->parent_port_id, " ");
 
-		// if grandmaster ID differs from parent port ID then also print GM ID
-		if (memcmp(ptpClock->grandmaster_uuid_field, ptpClock->parent_uuid, PTP_UUID_LENGTH)) {
-			len += snprint_ClockIdentity(sbuf + len, sizeof(sbuf) - len,
-					ptpClock->grandmaster_uuid_field, " GM:");
+		len += snprintf(sbuf + len, sizeof(sbuf) - len,
+				", %s%d.%09d" ", %s%d.%09d",
+				rtOpts->csvStats ? "" : "stm: ",
+				ptpClock->slave_to_master_delay.seconds,
+				abs(ptpClock->slave_to_master_delay.nanoseconds),
+				rtOpts->csvStats ? "" : "mts: ",
+				ptpClock->master_to_slave_delay.seconds,
+				abs(ptpClock->master_to_slave_delay.nanoseconds));
+
+		 /* 
+		  * if grandmaster ID differs from parent port ID then also 
+		  * print GM ID 
+		  */
+		 if (memcmp(ptpClock->grandmaster_uuid_field, 
+			    ptpClock->parent_uuid, PTP_UUID_LENGTH)) {
+			 len += snprint_ClockIdentity(sbuf + len, 
+						      sizeof(sbuf) - len,
+						      ptpClock->grandmaster_uuid_field, 
+						      " GM:");
 		}
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
@@ -161,7 +176,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 					sizeof(sbuf) - len, "owd: ");
 
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
-		    &ptpClock->one_way_delay);
+					    &ptpClock->one_way_delay);
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
@@ -205,11 +220,14 @@ nanoSleep(TimeInternal * t)
 void 
 getTime(TimeInternal * time)
 {
-	struct timeval tv;
+	struct timespec tp;
+	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
+		PERROR("clock_gettime() failed, exiting.");
+		exit(0);
+	}
+	time->seconds = tp.tv_sec;
+	time->nanoseconds = tp.tv_nsec;
 
-	gettimeofday(&tv, 0);
-	time->seconds = tv.tv_sec;
-	time->nanoseconds = tv.tv_usec * 1000;
 }
 
 void 
