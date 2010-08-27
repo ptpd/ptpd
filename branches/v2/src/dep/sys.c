@@ -129,7 +129,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if (start && rtOpts->csvStats) {
 		start = 0;
 		printf("timestamp, state, one way delay, offset from master, "
-		       "drift, variance");
+		       "slave to master, master to slave, drift, variance");
 		fflush(stdout);
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
@@ -146,10 +146,17 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 			 &ptpClock->parentPortIdentity, " ");
 
-		// if grandmaster ID differs from parent port ID then also print GM ID
-		if (memcmp(ptpClock->grandmasterIdentity, ptpClock->parentPortIdentity.clockIdentity, CLOCK_IDENTITY_LENGTH)) {
-			len += snprint_ClockIdentity(sbuf + len, sizeof(sbuf) - len,
-					ptpClock->grandmasterIdentity, " GM:");
+		/* 
+		 * if grandmaster ID differs from parent port ID then
+		 * also print GM ID 
+		 */
+		if (memcmp(ptpClock->grandmasterIdentity, 
+			   ptpClock->parentPortIdentity.clockIdentity, 
+			   CLOCK_IDENTITY_LENGTH)) {
+			len += snprint_ClockIdentity(sbuf + len, 
+						     sizeof(sbuf) - len,
+						     ptpClock->grandmasterIdentity, 
+						     " GM:");
 		}
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
@@ -170,14 +177,25 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 		    &ptpClock->offsetFromMaster);
 
+		len += sprintf(sbuf + len,
+			       ", %s%d.%09d" ", %s%d.%09d",
+			       rtOpts->csvStats ? "" : "stm: ",
+			       ptpClock->delaySM.seconds,
+			       abs(ptpClock->delaySM.nanoseconds),
+			       rtOpts->csvStats ? "" : "mts: ",
+			       ptpClock->delayMS.seconds,
+			       abs(ptpClock->delayMS.nanoseconds));
+		
 		len += sprintf(sbuf + len, ", %s%d",
 		    rtOpts->csvStats ? "" : "drift: ", 
 			       ptpClock->observed_drift);
 	}
 	else {
 		if (ptpClock->portState == PTP_MASTER) {
-			len += snprint_ClockIdentity(sbuf + len, sizeof(sbuf) - len,
-					ptpClock->clockIdentity, " (ID:");
+			len += snprint_ClockIdentity(sbuf + len, 
+						     sizeof(sbuf) - len,
+						     ptpClock->clockIdentity, 
+						     " (ID:");
 			len += snprintf(sbuf + len, sizeof(sbuf) - len, ")");
 		}
 	}
@@ -203,23 +221,25 @@ nanoSleep(TimeInternal * t)
 void 
 getTime(TimeInternal * time)
 {
-	struct timeval tv;
+	struct timespec tp;
+	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
+		PERROR("clock_gettime() failed, exiting.");
+		exit(0);
+	}
+	time->seconds = tp.tv_sec;
+	time->nanoseconds = tp.tv_nsec;
 
-	gettimeofday(&tv, 0);
-	time->seconds = tv.tv_sec;
-	time->nanoseconds = tv.tv_usec * 1000;
 }
 
 void 
 setTime(TimeInternal * time)
 {
 	struct timeval tv;
-
+ 
 	tv.tv_sec = time->seconds;
 	tv.tv_usec = time->nanoseconds / 1000;
 	settimeofday(&tv, 0);
-
-	NOTIFY("resetting system clock to %ds %dns\n", 
+	NOTIFY("resetting system clock to %ds %dns\n",
 	       time->seconds, time->nanoseconds);
 }
 

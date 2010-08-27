@@ -178,8 +178,10 @@ void copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
 /*Data set comparison bewteen two foreign masters (9.3.4 fig 27)
  * return similar to memcmp() */
 
-Integer8 bmcDataSetComparison(MsgHeader *headerA, MsgAnnounce *announceA,
-								MsgHeader *headerB,MsgAnnounce *announceB,PtpClock *ptpClock)
+Integer8 
+bmcDataSetComparison(MsgHeader *headerA, MsgAnnounce *announceA,
+		     MsgHeader *headerB,MsgAnnounce *announceB,
+		     PtpClock *ptpClock)
 {
 	DBGV("Data set comparison \n");
 	short comp = 0;
@@ -305,7 +307,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 
 	copyD0(&ptpClock->msgTmpHeader,&ptpClock->msgTmp.announce,ptpClock);
 
-	if (ptpClock->clockQuality.clockClass<128) {
+	if (ptpClock->clockQuality.clockClass < 128) {
 		if ((bmcDataSetComparison(&ptpClock->msgTmpHeader,
 					  &ptpClock->msgTmp.announce,
 					  header,announce,ptpClock)<0)) {
