@@ -564,8 +564,10 @@ handleDelayReq(MsgHeader * header, Octet * msgIbuf, ssize_t length, TimeInternal
 			addTime(&ptpClock->delay_req_send_time, &ptpClock->delay_req_send_time, &rtOpts->outboundLatency);
 
 			if (ptpClock->delay_req_receive_time.seconds) {
-				updateDelay(&ptpClock->delay_req_send_time, &ptpClock->delay_req_receive_time,
-				    &ptpClock->owd_filt, rtOpts, ptpClock);
+				updateDelay(&ptpClock->delay_req_send_time, 
+					    &ptpClock->delay_req_receive_time,
+					    &ptpClock->owd_filt, rtOpts, 
+					    ptpClock);
 
 				ptpClock->delay_req_send_time.seconds = 0;
 				ptpClock->delay_req_send_time.nanoseconds = 0;
