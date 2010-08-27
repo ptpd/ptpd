@@ -1,21 +1,18 @@
 /**
- *\author van Kempen Alexandre
- * \mainpage Ptpd v2 Documentation
- * \version 0.1
- * \date 12 may 2009
- * \section implementation Implementation
+ * @file   ptpd.h
+ * @mainpage Ptpd v2 Documentation
+ * @authors Martin Burnicki, Alexandre van Kempen, Steven Kreuzer, 
+ *          George Neville-Neil
+ * @version 2.0
+ * @date   Fri Aug 27 10:22:19 2010
+ * 
+ * @section implementation Implementation
  * PTTdV2 is not a full implementation of 1588 - 2008 standard.
- * It is implemented only with use of Transparent Clock and Peer delay mechanism, according to 802.1AS requierements.
-*/
-
-
-
-/**
-*\file
-* \brief Main functions used in ptpdv2
-*
-* This header file includes all others headers.
-* It defines functions which are not dependant of the operating system.
+ * It is implemented only with use of Transparent Clock and Peer delay
+ * mechanism, according to 802.1AS requierements.
+ * 
+ * This header file includes all others headers.
+ * It defines functions which are not dependant of the operating system.
  */
 
 #ifndef PTPD_H_
@@ -133,6 +130,11 @@ void msgAnnounce_display(MsgAnnounce*);
 void msgSync_display(MsgSync *sync);
 void msgFollowUp_display(MsgFollowUp*);
 void msgPDelayReq_display(MsgPDelayReq*);
+void msgDelayReq_display(MsgDelayReq * req);
+void msgDelayResp_display(MsgDelayResp * resp);
+void msgPDelayResp_display(MsgPDelayResp * presp);
+
+
 void msgUnpackDelayResp(void *,MsgDelayResp *);
 void msgPackDelayReq(void *,Timestamp *,PtpClock *);
 void msgPackDelayResp(void *,MsgHeader *,Timestamp *,PtpClock *);

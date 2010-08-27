@@ -32,6 +32,10 @@ msgUnpackHeader(void *buf, MsgHeader * header)
 	header->sequenceId = flip16(*(UInteger16 *) (buf + 30));
 	header->controlField = (*(UInteger8 *) (buf + 32));
 	header->logMessageInterval = (*(Integer8 *) (buf + 33));
+
+#ifdef PTPD_DBG
+	msgHeader_display(header);
+#endif /* PTPD_DBG */
 }
 
 /*Pack header message into OUT buffer of ptpClock*/
@@ -90,6 +94,10 @@ msgUnpackSync(void *buf, MsgSync * sync)
 		flip32(*(UInteger32 *) (buf + 36));
 	sync->originTimestamp.nanosecondsField = 
 		flip32(*(UInteger32 *) (buf + 40));
+
+#ifdef PTPD_DBG
+	msgSync_display(sync);
+#endif /* PTPD_DBG */
 }
 
 
@@ -146,6 +154,10 @@ msgUnpackAnnounce(void *buf, MsgAnnounce * announce)
 	       CLOCK_IDENTITY_LENGTH);
 	announce->stepsRemoved = flip16(*(UInteger16 *) (buf + 61));
 	announce->timeSource = *(Enumeration8 *) (buf + 63);
+	
+#ifdef PTPD_DBG
+	msgAnnounce_display(announce);
+#endif /* PTPD_DBG */
 }
 
 /*pack Follow_up message into OUT buffer of ptpClock*/
@@ -183,6 +195,11 @@ msgUnpackFollowUp(void *buf, MsgFollowUp * follow)
 		flip32(*(UInteger32 *) (buf + 36));
 	follow->preciseOriginTimestamp.nanosecondsField = 
 		flip32(*(UInteger32 *) (buf + 40));
+
+#ifdef PTPD_DBG
+	msgFollowUp_display(follow);
+#endif /* PTPD_DBG */
+
 }
 
 
@@ -233,7 +250,6 @@ msgPackDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	*(UInteger16 *) (buf + 34) = flip16(originTimestamp->secondsField.msb);
 	*(UInteger32 *) (buf + 36) = flip32(originTimestamp->secondsField.lsb);
 	*(UInteger32 *) (buf + 40) = flip32(originTimestamp->nanosecondsField);
-
 }
 
 /*pack delayResp message into OUT buffer of ptpClock*/
@@ -316,6 +332,11 @@ msgUnpackDelayReq(void *buf, MsgDelayReq * delayreq)
 		flip32(*(UInteger32 *) (buf + 36));
 	delayreq->originTimestamp.nanosecondsField = 
 		flip32(*(UInteger32 *) (buf + 40));
+
+#ifdef PTPD_DBG
+	msgDelayReq_display(delayreq);
+#endif /* PTPD_DBG */
+
 }
 
 
@@ -329,6 +350,11 @@ msgUnpackPDelayReq(void *buf, MsgPDelayReq * pdelayreq)
 		flip32(*(UInteger32 *) (buf + 36));
 	pdelayreq->originTimestamp.nanosecondsField = 
 		flip32(*(UInteger32 *) (buf + 40));
+
+#ifdef PTPD_DBG
+	msgPDelayReq_display(pdelayreq);
+#endif /* PTPD_DBG */
+
 }
 
 
@@ -346,6 +372,10 @@ msgUnpackDelayResp(void *buf, MsgDelayResp * resp)
 	       (buf + 44), CLOCK_IDENTITY_LENGTH);
 	resp->requestingPortIdentity.portNumber = 
 		flip16(*(UInteger16 *) (buf + 52));
+
+#ifdef PTPD_DBG
+	msgDelayResp_display(resp);
+#endif /* PTPD_DBG */
 }
 
 
@@ -363,6 +393,10 @@ msgUnpackPDelayResp(void *buf, MsgPDelayResp * presp)
 	       (buf + 44), CLOCK_IDENTITY_LENGTH);
 	presp->requestingPortIdentity.portNumber = 
 		flip16(*(UInteger16 *) (buf + 52));
+
+#ifdef PTPD_DBG
+	msgPDelayResp_display(presp);
+#endif /* PTPD_DBG */
 }
 
 /*pack PdelayRespfollowup message into OUT buffer of ptpClock*/
