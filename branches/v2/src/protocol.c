@@ -835,23 +835,23 @@ handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			msgUnpackDelayResp(ptpClock->msgIbuf,
 					   &ptpClock->msgTmp.resp);
 
-			isFromCurrentParent = 
-				!memcmp(ptpClock->parentPortIdentity.clockIdentity,
-					header->sourcePortIdentity.clockIdentity,
-					CLOCK_IDENTITY_LENGTH) && 
-				(ptpClock->parentPortIdentity.portNumber == 
-				 header->sourcePortIdentity.portNumber);
-
-			if (!((ptpClock->sentDelayReqSequenceId == 
-			       header->sequenceId)
-				 && (!memcmp(ptpClock->portIdentity.clockIdentity,
-					     ptpClock->msgTmp.resp.requestingPortIdentity.clockIdentity,
-					     CLOCK_IDENTITY_LENGTH)) && 
-			      (ptpClock->portIdentity.portNumber == 
-			       ptpClock->msgTmp.resp.requestingPortIdentity.portNumber))
+			if ((memcmp(ptpClock->parentPortIdentity.clockIdentity,
+				    header->sourcePortIdentity.clockIdentity,
+				    CLOCK_IDENTITY_LENGTH) == 0 ) &&
+			    (ptpClock->parentPortIdentity.portNumber == 
+			     header->sourcePortIdentity.portNumber))
+				isFromCurrentParent = TRUE;
+			
+			if ((memcmp(ptpClock->portIdentity.clockIdentity,
+				    ptpClock->msgTmp.resp.requestingPortIdentity.clockIdentity,
+				    CLOCK_IDENTITY_LENGTH) == 0) &&
+			    ((ptpClock->sentDelayReqSequenceId - 1)== 
+			     header->sequenceId) &&
+			    (ptpClock->portIdentity.portNumber == 
+			     ptpClock->msgTmp.resp.requestingPortIdentity.portNumber)
 			    && isFromCurrentParent) {
 				toInternalTime(&requestReceiptTimestamp,
-					       &ptpClock->msgTmp.presp.requestReceiptTimestamp);
+					       &ptpClock->msgTmp.resp.receiveTimestamp);
 				ptpClock->delay_req_receive_time.seconds = 
 					requestReceiptTimestamp.seconds;
 				ptpClock->delay_req_receive_time.nanoseconds = 
@@ -1231,7 +1231,7 @@ issueFollowup(TimeInternal *time,RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		DBGV("FollowUp message can't be sent -> FAULTY state \n");
 	} else {
-		DBGV("FOllowUp MSG sent ! \n");
+		DBGV("FollowUp MSG sent ! \n");
 	}
 }
 
