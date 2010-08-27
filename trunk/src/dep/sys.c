@@ -176,6 +176,13 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		    rtOpts->csvStats ? "" : "drift: ", 
 			       ptpClock->observed_drift);
 	}
+	else {
+		if (ptpClock->port_state == PTP_MASTER) {
+			len += snprint_ClockIdentity(sbuf + len, sizeof(sbuf) - len,
+					ptpClock->clock_uuid_field, " (ID:");
+			len += snprintf(sbuf + len, sizeof(sbuf) - len, ")");
+		}
+	}
 	write(1, sbuf, rtOpts->csvStats ? len : SCREEN_MAXSZ + 1);
 }
 

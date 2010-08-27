@@ -31,16 +31,27 @@ main(int argc, char **argv)
 	rtOpts.priority1 = DEFAULT_PRIORITY1;
 	rtOpts.priority2 = DEFAULT_PRIORITY2;
 	rtOpts.domainNumber = DEFAULT_DOMAIN_NUMBER;
-	rtOpts.slaveOnly = SLAVE_ONLY;
+	// rtOpts.slaveOnly = FALSE;
 	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
+	// rtOpts.ifaceName
 	rtOpts.noResetClock = DEFAULT_NO_RESET_CLOCK;
-	rtOpts.noAdjust = NO_ADJUST;
-	rtOpts.inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
-	rtOpts.outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
-	rtOpts.s = DEFAULT_DELAY_S;
+	rtOpts.noAdjust = NO_ADJUST;  // false
+	// rtOpts.displayStats = FALSE;
+	// rtOpts.csvStats = FALSE;
+	// rtOpts.unicastAddress
 	rtOpts.ap = DEFAULT_AP;
 	rtOpts.ai = DEFAULT_AI;
+	rtOpts.s = DEFAULT_DELAY_S;
+	rtOpts.inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
+	rtOpts.outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
 	rtOpts.max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
+	// rtOpts.ethernet_mode = FALSE;
+	// rtOpts.E2E_mode = FALSE;
+	// rtOpts.offset_first_updated = FALSE;
+	// rtOpts.file[0] = 0;
+	rtOpts.logFd = -1;
+	// rtOpts.useSysLog = FALSE;
+	rtOpts.ttl = 1;
 
 	/* Initialize run time options with command line arguments */
 	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts)))
