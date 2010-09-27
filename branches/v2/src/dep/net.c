@@ -391,6 +391,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 	/* make timestamps available through recvmsg() */
 	temp = 1;
+#if defined(linux)
 	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMP, 
 		       &temp, sizeof(int)) < 0
 	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMP, 
@@ -398,6 +399,15 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		PERROR("failed to enable receive time stamps");
 		return FALSE;
 	}
+#else /* FreeBSD */
+	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINTIME, 
+		       &temp, sizeof(int)) < 0
+	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINTIME, 
+			  &temp, sizeof(int)) < 0) {
+		PERROR("failed to enable receive time stamps");
+		return FALSE;
+	}
+#endif
 	return TRUE;
 }
 
@@ -464,7 +474,11 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 	}     cmsg_un;
 
 	struct cmsghdr *cmsg;
+#if defined(linux)
 	struct timeval *tv;
+#else
+	struct timespec ts;
+#endif
 
 	vec[0].iov_base = buf;
 	vec[0].iov_len = PACKET_SIZE;
@@ -508,6 +522,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 
 		return 0;
 	}
+#if defined(linux)
 	tv = 0;
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
 	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
@@ -521,6 +536,21 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		time->nanoseconds = tv->tv_usec * 1000;
 		DBGV("kernel recv time stamp %us %dns\n", 
 		     time->seconds, time->nanoseconds);
+#else /* FreeBSD has more accurate time stamps */
+	bzero(&ts, sizeof(ts));
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
+	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level == SOL_SOCKET && 
+		    cmsg->cmsg_type == SCM_BINTIME)
+			bintime2timespec((struct bintime *)CMSG_DATA(cmsg),
+					 &ts);
+	}
+
+	if (ts.tv_sec != 0) {
+		time->seconds = ts.tv_sec;
+		time->nanoseconds = ts.tv_nsec;
+		DBGV("kernel recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
+#endif /* Linux or FreeBSD */
 	} else {
 		/*
 		 * do not try to get by with recording the time here, better
@@ -563,8 +593,11 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 	}     cmsg_un;
 
 	struct cmsghdr *cmsg;
+#if defined(linux)
 	struct timeval *tv;
-
+#else
+	struct timespec ts;
+#endif 
 	vec[0].iov_base = buf;
 	vec[0].iov_len = PACKET_SIZE;
 
@@ -607,6 +640,7 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 
 		return 0;
 	}
+#if defined(linux)
 	tv = 0;
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
 	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
@@ -620,6 +654,21 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 		time->nanoseconds = tv->tv_usec * 1000;
 		DBGV("kernel recv time stamp %us %dns\n", 
 		     time->seconds, time->nanoseconds);
+#else /* FreeBSD has more accurate time stamps */
+	bzero(&ts, sizeof(ts));
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
+	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level == SOL_SOCKET && 
+		    cmsg->cmsg_type == SCM_BINTIME)
+			bintime2timespec((struct bintime *)CMSG_DATA(cmsg),
+					 &ts);
+	}
+
+	if (ts.tv_sec != 0) {
+		time->seconds = ts.tv_sec;
+		time->nanoseconds = ts.tv_nsec;
+		DBGV("kernel recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
+#endif /* Linux or FreeBSD */
 	} else {
 		/*
 		 * do not try to get by with recording the time here, better
