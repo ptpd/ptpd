@@ -317,12 +317,19 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		return FALSE;
 	}
 	/* make timestamps available through recvmsg() */
+
 	temp = 1;
+#if defined(linux)
 	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMP, &temp, sizeof(int)) < 0
 	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMP, &temp, sizeof(int)) < 0) {
+#else /* BSD */
+	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINTIME, &temp, sizeof(int)) < 0
+	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINTIME, &temp, sizeof(int)) < 0) {
+#endif /* linux or BSD */
 		PERROR("failed to enable receive time stamps");
 		return FALSE;
 	}
+
 	return TRUE;
 }
 
@@ -398,7 +405,11 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		char	control[CMSG_SPACE(sizeof(struct timeval))];
 	}     cmsg_un;
 	struct cmsghdr *cmsg;
+#if defined(linux)
 	struct timeval *tv;
+#else /* FreeBSD */
+	struct timespec ts;
+#endif /* FreeBSD or Linux */
 
 	vec[0].iov_base = buf;
 	vec[0].iov_len = PACKET_SIZE;
@@ -442,11 +453,14 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 
 		return 0;
 	}
+
+#if defined(linux)
 	tv = 0;
-	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_TIMESTAMP)
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
+	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level == SOL_SOCKET && 
+		    cmsg->cmsg_type == SCM_TIMESTAMP)
 			tv = (struct timeval *)CMSG_DATA(cmsg);
-	}
 
 	if (tv) {
 		time->seconds = tv->tv_sec;
@@ -462,6 +476,30 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		DBG("no recieve time stamp\n");
 		return 0;
 	}
+#else /* FreeBSD */
+	bzero(&ts, sizeof(ts));
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
+	     cmsg = CMSG_NXTHDR(&msg, cmsg))
+		if (cmsg->cmsg_level == SOL_SOCKET && 
+		    cmsg->cmsg_type == SCM_BINTIME)
+			bintime2timespec((struct bintime *)CMSG_DATA(cmsg),
+					 &ts);
+
+	if (ts.tv_sec != 0) {
+		time->seconds = ts.tv_sec;
+		time->nanoseconds = ts.tv_nsec;
+		DBGV("kernel recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
+	} else {
+		/*
+		 * do not try to get by with recording the time here, better
+		 * to fail because the time recorded could be well after the
+		 * message receive, which would put a big spike in the
+		 * offset signal sent to the clock servo
+		 */
+		DBG("no recieve time stamp\n");
+		return 0;
+	}
+#endif /* FreeBSD or Linux */
 
 	return ret;
 }
