@@ -38,6 +38,7 @@ main(int argc, char **argv)
 	rtOpts.max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
 	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
 	rtOpts.logFd = -1;
+	rtOpts.recordFP = NULL;
 	rtOpts.useSysLog = FALSE;
 	rtOpts.ttl = 1;
 

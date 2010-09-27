@@ -11,6 +11,8 @@
 #ifndef DATATYPES_H
 #define DATATYPES_H
 
+#include <stdio.h>
+
 typedef struct {
 	UInteger32 seconds;
 	Integer32 nanoseconds;
@@ -347,7 +349,8 @@ typedef struct {
 	int logFd;
 	Boolean useSysLog;
 	int ttl;
-
+	char recordFile[PATH_MAX];
+	FILE *recordFP;
 }	RunTimeOpts;
 
 #endif
