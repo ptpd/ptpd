@@ -17,6 +17,7 @@
 #include "dep/datatypes_dep.h"
 #include "datatypes.h"
 #include "dep/ptpd_dep.h"
+#include "../config.h" /* From autotools */
 
 /* arith.c */
 UInteger32 crc_algorithm(Octet *, Integer16);

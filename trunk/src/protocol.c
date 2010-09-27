@@ -463,6 +463,13 @@ handleSync(MsgHeader * header, Octet * msgIbuf, ssize_t length, TimeInternal * t
 			}
 			DBGV("SYNC_RECEIPT_TIMER reset\n");
 			timerStart(SYNC_RECEIPT_TIMER, PTP_SYNC_RECEIPT_TIMEOUT(ptpClock->sync_interval), ptpClock->itimer);
+
+			if (rtOpts->recordFP != NULL) 
+				fprintf(rtOpts->recordFP, "%d %llu\n", 
+					header->sequenceId, 
+					((time->seconds * 1000000000ULL) + 
+					 time->nanoseconds));
+
 		} else {
 			DBGV("handleSync: unwanted\n");
 		}
