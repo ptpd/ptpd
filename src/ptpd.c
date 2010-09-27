@@ -50,7 +50,8 @@ main(int argc, char **argv)
 	// rtOpts.offset_first_updated = FALSE;
 	// rtOpts.file[0] = 0;
 	rtOpts.logFd = -1;
-	// rtOpts.useSysLog = FALSE;
+	rtOpts.recordFP = NULL;
+	rtOpts.useSysLog = FALSE;
 	rtOpts.ttl = 1;
 
 	/* Initialize run time options with command line arguments */

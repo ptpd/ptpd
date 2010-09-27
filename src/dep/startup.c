@@ -69,6 +69,27 @@ logToFile()
 	return rtOpts.logFd != -1;
 }
 
+/** 
+ * Record quality data for later correlation
+ * 
+ * 
+ * @return True if success, False if failure
+ */
+int
+recordToFile()
+{
+	extern RunTimeOpts rtOpts;
+
+	if (rtOpts.recordFP != NULL)
+		fclose(rtOpts.recordFP);
+
+	if ((rtOpts.recordFP = fopen(rtOpts.recordFile, "w")) == NULL)
+		PERROR("could not open sync recording file");
+	else
+		setlinebuf(rtOpts.recordFP);
+	return (rtOpts.recordFP != NULL);
+}
+
 void 
 ptpdShutdown()
 {
@@ -84,7 +105,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	int c, nondaemon = 0, noclose = 0;
 
 	/* parse command line arguments */
-	while ((c = getopt(argc, argv, "?cf:dDxta:w:b:u:l:o:n:y:m:"
+	while ((c = getopt(argc, argv, "?cf:dDR:xta:w:b:u:l:o:n:y:m:"
 			   "gv:r:Ss:p:q:i:ehT:")) != -1) {
 		switch (c) {
 		case '?':
@@ -100,6 +121,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"-T                set multicast time to live\n"
 				"-d                display stats\n"
 				"-D                display stats in .csv format\n"
+				"-R                record data about sync packets in a file\n"				
 				"\n"
 				"-x                do not reset the clock if off by more than one second\n"
 				"-t                do not adjust the system clock\n"
@@ -157,6 +179,13 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		case 'D':
 			rtOpts->displayStats = TRUE;
 			rtOpts->csvStats = TRUE;
+			break;
+		case 'R':
+			strncpy(rtOpts->recordFile, optarg, PATH_MAX);
+			if (recordToFile())
+				noclose = 1;
+			else
+				PERROR("could not open quality file");
 			break;
 		case 'x':
 			rtOpts->noResetClock = TRUE;
