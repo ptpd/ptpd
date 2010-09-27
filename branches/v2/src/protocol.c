@@ -615,6 +615,12 @@ handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			ptpClock->sync_receive_time.nanoseconds = 
 				time->nanoseconds;
 				
+			if (rtOpts->recordFP) 
+				fprintf(rtOpts->recordFP, "%d %llu\n", 
+					header->sequenceId, 
+					((time->seconds * 1000000000ULL) + 
+					 time->nanoseconds));
+
 			if ((header->flagField[0] & 0x02) == TWO_STEP_FLAG) {
 				ptpClock->waitingForFollow = TRUE;
 				ptpClock->recvSyncSequenceId = 

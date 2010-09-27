@@ -1,6 +1,8 @@
 #ifndef DATATYPES_H_
 #define DATATYPES_H_
 
+#include <stdio.h> 
+
 /*Struct defined in spec*/
 
 
@@ -422,7 +424,8 @@ typedef struct {
 	int logFd;
 	Boolean useSysLog;
 	int ttl;
-
+	char recordFile[PATH_MAX];
+	FILE *recordFP;
 } RunTimeOpts;
 
 #endif /*DATATYPES_H_*/
