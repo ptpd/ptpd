@@ -128,6 +128,7 @@ void	updateClock(RunTimeOpts *, PtpClock *);
 /* startup.c */
 /* unix API dependent */
 int logToFile();
+int recordToFile();
 PtpClock *ptpdStartup(int, char **, Integer16 *, RunTimeOpts *);
 void	ptpdShutdown(void);
 
