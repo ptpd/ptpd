@@ -13,6 +13,7 @@ ptpd \- Precision Time Protocol daemon
 [-d]
 [-D]
 [-x]
+[-M NUMBER]
 [-t]
 [-T ttl]
 [-a NUMBER,NUMBER]
@@ -70,6 +71,9 @@ display stats in .csv format
 .TP
 .B \-x
 do not reset the clock if off by more than one second
+.TP
+.B \-M NUMBER
+do not reset the clock if off by more than NUMBER nanoseconds
 .TP
 .B \-t
 do not adjust the system clock

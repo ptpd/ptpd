@@ -41,7 +41,7 @@ main(int argc, char **argv)
 	rtOpts.recordFP = NULL;
 	rtOpts.useSysLog = FALSE;
 	rtOpts.ttl = 1;
-
+	
 	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts)))
 		return ret;
 

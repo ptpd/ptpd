@@ -34,11 +34,30 @@ updateDelay(TimeInternal * send_time, TimeInternal * recv_time,
     one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	Integer16 s;
+	TimeInternal slave_to_master_delay;
 
 	DBGV("updateDelay\n");
 
 	/* calc 'slave_to_master_delay' */
-	subTime(&ptpClock->slave_to_master_delay, recv_time, send_time);
+	subTime(&slave_to_master_delay, recv_time, send_time);
+
+	if (rtOpts->maxDelay) { /* If maxDelay is 0 then it's OFF */
+		if (slave_to_master_delay.seconds && rtOpts->maxDelay) {
+			INFO("updateDelay aborted, delay greater than 1"
+			     " second.");
+			return;
+		}
+
+		if (slave_to_master_delay.nanoseconds > rtOpts->maxDelay) {
+			INFO("updateDelay aborted, delay %d greater than "
+			     "administratively set maximum %d\n",
+			     slave_to_master_delay.nanoseconds, 
+			     rtOpts->maxDelay);
+			return;
+		}
+	}
+
+	ptpClock->slave_to_master_delay = slave_to_master_delay;
 
 	/* update 'one_way_delay' */
 	addTime(&ptpClock->one_way_delay, &ptpClock->master_to_slave_delay, &ptpClock->slave_to_master_delay);
@@ -77,10 +96,28 @@ void
 updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
     offset_from_master_filter * ofm_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
+	TimeInternal master_to_slave_delay;
 	DBGV("updateOffset\n");
 
 	/* calc 'master_to_slave_delay' */
-	subTime(&ptpClock->master_to_slave_delay, recv_time, send_time);
+	subTime(&master_to_slave_delay, recv_time, send_time);
+
+	if (rtOpts->maxDelay) { /* If maxDelay is 0 then it's OFF */
+		if (master_to_slave_delay.seconds && rtOpts->maxDelay) {
+			INFO("updateDelay aborted, delay greater than 1"
+			     " second.");
+			return;
+		}
+
+		if (master_to_slave_delay.nanoseconds > rtOpts->maxDelay) {
+			INFO("updateDelay aborted, delay %d greater than "
+			     "administratively set maximum %d\n",
+			     master_to_slave_delay.nanoseconds, 
+			     rtOpts->maxDelay);
+			return;
+		}
+	}
+	ptpClock->master_to_slave_delay = master_to_slave_delay;
 
 	/* update 'offset_from_master' */
 	subTime(&ptpClock->offset_from_master, &ptpClock->master_to_slave_delay, &ptpClock->one_way_delay);
@@ -105,6 +142,23 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	TimeInternal timeTmp;
 
 	DBGV("updateClock\n");
+
+	if (rtOpts->maxReset) { /* If maxReset is 0 then it's OFF */
+		if (ptpClock->offset_from_master.seconds) {
+			INFO("updateClock aborted, offset greater than 1"
+			     " second.");
+			goto display;
+		}
+		
+		if (ptpClock->offset_from_master.nanoseconds > 
+		    rtOpts->maxReset) {
+			INFO("updateClock aborted, offset %d greater than "
+			     "administratively set maximum %d\n",
+			     ptpClock->offset_from_master.nanoseconds, 
+			     rtOpts->maxReset);
+			goto display;
+		}
+	}
 
 	if (ptpClock->offset_from_master.seconds) {
 		/* if secs, reset clock or set freq adjustment to max */
@@ -143,6 +197,8 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		if (!rtOpts->noAdjust)
 			adjFreq(-adj);
 	}
+
+display:
 
 	if (rtOpts->displayStats)
 		displayStats(rtOpts, ptpClock);
