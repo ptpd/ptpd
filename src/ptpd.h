@@ -26,7 +26,6 @@
 #include "datatypes.h"
 #include "dep/ptpd_dep.h"
 
-
 /** \name arith.c
  * -Timing management and arithmetic*/
  /**\{*/

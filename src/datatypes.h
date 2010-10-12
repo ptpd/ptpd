@@ -409,6 +409,8 @@ typedef struct {
 	Integer16 currentUtcOffset;
 	Octet ifaceName[IFACE_NAME_LENGTH];
 	Boolean	noResetClock;
+	Integer32 maxReset; /* Maximum number of nanoseconds to reset */
+	Integer32 maxDelay; /* Maximum number of nanoseconds of delay */
 	Boolean	noAdjust;
 	Boolean	displayStats;
 	Boolean	csvStats;

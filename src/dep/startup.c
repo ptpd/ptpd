@@ -105,7 +105,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	int c, nondaemon = 0, noclose = 0;
 
 	/* parse command line arguments */
-	while ((c = getopt(argc, argv, "?cf:dDR:xta:w:b:u:l:o:n:y:m:"
+	while ((c = getopt(argc, argv, "?cf:dDR:xM:O:ta:w:b:u:l:o:n:y:m:"
 			   "gv:r:Ss:p:q:i:ehT:")) != -1) {
 		switch (c) {
 		case '?':
@@ -124,6 +124,8 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"-R                record data about sync packets in a file\n"				
 				"\n"
 				"-x                do not reset the clock if off by more than one second\n"
+				"-O                do not reset the clock if offset is more than NUMBER nanoseconds\n"
+				"-M                do not accept delay values of more than NUMBER nanoseconds\n"
 				"-t                do not adjust the system clock\n"
 				"-a NUMBER,NUMBER  specify clock servo P and I attenuations\n"
 				"-w NUMBER         specify one way delay filter stiffness\n"
@@ -189,6 +191,24 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 		case 'x':
 			rtOpts->noResetClock = TRUE;
+			break;
+		case 'O':
+			rtOpts->maxReset = atoi(optarg);
+			if (rtOpts->maxReset > 1000000000) {
+				PERROR("Use -x to prevent jumps of more"
+				       " than one second.");
+				*ret = 1;
+				return (0);
+			}
+			break;
+		case 'M':
+			rtOpts->maxDelay = atoi(optarg);
+			if (rtOpts->maxDelay > 1000000000) {
+				PERROR("Use -x to prevent jumps of more"
+				       " than one second.");
+				*ret = 1;
+				return (0);
+			}
 			break;
 		case 't':
 			rtOpts->noAdjust = TRUE;
