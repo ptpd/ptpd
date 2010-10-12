@@ -31,6 +31,28 @@ void
 updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
+	TimeInternal slave_to_master_delay;
+
+	/* calc 'slave_to_master_delay' */
+	subTime(&slave_to_master_delay, &ptpClock->delay_req_receive_time, 
+		&ptpClock->delay_req_send_time);
+
+	if (rtOpts->maxDelay) { /* If maxDelay is 0 then it's OFF */
+		if (slave_to_master_delay.seconds && rtOpts->maxDelay) {
+			INFO("updateDelay aborted, delay greater than 1"
+			     " second.");
+			return;
+		}
+
+		if (slave_to_master_delay.nanoseconds > rtOpts->maxDelay) {
+			INFO("updateDelay aborted, delay %d greater than "
+			     "administratively set maximum %d\n",
+			     slave_to_master_delay.nanoseconds, 
+			     rtOpts->maxDelay);
+			return;
+		}
+	}
+
 	if (rtOpts->offset_first_updated) {
 		Integer16 s;
 
@@ -164,10 +186,30 @@ void
 updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
     offset_from_master_filter * ofm_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
+	TimeInternal master_to_slave_delay;
+
 	DBGV("updateOffset\n");
 
 	/* calc 'master_to_slave_delay' */
-	subTime(&ptpClock->master_to_slave_delay, recv_time, send_time);
+	subTime(&master_to_slave_delay, recv_time, send_time);
+
+	if (rtOpts->maxDelay) { /* If maxDelay is 0 then it's OFF */
+		if (master_to_slave_delay.seconds && rtOpts->maxDelay) {
+			INFO("updateDelay aborted, delay greater than 1"
+			     " second.");
+			return;
+		}
+
+		if (master_to_slave_delay.nanoseconds > rtOpts->maxDelay) {
+			INFO("updateDelay aborted, delay %d greater than "
+			     "administratively set maximum %d\n",
+			     master_to_slave_delay.nanoseconds, 
+			     rtOpts->maxDelay);
+			return;
+		}
+	}
+
+	ptpClock->master_to_slave_delay = master_to_slave_delay;
 
 	subTime(&ptpClock->delayMS, recv_time, send_time);
 	/* Used just for End to End mode. */
@@ -218,6 +260,22 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	DBGV("updateClock\n");
 
+	if (rtOpts->maxReset) { /* If maxReset is 0 then it's OFF */
+		if (ptpClock->offsetFromMaster.seconds && rtOpts->maxReset) {
+			INFO("updateClock aborted, offset greater than 1"
+			     " second.");
+			goto display;
+		}
+
+		if (ptpClock->offsetFromMaster.nanoseconds > rtOpts->maxReset) {
+			INFO("updateClock aborted, offset %d greater than "
+			     "administratively set maximum %d\n",
+			     ptpClock->offsetFromMaster.nanoseconds, 
+			     rtOpts->maxReset);
+			goto display;
+		}
+	}
+
 	if (ptpClock->offsetFromMaster.seconds) {
 		/* if secs, reset clock or set freq adjustment to max */
 		if (!rtOpts->noAdjust) {
@@ -260,6 +318,7 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			adjFreq(-adj);
 	}
 
+display:
 	if (rtOpts->displayStats)
 		displayStats(rtOpts, ptpClock);
 
