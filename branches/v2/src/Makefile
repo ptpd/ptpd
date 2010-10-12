@@ -5,7 +5,7 @@ CFLAGS = -Wall # -DBSD_INTERFACE_FUNCTIONS
 #CPPFLAGS =   -DPTPD_DBGV -DPTPD_NO_DAEMON
 LDFLAGS = -lm -lrt
 
-PROG = ptpv2d
+PROG = ptpd2
 SRCS = ptpd.c arith.c bmc.c protocol.c display.c\
 	dep/msg.c dep/net.c dep/servo.c dep/startup.c dep/sys.c dep/timer.c
 
