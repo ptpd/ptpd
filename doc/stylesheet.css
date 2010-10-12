@@ -41,6 +41,11 @@ a:active {
 	font-size: 60px;
 }
 
+.subtitle_text {
+	font-family: sans-serif;
+	font-size: 20px;
+}
+
 .sidebar_table {
 	background-color: #ffffff;
 	margin: 20px;
