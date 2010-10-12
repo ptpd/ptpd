@@ -1,0 +1,17 @@
+2010-10-12  George Neville-Neil  <gnn@neville-neil.com>
+
+	* 1.1.0 Release
+
+	* Add code to limit how much of an offset or delay the client is
+	willing to tolerate.
+
+	* Add support for BINTIME on FreeBSD which gives more accurate
+	packet timestamps.
+
+	* Add quality file support
+
+	* Add support for syslog.
+
+	* Add support for user configurable TTL.
+
+	* Clean up code formatting, headers, comments etc.
