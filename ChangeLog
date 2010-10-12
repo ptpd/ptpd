@@ -3,5 +3,20 @@
 	* 2.1.0 First main line release of PTPv2 code base
 	(IEEE-1588-2008)
 
-	
+	* Add code to limit how much of an offset or delay the client is
+	willing to tolerate.
+
+	* Add support for BINTIME on FreeBSD which gives more accurate
+	packet timestamps.
+
+	* Add quality file support
+
+	* Fix significant bugs that prevented correct operation in
+	End-to-End mode.
+
+	* Add support for syslog.
+
+	* Add support for user configurable TTL.
+
+	* Clean up code formatting, headers, comments etc.
 
