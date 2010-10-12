@@ -1,0 +1,34 @@
+PTP Daemon Installation Instructions
+
+11 October 2010
+
+George V. Neville-Neil
+
+The PTP Daemon is known to work on FreeBSD and Linux systems.
+
+*) Building on FreeBSD
+
+1) cd into the src/ directory
+2) Un comment the #-DBSD_INTERFACE_FUNCTIONS option:
+
+Turn this:
+CFLAGS = -Wall #-DBSD_INTERFACE_FUNCTIONS
+
+into this:
+CFLAGS = -Wall -DBSD_INTERFACE_FUNCTIONS
+
+3) Run "make"
+4) Read the manual page.
+5) Test it in place: ./ptpd -your -arguments -here
+6) Run "make install"
+
+*) Building on Linux
+
+Follow the steps above except for step number 2.
+
+The daemon may work on other Posix based systems but this is not
+guaranteed.  Patches and fixes are welcome on the source forge page
+
+http://ptpd.sf.net
+
+or via mail to gnn@freebsd.org
