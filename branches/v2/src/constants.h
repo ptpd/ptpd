@@ -17,27 +17,31 @@
 #define DEFAULT_INBOUND_LATENCY      	0       /* in nsec */
 #define DEFAULT_OUTBOUND_LATENCY     	0       /* in nsec */
 #define DEFAULT_NO_RESET_CLOCK       	FALSE
-#define DEFAULT_DOMAIN_NUMBER			0
-#define DEFAULT_DELAY_MECHANISM			P2P //Note that end to end mechanism is not implemented.
+#define DEFAULT_DOMAIN_NUMBER		0
+#define DEFAULT_DELAY_MECHANISM		P2P 
 #define DEFAULT_AP                   	10
 #define DEFAULT_AI                   	1000
 #define DEFAULT_DELAY_S              	6
-#define DEFAULT_ANNOUNCE_INTERVAL    	1 //0 in 802.1AS
+#define DEFAULT_ANNOUNCE_INTERVAL    	1      /* 0 in 802.1AS */
 #define DEFAULT_UTC_OFFSET           	0
-#define DEFAULT_UTC_VALID				FALSE
-#define DEFAULT_PDELAYREQ_INTERVAL	 	1 //-4 in 802.1AS
-#define DEFAULT_DELAYREQ_INTERVAL	 	3
-#define DEFAULT_SYNC_INTERVAL           0 //-7 in 802.1AS
+#define DEFAULT_UTC_VALID		FALSE
+#define DEFAULT_PDELAYREQ_INTERVAL 	1      /* -4 in 802.1AS */
+#define DEFAULT_DELAYREQ_INTERVAL 	3
+#define DEFAULT_SYNC_INTERVAL           0      /* -7 in 802.1AS */
 #define DEFAULT_SYNC_RECEIPT_TIMEOUT 	3
-#define DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT 6 // 3 by default
+#define DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT 6     /* 3 by default */
 #define DEFAULT_QUALIFICATION_TIMEOUT	2
 #define DEFAULT_FOREIGN_MASTER_TIME_WINDOW 4
 #define DEFAULT_FOREIGN_MASTER_THRESHOLD 2
-#define DEFAULT_CLOCK_CLASS 			248
-#define DEFAULT_CLOCK_ACCURACY 			0xFE
-#define DEFAULT_PRIORITY1				248
-#define DEFAULT_PRIORITY2				248
-#define DEFAULT_CLOCK_VARIANCE 			-4000 //To be determined in 802.1AS...so same value of ptpdv1 is used
+#define DEFAULT_CLOCK_CLASS		248
+#define DEFAULT_CLOCK_ACCURACY		0xFE
+#define DEFAULT_PRIORITY1		248
+#define DEFAULT_PRIORITY2		248
+#define DEFAULT_CLOCK_VARIANCE 	       -4000 /* To be determined in 802.1AS. */
+                                             /* We use the same value as in */
+                                             /* ptpdv1. */
+
+
 #define DEFAULT_MAX_FOREIGN_RECORDS  	5
 #define DEFAULT_PARENTS_STATS			FALSE
 
@@ -46,8 +50,8 @@
 #define VERSION_PTP       	2
 #define TWO_STEP_FLAG    	0x02
 #define BOUNDARY_CLOCK    	FALSE
-#define SLAVE_ONLY 			FALSE
-#define NO_ADJUST			FALSE
+#define SLAVE_ONLY		FALSE
+#define NO_ADJUST		FALSE
 
 
 
@@ -55,16 +59,16 @@
  Minimal length values for each message.
  If TLV used length could be higher.*/
  /**\{*/
-#define HEADER_LENGTH							34
-#define ANNOUNCE_LENGTH							64
-#define SYNC_LENGTH								44
-#define FOLLOW_UP_LENGTH						44
-#define PDELAY_REQ_LENGTH						54
-#define DELAY_REQ_LENGTH						44
-#define DELAY_RESP_LENGTH						54
-#define PDELAY_RESP_LENGTH 						54
+#define HEADER_LENGTH					34
+#define ANNOUNCE_LENGTH					64
+#define SYNC_LENGTH					44
+#define FOLLOW_UP_LENGTH				44
+#define PDELAY_REQ_LENGTH				54
+#define DELAY_REQ_LENGTH				44
+#define DELAY_RESP_LENGTH				54
+#define PDELAY_RESP_LENGTH 				54
 #define PDELAY_RESP_FOLLOW_UP_LENGTH  			54
-#define MANAGEMENT_LENGTH		 				48
+#define MANAGEMENT_LENGTH				48
 /** \}*/
 
 /*Enumeration defined in tables of the spec*/
