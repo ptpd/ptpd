@@ -16,7 +16,7 @@ void
 catch_alarm(int sig)
 {
 	elapsed++;
-	/*	DBGV("catch_alarm: elapsed %d\n", elapsed);*/
+	DBGV("catch_alarm: elapsed %d\n", elapsed);
 }
 
 void 
@@ -76,10 +76,6 @@ timerStart(UInteger16 index, UInteger16 interval, IntervalTimer * itimer)
 
 	itimer[index].expire = FALSE;
 	itimer[index].left = interval;
-	/* 
-	 * Factor 1000 used because resolution time is ms for the
-	 * variable "elasped"
-	 */
 	itimer[index].interval = itimer[index].left;
 
 	DBGV("timerStart: set timer %d to %d\n", index, interval);
