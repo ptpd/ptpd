@@ -220,6 +220,15 @@ nanoSleep(TimeInternal * t)
 void 
 getTime(TimeInternal * time)
 {
+#if defined(linux)
+
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	time->seconds = tv.tv_sec;
+	time->nanoseconds = tv.tv_usec * 1000;
+
+#else /* FreeBSD */
+
 	struct timespec tp;
 	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
 		PERROR("clock_gettime() failed, exiting.");
@@ -227,7 +236,7 @@ getTime(TimeInternal * time)
 	}
 	time->seconds = tp.tv_sec;
 	time->nanoseconds = tp.tv_nsec;
-
+#endif /* FreeBSD or Linux */
 }
 
 void 
