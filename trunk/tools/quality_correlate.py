@@ -50,9 +50,9 @@ def main():
     from optparse import OptionParser
     
     parser = OptionParser()
-    parser.add_option("-y", "--ymin", dest="ymin", default="0",
+    parser.add_option("-y", "--ymin", dest="ymin", default=0,
                       help="minimum y value")
-    parser.add_option("-Y", "--ymax", dest="ymax", default="10",
+    parser.add_option("-Y", "--ymax", dest="ymax", default=1000000,
                       help="maximum y value")
     parser.add_option("-N", "--Names", dest="hosts", nargs=2, default=None,
                       help="host list for sync graph")
@@ -60,10 +60,18 @@ def main():
                       help="starting sequence number")
     parser.add_option("-p", "--print", dest="png", default=None,
                       help="print the graph to a file")
+    parser.add_option("-o", "--output", dest="output", default=None,
+                      help="save the correlated data to a file.")
     parser.add_option("-d", "--debug", dest="debug", type="int", default=0,
                       help="print debugging info (verbose)")
     (options, args) = parser.parse_args()
     
+    if (options.output != None):
+        try:
+            outfile = open(options.output, "w")
+        except:
+            print "cannot open %s for writing" % options.output
+
     files = []
     for filename in options.hosts:
         file = open(filename)
@@ -141,9 +149,12 @@ def main():
         if delta < minimum:
             minimum = delta
 
-        if (options.debug != 0):
-            print delta
+        if (options.output != None):
+            outfile.write(("%d %d\n" % (delta, (files[0][i] / 1000000000))))
+
         graph.append(delta)
+
+    outfile.close()
 
     print "min %d, max %d" % (minimum, maximum)
 
