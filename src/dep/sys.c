@@ -139,7 +139,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	gettimeofday(&now, 0);
 	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&now.tv_sec));
 
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s:%06d, %s",
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s:%06d, %s,",
 		       rtOpts->csvStats ? "\n" : "\rstate: ",
 		       time_str, (int)now.tv_usec,
 		       translatePortState(ptpClock));
