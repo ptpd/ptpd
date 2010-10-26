@@ -44,9 +44,11 @@ void
 catch_sighup(int sig)
 {
 	if(!logToFile())
-		NOTIFY("SIGHUP failed\n");
-	else
-		NOTIFY("I've been SIGHUP'd\n");
+		NOTIFY("SIGHUP logToFile failed\n");
+	if(!recordToFile())
+		NOTIFY("SIGHUP recordToFile failed\n");
+
+	NOTIFY("I've been SIGHUP'd\n");
 }
 
 /** 

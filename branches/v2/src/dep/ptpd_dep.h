@@ -159,6 +159,7 @@ void updateClock(RunTimeOpts*,PtpClock*);
  * -Handle with runtime options*/
  /**\{*/
 int logToFile(void);
+int recordToFile(void);
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
 void ptpdShutdown(void);
 /** \}*/
