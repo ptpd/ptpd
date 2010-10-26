@@ -144,7 +144,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if (ptpClock->portState == PTP_SLAVE) {
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-			 &ptpClock->parentPortIdentity, " ");
+			 &ptpClock->parentPortIdentity, ", ");
 
 		/* 
 		 * if grandmaster ID differs from parent port ID then
