@@ -139,14 +139,14 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	gettimeofday(&now, 0);
 	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&now.tv_sec));
 
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s:%06d, %s,",
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s:%06d, %s",
 		       rtOpts->csvStats ? "\n" : "\rstate: ",
 		       time_str, (int)now.tv_usec,
 		       translatePortState(ptpClock));
 
 	if (ptpClock->port_state == PTP_SLAVE) {
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-			 ptpClock->parent_uuid, ptpClock->parent_port_id, " ");
+			 ptpClock->parent_uuid, ptpClock->parent_port_id, ", ");
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len,
 				", %s%d.%09d" ", %s%d.%09d",
