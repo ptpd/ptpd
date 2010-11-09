@@ -43,7 +43,8 @@ from numpy import *
 
 import Gnuplot, Gnuplot.funcutils
 
-import pcs
+import gzip
+import os
 
 def main():
 
@@ -74,7 +75,10 @@ def main():
 
     files = []
     for filename in options.hosts:
-        file = open(filename)
+        if (os.path.splitext(filename)[1] == '.gz'):
+            file = gzip.open(filename)
+        else:
+            file = open(filename)
         
         trace = {}
         done = False
@@ -154,7 +158,8 @@ def main():
 
         graph.append(delta)
 
-    outfile.close()
+    if (options.output != None):
+        outfile.close()
 
     print "min %d, max %d" % (minimum, maximum)
 
