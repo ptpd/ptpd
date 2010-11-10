@@ -130,8 +130,9 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if (start && rtOpts->csvStats) {
 		start = 0;
-		printf("timestamp, state, one way delay, offset from master, "
-		       "slave to master, master to slave, drift, variance");
+		printf("timestamp, state, clock ID, one way delay, "
+		       "offset from master, master to slave, "
+		       "drift, variance");
 		fflush(stdout);
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
@@ -147,15 +148,6 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if (ptpClock->port_state == PTP_SLAVE) {
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 			 ptpClock->parent_uuid, ptpClock->parent_port_id, ", ");
-
-		len += snprintf(sbuf + len, sizeof(sbuf) - len,
-				", %s%d.%09d" ", %s%d.%09d",
-				rtOpts->csvStats ? "" : "stm: ",
-				ptpClock->slave_to_master_delay.seconds,
-				abs(ptpClock->slave_to_master_delay.nanoseconds),
-				rtOpts->csvStats ? "" : "mts: ",
-				ptpClock->master_to_slave_delay.seconds,
-				abs(ptpClock->master_to_slave_delay.nanoseconds));
 
 		 /* 
 		  * if grandmaster ID differs from parent port ID then also 
@@ -187,9 +179,24 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 		    &ptpClock->offset_from_master);
 
-		len += sprintf(sbuf + len, ", %s%d",
-		    rtOpts->csvStats ? "" : "drift: ", 
+		len += snprintf(sbuf + len, sizeof(sbuf) - len,
+				", %s%d.%09d" ", %s%d.%09d",
+				rtOpts->csvStats ? "" : "stm: ",
+				ptpClock->slave_to_master_delay.seconds,
+				abs(ptpClock->slave_to_master_delay.nanoseconds),
+				rtOpts->csvStats ? "" : "mts: ",
+				ptpClock->master_to_slave_delay.seconds,
+				abs(ptpClock->master_to_slave_delay.nanoseconds));
+
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, 
+			       ", %s%d",
+			       rtOpts->csvStats ? "" : "drift: ", 
 			       ptpClock->observed_drift);
+
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, 
+			       ", %s%d",
+			       rtOpts->csvStats ? "" : "var: ", 
+			       ptpClock->observed_variance);
 	}
 	else {
 		if (ptpClock->port_state == PTP_MASTER) {
