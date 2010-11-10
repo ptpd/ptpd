@@ -128,8 +128,9 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if (start && rtOpts->csvStats) {
 		start = 0;
-		printf("timestamp, state, one way delay, offset from master, "
-		       "slave to master, master to slave, drift, variance");
+		printf("timestamp, state, clock ID, one way delay, "
+		       "offset from master, slave to master, "
+		       "master to slave, drift");
 		fflush(stdout);
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
@@ -189,6 +190,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += sprintf(sbuf + len, ", %s%d",
 		    rtOpts->csvStats ? "" : "drift: ", 
 			       ptpClock->observed_drift);
+
 	}
 	else {
 		if (ptpClock->portState == PTP_MASTER) {
