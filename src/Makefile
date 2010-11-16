@@ -1,9 +1,9 @@
 # Makefile for ptpd
 
 RM = rm -f
-CFLAGS = -Wall # -DBSD_INTERFACE_FUNCTIONS
+CFLAGS+= -Wall # -DBSD_INTERFACE_FUNCTIONS
 #CPPFLAGS =   -DPTPD_DBGV -DPTPD_NO_DAEMON
-LDFLAGS = -lm -lrt
+LDFLAGS+= -lm -lrt
 
 PROG = ptpd2
 SRCS = ptpd.c arith.c bmc.c protocol.c display.c\
