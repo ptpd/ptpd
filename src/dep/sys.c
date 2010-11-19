@@ -132,7 +132,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		start = 0;
 		printf("timestamp, state, clock ID, one way delay, "
 		       "offset from master, master to slave, "
-		       "drift, variance");
+		       "slave to master, drift, variance");
 		fflush(stdout);
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
