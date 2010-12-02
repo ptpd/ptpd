@@ -937,7 +937,7 @@ handlePDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			break;
 		}
 	} else /* (End to End mode..) */
-		ERROR("Peer Delay messages are disreguard in End to End "
+		ERROR("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 }
 
@@ -1087,7 +1087,7 @@ handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
 			break;
 		}
 	} else { /* (End to End mode..) */
-		ERROR("Peer Delay messages are disreguard in End to End "
+		ERROR("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 	}
 }
@@ -1167,7 +1167,7 @@ handlePDelayRespFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			DBGV("Disregard PdelayRespFollowUp message  \n");
 		}
 	} else { /* (End to End mode..) */
-		ERROR("Peer Delay messages are disreguard in End to End "
+		ERROR("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 	}
 }
