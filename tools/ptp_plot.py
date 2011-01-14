@@ -43,7 +43,9 @@ and gnuplot support.
 
 """
 
+import os
 import csv
+import gzip
 import datetime
 import subprocess
 import sys
@@ -77,11 +79,12 @@ def main():
                       help="file to print the graph to")
     parser.add_option("-y", "--ymin", dest="ymin", default="0.000000",
                       help="minimum y value")
+    parser.add_option("-o", "--old", dest="old", default=None,
+                      help="log files from old PTPd")
     parser.add_option("-Y", "--ymax", dest="ymax", default="0.001000",
                       help="maximum y value")
     parser.add_option("-S", "--save", dest="save", default=None,
                       help="save file name")
-
 
     (options, args) = parser.parse_args()
     
@@ -89,8 +92,13 @@ def main():
         print "You must choose either delay or offset."
         usage()
 
+    if (os.path.splitext(options.logfile)[1] == '.gz'):
+        file = gzip.open(options.logfile, "rb")
+    else:
+        file = open(options.logfile, "rb")
+
     try:
-        logfile = csv.reader(open(options.logfile, "rb"))
+        logfile = csv.reader(file)
     except:
         print "Could not open %s" % options.logfile
         sys.exit()
@@ -109,6 +117,15 @@ def main():
     if (options.save != None):
         savefile = open(options.save, "w")
     
+    # Handle the differences between generations of log files
+    delay = 3
+    offset = 4
+    time_format = "%Y-%m-%d %H:%M:%S"
+
+    if (options.old != None):
+        delay = 2
+        offset = 3
+        time_format = "%m/%d/%Y %H:%M:%S"
 
     first = True
     for line in logfile:
@@ -117,7 +134,12 @@ def main():
             dt = line[0].rpartition(':')[0]
         except:
             continue
-        now = datetime.datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
+
+        try:
+            now = datetime.datetime.strptime(dt, time_format)
+        except:
+            continue
+        
         if (first == True):
             if (options.all == 0):
                 start = datetime.datetime.strptime(options.start, "%H:%M:%S")
@@ -133,13 +155,13 @@ def main():
             break
         if ((now > start) or (options.all != 0)):
             if (options.type == "delay"):
-                tmpfile.write("%s %f\n" % (dt, float(line[3])))
+                tmpfile.write("%s%s\n" % (dt, line[delay]))
                 if (savefile != None):
-                    savefile.write("%s %f\n" % (dt, float(line[3])))
+                    savefile.write("%s%s\n" % (dt, line[delay]))
             else:
-                tmpfile.write("%s %f\n" % (dt, float(line[4])))
+                tmpfile.write("%s%s\n" % (dt, line[offset]))
                 if (savefile != None):
-                    savefile.write("%s %f\n" % (dt, float(line[4])))
+                    savefile.write("%s%s\n" % (dt, line[offset]))
             
     plotter = Gnuplot.Gnuplot(debug=1)
     plotter('set data style dots')
@@ -154,7 +176,7 @@ def main():
     else:
         plotter.xlabel(options.logfile + " " + str(start) + " - " + str(now))
     plotter('set xdata time')
-    plotter('set timefmt "%Y-%m-%d %H:%M:%S"')
+    plotter('set timefmt "' + time_format + '"')
 
     tmpfile.flush()
     plotter.plot(Gnuplot.File(tmpfile.name, using='1:3'))
