@@ -247,7 +247,8 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 
 		case 'u':
-			strncpy(rtOpts->unicastAddress, optarg, NET_ADDRESS_LENGTH);
+			strncpy(rtOpts->unicastAddress, optarg, 
+				MAXHOSTNAMELEN);
 			break;
 
 		case 'l':

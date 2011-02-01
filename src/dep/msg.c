@@ -678,7 +678,9 @@ msgPackManagementResponse(void *buf, MsgHeader * header, MsgManagement * manage,
 void msgDump(PtpClock *ptpClock)
 {
 
+#if defined(freebsd)
 	static int dumped = 0;
+#endif /* FreeBSD */
 
 	msgDebugHeader(&ptpClock->msgTmpHeader);
 	switch (ptpClock->msgTmpHeader.control) {
@@ -707,6 +709,7 @@ void msgDump(PtpClock *ptpClock)
 		break;
 	}
 
+#if defined(freebsd)
 	/* Only dump the first time, after that just do a message. */
 	if (dumped != 0) 
 		return;
@@ -724,7 +727,7 @@ void msgDump(PtpClock *ptpClock)
 		/* This default intentionally left blank. */
 		break;
 	}
-
+#endif /* FreeBSD */
 }
 
 /** 

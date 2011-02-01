@@ -261,13 +261,29 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	/* send a uni-cast address if specified (useful for testing) */
 	if (rtOpts->unicastAddress[0]) {
-		if (!inet_aton(rtOpts->unicastAddress, &netAddr)) {
-			ERROR("failed to encode uni-cast address: %s\n", rtOpts->unicastAddress);
-			return FALSE;
+		/* Attempt a DNS lookup first. */
+		struct hostent *host;
+		host = gethostbyname2(rtOpts->unicastAddress, AF_INET);
+                if (host != NULL) {
+			if (host->h_length != 4) {
+				PERROR("unicast host resolved to non ipv4"
+				       "address");
+				return FALSE;
+			}
+			netPath->unicastAddr = 
+				*(uint32_t *)host->h_addr_list[0];
+		} else {
+			/* Maybe it's a dotted quad. */
+			if (!inet_aton(rtOpts->unicastAddress, &netAddr)) {
+				ERROR("failed to encode uni-cast address: %s\n",
+				      rtOpts->unicastAddress);
+				return FALSE;
+				netPath->unicastAddr = netAddr.s_addr;
+			}
 		}
-		netPath->unicastAddr = netAddr.s_addr;
 	} else
 		netPath->unicastAddr = 0;
+
 
 	/* resolve PTP subdomain */
 	if (!lookupSubdomainAddress(rtOpts->subdomainName, addrStr))

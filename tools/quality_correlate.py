@@ -173,8 +173,9 @@ def main():
     if ((options.ymin != 0) or (options.ymax != 10)):
         plotter.set_range('yrange', [options.ymin, options.ymax])
 
+    plotter.xlabel(options.hosts[0] + "\\n" + options.hosts[1]  + "\\n" +
+                   str(start) + " - " + str(end) + "\\n" + 'Sample Number')
     plotter.ylabel('Time Difference\\nNanoseconds')
-    plotter.xlabel('Sample Number')
     plotter.plot(graph)
 
     if (options.png != None):
