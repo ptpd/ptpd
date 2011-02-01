@@ -62,8 +62,8 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		
 		if(ptpClock->message_activity)
 			DBGV("activity\n");
-		else
-			DBGV("no activity\n");
+		/* else */
+		  /*			DBGV("no activity\n");*/
 	}
 }
 
@@ -371,7 +371,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			toState(PTP_FAULTY, rtOpts, ptpClock);
 			return;
 		} else if(!ret) {
-			DBGV("handle: nothing\n");
+		  /*			DBGV("handle: nothing\n");*/
 			return;
 		}
 		/* else length > 0 */
@@ -476,6 +476,10 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		DBG("handle: unrecognized message\n");
 		break;
 	}
+
+	if (rtOpts->displayPackets)
+		msgDump(ptpClock);
+
 }
 
 /*spec 9.5.3*/

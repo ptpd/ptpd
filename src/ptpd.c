@@ -38,6 +38,7 @@ main(int argc, char **argv)
 	rtOpts.noAdjust = NO_ADJUST;  // false
 	// rtOpts.displayStats = FALSE;
 	// rtOpts.csvStats = FALSE;
+	rtOpts.displayPackets = FALSE;
 	// rtOpts.unicastAddress
 	rtOpts.ap = DEFAULT_AP;
 	rtOpts.ai = DEFAULT_AI;

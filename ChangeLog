@@ -1,3 +1,10 @@
+2011-02-01  George Neville-Neil  <gnn@neville-neil.com>
+
+	* Add support for unicasting delay requests.
+
+	* Add code to dump packets on demand via the -P flag as well as in
+	response to updates that violate either the -M or -O flags.
+
 2010-10-12  George Neville-Neil  <gnn@neville-neil.com>
 
 	* 2.1.0 First main line release of PTPv2 code base

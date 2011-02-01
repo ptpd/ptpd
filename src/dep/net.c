@@ -690,15 +690,6 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 	ssize_t ret;
 	struct sockaddr_in addr;
 
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(PTP_EVENT_PORT);
-	addr.sin_addr.s_addr = netPath->multicastAddr;
-
-	ret = sendto(netPath->eventSock, buf, length, 0, 
-		     (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-	if (ret <= 0)
-		DBG("error sending multi-cast event message\n");
-
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
@@ -707,7 +698,30 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending uni-cast event message\n");
+		/* 
+		 * Need to forcibly loop back the packet since
+		 * we are not using multicast. 
+		 */
+		addr.sin_addr.s_addr = htonl(0x7f000001);
+
+		ret = sendto(netPath->eventSock, buf, length, 0, 
+			     (struct sockaddr *)&addr, 
+			     sizeof(struct sockaddr_in));
+		if (ret <= 0)
+			DBG("error looping back uni-cast event message\n");
+		
+	} else {
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(PTP_EVENT_PORT);
+		addr.sin_addr.s_addr = netPath->multicastAddr;
+
+		ret = sendto(netPath->eventSock, buf, length, 0, 
+			     (struct sockaddr *)&addr, 
+			     sizeof(struct sockaddr_in));
+		if (ret <= 0)
+			DBG("error sending multi-cast event message\n");
 	}
+
 	return ret;
 }
 
@@ -717,15 +731,6 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 	ssize_t ret;
 	struct sockaddr_in addr;
 
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(PTP_GENERAL_PORT);
-	addr.sin_addr.s_addr = netPath->multicastAddr;
-
-	ret = sendto(netPath->generalSock, buf, length, 0, 
-		     (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-	if (ret <= 0)
-		DBG("error sending multi-cast general message\n");
-
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
@@ -734,6 +739,16 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending uni-cast general message\n");
+	} else {
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(PTP_GENERAL_PORT);
+		addr.sin_addr.s_addr = netPath->multicastAddr;
+
+		ret = sendto(netPath->generalSock, buf, length, 0, 
+			     (struct sockaddr *)&addr, 
+			     sizeof(struct sockaddr_in));
+		if (ret <= 0)
+			DBG("error sending multi-cast general message\n");
 	}
 	return ret;
 }
@@ -745,15 +760,6 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 	ssize_t ret;
 	struct sockaddr_in addr;
 
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(PTP_GENERAL_PORT);
-	addr.sin_addr.s_addr = netPath->peerMulticastAddr;
-
-	ret = sendto(netPath->generalSock, buf, length, 0, 
-		     (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-	if (ret <= 0)
-		DBG("error sending multi-cast general message\n");
-
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
@@ -762,6 +768,17 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending uni-cast general message\n");
+
+	} else {
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(PTP_GENERAL_PORT);
+		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
+
+		ret = sendto(netPath->generalSock, buf, length, 0, 
+			     (struct sockaddr *)&addr, 
+			     sizeof(struct sockaddr_in));
+		if (ret <= 0)
+			DBG("error sending multi-cast general message\n");
 	}
 	return ret;
 
@@ -773,15 +790,6 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 	ssize_t ret;
 	struct sockaddr_in addr;
 
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(PTP_EVENT_PORT);
-	addr.sin_addr.s_addr = netPath->peerMulticastAddr;
-
-	ret = sendto(netPath->eventSock, buf, length, 0, 
-		     (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-	if (ret <= 0)
-		DBG("error sending multi-cast event message\n");
-
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
@@ -790,6 +798,16 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending uni-cast event message\n");
+	} else {
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(PTP_EVENT_PORT);
+		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
+
+		ret = sendto(netPath->eventSock, buf, length, 0, 
+			     (struct sockaddr *)&addr, 
+			     sizeof(struct sockaddr_in));
+		if (ret <= 0)
+			DBG("error sending multi-cast event message\n");
 	}
 	return ret;
 }

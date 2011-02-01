@@ -126,6 +126,16 @@ void msgPackPDelayResp(void*,MsgHeader*,Timestamp*,PtpClock*);
 void msgPackPDelayRespFollowUp(void*,MsgHeader*,Timestamp*,PtpClock*);
 UInteger16 msgPackManagement(void*,MsgManagement*,PtpClock*);
 UInteger16 msgPackManagementResponse(void*,MsgHeader*,MsgManagement*,PtpClock*);
+
+void msgDump(PtpClock *ptpClock);
+void msgDebugHeader(MsgHeader *header);
+void msgDebugSync(MsgSync *sync);
+void msgDebugAnnounce(MsgAnnounce *announce);
+void msgDebugDelayReq(MsgDelayReq *req);
+void msgDebugFollowUp(MsgFollowUp *follow);
+void msgDebugDelayResp(MsgDelayResp *resp);
+void msgDebugManagement(MsgManagement *manage);
+
 /** \}*/
 
 /** \name net.c (Unix API dependent)
