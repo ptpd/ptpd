@@ -390,6 +390,10 @@ handle(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		DBG("handle: unrecognized message\n");
 		break;
 	}
+
+	if (rtOpts->displayPackets)
+		msgDump(ptpClock);
+
 }
 
 void 
@@ -696,7 +700,8 @@ issueSync(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	fromInternalTime(&internalTime, &originTimestamp, ptpClock->halfEpoch);
 	msgPackSync(ptpClock->msgObuf, FALSE, &originTimestamp, ptpClock);
 
-	if (!netSendEvent(ptpClock->msgObuf, SYNC_PACKET_LENGTH, &ptpClock->netPath))
+	if (!netSendEvent(ptpClock->msgObuf, SYNC_PACKET_LENGTH, 
+			  &ptpClock->netPath))
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 	else
 		DBGV("sent sync message\n");

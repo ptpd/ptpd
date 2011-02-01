@@ -94,7 +94,6 @@ recordToFile()
 
 	if (rtOpts.recordFP != NULL)
 		fclose(rtOpts.recordFP);
-
 	if ((rtOpts.recordFP = fopen(rtOpts.recordFile, "w")) == NULL)
 		PERROR("could not open sync recording file");
 	else
@@ -117,7 +116,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	int c, nondaemon = 0, noclose = 0;
 
 	/* parse command line arguments */
-	while ((c = getopt(argc, argv, "?cf:dDR:xM:O:ta:w:b:u:l:o:e:hy:m:gpSs:i:v:n:k:rT:")) != -1) {
+	while ((c = getopt(argc, argv, "?cf:dDPR:xM:O:ta:w:b:u:l:o:e:hy:m:gpSs:i:v:n:k:rT:")) != -1) {
 		switch (c) {
 		case '?':
 			printf(
@@ -130,6 +129,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			    "-T                set multicast time to live\n"
 			    "-d                display stats\n"
 			    "-D                display stats in .csv format\n"
+			    "-P                display packets\n"
 			    "-R                record data about sync packets in a file\n"
 			    "\n"
 			    "-x                do not reset the clock if off by more than one second\n"
@@ -194,7 +194,9 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			rtOpts->csvStats = TRUE;
 #endif
 			break;
-
+		case 'P':
+			rtOpts->displayPackets = TRUE;
+			break;
 		case 'R':
 			strncpy(rtOpts->recordFile, optarg, PATH_MAX);
 			if (recordToFile())

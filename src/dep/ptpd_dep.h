@@ -105,6 +105,14 @@ void	msgPackDelayResp(void *, MsgHeader *, TimeRepresentation *, PtpClock *);
 UInteger16 msgPackManagement(void *, MsgManagement *, PtpClock *);
 UInteger16 msgPackManagementResponse(void *, MsgHeader *, MsgManagement *, PtpClock *);
 
+void msgDump(PtpClock *ptpClock);
+void msgDebugHeader(MsgHeader *header);
+void msgDebugSync(MsgSync *sync);
+void msgDebugDelayReq(MsgDelayReq *req);
+void msgDebugFollowUp(MsgFollowUp *follow);
+void msgDebugDelayResp(MsgDelayResp *resp);
+void msgDebugManagement(MsgManagement *manage);
+
 /* net.c */
 /* linux API dependent */
 Boolean	netInit(NetPath *, RunTimeOpts *, PtpClock *);

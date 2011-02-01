@@ -45,6 +45,7 @@ updateDelay(TimeInternal * send_time, TimeInternal * recv_time,
 		if (slave_to_master_delay.seconds && rtOpts->maxDelay) {
 			INFO("updateDelay aborted, delay greater than 1"
 			     " second.");
+			msgDump(ptpClock);
 			return;
 		}
 
@@ -53,6 +54,7 @@ updateDelay(TimeInternal * send_time, TimeInternal * recv_time,
 			     "administratively set maximum %d\n",
 			     slave_to_master_delay.nanoseconds, 
 			     rtOpts->maxDelay);
+			msgDump(ptpClock);
 			return;
 		}
 	}
@@ -106,6 +108,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 		if (master_to_slave_delay.seconds && rtOpts->maxDelay) {
 			INFO("updateDelay aborted, delay greater than 1"
 			     " second.");
+			msgDump(ptpClock);
 			return;
 		}
 
@@ -114,6 +117,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 			     "administratively set maximum %d\n",
 			     master_to_slave_delay.nanoseconds, 
 			     rtOpts->maxDelay);
+			msgDump(ptpClock);
 			return;
 		}
 	}
@@ -147,6 +151,7 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		if (ptpClock->offset_from_master.seconds) {
 			INFO("updateClock aborted, offset greater than 1"
 			     " second.");
+			msgDump(ptpClock);
 			goto display;
 		}
 		
@@ -156,6 +161,7 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			     "administratively set maximum %d\n",
 			     ptpClock->offset_from_master.nanoseconds, 
 			     rtOpts->maxReset);
+			msgDump(ptpClock);
 			goto display;
 		}
 	}

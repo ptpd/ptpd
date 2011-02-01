@@ -12,7 +12,9 @@ ptpd \- Precision Time Protocol daemon
 [-R FILE]
 [-d]
 [-D]
+[-P]
 [-x]
+[-O NUMBER]
 [-M NUMBER]
 [-t]
 [-T ttl]
@@ -69,11 +71,17 @@ display stats
 .B \-D
 display stats in .csv format
 .TP
+.B \-P
+display human readable versions of all received packets
+.TP
 .B \-x
 do not reset the clock if off by more than one second
 .TP
+.B \-O NUMBER
+do not reset the clock if offset is more than NUMBER nanoseconds
+.TP
 .B \-M NUMBER
-do not reset the clock if off by more than NUMBER nanoseconds
+do not accept delay values of more than NUMBER nanoseconds
 .TP
 .B \-t
 do not adjust the system clock

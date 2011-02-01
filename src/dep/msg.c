@@ -669,3 +669,223 @@ msgPackManagementResponse(void *buf, MsgHeader * header, MsgManagement * manage,
 		return 0;
 	}
 }
+
+/** 
+ * Dump the most recent packet in the daemon
+ * 
+ * @param ptpClock The central clock structure
+ */
+void msgDump(PtpClock *ptpClock)
+{
+
+	static int dumped = 0;
+
+	msgDebugHeader(&ptpClock->msgTmpHeader);
+	switch (ptpClock->msgTmpHeader.control) {
+	case PTP_SYNC_MESSAGE:
+		msgDebugSync(&ptpClock->msgTmp.sync);
+		break;
+    
+	case PTP_FOLLOWUP_MESSAGE:
+		msgDebugFollowUp(&ptpClock->msgTmp.follow);
+		break;
+    
+	case PTP_DELAY_REQ_MESSAGE:
+		msgDebugDelayReq(&ptpClock->msgTmp.req);
+		break;
+    
+	case PTP_DELAY_RESP_MESSAGE:
+		msgDebugDelayResp(&ptpClock->msgTmp.resp);
+		break;
+    
+	case PTP_MANAGEMENT_MESSAGE:
+		msgDebugManagement(&ptpClock->msgTmp.manage);
+		break;
+    
+	default:
+		NOTIFY("msgDump:unrecognized message\n");
+		break;
+	}
+
+	/* Only dump the first time, after that just do a message. */
+	if (dumped != 0) 
+		return;
+
+	dumped++;
+	NOTIFY("msgDump: core file created.\n");    
+
+	switch(rfork(RFFDG|RFPROC|RFNOWAIT)) {
+	case -1:
+		NOTIFY("could not fork to core dump! errno: %s", strerror(errno));
+		break;
+	case 0:
+		abort(); /* Generate a core dump */
+	default:
+		/* This default intentionally left blank. */
+		break;
+	}
+
+}
+
+/** 
+ * Dump a PTP message header
+ * 
+ * @param header a pre-filled msg header structure
+ */
+
+void msgDebugHeader(MsgHeader *header)
+{
+	NOTIFY("msgDebugHeader: versionPTP %d\n", header->versionPTP);
+	NOTIFY("msgDebugHeader: versionNetwork %d\n", header->versionNetwork);
+	NOTIFY("msgDebugHeader: subdomain %s\n", header->subdomain);
+	NOTIFY("msgDebugHeader: messageType %d\n", header->messageType);
+	NOTIFY("msgDebugHeader: sourceCommunicationTechnology %d\n",
+	       header->sourceCommunicationTechnology);
+	NOTIFY("msgDebugHeader: sourceUuid "
+	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+	       header->sourceUuid[0], header->sourceUuid[1], 
+	       header->sourceUuid[2], header->sourceUuid[3], 
+	       header->sourceUuid[4], header->sourceUuid[5]);
+	NOTIFY("msgDebugHeader: sourcePortId %d\n", header->sourcePortId);
+	NOTIFY("msgDebugHeader: sequenceId %d\n", header->sequenceId);
+	NOTIFY("msgDebugHeader: control %d\n", header->control);
+	NOTIFY("msgDebugHeader: flags %02hhx %02hhx\n",
+	       header->flags[0], header->flags[1]);
+}
+
+/** 
+ * Dump the contents of a sync packet
+ * 
+ * @param sync A pre-filled MsgSync structure
+ */
+
+void msgDebugSync(MsgSync *sync)
+{
+	NOTIFY("msgDebugSync: originTimestamp.seconds %u\n",
+	       sync->originTimestamp.seconds);
+	NOTIFY("msgDebugSync: originTimestamp.nanoseconds %d\n",
+	       sync->originTimestamp.nanoseconds);
+	NOTIFY("msgDebugSync: epochNumber %d\n",
+	       sync->epochNumber);
+	NOTIFY("msgDebugSync: currentUTCOffset %d\n",
+	       sync->currentUTCOffset);
+	NOTIFY("msgDebugSync: grandmasterCommunicationTechnology %d\n",
+	       sync->grandmasterCommunicationTechnology);
+	NOTIFY("msgDebugSync: grandmasterClockUuid "
+	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+	       sync->grandmasterClockUuid[0], sync->grandmasterClockUuid[1], 
+	       sync->grandmasterClockUuid[2], sync->grandmasterClockUuid[3], 
+	       sync->grandmasterClockUuid[4], sync->grandmasterClockUuid[5]);
+	NOTIFY("msgDebugSync: grandmasterPortId %d\n",
+	       sync->grandmasterPortId);
+	NOTIFY("msgDebugSync: grandmasterSequenceId %d\n",
+	       sync->grandmasterSequenceId);
+	NOTIFY("msgDebugSync: grandmasterClockStratum %d\n",
+	       sync->grandmasterClockStratum);
+	NOTIFY("msgDebugSync: grandmasterClockIdentifier %c%c%c%c\n",
+	       sync->grandmasterClockIdentifier[0], 
+	       sync->grandmasterClockIdentifier[1],
+	       sync->grandmasterClockIdentifier[2], 
+	       sync->grandmasterClockIdentifier[3]);
+	NOTIFY("msgDebugSync: grandmasterClockVariance %d\n",
+	       sync->grandmasterClockVariance);
+	NOTIFY("msgDebugSync: grandmasterPreferred %d\n",
+	       sync->grandmasterPreferred);
+	NOTIFY("msgDebugSync: grandmasterIsBoundaryClock %d\n",
+	       sync->grandmasterIsBoundaryClock);
+	NOTIFY("msgDebugSync: syncInterval %d\n",
+	       sync->syncInterval);
+	NOTIFY("msgDebugSync: localClockVariance %d\n",
+	       sync->localClockVariance);
+	NOTIFY("msgDebugSync: localStepsRemoved %d\n",
+	       sync->localStepsRemoved);
+	NOTIFY("msgDebugSync: localClockStratum %d\n",
+	       sync->localClockStratum);
+	NOTIFY("msgDebugSync: localClockIdentifer %c%c%c%c\n", 
+	       sync->localClockIdentifer[0], sync->localClockIdentifer[1],
+	       sync->localClockIdentifer[2], sync->localClockIdentifer[3]);
+	NOTIFY("msgDebugSync: parentCommunicationTechnology %d\n",
+	       sync->parentCommunicationTechnology);
+	NOTIFY("msgDebugSync: parentUuid "
+	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+	       sync->parentUuid[0], sync->parentUuid[1], sync->parentUuid[2],
+	       sync->parentUuid[3], sync->parentUuid[4], sync->parentUuid[5]);
+	NOTIFY("msgDebugSync: parentPortField %d\n", sync->parentPortField);
+	NOTIFY("msgDebugSync: estimatedMasterVariance %d\n",
+	       sync->estimatedMasterVariance);
+	NOTIFY("msgDebugSync: estimatedMasterDrift %d\n",
+	       sync->estimatedMasterDrift);
+	NOTIFY("msgDebugSync: utcReasonable %d\n", sync->utcReasonable);
+}
+
+/** 
+ * NOT IMPLEMENTED
+ * 
+ * @param req 
+ */
+void msgDebugDelayReq(MsgDelayReq *req) {}
+
+/** 
+ * Dump the contents of a followup packet
+ * 
+ * @param follow A pre-fille MsgFollowUp structure
+ */
+void msgDebugFollowUp(MsgFollowUp *follow)
+{
+	NOTIFY("msgDebugFollowUp: associatedSequenceId %u\n",
+	       follow->associatedSequenceId);
+	NOTIFY("msgDebugFollowUp: preciseOriginTimestamp.seconds %u\n",
+	       follow->preciseOriginTimestamp.seconds);
+	NOTIFY("msgDebugFollowUp: preciseOriginTimestamp.nanoseconds %d\n",
+	       follow->preciseOriginTimestamp.nanoseconds);
+}
+
+/** 
+ * Dump the contents of a delay response packet
+ * 
+ * @param resp a pre-filled MsgDelayResp structure
+ */
+void msgDebugDelayResp(MsgDelayResp *resp)
+{
+	NOTIFY("msgDebugDelayResp: delayReceiptTimestamp.seconds %u\n", 
+	       resp->delayReceiptTimestamp.seconds);
+	NOTIFY("msgDebugDelayResp: delayReceiptTimestamp.nanoseconds %d\n", 
+	       resp->delayReceiptTimestamp.nanoseconds);
+	NOTIFY("msgDebugDelayResp: "
+	       "requestingSourceCommunicationTechnology %d\n", 
+	       resp->requestingSourceCommunicationTechnology);
+	NOTIFY("msgDebugDelayResp: requestingSourceUuid "
+	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+	       resp->requestingSourceUuid[0], resp->requestingSourceUuid[1], 
+	       resp->requestingSourceUuid[2], resp->requestingSourceUuid[3], 
+	       resp->requestingSourceUuid[4], resp->requestingSourceUuid[5]);
+	NOTIFY("msgDebugDelayResp: requestingSourcePortId %d\n", 
+	       resp->requestingSourcePortId);
+	NOTIFY("msgDebugDelayResp: requestingSourceSequenceId %d\n", 
+	       resp->requestingSourceSequenceId);
+}
+
+/** 
+ * Dump the contents of management packet
+ * 
+ * @param manage a pre-filled MsgManagement structure
+ */
+
+void msgDebugManagement(MsgManagement *manage)
+{
+	NOTIFY("msgDebugManagement: targetCommunicationTechnology %d\n", 
+	       manage->targetCommunicationTechnology);
+	NOTIFY("msgDebugManagement: targetUuid"
+	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+	       manage->targetUuid[0], manage->targetUuid[1], 
+	       manage->targetUuid[2], manage->targetUuid[3], 
+	       manage->targetUuid[4], manage->targetUuid[5]);
+	NOTIFY("msgDebugManagement: targetPortId %d\n", manage->targetPortId);
+	NOTIFY("msgDebugManagement: startingBoundaryHops %d\n", 
+	       manage->startingBoundaryHops);
+	NOTIFY("msgDebugManagement: boundaryHops %d\n", manage->boundaryHops);
+	NOTIFY("msgDebugManagement: managementMessageKey %d\n", 
+	       manage->managementMessageKey);
+	NOTIFY("msgDebugManagement: parameterLength %d\n", 
+	       manage->parameterLength);
+}
