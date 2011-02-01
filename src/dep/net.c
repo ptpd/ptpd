@@ -301,15 +301,29 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 	/* send a uni-cast address if specified (useful for testing) */
 	if (rtOpts->unicastAddress[0]) {
-		if (!inet_aton(rtOpts->unicastAddress, &netAddr)) {
-			ERROR("failed to encode uni-cast address: %s\n", 
-			      rtOpts->unicastAddress);
-			return FALSE;
-		}
-		netPath->unicastAddr = netAddr.s_addr;
-	} else
-		netPath->unicastAddr = 0;
-
+		/* Attempt a DNS lookup first. */
+		struct hostent *host;
+		host = gethostbyname2(rtOpts->unicastAddress, AF_INET);
+                if (host != NULL) {
+			if (host->h_length != 4) {
+				PERROR("unicast host resolved to non ipv4"
+				       "address");
+				return FALSE;
+			}
+			netPath->unicastAddr = 
+				*(uint32_t *)host->h_addr_list[0];
+		} else {
+			/* Maybe it's a dotted quad. */
+			if (!inet_aton(rtOpts->unicastAddress, &netAddr)) {
+				ERROR("failed to encode uni-cast address: %s\n",
+				      rtOpts->unicastAddress);
+				return FALSE;
+				netPath->unicastAddr = netAddr.s_addr;
+			}
+                }
+        } else
+                netPath->unicastAddr = 0;
+ 
 	/* Init General multicast IP address */
 	memcpy(addrStr, DEFAULT_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
 
@@ -690,6 +704,9 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 	ssize_t ret;
 	struct sockaddr_in addr;
 
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(PTP_EVENT_PORT);
+
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
@@ -711,8 +728,6 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 			DBG("error looping back uni-cast event message\n");
 		
 	} else {
-		addr.sin_family = AF_INET;
-		addr.sin_port = htons(PTP_EVENT_PORT);
 		addr.sin_addr.s_addr = netPath->multicastAddr;
 
 		ret = sendto(netPath->eventSock, buf, length, 0, 
@@ -731,6 +746,9 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 	ssize_t ret;
 	struct sockaddr_in addr;
 
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(PTP_GENERAL_PORT);
+
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
@@ -740,8 +758,6 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 		if (ret <= 0)
 			DBG("error sending uni-cast general message\n");
 	} else {
-		addr.sin_family = AF_INET;
-		addr.sin_port = htons(PTP_GENERAL_PORT);
 		addr.sin_addr.s_addr = netPath->multicastAddr;
 
 		ret = sendto(netPath->generalSock, buf, length, 0, 
@@ -760,6 +776,9 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 	ssize_t ret;
 	struct sockaddr_in addr;
 
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(PTP_GENERAL_PORT);
+
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
@@ -770,8 +789,6 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 			DBG("error sending uni-cast general message\n");
 
 	} else {
-		addr.sin_family = AF_INET;
-		addr.sin_port = htons(PTP_GENERAL_PORT);
 		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
 
 		ret = sendto(netPath->generalSock, buf, length, 0, 
@@ -790,6 +807,9 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 	ssize_t ret;
 	struct sockaddr_in addr;
 
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(PTP_EVENT_PORT);
+
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
@@ -799,8 +819,6 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 		if (ret <= 0)
 			DBG("error sending uni-cast event message\n");
 	} else {
-		addr.sin_family = AF_INET;
-		addr.sin_port = htons(PTP_EVENT_PORT);
 		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
 
 		ret = sendto(netPath->eventSock, buf, length, 0, 

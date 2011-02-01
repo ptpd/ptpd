@@ -234,7 +234,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 		case 'u':
 			strncpy(rtOpts->unicastAddress, optarg, 
-				NET_ADDRESS_LENGTH);
+				MAXHOSTNAMELEN);
 			break;
 		case 'l':
 			rtOpts->inboundLatency.nanoseconds = 

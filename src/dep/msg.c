@@ -511,7 +511,7 @@ void msgDump(PtpClock *ptpClock)
 		/* This default intentionally left blank. */
 		break;
 	}
-#endif /* Linux */
+#endif /* FreeBSD */
 }
 
 /** 

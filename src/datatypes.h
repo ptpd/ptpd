@@ -415,7 +415,7 @@ typedef struct {
 	Boolean	displayStats;
 	Boolean	csvStats;
 	Boolean displayPackets;
-	Octet unicastAddress[NET_ADDRESS_LENGTH];
+	Octet unicastAddress[MAXHOSTNAMELEN];
 	Integer16 ap, ai;
 	Integer16 s;
 	TimeInternal inboundLatency, outboundLatency;
