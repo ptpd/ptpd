@@ -176,3 +176,25 @@ subTime(TimeInternal * r, TimeInternal * x, TimeInternal * y)
 
 	normalizeTime(r);
 }
+
+/// Divide an internal time value
+///
+/// @param r the time to convert
+/// @param divisor 
+///
+void
+divTime(TimeInternal *r, int divisor)
+{
+
+	uint64_t nanoseconds;
+
+	if (divisor <= 0)
+		return;
+
+	nanoseconds = ((uint64_t)r->seconds * 1000000000) + r->nanoseconds;
+	nanoseconds /= divisor;
+
+	r->seconds = nanoseconds / 1000000000;
+	r->nanoseconds = nanoseconds % 1000000000;
+
+}

@@ -74,9 +74,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			correctionField);
 
 		/* Compute one-way delay */
-		ptpClock->meanPathDelay.seconds /= 2;
-		ptpClock->meanPathDelay.nanoseconds /= 2;
-
+		divTime(&ptpClock->meanPathDelay, 2);
 
 		if (ptpClock->meanPathDelay.seconds) {
 			/* cannot filter with secs, clear filter */

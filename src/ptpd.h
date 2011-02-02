@@ -86,6 +86,11 @@ void addTime(TimeInternal*,TimeInternal*,TimeInternal*);
 void subTime(TimeInternal*,TimeInternal*,TimeInternal*);
 /** \}*/
 
+/**
+ * \brief Divied an InternalTime by a divisor
+ */
+void divTime(TimeInternal *, int);
+
 /** \name bmc.c
  * -Best Master Clock Algorithm functions*/
  /**\{*/
