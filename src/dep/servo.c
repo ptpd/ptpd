@@ -62,9 +62,10 @@ updateDelay(TimeInternal * send_time, TimeInternal * recv_time,
 	ptpClock->slave_to_master_delay = slave_to_master_delay;
 
 	/* update 'one_way_delay' */
-	addTime(&ptpClock->one_way_delay, &ptpClock->master_to_slave_delay, &ptpClock->slave_to_master_delay);
-	ptpClock->one_way_delay.seconds /= 2;
-	ptpClock->one_way_delay.nanoseconds /= 2;
+	addTime(&ptpClock->one_way_delay, &ptpClock->master_to_slave_delay, 
+		&ptpClock->slave_to_master_delay);
+
+	divTime(&ptpClock->one_way_delay, 2);
 
 	if (ptpClock->one_way_delay.seconds) {
 		/* cannot filter with secs, clear filter */

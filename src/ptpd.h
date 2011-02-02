@@ -46,6 +46,7 @@ void	toInternalTime(TimeInternal *, TimeRepresentation *, Boolean *);
 void	normalizeTime(TimeInternal *);
 void	addTime(TimeInternal *, TimeInternal *, TimeInternal *);
 void	subTime(TimeInternal *, TimeInternal *, TimeInternal *);
+void	divTime(TimeInternal *, int);
 
 /* bmc.c */
 UInteger8 bmc(ForeignMasterRecord *, RunTimeOpts *, PtpClock *);
