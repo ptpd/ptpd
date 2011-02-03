@@ -32,4 +32,7 @@ tags:
 	$(DOXYGEN) Doxyfile
 
 clean:
-	$(RM) $(PROG) $(OBJS) $(TAGFILES) make.out
+	$(RM) $(PROG) $(OBJS)  make.out
+
+realclean: clean
+	$(TAGFILES)
