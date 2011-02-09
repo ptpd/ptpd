@@ -206,7 +206,6 @@ def main():
         plotter('set output "' + os.path.split(options.hosts[0])[0] + "/" +
                 prettyname + ".png")
 
-    print tmpfile.name
     plotter.plot(Gnuplot.File(tmpfile.name, using='1:3'))
 
     if (options.png != None):
