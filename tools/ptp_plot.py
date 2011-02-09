@@ -50,6 +50,7 @@ import datetime
 import subprocess
 import sys
 import tempfile
+import time
 
 from numpy import *
 
@@ -65,6 +66,8 @@ def main():
     parser = OptionParser()
     parser.add_option("-a", "--all", dest="all", default=0,
                       help="show all entries")
+    parser.add_option("-d", "--debug", dest="debug", default=0,
+                      help="debug gnuplot")
     parser.add_option("-t", "--type", dest="type", default="delay",
                       help="plot the delay or offset")
     parser.add_option("-l", "--logfile", dest="logfile", default=None,
@@ -85,6 +88,9 @@ def main():
                       help="maximum y value")
     parser.add_option("-S", "--save", dest="save", default=None,
                       help="save file name")
+    parser.add_option("-B", "--batch", dest="batch", default=False,
+                      help="do not display on screen, generate png only")
+
 
     (options, args) = parser.parse_args()
     
@@ -163,7 +169,8 @@ def main():
                 if (savefile != None):
                     savefile.write("%s%s\n" % (dt, line[offset]))
             
-    plotter = Gnuplot.Gnuplot(debug=1)
+    plotter = Gnuplot.Gnuplot(debug=options.debug)
+
     plotter('set data style dots')
     if (options.type == "delay"):
         plotter.set_range('yrange', [options.ymin, options.ymax])
@@ -171,22 +178,34 @@ def main():
     else:
         plotter.set_range('yrange', [options.ymin, options.ymax])
         plotter.ylabel('Seconds\\nOffset')
+
+    prettyname = "\\n" + os.path.splitext(os.path.split(options.logfile)[1])[0]
     if (options.all == 0):
-        plotter.xlabel(options.logfile + " " + options.start + " - " + options.end)
+        plotter.xlabel(prettyname + " " + options.start + " - " +
+                       options.end)
     else:
-        plotter.xlabel(options.logfile + " " + str(start) + " - " + str(now))
+        plotter.xlabel(prettyname + " " + str(start) + " - " + str(now))
     plotter('set xdata time')
     plotter('set timefmt "' + time_format + '"')
 
     tmpfile.flush()
+
+    # If we're in batch mode we have to do this all by hand because
+    # hardcopy goes too far and expects an interactive user.
+    if (options.batch != False):
+        plotter('set terminal png')
+        plotter('set output "' + options.logfile + "-" + options.type + ".png")
+        
     plotter.plot(Gnuplot.File(tmpfile.name, using='1:3'))
 
     if (options.png != None):
-        plotter.hardcopy(options.logfile + "-" + options.type + ".png", terminal='png')
+        plotter.hardcopy(options.logfile + "-" + options.type + ".png",
+                         terminal='png')
+
+    if (options.batch == False):
         raw_input('Press return to exit')
     else:
-        raw_input('Press return to exit')
-
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()
