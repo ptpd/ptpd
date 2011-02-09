@@ -45,6 +45,9 @@ import Gnuplot, Gnuplot.funcutils
 
 import gzip
 import os
+import time
+import tempfile
+import datetime
 
 def main():
 
@@ -65,6 +68,9 @@ def main():
                       help="save the correlated data to a file.")
     parser.add_option("-d", "--debug", dest="debug", type="int", default=0,
                       help="print debugging info (verbose)")
+    parser.add_option("-B", "--batch", dest="batch", default=False,
+                      help="do not display on screen, generate png only")
+
     (options, args) = parser.parse_args()
     
     if (options.output != None):
@@ -140,6 +146,15 @@ def main():
     minimum = sys.maxint
     maximum = -sys.maxint -1
     
+    #
+    # This is an ugly hack, but it turns out that gnuplot
+    # is better able to plot time data if we write it out
+    # in the familiar format to a temporary file and
+    # then plot from the file rather than building up
+    # arrays of data.
+    #
+    tmpfile = tempfile.NamedTemporaryFile()
+
     for i in range(options.start,options.start + len(files[0])):
         try:
             delta = abs(files[1][i] - files[0][i])
@@ -156,7 +171,8 @@ def main():
         if (options.output != None):
             outfile.write(("%d %d\n" % (delta, (files[0][i] / 1000000000))))
 
-        graph.append(delta)
+        dt = datetime.datetime.fromtimestamp(files[0][i] / 1000000000)
+        tmpfile.write("%s %s\n" % (dt, delta))
 
     if (options.output != None):
         outfile.close()
@@ -168,21 +184,39 @@ def main():
     #           "cannot graph differences"
     #     sys.exit(1)
         
-    plotter = Gnuplot.Gnuplot(debug=1)
+    plotter = Gnuplot.Gnuplot(debug=options.debug)
 
     if ((options.ymin != 0) or (options.ymax != 10)):
         plotter.set_range('yrange', [options.ymin, options.ymax])
 
-    plotter.xlabel(options.hosts[0] + "\\n" + options.hosts[1]  + "\\n" +
-                   str(start) + " - " + str(end) + "\\n" + 'Sample Number')
+    prettyname = os.path.splitext(os.path.split(options.hosts[0])[1])[0] + \
+                 "-" + os.path.splitext(os.path.split(options.hosts[1])[1])[0]
+
+    plotter.xlabel("\\n" + prettyname)
     plotter.ylabel('Time Difference\\nNanoseconds')
-    plotter.plot(graph)
+    plotter('set xdata time')
+    plotter('set timefmt "%Y-%m-%d %H:%M:%S"')
+
+    tmpfile.flush()
+
+    # If we're in batch mode we have to do this all by hand because
+    # hardcopy goes too far and expects an interactive user.
+    if (options.batch != False):
+        plotter('set terminal png')
+        plotter('set output "' + os.path.split(options.hosts[0])[0] + "/" +
+                prettyname + ".png")
+
+    print tmpfile.name
+    plotter.plot(Gnuplot.File(tmpfile.name, using='1:3'))
 
     if (options.png != None):
         plotter.hardcopy(options.png + ".png", terminal='png')
+
+    if (options.batch == False):
         raw_input('Press return to exit')
     else:
-        raw_input('Press return to exit')
+        time.sleep(1)
+
 
 # The canonical way to make a python module into a script.
 # Remove if unnecessary.
