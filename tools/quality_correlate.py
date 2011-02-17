@@ -186,6 +186,8 @@ def main():
         
     plotter = Gnuplot.Gnuplot(debug=options.debug)
 
+    plotter('set style data dots')
+
     if ((options.ymin != 0) or (options.ymax != 10)):
         plotter.set_range('yrange', [options.ymin, options.ymax])
 
@@ -196,17 +198,19 @@ def main():
     plotter.ylabel('Time Difference\\nNanoseconds')
     plotter('set xdata time')
     plotter('set timefmt "%Y-%m-%d %H:%M:%S"')
-
+    plotter('set format x "%H:%M"')
+    plotter('set xtics 7200')
+    plotter('set grid')
     tmpfile.flush()
 
     # If we're in batch mode we have to do this all by hand because
     # hardcopy goes too far and expects an interactive user.
     if (options.batch != False):
-        plotter('set terminal png')
+        plotter('set terminal png giant')
         plotter('set output "' + os.path.split(options.hosts[0])[0] + "/" +
                 prettyname + ".png")
 
-    plotter.plot(Gnuplot.File(tmpfile.name, using='1:3'))
+    plotter.plot(Gnuplot.File(tmpfile.name, title="", using='1:3'))
 
     if (options.png != None):
         plotter.hardcopy(options.png + ".png", terminal='png')

@@ -171,7 +171,7 @@ def main():
             
     plotter = Gnuplot.Gnuplot(debug=options.debug)
 
-    plotter('set data style dots')
+    plotter('set style data dots')
     if (options.type == "delay"):
         plotter.set_range('yrange', [options.ymin, options.ymax])
         plotter.ylabel('Seconds\\nOne Way Delay')
@@ -187,16 +187,19 @@ def main():
         plotter.xlabel(prettyname + " " + str(start) + " - " + str(now))
     plotter('set xdata time')
     plotter('set timefmt "' + time_format + '"')
+    plotter('set format x "%H:%M"')
+    plotter('set xtics 7200')
+    plotter('set grid')
 
     tmpfile.flush()
 
     # If we're in batch mode we have to do this all by hand because
     # hardcopy goes too far and expects an interactive user.
     if (options.batch != False):
-        plotter('set terminal png')
+        plotter('set terminal png giant')
         plotter('set output "' + options.logfile + "-" + options.type + ".png")
         
-    plotter.plot(Gnuplot.File(tmpfile.name, using='1:3'))
+    plotter.plot(Gnuplot.File(tmpfile.name, title="", using='1:3'))
 
     if (options.png != None):
         plotter.hardcopy(options.logfile + "-" + options.type + ".png",
