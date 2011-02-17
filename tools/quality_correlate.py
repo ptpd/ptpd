@@ -177,7 +177,8 @@ def main():
     if (options.output != None):
         outfile.close()
 
-    print "min %d, max %d" % (minimum, maximum)
+    if (options.debug != 0):
+        print "min %d, max %d" % (minimum, maximum)
 
     # if (minimum.seconds > 1):
     #     print "Time difference exceeded one second maximum, " \
