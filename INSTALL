@@ -22,6 +22,18 @@ CFLAGS = -Wall -DBSD_INTERFACE_FUNCTIONS
 5) Test it in place: ./ptpd -your -arguments -here
 6) Run "make install"
 
+*) Building on Mac OS X (Snow Leopard)
+
+Follow the above steps up until step 2 and then change this:
+
+LDFLAGS+= -lm -lrt
+
+into this
+
+LDFLAGS+= -lm #-lrt
+
+Continue with step 3 above.
+
 *) Building on Linux
 
 Follow the steps above except for step number 2.

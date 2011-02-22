@@ -163,6 +163,10 @@ void getTime(TimeInternal*);
 void setTime(TimeInternal*);
 double getRand(void);
 Boolean adjFreq(Integer32);
+#if defined(__APPLE__)
+void 	adjTime(Integer32);
+#endif /* __APPLE__ */
+
 /** \}*/
 
 /** \name timer.c (Unix API dependent)

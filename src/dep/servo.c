@@ -52,8 +52,10 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	ptpClock->owd_filt.s_exp = 0;	/* clears one-way delay filter */
 
 	/* level clock */
+#if !defined(__APPLE__)
 	if (!rtOpts->noAdjust)
 		adjFreq(0);
+#endif /* __APPLE__ */
 }
 
 void 
@@ -319,9 +321,11 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				setTime(&timeTmp);
 				initClock(rtOpts, ptpClock);
 			} else {
+#if !defined(__APPLE__)
 				adj = ptpClock->offsetFromMaster.nanoseconds
 					> 0 ? ADJ_FREQ_MAX : -ADJ_FREQ_MAX;
 				adjFreq(-adj);
+#endif /* __APPLE__ */
 			}
 		}
 	} else {
@@ -348,7 +352,11 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		/* apply controller output as a clock tick rate adjustment */
 		if (!rtOpts->noAdjust)
+#if defined(__APPLE__)
+			adjTime(ptpClock->offsetFromMaster.nanoseconds);
+#else
 			adjFreq(-adj);
+#endif /* __APPLE__ */
 	}
 
 display:
