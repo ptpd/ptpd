@@ -364,7 +364,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* make timestamps available through recvmsg() */
 
 	temp = 1;
-#if defined(linux)
+#if defined(linux) || defined(__APPLE__)
 	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMP, &temp, sizeof(int)) < 0
 	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMP, &temp, sizeof(int)) < 0) {
 #else /* BSD */
@@ -450,7 +450,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		char	control[CMSG_SPACE(sizeof(struct timeval))];
 	}     cmsg_un;
 	struct cmsghdr *cmsg;
-#if defined(linux)
+#if defined(linux) || defined(__APPLE__)
 	struct timeval *tv;
 #else /* FreeBSD */
 	struct timespec ts;
@@ -499,7 +499,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		return 0;
 	}
 
-#if defined(linux)
+#if defined(linux) || defined(__APPLE__)
 	tv = 0;
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
 	     cmsg = CMSG_NXTHDR(&msg, cmsg)) 

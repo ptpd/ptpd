@@ -23,7 +23,9 @@
 #include <time.h>
 #include <netdb.h>
 #include <sys/time.h>
+#ifndef __APPLE__
 #include <sys/timex.h>
+#endif
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>

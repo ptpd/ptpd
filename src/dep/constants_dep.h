@@ -12,7 +12,8 @@
 
 #include <limits.h>
 
-#if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__)
+#if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) && \
+  !defined(__APPLE__)
 #error Not ported to this architecture, please update.
 #endif
 
@@ -34,14 +35,14 @@
 #endif					/* linux */
 
 
-#if defined(__NetBSD__) || defined(__FreeBSD__)
+#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__)
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__APPLE__)
 #include <net/ethernet.h>
 #include <sys/uio.h>
 #else

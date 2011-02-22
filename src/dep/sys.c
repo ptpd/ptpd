@@ -256,7 +256,7 @@ nanoSleep(TimeInternal * t)
 void 
 getTime(TimeInternal * time)
 {
-#if defined(linux)
+#if defined(linux) || defined(__APPLE__)
 
 	struct timeval tv;
 	gettimeofday(&tv, 0);
@@ -294,6 +294,7 @@ getRand(UInteger32 * seed)
 	return rand_r((unsigned int *)seed);
 }
 
+#if !defined(__APPLE__)
 Boolean 
 adjFreq(Integer32 adj)
 {
@@ -309,3 +310,21 @@ adjFreq(Integer32 adj)
 
 	return !adjtimex(&t);
 }
+
+#else 
+
+void
+adjTime(Integer32 nanoseconds)
+{
+
+	struct timeval t;
+
+	t.tv_sec = 0;
+	t.tv_usec = nanoseconds / 1000;
+
+	if (adjtime(&t, NULL) < 0)
+		PERROR("failed to ajdtime");
+
+}
+
+#endif /* __APPLE__ */

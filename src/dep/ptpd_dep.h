@@ -132,6 +132,10 @@ void	setTime(TimeInternal *);
 UInteger16 getRand(UInteger32 *);
 Boolean	adjFreq(Integer32);
 
+#if defined(__APPLE__)
+void 	adjTime(Integer32);
+#endif /* __APPLE__ */
+
 /* timer.c */
 void	initTimer(void);
 void	timerUpdate(IntervalTimer *);

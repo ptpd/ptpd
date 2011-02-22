@@ -1,12 +1,12 @@
 PTP Daemon Installation Instructions
 
-11 October 2010
+22 February 2011
 
 George V. Neville-Neil
 
-The PTP Daemon is known to work on FreeBSD and Linux systems.
+The PTP Daemon is known to work on FreeBSD, Mac, and Linux systems.
 
-*) Building on FreeBSD
+*) Building on FreeBSD and Mac OS X (Snow Leopard)
 
 1) cd into the src/ directory
 2) Un comment the #-DBSD_INTERFACE_FUNCTIONS option:

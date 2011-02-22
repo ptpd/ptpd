@@ -54,8 +54,10 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	rtOpts->halfEpoch = 0;
 
 	/* level clock */
+#if !defined(__APPLE__)
 	if (!rtOpts->noAdjust)
 		adjFreq(0);
+#endif /* __APPLE__ */
 }
 
 void 
@@ -205,8 +207,10 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				setTime(&timeTmp);
 				initClock(rtOpts, ptpClock);
 			} else {
+#if !defined(__APPLE__)
 				adj = ptpClock->offset_from_master.nanoseconds > 0 ? ADJ_FREQ_MAX : -ADJ_FREQ_MAX;
 				adjFreq(-adj);
+#endif /* __APPLE__ */
 			}
 		}
 	} else {
@@ -231,7 +235,11 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		/* apply controller output as a clock tick rate adjustment */
 		if (!rtOpts->noAdjust)
+#if defined(__APPLE__)
+			adjTime(ptpClock->offset_from_master.nanoseconds);
+#else
 			adjFreq(-adj);
+#endif /* __APPLE__ */
 	}
 
 display:
