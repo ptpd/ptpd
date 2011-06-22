@@ -90,8 +90,13 @@
 
 /* others */
 
-#define SCREEN_BUFSZ  128
-#define SCREEN_MAXSZ  80
+/* bigger screen size constants */
+#define SCREEN_BUFSZ  228
+#define SCREEN_MAXSZ  180
+
+#define NANOSECONDS_MAX 999999999
+
+
 
 #define MAXTIMESTR 32
 #endif /*CONSTANTS_DEP_H_*/

@@ -47,16 +47,47 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		ptpClock->master_to_slave_delay.nanoseconds = 0;
 	ptpClock->slave_to_master_delay.seconds = 
 		ptpClock->slave_to_master_delay.nanoseconds = 0;
-	ptpClock->observed_drift = 0;	/* clears clock servo accumulator (the
-					 * I term) */
 	ptpClock->owd_filt.s_exp = 0;	/* clears one-way delay filter */
 
-	/* level clock */
+
+
+
 #if !defined(__APPLE__)
+
 	if (!rtOpts->noAdjust)
 		adjFreq(0);
-#endif /* __APPLE__ */
+	ptpClock->observed_drift = 0;
+
+
+
+#endif /* apple */
+	
+	/* clean more original filter variables */
+	clearTime(&ptpClock->master_to_slave_delay);
+	clearTime(&ptpClock->slave_to_master_delay);
+	clearTime(&ptpClock->offsetFromMaster);   /* AKB: 9/18/2007 Clear offset from master */
+
+
+	ptpClock->ofm_filt.y           = 0;
+	ptpClock->ofm_filt.nsec_prev   = -1; /* AKB: -1 used for non-valid nsec time */
+	ptpClock->owd_filt.s_exp       = 0;  /* clears one-way delay filter */
+	rtOpts->offset_first_updated   = FALSE;
+
+
+	ptpClock->meanPathDelay.seconds = 0;
+	ptpClock->meanPathDelay.nanoseconds = 0;
+	ptpClock->master_to_slave_delay.seconds = 0;
+	ptpClock->master_to_slave_delay.nanoseconds = 0;
+	ptpClock->ofm_filt.nsec_prev = 0;
+
+	ptpClock->delayMS.seconds= 0;
+	ptpClock->delayMS.nanoseconds= 0;
+	ptpClock->warned_operator_slow_slewing= 0;
+	ptpClock->warned_operator_fast_slewing= 0;
+	ptpClock->char_last_msg='I';
 }
+
+
 
 void 
 updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
@@ -68,6 +99,8 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	subTime(&slave_to_master_delay, &ptpClock->delay_req_receive_time, 
 		&ptpClock->delay_req_send_time);
 
+	ptpClock->char_last_msg='D';
+	
 	if (rtOpts->maxDelay) { /* If maxDelay is 0 then it's OFF */
 		if (slave_to_master_delay.seconds && rtOpts->maxDelay) {
 			INFO("updateDelay aborted, delay greater than 1"
@@ -108,7 +141,10 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 		divTime(&ptpClock->meanPathDelay, 2);
 
 		if (ptpClock->meanPathDelay.seconds) {
-			/* cannot filter with secs, clear filter */
+			DBG(" update delay: cannot filter with secs, clearing filter \n");
+			INFO("Servo: Ignoring delayResp because of large OFM\n");
+			// ?? here
+			
 			owd_filt->s_exp = owd_filt->nsec_prev = 0;
 			return;
 		}
@@ -131,10 +167,15 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			(ptpClock->meanPathDelay.nanoseconds / 2 + 
 			 owd_filt->nsec_prev / 2) / owd_filt->s_exp;
 
+			 
 		owd_filt->nsec_prev = ptpClock->meanPathDelay.nanoseconds;
 		ptpClock->meanPathDelay.nanoseconds = owd_filt->y;
+		displayStats(rtOpts, ptpClock);
 
 		DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
+	} else {
+		INFO("Ignoring delayResp because we didn't receive any sync yet\n");
+
 	}
 }
 
@@ -219,7 +260,8 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 {
 	TimeInternal master_to_slave_delay;
 
-	DBGV("updateOffset\n");
+	DBGV("==> updateOffset\n");
+	ptpClock->char_last_msg='S';
 
 	/* calc 'master_to_slave_delay' */
 	subTime(&master_to_slave_delay, recv_time, send_time);
@@ -266,8 +308,10 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	if (ptpClock->offsetFromMaster.seconds) {
 		/* cannot filter with secs, clear filter */
 		ofm_filt->nsec_prev = 0;
+		rtOpts->offset_first_updated = TRUE;
 		return;
 	}
+
 	/* filter 'offsetFromMaster' */
 	ofm_filt->y = ptpClock->offsetFromMaster.nanoseconds / 2 + 
 		ofm_filt->nsec_prev / 2;
@@ -280,18 +324,100 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	 * Offset must have been computed at least one time before 
 	 * computing end to end delay
 	 */
-	if (!rtOpts->offset_first_updated) {
 		rtOpts->offset_first_updated = TRUE;
 	}
+
+
+
+void servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+{
+	if(rtOpts->noAdjust){
+		WARNING("     Clock step bloqued because of option -t\n");
+		return;
+	}
+
+	TimeInternal timeTmp;
+	
+	getTime(&timeTmp);
+	subTime(&timeTmp, &timeTmp, &ptpClock->offsetFromMaster);
+
+	WARNING("     Performing hard frequency reset, by setting frequency to zero\n");
+	adjFreq(0);
+	ptpClock->observed_drift = 0;
+
+	setTime(&timeTmp);
+	initClock(rtOpts, ptpClock);
 }
+
+
+void warn_operator_fast_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
+{
+	if(ptpClock->warned_operator_fast_slewing == 0){
+		if ((adj >= ADJ_FREQ_MAX) || ((adj <= -ADJ_FREQ_MAX))){
+			ptpClock->warned_operator_fast_slewing = 1;
+
+			NOTICE("Servo: Going to slew the clock with the maximum frequency adjustment\n");
+		}
+	}
+
+}
+
+void warn_operator_slow_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock )
+{
+	if(ptpClock->warned_operator_slow_slewing == 0){
+		ptpClock->warned_operator_slow_slewing = 1;
+		ptpClock->warned_operator_fast_slewing = 1;
+
+		/* rule of thumb: at tick rate 10000, slewing at the maximum speed took 0.5ms per second */
+		float estimated = (((abs(ptpClock->offsetFromMaster.seconds)) + 0.0) * 2.0 * 1000.0 / 3600.0);
+
+		// we don't want to arrive early 1s in an expiration opening, so all consoles get a message when the time is 1s off.
+		EMERGENCY("Servo: %d seconds offset detected, will take %.1f hours to slew\n",
+			ptpClock->offsetFromMaster.seconds,
+			estimated
+		);
+	}
+}
+
+
+/*
+ * this is a wrapper around adjFreq to abstract extra operations
+ */
+void adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
+{
+	if (rtOpts->noAdjust){
+		DBGV("adjFreq2: noAdjust on, returning\n");
+		return;
+	}
+
+
+
+   // go back to only sending delayreq after first sync
+   // otherwise we lose the first sync always
+   // test all combinations
+   
+
+	// call original adjtime
+	DBG2("     adjFreq2: call adjfreq to %d \n", adj / DBG_UNIT);
+	adjFreq(adj);
+
+	warn_operator_fast_slewing(rtOpts, ptpClock, adj);
+
+
+}
+
+
+
 
 void 
 updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	Integer32 adj;
-	TimeInternal timeTmp;
+	//TimeInternal timeTmp;
 
-	DBGV("updateClock\n");
+	DBGV("==> updateClock\n");
+
+
 
 	if (rtOpts->maxReset) { /* If maxReset is 0 then it's OFF */
 		if (ptpClock->offsetFromMaster.seconds && rtOpts->maxReset) {
@@ -313,23 +439,45 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if (ptpClock->offsetFromMaster.seconds) {
 		/* if secs, reset clock or set freq adjustment to max */
+
+		/* 
+		  if offset from master seconds is non-zero, then this is a "big jump:
+		  in time.  Check Run Time options to see if we will reset the clock or
+		  set frequency adjustment to max to adjust the time
+		*/
+
+		/*
+		 * noAdjust     = cannot do any change to clock
+		 * noResetClock = if can change the clock, can we also step it?
+		 */
 		if (!rtOpts->noAdjust) {
+			/* */
 			if (!rtOpts->noResetClock) {
-				getTime(&timeTmp);
-				subTime(&timeTmp, &timeTmp, 
-					&ptpClock->offsetFromMaster);
-				setTime(&timeTmp);
-				initClock(rtOpts, ptpClock);
+
+				servo_perform_clock_step(rtOpts, ptpClock);
 			} else {
+				/*
+				 * potential problem:    "-1.1" is   a) -1:0.1 or b) -1:-0.1?
+				 * if this code is right it implies the second case
+				 */
 #if !defined(__APPLE__)
 				adj = ptpClock->offsetFromMaster.nanoseconds
 					> 0 ? ADJ_FREQ_MAX : -ADJ_FREQ_MAX;
-				adjFreq(-adj);
+
+				warn_operator_slow_slewing(rtOpts, ptpClock);
+				adjFreq_wrapper(rtOpts, ptpClock, -adj);
+
+				/* its not clear how the APPLE case works for large jumps */
 #endif /* __APPLE__ */
+
 			}
 		}
 	} else {
 		/* the PI controller */
+		/* Offset from master is less than one second.  Use the the PI controller
+		 * to adjust the time
+		 */
+
 
 		/* no negative or zero attenuation */
 		if (rtOpts->ap < 1)
@@ -337,6 +485,13 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		if (rtOpts->ai < 1)
 			rtOpts->ai = 1;
 
+
+		/*
+		 *  optional new PI controller, with better accuracy with HW-timestamps:
+		 *  http://sourceforge.net/tracker/?func=detail&aid=2995791&group_id=139814&atid=744632
+		 */
+
+		
 		/* the accumulator for the I component */
 		ptpClock->observed_drift += 
 			ptpClock->offsetFromMaster.nanoseconds / rtOpts->ai;
@@ -350,39 +505,46 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		adj = ptpClock->offsetFromMaster.nanoseconds / rtOpts->ap + 
 			ptpClock->observed_drift;
 
-		/* apply controller output as a clock tick rate adjustment */
-		if (!rtOpts->noAdjust)
+
+		DBG2("     Observed_drift with AI component: %d\n",
+			ptpClock->observed_drift / DBG_UNIT );
+
+		DBG2("     After PI: Adj: %d   Drift: %d   OFM %d\n",
+			adj, ptpClock->observed_drift / DBG_UNIT, ptpClock->offsetFromMaster.nanoseconds / DBG_UNIT);
+
 #if defined(__APPLE__)
 			adjTime(ptpClock->offsetFromMaster.nanoseconds);
 #else
-			adjFreq(-adj);
+		adjFreq_wrapper(rtOpts, ptpClock, -adj);
 #endif /* __APPLE__ */
 	}
 
+
+
 display:
-	if (rtOpts->displayStats)
 		displayStats(rtOpts, ptpClock);
 
 
-	DBG("\n--Offset Correction-- \n");
-	DBG("Raw offset from master:  %10ds %11dns\n",
+	DBGV("\n--Offset Correction-- \n");
+	DBGV("Raw offset from master:  %10ds %11dns\n",
 	    ptpClock->master_to_slave_delay.seconds, 
 	    ptpClock->master_to_slave_delay.nanoseconds);
 
-	DBG("\n--Offset and Delay filtered-- \n");
+	DBGV("\n--Offset and Delay filtered-- \n");
 
 	if (!rtOpts->E2E_mode) {
-		DBG("one-way delay averaged (P2P):  %10ds %11dns\n",
+		DBGV("one-way delay averaged (P2P):  %10ds %11dns\n",
 		    ptpClock->peerMeanPathDelay.seconds, 
 		    ptpClock->peerMeanPathDelay.nanoseconds);
 	} else {
-		DBG("one-way delay averaged (E2E):  %10ds %11dns\n",
+		DBGV("one-way delay averaged (E2E):  %10ds %11dns\n",
 		    ptpClock->meanPathDelay.seconds, 
 		    ptpClock->meanPathDelay.nanoseconds);
 	}
 
-	DBG("offset from master:      %10ds %11dns\n",
+	DBGV("offset from master:      %10ds %11dns\n",
 	    ptpClock->offsetFromMaster.seconds, 
 	    ptpClock->offsetFromMaster.nanoseconds);
-	DBG("observed drift:          %10d\n", ptpClock->observed_drift);
+	DBGV("observed drift:          %10d\n", ptpClock->observed_drift);
 }
+

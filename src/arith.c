@@ -211,6 +211,8 @@ subTime(TimeInternal * r, TimeInternal * x, TimeInternal * y)
 /// @param r the time to convert
 /// @param divisor 
 ///
+
+/* TODO: this function could be simplified, as currently it is only called to halve the time */
 void
 divTime(TimeInternal *r, int divisor)
 {
@@ -223,7 +225,27 @@ divTime(TimeInternal *r, int divisor)
 	nanoseconds = ((uint64_t)r->seconds * 1000000000) + r->nanoseconds;
 	nanoseconds /= divisor;
 
-	r->seconds = nanoseconds / 1000000000;
-	r->nanoseconds = nanoseconds % 1000000000;
+	r->seconds = 0;
+	r->nanoseconds = nanoseconds;
+	normalizeTime(r);
+} 
 
+
+
+
+/* clear an internal time value */
+void clearTime(TimeInternal *time)
+{
+	time->seconds     = 0;
+	time->nanoseconds = 0;
 }
+
+
+int
+isTimeInternalNegative(const TimeInternal * p)
+{
+	return (p->seconds < 0) || (p->nanoseconds < 0);
+}
+
+
+

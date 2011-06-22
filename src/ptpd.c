@@ -45,6 +45,15 @@
 RunTimeOpts rtOpts;			/* statically allocated run-time
 					 * configuration data */
 
+/*
+ * Global variable with the main PTP port. This is used to show the current state in DBG()/message()
+ * without having to pass the pointer everytime.
+ *
+ * if ptpd is extended to handle multiple ports (eg, to instantiate a Boundary Clock),
+ * then DBG()/message() needs a per-port pointer argument
+ */
+PtpClock *G_ptpClock = NULL;
+
 int
 main(int argc, char **argv)
 {
@@ -62,11 +71,11 @@ main(int argc, char **argv)
 	rtOpts.domainNumber = DEFAULT_DOMAIN_NUMBER;
 	// rtOpts.slaveOnly = FALSE;
 	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
-	// rtOpts.ifaceName
-	rtOpts.noResetClock = DEFAULT_NO_RESET_CLOCK;
+	rtOpts.ifaceName[0] = '\0';
 	rtOpts.noAdjust = NO_ADJUST;  // false
 	// rtOpts.displayStats = FALSE;
 	// rtOpts.csvStats = FALSE;
+	/* Deep display of all packets seen by the daemon */
 	rtOpts.displayPackets = FALSE;
 	// rtOpts.unicastAddress
 	rtOpts.ap = DEFAULT_AP;
@@ -76,18 +85,43 @@ main(int argc, char **argv)
 	rtOpts.outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
 	rtOpts.max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
 	// rtOpts.ethernet_mode = FALSE;
-	// rtOpts.E2E_mode = FALSE;
 	// rtOpts.offset_first_updated = FALSE;
 	// rtOpts.file[0] = 0;
 	rtOpts.logFd = -1;
 	rtOpts.recordFP = NULL;
-	rtOpts.useSysLog = FALSE;
+	rtOpts.do_log_to_file = FALSE;
+	rtOpts.do_record_quality_file = FALSE;
+	rtOpts.nonDaemon = FALSE;
+
+	/*
+	 * defaults for new options
+	 */
+	rtOpts.slaveOnly = TRUE;
+	rtOpts.ignore_delayreq_master = FALSE;
+	rtOpts.do_IGMP_refresh = TRUE;
+	rtOpts.useSysLog       = TRUE;
+	rtOpts.syslog_startup_messages_also_to_stdout = TRUE;		/* used to print inital messages both to syslog and screen */
+	
 	rtOpts.ttl = 1;
+	rtOpts.E2E_mode         = FALSE;
+	rtOpts.noResetClock     = DEFAULT_NO_RESET_CLOCK;
+	rtOpts.log_seconds_between_message = 0;
+
+	rtOpts.initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
+
+
+	
+
 
 	/* Initialize run time options with command line arguments */
 	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts)))
 		return ret;
 
+	/* global variable for message(), please see comment on top of this file */
+	G_ptpClock = ptpClock;
+
+
+		
 	/* do the protocol engine */
 	protocol(&rtOpts, ptpClock);
 	/* forever loop.. */

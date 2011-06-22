@@ -38,6 +38,13 @@
 
 #include "../ptpd.h"
 
+/* choose kernel-level nanoseconds or microseconds resolution on the client-side */
+#ifndef SO_TIMESTAMPNS
+#error kernel-level nanoseconds timestamps not detected
+#endif
+
+
+
 /* shut down the UDP stuff */
 Boolean 
 netShutdown(NetPath * netPath)
@@ -300,6 +307,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			ptpClock->port_uuid_field, netPath)))
 		return FALSE;
 
+	/* save interface address for IGMP refresh */
+	netPath->interfaceAddr = interfaceAddr;
+	
 	DBG("Local IP address used : %s \n", inet_ntoa(interfaceAddr));
 
 	temp = 1;			/* allow address reuse */
@@ -432,13 +442,13 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		PERROR("failed to enable multi-cast loopback");
 		return FALSE;
 	}
+
 	/* make timestamps available through recvmsg() */
 	temp = 1;
+
 #if defined(linux) || defined(__APPLE__)
-	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMP, 
-		       &temp, sizeof(int)) < 0
-	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMP, 
-			  &temp, sizeof(int)) < 0) {
+	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &temp, sizeof(int)) < 0
+	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMPNS, &temp, sizeof(int)) < 0) {
 		PERROR("failed to enable receive time stamps");
 		return FALSE;
 	}
@@ -503,6 +513,8 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
  * 
  * @return 
  */
+
+/* this function should be merged with netRecvGeneral(), below */
 ssize_t 
 netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 {
@@ -517,8 +529,11 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 	}     cmsg_un;
 
 	struct cmsghdr *cmsg;
+
 #if defined(linux) || defined(__APPLE__)
-	struct timeval *tv;
+	struct timeval *tv;		// TODO: make an union
+	struct timespec *ts;
+	
 #else
 	struct timespec ts;
 #endif
@@ -565,16 +580,24 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 
 		return 0;
 	}
+
+// TODO: improve this
 #if defined(linux) || defined(__APPLE__)
 	tv = 0;
+	ts = 0;
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
 	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 		if (cmsg->cmsg_level == SOL_SOCKET && 
-		    cmsg->cmsg_type == SCM_TIMESTAMP)
-			tv = (struct timeval *)CMSG_DATA(cmsg);
+		    cmsg->cmsg_type == SCM_TIMESTAMPNS)
+			ts = (struct timespec *)CMSG_DATA(cmsg);
 	}
 
-	if (tv) {
+	if (ts) {
+		time->seconds = ts->tv_sec;
+		time->nanoseconds = ts->tv_nsec;
+		DBGV("kernel NANO recv time stamp %us %dns\n", 
+		     time->seconds, time->nanoseconds);
+	} else if (tv) {
 		time->seconds = tv->tv_sec;
 		time->nanoseconds = tv->tv_usec * 1000;
 		DBGV("kernel recv time stamp %us %dns\n", 
@@ -638,6 +661,7 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 	struct cmsghdr *cmsg;
 #if defined(linux) || defined(__APPLE__)
 	struct timeval *tv;
+	struct timespec *ts;
 #else
 	struct timespec ts;
 #endif 
@@ -685,14 +709,23 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 	}
 #if defined(linux) || defined(__APPLE__)
 	tv = 0;
+	ts = 0;
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
 	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+
 		if (cmsg->cmsg_level == SOL_SOCKET && 
-		    cmsg->cmsg_type == SCM_TIMESTAMP)
-			tv = (struct timeval *)CMSG_DATA(cmsg);
+		    cmsg->cmsg_type == SCM_TIMESTAMPNS)
+			ts = (struct timespec *)CMSG_DATA(cmsg);
+
 	}
 
-	if (tv) {
+
+	if (ts) {
+		time->seconds = ts->tv_sec;
+		time->nanoseconds = ts->tv_nsec;
+		DBGV("kernel NANO recv time stamp %us %dns\n", 
+		     time->seconds, time->nanoseconds);
+	} else if (tv) {
 		time->seconds = tv->tv_sec;
 		time->nanoseconds = tv->tv_usec * 1000;
 		DBGV("kernel recv time stamp %us %dns\n", 
@@ -857,4 +890,59 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 			DBG("error sending multi-cast event message\n");
 	}
 	return ret;
+}
+
+
+
+/*
+ * refresh IGMP on a timeout
+ */
+/*
+ * @return TRUE if successful
+ */
+Boolean
+netRefreshIGMP(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
+{
+	//int temp;
+	struct in_addr interfaceAddr, netAddr;
+	struct ip_mreq imr;
+	char addrStr[NET_ADDRESS_LENGTH];
+
+	DBG("netRefreshIGMP\n");
+
+	interfaceAddr = netPath->interfaceAddr;
+
+	/* Init General multicast IP address */
+	memcpy(addrStr, DEFAULT_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
+	if (!inet_aton(addrStr, &netAddr)) {
+		ERROR("failed to encode multi-cast address: %s\n", addrStr);
+		return FALSE;
+	}
+	netPath->multicastAddr = netAddr.s_addr;
+
+	/* multicast send only on specified interface */
+	imr.imr_multiaddr.s_addr = netAddr.s_addr;
+	imr.imr_interface.s_addr = interfaceAddr.s_addr;
+
+
+	/* cycle IGMP */
+	setsockopt(netPath->eventSock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+		   &imr, sizeof(struct ip_mreq));
+	setsockopt(netPath->generalSock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+		   &imr, sizeof(struct ip_mreq));
+
+	/* suspend process 100 milliseconds, to make sure the kernel sends the IGMP_leave properly */
+	usleep(100*1000);
+	
+	/* join multicast group (for receiving) on specified interface */
+	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+		       &imr, sizeof(struct ip_mreq)) < 0
+	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+			  &imr, sizeof(struct ip_mreq)) < 0) {
+		PERROR("failed to (re)-join the multi-cast group");
+		return FALSE;
+	}
+
+	INFO("refreshed IGMP multicast memberships\n");
+	return TRUE;
 }

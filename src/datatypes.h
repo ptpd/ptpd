@@ -324,7 +324,8 @@ typedef struct {
 	Integer16  max_foreign_records;
 	Integer16  foreign_record_i;
 	Integer16  foreign_record_best;
-	Boolean  record_update;
+	UInteger32 random_seed;
+	Boolean  record_update;    /* should we run bmc() after receiving an announce message? */
 
 
 	MsgHeader msgTmpHeader;
@@ -367,7 +368,6 @@ typedef struct {
 	TimeInternal  lastPdelayRespCorrectionField;
 
 
-	double  R;
 
 	Boolean  sentPDelayReq;
 	UInteger16  sentPDelayReqSequenceId;
@@ -390,6 +390,19 @@ typedef struct {
 	/*Usefull to init network stuff*/
 	UInteger8 port_communication_technology;
 	Octet port_uuid_field[PTP_UUID_LENGTH];
+
+	int reset_count;
+	int current_init_clock;
+	int can_step_clock;
+	int warned_operator_slow_slewing;
+	int warned_operator_fast_slewing;
+
+	char char_last_msg;  					/* representation of last message processed by servo */
+	int waiting_for_first_sync;				/* we'll only start the delayReq timer after the first sync */
+	int waiting_for_first_delayresp;		/* Just for information purposes */
+	Boolean startup_in_progress;
+	
+
 
 } PtpClock;
 
@@ -416,7 +429,7 @@ typedef struct {
 	Boolean	csvStats;
 	Boolean displayPackets;
 	Octet unicastAddress[MAXHOSTNAMELEN];
-	Integer16 ap, ai;
+	Integer32 ap, ai;
 	Integer16 s;
 	TimeInternal inboundLatency, outboundLatency;
 	Integer16 max_foreign_records;
@@ -429,6 +442,21 @@ typedef struct {
 	int ttl;
 	char recordFile[PATH_MAX];
 	FILE *recordFP;
+
+	int log_seconds_between_message;
+
+	Boolean ignore_daemon_lock;
+	Boolean do_IGMP_refresh;
+	int nonDaemon;
+	Boolean do_log_to_file;
+	Boolean do_record_quality_file;
+	
+	int initial_delayreq;
+	Boolean ignore_delayreq_master;
+	Boolean syslog_startup_messages_also_to_stdout;
+	
+
+	
 } RunTimeOpts;
 
 #endif /*DATATYPES_H_*/

@@ -37,13 +37,12 @@
  */
 
 #include "../ptpd.h"
+#include <netinet/ether.h>
 
 
-int 
-isTimeInternalNegative(const TimeInternal * p)
-{
-	return (p->seconds < 0) || (p->nanoseconds < 0);
-}
+/* only C99 has the round function built-in */
+double round (double __x);
+
 
 
 int 
@@ -51,14 +50,35 @@ snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
 {
 	int len = 0;
 
-	if (isTimeInternalNegative(p))
-		len += snprintf(&s[len], max_len - len, "-");
+	/* always print either a space, or the leading "-". This makes the stat files columns-aligned */
+	len += snprintf(&s[len], max_len - len, "%c",
+		isTimeInternalNegative(p)? '-':' ');
 
 	len += snprintf(&s[len], max_len - len, "%d.%09d",
 	    abs(p->seconds), abs(p->nanoseconds));
 
 	return len;
 }
+
+
+/* debug aid: convert a time variable into a static char */
+char *time2st(const TimeInternal * p)
+{
+	static char buf[1000];
+
+	snprint_TimeInternal(buf, 1000, p);
+	return buf;
+}
+
+
+
+void DBG_time(const char *name, const TimeInternal  p)
+{
+	DBG("             %s:   %s\n", name, time2st(&p));
+
+}
+
+
 
 
 int 
@@ -75,10 +95,70 @@ snprint_ClockIdentity(char *s, int max_len, const ClockIdentity id, const char *
 
 		if (++i >= CLOCK_IDENTITY_LENGTH)
 			break;
-
-		// uncomment the line below to print a separator after each byte except the last one
-		// len += snprintf(&s[len], max_len - len, "%s", "-");
 	}
+
+	return len;
+}
+
+
+/* show the mac address in an easy way */
+int
+snprint_ClockIdentity_mac(char *s, int max_len, const ClockIdentity id, const char *info)
+{
+	int len = 0;
+	int i;
+
+	if (info)
+		len += snprintf(&s[len], max_len - len, "%s", info);
+
+	for (i = 0; ;) {
+		/* skip bytes 3 and 4 */
+		if(!((i==3) || (i==4))){
+			len += snprintf(&s[len], max_len - len, "%02x", (unsigned char) id[i]);
+
+			if (++i >= CLOCK_IDENTITY_LENGTH)
+				break;
+
+			/* print a separator after each byte except the last one */
+			len += snprintf(&s[len], max_len - len, "%s", ":");
+		} else {
+
+			i++;
+		}
+	}
+
+	return len;
+}
+
+
+
+
+/* Show the hostname configured in /etc/ethers */
+int
+snprint_ClockIdentity_ntohost(char *s, int max_len, const ClockIdentity id, const char *info)
+{
+	int len = 0;
+	int i,j;
+	char  buf[100];
+	
+	struct ether_addr e;
+
+
+	/* extract mac address */
+	for (i = 0, j = 0; i< CLOCK_IDENTITY_LENGTH ; i++ ){
+		/* skip bytes 3 and 4 */
+		if(!((i==3) || (i==4))){
+			e.ether_addr_octet[j] = (uint8_t) id[i];
+			j++;
+	}
+
+	}
+
+	/* convert and print hostname */
+	if(ether_ntohost(buf, &e)){
+		sprintf(buf, "%s", "unknown");
+	}
+	len += snprintf(&s[len], max_len - len, "(%s)", buf);
 
 	return len;
 }
@@ -92,12 +172,24 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id, const char *i
 	if (info)
 		len += snprintf(&s[len], max_len - len, "%s", info);
 
+#ifdef PRINT_MAC_ADDRESSES
+	len += snprint_ClockIdentity_mac(&s[len], max_len - len, id->clockIdentity, NULL);
+#else	
 	len += snprint_ClockIdentity(&s[len], max_len - len, id->clockIdentity, NULL);
+#endif
+
+	len += snprint_ClockIdentity_ntohost(&s[len], max_len - len, id->clockIdentity, NULL);
+
 	len += snprintf(&s[len], max_len - len, "/%02x", (unsigned) id->portNumber);
 	return len;
 }
 
 
+/*
+ * Prints a message, randing from critical to debug.
+ * This either prints the message to syslog, or with timestamp+state to stderr (which has possibly been redirected to a file, using logtofile()/dup2()
+ * 
+ */
 void
 message(int priority, const char * format, ...)
 {
@@ -107,21 +199,58 @@ message(int priority, const char * format, ...)
 	if(rtOpts.useSysLog) {
 		static Boolean logOpened;
 		if(!logOpened) {
-			openlog("ptpd", 0, LOG_USER);
+			openlog("ptpd2", 0, LOG_DAEMON);
 			logOpened = TRUE;
 		}
 		vsyslog(priority, format, ap);
+
+		/* Also warn operator during startup only */
+		if(rtOpts.syslog_startup_messages_also_to_stdout &&
+			(priority <= LOG_WARNING)
+			){
+			
+			va_start(ap, format);
+			vfprintf(stderr, format, ap);
+		}
 	} else {
-		fprintf(stderr, "(ptpd %s) ",
-			priority == LOG_EMERG ? "emergency" :
-			priority == LOG_ALERT ? "alert" :
-			priority == LOG_CRIT ? "critical" :
-			priority == LOG_ERR ? "error" :
-			priority == LOG_WARNING ? "warning" :
-			priority == LOG_NOTICE ? "notice" :
-			priority == LOG_INFO ? "info" :
-			priority == LOG_DEBUG ? "debug" :
-			"???");
+			
+		fprintf(stderr, "   (ptpd %-9s ",
+			priority == LOG_EMERG   ? "emergency)" :
+			priority == LOG_ALERT   ? "alert)" :
+			priority == LOG_CRIT    ? "critical)" :
+			priority == LOG_ERR     ? "error)" :
+			priority == LOG_WARNING ? "warning)" :
+			priority == LOG_NOTICE  ? "notice)" :
+			priority == LOG_INFO    ? "info)" :
+			priority == LOG_DEBUG   ? "debug)" :
+			"unk)");
+		
+
+		/*
+		 * select debug tagged with timestamps. This will slow down PTP itself if you send a lot of messages!
+		 * it also can cause problems in nested debug statements (which are solved by turning the signal
+		 *  handling synchronous, and not calling this function inside assycnhonous signal processing)
+		 */
+
+		char time_str[MAXTIMESTR];
+		struct timeval now;
+		gettimeofday(&now, 0);
+		strftime(time_str, MAXTIMESTR, "%X", localtime(&now.tv_sec));
+		fprintf(stderr, "%s.%06d ", time_str, (int)now.tv_usec  );
+
+		{
+			char * translatePortState(PtpClock *ptpClock);
+
+			extern PtpClock* G_ptpClock;
+			extern RunTimeOpts rtOpts;
+		
+			fprintf(stderr, " (%s)  ", G_ptpClock ?
+		       translatePortState(G_ptpClock) : "___");
+
+		}
+
+
+			
 		vfprintf(stderr, format, ap);
 	}
 	va_end(ap);
@@ -134,7 +263,14 @@ translatePortState(PtpClock *ptpClock)
 	switch(ptpClock->portState) {
 	case PTP_INITIALIZING:  s = "init";  break;
 	case PTP_FAULTY:        s = "flt";   break;
-	case PTP_LISTENING:     s = "lstn";  break;
+	case PTP_LISTENING:
+		/* seperate init-reset from real resets */
+		if(ptpClock->reset_count == 1){
+			s = "lstn_init";
+		} else {
+			s = "lstn_reset";
+		}
+		break;
 	case PTP_PASSIVE:       s = "pass";  break;
 	case PTP_UNCALIBRATED:  s = "uncl";  break;
 	case PTP_SLAVE:         s = "slv";   break;
@@ -155,11 +291,17 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	struct timeval now;
 	char time_str[MAXTIMESTR];
 
+	if (!rtOpts->displayStats){
+		return;
+	}
+
+
+	
 	if (start && rtOpts->csvStats) {
 		start = 0;
-		printf("timestamp, state, clock ID, one way delay, "
-		       "offset from master, slave to master, "
-		       "master to slave, drift");
+		printf("# Timestamp, State Clock ID, One Way Delay, "
+		       "Offset From Master, Slave to Master, "
+		       "Master to Slave, Drift, Last packet Received\n");
 		fflush(stdout);
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
@@ -167,14 +309,27 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	gettimeofday(&now, 0);
 	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&now.tv_sec));
 
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s:%06d, %s",
-		       rtOpts->csvStats ? "\n" : "\rstate: ",
+
+	/* print one log entry per X seconds, to reduce disk usage. This only happens with normal slave statistics lines */
+	static struct timeval prev_now;
+
+	if((ptpClock->portState == PTP_SLAVE) && (rtOpts->log_seconds_between_message)){
+		if((now.tv_sec - prev_now.tv_sec) < rtOpts->log_seconds_between_message){
+			//leave early and do not print the log message to save disk space
+			return;
+		}
+	}
+	prev_now = now;
+	
+
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s.%06d, %s",
+		       rtOpts->csvStats ? "" : "state: ",
 		       time_str, (int)now.tv_usec,
 		       translatePortState(ptpClock));
 
 	if (ptpClock->portState == PTP_SLAVE) {
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-			 &ptpClock->parentPortIdentity, ", ");
+			 &ptpClock->parentPortIdentity, " ");
 
 		/* 
 		 * if grandmaster ID differs from parent port ID then
@@ -207,30 +362,74 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 		    &ptpClock->offsetFromMaster);
 
-		len += sprintf(sbuf + len,
-			       ", %s%d.%09d" ", %s%d.%09d",
-			       rtOpts->csvStats ? "" : "stm: ",
-			       ptpClock->delaySM.seconds,
-			       abs(ptpClock->delaySM.nanoseconds),
-			       rtOpts->csvStats ? "" : "mts: ",
-			       ptpClock->delayMS.seconds,
-			       abs(ptpClock->delayMS.nanoseconds));
+
+
+		/* print MS and SM with sign */
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
+		if (!rtOpts->csvStats)
+			len += snprintf(sbuf + len, sizeof(sbuf) - len,
+			"stm: ");
+			
+		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+				&(ptpClock->delaySM));
+
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
+
+
+		if (!rtOpts->csvStats)
+			len += snprintf(sbuf + len, sizeof(sbuf) - len,
+			"mts: ");
+
+		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+				&(ptpClock->delayMS));
+
 		
 		len += sprintf(sbuf + len, ", %s%d",
 		    rtOpts->csvStats ? "" : "drift: ", 
 			       ptpClock->observed_drift);
 
+		/* add new column with the type of last packet processed by the servo */
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
+
+		if (!rtOpts->csvStats)
+			len += snprintf(sbuf + len, sizeof(sbuf) - len,
+			"last_msg: ");
+
+		len += snprintf(sbuf + len, sizeof(sbuf) - len,
+				"%c ", ptpClock->char_last_msg);
+
+
+			
+		
 	}
 	else {
-		if (ptpClock->portState == PTP_MASTER) {
-			len += snprint_ClockIdentity(sbuf + len, 
+		if ((ptpClock->portState == PTP_MASTER) || (ptpClock->portState == PTP_PASSIVE)) {
+
+			len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
+				 &ptpClock->parentPortIdentity, " ");
+							 
+			//len += snprintf(sbuf + len, sizeof(sbuf) - len, ")");
+		}
+
+		
+		/* show the current reset number on the log */
+		if (ptpClock->portState == PTP_LISTENING) {
+			len += snprintf(sbuf + len,
 						     sizeof(sbuf) - len,
-						     ptpClock->clockIdentity, 
-						     " (ID:");
-			len += snprintf(sbuf + len, sizeof(sbuf) - len, ")");
+						     " %d ", ptpClock->reset_count);
 		}
 	}
+
+	
+	/* add final \n in normal status lines */
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
+	if(0 && rtOpts->nonDaemon){
+		/* in -C mode, adding an extra \n makes stats more clear intermixed with debug comments */
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
+	}
+	
 	write(1, sbuf, rtOpts->csvStats ? len : SCREEN_MAXSZ + 1);
+	
 }
 
 Boolean 
@@ -276,31 +475,57 @@ setTime(TimeInternal * time)
  
 	tv.tv_sec = time->seconds;
 	tv.tv_usec = time->nanoseconds / 1000;
+	WARNING("Going to step the system clock to %ds %dns\n",
+	       time->seconds, time->nanoseconds);
 	settimeofday(&tv, 0);
-	NOTIFY("resetting system clock to %ds %dns\n",
+	WARNING("Finished stepping the system clock to %ds %dns\n",
 	       time->seconds, time->nanoseconds);
 }
 
+
+/* returns a double beween 0.0 and 1.0 */
 double 
 getRand(void)
 {
 	return ((rand() * 1.0) / RAND_MAX);
 }
 
+
+
+
+
+/*
+ * TODO: this function should have been coded in a way to manipulate both the frequency and the tick, to avoid having to call
+ * setTime() when the clock is very far away.
+ * This would result in situations we would force the kernel clock to run the clock twice as slow, in order to avoid stepping time backwards
+ */
 #if !defined(__APPLE__)
 Boolean 
 adjFreq(Integer32 adj)
 {
 	struct timex t;
 
-	if (adj > ADJ_FREQ_MAX)
+	memset(&t, 0, sizeof(t));
+	if (adj > ADJ_FREQ_MAX){
 		adj = ADJ_FREQ_MAX;
-	else if (adj < -ADJ_FREQ_MAX)
+	} else if (adj < -ADJ_FREQ_MAX){
 		adj = -ADJ_FREQ_MAX;
+	}
 
 	t.modes = MOD_FREQUENCY;
 	t.freq = adj * ((1 << 16) / 1000);
 
+	/* do calculation in double precision, instead of Integer32 */
+	int t1 = t.freq;
+	int t2;
+	
+	float f = (adj + 0.0) * (((1 << 16) + 0.0) / 1000.0);  /* could be float f = adj * 65.536 */
+	t2 = t1;  // just to avoid compiler warning
+	t2 = (int)round(f);
+	t.freq = t2;
+
+	DBG2("        adj is %d;  t freq is %d       (float: %f Integer32: %d)\n", adj, t.freq,  f, t1);
+	
 	return !adjtimex(&t);
 }
 
@@ -321,3 +546,24 @@ adjTime(Integer32 nanoseconds)
 }
 
 #endif /* __APPLE__ */
+
+
+
+
+
+
+
+long
+get_current_tickrate(void)
+{
+	struct timex t;
+
+	t.modes = 0;
+	adjtimex(&t);
+	DBG2(" (Current tick rate is %d)\n", t.tick );
+
+	return (t.tick);
+}
+
+
+

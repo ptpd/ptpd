@@ -1,9 +1,34 @@
-# Makefile for ptpd
+# Makefile for ptpd2
+
+#
+# Compile time defines:
+#  -DPTPD_DBG     basic debug messages
+#  -DPTPD_DBG2    adds basic protocol messages, +ignored messages reasons
+#  -DPTPD_DBGV    adds all debug messages
+#
+#  -DPTPD_NO_DAEMON : forces option -c
+#  -DBSD_INTERFACE_FUNCTIONS: for OpenBSD
+#  -DDBG_SIGUSR2_CHANGE_DOMAIN: Allow SIGUSR2 to cycle the domain, useful for testing
+#
+#######
 
 RM = rm -f
-CFLAGS+= -Wall # -DBSD_INTERFACE_FUNCTIONS
-#CPPFLAGS =   -DPTPD_DBGV -DPTPD_NO_DAEMON
+
+CFLAGS = -Wall -g
+#CFLAGS += -DPTPD_DBG
+#CFLAGS += -DPTPD_DBG2
+#CFLAGS += -DPTPD_DBGV
+
+#CFLAGS += -DPTPD_NO_DAEMON
+#CFLAGS += -DBSD_INTERFACE_FUNCTIONS
+#CFLAGS += -DDBG_SIGUSR2_CHANGE_DOMAIN
+
+
+
+
+
 LDFLAGS+= -lm -lrt
+
 
 PROG = ptpd2
 SRCS = ptpd.c arith.c bmc.c protocol.c display.c\

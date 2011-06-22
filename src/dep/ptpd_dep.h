@@ -12,10 +12,34 @@
  /** \name System messages*/
  /**\{*/
 
+
+// Syslog ordering
+
+#define EMERGENCY(x, ...) message(LOG_EMERG, x, ##__VA_ARGS__)
+#define ALERT(x, ...)     message(LOG_ALERT, x, ##__VA_ARGS__)
+#define CRITICAL(x, ...)  message(LOG_CRIT, x, ##__VA_ARGS__)
 #define ERROR(x, ...)  message(LOG_ERR, x, ##__VA_ARGS__)
-#define PERROR(x, ...) message(LOG_ERR, x ": %m\n", ##__VA_ARGS__)
+#define PERROR(x, ...)    message(LOG_ERR, x "      (strerror: %m)\n", ##__VA_ARGS__)
+#define WARNING(x, ...)   message(LOG_WARNING, x, ##__VA_ARGS__)
 #define NOTIFY(x, ...) message(LOG_NOTICE, x, ##__VA_ARGS__)
+#define NOTICE(x, ...)    message(LOG_NOTICE, x, ##__VA_ARGS__)
 #define INFO(x, ...)   message(LOG_INFO, x, ##__VA_ARGS__)
+
+
+
+#include <assert.h>
+
+
+/*
+  list of per-module defines:
+
+./dep/sys.c:#define PRINT_MAC_ADDRESSES
+./dep/timer.c:#define US_TIMER_INTERVAL 125000
+*/
+
+
+
+
 
 /** \}*/
 
@@ -23,10 +47,28 @@
  /**\{*/
 
 #ifdef PTPD_DBGV
+#undef PTPD_DBG
+#undef PTPD_DBG2
 #define PTPD_DBG
+#define PTPD_DBG2
+
 #define DBGV(x, ...) message(LOG_DEBUG, x, ##__VA_ARGS__)
 #else
 #define DBGV(x, ...)
+#endif
+
+/*
+ * new debug level DBG2:
+ * this is above DBG(), but below DBGV() (to avoid changing hundreds of lines)
+ */
+
+
+#ifdef PTPD_DBG2
+#undef PTPD_DBG
+#define PTPD_DBG
+#define DBG2(x, ...) message(LOG_DEBUG, x, ##__VA_ARGS__)
+#else
+#define DBG2(x, ...)
 #endif
 
 #ifdef PTPD_DBG
@@ -130,6 +172,10 @@ ssize_t netSendEvent(Octet*,UInteger16,NetPath*);
 ssize_t netSendGeneral(Octet*,UInteger16,NetPath*);
 ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*);
 ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*);
+
+Boolean netRefreshIGMP(NetPath *, RunTimeOpts *, PtpClock *);
+
+
 /** \}*/
 
 /** \name servo.c
@@ -142,6 +188,9 @@ void updateDelay (one_way_delay_filter*, RunTimeOpts*, PtpClock*,TimeInternal*);
 void updateOffset(TimeInternal*,TimeInternal*,
   offset_from_master_filter*,RunTimeOpts*,PtpClock*,TimeInternal*);
 void updateClock(RunTimeOpts*,PtpClock*);
+
+void servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock);
+
 /** \}*/
 
 /** \name startup.c (Unix API dependent)
@@ -151,11 +200,21 @@ int logToFile(void);
 int recordToFile(void);
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
 void ptpdShutdown(void);
+
+void check_signals(RunTimeOpts * rtOpts, PtpClock * ptpClock);
+
+
 /** \}*/
 
 /** \name sys.c (Unix API dependent)
  * -Manage timing system API*/
  /**\{*/
+
+/* new debug methods to debug time variables */
+char *time2st(const TimeInternal * p);
+void DBG_time(const char *name, const TimeInternal  p);
+
+
 void message(int priority, const char *format, ...);
 void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock);
 Boolean nanoSleep(TimeInternal*);
@@ -163,6 +222,10 @@ void getTime(TimeInternal*);
 void setTime(TimeInternal*);
 double getRand(void);
 Boolean adjFreq(Integer32);
+
+long get_current_tickrate(void);
+
+
 #if defined(__APPLE__)
 void 	adjTime(Integer32);
 #endif /* __APPLE__ */
@@ -175,7 +238,14 @@ void 	adjTime(Integer32);
 void initTimer(void);
 void timerUpdate(IntervalTimer*);
 void timerStop(UInteger16,IntervalTimer*);
-void timerStart(UInteger16,UInteger16,IntervalTimer*);
+//void timerStart(UInteger16,UInteger16,IntervalTimer*);
+
+/* R135 patch: we went back to floating point periods (for less than 1s )*/
+void timerStart(UInteger16 index, float interval, IntervalTimer * itimer);
+
+/* Version with randomized backoff */
+void timerStart_Uniform(UInteger16 index, float interval, IntervalTimer * itimer);
+
 Boolean timerExpired(UInteger16,IntervalTimer*);
 /** \}*/
 

@@ -301,7 +301,6 @@ displayRunTimeOpts(RunTimeOpts * rtOpts)
 	DBGV("slaveOnly : %d \n", rtOpts->slaveOnly);
 	DBGV("currentUtcOffset : %d \n", rtOpts->currentUtcOffset);
 	unicast_display(rtOpts->unicastAddress);
-	DBGV("noResetClock : %d \n", rtOpts->noResetClock);
 	DBGV("noAdjust : %d \n", rtOpts->noAdjust);
 	DBGV("displayStats : %d \n", rtOpts->displayStats);
 	DBGV("csvStats : %d \n", rtOpts->csvStats);
@@ -490,7 +489,7 @@ displayOthers(PtpClock * ptpClock)
 	DBGV("sync_receive_time : \n");
 	timeInternal_display(&ptpClock->sync_receive_time);
 	DBGV("\n");
-	DBGV("R : %f \n", ptpClock->R);
+	//DBGV("R : %f \n", ptpClock->R);
 	DBGV("sentPdelayReq : %d \n", ptpClock->sentPDelayReq);
 	DBGV("sentPDelayReqSequenceId : %d \n", ptpClock->sentPDelayReqSequenceId);
 	DBGV("waitingForFollow : %d \n", ptpClock->waitingForFollow);

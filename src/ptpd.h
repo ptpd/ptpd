@@ -50,6 +50,10 @@
 #include "datatypes.h"
 #include "dep/ptpd_dep.h"
 
+#define min(a,b)     (((a)<(b))?(a):(b))
+#define max(a,b)     (((a)>(b))?(a):(b))
+
+
 /** \name arith.c
  * -Timing management and arithmetic*/
  /**\{*/
@@ -106,12 +110,15 @@ UInteger8 bmc(ForeignMasterRecord*,RunTimeOpts*,PtpClock*);
 /**
  * \brief When recommended state is Master, copy local data into parent and grandmaster dataset
  */
-void m1(PtpClock*);
+void m1(RunTimeOpts *, PtpClock*);
 
 /**
  * \brief When recommended state is Slave, copy dataset of master into parent and grandmaster dataset
  */
-void s1(MsgHeader*,MsgAnnounce*,PtpClock*);
+void s1(MsgHeader*,MsgAnnounce*,PtpClock*, RunTimeOpts *);
+
+
+void p1(PtpClock *ptpClock, RunTimeOpts *rtOpts);
 
 /**
  * \brief Initialize datas
@@ -167,5 +174,7 @@ void msgUnpackDelayResp(void *,MsgDelayResp *);
 void msgPackDelayReq(void *,Timestamp *,PtpClock *);
 void msgPackDelayResp(void *,MsgHeader *,Timestamp *,PtpClock *);
 
+void clearTime(TimeInternal *time);
+int isTimeInternalNegative(const TimeInternal * p);
 
 #endif /*PTPD_H_*/

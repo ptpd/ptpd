@@ -78,6 +78,7 @@ msgPackHeader(void *buf, PtpClock * ptpClock)
 	*(UInteger4 *) (buf + 1) = ptpClock->versionNumber;
 	*(UInteger8 *) (buf + 4) = ptpClock->domainNumber;
 
+	/* TODO: this bit should have been active only for sync and PdelayResp */
 	if (ptpClock->twoStepFlag)
 		*(UInteger8 *) (buf + 6) = TWO_STEP_FLAG;
 
@@ -95,6 +96,8 @@ msgPackHeader(void *buf, PtpClock * ptpClock)
 void 
 msgPackSync(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
+	msgPackHeader(buf, ptpClock);
+	
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -135,6 +138,9 @@ msgUnpackSync(void *buf, MsgSync * sync)
 void 
 msgPackAnnounce(void *buf, PtpClock * ptpClock)
 {
+	msgPackHeader(buf, ptpClock);
+
+	
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -193,6 +199,8 @@ msgUnpackAnnounce(void *buf, MsgAnnounce * announce)
 void 
 msgPackFollowUp(void *buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock)
 {
+	msgPackHeader(buf, ptpClock);
+	
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -236,6 +244,9 @@ msgUnpackFollowUp(void *buf, MsgFollowUp * follow)
 void 
 msgPackPDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
+	msgPackHeader(buf, ptpClock);
+
+	
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -262,6 +273,8 @@ msgPackPDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 void 
 msgPackDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
+	msgPackHeader(buf, ptpClock);
+	
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -285,6 +298,8 @@ msgPackDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 void 
 msgPackDelayResp(void *buf, MsgHeader * header, Timestamp * receiveTimestamp, PtpClock * ptpClock)
 {
+	msgPackHeader(buf, ptpClock);
+	
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -324,6 +339,8 @@ msgPackDelayResp(void *buf, MsgHeader * header, Timestamp * receiveTimestamp, Pt
 void 
 msgPackPDelayResp(void *buf, MsgHeader * header, Timestamp * requestReceiptTimestamp, PtpClock * ptpClock)
 {
+	msgPackHeader(buf, ptpClock);
+	
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -432,6 +449,8 @@ msgUnpackPDelayResp(void *buf, MsgPDelayResp * presp)
 void 
 msgPackPDelayRespFollowUp(void *buf, MsgHeader * header, Timestamp * responseOriginTimestamp, PtpClock * ptpClock)
 {
+	msgPackHeader(buf, ptpClock);
+	
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */

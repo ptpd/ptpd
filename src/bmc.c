@@ -90,7 +90,8 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	       CLOCK_IDENTITY_LENGTH);
 	ptpClock->portIdentity.portNumber = NUMBER_PORTS;
 
-	ptpClock->logMinDelayReqInterval = DEFAULT_DELAYREQ_INTERVAL;
+	/* select the initial rate of delayreqs until we receive the first announce message */
+	ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
 
 	ptpClock->peerMeanPathDelay.seconds = 0;
 	ptpClock->peerMeanPathDelay.nanoseconds = 0;
@@ -103,11 +104,10 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->versionNumber = VERSION_PTP;
 
  	/*
-	 * Initialize seed for random number used with Announce Timeout
-	 * (spec 9.2.6.11)
+	 *  Initialize random number generator using same method as ptpv1:
+	 *  seed is now initialized from the last bytes of our mac addres (collected in net.c:findIface())
 	 */
-	srand(time(NULL));
-	ptpClock->R = getRand();
+	srand((ptpClock->port_uuid_field[PTP_UUID_LENGTH - 1] << 8) + ptpClock->port_uuid_field[PTP_UUID_LENGTH - 2]);
 
 	/*Init other stuff*/
 	ptpClock->number_foreign_records = 0;
@@ -116,7 +116,7 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 
 /*Local clock is becoming Master. Table 13 (9.3.5) of the spec.*/
-void m1(PtpClock *ptpClock)
+void m1(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	/*Current data set update*/
 	ptpClock->stepsRemoved = 0;
@@ -145,11 +145,28 @@ void m1(PtpClock *ptpClock)
 
 	/*Time Properties data set*/
 	ptpClock->timeSource = INTERNAL_OSCILLATOR;
+
+	/* UTC vs TAI timescales */
+	ptpClock->currentUtcOffsetValid = DEFAULT_UTC_VALID;
+	ptpClock->currentUtcOffset = rtOpts->currentUtcOffset;
+	
+}
+
+
+/* first cut on a passive mode specific BMC actions */
+void p1(PtpClock *ptpClock, RunTimeOpts *rtOpts)
+{
+	/* make sure we revert to ARB timescale in Passive mode*/
+	if(ptpClock->portState == PTP_PASSIVE){
+		ptpClock->currentUtcOffsetValid = DEFAULT_UTC_VALID;
+		ptpClock->currentUtcOffset = rtOpts->currentUtcOffset;
+	}
+	
 }
 
 
 /*Local clock is synchronized to Ebest Table 16 (9.3.5) of the spec*/
-void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock)
+void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts *rtOpts)
 {
 	/* Current DS */
 	ptpClock->stepsRemoved = announce->stepsRemoved + 1;
@@ -175,6 +192,9 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock)
         /* "Valid" is bit 2 in second octet of flagfield */
 	ptpClock->currentUtcOffsetValid = ((header->flagField[1] & 0x04) == 
 					   0x04); 
+
+	/* set PTP_PASSIVE-specific state */
+	p1(ptpClock, rtOpts);
 
 	ptpClock->leap59 = ((header->flagField[1] & 0x02) == 0x02);
 	ptpClock->leap61 = ((header->flagField[1] & 0x01) == 0x01);
@@ -326,7 +346,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 		 RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	if (rtOpts->slaveOnly)	{
-		s1(header,announce,ptpClock);
+		s1(header,announce,ptpClock, rtOpts);
 		return PTP_SLAVE;
 	}
 
@@ -336,16 +356,17 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 
 	copyD0(&ptpClock->msgTmpHeader,&ptpClock->msgTmp.announce,ptpClock);
 
+	DBGV("local clockQuality.clockClass: %d \n", ptpClock->clockQuality.clockClass);
 	if (ptpClock->clockQuality.clockClass < 128) {
 		if ((bmcDataSetComparison(&ptpClock->msgTmpHeader,
 					  &ptpClock->msgTmp.announce,
 					  header,announce,ptpClock)<0)) {
-			m1(ptpClock);
+			m1(rtOpts, ptpClock);
 			return PTP_MASTER;
 		} else if ((bmcDataSetComparison(&ptpClock->msgTmpHeader,
 						 &ptpClock->msgTmp.announce,
 						 header,announce,ptpClock)>0)) {
-			s1(header,announce,ptpClock);
+			s1(header,announce,ptpClock, rtOpts);
 			return PTP_PASSIVE;
 		} else {
 			DBG("Error in bmcDataSetComparison..\n");
@@ -354,12 +375,12 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 		if ((bmcDataSetComparison(&ptpClock->msgTmpHeader,
 					  &ptpClock->msgTmp.announce,
 					  header,announce,ptpClock))<0) {
-			m1(ptpClock);
+			m1(rtOpts,ptpClock);
 			return PTP_MASTER;
 		} else if ((bmcDataSetComparison(&ptpClock->msgTmpHeader,
 						 &ptpClock->msgTmp.announce,
 						 header,announce,ptpClock)>0)) {
-			s1(header,announce,ptpClock);
+			s1(header,announce,ptpClock, rtOpts);
 			return PTP_SLAVE;
 		} else {
 			DBG("Error in bmcDataSetComparison..\n");
@@ -379,9 +400,10 @@ bmc(ForeignMasterRecord *foreignMaster,
 {
 	Integer16 i,best;
 
+	DBGV("number_foreign_records : %d \n", ptpClock->number_foreign_records);
 	if (!ptpClock->number_foreign_records)
 		if (ptpClock->portState == PTP_MASTER)	{
-			m1(ptpClock);
+			m1(rtOpts,ptpClock);
 			return ptpClock->portState;
 		}
 
@@ -402,3 +424,24 @@ bmc(ForeignMasterRecord *foreignMaster,
 }
 
 
+
+/*
+
+13.3.2.6, page 126
+
+PTPv2 valid flags per packet type:
+
+ALL:
+   .... .0.. .... .... = PTP_UNICAST
+SYNC+Pdelay Resp:
+   .... ..0. .... .... = PTP_TWO_STEP
+
+Announce only:
+   .... .... ..0. .... = FREQUENCY_TRACEABLE
+   .... .... ...0 .... = TIME_TRACEABLE
+   .... .... .... 0... = PTP_TIMESCALE
+   .... .... .... .0.. = PTP_UTC_REASONABLE
+   .... .... .... ..0. = PTP_LI_59
+   .... .... .... ...0 = PTP_LI_61
+
+*/

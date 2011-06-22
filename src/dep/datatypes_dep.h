@@ -62,6 +62,9 @@ typedef struct {
  */
 typedef struct {
   Integer32 eventSock, generalSock, multicastAddr, peerMulticastAddr,unicastAddr;
+
+  /* used by IGMP refresh */
+  struct in_addr interfaceAddr;
 } NetPath;
 
 #endif /*DATATYPES_DEP_H_*/
