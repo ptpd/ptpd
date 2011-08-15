@@ -42,7 +42,7 @@
 volatile unsigned int elapsed;
 
 /*
- * original code calls sigalarm every fixed 1ms. This highly pollutes the log and causes more interrupted instructions
+ * original code calls sigalarm every fixed 1ms. This highly pollutes the debug_log, and causes more interrupted instructions
  * This was later modified to have a fixed granularity of 1s.
  *
  * Currently this has a configured granularity, and timerStart() guarantees that clocks expire ASAP when the granularity is too small.
@@ -53,7 +53,7 @@ void
 catch_alarm(int sig)
 {
 	elapsed++;
-	/* be sure to NOT call DBG in asynchronous handlers! */ 
+	/* be sure to NOT call DBG in asynchronous handlers! */
 }
 
 void 
@@ -143,15 +143,19 @@ timerStart(UInteger16 index, float interval, IntervalTimer * itimer)
 			operator_warned_interval_too_small = 1;
 			/*
 			 * using random uniform timers it is pratically guarantted that we hit the possible minimum timer.
-			 * This is because of the current timer model based on periodic sigalarm, irrespective if the next event is close or far away in time.
-			 * A solution is to recode this whole module, keeping the same API, with a calendar queue:
-			 * eg: http://www.isi.edu/nsnam/ns/doc/node35.html
+			 * This is because of the current timer model based on periodic sigalarm, irrespective if the next
+			 * event is close or far away in time.
 			 *
+			 * A solution would be to recode this whole module with a calendar queue, while keeping the same API:
+			 * E.g.: http://www.isi.edu/nsnam/ns/doc/node35.html
 			 *
-			WARNING("Timer would be issued immediatly. Please raise dep/timer.c:US_TIMER_INTERVAL to hold %.2fs\n",
+			 * Having events that expire immediatly (ie, delayreq invocations using random timers) can lead to
+			 * messages appearing in unexpected ordering, so the protocol implementation must check more conditions
+			 * and not assume a certain ususal ordering
+			 */
+			DBG("Timer would be issued immediatly. Please raise dep/timer.c:US_TIMER_INTERVAL to hold %.2fs\n",
 				interval
 			);
-			*/
 			
 		}
 	}
@@ -171,12 +175,12 @@ timerStart(UInteger16 index, float interval, IntervalTimer * itimer)
  *    R is the number of Syncs to be received, before sending a new request
  * 
  */ 
-void timerStart_Uniform(UInteger16 index, float interval, IntervalTimer * itimer)
+void timerStart_random(UInteger16 index, float interval, IntervalTimer * itimer)
 {
 	float new_value;
 
 	new_value = getRand() * interval * 2.0;
-	DBG2(" timerStart_Uniform: requested %.2f, got %.2f\n", interval, new_value);
+	DBG2(" timerStart_random: requested %.2f, got %.2f\n", interval, new_value);
 	
 	timerStart(index, new_value, itimer);
 }

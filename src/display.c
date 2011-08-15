@@ -468,11 +468,14 @@ displayOthers(PtpClock * ptpClock)
 #endif
 	DBGV("---Ptp Others Data Set-- \n");
 	DBGV("\n");
-	DBGV("master_to_slave_delay : \n");
+
+	/*DBGV("master_to_slave_delay : \n");
 	timeInternal_display(&ptpClock->master_to_slave_delay);
 	DBGV("\n");
 	DBGV("slave_to_master_delay : \n");
 	timeInternal_display(&ptpClock->slave_to_master_delay);
+	*/
+	
 	DBGV("\n");
 	DBGV("delay_req_receive_time : \n");
 	timeInternal_display(&ptpClock->pdelay_req_receive_time);

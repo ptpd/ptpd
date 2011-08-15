@@ -11,7 +11,7 @@
 * \brief Main structures used in ptpdv2
 *
 * This header file defines structures defined by the spec,
-main program data structure, and all messages structures
+* main program data structure, and all messages structures
  */
 
 
@@ -96,17 +96,17 @@ typedef struct {
  */
 /* Message header */
 typedef struct {
- 	Nibble transportSpecific;
- 	Enumeration4 messageType;
- 	UInteger4 versionPTP;
- 	UInteger16 messageLength;
- 	UInteger8 domainNumber;
- 	Octet flagField[2];
- 	Integer64 correctionfield;
+	Nibble transportSpecific;
+	Enumeration4 messageType;
+	UInteger4 versionPTP;
+	UInteger16 messageLength;
+	UInteger8 domainNumber;
+	Octet flagField[2];
+	Integer64 correctionfield;
 	PortIdentity sourcePortIdentity;
- 	UInteger16 sequenceId;
- 	UInteger8 controlField;
- 	Integer8 logMessageInterval;
+	UInteger16 sequenceId;
+	UInteger8 controlField;
+	Integer8 logMessageInterval;
 } MsgHeader;
 
 
@@ -165,7 +165,6 @@ typedef struct {
 /*PdelayReq Message*/
 typedef struct {
 	Timestamp originTimestamp;
-
 }MsgPDelayReq;
 
 /**
@@ -213,17 +212,17 @@ typedef struct {
 * \brief Time structure to handle Linux time information
  */
 typedef struct {
-  Integer32 seconds;
-  Integer32 nanoseconds;
+	Integer32 seconds;
+	Integer32 nanoseconds;
 } TimeInternal;
 
 /**
 * \brief Structure used as a timer
  */
 typedef struct {
-  Integer32  interval;
-  Integer32  left;
-  Boolean expire;
+	Integer32 interval;
+	Integer32 left;
+	Boolean expire;
 } IntervalTimer;
 
 
@@ -232,13 +231,12 @@ typedef struct {
  */
 typedef struct
 {
-  PortIdentity foreignMasterPortIdentity;
-  UInteger16 foreignMasterAnnounceMessages;
+	PortIdentity foreignMasterPortIdentity;
+	UInteger16 foreignMasterAnnounceMessages;
 
-  //This one is not in the spec
-  MsgAnnounce  announce;
-  MsgHeader    header;
-
+	//This one is not in the spec
+	MsgAnnounce  announce;
+	MsgHeader    header;
 } ForeignMasterRecord;
 
 
@@ -347,8 +345,13 @@ typedef struct {
 	Octet msgObuf[PACKET_SIZE];
 	Octet msgIbuf[PACKET_SIZE];
 
+/*
+	20110630: These variables were deprecated in favor of the ones that appear in the stats log (delayMS and delaySM)
+	
 	TimeInternal  master_to_slave_delay;
 	TimeInternal  slave_to_master_delay;
+
+	*/
 	Integer32 	observed_drift;
 
 	TimeInternal  pdelay_req_receive_time;
@@ -377,6 +380,8 @@ typedef struct {
 	UInteger16  recvPDelayReqSequenceId;
 	UInteger16  recvSyncSequenceId;
 	Boolean  waitingForFollow;
+	Boolean  waitingForDelayResp;
+	
 
 	offset_from_master_filter  ofm_filt;
 	one_way_delay_filter  owd_filt;
@@ -397,12 +402,17 @@ typedef struct {
 	int warned_operator_slow_slewing;
 	int warned_operator_fast_slewing;
 
-	char char_last_msg;  					/* representation of last message processed by servo */
-	int waiting_for_first_sync;				/* we'll only start the delayReq timer after the first sync */
-	int waiting_for_first_delayresp;		/* Just for information purposes */
+	char char_last_msg;                             /* representation of last message processed by servo */
+	Boolean last_packet_was_sync;                   /* used to limit logging of Sync messages */
+	
+	int waiting_for_first_sync;                     /* we'll only start the delayReq timer after the first sync */
+	int waiting_for_first_delayresp;                /* Just for information purposes */
 	Boolean startup_in_progress;
 	
-
+#ifdef PTP_EXPERIMENTAL
+	Integer32 MasterAddr;                           // used for hybrid mode, when receiving announces
+	Integer32 LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
+#endif
 
 } PtpClock;
 
@@ -413,11 +423,17 @@ typedef struct {
 /* program options set at run-time */
 typedef struct {
 	Integer8 announceInterval;
+	Integer8 announceReceiptTimeout;
+	
 	Integer8 syncInterval;
 	ClockQuality clockQuality;
 	UInteger8 priority1;
 	UInteger8 priority2;
 	UInteger8 domainNumber;
+#ifdef PTP_EXPERIMENTAL
+	UInteger8 mcast_group_Number;
+#endif
+
 	Boolean	slaveOnly;
 	Integer16 currentUtcOffset;
 	Octet ifaceName[IFACE_NAME_LENGTH];
@@ -452,11 +468,19 @@ typedef struct {
 	Boolean do_record_quality_file;
 	
 	int initial_delayreq;
+	int subsequent_delayreq;
 	Boolean ignore_delayreq_master;
 	Boolean syslog_startup_messages_also_to_stdout;
 	
+#ifdef PTP_EXPERIMENTAL
+	int do_hybrid_mode;
+#endif
+	int do_unicast_mode;
 
-	
+#ifdef RUNTIME_DEBUG
+	int debug_level;
+#endif
+
 } RunTimeOpts;
 
 #endif /*DATATYPES_H_*/

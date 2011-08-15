@@ -2,19 +2,33 @@
 
 #
 # Compile time defines:
+#   -DRUNTIME_DEBUG
+#     if defined:    all debug messages are included, and are either selected at startup (-B) and runtime (SIGUSR2) (implies -DPTPD_DBGV)
+#                    using syslog, add "*.debug /var/log/debug" to /etc/rsyslog.conf to see debug messages
+#     if undefined:  individual defines select which messages will be included and presented (old behaviour)
+#
 #  -DPTPD_DBG     basic debug messages
 #  -DPTPD_DBG2    adds basic protocol messages, +ignored messages reasons
 #  -DPTPD_DBGV    adds all debug messages
 #
-#  -DPTPD_NO_DAEMON : forces option -c
-#  -DBSD_INTERFACE_FUNCTIONS: for OpenBSD
-#  -DDBG_SIGUSR2_CHANGE_DOMAIN: Allow SIGUSR2 to cycle the domain, useful for testing
+#   -DPTPD_NO_DAEMON             forces option -c
+#   -DBSD_INTERFACE_FUNCTIONS    for OpenBSD
+#
+#   -PTP_EXPERIMENTAL            Allows non-standard compliant experimental options:
+#                                   -U: Hybrid mode
+#                                   -I: choose multicast group
+#
+# Mutually exclusive defines (useful for testing):
+#   -DDBG_SIGUSR2_CHANGE_DOMAIN: SIGUSR2 cycles the PTP domain number
+#   -DDBG_SIGUSR2_CHANGE_DEBUG:  SIGUSR2 cycles the current debug level (if RUNTIME_DEBUG is defined)
 #
 #######
 
 RM = rm -f
 
 CFLAGS = -Wall -g
+
+CFLAGS += -DRUNTIME_DEBUG
 #CFLAGS += -DPTPD_DBG
 #CFLAGS += -DPTPD_DBG2
 #CFLAGS += -DPTPD_DBGV
@@ -22,6 +36,11 @@ CFLAGS = -Wall -g
 #CFLAGS += -DPTPD_NO_DAEMON
 #CFLAGS += -DBSD_INTERFACE_FUNCTIONS
 #CFLAGS += -DDBG_SIGUSR2_CHANGE_DOMAIN
+CFLAGS += -DDBG_SIGUSR2_CHANGE_DEBUG
+
+CFLAGS += -DPTP_EXPERIMENTAL
+
+
 
 
 

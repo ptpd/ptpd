@@ -69,9 +69,16 @@ main(int argc, char **argv)
 	rtOpts.priority1 = DEFAULT_PRIORITY1;
 	rtOpts.priority2 = DEFAULT_PRIORITY2;
 	rtOpts.domainNumber = DEFAULT_DOMAIN_NUMBER;
+#ifdef PTP_EXPERIMENTAL
+	rtOpts.mcast_group_Number = 0;
+	rtOpts.do_hybrid_mode = 0;
+#endif
+	
 	// rtOpts.slaveOnly = FALSE;
 	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
 	rtOpts.ifaceName[0] = '\0';
+	rtOpts.do_unicast_mode = 0;
+
 	rtOpts.noAdjust = NO_ADJUST;  // false
 	// rtOpts.displayStats = FALSE;
 	// rtOpts.csvStats = FALSE;
@@ -101,17 +108,18 @@ main(int argc, char **argv)
 	rtOpts.do_IGMP_refresh = TRUE;
 	rtOpts.useSysLog       = TRUE;
 	rtOpts.syslog_startup_messages_also_to_stdout = TRUE;		/* used to print inital messages both to syslog and screen */
-	
+	rtOpts.announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
+#ifdef RUNTIME_DEBUG
+	rtOpts.debug_level = LOG_INFO;			/* by default debug messages as disabled, but INFO messages and below are printed */
+#endif
+
 	rtOpts.ttl = 1;
 	rtOpts.E2E_mode         = FALSE;
 	rtOpts.noResetClock     = DEFAULT_NO_RESET_CLOCK;
 	rtOpts.log_seconds_between_message = 0;
 
 	rtOpts.initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
-
-
-	
-
+	rtOpts.subsequent_delayreq = DEFAULT_DELAYREQ_INTERVAL;      // this will be updated if -g is given
 
 	/* Initialize run time options with command line arguments */
 	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts)))
@@ -120,13 +128,11 @@ main(int argc, char **argv)
 	/* global variable for message(), please see comment on top of this file */
 	G_ptpClock = ptpClock;
 
-
-		
 	/* do the protocol engine */
 	protocol(&rtOpts, ptpClock);
 	/* forever loop.. */
 
-	    ptpdShutdown();
+	ptpdShutdown();
 
 	NOTIFY("self shutdown, probably due to an error\n");
 

@@ -97,7 +97,7 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->peerMeanPathDelay.nanoseconds = 0;
 
 	ptpClock->logAnnounceInterval = rtOpts->announceInterval;
-	ptpClock->announceReceiptTimeout = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
+	ptpClock->announceReceiptTimeout = rtOpts->announceReceiptTimeout;
 	ptpClock->logSyncInterval = rtOpts->syncInterval;
 	ptpClock->delayMechanism = DEFAULT_DELAY_MECHANISM;
 	ptpClock->logMinPdelayReqInterval = DEFAULT_PDELAYREQ_INTERVAL;

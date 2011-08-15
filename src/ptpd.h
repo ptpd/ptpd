@@ -31,6 +31,7 @@
 #include <limits.h>
 #include <netdb.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #ifndef __APPLE__
 #include <sys/timex.h>
 #endif
@@ -73,6 +74,12 @@ void fromInternalTime(TimeInternal*,Timestamp*);
  */
 void toInternalTime(TimeInternal*,Timestamp*);
 
+void ts_to_InternalTime(struct timespec *, TimeInternal *);
+void tv_to_InternalTime(struct timeval  *, TimeInternal *);
+
+
+
+
 /**
  * \brief Use to normalize a TimeInternal structure
  *
@@ -84,12 +91,12 @@ void normalizeTime(TimeInternal*);
 /**
  * \brief Add two InternalTime structure and normalize
  */
-void addTime(TimeInternal*,TimeInternal*,TimeInternal*);
+void addTime(TimeInternal*,const TimeInternal*,const TimeInternal*);
 
 /**
  * \brief Substract two InternalTime structure and normalize
  */
-void subTime(TimeInternal*,TimeInternal*,TimeInternal*);
+void subTime(TimeInternal*,const TimeInternal*,const TimeInternal*);
 /** \}*/
 
 /**
@@ -176,5 +183,27 @@ void msgPackDelayResp(void *,MsgHeader *,Timestamp *,PtpClock *);
 
 void clearTime(TimeInternal *time);
 int isTimeInternalNegative(const TimeInternal * p);
+
+char *dump_TimeInternal(const TimeInternal * p);
+char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *st2, const TimeInternal * p2);
+
+
+
+int snprint_TimeInternal(char *s, int max_len, const TimeInternal * p);
+
+
+void nano_2_Time(TimeInternal *time, int nano);
+int gtTime(TimeInternal *x, TimeInternal *b);
+void absTime(TimeInternal *time);
+int is_Time_close(TimeInternal *x, TimeInternal *b, int nanos);
+int isTimeInternalNegative(const TimeInternal * p);
+
+
+
+int check_timestamp_is_fresh2(TimeInternal * timeA, TimeInternal * timeB);
+int check_timestamp_is_fresh(TimeInternal * timeA);
+
+void toState(UInteger8,RunTimeOpts*,PtpClock*);
+
 
 #endif /*PTPD_H_*/

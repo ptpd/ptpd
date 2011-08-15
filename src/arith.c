@@ -174,6 +174,23 @@ toInternalTime(TimeInternal * internal, Timestamp * external)
 }
 
 void 
+ts_to_InternalTime(struct timespec *a,  TimeInternal * b)
+{
+
+	b->seconds = a->tv_sec;
+	b->nanoseconds = a->tv_nsec;
+}
+
+void 
+tv_to_InternalTime(struct timeval *a,  TimeInternal * b)
+{
+
+	b->seconds = a->tv_sec;
+	b->nanoseconds = a->tv_usec * 1000;
+}
+
+
+void 
 normalizeTime(TimeInternal * r)
 {
 	r->seconds += r->nanoseconds / 1000000000;
@@ -189,7 +206,7 @@ normalizeTime(TimeInternal * r)
 }
 
 void 
-addTime(TimeInternal * r, TimeInternal * x, TimeInternal * y)
+addTime(TimeInternal * r, const TimeInternal * x, const TimeInternal * y)
 {
 	r->seconds = x->seconds + y->seconds;
 	r->nanoseconds = x->nanoseconds + y->nanoseconds;
@@ -198,7 +215,7 @@ addTime(TimeInternal * r, TimeInternal * x, TimeInternal * y)
 }
 
 void 
-subTime(TimeInternal * r, TimeInternal * x, TimeInternal * y)
+subTime(TimeInternal * r, const TimeInternal * x, const TimeInternal * y)
 {
 	r->seconds = x->seconds - y->seconds;
 	r->nanoseconds = x->nanoseconds - y->nanoseconds;
@@ -238,6 +255,66 @@ void clearTime(TimeInternal *time)
 {
 	time->seconds     = 0;
 	time->nanoseconds = 0;
+}
+
+
+/* sets a time value to a certain nanoseconds */
+void nano_2_Time(TimeInternal *time, int nano)
+{
+	time->seconds     = 0;
+	time->nanoseconds = nano;
+}
+
+/* greater than operation */
+int gtTime(TimeInternal *x, TimeInternal *y)
+{
+	TimeInternal r;
+
+	subTime(&r, x, y);
+	return !isTimeInternalNegative(&r);
+}
+
+/* remove sign from variable */
+void absTime(TimeInternal *time)
+{
+	time->seconds       = abs(time->seconds);
+	time->nanoseconds   = abs(time->nanoseconds);
+}
+
+
+/* if 2 time values are close enough for X nanoseconds */
+int is_Time_close(TimeInternal *x, TimeInternal *y, int nanos)
+{
+	TimeInternal r1;
+	TimeInternal r2;
+
+	// first, subtract the 2 values. then call abs(), then call gtTime for requested the number of nanoseconds
+	subTime(&r1, x, y);
+	absTime(&r1);
+
+	nano_2_Time(&r2, nanos);
+	
+	return !gtTime(&r1, &r2);
+}
+
+
+
+int check_timestamp_is_fresh2(TimeInternal * timeA, TimeInternal * timeB)
+{
+	int ret;
+
+	ret = is_Time_close(timeA, timeB, 1000000);		// maximum 1 millisecond offset
+	DBG2("check_timestamp_is_fresh: %d\n ", ret);
+	return ret;
+}
+
+
+int check_timestamp_is_fresh(TimeInternal * timeA)
+{
+	TimeInternal timeB;
+	getTime(&timeB);
+
+	return check_timestamp_is_fresh2(timeA, &timeB);
 }
 
 

@@ -84,15 +84,19 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	for(;;)
 	{
-		if(ptpClock->portState != PTP_INITIALIZING)
-			doState(rtOpts, ptpClock);
-		else if(!doInit(rtOpts, ptpClock))
+		/* 20110701: this main loop was rewritten to be more clear */
+
+		if(ptpClock->portState == PTP_INITIALIZING){
+			if(!doInit(rtOpts, ptpClock)){
 			return;
+			}
+		} else {
+			doState(rtOpts, ptpClock);
+		}
+
 		
 		if(ptpClock->message_activity)
 			DBGV("activity\n");
-		/* else */
-		  /*			DBGV("no activity\n");*/
 
 		/* Perform the heavy signal processing synchronously */
 		check_signals(rtOpts, ptpClock);
@@ -242,6 +246,9 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		initClock(rtOpts, ptpClock);
 		
 		ptpClock->waitingForFollow = FALSE;
+		ptpClock->waitingForDelayResp = FALSE;
+
+		// FIXME: clear these vars with function, and inside initclock
 		ptpClock->pdelay_req_send_time.seconds = 0;
 		ptpClock->pdelay_req_send_time.nanoseconds = 0;
 		ptpClock->pdelay_req_receive_time.seconds = 0;
@@ -251,6 +258,9 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->pdelay_resp_receive_time.seconds = 0;
 		ptpClock->pdelay_resp_receive_time.nanoseconds = 0;
 		
+		timerStart(OPERATOR_MESSAGES_TIMER,
+			   OPERATOR_MESSAGES_INTERVAL,
+			   ptpClock->itimer);
 		
 		timerStart(ANNOUNCE_RECEIPT_TIMER,
 			   (ptpClock->announceReceiptTimeout) * 
@@ -311,6 +321,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	
 	ptpClock->message_activity = FALSE;
 	
+	/* Process record_update (BMC algorithm) before everything else */
 	switch(ptpClock->portState)
 	{
 	case PTP_LISTENING:
@@ -379,6 +390,11 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 		}
 		
+		if(timerExpired(OPERATOR_MESSAGES_TIMER, ptpClock->itimer)) {
+			reset_operator_messages(rtOpts, ptpClock);
+		}
+
+
 		if (rtOpts->E2E_mode) {
 			if(timerExpired(DELAYREQ_INTERVAL_TIMER,
 					ptpClock->itimer)) {
@@ -423,6 +439,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			}
 		}
 		
+		// TODO: why is handle() below expiretimer, while in slave is the opposite
 		handle(rtOpts, ptpClock);
 		
 		if(ptpClock->slaveOnly || 
@@ -467,6 +484,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
   
 	DBGV("handle: something\n");
   
+	/* TODO: this should be based on the select actual FDs (if(FD_ISSET(...)) */
 	length = netRecvEvent(ptpClock->msgIbuf, &time, &ptpClock->netPath);
 
 
@@ -486,8 +504,17 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			return;
 	}
   
-	/* make sure we use the TAI to UTC offset specified, if the master is sending the UTC_VALID bit */
-	DBG2("__UTC_offset: %d %d \n", ptpClock->currentUtcOffsetValid, ptpClock->currentUtcOffset);
+	/*
+	 * make sure we use the TAI to UTC offset specified, if the master is sending the UTC_VALID bit
+	 * 
+	 *
+	 * On the slave, all timestamps that we handle here have been collected by our local clock (loopback+kernel-level timestamp)
+	 * This includes delayReq just send, and delayResp, when it arrives.
+	 *
+	 * these are then adjusted to the same timebase of the Master (+34 leap seconds, as of 2011)
+	 *
+	 */
+	DBGV("__UTC_offset: %d %d \n", ptpClock->currentUtcOffsetValid, ptpClock->currentUtcOffset);
 	if(ptpClock->currentUtcOffsetValid){
 		time.seconds += ptpClock->currentUtcOffset;
 	}
@@ -551,10 +578,15 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		st = "Unk";
 		break;
 	}
-	DBG2("      ==> %s received\n", st);
+	DBG("      ==> %s received\n", st);
 #endif
 
-	
+	/*
+	 *  on the table below, note that only the event messsages are passed the local time,
+	 *  (collected by us by loopback+kernel TS, and adjusted with UTC seconds
+	 *
+	 *  (SYNC / DELAY_REQ / PDELAY_REQ / PDELAY_RESP)
+	 */
 	switch(ptpClock->msgTmpHeader.messageType)
 	{
 	case ANNOUNCE:
@@ -671,6 +703,12 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 				   (ptpClock->announceReceiptTimeout) * 
 				   (pow(2,ptpClock->logAnnounceInterval)), 
 				   ptpClock->itimer);
+
+#ifdef PTP_EXPERIMENTAL
+			// remember IP address of our master for -U option
+			// todo: add this to bmc(), to cover the very first packet
+			ptpClock->MasterAddr = ptpClock->netPath.lastRecvAddr;
+#endif
 	   		break;
 	   		
 		case FALSE:
@@ -700,10 +738,9 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 
 	/*
 	 * Passive case: previously, this was handled in the default, just like the master case.
-	 * Thus the announce would call addForeign(), but NOT reset the timer, so after 12s it would expire
-	 * and we would come alive periodically
+	 * This the announce would call addForeign(), but NOT reset the timer, so after 12s it would expire and we would come alive periodically 
 	 *
-	 * This code is now merged with the slave case to reset the timer, and call addForeign() if its a third master
+	 * This code is now merged with the slave case to reset the timer, and call addForeign() if it's a third master
 	 *
 	 */
 	case PTP_PASSIVE:
@@ -833,8 +870,7 @@ handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 
 			
 			ptpClock->sync_receive_time.seconds = time->seconds;
-			ptpClock->sync_receive_time.nanoseconds = 
-				time->nanoseconds;
+			ptpClock->sync_receive_time.nanoseconds = time->nanoseconds;
 				
 			if (rtOpts->recordFP) 
 				fprintf(rtOpts->recordFP, "%d %llu\n", 
@@ -843,6 +879,9 @@ handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 					 time->nanoseconds));
 
 			if ((header->flagField[0] & 0x02) == TWO_STEP_FLAG) {
+
+				DBG2("HandleSync: waiting for follow-up \n");
+
 				ptpClock->waitingForFollow = TRUE;
 				ptpClock->recvSyncSequenceId = 
 					header->sequenceId;
@@ -885,6 +924,8 @@ handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			     "another Master  \n");
 			break;
 		} else {
+			DBGV("HandleSync: going to send followup message\n ");
+
 			/*Add latency*/
 			addTime(time,time,&rtOpts->outboundLatency);
 			issueFollowup(time,rtOpts,ptpClock);
@@ -950,6 +991,11 @@ handleFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 								  &correctionField);
 					addTime(&correctionField,&correctionField,
 						&ptpClock->lastSyncCorrectionField);
+
+					/*
+					send_time = preciseOriginTimestamp (received inside followup)
+					recv_time = sync_receive_time (received as CMSG in handleEvent)
+					*/
 					updateOffset(&preciseOriginTimestamp,
 						     &ptpClock->sync_receive_time,&ptpClock->ofm_filt,
 						     rtOpts,ptpClock,
@@ -957,7 +1003,7 @@ handleFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 					updateClock(rtOpts,ptpClock);
 					break;	 		
 				} else 
-					DBG2("Ignored followup, SequenceID doesn't match with "
+					INFO("Ignored followup, SequenceID doesn't match with "
 					     "last Sync message \n");
 			} else 
 				DBG2("Ignored followup, Slave was not waiting a follow up "
@@ -1004,10 +1050,27 @@ handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 
 		case PTP_SLAVE:
 			if (isFromSelf)	{
+
+				DBG("==> Handle DelayReq (%d)\n",
+					 header->sequenceId);
+				
+				if((ptpClock->sentDelayReqSequenceId - 1) != header->sequenceId){
+					INFO("HandledelayReq : disreguard delayreq because of wrong SeqNo\n");
+					break;
+				}
+
 				/* 
 				 * Get sending timestamp from IP stack
 				 * with SO_TIMESTAMP
 				 */
+
+				/*
+				 *  Make sure we process the REQ _before_ the RESP. While we could do this by any order,
+				 *  (because it's implicitly indexed by (ptpClock->sentDelayReqSequenceId - 1), this is
+				 *  now made explicit
+				 */
+				ptpClock->waitingForDelayResp = TRUE;
+
 				ptpClock->delay_req_send_time.seconds = 
 					time->seconds;
 				ptpClock->delay_req_send_time.nanoseconds = 
@@ -1018,12 +1081,20 @@ handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 					&ptpClock->delay_req_send_time,
 					&rtOpts->outboundLatency);
 				break;
+			} else {
+				DBG2("HandledelayReq : disreguard delayreq from other client\n");
 			}
 			break;
 
 		case PTP_MASTER:
 			msgUnpackHeader(ptpClock->msgIbuf,
 					&ptpClock->delayReqHeader);
+
+#ifdef PTP_EXPERIMENTAL
+			// remember IP address of this client for -U option
+			ptpClock->LastSlaveAddr = ptpClock->netPath.lastRecvAddr;
+#endif
+					
 			issueDelayResp(time,&ptpClock->delayReqHeader,
 				       rtOpts,ptpClock);
 			break;
@@ -1075,6 +1146,8 @@ handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 				isFromCurrentParent = TRUE;
 			
 			
+
+			
 			if ((memcmp(ptpClock->portIdentity.clockIdentity,
 				    ptpClock->msgTmp.resp.requestingPortIdentity.clockIdentity,
 				    CLOCK_IDENTITY_LENGTH) == 0) &&
@@ -1083,6 +1156,17 @@ handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			    (ptpClock->portIdentity.portNumber == 
 			     ptpClock->msgTmp.resp.requestingPortIdentity.portNumber)
 			    && isFromCurrentParent) {
+
+
+
+				DBG("==> Handle DelayResp (%d)\n",
+					 header->sequenceId);
+
+				if(!ptpClock->waitingForDelayResp){
+					break;
+				}
+				ptpClock->waitingForDelayResp = FALSE;
+				
 				toInternalTime(&requestReceiptTimestamp,
 					       &ptpClock->msgTmp.resp.receiveTimestamp);
 				ptpClock->delay_req_receive_time.seconds = 
@@ -1093,6 +1177,13 @@ handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 				integer64_to_internalTime(
 					header->correctionfield,
 					&correctionField);
+
+				
+				/*
+					send_time = delay_req_send_time (received as CMSG in handleEvent)
+					recv_time = requestReceiptTimestamp (received inside delayResp)
+				*/
+
 				updateDelay(&ptpClock->owd_filt,
 					    rtOpts,ptpClock, &correctionField);
 
@@ -1103,7 +1194,7 @@ handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 				}
 
 				
-				if(!rtOpts->ignore_delayreq_master){
+				if(rtOpts->ignore_delayreq_master == 0){
 					DBGV("current delay_req: %d  new delay req: %d \n",
 						ptpClock->logMinDelayReqInterval,
 						header->logMessageInterval);
@@ -1118,11 +1209,17 @@ handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 					ptpClock->logMinDelayReqInterval = header->logMessageInterval;
 					
 					/* FIXME: the actual rearming of this timer with the new value only happens later in doState()/issueDelayReq() */
+				} else {
+					if (ptpClock->logMinDelayReqInterval != rtOpts->subsequent_delayreq){
+						NOTICE("  received new DelayReq frequency %d from command line (was: %d)\n",
+							rtOpts->subsequent_delayreq, ptpClock->logMinDelayReqInterval);
+					}
+					ptpClock->logMinDelayReqInterval = rtOpts->subsequent_delayreq;
 				}
 
 
 			} else {
-				DBG2("HandledelayResp : delayResp doesn't match with the delayReq. \n");
+				DBG("HandledelayResp : delayResp doesn't match with the delayReq. \n");
 				break;
 			}
 		}
@@ -1441,7 +1538,7 @@ issueAnnounce(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	msgPackAnnounce(ptpClock->msgObuf,ptpClock);
 	
 	if (!netSendGeneral(ptpClock->msgObuf,ANNOUNCE_LENGTH,
-			    &ptpClock->netPath)) {
+			    &ptpClock->netPath, 0)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		DBGV("Announce message can't be sent -> FAULTY state \n");
 	} else {
@@ -1463,7 +1560,7 @@ issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	
 	msgPackSync(ptpClock->msgObuf,&originTimestamp,ptpClock);
 	
-	if (!netSendEvent(ptpClock->msgObuf,SYNC_LENGTH,&ptpClock->netPath)) {
+	if (!netSendEvent(ptpClock->msgObuf,SYNC_LENGTH,&ptpClock->netPath, 0)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		DBGV("Sync message can't be sent -> FAULTY state \n");
 	} else {
@@ -1483,7 +1580,7 @@ issueFollowup(TimeInternal *time,RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	msgPackFollowUp(ptpClock->msgObuf,&preciseOriginTimestamp,ptpClock);
 	
 	if (!netSendGeneral(ptpClock->msgObuf,FOLLOW_UP_LENGTH,
-			    &ptpClock->netPath)) {
+			    &ptpClock->netPath, 0)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		DBGV("FollowUp message can't be sent -> FAULTY state \n");
 	} else {
@@ -1500,23 +1597,37 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	TimeInternal internalTime;
 
-	/* call GTOD. Is this time later replaced on handle_delayreq, to get the actual send timestamp from the OS? */
+	DBG("==> Issue DelayReq (%d)\n",
+		 ptpClock->sentDelayReqSequenceId
+		 );
+
+	
+	/* call GTOD. This time is later replaced on handle_delayreq, to get the actual send timestamp from the OS */
 	getTime(&internalTime);
 	fromInternalTime(&internalTime,&originTimestamp);
 
+	// uses current sentDelayReqSequenceId
 	msgPackDelayReq(ptpClock->msgObuf,&originTimestamp,ptpClock);
 
+	Integer32 dst = 0;
+#ifdef PTP_EXPERIMENTAL
+	if(rtOpts->do_hybrid_mode){
+		dst = ptpClock->MasterAddr;
+	}
+#endif
+
 	if (!netSendEvent(ptpClock->msgObuf,DELAY_REQ_LENGTH,
-			  &ptpClock->netPath)) {
+			  &ptpClock->netPath, dst)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		DBGV("delayReq message can't be sent -> FAULTY state \n");
 	} else {
 		DBGV("DelayReq MSG sent ! \n");
 		ptpClock->sentDelayReqSequenceId++;
 
+		/* From now on, we will only accept delayreq and delayresp of (sentDelayReqSequenceId - 1) */
 
 		/* Explicitelly re-arm timer for sending the next delayReq */
-		timerStart_Uniform(DELAYREQ_INTERVAL_TIMER,
+		timerStart_random(DELAYREQ_INTERVAL_TIMER,
 		   pow(2,ptpClock->logMinDelayReqInterval),
 		   ptpClock->itimer);
 	}
@@ -1565,16 +1676,22 @@ issuePDelayResp(TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts,
 
 /*Pack and send on event multicast ip adress a DelayResp message*/
 void 
-issueDelayResp(TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts,
-	       PtpClock *ptpClock)
+issueDelayResp(TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	Timestamp requestReceiptTimestamp;
 	fromInternalTime(time,&requestReceiptTimestamp);
 	msgPackDelayResp(ptpClock->msgObuf,header,&requestReceiptTimestamp,
 			 ptpClock);
 
+	Integer32 dst = 0;
+#ifdef PTP_EXPERIMENTAL
+	if(rtOpts->do_hybrid_mode){
+		dst = ptpClock->LastSlaveAddr;
+	}
+#endif
+
 	if (!netSendGeneral(ptpClock->msgObuf,PDELAY_RESP_LENGTH,
-			    &ptpClock->netPath)) {
+			    &ptpClock->netPath, dst)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		DBGV("delayResp message can't be sent -> FAULTY state \n");
 	} else {

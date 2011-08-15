@@ -4,7 +4,7 @@
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
-//  * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -64,7 +64,7 @@ PtpClock *ptpClock;
 
 
 /*
- * syncronous signal processing:
+ * Synchronous signal processing:
  * original idea: http://www.openbsd.org/cgi-bin/cvsweb/src/usr.sbin/ntpd/ntpd.c?rev=1.68;content-type=text%2Fplain
  */
 volatile sig_atomic_t	 sigint_received  = 0;
@@ -83,18 +83,18 @@ void catch_signals(int sig)
 {
 	switch (sig) {
 	case SIGINT:
- 		sigint_received = 1;
+		sigint_received = 1;
 		break;
 	case SIGTERM:
- 		sigterm_received = 1;
- 		break;
- 	case SIGHUP:
- 		sighup_received = 1;
- 		break;
- 	case SIGUSR1:
+		sigterm_received = 1;
+		break;
+	case SIGHUP:
+		sighup_received = 1;
+		break;
+	case SIGUSR1:
 		sigusr1_received = 1;
 		break;
- 	case SIGUSR2:
+	case SIGUSR2:
 		sigusr2_received = 1;
 		break;
 	default:
@@ -106,7 +106,7 @@ void catch_signals(int sig)
 		 */
 		break;
 	}
-	}
+}
 
 
 /*
@@ -144,7 +144,7 @@ do_signal_sighup()
 
 
 /*
- * Syncronous signal processing:
+ * Synchronous signal processing:
  * This function should be called regularly from the main loop
  */
 void
@@ -161,14 +161,14 @@ check_signals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if(sighup_received){
 		do_signal_sighup();
-	}
 	sighup_received=0;
+	}
 
 	if(sigusr1_received){
 		WARNING("SigUSR1 received, manually stepping clock to current known OFM\n");
 		servo_perform_clock_step(rtOpts, ptpClock);
-	}
 	sigusr1_received = 0;
+	}
 
 
 #ifdef DBG_SIGUSR2_CHANGE_DOMAIN
@@ -193,11 +193,43 @@ check_signals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			ptpClock->domainNumber,
 			prev_domain
 		);
-		
+		sigusr2_received = 0;
 	}
+#endif
+
+		
+#ifdef DBG_SIGUSR2_CHANGE_DEBUG
+#ifdef RUNTIME_DEBUG
+	if(sigusr2_received){
+		/* cycle debug levels, from INFO (=no debug) to Verbose */
+		INFO("Current debug level: %d\n", rtOpts->debug_level);
+		
+		(rtOpts->debug_level)++;
+		if(rtOpts->debug_level > LOG_DEBUGV ){
+			rtOpts->debug_level = LOG_INFO;
+	}
+
+		INFO("New debug level: %d\n", rtOpts->debug_level);
 	sigusr2_received = 0;
+	}
+#endif
 #endif
 	
+}
+
+/* These functions are useful to temporarily enable Debug around parts of code, similar to bash's "set -x" */
+void enable_runtime_debug(void )
+{
+	extern RunTimeOpts rtOpts;
+	
+	rtOpts.debug_level = max(LOG_DEBUGV, rtOpts.debug_level);
+}
+
+void disable_runtime_debug(void )
+{
+	extern RunTimeOpts rtOpts;
+	
+	rtOpts.debug_level = LOG_INFO;
 }
 
 
@@ -267,6 +299,10 @@ daemon_already_running(void)
 
 
 
+int query_shell(char *command, char *answer, int answer_size);
+
+
+
 /* return number of pgrep exact matches to the given string
  * -1: error
  * 0: no matches
@@ -275,22 +311,48 @@ daemon_already_running(void)
 int
 pgrep_matches(char *name)
 {
-	char    buf[160];
+	char command[BUF_SIZE];
+	char answer[BUF_SIZE];
 	int matches;
 
-	FILE *fp;
+	snprintf(command, BUF_SIZE - 1, "pgrep -x %s | wc -l", name);
+
+	if( query_shell(command, answer, BUF_SIZE) < 0){
+		return -1;
+	};
+	
+	sscanf(answer, "%d", &matches);
+	return (matches);
+}
+
+
+
+/*
+ * This function executes a given shell command (including pipes), and returns the first line of the output
+ * these methods are only suitable for initialization time :)
+ *
+ *
+ * ret: -1 error ; 0 ok
+ *
+ */
+int query_shell(char *command, char *answer, int answer_size)
+{
 	int status;
+	FILE *fp;
 
-	/* This method could be improved, but it is simple enough to use at initialization time */
-	snprintf(buf, 160-1, "pgrep  -x %s | wc -l", name);
+	// clear previous answer
+	answer[0] = '\0';
 
-	fp = popen(buf, "r");
+	fp = popen(command, "r");
 	if (fp == NULL){
-		PERROR("can't call  %s", buf);
+		PERROR("can't call  %s", command);
 		return -1;
 	};
 
-	fscanf(fp, "%d", &matches);
+	// get first line of popen
+	fgets(answer, answer_size - 1, fp);
+
+	DBG2("Query_shell: _%s_ -> _%s_\n", command, answer);
 
 	status = pclose(fp);
 	if (status == -1) {
@@ -302,7 +364,7 @@ pgrep_matches(char *name)
 	     Use macros described under wait() to inspect `status' in order
 	     to determine success/failure of command executed by popen() */
 
-	return (matches);
+	return 0;
 }
 
 
@@ -320,18 +382,32 @@ check_parallel_daemons(char *name, int expected, int strict, RunTimeOpts * rtOpt
 	int matches = pgrep_matches(name);
 
 	if(matches == expected){
-		INFO(       "  Info:    %d %s daemons detected in parallel, as expected\n",
-			   matches, name
-		);
+		if(!expected){
+			INFO(       "  Info:    No %s daemons detected in parallel (as expected)\n",
+				name );
+		} else {
+			INFO(       "  Info:    %d %s daemons detected in parallel (as expected)\n",
+				matches, name);
+		}
 		return 1;
 	} else {
 		if(strict){
-			ERROR(  "  Error:   %d %s daemons detected in parallel, but only %d expected\n",
+			if(expected == 0){
+				ERROR(  "  Error:   %d %s daemon(s) detected in parallel, but we were not expecting any. Exiting.\n",
+				   matches, name);
+			} else {
+				ERROR(  "  Error:   %d %s daemon(s) detected in parallel, but we were expecting %d. Exiting.\n",
 				   matches, name, expected);
+			}
 			return 0;
 		} else {
-			WARNING("  Warning: %d %s daemons detected in parallel, but only %d expected. Continuing\n",
+			if(!expected){
+				WARNING("  Warning: %d %s daemon(s) detected in parallel, but we were expected none. Continuing anyway.\n",
+				   matches, name);
+			} else {
+				WARNING("  Warning: %d %s daemon(s) detected in parallel, but we were expecting %d. Continuing anyway.\n",
 				   matches, name, expected);
+			}
 			return 1;
 		}
 	}
@@ -428,9 +504,14 @@ display_short_help(char *error)
 	printf(
 			//"\n"
 			"ptpd2:\n"
-			"   -[gGW]        Protocol mode (slave/master with ntp/master without ntp)\n"
+			"   -gGW          Protocol mode (slave/master with ntp/master without ntp)\n"
 			"   -b <dev>      Interface to use\n"
-			"   -H            Complete help file\n"
+			"\n"
+			"   -cC  -DVfS    Console / verbose console;     Dump stats / Interval / Output file / no Syslog\n"
+			"   -uU           Unicast/Hybrid mode\n"
+			"\n"
+			"\n"
+			"   -hHB           Summary / Complete help file / run-time debug level\n"
 			"\n"
 			"ERROR: %s\n\n",
 			error
@@ -452,8 +533,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 	dump_command_line_parameters(argc, argv);
 
-	const char *getopt_string = "HcCf:ST:dDPR:xO:xO:tM:a:w:b:u:ehzl:o:i:n:y:m:v:r:s:p:q:Y:ZjLV:gGWIE:F:U:J:QY:Z";
-	
+	const char *getopt_string = "HgGWb:cCf:ST:dDPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:";
 
 	/* parse command line arguments */
 	while ((c = getopt(argc, argv, getopt_string)) != -1) {
@@ -471,9 +551,15 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"Ptpv2d runs on UDP/IP , E2E mode by default\n"
 				"\n"
 #define GETOPT_START_OF_OPTIONS
-				"-H                show this page\n"
+				"-H                show detailed help page\n"
 				"\n"
-
+				"Mode selection (one option is always required):\n"
+				"-g                run as slave only\n"
+				"-G                run as a Master _with_ NTP  (implies -t -L)\n"
+				"-W                run as a Master _without_ NTP (reverts to client when inactive)\n"
+				"-b NAME           bind PTP to network interface NAME\n"
+				"\n"
+				"Options:\n"
 				"-c                run in command line (non-daemon) mode (implies -D)\n"
 				"-C                verbose non-daemon mode: implies -c -S -D -V 0, disables -f\n"
 				"-f FILE           send output to FILE (implies -D)\n"
@@ -490,11 +576,17 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 				"-t                do not make any changes to the system clock\n"
 				"-M NUMBER         do not accept delay values of more than NUMBER nanoseconds\n"
-				"-a NUMBER,NUMBER  specify clock servo Proportional and Integral attenuations\n"
+				"-a 10,1000        specify clock servo Proportional and Integral attenuations\n"
 				"-w NUMBER         specify one way delay filter stiffness\n"
 				"\n"
-				"-b NAME           bind PTP to network interface NAME\n"
-				"-u ADDRESS        besides multicast, also send unicast messages to ADDRESS\n"
+				"-u ADDRESS        Unicast mode: send all messages in unicast to ADDRESS\n"
+				"-U                Hybrid  mode: send DELAY messages in unicast\n"
+				"                    This causes all delayReq messages to be sent in unicast to the\n"
+				"                    IP address of the Master (taken from the last announce received).\n"
+				"                    For masters, it replyes the delayResp to the IP address of the client\n"
+				"                    (from the corresponding delayReq message).\n"
+				"                    All other messages are send in multicast\n"
+				"\n"
 				"-e                run in ethernet mode (level2) \n"
 				"-h                run in End to End mode \n"
 				"-z                run in Peer-delay mode\n"
@@ -504,9 +596,12 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"\n"
 				"-o NUMBER         specify current UTC offset\n"
 				"-i NUMBER         specify PTP domain number (between 0-3)\n"
+				"-I NUMBER         specify Mcast group (between 0-3, emulates PTPv1 group selection)\n"
 				
 				"\n"
 				"-n NUMBER         specify announce interval in 2^NUMBER sec\n"
+				"-N NUMBER         specify announce receipt TO (number of lost announces to timeout)\n"
+
 				"-y NUMBER         specify sync interval in 2^NUMBER sec\n"
 				"-m NUMBER         specify max number of foreign master records\n"
 				"\n"
@@ -517,8 +612,12 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"-q NUMBER         Master mode: specify priority2 attribute\n"
 				"\n"
 				"\n"
-				"-Y NUMBER         Initial delay_request interval, in 2^NUMBER sec\n"
-				"-Z                Ignore delayReq interval given by Master\n"
+				"-Y 0[,0]          Initial and Master_Overide delayreq intervals\n"
+				"                     desc: the first 2^ number is the rate the slave sends delayReq\n"
+				"                     When the first answer is received, the master value is used (unless the\n"
+				"                     second number was also given)\n"
+				"\n"
+				"-B                Enable debug messages (if compiled-in). Multiple invocations to more debug\n"
 				"\n"
 				"Compatibility Options (to restore previous default behaviour):\n"
 				"-j                Do not refresh the IGMP Multicast menbership at each protol reset\n"
@@ -526,10 +625,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"-V 0              Seconds between log messages (0: all messages)\n"
 				"\n"
 				"\n"
-				"Mode selection (one option is always required):\n"
-				"-g                run as slave only\n"
-				"-G                run as a Master _with_ NTP  (implies -t -L)\n"
-				"-W                run as a Master _without_ NTP (reverts to client when inactive)\n"
 
 
 #define GETOPT_END_OF_OPTIONS
@@ -549,17 +644,18 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 				"\n"
 
-				"Signals syncronous behaviour:\n"
+				"Signals synchronous behaviour:\n"
 				"  SIGHUP         Re-open statistics log (specified with -f)\n"
 				"  SIGUSR1        Manually step clock to current OFM value (overides -x, but honors -t)\n"
 				"  SIGUSR2        swap domain between current and current + 1 (useful for testing)\n"
+				"  SIGUSR2        cycle run-time debug level (requires RUNTIME_DEBUG)\n"
 				"\n"
-				"  SIGINT|TERM    Close file, remove lock file, and clean exit\n"
-				"  SIGKILL|STOP   unclean exit\n"
+				"  SIGINT|TERM    close file, remove lock file, and clean exit\n"
+				"  SIGKILL|STOP   force an unclean exit\n"
 				
 				"\n"
 				"BMC Algorithm defaults:\n"
-				"  Software:   P1(248) > Class(13|248) > Accuracy(\"unk\"/0xFE)   > Variance(61536) > P2(0)\n"
+				"  Software:   P1(128) > Class(13|248) > Accuracy(\"unk\"/0xFE)   > Variance(61536) > P2(128)\n"
 
 											 
 				/*  "-k NUMBER,NUMBER  send a management message of key, record, then exit\n" implemented later.. */
@@ -572,8 +668,16 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		case 'c':
 			rtOpts->nonDaemon = 1;
 			break;
+			
 		case 'C':
 			rtOpts->nonDaemon = 2;
+
+			rtOpts->useSysLog    = FALSE;
+			rtOpts->syslog_startup_messages_also_to_stdout = TRUE;
+			rtOpts->displayStats = TRUE;
+			rtOpts->csvStats     = TRUE;
+			rtOpts->log_seconds_between_message = 0;
+			rtOpts->do_log_to_file = FALSE;
 			break;
 			
 		case 'S':
@@ -587,6 +691,18 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			strncpy(rtOpts->file, optarg, PATH_MAX);
 			rtOpts->do_log_to_file = TRUE;
 			break;
+
+		case 'B':
+#ifdef RUNTIME_DEBUG
+			(rtOpts->debug_level)++;
+			if(rtOpts->debug_level > LOG_DEBUGV ){
+				rtOpts->debug_level = LOG_DEBUGV;
+			}
+#else
+			INFO("runtime debug not enabled. Please compile with RUNTIME_DEBUG\n");
+#endif
+			break;
+			
 		case 'd':
 			rtOpts->displayStats = TRUE;
 			break;
@@ -643,9 +759,27 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 
 		case 'u':
+			rtOpts->do_unicast_mode = 1;
 			strncpy(rtOpts->unicastAddress, optarg, 
 				MAXHOSTNAMELEN);
+
+			/*
+			 * FIXME: some code still relies on checking if this variable is filled. Upgrade this to do_unicast_mode
+			 *
+			 * E.g.:  netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_dst)
+			 *  if(netPath->unicastAddr || alt_dst ){
+			 */
 			break;
+			 
+		case 'U':
+#ifdef PTP_EXPERIMENTAL
+			rtOpts->do_hybrid_mode = 1;
+#else
+			INFO("Hybrid mode not enabled. Please compile with PTP_EXPERIMENTAL\n");
+#endif
+			break;
+
+			
 		case 'l':
 			rtOpts->inboundLatency.nanoseconds = 
 				strtol(optarg, &optarg, 0);
@@ -659,12 +793,28 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		case 'i':
 			rtOpts->domainNumber = strtol(optarg, &optarg, 0);
 			break;
+
+		case 'I':
+#ifdef PTP_EXPERIMENTAL
+			rtOpts->mcast_group_Number = strtol(optarg, &optarg, 0);
+#else
+			INFO("Multicast group selection not enabled. Please compile with PTP_EXPERIMENTAL\n");
+#endif
+			break;
+
+
+			
 		case 'y':
 			rtOpts->syncInterval = strtol(optarg, 0, 0);
 			break;
 		case 'n':
 			rtOpts->announceInterval = strtol(optarg, 0, 0);
 			break;
+
+		case 'N':
+			rtOpts->announceReceiptTimeout = strtol(optarg, 0, 0);
+			break;
+			
 		case 'm':
 			rtOpts->max_foreign_records = strtol(optarg, 0, 0);
 			if (rtOpts->max_foreign_records < 1)
@@ -752,10 +902,16 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			
 		case 'Y':
 			rtOpts->initial_delayreq = strtol(optarg, &optarg, 0);
-			break;
-		case 'Z':
+			rtOpts->subsequent_delayreq = rtOpts->initial_delayreq;
+			rtOpts->ignore_delayreq_master = FALSE;
+
+			/* Use this to override the master-given DelayReq value */
+			if (optarg[0]){
+				rtOpts->subsequent_delayreq = strtol(optarg + 1, &optarg, 0);
 			rtOpts->ignore_delayreq_master = TRUE;
+			}
 			break;
+
 		case 'L':
 			/* enable running multiple ptpd2 daemons */
 			rtOpts->ignore_daemon_lock = TRUE;
@@ -767,26 +923,16 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			
 
 		default:
-			PERROR("Unk parameter %c \n", c);
+			ERROR("Unknown parameter %c \n", c);
 			*ret = 1;
 			return 0;
 		}
 	}
 
-	/* option -C is full verbose to console mode */
-	if(rtOpts->nonDaemon >= 2){
-		rtOpts->useSysLog    = FALSE;
-		rtOpts->syslog_startup_messages_also_to_stdout = TRUE;
-		rtOpts->displayStats = TRUE;
-		rtOpts->csvStats     = TRUE;
-		rtOpts->log_seconds_between_message = 0;
-		rtOpts->do_log_to_file = FALSE;
-	}
-
 
 	/*
 	 * we try to catch as many error conditions as possible, but before we call daemon().
-	 * the exception is the lock file, as we get a new pid when we cann daemon(),
+	 * the exception is the lock file, as we get a new pid when we call daemon(),
 	 * so this is checked twice: once to read, second to read/write
 	 */
 	if(geteuid() != 0)
@@ -802,6 +948,13 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		return 0;
 	}
 
+#ifdef PTP_EXPERIMENTAL
+	if(rtOpts->do_unicast_mode && rtOpts->do_hybrid_mode){
+		ERROR("Cant specify both -u and -U\n");
+		*ret = 3;
+		return 0;
+	}
+#endif
 
 
 
@@ -838,6 +991,41 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	memset(ptpClock->msgObuf, 0, PACKET_SIZE);
 
 
+ 
+	/*
+	 * This section discusses some of the complexities of doing proper Locking and Background Daemon programs.
+	 *
+	 *
+	 * Locking mechanism:
+	 *     - Slave PTPs require locking to avoid having multiple discipliners adjusting the Kernel's Clock, via adjtimex().
+	 *   The most common use case is to avoid running multiple ptpd2 processes, but we also want to avoid running when other
+	 *   known time discipliners (ntpd/ptpd) are there.
+	 *
+	 *      The correct way is to lock the shared resource that needs write protection: the kernel clock itself.
+	 *   (http://mywiki.wooledge.org/ProcessManagement#How_do_I_make_sure_only_one_copy_of_my_script_can_run_at_a_time.3F)
+	 *   Thus, ptpd2 will lock the file /var/run/kernel_clock in daemon_already_running().
+	 *      Unfortunately this is not followed by the other discipliners, so on top of locking we also try to find
+	 *   them by name (we spawn pgrep in check_parallel_daemons()).
+	 *      Another alternative would be to clone NTP's way of doing this: to bind to port 123, the NTP port. Although this
+	 *   works, it is inelegant and confusing.
+	 *
+	 *     - For PTP Masters with NTP (-G), no locking is needed as we only read the clock. For standalone masters (-W)
+	 *   it is a similar situation as Slaves, because we can need write permission at any time.
+	 *
+	 *
+	 * Demonizing Mechanism:
+	 *    If we survive locking and init checks, then the next step is to call the daemon() command to force us to
+	 * detach from the shell, and attach to process 1 (init).
+	 *    As it is suggested in http://mywiki.wooledge.org/ProcessManagement#How_can_I_check_to_see_if_my_game_server_is_still_running.3F__I.27ll_put_a_script_in_crontab.2C_and_if_it.27s_not_running.2C_I.27ll_restart_it...
+	 * self-backgrounding has a lot of issues and pitfalls, so newer software packages that provide services as increasingly
+	 * moving to run in foreground, or provide a flag to do so. Then, the foreground process is managed by inittab, daemontools, etc
+	 *
+	 *   Its still unclear how such daemons are managed by /etc/init.d/ style of scripts
+	 *
+	 */
+
+
+	
 	/* First lock check, just to be user-friendly to the operator */
 	if(rtOpts->ignore_daemon_lock == 0){
 		/* check and create Lock */
@@ -847,8 +1035,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			return 0;
 		}
 	} else {
-		/* if we ignore the daemon lock, we also are not strict for parallel daemons
-		   (but we always syslog what is happening) */
+		/* if we ignore the daemon lock, we also are not strict for parallel daemons (but we always syslog what is happening) */
 		ptp_daemons_strict=0;
 		ntp_daemons_strict=0;
 	}
@@ -867,7 +1054,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 
 
-	
 	/* Manage open files: stats and quality file */
 	if(rtOpts->do_record_quality_file){
 		if (recordToFile())
@@ -911,7 +1097,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	rtOpts->syslog_startup_messages_also_to_stdout = FALSE;   
 
 
-	/* Second lock check, to replace the contens with our own new PID. It seems that F_WRLCK is not ihnerited to the child, so we lock again */
+	/* Second lock check, to replace the contents with our own new PID. It seems that F_WRLCK is not inherited to the child, so we lock again */
 	if(rtOpts->ignore_daemon_lock == 0){
 		/* check and create Lock */
 		if(daemon_already_running()){
@@ -922,7 +1108,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	}
 
 	
-	/* use new syncronous signal handlers */
+	/* use new synchronous signal handlers */
 	signal(SIGINT,  catch_signals);
 	signal(SIGTERM, catch_signals);
 	signal(SIGHUP,  catch_signals);
@@ -934,7 +1120,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 	INFO("  Info:    Startup finished sucessfully\n");
 
-	
 	return ptpClock;
 }
 

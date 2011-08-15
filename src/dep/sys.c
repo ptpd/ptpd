@@ -44,6 +44,53 @@
 double round (double __x);
 
 
+/*
+ returns a static char * for the representation of time, for debug purposes
+ DO NOT call this twice in the same printf!
+*/
+char *dump_TimeInternal(const TimeInternal * p)
+{
+	static char buf[100];
+
+	snprint_TimeInternal(buf, 100, p);
+	return buf;
+}
+
+
+/*
+ displays 2 timestamps and their strings in sequence, and the difference between then
+ DO NOT call this twice in the same printf!
+*/
+char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *st2, const TimeInternal * p2)
+{
+	
+	static char buf[BUF_SIZE];
+	int n = 0;
+
+	/* display Timestamps */
+	if(st1){
+		n += snprintf(buf + n, BUF_SIZE - n, "%s ", st1);
+	}
+	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, p1);
+	n += snprintf(buf + n, BUF_SIZE - n, "    ");
+
+	if(st2){
+		n += snprintf(buf + n, BUF_SIZE - n, "%s ", st2);
+	}
+	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, p2);
+	n += snprintf(buf + n, BUF_SIZE - n, " ");
+
+	/* display difference */
+	TimeInternal r;
+	subTime(&r, p1, p2);
+	n += snprintf(buf + n, BUF_SIZE - n, "   (diff: ");
+	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, &r);
+	n += snprintf(buf + n, BUF_SIZE - n, ") ");
+
+	return buf;
+}
+
+
 
 int 
 snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
@@ -130,7 +177,40 @@ snprint_ClockIdentity_mac(char *s, int max_len, const ClockIdentity id, const ch
 	return len;
 }
 
+/*
+ * wrapper that caches the latest value of ether_ntohost
+ * this function will NOT check the last accces time of /etc/ethers,
+ * so it only have different output on a failover or at restart
+ *
+ */
+int ether_ntohost_cache(char *hostname, struct ether_addr *addr)
+{
+	static int valid = 0;
+	static struct ether_addr prev_addr;
+	static char buf[BUF_SIZE];
 
+	if(memcmp(addr->ether_addr_octet, &prev_addr, sizeof(struct ether_addr )) != 0){
+		valid = 0;
+	}
+
+	if(!valid){
+		//DBG("__\n");
+		if(ether_ntohost(buf, addr)){
+			sprintf(buf, "%s", "unknown");
+		}
+
+		/* clean possible commas from the string */
+		while (strchr(buf, ',') != NULL) {
+			*(strchr(buf, ',')) = '_';
+		}
+
+		prev_addr = *addr;
+	}
+
+	valid = 1;
+	strcpy(hostname, buf);
+	return 0;
+}
 
 
 /* Show the hostname configured in /etc/ethers */
@@ -155,9 +235,7 @@ snprint_ClockIdentity_ntohost(char *s, int max_len, const ClockIdentity id, cons
 	}
 
 	/* convert and print hostname */
-	if(ether_ntohost(buf, &e)){
-		sprintf(buf, "%s", "unknown");
-	}
+	ether_ntohost_cache(buf, &e);
 	len += snprintf(&s[len], max_len - len, "(%s)", buf);
 
 	return len;
@@ -194,9 +272,27 @@ void
 message(int priority, const char * format, ...)
 {
 	extern RunTimeOpts rtOpts;
+
+#ifdef RUNTIME_DEBUG
+	if((priority >= LOG_DEBUG) && (priority > rtOpts.debug_level)){
+		return;
+	}
+#endif
+
+	
 	va_list ap;
 	va_start(ap, format);
 	if(rtOpts.useSysLog) {
+#ifdef RUNTIME_DEBUG
+		/*
+		 *  Syslog only has 8 message levels (3 bits)
+		 *  important: messages will only appear if "*.debug /var/log/debug" is on /etc/rsyslog.conf
+		 */
+		if(priority > LOG_DEBUG){
+			priority = LOG_DEBUG;
+		}
+#endif
+	
 		static Boolean logOpened;
 		if(!logOpened) {
 			openlog("ptpd2", 0, LOG_DAEMON);
@@ -222,7 +318,9 @@ message(int priority, const char * format, ...)
 			priority == LOG_WARNING ? "warning)" :
 			priority == LOG_NOTICE  ? "notice)" :
 			priority == LOG_INFO    ? "info)" :
-			priority == LOG_DEBUG   ? "debug)" :
+			priority == LOG_DEBUG   ? "debug1)" :
+			priority == LOG_DEBUG2  ? "debug2)" :
+			priority == LOG_DEBUGV  ? "debug3)" :
 			"unk)");
 		
 
@@ -307,21 +405,31 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	memset(sbuf, ' ', sizeof(sbuf));
 
 	gettimeofday(&now, 0);
-	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&now.tv_sec));
 
 
-	/* print one log entry per X seconds, to reduce disk usage. This only happens with normal slave statistics lines */
+	/*
+	 * print one log entry per X seconds, to reduce disk usage.
+	 * This only happens to SLAVE SYNC statistics lines, which are the bulk of the log.
+	 * All other lines are printed, including delayreqs.
+	 */
 	static struct timeval prev_now;
 
 	if((ptpClock->portState == PTP_SLAVE) && (rtOpts->log_seconds_between_message)){
-		if((now.tv_sec - prev_now.tv_sec) < rtOpts->log_seconds_between_message){
-			//leave early and do not print the log message to save disk space
-			return;
+		if(ptpClock->last_packet_was_sync){
+			ptpClock->last_packet_was_sync = FALSE;
+			if((now.tv_sec - prev_now.tv_sec) < rtOpts->log_seconds_between_message){
+				//leave early and do not print the log message to save disk space
+				DBGV("Skipped printing of Sync message because of option -V\n");
+				return;
+			}
+			prev_now = now;
 		}
 	}
-	prev_now = now;
+	ptpClock->last_packet_was_sync = FALSE;
 	
 
+
+	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&now.tv_sec));
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s.%06d, %s",
 		       rtOpts->csvStats ? "" : "state: ",
 		       time_str, (int)now.tv_usec,
@@ -388,7 +496,10 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		    rtOpts->csvStats ? "" : "drift: ", 
 			       ptpClock->observed_drift);
 
-		/* add new column with the type of last packet processed by the servo */
+
+
+
+		/* Last column has the type of last packet processed by the servo */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
 		if (!rtOpts->csvStats)
@@ -398,9 +509,6 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprintf(sbuf + len, sizeof(sbuf) - len,
 				"%c ", ptpClock->char_last_msg);
 
-
-			
-		
 	}
 	else {
 		if ((ptpClock->portState == PTP_MASTER) || (ptpClock->portState == PTP_PASSIVE)) {

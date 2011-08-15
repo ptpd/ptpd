@@ -30,10 +30,10 @@
 /**
  * @file   net.c
  * @date   Tue Jul 20 16:17:49 2010
- * 
+ *
  * @brief  Functions to interact with the network sockets and NIC driver.
- * 
- * 
+ *
+ *
  */
 
 #include "../ptpd.h"
@@ -85,6 +85,46 @@ netShutdown(NetPath * netPath)
 
 	return TRUE;
 }
+
+
+Boolean
+choose_mcast_group(RunTimeOpts * rtOpts, struct in_addr *netAddr)
+{
+
+	char *addrStr;
+
+#ifdef PTP_EXPERIMENTAL
+	switch(rtOpts->mcast_group_Number){
+	case 0:
+		addrStr = DEFAULT_PTP_DOMAIN_ADDRESS;
+		break;
+
+	case 1:
+		addrStr = ALTERNATE_PTP_DOMAIN1_ADDRESS;
+		break;
+	case 2:
+		addrStr = ALTERNATE_PTP_DOMAIN2_ADDRESS;
+		break;
+	case 3:
+		addrStr = ALTERNATE_PTP_DOMAIN3_ADDRESS;
+		break;
+
+	default:
+		ERROR("Unk group %d\n", rtOpts->mcast_group_Number);
+		exit(3);
+		break;
+	}
+#else
+	addrStr = DEFAULT_PTP_DOMAIN_ADDRESS;
+#endif
+
+	if (!inet_aton(addrStr, netAddr)) {
+		ERROR("failed to encode multicast address: %s\n", addrStr);
+		return FALSE;
+	}
+	return TRUE;
+}
+
 
 /*Test if network layer is OK for PTP*/
 UInteger8 
@@ -270,7 +310,7 @@ findIface(Octet * ifaceName, UInteger8 * communicationTechnology,
 }
 
 
-/** 
+/**
  * start all of the UDP stuff 
  * must specify 'subdomainName', and optionally 'ifaceName', 
  * if not then pass ifaceName == "" 
@@ -338,6 +378,32 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		PERROR("failed to bind general socket");
 		return FALSE;
 	}
+
+
+
+#ifdef USE_BINDTODEVICE
+#ifdef linux
+	/*
+	 * The following code makes sure that the data is only received on the specified interface.
+	 * Without this option, it's possible to receive PTP from another interface, and confuse the protocol.
+	 * Calling bind() with the IP address of the device instead of INADDR_ANY does not work.
+	 *
+	 * More info:
+	 *   http://developerweb.net/viewtopic.php?id=6471
+	 *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
+	 */
+
+	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
+			rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0
+		|| setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINDTODEVICE,
+			rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0){
+		PERROR("failed to call SO_BINDTODEVICE on the interface");
+		return FALSE;
+	}
+#endif
+#endif
+
+
 	/* send a uni-cast address if specified (useful for testing) */
 	if (rtOpts->unicastAddress[0]) {
 		/* Attempt a DNS lookup first. */
@@ -360,18 +426,18 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				netPath->unicastAddr = netAddr.s_addr;
 			}
                 }
-        } else
+	} else {
                 netPath->unicastAddr = 0;
+	}
  
 	/* Init General multicast IP address */
-	memcpy(addrStr, DEFAULT_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
-
-	if (!inet_aton(addrStr, &netAddr)) {
-		ERROR("failed to encode multi-cast address: %s\n", addrStr);
+	if(!choose_mcast_group(rtOpts, &netAddr)){
 		return FALSE;
 	}
 	netPath->multicastAddr = netAddr.s_addr;
 
+
+	
 	/* multicast send only on specified interface */
 	imr.imr_multiaddr.s_addr = netAddr.s_addr;
 	imr.imr_interface.s_addr = interfaceAddr.s_addr;
@@ -433,8 +499,12 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		PERROR("failed to set the multi-cast time-to-live");
 		return FALSE;
 	}
+
 	/* enable loopback */
 	temp = 1;
+
+	DBG("Going to set IP_MULTICAST_LOOP with %d \n", temp);
+
 	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
 		       &temp, sizeof(int)) < 0
 	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
@@ -446,7 +516,11 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* make timestamps available through recvmsg() */
 	temp = 1;
 
+
+
 #if defined(linux) || defined(__APPLE__)
+	DBG("Going to set SO_TIMESTAMPNS with %d \n", temp);
+
 	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &temp, sizeof(int)) < 0
 	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMPNS, &temp, sizeof(int)) < 0) {
 		PERROR("failed to enable receive time stamps");
@@ -530,13 +604,15 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 
 	struct cmsghdr *cmsg;
 
-#if defined(linux) || defined(__APPLE__)
-	struct timeval *tv;		// TODO: make an union
+#if defined(__APPLE__)
+	struct timeval *tv;
 	struct timespec *ts;
-	
 #else
-	struct timespec ts;
+	struct timeval *tv;
+	struct timespec *ts;
 #endif
+
+
 
 	vec[0].iov_base = buf;
 	vec[0].iov_len = PACKET_SIZE;
@@ -574,7 +650,13 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		ERROR("received truncated ancillary data\n");
 		return 0;
 	}
-	if (msg.msg_controllen < sizeof(cmsg_un.control)) {
+#ifdef PTP_EXPERIMENTAL
+	netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
+#endif
+
+
+
+	if (msg.msg_controllen <= 0) {
 		ERROR("received short ancillary data (%ld/%ld)\n",
 		    (long)msg.msg_controllen, (long)sizeof(cmsg_un.control));
 
@@ -600,8 +682,9 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 	} else if (tv) {
 		time->seconds = tv->tv_sec;
 		time->nanoseconds = tv->tv_usec * 1000;
-		DBGV("kernel recv time stamp %us %dns\n", 
+		DBGV("kernel MICRO recv time stamp %us %dns\n", 
 		     time->seconds, time->nanoseconds);
+
 #else /* FreeBSD has more accurate time stamps */
 	bzero(&ts, sizeof(ts));
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
@@ -624,7 +707,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		 * message receive, which would put a big spike in the
 		 * offset signal sent to the clock servo
 		 */
-		DBG("no receive time stamp\n");
+		DBG("netRecvEvent: no receive time stamp\n");
 		return 0;
 	}
 
@@ -707,6 +790,13 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 
 		return 0;
 	}
+#ifdef PTP_EXPERIMENTAL
+	// Used for Hybrid mode
+	// FIXME: is this needed for general port? 
+	netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
+#endif
+
+	
 #if defined(linux) || defined(__APPLE__)
 	tv = 0;
 	ts = 0;
@@ -752,7 +842,7 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 		 * message receive, which would put a big spike in the
 		 * offset signal sent to the clock servo
 		 */
-		DBG("no receive time stamp\n");
+		DBG("netRecvGeneral: no receive time stamp\n");
 		return 0;
 	}
 
@@ -760,8 +850,19 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 }
 
 
+
+
+
+//
+// alt_dst: alternative destination.
+//   if filled, send to this unicast dest;
+//   if zero, do the normal operation (send to unicast with -u, or send to the multcast group)
+//
+///
+/// TODO: merge these 2 functions into one
+///
 ssize_t 
-netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath)
+netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_dst)
 {
 	ssize_t ret;
 	struct sockaddr_in addr;
@@ -769,8 +870,12 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
+	if(netPath->unicastAddr || alt_dst ){
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
+		} else {
+			addr.sin_addr.s_addr = alt_dst;
+		}
 
 		ret = sendto(netPath->eventSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 
@@ -803,7 +908,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 }
 
 ssize_t 
-netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
+netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_dst)
 {
 	ssize_t ret;
 	struct sockaddr_in addr;
@@ -811,8 +916,13 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
+	if(netPath->unicastAddr || alt_dst ){
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
+		} else {
+			addr.sin_addr.s_addr = alt_dst;
+		}
+
 
 		ret = sendto(netPath->eventSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 
@@ -906,18 +1016,15 @@ netRefreshIGMP(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	//int temp;
 	struct in_addr interfaceAddr, netAddr;
 	struct ip_mreq imr;
-	char addrStr[NET_ADDRESS_LENGTH];
+	//char addrStr[NET_ADDRESS_LENGTH];
 
 	DBG("netRefreshIGMP\n");
 
 	interfaceAddr = netPath->interfaceAddr;
 
 	/* Init General multicast IP address */
-	memcpy(addrStr, DEFAULT_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
-	if (!inet_aton(addrStr, &netAddr)) {
-		ERROR("failed to encode multi-cast address: %s\n", addrStr);
+	if(!choose_mcast_group(rtOpts, &netAddr))
 		return FALSE;
-	}
 	netPath->multicastAddr = netAddr.s_addr;
 
 	/* multicast send only on specified interface */

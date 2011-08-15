@@ -54,13 +54,28 @@ section 7.6.2.4, page 55:
 #define DEFAULT_CLOCK_CLASS		248
 #define DEFAULT_CLOCK_CLASS__APPLICATION_SPECIFIC_TIME_SOURCE	13
 
-
+/*
+section 7.6.2.5, page 56:
+0x20      Time accurate to 25ns
+...
+0x31      Time accurate to > 10s
+0xFE      Unkown accuracy
+*/
 #define DEFAULT_CLOCK_ACCURACY		0xFE
-#define DEFAULT_PRIORITY1		248
-#define DEFAULT_PRIORITY2		248
+
+#define DEFAULT_PRIORITY1		128        
+#define DEFAULT_PRIORITY2		128        /* page 238, default priority is the midpoint, to allow easy control of the BMC algorithm */
+
+
+/* page 238:  τ, see 7.6.3.2: The default initialization value shall be 1.0 s.  */
 #define DEFAULT_CLOCK_VARIANCE 	       -4000 /* To be determined in 802.1AS. */
                                              /* We use the same value as in */
                                              /* ptpdv1. */
+
+
+/* clock variance in v2 has been changed: 
+ * http://sourceforge.net/tracker/?func=detail&aid=3308338&group_id=139814&atid=744632
+ */
 
 
 #define DEFAULT_MAX_FOREIGN_RECORDS  	5
@@ -136,6 +151,8 @@ enum {
   SYNC_INTERVAL_TIMER,/**<\brief Timer handling Interval between master sends two Syncs messages */
   ANNOUNCE_RECEIPT_TIMER,/**<\brief Timer handling announce receipt timeout*/
   ANNOUNCE_INTERVAL_TIMER, /**<\brief Timer handling interval before master sends two announce messages*/
+
+  OPERATOR_MESSAGES_TIMER,  /* used to limit the operator messages */
   TIMER_ARRAY_SIZE  /* this one is non-spec */
 };
 

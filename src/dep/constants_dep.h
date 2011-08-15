@@ -74,9 +74,9 @@
 
 #define SUBDOMAIN_ADDRESS_LENGTH  4
 #define PORT_ADDRESS_LENGTH       2
-#define PTP_UUID_LENGTH			  6
+#define PTP_UUID_LENGTH           6
 #define CLOCK_IDENTITY_LENGTH	  8
-#define FLAG_FIELD_LENGTH		  2
+#define FLAG_FIELD_LENGTH         2
 
 #define PACKET_SIZE  300 //ptpdv1 value kept because of use of TLV...
 
@@ -84,7 +84,14 @@
 #define PTP_GENERAL_PORT  320
 
 #define DEFAULT_PTP_DOMAIN_ADDRESS     "224.0.1.129"
-#define PEER_PTP_DOMAIN_ADDRESS     "224.0.0.107"
+#define PEER_PTP_DOMAIN_ADDRESS        "224.0.0.107"
+
+/* used for -I option */
+#define ALTERNATE_PTP_DOMAIN1_ADDRESS  "224.0.1.130"
+#define ALTERNATE_PTP_DOMAIN2_ADDRESS  "224.0.1.131"
+#define ALTERNATE_PTP_DOMAIN3_ADDRESS  "224.0.1.132"
+
+
 
 #define MM_STARTING_BOUNDARY_HOPS  0x7fff
 
@@ -94,9 +101,17 @@
 #define SCREEN_BUFSZ  228
 #define SCREEN_MAXSZ  180
 
+/* default size for string buffers */
+#define BUF_SIZE  1000
+
+
 #define NANOSECONDS_MAX 999999999
 
 
+// limit operator messages to once every X seconds
+#define OPERATOR_MESSAGES_INTERVAL 300.0
+
 
 #define MAXTIMESTR 32
+
 #endif /*CONSTANTS_DEP_H_*/

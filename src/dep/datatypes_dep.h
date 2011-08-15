@@ -6,6 +6,7 @@
 * \brief Implementation specific datatype
 
  */
+/* FIXME: shouldn't uint32_t and friends be used here? */
 typedef enum {FALSE=0, TRUE} Boolean;
 typedef char Octet;
 typedef signed char Integer8;
@@ -24,7 +25,7 @@ typedef unsigned char Nibble;
 * \brief Implementation specific of UInteger48 type
  */
 typedef struct {
-	unsigned int lsb;
+	unsigned int lsb;     /* FIXME: shouldn't uint32_t and uint16_t be used here? */
 	unsigned short msb;
 } UInteger48;
 
@@ -32,7 +33,7 @@ typedef struct {
 * \brief Implementation specific of Integer64 type
  */
 typedef struct {
-	unsigned int lsb;
+	unsigned int lsb;     /* FIXME: shouldn't uint32_t and int32_t be used here? */
 	int msb;
 } Integer64;
 
@@ -65,6 +66,12 @@ typedef struct {
 
   /* used by IGMP refresh */
   struct in_addr interfaceAddr;
+
+#ifdef PTP_EXPERIMENTAL
+  /* used for Hybrid mode */
+  Integer32 lastRecvAddr;
+#endif
+
 } NetPath;
 
 #endif /*DATATYPES_DEP_H_*/

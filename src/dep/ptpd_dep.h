@@ -9,11 +9,35 @@
 #ifndef PTPD_DEP_H_
 #define PTPD_DEP_H_
 
+
+
+#ifdef RUNTIME_DEBUG
+#define PTPD_DBGV
+#endif
+
+#ifdef DBG_SIGUSR2_CHANGE_DOMAIN
+#ifdef DBG_SIGUSR2_CHANGE_DEBUG
+
+#error "Cannot compile with both DBG_SIGUSR2_CHANGE_DOMAIN and DBG_SIGUSR2_CHANGE_DEBUG"
+
+#endif
+#endif
+
+
+
+
  /** \name System messages*/
  /**\{*/
 
 
-// Syslog ordering
+// Syslog ordering. We define extra debug levels above LOG_DEBUG for internal use - but message() doesn't pass these to SysLog
+
+// extended from <sys/syslog.h>
+#define LOG_DEBUG1   7
+#define LOG_DEBUG2   8
+#define LOG_DEBUG3   9
+#define LOG_DEBUGV   9
+
 
 #define EMERGENCY(x, ...) message(LOG_EMERG, x, ##__VA_ARGS__)
 #define ALERT(x, ...)     message(LOG_ALERT, x, ##__VA_ARGS__)
@@ -36,7 +60,21 @@
 ./dep/sys.c:#define PRINT_MAC_ADDRESSES
 ./dep/timer.c:#define US_TIMER_INTERVAL 125000
 */
+#define USE_BINDTODEVICE
 
+
+
+// enable this line to show debug numbers in nanoseconds instead of microseconds 
+// #define DEBUG_IN_NS
+
+#define DBG_UNIT_US (1000)
+#define DBG_UNIT_NS (1)
+
+#ifdef DEBUG_IN_NS
+#define DBG_UNIT DBG_UNIT_NS
+#else
+#define DBG_UNIT DBG_UNIT_US
+#endif
 
 
 
@@ -52,7 +90,7 @@
 #define PTPD_DBG
 #define PTPD_DBG2
 
-#define DBGV(x, ...) message(LOG_DEBUG, x, ##__VA_ARGS__)
+#define DBGV(x, ...) message(LOG_DEBUGV, x, ##__VA_ARGS__)
 #else
 #define DBGV(x, ...)
 #endif
@@ -66,7 +104,7 @@
 #ifdef PTPD_DBG2
 #undef PTPD_DBG
 #define PTPD_DBG
-#define DBG2(x, ...) message(LOG_DEBUG, x, ##__VA_ARGS__)
+#define DBG2(x, ...) message(LOG_DEBUG2, x, ##__VA_ARGS__)
 #else
 #define DBG2(x, ...)
 #endif
@@ -168,8 +206,8 @@ Boolean netShutdown(NetPath*);
 int netSelect(TimeInternal*,NetPath*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*);
 ssize_t netRecvGeneral(Octet*,TimeInternal*,NetPath*);
-ssize_t netSendEvent(Octet*,UInteger16,NetPath*);
-ssize_t netSendGeneral(Octet*,UInteger16,NetPath*);
+ssize_t netSendEvent(Octet*,UInteger16,NetPath*, Integer32 );
+ssize_t netSendGeneral(Octet*,UInteger16,NetPath*, Integer32 );
 ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*);
 ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*);
 
@@ -202,6 +240,12 @@ PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
 void ptpdShutdown(void);
 
 void check_signals(RunTimeOpts * rtOpts, PtpClock * ptpClock);
+
+void enable_runtime_debug(void );
+void disable_runtime_debug(void );
+
+#define D_ON      do { enable_runtime_debug();  } while (0);
+#define D_OFF     do { disable_runtime_debug( ); } while (0);
 
 
 /** \}*/
@@ -244,13 +288,16 @@ void timerStop(UInteger16,IntervalTimer*);
 void timerStart(UInteger16 index, float interval, IntervalTimer * itimer);
 
 /* Version with randomized backoff */
-void timerStart_Uniform(UInteger16 index, float interval, IntervalTimer * itimer);
+void timerStart_random(UInteger16 index, float interval, IntervalTimer * itimer);
 
 Boolean timerExpired(UInteger16,IntervalTimer*);
 /** \}*/
 
 
 /*Test functions*/
+void
+reset_operator_messages(RunTimeOpts * rtOpts, PtpClock * ptpClock);
+
 
 
 #endif /*PTPD_DEP_H_*/
