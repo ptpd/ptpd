@@ -301,7 +301,7 @@ bmcDataSetComparison(MsgHeader *headerA, MsgAnnounce *announceA,
 						}
 					} else {
 /* offsetScaledLogVariance are not identical */
-						comp= memcmp(&announceA->grandmasterClockQuality.clockClass,&announceB->grandmasterClockQuality.clockClass,1);
+						comp= memcmp(&announceA->grandmasterClockQuality.offsetScaledLogVariance,&announceB->grandmasterClockQuality.offsetScaledLogVariance,1);
 						if (comp < 0)
 							return -1;
 						else if (comp > 0)
