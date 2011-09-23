@@ -85,6 +85,7 @@ section 7.6.2.5, page 56:
 #define NUMBER_PORTS      	1
 #define VERSION_PTP       	2
 #define TWO_STEP_FLAG    	0x02
+#define UNICAST_FLAG     	0x04
 #define BOUNDARY_CLOCK    	FALSE
 #define SLAVE_ONLY		FALSE
 #define NO_ADJUST		FALSE

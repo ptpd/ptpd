@@ -39,6 +39,9 @@
 
 #include "../ptpd.h"
 
+
+extern RunTimeOpts rtOpts; 
+
 /*Unpack Header from IN buffer to msgTmpHeader field */
 void 
 msgUnpackHeader(void *buf, MsgHeader * header)
@@ -281,6 +284,12 @@ msgPackDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x01;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_REQ_LENGTH);
+
+#ifdef PTP_EXPERIMENTAL
+	if(rtOpts.do_hybrid_mode)
+		*(char *)(buf + 6) |= UNICAST_FLAG;
+#endif
+
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentDelayReqSequenceId);
 	*(UInteger8 *) (buf + 32) = 0x01;
 	/* Table 23 */
@@ -307,6 +316,12 @@ msgPackDelayResp(void *buf, MsgHeader * header, Timestamp * receiveTimestamp, Pt
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_RESP_LENGTH);
 	*(UInteger8 *) (buf + 4) = header->domainNumber;
+
+#ifdef PTP_EXPERIMENTAL
+	if(rtOpts.do_hybrid_mode)    
+		*(char *)(buf + 6) |= UNICAST_FLAG;
+#endif
+
 	memset((buf + 8), 0, 8);
 
 	/* Copy correctionField of PdelayReqMessage */

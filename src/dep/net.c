@@ -392,7 +392,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 *   http://developerweb.net/viewtopic.php?id=6471
 	 *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
 	 */
-
+#ifdef PTP_EXPERIMENTAL
+	if ( !rtOpts->do_hybrid_mode )
+#endif
 	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
 			rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0
 		|| setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINDTODEVICE,
