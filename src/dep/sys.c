@@ -386,7 +386,9 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	static int start = 1;
 	static char sbuf[SCREEN_BUFSZ];
 	int len = 0;
-	struct timeval now;
+	TimeInternal now;
+	time_t time_s;
+	static TimeInternal prev_now;
 	char time_str[MAXTIMESTR];
 
 	if (!rtOpts->displayStats){
@@ -404,7 +406,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
 
-	gettimeofday(&now, 0);
+	getTime(&now);
 
 
 	/*
@@ -412,12 +414,11 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 * This only happens to SLAVE SYNC statistics lines, which are the bulk of the log.
 	 * All other lines are printed, including delayreqs.
 	 */
-	static struct timeval prev_now;
 
 	if((ptpClock->portState == PTP_SLAVE) && (rtOpts->log_seconds_between_message)){
 		if(ptpClock->last_packet_was_sync){
 			ptpClock->last_packet_was_sync = FALSE;
-			if((now.tv_sec - prev_now.tv_sec) < rtOpts->log_seconds_between_message){
+			if((now.seconds - prev_now.seconds) < rtOpts->log_seconds_between_message){
 				//leave early and do not print the log message to save disk space
 				DBGV("Skipped printing of Sync message because of option -V\n");
 				return;
@@ -428,11 +429,11 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	ptpClock->last_packet_was_sync = FALSE;
 	
 
-
-	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&now.tv_sec));
+	time_s = now.seconds;
+	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&time_s));
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s.%06d, %s",
 		       rtOpts->csvStats ? "" : "state: ",
-		       time_str, (int)now.tv_usec,
+		       time_str, (int)now.nanoseconds/1000,
 		       translatePortState(ptpClock));
 
 	if (ptpClock->portState == PTP_SLAVE) {
@@ -538,6 +539,16 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	
 	write(1, sbuf, rtOpts->csvStats ? len : SCREEN_MAXSZ + 1);
 	
+}
+
+
+void
+recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time)
+{
+	if (rtOpts->recordFP) 
+		fprintf(rtOpts->recordFP, "%d %llu\n", sequenceId, 
+		  ((time->seconds * 1000000000ULL) + time->nanoseconds)
+		);
 }
 
 Boolean 

@@ -39,12 +39,13 @@
 
 #include "../ptpd.h"
 
-
+#ifdef PTP_EXPERIMENTAL
 extern RunTimeOpts rtOpts; 
+#endif
 
 /*Unpack Header from IN buffer to msgTmpHeader field */
 void 
-msgUnpackHeader(void *buf, MsgHeader * header)
+msgUnpackHeader(Octet * buf, MsgHeader * header)
 {
 	header->transportSpecific = (*(Nibble *) (buf + 0)) >> 4;
 	header->messageType = (*(Enumeration4 *) (buf + 0)) & 0x0F;
@@ -72,7 +73,7 @@ msgUnpackHeader(void *buf, MsgHeader * header)
 
 /*Pack header message into OUT buffer of ptpClock*/
 void 
-msgPackHeader(void *buf, PtpClock * ptpClock)
+msgPackHeader(Octet * buf, PtpClock * ptpClock)
 {
 	Nibble transport = 0x80;
 
@@ -83,7 +84,7 @@ msgPackHeader(void *buf, PtpClock * ptpClock)
 
 	/* TODO: this bit should have been active only for sync and PdelayResp */
 	if (ptpClock->twoStepFlag)
-		*(UInteger8 *) (buf + 6) = TWO_STEP_FLAG;
+		*(UInteger8 *) (buf + 6) = PTP_TWO_STEP;
 
 	memset((buf + 8), 0, 8);
 	memcpy((buf + 20), ptpClock->portIdentity.clockIdentity, 
@@ -97,7 +98,7 @@ msgPackHeader(void *buf, PtpClock * ptpClock)
 
 /*Pack SYNC message into OUT buffer of ptpClock*/
 void 
-msgPackSync(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
+msgPackSync(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -121,7 +122,7 @@ msgPackSync(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 
 /*Unpack Sync message from IN buffer */
 void 
-msgUnpackSync(void *buf, MsgSync * sync)
+msgUnpackSync(Octet * buf, MsgSync * sync)
 {
 	sync->originTimestamp.secondsField.msb = 
 		flip16(*(UInteger16 *) (buf + 34));
@@ -139,7 +140,7 @@ msgUnpackSync(void *buf, MsgSync * sync)
 
 /*Pack Announce message into OUT buffer of ptpClock*/
 void 
-msgPackAnnounce(void *buf, PtpClock * ptpClock)
+msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
 
@@ -171,7 +172,7 @@ msgPackAnnounce(void *buf, PtpClock * ptpClock)
 
 /*Unpack Announce message from IN buffer of ptpClock to msgtmp.Announce*/
 void 
-msgUnpackAnnounce(void *buf, MsgAnnounce * announce)
+msgUnpackAnnounce(Octet * buf, MsgAnnounce * announce)
 {
 	announce->originTimestamp.secondsField.msb = 
 		flip16(*(UInteger16 *) (buf + 34));
@@ -200,7 +201,7 @@ msgUnpackAnnounce(void *buf, MsgAnnounce * announce)
 
 /*pack Follow_up message into OUT buffer of ptpClock*/
 void 
-msgPackFollowUp(void *buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock)
+msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -227,7 +228,7 @@ msgPackFollowUp(void *buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClo
 
 /*Unpack Follow_up message from IN buffer of ptpClock to msgtmp.follow*/
 void 
-msgUnpackFollowUp(void *buf, MsgFollowUp * follow)
+msgUnpackFollowUp(Octet * buf, MsgFollowUp * follow)
 {
 	follow->preciseOriginTimestamp.secondsField.msb = 
 		flip16(*(UInteger16 *) (buf + 34));
@@ -245,7 +246,7 @@ msgUnpackFollowUp(void *buf, MsgFollowUp * follow)
 
 /*pack PdelayReq message into OUT buffer of ptpClock*/
 void 
-msgPackPDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
+msgPackPDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
 
@@ -274,7 +275,7 @@ msgPackPDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 
 /*pack delayReq message into OUT buffer of ptpClock*/
 void 
-msgPackDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
+msgPackDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -287,7 +288,7 @@ msgPackDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 
 #ifdef PTP_EXPERIMENTAL
 	if(rtOpts.do_hybrid_mode)
-		*(char *)(buf + 6) |= UNICAST_FLAG;
+		*(char *)(buf + 6) |= PTP_UNICAST;
 #endif
 
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentDelayReqSequenceId);
@@ -305,7 +306,7 @@ msgPackDelayReq(void *buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 
 /*pack delayResp message into OUT buffer of ptpClock*/
 void 
-msgPackDelayResp(void *buf, MsgHeader * header, Timestamp * receiveTimestamp, PtpClock * ptpClock)
+msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -319,7 +320,7 @@ msgPackDelayResp(void *buf, MsgHeader * header, Timestamp * receiveTimestamp, Pt
 
 #ifdef PTP_EXPERIMENTAL
 	if(rtOpts.do_hybrid_mode)    
-		*(char *)(buf + 6) |= UNICAST_FLAG;
+		*(char *)(buf + 6) |= PTP_UNICAST;
 #endif
 
 	memset((buf + 8), 0, 8);
@@ -352,7 +353,7 @@ msgPackDelayResp(void *buf, MsgHeader * header, Timestamp * receiveTimestamp, Pt
 
 /*pack PdelayResp message into OUT buffer of ptpClock*/
 void 
-msgPackPDelayResp(void *buf, MsgHeader * header, Timestamp * requestReceiptTimestamp, PtpClock * ptpClock)
+msgPackPDelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -385,7 +386,7 @@ msgPackPDelayResp(void *buf, MsgHeader * header, Timestamp * requestReceiptTimes
 
 /*Unpack delayReq message from IN buffer of ptpClock to msgtmp.req*/
 void 
-msgUnpackDelayReq(void *buf, MsgDelayReq * delayreq)
+msgUnpackDelayReq(Octet * buf, MsgDelayReq * delayreq)
 {
 	delayreq->originTimestamp.secondsField.msb = 
 		flip16(*(UInteger16 *) (buf + 34));
@@ -403,7 +404,7 @@ msgUnpackDelayReq(void *buf, MsgDelayReq * delayreq)
 
 /*Unpack PdelayReq message from IN buffer of ptpClock to msgtmp.req*/
 void 
-msgUnpackPDelayReq(void *buf, MsgPDelayReq * pdelayreq)
+msgUnpackPDelayReq(Octet * buf, MsgPDelayReq * pdelayreq)
 {
 	pdelayreq->originTimestamp.secondsField.msb = 
 		flip16(*(UInteger16 *) (buf + 34));
@@ -421,7 +422,7 @@ msgUnpackPDelayReq(void *buf, MsgPDelayReq * pdelayreq)
 
 /*Unpack delayResp message from IN buffer of ptpClock to msgtmp.presp*/
 void 
-msgUnpackDelayResp(void *buf, MsgDelayResp * resp)
+msgUnpackDelayResp(Octet * buf, MsgDelayResp * resp)
 {
 	resp->receiveTimestamp.secondsField.msb = 
 		flip16(*(UInteger16 *) (buf + 34));
@@ -442,7 +443,7 @@ msgUnpackDelayResp(void *buf, MsgDelayResp * resp)
 
 /*Unpack PdelayResp message from IN buffer of ptpClock to msgtmp.presp*/
 void 
-msgUnpackPDelayResp(void *buf, MsgPDelayResp * presp)
+msgUnpackPDelayResp(Octet * buf, MsgPDelayResp * presp)
 {
 	presp->requestReceiptTimestamp.secondsField.msb = 
 		flip16(*(UInteger16 *) (buf + 34));
@@ -462,7 +463,7 @@ msgUnpackPDelayResp(void *buf, MsgPDelayResp * presp)
 
 /*pack PdelayRespfollowup message into OUT buffer of ptpClock*/
 void 
-msgPackPDelayRespFollowUp(void *buf, MsgHeader * header, Timestamp * responseOriginTimestamp, PtpClock * ptpClock)
+msgPackPDelayRespFollowUp(Octet * buf, MsgHeader * header, Timestamp * responseOriginTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -497,7 +498,7 @@ msgPackPDelayRespFollowUp(void *buf, MsgHeader * header, Timestamp * responseOri
 
 /*Unpack PdelayResp message from IN buffer of ptpClock to msgtmp.presp*/
 void 
-msgUnpackPDelayRespFollowUp(void *buf, MsgPDelayRespFollowUp * prespfollow)
+msgUnpackPDelayRespFollowUp(Octet * buf, MsgPDelayRespFollowUp * prespfollow)
 {
 	prespfollow->responseOriginTimestamp.secondsField.msb = 
 		flip16(*(UInteger16 *) (buf + 34));

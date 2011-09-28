@@ -42,93 +42,29 @@
 void 
 integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)
 {
-	int s_msb;
-	double ns_msb;
-	int entire;
-	char *p_lsb, *p_msb;
-	Boolean negative = FALSE;
+	int sign;
+	int64_t scaledNanoseconds;
 
-	p_lsb = (char *)&bigint.lsb;
-	/* lsb type is unsigned int */
-	p_msb = (char *)&bigint.msb;
-	/* msb type is int */
-	/* Test if bigint is a negative number */
-	negative = ((bigint.msb & 0x80000000) == 0x80000000);
+	scaledNanoseconds = bigint.msb;
+	scaledNanoseconds <<=32;
+	scaledNanoseconds += bigint.lsb;
+	
+	/*determine sign of result big integer number*/
 
-	if (!negative) {
-		/* Positive case */
-
-		/* fractional nanoseconds are excluded (see 5.3.2) */
-		bigint.lsb = bigint.lsb >> 16;
-		/*
-		 * copy two least significant octet of msb to most
-		 * significant octet of lsb
-		 */
-		*(p_lsb + 2) = *p_msb;
-		*(p_lsb + 3) = *(p_msb + 1);
-		bigint.msb = bigint.msb >> 16;
-
-		internal->nanoseconds = bigint.lsb % 1000000000;
-		internal->seconds = bigint.lsb / 1000000000;
-
-		/* (2^32 / 10^9) = 4,294967296 */
-		s_msb = 4 * bigint.msb;
-		ns_msb = 0.294967296 * (double)bigint.msb;
-		entire = (int)ns_msb;
-		s_msb += entire;
-		ns_msb -= entire;
-		ns_msb *= 1000000000;
-		internal->nanoseconds = (float)internal->nanoseconds + 
-			(float)ns_msb;
-		internal->seconds += s_msb;
-		normalizeTime(internal);
-
+	if (scaledNanoseconds < 0)
+	{
+		scaledNanoseconds = -scaledNanoseconds;
+		sign = -1;
 	}
-	/* End of positive Case */
-
-	else {				/* Negative case */
-
-		/* Take the two complement */
-		bigint.lsb = ~bigint.lsb;
-		bigint.msb = ~bigint.msb;
-
-		if (bigint.lsb == 0xffffffff) {
-			bigint.lsb = 0;
-			bigint.msb++;
-		} else {
-			bigint.lsb++;
-		}
-
-		/* fractional nanoseconds are excluded (see 5.3.2) */
-		bigint.lsb = bigint.lsb >> 16;
-		/*
-		 * copy two least significant octet of msb to most
-		 * significant octet of lsb
-		 */
-		*(p_lsb + 2) = *p_msb;
-		*(p_lsb + 3) = *(p_msb + 1);
-		bigint.msb = bigint.msb >> 16;
-
-		internal->nanoseconds = bigint.lsb % 1000000000;
-		internal->seconds = bigint.lsb / 1000000000;
-
-		/* (2^32 / 10^9) = 4,294967296 */
-		s_msb = 4 * bigint.msb;
-		ns_msb = 0.294967296 * (double)bigint.msb;
-		entire = (int)ns_msb;
-		s_msb += entire;
-		ns_msb -= entire;
-		ns_msb *= 1000000000;
-
-		internal->nanoseconds = (float)internal->nanoseconds + 
-			(float)ns_msb;
-		internal->seconds += s_msb;
-		normalizeTime(internal);
-
-		internal->nanoseconds = -internal->nanoseconds;
-		internal->seconds = -internal->seconds;
+	else
+	{
+		sign = 1;
 	}
-	/* End of negative Case */
+
+	/*fractional nanoseconds are excluded (see 5.3.2)*/
+	scaledNanoseconds >>= 16;
+	internal->seconds = sign * (scaledNanoseconds / 1000000000);
+	internal->nanoseconds = sign * (scaledNanoseconds % 1000000000);
 }
 
 
@@ -229,6 +165,7 @@ subTime(TimeInternal * r, const TimeInternal * x, const TimeInternal * y)
 /// @param divisor 
 ///
 
+#if 0
 /* TODO: this function could be simplified, as currently it is only called to halve the time */
 void
 divTime(TimeInternal *r, int divisor)
@@ -246,7 +183,16 @@ divTime(TimeInternal *r, int divisor)
 	r->nanoseconds = nanoseconds;
 	normalizeTime(r);
 } 
+#endif
 
+void div2Time(TimeInternal *r)
+{
+    r->nanoseconds += r->seconds % 2 * 1000000000;
+    r->seconds /= 2;
+    r->nanoseconds /= 2;
+	
+    normalizeTime(r);
+}
 
 
 
@@ -259,10 +205,11 @@ void clearTime(TimeInternal *time)
 
 
 /* sets a time value to a certain nanoseconds */
-void nano_2_Time(TimeInternal *time, int nano)
+void nano_to_Time(TimeInternal *time, int nano)
 {
 	time->seconds     = 0;
 	time->nanoseconds = nano;
+	normalizeTime(time);
 }
 
 /* greater than operation */
@@ -292,7 +239,7 @@ int is_Time_close(TimeInternal *x, TimeInternal *y, int nanos)
 	subTime(&r1, x, y);
 	absTime(&r1);
 
-	nano_2_Time(&r2, nanos);
+	nano_to_Time(&r2, nanos);
 	
 	return !gtTime(&r1, &r2);
 }

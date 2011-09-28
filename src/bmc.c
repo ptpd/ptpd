@@ -93,13 +93,12 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	/* select the initial rate of delayreqs until we receive the first announce message */
 	ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
 
-	ptpClock->peerMeanPathDelay.seconds = 0;
-	ptpClock->peerMeanPathDelay.nanoseconds = 0;
+	clearTime(&ptpClock->peerMeanPathDelay);
 
 	ptpClock->logAnnounceInterval = rtOpts->announceInterval;
 	ptpClock->announceReceiptTimeout = rtOpts->announceReceiptTimeout;
 	ptpClock->logSyncInterval = rtOpts->syncInterval;
-	ptpClock->delayMechanism = DEFAULT_DELAY_MECHANISM;
+	ptpClock->delayMechanism = rtOpts->delayMechanism;
 	ptpClock->logMinPdelayReqInterval = DEFAULT_PDELAYREQ_INTERVAL;
 	ptpClock->versionNumber = VERSION_PTP;
 
@@ -120,10 +119,9 @@ void m1(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	/*Current data set update*/
 	ptpClock->stepsRemoved = 0;
-	ptpClock->offsetFromMaster.nanoseconds = 0;
-	ptpClock->offsetFromMaster.seconds = 0;
-	ptpClock->meanPathDelay.nanoseconds = 0;
-	ptpClock->meanPathDelay.seconds = 0;
+	
+	clearTime(&ptpClock->offsetFromMaster);
+	clearTime(&ptpClock->meanPathDelay);
 
 	/*Parent data set*/
 	memcpy(ptpClock->parentPortIdentity.clockIdentity,
@@ -190,17 +188,16 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 	/* Timeproperties DS */
 	ptpClock->currentUtcOffset = announce->currentUtcOffset;
         /* "Valid" is bit 2 in second octet of flagfield */
-	ptpClock->currentUtcOffsetValid = ((header->flagField[1] & 0x04) == 
-					   0x04); 
+	ptpClock->currentUtcOffsetValid = ((header->flagField[1] & PTP_UTC_REASONABLE) == PTP_UTC_REASONABLE); 
 
 	/* set PTP_PASSIVE-specific state */
 	p1(ptpClock, rtOpts);
 
-	ptpClock->leap59 = ((header->flagField[1] & 0x02) == 0x02);
-	ptpClock->leap61 = ((header->flagField[1] & 0x01) == 0x01);
-	ptpClock->timeTraceable = ((header->flagField[1] & 0x10) == 0x10);
-	ptpClock->frequencyTraceable = ((header->flagField[1] & 0x20) == 0x20);
-	ptpClock->ptpTimescale = ((header->flagField[1] & 0x08) == 0x08);
+	ptpClock->leap59 = ((header->flagField[1] & PTP_LI_61) == PTP_LI_59);
+	ptpClock->leap61 = ((header->flagField[1] & PTP_LI_61) == PTP_LI_61);
+	ptpClock->timeTraceable = ((header->flagField[1] & TIME_TRACEABLE) == TIME_TRACEABLE);
+	ptpClock->frequencyTraceable = ((header->flagField[1] & FREQUENCY_TRACEABLE) == FREQUENCY_TRACEABLE);
+	ptpClock->ptpTimescale = ((header->flagField[1] & PTP_TIMESCALE) == PTP_TIMESCALE);
 	ptpClock->timeSource = announce->timeSource;
 }
 
@@ -261,12 +258,11 @@ bmcDataSetComparison(MsgHeader *headerA, MsgAnnounce *announceA,
 				}
 			}
 			else { /*  steps removed A = steps removed B */
-				if (!memcmp(headerA->sourcePortIdentity.clockIdentity,headerB->sourcePortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH)) {
+				comp = memcmp(headerA->sourcePortIdentity.clockIdentity,headerB->sourcePortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
+				if (!comp) {
 					DBG("Sender=Receiver : Error -2");
 					return 0;
-				} else if ((memcmp(headerA->sourcePortIdentity.clockIdentity,
-						   headerB->sourcePortIdentity.clockIdentity,
-						   CLOCK_IDENTITY_LENGTH))<0) {
+				} else if (comp<0) {
 					return -1;
 				} else {
 					return 1;
@@ -301,7 +297,7 @@ bmcDataSetComparison(MsgHeader *headerA, MsgAnnounce *announceA,
 						}
 					} else {
 /* offsetScaledLogVariance are not identical */
-						comp= memcmp(&announceA->grandmasterClockQuality.offsetScaledLogVariance,&announceB->grandmasterClockQuality.offsetScaledLogVariance,1);
+						comp = announceA->grandmasterClockQuality.offsetScaledLogVariance < announceB->grandmasterClockQuality.offsetScaledLogVariance ? -1 : 1;
 						if (comp < 0)
 							return -1;
 						else if (comp > 0)
@@ -345,6 +341,9 @@ UInteger8
 bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 		 RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
+	Integer8 comp;
+	
+	
 	if (rtOpts->slaveOnly)	{
 		s1(header,announce,ptpClock, rtOpts);
 		return PTP_SLAVE;
@@ -357,29 +356,22 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 	copyD0(&ptpClock->msgTmpHeader,&ptpClock->msgTmp.announce,ptpClock);
 
 	DBGV("local clockQuality.clockClass: %d \n", ptpClock->clockQuality.clockClass);
+	comp = bmcDataSetComparison(&ptpClock->msgTmpHeader, &ptpClock->msgTmp.announce, header, announce, ptpClock);
 	if (ptpClock->clockQuality.clockClass < 128) {
-		if ((bmcDataSetComparison(&ptpClock->msgTmpHeader,
-					  &ptpClock->msgTmp.announce,
-					  header,announce,ptpClock)<0)) {
+		if (comp < 0) {
 			m1(rtOpts, ptpClock);
 			return PTP_MASTER;
-		} else if ((bmcDataSetComparison(&ptpClock->msgTmpHeader,
-						 &ptpClock->msgTmp.announce,
-						 header,announce,ptpClock)>0)) {
+		} else if (comp > 0) {
 			s1(header,announce,ptpClock, rtOpts);
 			return PTP_PASSIVE;
 		} else {
 			DBG("Error in bmcDataSetComparison..\n");
 		}
 	} else {
-		if ((bmcDataSetComparison(&ptpClock->msgTmpHeader,
-					  &ptpClock->msgTmp.announce,
-					  header,announce,ptpClock))<0) {
+		if (comp < 0) {
 			m1(rtOpts,ptpClock);
 			return PTP_MASTER;
-		} else if ((bmcDataSetComparison(&ptpClock->msgTmpHeader,
-						 &ptpClock->msgTmp.announce,
-						 header,announce,ptpClock)>0)) {
+		} else if (comp > 0) {
 			s1(header,announce,ptpClock, rtOpts);
 			return PTP_SLAVE;
 		} else {

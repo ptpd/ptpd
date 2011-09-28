@@ -166,25 +166,31 @@ static inline Integer32 flip32(x)
  *-Pack and unpack PTP messages */
  /**\{*/
 
-void msgUnpackHeader(void*,MsgHeader*);
-void msgUnpackAnnounce (void*,MsgAnnounce*);
-void msgUnpackSync(void*,MsgSync*);
-void msgUnpackFollowUp(void*,MsgFollowUp*);
-void msgUnpackPDelayReq(void*,MsgPDelayReq*);
-void msgUnpackPDelayResp(void*,MsgPDelayResp*);
-void msgUnpackPDelayRespFollowUp(void*,MsgPDelayRespFollowUp*);
-void msgUnpackManagement(void*,MsgManagement*);
-UInteger8 msgUnloadManagement(void*,MsgManagement*,PtpClock*,RunTimeOpts*);
-void msgUnpackManagementPayload(void *buf, MsgManagement *manage);
-void msgPackHeader(void*,PtpClock*);
-void msgPackAnnounce(void*,PtpClock*);
-void msgPackSync(void*,Timestamp*,PtpClock*);
-void msgPackFollowUp(void*,Timestamp*,PtpClock*);
-void msgPackPDelayReq(void*,Timestamp*,PtpClock*);
-void msgPackPDelayResp(void*,MsgHeader*,Timestamp*,PtpClock*);
-void msgPackPDelayRespFollowUp(void*,MsgHeader*,Timestamp*,PtpClock*);
-UInteger16 msgPackManagement(void*,MsgManagement*,PtpClock*);
-UInteger16 msgPackManagementResponse(void*,MsgHeader*,MsgManagement*,PtpClock*);
+void msgUnpackHeader(Octet * buf,MsgHeader*);
+void msgUnpackAnnounce (Octet * buf,MsgAnnounce*);
+void msgUnpackSync(Octet * buf,MsgSync*);
+void msgUnpackFollowUp(Octet * buf,MsgFollowUp*);
+void msgUnpackDelayReq(Octet * buf, MsgDelayReq * delayreq);
+void msgUnpackDelayResp(Octet * buf,MsgDelayResp *);
+void msgUnpackPDelayReq(Octet * buf,MsgPDelayReq*);
+void msgUnpackPDelayResp(Octet * buf,MsgPDelayResp*);
+void msgUnpackPDelayRespFollowUp(Octet * buf,MsgPDelayRespFollowUp*);
+void msgUnpackManagement(Octet * buf,MsgManagement*);
+UInteger8 msgUnloadManagement(Octet * buf,MsgManagement*,PtpClock*,RunTimeOpts*);
+void msgUnpackManagementPayload(Octet *buf, MsgManagement *manage);
+void msgPackHeader(Octet * buf,PtpClock*);
+void msgPackAnnounce(Octet * buf,PtpClock*);
+void msgPackSync(Octet * buf,Timestamp*,PtpClock*);
+void msgPackFollowUp(Octet * buf,Timestamp*,PtpClock*);
+void msgPackDelayReq(Octet * buf,Timestamp *,PtpClock *);
+void msgPackDelayResp(Octet * buf,MsgHeader *,Timestamp *,PtpClock *);
+void msgPackPDelayReq(Octet * buf,Timestamp*,PtpClock*);
+void msgPackPDelayResp(Octet * buf,MsgHeader*,Timestamp*,PtpClock*);
+void msgPackPDelayRespFollowUp(Octet * buf,MsgHeader*,Timestamp*,PtpClock*);
+UInteger16 msgPackManagement(Octet * buf,MsgManagement*,PtpClock*);
+UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpClock*);
+
+
 
 void msgDump(PtpClock *ptpClock);
 void msgDebugHeader(MsgHeader *header);
@@ -234,10 +240,10 @@ void servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 /** \name startup.c (Unix API dependent)
  * -Handle with runtime options*/
  /**\{*/
-int logToFile(void);
-int recordToFile(void);
+int logToFile(RunTimeOpts * rtOpts);
+int recordToFile(RunTimeOpts * rtOpts);
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
-void ptpdShutdown(void);
+void ptpdShutdown(PtpClock * ptpClock);
 
 void check_signals(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
@@ -269,6 +275,7 @@ Boolean adjFreq(Integer32);
 
 long get_current_tickrate(void);
 
+void recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time);
 
 #if defined(__APPLE__)
 void 	adjTime(Integer32);

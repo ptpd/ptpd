@@ -100,9 +100,9 @@ void subTime(TimeInternal*,const TimeInternal*,const TimeInternal*);
 /** \}*/
 
 /**
- * \brief Divied an InternalTime by a divisor
+ * \brief Divied an InternalTime by 2
  */
-void divTime(TimeInternal *, int);
+void div2Time(TimeInternal *);
 
 /** \name bmc.c
  * -Best Master Clock Algorithm functions*/
@@ -176,11 +176,6 @@ void msgDelayReq_display(MsgDelayReq * req);
 void msgDelayResp_display(MsgDelayResp * resp);
 void msgPDelayResp_display(MsgPDelayResp * presp);
 
-
-void msgUnpackDelayResp(void *,MsgDelayResp *);
-void msgPackDelayReq(void *,Timestamp *,PtpClock *);
-void msgPackDelayResp(void *,MsgHeader *,Timestamp *,PtpClock *);
-
 void clearTime(TimeInternal *time);
 int isTimeInternalNegative(const TimeInternal * p);
 
@@ -192,7 +187,7 @@ char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *s
 int snprint_TimeInternal(char *s, int max_len, const TimeInternal * p);
 
 
-void nano_2_Time(TimeInternal *time, int nano);
+void nano_to_Time(TimeInternal *time, int nano);
 int gtTime(TimeInternal *x, TimeInternal *b);
 void absTime(TimeInternal *time);
 int is_Time_close(TimeInternal *x, TimeInternal *b, int nanos);

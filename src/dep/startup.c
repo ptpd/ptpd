@@ -39,8 +39,6 @@
 
 #include "../ptpd.h"
 
-PtpClock *ptpClock;
-
 /*
  * valgrind 3.5.0 currently reports no errors (last check: 20110512)
  * valgrind 3.4.1 lacks an adjtimex handler
@@ -113,9 +111,9 @@ void catch_signals(int sig)
  * exit the program cleanly
  */
 void
-do_signal_close()
+do_signal_close(PtpClock * ptpClock)
 {
-	ptpdShutdown();
+	ptpdShutdown(ptpClock);
 
 	NOTIFY("shutdown on close signal\n");
 	exit(0);
@@ -127,16 +125,14 @@ do_signal_close()
  * @param sig 
  */
 void 
-do_signal_sighup()
+do_signal_sighup(RunTimeOpts * rtOpts)
 {
-	extern RunTimeOpts rtOpts;
-	
-	if(rtOpts.do_record_quality_file)
-	if(!recordToFile())
+	if(rtOpts->do_record_quality_file)
+	if(!recordToFile(rtOpts))
 		NOTIFY("SIGHUP recordToFile failed\n");
 
-	if(rtOpts.do_log_to_file)
-		if(!logToFile())
+	if(rtOpts->do_log_to_file)
+		if(!logToFile(rtOpts))
 			NOTIFY("SIGHUP logToFile failed\n");
 
 	NOTIFY("I've been SIGHUP'd\n");
@@ -156,11 +152,11 @@ check_signals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 */
 
 	if(sigint_received || sigterm_received){
-		do_signal_close();
+		do_signal_close(ptpClock);
 	}
 
 	if(sighup_received){
-		do_signal_sighup();
+		do_signal_sighup(rtOpts);
 	sighup_received=0;
 	}
 
@@ -428,19 +424,18 @@ check_parallel_daemons(char *name, int expected, int strict, RunTimeOpts * rtOpt
  * @return True if success, False if failure
  */
 int 
-logToFile()
+logToFile(RunTimeOpts * rtOpts)
 {
-	extern RunTimeOpts rtOpts;
-	if(rtOpts.logFd != -1)
-		close(rtOpts.logFd);
+	if(rtOpts->logFd != -1)
+		close(rtOpts->logFd);
 	
 
 	/* We new append the file instead of replacing it. Also use mask 644 instead of 444 */
-	if((rtOpts.logFd = open(rtOpts.file, O_CREAT | O_APPEND | O_RDWR, 0644 )) != -1) {
-		dup2(rtOpts.logFd, STDOUT_FILENO);
-		dup2(rtOpts.logFd, STDERR_FILENO);
+	if((rtOpts->logFd = open(rtOpts->file, O_CREAT | O_APPEND | O_RDWR, 0644 )) != -1) {
+		dup2(rtOpts->logFd, STDOUT_FILENO);
+		dup2(rtOpts->logFd, STDERR_FILENO);
 	}
-	return rtOpts.logFd != -1;
+	return rtOpts->logFd != -1;
 }
 
 /** 
@@ -450,22 +445,20 @@ logToFile()
  * @return True if success, False if failure
  */
 int
-recordToFile()
+recordToFile(RunTimeOpts * rtOpts)
 {
-	extern RunTimeOpts rtOpts;
+	if (rtOpts->recordFP != NULL)
+		fclose(rtOpts->recordFP);
 
-	if (rtOpts.recordFP != NULL)
-		fclose(rtOpts.recordFP);
-
-	if ((rtOpts.recordFP = fopen(rtOpts.recordFile, "w")) == NULL)
+	if ((rtOpts->recordFP = fopen(rtOpts->recordFile, "w")) == NULL)
 		PERROR("could not open sync recording file");
 	else
-		setlinebuf(rtOpts.recordFP);
-	return (rtOpts.recordFP != NULL);
+		setlinebuf(rtOpts->recordFP);
+	return (rtOpts->recordFP != NULL);
 }
 
 void 
-ptpdShutdown()
+ptpdShutdown(PtpClock * ptpClock)
 {
 	netShutdown(&ptpClock->netPath);
 
@@ -523,6 +516,7 @@ display_short_help(char *error)
 PtpClock *
 ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 {
+	PtpClock * ptpClock;
 	int c, noclose = 0;
 	int mode_selected = 0;		// 1: slave / 2: master, with ntp / 3: master without ntp
 
@@ -843,7 +837,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			return 0;
 			break;
 		case 'h':
-			rtOpts->E2E_mode = TRUE;
+			rtOpts->delayMechanism = E2E;
 			break;
 
 		case 'V':
@@ -851,7 +845,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 
 		case 'z':
-			rtOpts->E2E_mode = FALSE;
+			rtOpts->delayMechanism = P2P;
 			break;
 
 		/* mode selection */
@@ -903,12 +897,12 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		case 'Y':
 			rtOpts->initial_delayreq = strtol(optarg, &optarg, 0);
 			rtOpts->subsequent_delayreq = rtOpts->initial_delayreq;
-			rtOpts->ignore_delayreq_master = FALSE;
+			rtOpts->ignore_delayreq_interval_master = FALSE;
 
 			/* Use this to override the master-given DelayReq value */
 			if (optarg[0]){
 				rtOpts->subsequent_delayreq = strtol(optarg + 1, &optarg, 0);
-			rtOpts->ignore_delayreq_master = TRUE;
+				rtOpts->ignore_delayreq_interval_master = TRUE;
 			}
 			break;
 
@@ -1056,14 +1050,14 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 	/* Manage open files: stats and quality file */
 	if(rtOpts->do_record_quality_file){
-		if (recordToFile())
+		if (recordToFile(rtOpts))
 			noclose = 1;
 		else
 			PERROR("could not open quality file");
 	}
 
 	if(rtOpts->do_log_to_file){
-		if(logToFile())
+		if(logToFile(rtOpts))
 			noclose = 1;
 		else
 			PERROR("could not open output file");

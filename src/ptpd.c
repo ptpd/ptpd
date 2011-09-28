@@ -104,7 +104,7 @@ main(int argc, char **argv)
 	 * defaults for new options
 	 */
 	rtOpts.slaveOnly = TRUE;
-	rtOpts.ignore_delayreq_master = FALSE;
+	rtOpts.ignore_delayreq_interval_master = FALSE;
 	rtOpts.do_IGMP_refresh = TRUE;
 	rtOpts.useSysLog       = TRUE;
 	rtOpts.syslog_startup_messages_also_to_stdout = TRUE;		/* used to print inital messages both to syslog and screen */
@@ -114,7 +114,7 @@ main(int argc, char **argv)
 #endif
 
 	rtOpts.ttl = 1;
-	rtOpts.E2E_mode         = FALSE;
+	rtOpts.delayMechanism   = DEFAULT_DELAY_MECHANISM;
 	rtOpts.noResetClock     = DEFAULT_NO_RESET_CLOCK;
 	rtOpts.log_seconds_between_message = 0;
 
@@ -132,7 +132,7 @@ main(int argc, char **argv)
 	protocol(&rtOpts, ptpClock);
 	/* forever loop.. */
 
-	ptpdShutdown();
+	ptpdShutdown(ptpClock);
 
 	NOTIFY("self shutdown, probably due to an error\n");
 

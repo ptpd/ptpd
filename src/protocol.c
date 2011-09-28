@@ -123,9 +123,9 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	case PTP_SLAVE:
 		timerStop(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer);
 		
-		if (rtOpts->E2E_mode)
+		if (ptpClock->delayMechanism == E2E)
 			timerStop(DELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
-		else
+		else if (ptpClock->delayMechanism == P2P)
 			timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
 		
 		initClock(rtOpts, ptpClock); 
@@ -248,15 +248,11 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->waitingForFollow = FALSE;
 		ptpClock->waitingForDelayResp = FALSE;
 
-		// FIXME: clear these vars with function, and inside initclock
-		ptpClock->pdelay_req_send_time.seconds = 0;
-		ptpClock->pdelay_req_send_time.nanoseconds = 0;
-		ptpClock->pdelay_req_receive_time.seconds = 0;
-		ptpClock->pdelay_req_receive_time.nanoseconds = 0;
-		ptpClock->pdelay_resp_send_time.seconds = 0;
-		ptpClock->pdelay_resp_send_time.nanoseconds = 0;
-		ptpClock->pdelay_resp_receive_time.seconds = 0;
-		ptpClock->pdelay_resp_receive_time.nanoseconds = 0;
+		// FIXME: clear these vars inside initclock
+		clearTime(&ptpClock->pdelay_req_send_time);
+		clearTime(&ptpClock->pdelay_req_receive_time);
+		clearTime(&ptpClock->pdelay_resp_send_time);
+		clearTime(&ptpClock->pdelay_resp_receive_time);
 		
 		timerStart(OPERATOR_MESSAGES_TIMER,
 			   OPERATOR_MESSAGES_INTERVAL,
@@ -387,7 +383,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				 *  previously this was not the case when we were already in LISTENING mode
 				 */
 				toState(PTP_LISTENING, rtOpts, ptpClock);
-		}
+			}
 		}
 		
 		if(timerExpired(OPERATOR_MESSAGES_TIMER, ptpClock->itimer)) {
@@ -395,13 +391,13 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 
 
-		if (rtOpts->E2E_mode) {
+		if (ptpClock->delayMechanism == E2E) {
 			if(timerExpired(DELAYREQ_INTERVAL_TIMER,
 					ptpClock->itimer)) {
 				DBG2("event DELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
 				issueDelayReq(rtOpts,ptpClock);
 			}
-		} else {
+		} else if (ptpClock->delayMechanism == P2P) {
 			if(timerExpired(PDELAYREQ_INTERVAL_TIMER,
 					ptpClock->itimer)) {
 				DBGV("event PDELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
@@ -431,7 +427,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			issueAnnounce(rtOpts, ptpClock);
 		}
 		
-		if (!rtOpts->E2E_mode) {
+		if (ptpClock->delayMechanism == P2P) {
 			if(timerExpired(PDELAYREQ_INTERVAL_TIMER,
 					ptpClock->itimer)) {
 				DBGV("event PDELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
@@ -693,7 +689,7 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 	   		msgUnpackAnnounce(ptpClock->msgIbuf,
 					  &ptpClock->msgTmp.announce);
 	   		
-			/* call the BMC algorithm (file bmc.c) */
+			/* update datasets (file bmc.c) */
 	   		s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
 
 				
@@ -766,7 +762,12 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			msgUnpackAnnounce(ptpClock->msgIbuf,
 					  &ptpClock->msgTmp.announce);
 
-			/* call the BMC algorithm (file bmc.c) */
+			/* TODO: not in spec
+			 * datasets should not be updated by another master
+			 * this is the reason why we are PASSIVE and not SLAVE
+			 * this should be p1(ptpClock, rtOpts);
+			 */
+			/* update datasets (file bmc.c) */
 			s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
 
 
@@ -857,11 +858,11 @@ handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 					ptpClock->logMinDelayReqInterval
 				);
 
-				if (rtOpts->E2E_mode)
+				if (ptpClock->delayMechanism == E2E)
 					timerStart(DELAYREQ_INTERVAL_TIMER,
 						   pow(2,ptpClock->logMinDelayReqInterval),
 						   ptpClock->itimer);
-				else
+				else if (ptpClock->delayMechanism == P2P)
 					timerStart(PDELAYREQ_INTERVAL_TIMER,
 						   pow(2,ptpClock->logMinPdelayReqInterval),
 						   ptpClock->itimer);
@@ -872,13 +873,9 @@ handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			ptpClock->sync_receive_time.seconds = time->seconds;
 			ptpClock->sync_receive_time.nanoseconds = time->nanoseconds;
 				
-			if (rtOpts->recordFP) 
-				fprintf(rtOpts->recordFP, "%d %llu\n", 
-					header->sequenceId, 
-					((time->seconds * 1000000000ULL) + 
-					 time->nanoseconds));
+			recordSync(rtOpts, header->sequenceId, time); 
 
-			if ((header->flagField[0] & 0x02) == TWO_STEP_FLAG) {
+			if ((header->flagField[0] & PTP_TWO_STEP) == PTP_TWO_STEP) {
 
 				DBG2("HandleSync: waiting for follow-up \n");
 
@@ -923,14 +920,16 @@ handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			DBGV("HandleSync: Sync message received from "
 			     "another Master  \n");
 			break;
-		} else {
+		} if (ptpClock->twoStepFlag) {
 			DBGV("HandleSync: going to send followup message\n ");
 
 			/*Add latency*/
 			addTime(time,time,&rtOpts->outboundLatency);
 			issueFollowup(time,rtOpts,ptpClock);
 			break;
-		}	
+		} else {
+			DBGV("HandleSync: Sync message received from self\n ");
+		}
 	}
 }
 
@@ -1029,7 +1028,7 @@ handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 	       TimeInternal *time, Boolean isFromSelf,
 	       RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	if (rtOpts->E2E_mode) {
+	if (ptpClock->delayMechanism == E2E) {
 		DBGV("delayReq message received : \n");
 		
 		if(length < DELAY_REQ_LENGTH) {
@@ -1112,7 +1111,7 @@ handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 		Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
-	if (rtOpts->E2E_mode) {
+	if (ptpClock->delayMechanism == E2E) {
 		Boolean isFromCurrentParent = FALSE;
 		TimeInternal requestReceiptTimestamp;
 		TimeInternal correctionField;
@@ -1194,7 +1193,7 @@ handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 				}
 
 				
-				if(rtOpts->ignore_delayreq_master == 0){
+				if(rtOpts->ignore_delayreq_interval_master == 0){
 					DBGV("current delay_req: %d  new delay req: %d \n",
 						ptpClock->logMinDelayReqInterval,
 						header->logMessageInterval);
@@ -1235,7 +1234,7 @@ handlePDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 		TimeInternal *time, Boolean isFromSelf, 
 		RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	if (!rtOpts->E2E_mode) {
+	if (ptpClock->delayMechanism == P2P) {
 		DBGV("PdelayReq message received : \n");
 	
 		if(length < PDELAY_REQ_LENGTH) {
@@ -1294,7 +1293,7 @@ handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
 		 RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
-	if (!rtOpts->E2E_mode) {
+	if (ptpClock->delayMechanism == P2P) {
 		Boolean isFromCurrentParent = FALSE;
 		TimeInternal requestReceiptTimestamp;
 		TimeInternal correctionField;
@@ -1317,7 +1316,8 @@ handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
 			return;
 		
 		case PTP_SLAVE:
-			if (isFromSelf)	{
+		case PTP_MASTER:
+			if (ptpClock->twoStepFlag && isFromSelf)	{
 				addTime(time,time,&rtOpts->outboundLatency);
 				issuePDelayRespFollowUp(time,
 							&ptpClock->PdelayReqHeader,
@@ -1338,8 +1338,7 @@ handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
 				 && ( ptpClock->portIdentity.portNumber == ptpClock->msgTmp.presp.requestingPortIdentity.portNumber)))	{
 
                                 /* Two Step Clock */
-				if ((header->flagField[0] & 0x02) == 
-				    TWO_STEP_FLAG) {
+				if ((header->flagField[0] & PTP_TWO_STEP) == PTP_TWO_STEP) {
 					/*Store t4 (Fig 35)*/
 					ptpClock->pdelay_resp_receive_time.seconds = time->seconds;
 					ptpClock->pdelay_resp_receive_time.nanoseconds = time->nanoseconds;
@@ -1370,65 +1369,6 @@ handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
 				break;
 			}
 			break; /* XXX added by gnn for safety */
-		case PTP_MASTER:
-			/*Loopback Timestamp*/
-			if (isFromSelf) {
-				/*Add latency*/
-				addTime(time,time,&rtOpts->outboundLatency);
-					
-				issuePDelayRespFollowUp(
-					time,
-					&ptpClock->PdelayReqHeader,
-					rtOpts, ptpClock);
-				break;
-			}
-			msgUnpackPDelayResp(ptpClock->msgIbuf,
-					    &ptpClock->msgTmp.presp);
-		
-			isFromCurrentParent = !memcmp(ptpClock->parentPortIdentity.clockIdentity,header->sourcePortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH)
-				&& (ptpClock->parentPortIdentity.portNumber == header->sourcePortIdentity.portNumber);
-	
-			if (!((ptpClock->sentPDelayReqSequenceId == 
-			       header->sequenceId) && 
-			      (!memcmp(ptpClock->portIdentity.clockIdentity,
-				       ptpClock->msgTmp.presp.requestingPortIdentity.clockIdentity,
-				       CLOCK_IDENTITY_LENGTH)) && 
-			      (ptpClock->portIdentity.portNumber == 
-			       ptpClock->msgTmp.presp.requestingPortIdentity.portNumber))) {
-                                /* Two Step Clock */
-				if ((header->flagField[0] & 0x02) == 
-				    TWO_STEP_FLAG) {
-					/*Store t4 (Fig 35)*/
-					ptpClock->pdelay_resp_receive_time.seconds = time->seconds;
-					ptpClock->pdelay_resp_receive_time.nanoseconds = time->nanoseconds;
-					/*store t2 (Fig 35)*/
-					toInternalTime(&requestReceiptTimestamp,
-						       &ptpClock->msgTmp.presp.requestReceiptTimestamp);
-					ptpClock->pdelay_req_receive_time.seconds = 
-						requestReceiptTimestamp.seconds;
-					ptpClock->pdelay_req_receive_time.nanoseconds = 
-						requestReceiptTimestamp.nanoseconds;
-					integer64_to_internalTime(
-						header->correctionfield,
-						&correctionField);
-					ptpClock->lastPdelayRespCorrectionField.seconds = correctionField.seconds;
-					ptpClock->lastPdelayRespCorrectionField.nanoseconds = correctionField.nanoseconds;
-					break;
-				} else { /* One step Clock */
-					/*Store t4 (Fig 35)*/
-					ptpClock->pdelay_resp_receive_time.seconds = time->seconds;
-					ptpClock->pdelay_resp_receive_time.nanoseconds = time->nanoseconds;
-					
-					integer64_to_internalTime(
-						header->correctionfield,
-						&correctionField);
-					updatePeerDelay(&ptpClock->owd_filt,
-							rtOpts,ptpClock,
-							&correctionField,FALSE);
-					break;
-				}
-			}
-			break; /* XXX added by gnn for safety */
 		default:
 			DBG("do unrecognized state4\n");
 			break;
@@ -1444,7 +1384,7 @@ handlePDelayRespFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			 Boolean isFromSelf, RunTimeOpts *rtOpts, 
 			 PtpClock *ptpClock){
 
-	if (!rtOpts->E2E_mode) {
+	if (ptpClock->delayMechanism == P2P) {
 		TimeInternal responseOriginTimestamp;
 		TimeInternal correctionField;
 	
@@ -1465,6 +1405,7 @@ handlePDelayRespFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			return;
 		
 		case PTP_SLAVE:
+		case PTP_MASTER:
 			if (header->sequenceId == 
 			    ptpClock->sentPDelayReqSequenceId-1) {
 				msgUnpackPDelayRespFollowUp(
@@ -1485,29 +1426,6 @@ handlePDelayRespFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 				updatePeerDelay (&ptpClock->owd_filt,
 						 rtOpts, ptpClock,
 						 &correctionField,TRUE);
-				break;
-			}
-		case PTP_MASTER:
-			if (header->sequenceId == 
-			    ptpClock->sentPDelayReqSequenceId-1) {
-				msgUnpackPDelayRespFollowUp(
-					ptpClock->msgIbuf,
-					&ptpClock->msgTmp.prespfollow);
-				toInternalTime(&responseOriginTimestamp,
-					       &ptpClock->msgTmp.prespfollow.responseOriginTimestamp);
-				ptpClock->pdelay_resp_send_time.seconds = 
-					responseOriginTimestamp.seconds;
-				ptpClock->pdelay_resp_send_time.nanoseconds = 
-					responseOriginTimestamp.nanoseconds;
-				integer64_to_internalTime(
-					ptpClock->msgTmpHeader.correctionfield,
-					&correctionField);
-				addTime(&correctionField, 
-					&correctionField,
-					&ptpClock->lastPdelayRespCorrectionField);
-				updatePeerDelay(&ptpClock->owd_filt,
-						rtOpts, ptpClock,
-						&correctionField,TRUE);
 				break;
 			}
 		default:

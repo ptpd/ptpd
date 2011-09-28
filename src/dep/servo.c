@@ -171,7 +171,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			correctionField);
 
 		/* Compute one-way delay */
-		divTime(&ptpClock->meanPathDelay, 2);
+		div2Time(&ptpClock->meanPathDelay);
 
 
 		
@@ -257,8 +257,7 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 			&ptpClock->peerMeanPathDelay, correctionField);
 
 		/* Compute one-way delay */
-		ptpClock->peerMeanPathDelay.seconds /= 2;
-		ptpClock->peerMeanPathDelay.nanoseconds /= 2;
+		div2Time(&ptpClock->peerMeanPathDelay);
 	} else {
 		/* One step clock */
 
@@ -271,8 +270,7 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 			&ptpClock->peerMeanPathDelay, correctionField);
 
 		/* Compute one-way delay */
-		ptpClock->peerMeanPathDelay.seconds /= 2;
-		ptpClock->peerMeanPathDelay.nanoseconds /= 2;
+		div2Time(&ptpClock->peerMeanPathDelay);
 	}
 
 	if (ptpClock->peerMeanPathDelay.seconds) {
@@ -357,11 +355,11 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 
 
 	/* update 'offsetFromMaster' */
-	if (!rtOpts->E2E_mode) {
+	if (ptpClock->delayMechanism == P2P) {
 		subTime(&ptpClock->offsetFromMaster, 
 			&ptpClock->delayMS, 
 			&ptpClock->peerMeanPathDelay);
-	} else {
+	} else if (ptpClock->delayMechanism == E2E) {
 		/* (End to End mode) */
 		subTime(&ptpClock->offsetFromMaster, 
 			&ptpClock->delayMS, 
@@ -611,11 +609,11 @@ display:
 
 	DBGV("\n--Offset and Delay filtered-- \n");
 
-	if (!rtOpts->E2E_mode) {
+	if (ptpClock->delayMechanism == P2P) {
 		DBGV("one-way delay averaged (P2P):  %10ds %11dns\n",
 		    ptpClock->peerMeanPathDelay.seconds, 
 		    ptpClock->peerMeanPathDelay.nanoseconds);
-	} else {
+	} else if (ptpClock->delayMechanism == E2E) {
 		DBGV("one-way delay averaged (E2E):  %10ds %11dns\n",
 		    ptpClock->meanPathDelay.seconds, 
 		    ptpClock->meanPathDelay.nanoseconds);

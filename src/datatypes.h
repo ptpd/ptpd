@@ -450,7 +450,7 @@ typedef struct {
 	TimeInternal inboundLatency, outboundLatency;
 	Integer16 max_foreign_records;
 	Boolean ethernet_mode;
-	Boolean E2E_mode;
+	Enumeration8 delayMechanism;
 	Boolean	offset_first_updated;
 	char file[PATH_MAX];
 	int logFd;
@@ -469,7 +469,7 @@ typedef struct {
 	
 	int initial_delayreq;
 	int subsequent_delayreq;
-	Boolean ignore_delayreq_master;
+	Boolean ignore_delayreq_interval_master;
 	Boolean syslog_startup_messages_also_to_stdout;
 	
 #ifdef PTP_EXPERIMENTAL

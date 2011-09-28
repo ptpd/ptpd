@@ -43,36 +43,59 @@
 #error kernel-level nanoseconds timestamps not detected
 #endif
 
+/**
+ * shutdown the IPv4 multicast for specific address
+ *
+ * @param netPath
+ * @param multicastAddr
+ * 
+ * @return TRUE if successful
+ */
+static Boolean
+netShutdownMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
+{
+	struct ip_mreq imr;
 
+	/* Close General Multicast */
+	imr.imr_multiaddr.s_addr = multicastAddr;
+	imr.imr_interface.s_addr = htonl(INADDR_ANY);
+
+	setsockopt(netPath->eventSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
+		   &imr, sizeof(struct ip_mreq));
+	setsockopt(netPath->generalSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
+		   &imr, sizeof(struct ip_mreq));
+	
+	return TRUE;
+}
+
+/**
+ * shutdown the multicast (both General and Peer)
+ *
+ * @param netPath 
+ * 
+ * @return TRUE if successful
+ */
+static Boolean
+netShutdownMulticast(NetPath * netPath)
+{
+	/* Close General Multicast */
+	netShutdownMulticastIPv4(netPath, netPath->multicastAddr);
+	netPath->multicastAddr = 0;
+
+	/* Close Peer Multicast */
+	netShutdownMulticastIPv4(netPath, netPath->peerMulticastAddr);
+	netPath->peerMulticastAddr = 0;
+	
+	return TRUE;
+}
 
 /* shut down the UDP stuff */
 Boolean 
 netShutdown(NetPath * netPath)
 {
-	struct ip_mreq imr;
+	netShutdownMulticast(netPath);
 
-	/* Close General Multicast */
-	imr.imr_multiaddr.s_addr = netPath->multicastAddr;
-	imr.imr_interface.s_addr = htonl(INADDR_ANY);
-
-	setsockopt(netPath->eventSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
-		   &imr, sizeof(struct ip_mreq));
-	setsockopt(netPath->generalSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
-		   &imr, sizeof(struct ip_mreq));
-
-	/* Close Peer Multicast */
-	imr.imr_multiaddr.s_addr = netPath->peerMulticastAddr;
-	imr.imr_interface.s_addr = htonl(INADDR_ANY);
-
-	setsockopt(netPath->eventSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
-		   &imr, sizeof(struct ip_mreq));
-	setsockopt(netPath->generalSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
-		   &imr, sizeof(struct ip_mreq));
-
-
-	netPath->multicastAddr = 0;
 	netPath->unicastAddr = 0;
-	netPath->peerMulticastAddr = 0;
 
 	/* Close sockets */
 	if (netPath->eventSock > 0)
@@ -88,7 +111,7 @@ netShutdown(NetPath * netPath)
 
 
 Boolean
-choose_mcast_group(RunTimeOpts * rtOpts, struct in_addr *netAddr)
+chooseMcastGroup(RunTimeOpts * rtOpts, struct in_addr *netAddr)
 {
 
 	char *addrStr;
@@ -309,6 +332,81 @@ findIface(Octet * ifaceName, UInteger8 * communicationTechnology,
 #endif
 }
 
+/**
+ * Init the multcast for specific IPv4 address
+ * 
+ * @param netPath 
+ * @param multicastAddr 
+ * 
+ * @return TRUE if successful
+ */
+static Boolean
+netInitMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
+{
+	struct ip_mreq imr;
+
+	/* multicast send only on specified interface */
+	imr.imr_multiaddr.s_addr = multicastAddr;
+	imr.imr_interface.s_addr = netPath->interfaceAddr.s_addr;
+	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_IF, 
+		       &imr.imr_interface.s_addr, sizeof(struct in_addr)) < 0
+	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_IF, 
+			  &imr.imr_interface.s_addr, sizeof(struct in_addr)) 
+	    < 0) {
+		PERROR("failed to enable multi-cast on the interface");
+		return FALSE;
+	}
+	/* join multicast group (for receiving) on specified interface */
+	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
+		       &imr, sizeof(struct ip_mreq)) < 0
+	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
+			  &imr, sizeof(struct ip_mreq)) < 0) {
+		PERROR("failed to join the multi-cast group");
+		return FALSE;
+	}
+	return TRUE;
+}
+
+/**
+ * Init the multcast (both General and Peer)
+ * 
+ * @param netPath 
+ * @param rtOpts 
+ * 
+ * @return TRUE if successful
+ */
+Boolean
+netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
+{
+	struct in_addr netAddr;
+	char addrStr[NET_ADDRESS_LENGTH];
+	
+	/* Init General multicast IP address */
+	if(!chooseMcastGroup(rtOpts, &netAddr)){
+		return FALSE;
+	}
+	netPath->multicastAddr = netAddr.s_addr;
+	if(!netInitMulticastIPv4(netPath, netPath->multicastAddr)) {
+		return FALSE;
+	}
+	/* End of General multicast Ip address init */
+
+
+	/* Init Peer multicast IP address */
+	memcpy(addrStr, PEER_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
+
+	if (!inet_aton(addrStr, &netAddr)) {
+		ERROR("failed to encode multi-cast address: %s\n", addrStr);
+		return FALSE;
+	}
+	netPath->peerMulticastAddr = netAddr.s_addr;
+	if(!netInitMulticastIPv4(netPath, netPath->peerMulticastAddr)) {
+		return FALSE;
+	}
+	/* End of Peer multicast Ip address init */
+	
+	return TRUE;
+}
 
 /**
  * start all of the UDP stuff 
@@ -328,8 +426,6 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	int temp;
 	struct in_addr interfaceAddr, netAddr;
 	struct sockaddr_in addr;
-	struct ip_mreq imr;
-	char addrStr[NET_ADDRESS_LENGTH];
 
 	DBG("netInit\n");
 
@@ -431,66 +527,11 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	} else {
                 netPath->unicastAddr = 0;
 	}
- 
-	/* Init General multicast IP address */
-	if(!choose_mcast_group(rtOpts, &netAddr)){
+
+	/* init UDP Multicast on both Default and Pear addresses */
+	if (!netInitMulticast(netPath, rtOpts)) {
 		return FALSE;
 	}
-	netPath->multicastAddr = netAddr.s_addr;
-
-
-	
-	/* multicast send only on specified interface */
-	imr.imr_multiaddr.s_addr = netAddr.s_addr;
-	imr.imr_interface.s_addr = interfaceAddr.s_addr;
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_IF, 
-		       &imr.imr_interface.s_addr, sizeof(struct in_addr)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_IF, 
-			  &imr.imr_interface.s_addr, sizeof(struct in_addr)) 
-	    < 0) {
-		PERROR("failed to enable multi-cast on the interface");
-		return FALSE;
-	}
-	/* join multicast group (for receiving) on specified interface */
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
-		       &imr, sizeof(struct ip_mreq)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
-			  &imr, sizeof(struct ip_mreq)) < 0) {
-		PERROR("failed to join the multi-cast group");
-		return FALSE;
-	}
-	/* End of General multicast Ip address init */
-
-	/* Init Peer multicast IP address */
-	memcpy(addrStr, PEER_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
-
-	if (!inet_aton(addrStr, &netAddr)) {
-		ERROR("failed to encode multi-cast address: %s\n", addrStr);
-		return FALSE;
-	}
-	netPath->peerMulticastAddr = netAddr.s_addr;
-
-	/* multicast send only on specified interface */
-	imr.imr_multiaddr.s_addr = netAddr.s_addr;
-	imr.imr_interface.s_addr = interfaceAddr.s_addr;
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_IF, 
-		       &imr.imr_interface.s_addr, sizeof(struct in_addr)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_IF, 
-			  &imr.imr_interface.s_addr, sizeof(struct in_addr)) 
-	    < 0) {
-		PERROR("failed to enable multi-cast on the interface");
-		return FALSE;
-	}
-	/* join multicast group (for receiving) on specified interface */
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
-		       &imr, sizeof(struct ip_mreq)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
-			  &imr, sizeof(struct ip_mreq)) < 0) {
-		PERROR("failed to join the multi-cast group");
-		return FALSE;
-	}
-	/* End of Peer multicast Ip address init */
-
 
 	/* set socket time-to-live to 1 */
 
@@ -587,7 +628,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
  * @param time 
  * @param netPath 
  * 
- * @return 
+ * @return
  */
 
 /* this function should be merged with netRecvGeneral(), below */
@@ -888,7 +929,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_ds
 		 * Need to forcibly loop back the packet since
 		 * we are not using multicast. 
 		 */
-		addr.sin_addr.s_addr = htonl(0x7f000001);
+		addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
 		ret = sendto(netPath->eventSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 
@@ -1015,43 +1056,17 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 Boolean
 netRefreshIGMP(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
-	//int temp;
-	struct in_addr interfaceAddr, netAddr;
-	struct ip_mreq imr;
-	//char addrStr[NET_ADDRESS_LENGTH];
-
 	DBG("netRefreshIGMP\n");
-
-	interfaceAddr = netPath->interfaceAddr;
-
-	/* Init General multicast IP address */
-	if(!choose_mcast_group(rtOpts, &netAddr))
-		return FALSE;
-	netPath->multicastAddr = netAddr.s_addr;
-
-	/* multicast send only on specified interface */
-	imr.imr_multiaddr.s_addr = netAddr.s_addr;
-	imr.imr_interface.s_addr = interfaceAddr.s_addr;
-
-
-	/* cycle IGMP */
-	setsockopt(netPath->eventSock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-		   &imr, sizeof(struct ip_mreq));
-	setsockopt(netPath->generalSock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-		   &imr, sizeof(struct ip_mreq));
-
+	
+	netShutdownMulticast(netPath);
+	
 	/* suspend process 100 milliseconds, to make sure the kernel sends the IGMP_leave properly */
 	usleep(100*1000);
-	
-	/* join multicast group (for receiving) on specified interface */
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-		       &imr, sizeof(struct ip_mreq)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-			  &imr, sizeof(struct ip_mreq)) < 0) {
-		PERROR("failed to (re)-join the multi-cast group");
+
+	if (!netInitMulticast(netPath, rtOpts)) {
 		return FALSE;
 	}
-
+	
 	INFO("refreshed IGMP multicast memberships\n");
 	return TRUE;
 }

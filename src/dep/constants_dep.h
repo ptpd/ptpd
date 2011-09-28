@@ -71,6 +71,9 @@
 #define ADJ_FREQ_MAX  512000
 
 /* UDP/IPv4 dependent */
+#ifndef INADDR_LOOPBACK
+#define INADDR_LOOPBACK 0x7f000001UL
+#endif
 
 #define SUBDOMAIN_ADDRESS_LENGTH  4
 #define PORT_ADDRESS_LENGTH       2

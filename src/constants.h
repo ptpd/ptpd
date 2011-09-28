@@ -18,7 +18,7 @@
 #define DEFAULT_OUTBOUND_LATENCY     	0       /* in nsec */
 #define DEFAULT_NO_RESET_CLOCK       	FALSE
 #define DEFAULT_DOMAIN_NUMBER        	0
-#define DEFAULT_DELAY_MECHANISM      	P2P     // TODO
+#define DEFAULT_DELAY_MECHANISM      	E2E     // TODO
 #define DEFAULT_AP                   	10
 #define DEFAULT_AI                   	1000
 #define DEFAULT_DELAY_S              	6
@@ -68,14 +68,8 @@ section 7.6.2.5, page 56:
 
 
 /* page 238:  τ, see 7.6.3.2: The default initialization value shall be 1.0 s.  */
-#define DEFAULT_CLOCK_VARIANCE 	       -4000 /* To be determined in 802.1AS. */
-                                             /* We use the same value as in */
-                                             /* ptpdv1. */
-
-
-/* clock variance in v2 has been changed: 
- * http://sourceforge.net/tracker/?func=detail&aid=3308338&group_id=139814&atid=744632
- */
+#define DEFAULT_CLOCK_VARIANCE 	        28768 /* To be determined in 802.1AS. */
+                                             
 
 
 #define DEFAULT_MAX_FOREIGN_RECORDS  	5
@@ -84,8 +78,7 @@ section 7.6.2.5, page 56:
 /* features, only change to refelect changes in implementation */
 #define NUMBER_PORTS      	1
 #define VERSION_PTP       	2
-#define TWO_STEP_FLAG    	0x02
-#define UNICAST_FLAG     	0x04
+#define TWO_STEP_FLAG    	TRUE
 #define BOUNDARY_CLOCK    	FALSE
 #define SLAVE_ONLY		FALSE
 #define NO_ADJUST		FALSE
@@ -114,7 +107,7 @@ section 7.6.2.5, page 56:
  * \brief Domain Number (Table 2 in the spec)*/
 
 enum {
-  DFLT_DOMAIN_NUMBER = 0, ALT1_DOMAIN_NUMBER, ALT2_DOMAIN_NUMBER, ALT3_DOMAIN_NUMBER
+	DFLT_DOMAIN_NUMBER = 0, ALT1_DOMAIN_NUMBER, ALT2_DOMAIN_NUMBER, ALT3_DOMAIN_NUMBER
 };
 
 /**
@@ -153,8 +146,9 @@ enum {
   ANNOUNCE_RECEIPT_TIMER,/**<\brief Timer handling announce receipt timeout*/
   ANNOUNCE_INTERVAL_TIMER, /**<\brief Timer handling interval before master sends two announce messages*/
 
+  /* non-spec timers */
   OPERATOR_MESSAGES_TIMER,  /* used to limit the operator messages */
-  TIMER_ARRAY_SIZE  /* this one is non-spec */
+  TIMER_ARRAY_SIZE
 };
 
 /**
@@ -183,7 +177,31 @@ enum {
 };
 
 enum {
-  PTP_ETHER,PTP_DEFAULT
+	PTP_ETHER, PTP_DEFAULT
+};
+
+
+/**
+ * \brief PTP flags
+ */
+enum
+{
+	PTP_ALTERNATE_MASTER = 0x01,
+	PTP_TWO_STEP = 0x02,
+	PTP_UNICAST = 0x04,
+	PTP_PROFILE_SPECIFIC_1 = 0x20,
+	PTP_PROFILE_SPECIFIC_2 = 0x40,
+	PTP_SECURITY = 0x80,
+};
+
+enum
+{
+	PTP_LI_61 = 0x01,
+	PTP_LI_59 = 0x02,
+	PTP_UTC_REASONABLE = 0x04,
+	PTP_TIMESCALE = 0x08,
+	TIME_TRACEABLE = 0x10,
+	FREQUENCY_TRACEABLE = 0x20,
 };
 
 #endif /*CONSTANTS_H_*/
