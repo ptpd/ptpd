@@ -1,5 +1,8 @@
 /*-
- * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
+ * Copyright (c) 2011      George V. Neville-Neil, Steven Kreuzer,
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, Steven Kreuzer,
  *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
@@ -40,10 +43,13 @@
 #include "../ptpd.h"
 
 /*
+ * valgrind 3.5.0 reports no errors after fixing leak when
+ * the -C command line option is enabled (last check: 20110801)
  * valgrind 3.5.0 currently reports no errors (last check: 20110512)
  * valgrind 3.4.1 lacks an adjtimex handler
  *
  * to run:   sudo valgrind --show-reachable=yes --leak-check=full --track-origins=yes -- ./ptpd2 -c ...
+ *           sudo valgrind --show-reachable=yes --leak-check=full --track-origins=yes -- ./ptpd2 -C -[gGW] ...
  */
 
 /*
@@ -113,7 +119,7 @@ void catch_signals(int sig)
 void
 do_signal_close(PtpClock * ptpClock)
 {
-	ptpdShutdown(ptpClock);
+	ptpdShutdown();
 
 	NOTIFY("shutdown on close signal\n");
 	exit(0);
@@ -213,6 +219,7 @@ check_signals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	
 }
 
+#ifdef RUNTIME_DEBUG
 /* These functions are useful to temporarily enable Debug around parts of code, similar to bash's "set -x" */
 void enable_runtime_debug(void )
 {
@@ -227,7 +234,7 @@ void disable_runtime_debug(void )
 	
 	rtOpts.debug_level = LOG_INFO;
 }
-
+#endif
 
 /*
  * Lock via filesystem implementation, as described in "Advanced Programming in the UNIX Environment, 2nd ed"
@@ -458,13 +465,20 @@ recordToFile(RunTimeOpts * rtOpts)
 }
 
 void 
-ptpdShutdown(PtpClock * ptpClock)
+ptpdShutdown()
 {
-	netShutdown(&ptpClock->netPath);
+	extern PtpClock* G_ptpClock;
 
+	netShutdown(&G_ptpClock->netPath);
+	free(G_ptpClock->foreign);
+
+	/* free management messages, they can have dynamic memory allocated */
+	if(G_ptpClock->msgTmpHeader.messageType == MANAGEMENT)
+		freeManagementTLV(&G_ptpClock->msgTmp.manage);
+	freeManagementTLV(&G_ptpClock->outgoingManageTmp);
 	
-	free(ptpClock->foreign);
-	free(ptpClock);
+	free(G_ptpClock);
+	G_ptpClock = NULL;
 
 	/* properly clean lockfile (eventough new deaemons can adquire the lock after we die) */
 	close(global_lock_fd);
@@ -1019,7 +1033,13 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 */
 
 
+	/* Init user_description */
+	memset(ptpClock->user_description, 0, sizeof(ptpClock->user_description));
+	memcpy(ptpClock->user_description, &USER_DESCRIPTION, sizeof(USER_DESCRIPTION));
 	
+	/* Init outgoing management message */
+	ptpClock->outgoingManageTmp.tlv = NULL;
+
 	/* First lock check, just to be user-friendly to the operator */
 	if(rtOpts->ignore_daemon_lock == 0){
 		/* check and create Lock */

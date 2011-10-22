@@ -1,0 +1,14 @@
+/* Spec Table 56 - PARENT_DATA_SET management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( parentPortIdentity, 10, PortIdentity)
+OPERATE( PS, 1, Boolean)
+OPERATE( reserved, 1, Octet)
+OPERATE( observedParentOffsetScaledLogVariance, 2, UInteger16)
+OPERATE( observedParentClockPhaseChangeRate, 4, Integer32)
+OPERATE( grandmasterPriority1, 1, UInteger8)
+OPERATE( grandmasterClockQuality, 4, ClockQuality)
+OPERATE( grandmasterPriority2, 1, UInteger8)
+OPERATE( grandmasterIdentity, 8, ClockIdentity)
+
+#undef OPERATE

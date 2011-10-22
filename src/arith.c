@@ -1,5 +1,8 @@
 /*-
- * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
+ * Copyright (c) 2011      George V. Neville-Neil, Steven Kreuzer,
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, Steven Kreuzer,
  *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
@@ -38,6 +41,11 @@
 
 #include "ptpd.h"
 
+void
+internalTime_to_integer64(TimeInternal internal, Integer64 *bigint)
+{
+	/* TODO: implement me */
+}
 
 void 
 integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)
@@ -48,7 +56,7 @@ integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)
 	scaledNanoseconds = bigint.msb;
 	scaledNanoseconds <<=32;
 	scaledNanoseconds += bigint.lsb;
-	
+
 	/*determine sign of result big integer number*/
 
 	if (scaledNanoseconds < 0)
@@ -59,13 +67,13 @@ integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)
 	else
 	{
 		sign = 1;
-	}
+		}
 
-	/*fractional nanoseconds are excluded (see 5.3.2)*/
+		/* fractional nanoseconds are excluded (see 5.3.2) */
 	scaledNanoseconds >>= 16;
 	internal->seconds = sign * (scaledNanoseconds / 1000000000);
 	internal->nanoseconds = sign * (scaledNanoseconds % 1000000000);
-}
+	}
 
 
 void 
@@ -187,10 +195,10 @@ divTime(TimeInternal *r, int divisor)
 
 void div2Time(TimeInternal *r)
 {
-    r->nanoseconds += r->seconds % 2 * 1000000000;
+    r->nanoseconds += (r->seconds % 2) * 1000000000;
     r->seconds /= 2;
     r->nanoseconds /= 2;
-	
+
     normalizeTime(r);
 }
 

@@ -1,0 +1,7 @@
+/* Spec Table 49 - CLOCK_ACCURACY management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( clockAccuracy, 1, Enumeration8)
+OPERATE( reserved, 1, Octet)
+
+#undef OPERATE

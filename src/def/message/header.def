@@ -1,0 +1,20 @@
+/* Spec Table 18 - Common message header */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( transportSpecific, 0, NibbleUpper)
+OPERATE( messageType, 1, Enumeration4Lower)
+OPERATE( reserved0, 0, NibbleUpper)
+OPERATE( versionPTP, 1, UInteger4Lower)
+OPERATE( messageLength, 2, UInteger16)
+OPERATE( domainNumber, 1, UInteger8)
+OPERATE( reserved1, 1, Octet)
+OPERATE( flagField0, 1, Octet)
+OPERATE( flagField1, 1, Octet)
+OPERATE( correctionField, 8, Integer64)
+OPERATE( reserved2, 4, UInteger32)
+OPERATE( sourcePortIdentity, 10, PortIdentity)
+OPERATE( sequenceId, 2, UInteger16)
+OPERATE( controlField, 1, UInteger8)
+OPERATE( logMessageInterval, 1, Integer8)
+
+#undef OPERATE

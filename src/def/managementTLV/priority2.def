@@ -1,0 +1,7 @@
+/* Spec Table 52 - PRIORITY2 management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( priority2, 1, UInteger8)
+OPERATE( reserved, 1, Octet)
+
+#undef OPERATE

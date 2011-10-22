@@ -1,3 +1,35 @@
+/*-
+ * Copyright (c) 2011      George V. Neville-Neil, Steven Kreuzer,
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, Steven Kreuzer,
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
+ * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ *
+ * All Rights Reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 /**
  * @file   ptpd.h
  * @mainpage Ptpd v2 Documentation
@@ -51,6 +83,20 @@
 #include "datatypes.h"
 #include "dep/ptpd_dep.h"
 
+/* NOTE: this macro can be refactored into a function */
+#define XMALLOC(ptr,size) \
+	if(!((ptr)=malloc(size))) { \
+		PERROR("failed to allocate memory"); \
+		ptpdShutdown(); \
+		exit(1); \
+	}
+
+#define IS_SET(data, bitpos) \
+	((data & ( 0x1 << bitpos )) == (0x1 << bitpos))
+
+#define SET_FIELD(data, bitpos) \
+	data << bitpos
+
 #define min(a,b)     (((a)<(b))?(a):(b))
 #define max(a,b)     (((a)>(b))?(a):(b))
 
@@ -65,6 +111,10 @@
  */
 void integer64_to_internalTime(Integer64,TimeInternal*);
 /**
+ * \brief Convert TimeInternal structure to Integer64
+ */
+void internalTime_to_integer64(TimeInternal, Integer64*);
+/**
  * \brief Convert TimeInternal into Timestamp structure (defined by the spec)
  */
 void fromInternalTime(TimeInternal*,Timestamp*);
@@ -76,9 +126,6 @@ void toInternalTime(TimeInternal*,Timestamp*);
 
 void ts_to_InternalTime(struct timespec *, TimeInternal *);
 void tv_to_InternalTime(struct timeval  *, TimeInternal *);
-
-
-
 
 /**
  * \brief Use to normalize a TimeInternal structure
@@ -144,6 +191,68 @@ void initData(RunTimeOpts*,PtpClock*);
 void protocol(RunTimeOpts*,PtpClock*);
 /** \}*/
 
+/** \name management.c
+ * -Management message support*/
+ /**\{*/
+/* management.c */
+/**
+ * \brief Management message support
+ */
+void handleMMNullManagement(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMClockDescription(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMSlaveOnly(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMUserDescription(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMSaveInNonVolatileStorage(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMResetNonVolatileStorage(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMInitialize(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMDefaultDataSet(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMCurrentDataSet(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMParentDataSet(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMTimePropertiesDataSet(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMPortDataSet(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMPriority1(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMPriority2(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMDomain(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMLogAnnounceInterval(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMAnnounceReceiptTimeout(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMLogSyncInterval(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMVersionNumber(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMEnablePort(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMDisablePort(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMTime(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMClockAccuracy(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMUtcProperties(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMTraceabilityProperties(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMDelayMechanism(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMLogMinPdelayReqInterval(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMErrorStatus(MsgManagement*);
+void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement *outgoing,
+                                PtpClock *ptpClock, Enumeration16 mgmtId,
+                                Enumeration16 errorId);
+/** \}*/
+
+/*
+ * \brief Packing and Unpacking macros
+ */
+#define DECLARE_PACK( type ) void pack##type( void*, void* );
+
+DECLARE_PACK( NibbleUpper )
+DECLARE_PACK( Enumeration4Lower )
+DECLARE_PACK( UInteger4Lower )
+DECLARE_PACK( UInteger16 )
+DECLARE_PACK( UInteger8 )
+DECLARE_PACK( Octet )
+DECLARE_PACK( Integer8 )
+DECLARE_PACK( UInteger48 )
+DECLARE_PACK( Integer64 )
+
+#define DECLARE_UNPACK( type ) void unpack##type( void*, void* );
+
+DECLARE_UNPACK( Boolean )
+DECLARE_UNPACK( Enumeration4Lower )
+DECLARE_UNPACK( Octet )
+DECLARE_UNPACK( UInteger48 )
+DECLARE_UNPACK( Integer64 )
 
 //Diplay functions usefull to debug
 void displayRunTimeOpts(RunTimeOpts*);
@@ -164,6 +273,7 @@ void integer64_display (Integer64*);
 void timeInterval_display(TimeInterval*);
 void portIdentity_display(PortIdentity*);
 void clockQuality_display (ClockQuality*);
+void PTPText_display(PTPText*);
 void iFaceName_display(Octet*);
 void unicast_display(Octet*);
 
@@ -175,6 +285,33 @@ void msgPDelayReq_display(MsgPDelayReq*);
 void msgDelayReq_display(MsgDelayReq * req);
 void msgDelayResp_display(MsgDelayResp * resp);
 void msgPDelayResp_display(MsgPDelayResp * presp);
+void msgPDelayRespFollowUp_display(MsgPDelayRespFollowUp * prespfollow);
+void msgManagement_display(MsgManagement * manage);
+
+
+void mMSlaveOnly_display(MMSlaveOnly*);
+void mMClockDescription_display(MMClockDescription*);
+void mMUserDescription_display(MMUserDescription*);
+void mMInitialize_display(MMInitialize*);
+void mMDefaultDataSet_display(MMDefaultDataSet*);
+void mMCurrentDataSet_display(MMCurrentDataSet*);
+void mMParentDataSet_display(MMParentDataSet*);
+void mMTimePropertiesDataSet_display(MMTimePropertiesDataSet*);
+void mMPortDataSet_display(MMPortDataSet*);
+void mMPriority1_display(MMPriority1*);
+void mMPriority2_display(MMPriority2*);
+void mMDomain_display(MMDomain*);
+void mMLogAnnounceInterval_display(MMLogAnnounceInterval*);
+void mMAnnounceReceiptTimeout_display(MMAnnounceReceiptTimeout*);
+void mMLogSyncInterval_display(MMLogSyncInterval*);
+void mMVersionNumber_display(MMVersionNumber*);
+void mMTime_display(MMTime*);
+void mMClockAccuracy_display(MMClockAccuracy*);
+void mMUtcProperties_display(MMUtcProperties*);
+void mMTraceabilityProperties_display(MMTraceabilityProperties*);
+void mMDelayMechanism_display(MMDelayMechanism*);
+void mMLogMinPdelayReqInterval_display(MMLogMinPdelayReqInterval*);
+void mMErrorStatus_display(MMErrorStatus*);
 
 void clearTime(TimeInternal *time);
 int isTimeInternalNegative(const TimeInternal * p);
@@ -182,18 +319,13 @@ int isTimeInternalNegative(const TimeInternal * p);
 char *dump_TimeInternal(const TimeInternal * p);
 char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *st2, const TimeInternal * p2);
 
-
-
 int snprint_TimeInternal(char *s, int max_len, const TimeInternal * p);
-
 
 void nano_to_Time(TimeInternal *time, int nano);
 int gtTime(TimeInternal *x, TimeInternal *b);
 void absTime(TimeInternal *time);
 int is_Time_close(TimeInternal *x, TimeInternal *b, int nanos);
 int isTimeInternalNegative(const TimeInternal * p);
-
-
 
 int check_timestamp_is_fresh2(TimeInternal * timeA, TimeInternal * timeB);
 int check_timestamp_is_fresh(TimeInternal * timeA);

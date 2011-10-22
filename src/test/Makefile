@@ -30,7 +30,7 @@
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Makefile for ptpd2
+# Makefile for ptpd2 tests
 
 #
 # Compile time defines:
@@ -56,77 +56,47 @@
 #
 #######
 
-VERSION = 2.1.0
-
 RM = rm -f
 SYMLINK = ln -s
 
-CFLAGS = -Wall -g -fPIC
+.SUFFIXES: .o1
 
-CFLAGS += -DRUNTIME_DEBUG
+CFLAGS = -Wall -g -fPIC
+#CFLAGS += -DRUNTIME_DEBUG
 #CFLAGS += -DPTPD_DBG
 #CFLAGS += -DPTPD_DBG2
 #CFLAGS += -DPTPD_DBGV
 
 #CFLAGS += -DPTPD_NO_DAEMON
-CFLAGS += -DBSD_INTERFACE_FUNCTIONS
+#CFLAGS += -DBSD_INTERFACE_FUNCTIONS
 #CFLAGS += -DDBG_SIGUSR2_CHANGE_DOMAIN
-CFLAGS += -DDBG_SIGUSR2_CHANGE_DEBUG
+#CFLAGS += -DDBG_SIGUSR2_CHANGE_DEBUG
 
 #CFLAGS += -DPTP_EXPERIMENTAL
 
 LDFLAGS = -lm -lrt
-STATICLIBFLAGS = rcs
-SHAREDLIBFLAGS = -shared -Wl,-soname
 
-PROG = ptpd2
-STATICLIB = libptpd2.a
-SHAREDLIB = libptpd2.so
-SHAREDLIBVER = $(SHAREDLIB).$(VERSION)
+TEST = ptpd2test
 
-SRCS = ptpd.c arith.c bmc.c protocol.c display.c management.c \
-	dep/msg.c dep/net.c dep/servo.c dep/startup.c dep/sys.c dep/timer.c
+SRCS = test.c init.c ../arith.c ../bmc.c ../protocol.c ../display.c ../management.c \
+	../dep/msg.c ../dep/net.c ../dep/servo.c ../dep/startup.c ../dep/sys.c ../dep/timer.c
+TESTSRCS = $(SRCS)
 
-OBJS = $(SRCS:.c=.o)
+OBJS = $(TESTSRCS:.c=.o1)
 
-HDRS = ptpd.h constants.h datatypes.h \
-	dep/ptpd_dep.h dep/constants_dep.h dep/datatypes_dep.h
+HDRS = ../ptpd.h ../constants.h ../datatypes.h \
+	../dep/ptpd_dep.h ../dep/constants_dep.h ../dep/datatypes_dep.h \
+	init.h helper.h
 
-CSCOPE = cscope
-GTAGS = gtags
-DOXYGEN = doxygen
-
-TAGFILES = GPATH GRTAGS GSYMS GTAGS cscope.in.out cscope.out cscope.po.out
-
-.c.o:
+.c.o1:
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
-$(PROG): $(OBJS)
+$(TEST): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS)
 
-$(STATICLIB): $(OBJS)
-	$(AR) $(STATICLIBFLAGS) $(STATICLIB) $(OBJS)
-
-$(SHAREDLIB): $(OBJS)
-	$(CC) $(SHAREDLIBFLAGS),$(SHAREDLIB) -o $(SHAREDLIB) $(OBJS)
-        # create shared lib symlink with ptpd version extension
-	$(SYMLINK) $(SHAREDLIB) $(SHAREDLIBVER)
-
-all: $(PROG) $(STATICLIB) $(SHAREDLIB)
+all: $(TEST)
 
 $(OBJS): $(HDRS)
 
-.PHONY: test
-test:
-	cd test; $(MAKE)
-        # run tests
-	./test/ptpd2test
-
-tags:
-	$(CSCOPE) -R -q -b
-	$(GTAGS)
-	$(DOXYGEN) Doxyfile
-
 clean:
-	$(RM) $(PROG) $(STATICLIB) $(SHAREDLIB) $(SHAREDLIBVER) $(OBJS) $(TAGFILES) make.out
-	cd test; $(MAKE) clean
+	$(RM) $(TEST) $(OBJS) make.out

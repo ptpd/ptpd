@@ -1,5 +1,8 @@
 /*-
- * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
+ * Copyright (c) 2011      George V. Neville-Neil, Steven Kreuzer,
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, Steven Kreuzer,
  *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
@@ -37,8 +40,11 @@
  */
 
 #include "../ptpd.h"
+#if defined (linux)
 #include <netinet/ether.h>
-
+#else
+#include <net/ethernet.h>
+#endif
 
 /* only C99 has the round function built-in */
 double round (double __x);
@@ -189,10 +195,17 @@ int ether_ntohost_cache(char *hostname, struct ether_addr *addr)
 	static struct ether_addr prev_addr;
 	static char buf[BUF_SIZE];
 
-	if(memcmp(addr->ether_addr_octet, &prev_addr, sizeof(struct ether_addr )) != 0){
+#if defined(linux)
+	if(memcmp(addr->ether_addr_octet, &prev_addr, 
+		  sizeof(struct ether_addr )) != 0){
 		valid = 0;
 	}
-
+#else
+	if(memcmp(addr->octet, &prev_addr, 
+		  sizeof(struct ether_addr )) != 0){
+		valid = 0;
+	}
+#endif
 	if(!valid){
 		//DBG("__\n");
 		if(ether_ntohost(buf, addr)){
@@ -223,15 +236,17 @@ snprint_ClockIdentity_ntohost(char *s, int max_len, const ClockIdentity id, cons
 	
 	struct ether_addr e;
 
-
 	/* extract mac address */
 	for (i = 0, j = 0; i< CLOCK_IDENTITY_LENGTH ; i++ ){
 		/* skip bytes 3 and 4 */
 		if(!((i==3) || (i==4))){
+#if defined(linux)
 			e.ether_addr_octet[j] = (uint8_t) id[i];
+#else
+			e.octet[j] = (uint8_t) id[i];
+#endif /* linux */
 			j++;
-	}
-
+		}
 	}
 
 	/* convert and print hostname */
@@ -665,24 +680,4 @@ adjTime(Integer32 nanoseconds)
 }
 
 #endif /* __APPLE__ */
-
-
-
-
-
-
-
-long
-get_current_tickrate(void)
-{
-	struct timex t;
-
-	t.modes = 0;
-	adjtimex(&t);
-	DBG2(" (Current tick rate is %d)\n", t.tick );
-
-	return (t.tick);
-}
-
-
 

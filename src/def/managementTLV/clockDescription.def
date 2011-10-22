@@ -1,0 +1,35 @@
+/* Spec Table 41 - CLOCK_DESCRIPTION management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( clockType0, 1, Octet)
+OPERATE( clockType1, 1, Octet)
+OPERATE( physicalLayerProtocol,
+	 1 + data->physicalLayerProtocol.lengthField,
+	 PTPText)
+OPERATE( physicalAddress,
+         2 + data->physicalAddress.addressLength,
+	 PhysicalAddress)
+OPERATE( protocolAddress,
+	 4 + data->protocolAddress.addressLength,
+	 PortAddress)
+OPERATE( manufacturerIdentity0, 1, Octet)
+OPERATE( manufacturerIdentity1, 1, Octet)
+OPERATE( manufacturerIdentity2, 1, Octet)
+OPERATE( reserved, 1, Octet)
+OPERATE( productDescription,
+	 1 + data->productDescription.lengthField,
+	 PTPText)
+OPERATE( revisionData,
+	 1 + data->revisionData.lengthField,
+	 PTPText)
+OPERATE( userDescription,
+	 1 + data->userDescription.lengthField,
+	 PTPText)
+OPERATE( profileIdentity0, 1, Octet)
+OPERATE( profileIdentity1, 1, Octet)
+OPERATE( profileIdentity2, 1, Octet)
+OPERATE( profileIdentity3, 1, Octet)
+OPERATE( profileIdentity4, 1, Octet)
+OPERATE( profileIdentity5, 1, Octet)
+
+#undef OPERATE

@@ -1,0 +1,6 @@
+/* Spec Table 48 - TIME management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( currentTime, 10, Timestamp)
+
+#undef OPERATE

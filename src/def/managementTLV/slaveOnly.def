@@ -1,0 +1,7 @@
+/* Spec Table 54 - SLAVE_ONLY management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( so, 1, Boolean)
+OPERATE( reserved, 1, Octet)
+
+#undef OPERATE

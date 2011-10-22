@@ -1,0 +1,11 @@
+/* Spec 5.3.10 FaultRecord */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( faultRecordLength, 2, UInteger16)
+OPERATE( faultTime, 10, Timestamp)
+OPERATE( severityCode, 1, Enumeration8)
+OPERATE( faultName, 1 + data->faultName.lengthField, PTPText)
+OPERATE( faultValue, 1 + data->faultValue.lengthField, PTPText)
+OPERATE( faultDescription, 1 + data->faultDescription.lengthField, PTPText)
+
+#undef OPERATE

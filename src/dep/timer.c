@@ -53,7 +53,7 @@ void
 catch_alarm(int sig)
 {
 	elapsed++;
-	/* be sure to NOT call DBG in asynchronous handlers! */
+	/* be sure to NOT call DBG in asynchronous handlers! */ 
 }
 
 void 

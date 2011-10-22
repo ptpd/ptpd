@@ -132,7 +132,7 @@ main(int argc, char **argv)
 	protocol(&rtOpts, ptpClock);
 	/* forever loop.. */
 
-	ptpdShutdown(ptpClock);
+	ptpdShutdown();
 
 	NOTIFY("self shutdown, probably due to an error\n");
 

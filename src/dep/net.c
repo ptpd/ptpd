@@ -39,9 +39,11 @@
 #include "../ptpd.h"
 
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
+#if defined(linux)
 #ifndef SO_TIMESTAMPNS
 #error kernel-level nanoseconds timestamps not detected
 #endif
+#endif /* linux */
 
 /**
  * shutdown the IPv4 multicast for specific address
@@ -64,7 +66,7 @@ netShutdownMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 		   &imr, sizeof(struct ip_mreq));
 	setsockopt(netPath->generalSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
 		   &imr, sizeof(struct ip_mreq));
-	
+
 	return TRUE;
 }
 
@@ -85,7 +87,7 @@ netShutdownMulticast(NetPath * netPath)
 	/* Close Peer Multicast */
 	netShutdownMulticastIPv4(netPath, netPath->peerMulticastAddr);
 	netPath->peerMulticastAddr = 0;
-	
+
 	return TRUE;
 }
 
@@ -527,7 +529,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	} else {
                 netPath->unicastAddr = 0;
 	}
-
+ 
 	/* init UDP Multicast on both Default and Pear addresses */
 	if (!netInitMulticast(netPath, rtOpts)) {
 		return FALSE;
@@ -628,7 +630,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
  * @param time 
  * @param netPath 
  * 
- * @return
+ * @return 
  */
 
 /* this function should be merged with netRecvGeneral(), below */
@@ -646,17 +648,12 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 	}     cmsg_un;
 
 	struct cmsghdr *cmsg;
-
-#if defined(__APPLE__)
+#if defined(linux) || defined(__APPLE__)
 	struct timeval *tv;
 	struct timespec *ts;
 #else
-	struct timeval *tv;
-	struct timespec *ts;
-#endif
-
-
-
+	struct timespec ts;
+#endif 
 	vec[0].iov_base = buf;
 	vec[0].iov_len = PACKET_SIZE;
 
@@ -699,7 +696,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 
 
 
-	if (msg.msg_controllen <= 0) {
+	if (msg.msg_controllen < sizeof(cmsg_un.control)) {
 		ERROR("received short ancillary data (%ld/%ld)\n",
 		    (long)msg.msg_controllen, (long)sizeof(cmsg_un.control));
 
@@ -1057,16 +1054,16 @@ Boolean
 netRefreshIGMP(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	DBG("netRefreshIGMP\n");
-	
+
 	netShutdownMulticast(netPath);
-	
+
 	/* suspend process 100 milliseconds, to make sure the kernel sends the IGMP_leave properly */
 	usleep(100*1000);
-
+	
 	if (!netInitMulticast(netPath, rtOpts)) {
 		return FALSE;
 	}
-	
+
 	INFO("refreshed IGMP multicast memberships\n");
 	return TRUE;
 }

@@ -1,3 +1,35 @@
+/*-
+ * Copyright (c) 2011      George V. Neville-Neil, Steven Kreuzer,
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, Steven Kreuzer,
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
+ * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ *
+ * All Rights Reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 /**
  * @file   ptpd_dep.h
  * 
@@ -175,9 +207,7 @@ void msgUnpackDelayResp(Octet * buf,MsgDelayResp *);
 void msgUnpackPDelayReq(Octet * buf,MsgPDelayReq*);
 void msgUnpackPDelayResp(Octet * buf,MsgPDelayResp*);
 void msgUnpackPDelayRespFollowUp(Octet * buf,MsgPDelayRespFollowUp*);
-void msgUnpackManagement(Octet * buf,MsgManagement*);
-UInteger8 msgUnloadManagement(Octet * buf,MsgManagement*,PtpClock*,RunTimeOpts*);
-void msgUnpackManagementPayload(Octet *buf, MsgManagement *manage);
+void msgUnpackManagement(Octet * buf,MsgManagement*, MsgHeader*);
 void msgPackHeader(Octet * buf,PtpClock*);
 void msgPackAnnounce(Octet * buf,PtpClock*);
 void msgPackSync(Octet * buf,Timestamp*,PtpClock*);
@@ -187,10 +217,13 @@ void msgPackDelayResp(Octet * buf,MsgHeader *,Timestamp *,PtpClock *);
 void msgPackPDelayReq(Octet * buf,Timestamp*,PtpClock*);
 void msgPackPDelayResp(Octet * buf,MsgHeader*,Timestamp*,PtpClock*);
 void msgPackPDelayRespFollowUp(Octet * buf,MsgHeader*,Timestamp*,PtpClock*);
-UInteger16 msgPackManagement(Octet * buf,MsgManagement*,PtpClock*);
-UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpClock*);
+void msgPackManagementRespAck(Octet *,MsgManagement*,PtpClock*);
+void msgPackManagementTLV(Octet *,MsgManagement*, PtpClock*);
+void msgPackManagement(Octet *,MsgManagement*,PtpClock*);
+void msgPackManagementErrorStatusTLV(Octet *,MsgManagement*,PtpClock*);
 
-
+void freeMMErrorStatusTLV(ManagementTLV*);
+void freeMMTLV(ManagementTLV*);
 
 void msgDump(PtpClock *ptpClock);
 void msgDebugHeader(MsgHeader *header);
@@ -201,6 +234,91 @@ void msgDebugFollowUp(MsgFollowUp *follow);
 void msgDebugDelayResp(MsgDelayResp *resp);
 void msgDebugManagement(MsgManagement *manage);
 
+void copyClockIdentity( ClockIdentity dest, ClockIdentity src);
+void copyPortIdentity( PortIdentity * dest, PortIdentity * src);
+
+void unpackMsgManagement(Octet *, MsgManagement*);
+void packMsgManagement(MsgManagement*, Octet *);
+void unpackManagementTLV(Octet*, MsgManagement*);
+void packManagementTLV(ManagementTLV*, Octet*);
+void freeManagementTLV(MsgManagement*);
+void unpackMMClockDescription( Octet* buf, MsgManagement* );
+UInteger16 packMMClockDescription( MsgManagement*, Octet*);
+void freeMMClockDescription( MMClockDescription*);
+void unpackMMUserDescription( Octet* buf, MsgManagement* );
+UInteger16 packMMUserDescription( MsgManagement*, Octet*);
+void freeMMUserDescription( MMUserDescription*);
+void unpackMMErrorStatus( Octet* buf, MsgManagement* );
+UInteger16 packMMErrorStatus( MsgManagement*, Octet*);
+void freeMMErrorStatus( MMErrorStatus*);
+void unpackMMInitialize( Octet* buf, MsgManagement* );
+UInteger16 packMMInitialize( MsgManagement*, Octet*);
+void unpackMMDefaultDataSet( Octet* buf, MsgManagement* );
+UInteger16 packMMDefaultDataSet( MsgManagement*, Octet*);
+void unpackMMCurrentDataSet( Octet* buf, MsgManagement* );
+UInteger16 packMMCurrentDataSet( MsgManagement*, Octet*);
+void unpackMMParentDataSet( Octet* buf, MsgManagement* );
+UInteger16 packMMParentDataSet( MsgManagement*, Octet*);
+void unpackMMTimePropertiesDataSet( Octet* buf, MsgManagement* );
+UInteger16 packMMTimePropertiesDataSet( MsgManagement*, Octet*);
+void unpackMMPortDataSet( Octet* buf, MsgManagement* );
+UInteger16 packMMPortDataSet( MsgManagement*, Octet*);
+void unpackMMPriority1( Octet* buf, MsgManagement* );
+UInteger16 packMMPriority1( MsgManagement*, Octet*);
+void unpackMMPriority2( Octet* buf, MsgManagement* );
+UInteger16 packMMPriority2( MsgManagement*, Octet*);
+void unpackMMDomain( Octet* buf, MsgManagement* );
+UInteger16 packMMDomain( MsgManagement*, Octet*);
+void unpackMMSlaveOnly( Octet* buf, MsgManagement* );
+UInteger16 packMMSlaveOnly( MsgManagement*, Octet* );
+void unpackMMLogAnnounceInterval( Octet* buf, MsgManagement* );
+UInteger16 packMMLogAnnounceInterval( MsgManagement*, Octet*);
+void unpackMMAnnounceReceiptTimeout( Octet* buf, MsgManagement* );
+UInteger16 packMMAnnounceReceiptTimeout( MsgManagement*, Octet*);
+void unpackMMLogSyncInterval( Octet* buf, MsgManagement* );
+UInteger16 packMMLogSyncInterval( MsgManagement*, Octet*);
+void unpackMMVersionNumber( Octet* buf, MsgManagement* );
+UInteger16 packMMVersionNumber( MsgManagement*, Octet*);
+void unpackMMTime( Octet* buf, MsgManagement* );
+UInteger16 packMMTime( MsgManagement*, Octet*);
+void unpackMMClockAccuracy( Octet* buf, MsgManagement* );
+UInteger16 packMMClockAccuracy( MsgManagement*, Octet*);
+void unpackMMUtcProperties( Octet* buf, MsgManagement* );
+UInteger16 packMMUtcProperties( MsgManagement*, Octet*);
+void unpackMMTraceabilityProperties( Octet* buf, MsgManagement* );
+UInteger16 packMMTraceabilityProperties( MsgManagement*, Octet*);
+void unpackMMDelayMechanism( Octet* buf, MsgManagement* );
+UInteger16 packMMDelayMechanism( MsgManagement*, Octet*);
+void unpackMMLogMinPdelayReqInterval( Octet* buf, MsgManagement* );
+UInteger16 packMMLogMinPdelayReqInterval( MsgManagement*, Octet*);
+void unpackMMErrorStatus( Octet* buf, MsgManagement* );
+UInteger16 packMMErrorStatus( MsgManagement*, Octet*);
+
+
+void unpackPortAddress( Octet* buf, PortAddress*);
+void packPortAddress( PortAddress*, Octet*);
+void freePortAddress( PortAddress*);
+void unpackPTPText( Octet* buf, PTPText*);
+void packPTPText( PTPText*, Octet*);
+void freePTPText( PTPText*);
+void unpackPhysicalAddress( Octet* buf, PhysicalAddress*);
+void packPhysicalAddress( PhysicalAddress*, Octet*);
+void freePhysicalAddress( PhysicalAddress*);
+void unpackClockIdentity( Octet* buf, ClockIdentity *c);
+void packClockIdentity( ClockIdentity *c, Octet* buf);
+void freeClockIdentity( ClockIdentity *c);
+void unpackClockQuality( Octet* buf, ClockQuality *c);
+void packClockQuality( ClockQuality *c, Octet* buf);
+void freeClockQuality( ClockQuality *c);
+void unpackTimeInterval( Octet* buf, TimeInterval *t);
+void packTimeInterval( TimeInterval *t, Octet* buf);
+void freeTimeInterval( TimeInterval *t);
+void unpackPortIdentity( Octet* buf, PortIdentity *p);
+void packPortIdentity( PortIdentity *p, Octet*  buf);
+void freePortIdentity( PortIdentity *p);
+void unpackTimestamp( Octet* buf, Timestamp *t);
+void packTimestamp( Timestamp *t, Octet* buf);
+void freeTimestamp( Timestamp *t);
 /** \}*/
 
 /** \name net.c (Unix API dependent)
@@ -243,7 +361,7 @@ void servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 int logToFile(RunTimeOpts * rtOpts);
 int recordToFile(RunTimeOpts * rtOpts);
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
-void ptpdShutdown(PtpClock * ptpClock);
+void ptpdShutdown();
 
 void check_signals(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
@@ -272,8 +390,6 @@ void getTime(TimeInternal*);
 void setTime(TimeInternal*);
 double getRand(void);
 Boolean adjFreq(Integer32);
-
-long get_current_tickrate(void);
 
 void recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time);
 

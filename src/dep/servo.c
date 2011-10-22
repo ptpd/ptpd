@@ -581,13 +581,13 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		DBG("     After PI: Adj: %d   Drift: %d   OFM %d\n",
 			adj, ptpClock->observed_drift , ptpClock->offsetFromMaster.nanoseconds);
+		//DBG2("     Observed_drift with AI component: %d\n",
+		//	ptpClock->observed_drift / DBG_UNIT );
 
 
-		DBG2("     Observed_drift with AI component: %d\n",
-			ptpClock->observed_drift / DBG_UNIT );
 
-		DBG2("     After PI: Adj: %d   Drift: %d   OFM %d\n",
-			adj, ptpClock->observed_drift / DBG_UNIT, ptpClock->offsetFromMaster.nanoseconds / DBG_UNIT);
+		//DBG2("     After PI: Adj: %d   Drift: %d   OFM %d\n",
+		//	adj, ptpClock->observed_drift / DBG_UNIT, ptpClock->offsetFromMaster.nanoseconds / DBG_UNIT);
 
 #if defined(__APPLE__)
 			adjTime(ptpClock->offsetFromMaster.nanoseconds);

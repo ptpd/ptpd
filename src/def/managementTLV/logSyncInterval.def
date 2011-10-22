@@ -1,0 +1,7 @@
+/* Spec Table 64 - LOG_SYNC_INTERVAL management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( logSyncInterval, 1, Integer8)
+OPERATE( reserved, 1, Octet)
+
+#undef OPERATE

@@ -1,3 +1,35 @@
+/*-
+ * Copyright (c) 2011      George V. Neville-Neil, Steven Kreuzer,
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, Steven Kreuzer,
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
+ * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ *
+ * All Rights Reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #ifndef DATATYPES_H_
 #define DATATYPES_H_
 
@@ -19,15 +51,17 @@
 * \brief The TimeInterval type represents time intervals
  */
 typedef struct {
-	Integer64 scaledNanoseconds;
+	/* see src/def/README for a note on this X-macro */
+	#define OPERATE( name, size, type ) type name;
+	#include "def/derivedData/timeInterval.def"
 } TimeInterval;
 
 /**
 * \brief The Timestamp type represents a positive time with respect to the epoch
  */
 typedef struct  {
-	UInteger48 secondsField;
-	UInteger32 nanosecondsField;
+	#define OPERATE( name, size, type ) type name;
+	#include "def/derivedData/timestamp.def"
 } Timestamp;
 
 /**
@@ -39,56 +73,57 @@ typedef Octet ClockIdentity[CLOCK_IDENTITY_LENGTH];
 * \brief The PortIdentity identifies a PTP port.
  */
 typedef struct {
-	ClockIdentity clockIdentity;
-	UInteger16 portNumber;
+	#define OPERATE( name, size, type ) type name;
+	#include "def/derivedData/portIdentity.def"
 } PortIdentity;
 
 /**
 * \brief The PortAdress type represents the protocol address of a PTP port
  */
 typedef struct {
-	Enumeration16 networkProtocol;
-	UInteger16 adressLength;
-	Octet* adressField;
-} PortAdress;
+	#define OPERATE( name, size, type ) type name;
+	#include "def/derivedData/portAddress.def"
+} PortAddress;
 
 /**
 * \brief The ClockQuality represents the quality of a clock
  */
 typedef struct {
-	UInteger8 clockClass;
-	Enumeration8 clockAccuracy;
-	UInteger16 offsetScaledLogVariance;
+	#define OPERATE( name, size, type ) type name;
+	#include "def/derivedData/clockQuality.def"
 } ClockQuality;
 
 /**
 * \brief The TLV type represents TLV extension fields
  */
 typedef struct {
-	Enumeration16 tlvType;
-	UInteger16 lengthField;
-	Octet* valueField;
+	#define OPERATE( name, size, type ) type name;
+	#include "def/derivedData/tlv.def"
 } TLV;
 
 /**
 * \brief The PTPText data type is used to represent textual material in PTP messages
  */
 typedef struct {
-	UInteger8 lengthField;
-	Octet* textField;
+	#define OPERATE( name, size, type ) type name;
+	#include "def/derivedData/ptpText.def"
 } PTPText;
 
 /**
 * \brief The FaultRecord type is used to construct fault logs
  */
 typedef struct {
-	UInteger16 faultRecordLength;
-	Timestamp faultTime;
-	Enumeration8 severityCode;
-	PTPText faultName;
-	PTPText faultValue;
-	PTPText faultDescription;
+	#define OPERATE( name, size, type ) type name;
+	#include "def/derivedData/faultRecord.def"
 } FaultRecord;
+
+/**
+* \brief The PhysicalAddress type is used to represent a physical address
+ */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/derivedData/physicalAddress.def"
+} PhysicalAddress;
 
 
 /**
@@ -96,19 +131,9 @@ typedef struct {
  */
 /* Message header */
 typedef struct {
-	Nibble transportSpecific;
-	Enumeration4 messageType;
-	UInteger4 versionPTP;
-	UInteger16 messageLength;
-	UInteger8 domainNumber;
-	Octet flagField[2];
-	Integer64 correctionfield;
-	PortIdentity sourcePortIdentity;
-	UInteger16 sequenceId;
-	UInteger8 controlField;
-	Integer8 logMessageInterval;
+	#define OPERATE( name, size, type ) type name;
+	#include "def/message/header.def"
 } MsgHeader;
-
 
 /**
 * \brief Announce message fields (Table 25 of the spec)
@@ -194,19 +219,233 @@ typedef struct {
 	char* tlv;
 }MsgSignaling;
 
+
+/**
+ * \brief Management TLV message fields
+ */
+/* Management TLV Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/managementTLV.def"
+	Octet* dataField;
+} ManagementTLV;
+
+/**
+ * \brief Management TLV Clock Description fields (Table 41 of the spec)
+ */
+/* Management TLV Clock Description Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/clockDescription.def"
+} MMClockDescription;
+
+/**
+ * \brief Management TLV User Description fields (Table 43 of the spec)
+ */
+/* Management TLV User Description Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/userDescription.def"
+} MMUserDescription;
+
+/**
+ * \brief Management TLV Initialize fields (Table 44 of the spec)
+ */
+/* Management TLV Initialize Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/initialize.def"
+} MMInitialize;
+
+/**
+ * \brief Management TLV Default Data Set fields (Table 50 of the spec)
+ */
+/* Management TLV Default Data Set Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/defaultDataSet.def"
+} MMDefaultDataSet;
+
+/**
+ * \brief Management TLV Current Data Set fields (Table 55 of the spec)
+ */
+/* Management TLV Current Data Set Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/currentDataSet.def"
+} MMCurrentDataSet;
+
+/**
+ * \brief Management TLV Parent Data Set fields (Table 56 of the spec)
+ */
+/* Management TLV Parent Data Set Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/parentDataSet.def"
+} MMParentDataSet;
+
+/**
+ * \brief Management TLV Time Properties Data Set fields (Table 57 of the spec)
+ */
+/* Management TLV Time Properties Data Set Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/timePropertiesDataSet.def"
+} MMTimePropertiesDataSet;
+
+/**
+ * \brief Management TLV Port Data Set fields (Table 61 of the spec)
+ */
+/* Management TLV Port Data Set Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/portDataSet.def"
+} MMPortDataSet;
+
+/**
+ * \brief Management TLV Priority1 fields (Table 51 of the spec)
+ */
+/* Management TLV Priority1 Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/priority1.def"
+} MMPriority1;
+
+/**
+ * \brief Management TLV Priority2 fields (Table 52 of the spec)
+ */
+/* Management TLV Priority2 Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/priority2.def"
+} MMPriority2;
+
+/**
+ * \brief Management TLV Domain fields (Table 53 of the spec)
+ */
+/* Management TLV Domain Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/domain.def"
+} MMDomain;
+
+/**
+ * \brief Management TLV Slave Only fields (Table 54 of the spec)
+ */
+/* Management TLV Slave Only Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/slaveOnly.def"
+} MMSlaveOnly;
+
+/**
+ * \brief Management TLV Log Announce Interval fields (Table 62 of the spec)
+ */
+/* Management TLV Log Announce Interval Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/logAnnounceInterval.def"
+} MMLogAnnounceInterval;
+
+/**
+ * \brief Management TLV Announce Receipt Timeout fields (Table 63 of the spec)
+ */
+/* Management TLV Announce Receipt Timeout Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/announceReceiptTimeout.def"
+} MMAnnounceReceiptTimeout;
+
+/**
+ * \brief Management TLV Log Sync Interval fields (Table 64 of the spec)
+ */
+/* Management TLV Log Sync Interval Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/logSyncInterval.def"
+} MMLogSyncInterval;
+
+/**
+ * \brief Management TLV Version Number fields (Table 67 of the spec)
+ */
+/* Management TLV Version Number Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/versionNumber.def"
+} MMVersionNumber;
+
+/**
+ * \brief Management TLV Time fields (Table 48 of the spec)
+ */
+/* Management TLV Time Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/time.def"
+} MMTime;
+
+/**
+ * \brief Management TLV Clock Accuracy fields (Table 49 of the spec)
+ */
+/* Management TLV Clock Accuracy Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/clockAccuracy.def"
+} MMClockAccuracy;
+
+/**
+ * \brief Management TLV UTC Properties fields (Table 58 of the spec)
+ */
+/* Management TLV UTC Properties Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/utcProperties.def"
+} MMUtcProperties;
+
+/**
+ * \brief Management TLV Traceability Properties fields (Table 59 of the spec)
+ */
+/* Management TLV Traceability Properties Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/traceabilityProperties.def"
+} MMTraceabilityProperties;
+
+/**
+ * \brief Management TLV Delay Mechanism fields (Table 65 of the spec)
+ */
+/* Management TLV Delay Mechanism Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/delayMechanism.def"
+} MMDelayMechanism;
+
+/**
+ * \brief Management TLV Log Min Pdelay Req Interval fields (Table 66 of the spec)
+ */
+/* Management TLV Log Min Pdelay Req Interval Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/logMinPdelayReqInterval.def"
+} MMLogMinPdelayReqInterval;
+
+/**
+ * \brief Management TLV Error Status fields (Table 71 of the spec)
+ */
+/* Management TLV Error Status Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/errorStatus.def"
+} MMErrorStatus;
+
 /**
 * \brief Management message fields (Table 37 of the spec)
  */
 /*management Message*/
 typedef struct {
-	PortIdentity targetPortIdentity;
-	UInteger8 startingBoundaryHops;
-	UInteger8 boundaryHops;
-	Enumeration4 actionField;
-	char* tlv;
+	#define OPERATE( name, size, type ) type name;
+	#include "def/message/management.def"
+	ManagementTLV* tlv;
 }MsgManagement;
-
-
 
 /**
 * \brief Time structure to handle Linux time information
@@ -225,7 +464,6 @@ typedef struct {
 	Boolean expire;
 } IntervalTimer;
 
-
 /**
 * \brief ForeignMasterRecord is used to manage foreign masters
  */
@@ -238,7 +476,6 @@ typedef struct
 	MsgAnnounce  announce;
 	MsgHeader    header;
 } ForeignMasterRecord;
-
 
 /**
  * \struct PtpClock
@@ -341,6 +578,7 @@ typedef struct {
 		MsgSignaling signaling;
 	} msgTmp;
 
+	MsgManagement outgoingManageTmp;
 
 	Octet msgObuf[PACKET_SIZE];
 	Octet msgIbuf[PACKET_SIZE];
@@ -382,7 +620,6 @@ typedef struct {
 	Boolean  waitingForFollow;
 	Boolean  waitingForDelayResp;
 	
-
 	offset_from_master_filter  ofm_filt;
 	one_way_delay_filter  owd_filt;
 
@@ -409,6 +646,9 @@ typedef struct {
 	int waiting_for_first_delayresp;                /* Just for information purposes */
 	Boolean startup_in_progress;
 	
+	/* user description is the max size + 1 to leave space for a null terminator */
+	Octet user_description[USER_DESCRIPTION_MAX + 1];
+
 #ifdef PTP_EXPERIMENTAL
 	Integer32 MasterAddr;                           // used for hybrid mode, when receiving announces
 	Integer32 LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
