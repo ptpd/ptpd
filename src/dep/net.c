@@ -696,8 +696,6 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 	struct timeval * tv;
 #endif
 	Boolean timestampValid = FALSE;
-	
-
 
 
 	vec[0].iov_base = buf;
@@ -766,7 +764,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 			if(cmsg->cmsg_type == SCM_BINTIME) {
 				bt = (struct bintime *)CMSG_DATA(cmsg);
 				bintime2timespec(bt, &ts);
-				time->seconds = ts.tv_sec
+				time->seconds = ts.tv_sec;
 				time->nanoseconds = ts.tv_nsec;
 				timestampValid = TRUE;
 				DBGV("kernel NANO recv time stamp %us %dns\n",
@@ -912,7 +910,7 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 			if(cmsg->cmsg_type == SCM_BINTIME) {
 				bt = (struct bintime *)CMSG_DATA(cmsg);
 				bintime2timespec(bt, &ts);
-				time->seconds = ts.tv_sec
+				time->seconds = ts.tv_sec;
 				time->nanoseconds = ts.tv_nsec;
 				timestampValid = TRUE;
 				DBGV("kernel NANO recv time stamp %us %dns\n",
