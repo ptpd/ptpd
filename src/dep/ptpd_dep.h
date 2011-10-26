@@ -12,6 +12,7 @@
 
 
 #ifdef RUNTIME_DEBUG
+#undef PTPD_DBGV
 #define PTPD_DBGV
 #endif
 
