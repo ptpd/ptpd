@@ -910,9 +910,9 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_ds
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
-	if(netPath->unicastAddr || alt_dst ){
-	if (netPath->unicastAddr) {
-		addr.sin_addr.s_addr = netPath->unicastAddr;
+	if (netPath->unicastAddr || alt_dst ) {
+		if (netPath->unicastAddr) {
+			addr.sin_addr.s_addr = netPath->unicastAddr;
 		} else {
 			addr.sin_addr.s_addr = alt_dst;
 		}
@@ -964,7 +964,7 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_
 		}
 
 
-		ret = sendto(netPath->eventSock, buf, length, 0, 
+		ret = sendto(netPath->generalSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
@@ -994,7 +994,7 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 	if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
-		ret = sendto(netPath->eventSock, buf, length, 0, 
+		ret = sendto(netPath->generalSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
@@ -1030,6 +1030,18 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending uni-cast event message\n");
+
+		/* 
+		 * Need to forcibly loop back the packet since
+		 * we are not using multicast. 
+		 */
+		addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		
+		ret = sendto(netPath->eventSock, buf, length, 0, 
+			     (struct sockaddr *)&addr, 
+			     sizeof(struct sockaddr_in));
+		if (ret <= 0)
+			DBG("error looping back uni-cast event message\n");			
 	} else {
 		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
 
