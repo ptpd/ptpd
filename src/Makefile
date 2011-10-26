@@ -3,8 +3,9 @@
 #
 # Compile time defines:
 #   -DRUNTIME_DEBUG
-#     if defined:    all debug messages are included, and are either selected at startup (-B) and runtime (SIGUSR2) (implies -DPTPD_DBGV)
-#                    using syslog, add "*.debug /var/log/debug" to /etc/rsyslog.conf to see debug messages
+#     if defined:    all debug messages are included, and are either selected at startup (-B)
+#                    and runtime (SIGUSR2) (implies -DPTPD_DBGV) using syslog, 
+#                    add "*.debug /var/log/debug" to /etc/rsyslog.conf to see debug messages
 #     if undefined:  individual defines select which messages will be included and presented (old behaviour)
 #
 #  -DPTPD_DBG     basic debug messages
@@ -12,7 +13,6 @@
 #  -DPTPD_DBGV    adds all debug messages
 #
 #   -DPTPD_NO_DAEMON             forces option -c
-#   -DBSD_INTERFACE_FUNCTIONS    for OpenBSD
 #
 #   -PTP_EXPERIMENTAL            Allows non-standard compliant experimental options:
 #                                   -U: Hybrid mode
@@ -26,7 +26,8 @@
 
 RM = rm -f
 
-CFLAGS = -Wall -g
+# start with CFLAGS += ..., so additional CFLAGs can be specified e.g. on the make command line
+CFLAGS += -Wall -g
 
 CFLAGS += -DRUNTIME_DEBUG
 #CFLAGS += -DPTPD_DBG
@@ -34,7 +35,6 @@ CFLAGS += -DRUNTIME_DEBUG
 #CFLAGS += -DPTPD_DBGV
 
 #CFLAGS += -DPTPD_NO_DAEMON
-#CFLAGS += -DBSD_INTERFACE_FUNCTIONS
 #CFLAGS += -DDBG_SIGUSR2_CHANGE_DOMAIN
 CFLAGS += -DDBG_SIGUSR2_CHANGE_DEBUG
 

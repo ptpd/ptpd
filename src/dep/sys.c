@@ -1,10 +1,13 @@
 /*-
- * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
+ * Copyright (c) 2011      George V. Neville-Neil, Steven Kreuzer,
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, Steven Kreuzer,
  *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -13,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,14 +33,23 @@
 /**
  * @file   sys.c
  * @date   Tue Jul 20 16:19:46 2010
- * 
+ *
  * @brief  Code to call kernel time routines and also display server statistics.
- * 
- * 
+ *
+ *
  */
 
 #include "../ptpd.h"
-#include <netinet/ether.h>
+
+#if defined(linux)
+#  include <netinet/ether.h>
+#elif defined( __FreeBSD__ )
+#  include <net/ethernet.h>
+#elif defined( __NetBSD__ )
+#  include <net/if_ether.h>
+#elif defined( __OpenBSD__ )
+#  include <some ether header>  // force build error
+#endif
 
 
 /* only C99 has the round function built-in */
@@ -63,18 +75,17 @@ char *dump_TimeInternal(const TimeInternal * p)
 */
 char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *st2, const TimeInternal * p2)
 {
-	
 	static char buf[BUF_SIZE];
 	int n = 0;
 
 	/* display Timestamps */
-	if(st1){
+	if (st1) {
 		n += snprintf(buf + n, BUF_SIZE - n, "%s ", st1);
 	}
 	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, p1);
 	n += snprintf(buf + n, BUF_SIZE - n, "    ");
 
-	if(st2){
+	if (st2) {
 		n += snprintf(buf + n, BUF_SIZE - n, "%s ", st2);
 	}
 	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, p2);
@@ -113,7 +124,7 @@ char *time2st(const TimeInternal * p)
 {
 	static char buf[1000];
 
-	snprint_TimeInternal(buf, 1000, p);
+	snprint_TimeInternal(buf, sizeof(buf), p);
 	return buf;
 }
 
@@ -126,6 +137,31 @@ void DBG_time(const char *name, const TimeInternal  p)
 }
 
 
+char *
+translatePortState(PtpClock *ptpClock)
+{
+	char *s;
+	switch(ptpClock->portState) {
+	case PTP_INITIALIZING:  s = "init";  break;
+	case PTP_FAULTY:        s = "flt";   break;
+	case PTP_LISTENING:
+		/* seperate init-reset from real resets */
+		if(ptpClock->reset_count == 1){
+			s = "lstn_init";
+		} else {
+			s = "lstn_reset";
+		}
+		break;
+	case PTP_PASSIVE:       s = "pass";  break;
+	case PTP_UNCALIBRATED:  s = "uncl";  break;
+	case PTP_SLAVE:         s = "slv";   break;
+	case PTP_PRE_MASTER:    s = "pmst";  break;
+	case PTP_MASTER:        s = "mst";   break;
+	case PTP_DISABLED:      s = "dsbl";  break;
+	default:                s = "?";     break;
+	}
+	return s;
+}
 
 
 int 
@@ -177,6 +213,7 @@ snprint_ClockIdentity_mac(char *s, int max_len, const ClockIdentity id, const ch
 	return len;
 }
 
+
 /*
  * wrapper that caches the latest value of ether_ntohost
  * this function will NOT check the last accces time of /etc/ethers,
@@ -189,11 +226,19 @@ int ether_ntohost_cache(char *hostname, struct ether_addr *addr)
 	static struct ether_addr prev_addr;
 	static char buf[BUF_SIZE];
 
-	if(memcmp(addr->ether_addr_octet, &prev_addr, sizeof(struct ether_addr )) != 0){
+#if defined(linux) || defined(__NetBSD__)
+	if (memcmp(addr->ether_addr_octet, &prev_addr, 
+		  sizeof(struct ether_addr )) != 0) {
 		valid = 0;
 	}
+#else // e.g. defined(__FreeBSD__)
+	if (memcmp(addr->octet, &prev_addr, 
+		  sizeof(struct ether_addr )) != 0) {
+		valid = 0;
+	}
+#endif
 
-	if(!valid){
+	if (!valid) {
 		//DBG("__\n");
 		if(ether_ntohost(buf, addr)){
 			sprintf(buf, "%s", "unknown");
@@ -220,18 +265,19 @@ snprint_ClockIdentity_ntohost(char *s, int max_len, const ClockIdentity id, cons
 	int len = 0;
 	int i,j;
 	char  buf[100];
-	
 	struct ether_addr e;
-
 
 	/* extract mac address */
 	for (i = 0, j = 0; i< CLOCK_IDENTITY_LENGTH ; i++ ){
 		/* skip bytes 3 and 4 */
 		if(!((i==3) || (i==4))){
+#if defined(linux) || defined(__NetBSD__)
 			e.ether_addr_octet[j] = (uint8_t) id[i];
+#else // e.g. defined(__FreeBSD__)
+			e.octet[j] = (uint8_t) id[i];
+#endif
 			j++;
-	}
-
+		}
 	}
 
 	/* convert and print hostname */
@@ -265,24 +311,24 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id, const char *i
 
 /*
  * Prints a message, randing from critical to debug.
- * This either prints the message to syslog, or with timestamp+state to stderr (which has possibly been redirected to a file, using logtofile()/dup2()
- * 
+ * This either prints the message to syslog, or with timestamp+state to stderr
+ * (which has possibly been redirected to a file, using logtofile()/dup2().
  */
 void
 message(int priority, const char * format, ...)
 {
 	extern RunTimeOpts rtOpts;
+	va_list ap;
+	va_start(ap, format);
 
 #ifdef RUNTIME_DEBUG
-	if((priority >= LOG_DEBUG) && (priority > rtOpts.debug_level)){
+	if ((priority >= LOG_DEBUG) && (priority > rtOpts.debug_level)) {
 		return;
 	}
 #endif
 
-	
-	va_list ap;
-	va_start(ap, format);
-	if(rtOpts.useSysLog) {
+	if (rtOpts.useSysLog) {
+		static Boolean logOpened;
 #ifdef RUNTIME_DEBUG
 		/*
 		 *  Syslog only has 8 message levels (3 bits)
@@ -292,24 +338,27 @@ message(int priority, const char * format, ...)
 			priority = LOG_DEBUG;
 		}
 #endif
-	
-		static Boolean logOpened;
-		if(!logOpened) {
+
+		if (!logOpened) {
 			openlog("ptpd2", 0, LOG_DAEMON);
 			logOpened = TRUE;
 		}
 		vsyslog(priority, format, ap);
 
 		/* Also warn operator during startup only */
-		if(rtOpts.syslog_startup_messages_also_to_stdout &&
+		if (rtOpts.syslog_startup_messages_also_to_stdout &&
 			(priority <= LOG_WARNING)
 			){
-			
 			va_start(ap, format);
 			vfprintf(stderr, format, ap);
 		}
 	} else {
-			
+		char time_str[MAXTIMESTR];
+		struct timeval now;
+
+		extern char *translatePortState(PtpClock *ptpClock);
+		extern PtpClock *G_ptpClock;
+
 		fprintf(stderr, "   (ptpd %-9s ",
 			priority == LOG_EMERG   ? "emergency)" :
 			priority == LOG_ALERT   ? "alert)" :
@@ -322,62 +371,21 @@ message(int priority, const char * format, ...)
 			priority == LOG_DEBUG2  ? "debug2)" :
 			priority == LOG_DEBUGV  ? "debug3)" :
 			"unk)");
-		
 
 		/*
 		 * select debug tagged with timestamps. This will slow down PTP itself if you send a lot of messages!
 		 * it also can cause problems in nested debug statements (which are solved by turning the signal
 		 *  handling synchronous, and not calling this function inside assycnhonous signal processing)
 		 */
-
-		char time_str[MAXTIMESTR];
-		struct timeval now;
 		gettimeofday(&now, 0);
 		strftime(time_str, MAXTIMESTR, "%X", localtime(&now.tv_sec));
 		fprintf(stderr, "%s.%06d ", time_str, (int)now.tv_usec  );
-
-		{
-			char * translatePortState(PtpClock *ptpClock);
-
-			extern PtpClock* G_ptpClock;
-			extern RunTimeOpts rtOpts;
-		
-			fprintf(stderr, " (%s)  ", G_ptpClock ?
+		fprintf(stderr, " (%s)  ", G_ptpClock ?
 		       translatePortState(G_ptpClock) : "___");
 
-		}
-
-
-			
 		vfprintf(stderr, format, ap);
 	}
 	va_end(ap);
-}
-
-char *
-translatePortState(PtpClock *ptpClock)
-{
-	char *s;
-	switch(ptpClock->portState) {
-	case PTP_INITIALIZING:  s = "init";  break;
-	case PTP_FAULTY:        s = "flt";   break;
-	case PTP_LISTENING:
-		/* seperate init-reset from real resets */
-		if(ptpClock->reset_count == 1){
-			s = "lstn_init";
-		} else {
-			s = "lstn_reset";
-		}
-		break;
-	case PTP_PASSIVE:       s = "pass";  break;
-	case PTP_UNCALIBRATED:  s = "uncl";  break;
-	case PTP_SLAVE:         s = "slv";   break;
-	case PTP_PRE_MASTER:    s = "pmst";  break;
-	case PTP_MASTER:        s = "mst";   break;
-	case PTP_DISABLED:      s = "dsbl";  break;
-	default:                s = "?";     break;
-	}
-	return s;
 }
 
 void 
@@ -391,7 +399,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	static TimeInternal prev_now;
 	char time_str[MAXTIMESTR];
 
-	if (!rtOpts->displayStats){
+	if (!rtOpts->displayStats) {
 		return;
 	}
 
@@ -415,7 +423,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 * All other lines are printed, including delayreqs.
 	 */
 
-	if((ptpClock->portState == PTP_SLAVE) && (rtOpts->log_seconds_between_message)){
+	if ((ptpClock->portState == PTP_SLAVE) && (rtOpts->log_seconds_between_message)) {
 		if(ptpClock->last_packet_was_sync){
 			ptpClock->last_packet_was_sync = FALSE;
 			if((now.seconds - prev_now.seconds) < rtOpts->log_seconds_between_message){
@@ -532,11 +540,13 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	
 	/* add final \n in normal status lines */
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
-	if(0 && rtOpts->nonDaemon){
+
+#if 0   /* NOTE: Do we want this? */
+	if (rtOpts->nonDaemon) {
 		/* in -C mode, adding an extra \n makes stats more clear intermixed with debug comments */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
 	}
-	
+#endif
 	write(1, sbuf, rtOpts->csvStats ? len : SCREEN_MAXSZ + 1);
 	
 }
@@ -614,12 +624,13 @@ getRand(void)
 
 
 /*
- * TODO: this function should have been coded in a way to manipulate both the frequency and the tick, to avoid having to call
- * setTime() when the clock is very far away.
- * This would result in situations we would force the kernel clock to run the clock twice as slow, in order to avoid stepping time backwards
+ * TODO: this function should have been coded in a way to manipulate both the frequency and the tick,
+ * to avoid having to call setTime() when the clock is very far away.
+ * This would result in situations we would force the kernel clock to run the clock twice as slow,
+ * in order to avoid stepping time backwards
  */
 #if !defined(__APPLE__)
-Boolean 
+Boolean
 adjFreq(Integer32 adj)
 {
 	struct timex t;
@@ -648,7 +659,7 @@ adjFreq(Integer32 adj)
 	return !adjtimex(&t);
 }
 
-#else 
+#else
 
 void
 adjTime(Integer32 nanoseconds)
@@ -668,9 +679,7 @@ adjTime(Integer32 nanoseconds)
 
 
 
-
-
-
+#if 0 && defined (linux)  /* NOTE: This is actually not used */
 
 long
 get_current_tickrate(void)
@@ -684,5 +693,6 @@ get_current_tickrate(void)
 	return (t.tick);
 }
 
+#endif  /* defined(linux) */
 
 

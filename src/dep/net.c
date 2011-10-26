@@ -155,7 +155,6 @@ UInteger8
 lookupCommunicationTechnology(UInteger8 communicationTechnology)
 {
 #if defined(linux)
-
 	switch (communicationTechnology) {
 	case ARPHRD_ETHER:
 	case ARPHRD_EETHER:
@@ -165,10 +164,7 @@ lookupCommunicationTechnology(UInteger8 communicationTechnology)
 	default:
 		break;
 	}
-
-#elif defined(BSD_INTERFACE_FUNCTIONS)
-
-#endif
+#endif  /* defined(linux) */
 
 	return PTP_DEFAULT;
 }
@@ -263,7 +259,7 @@ findIface(Octet * ifaceName, UInteger8 * communicationTechnology,
 	}
 	return ((struct sockaddr_in *)&device[i].ifr_addr)->sin_addr.s_addr;
 
-#elif defined(BSD_INTERFACE_FUNCTIONS)
+#else /* usually *BSD */
 
 	struct ifaddrs *if_list, *ifv4, *ifh;
 
