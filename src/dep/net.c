@@ -59,7 +59,7 @@ netShutdownMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 
 	/* Close General Multicast */
 	imr.imr_multiaddr.s_addr = multicastAddr;
-	imr.imr_interface.s_addr = htonl(INADDR_ANY);
+	imr.imr_interface.s_addr = netPath->interfaceAddr.s_addr;
 
 	setsockopt(netPath->eventSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
 		   &imr, sizeof(struct ip_mreq));
