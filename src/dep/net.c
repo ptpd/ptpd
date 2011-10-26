@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
- *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen,
+ *                         Jan Breuer
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
@@ -39,8 +40,8 @@
 #include "../ptpd.h"
 
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
-#ifndef SO_TIMESTAMPNS
-#error kernel-level nanoseconds timestamps not detected
+#if !defined(SO_TIMESTAMPNS) && !defined(SO_TIMESTAMP) && !defined(SO_BINTIME)
+#error kernel-level timestamps not detected
 #endif
 
 /**
@@ -409,6 +410,55 @@ netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
 }
 
 /**
+ * Initialize timestamping of packets
+ *
+ * @param netPath 
+ * 
+ * @return TRUE if successful
+ */
+Boolean 
+netInitTimestamping(NetPath * netPath)
+{
+	int val = 1;
+	Boolean result = TRUE;
+	
+#if defined(SO_TIMESTAMPNS) /* Linux, Apple */
+	DBG("netInitTimestamping: trying to use SO_TIMESTAMPNS\n");
+	
+	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0
+	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
+		PERROR("netInitTimestamping: failed to enable SO_TIMESTAMPNS");
+		result = FALSE;
+	}
+#elif defined(SO_BINTIME) /* FreeBSD */
+	DBG("netInitTimestamping: trying to use SO_BINTIME\n");
+		
+	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINTIME, &val, sizeof(int)) < 0
+	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINTIME, &val, sizeof(int)) < 0) {
+		PERROR("netInitTimestamping: failed to enable SO_BINTIME");
+		result = FALSE;
+	}
+#else
+	result = FALSE;
+#endif
+			
+/* fallback method */
+#if defined(SO_TIMESTAMP) /* Linux, Apple, FreeBSD */
+	if (!result) {
+		DBG("netInitTimestamping: trying to use SO_TIMESTAMP\n");
+		
+		if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(int)) < 0
+		    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(int)) < 0) {
+			PERROR("netInitTimestamping: failed to enable SO_TIMESTAMP");
+			result = FALSE;
+		}
+	}
+#endif
+
+	return result;
+}
+
+/**
  * start all of the UDP stuff 
  * must specify 'subdomainName', and optionally 'ifaceName', 
  * if not then pass ifaceName == "" 
@@ -557,27 +607,11 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 	/* make timestamps available through recvmsg() */
-	temp = 1;
-
-
-
-#if defined(linux) || defined(__APPLE__)
-	DBG("Going to set SO_TIMESTAMPNS with %d \n", temp);
-
-	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &temp, sizeof(int)) < 0
-	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMPNS, &temp, sizeof(int)) < 0) {
-		PERROR("failed to enable receive time stamps");
+	if (!netInitTimestamping(netPath)) {
+		ERROR("failed to enable receive time stamps");
 		return FALSE;
 	}
-#else /* FreeBSD */
-	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINTIME, 
-		       &temp, sizeof(int)) < 0
-	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINTIME, 
-			  &temp, sizeof(int)) < 0) {
-		PERROR("failed to enable receive time stamps");
-		return FALSE;
-	}
-#endif
+
 	return TRUE;
 }
 
@@ -623,15 +657,19 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 /** 
  * store received data from network to "buf" , get and store the
  * SO_TIMESTAMP value in "time" for an event message
- * 
+ *
+ * @note Should this function be merged with netRecvGeneral(), below?
+ * Jan Breuer: I think that netRecvGeneral should be simplified. Timestamp returned by this
+ * function is never used. According to this, netInitTimestamping can be also simplified
+ * to initialize timestamping only on eventSock.
+ *
  * @param buf 
  * @param time 
  * @param netPath 
- * 
+ *
  * @return
  */
 
-/* this function should be merged with netRecvGeneral(), below */
 ssize_t 
 netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 {
@@ -647,13 +685,18 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 
 	struct cmsghdr *cmsg;
 
-#if defined(__APPLE__)
-	struct timeval *tv;
-	struct timespec *ts;
-#else
-	struct timeval *tv;
-	struct timespec *ts;
+#if defined(SO_TIMESTAMPNS)
+	struct timespec * ts;
+#elif defined(SO_BINTIME)
+	struct bintime * bt;
+	struct timespec ts;
 #endif
+	
+#if defined(SO_TIMESTAMP)
+	struct timeval * tv;
+#endif
+	Boolean timestampValid = FALSE;
+	
 
 
 
@@ -706,44 +749,46 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		return 0;
 	}
 
-// TODO: improve this
-#if defined(linux) || defined(__APPLE__)
-	tv = 0;
-	ts = 0;
-	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
 	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_level == SOL_SOCKET && 
-		    cmsg->cmsg_type == SCM_TIMESTAMPNS)
-			ts = (struct timespec *)CMSG_DATA(cmsg);
+		if (cmsg->cmsg_level == SOL_SOCKET) {
+#if defined(SO_TIMESTAMPNS)
+			if(cmsg->cmsg_type == SCM_TIMESTAMPNS) {
+				ts = (struct timespec *)CMSG_DATA(cmsg);
+				time->seconds = ts->tv_sec;
+				time->nanoseconds = ts->tv_nsec;
+				timestampValid = TRUE;
+				DBGV("kernel NANO recv time stamp %us %dns\n", 
+				     time->seconds, time->nanoseconds);
+				break;
+			}
+#elif defined(SO_BINTIME)
+			if(cmsg->cmsg_type == SCM_BINTIME) {
+				bt = (struct bintime *)CMSG_DATA(cmsg);
+				bintime2timespec(bt, &ts);
+				time->seconds = ts.tv_sec
+				time->nanoseconds = ts.tv_nsec;
+				timestampValid = TRUE;
+				DBGV("kernel NANO recv time stamp %us %dns\n",
+				     time->seconds, time->nanoseconds);
+				break;
+			}
+#endif
+			
+#if defined(SO_TIMESTAMP)
+			if(cmsg->cmsg_type == SCM_TIMESTAMP) {
+				tv = (struct timeval *)CMSG_DATA(cmsg);
+				time->seconds = tv->tv_sec;
+				time->nanoseconds = tv->tv_usec * 1000;
+				timestampValid = TRUE;
+				DBGV("kernel MICRO recv time stamp %us %dns\n",
+				     time->seconds, time->nanoseconds);
+			}
+#endif
+		}
 	}
 
-	if (ts) {
-		time->seconds = ts->tv_sec;
-		time->nanoseconds = ts->tv_nsec;
-		DBGV("kernel NANO recv time stamp %us %dns\n", 
-		     time->seconds, time->nanoseconds);
-	} else if (tv) {
-		time->seconds = tv->tv_sec;
-		time->nanoseconds = tv->tv_usec * 1000;
-		DBGV("kernel MICRO recv time stamp %us %dns\n", 
-		     time->seconds, time->nanoseconds);
-
-#else /* FreeBSD has more accurate time stamps */
-	bzero(&ts, sizeof(ts));
-	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
-	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_level == SOL_SOCKET && 
-		    cmsg->cmsg_type == SCM_BINTIME)
-			bintime2timespec((struct bintime *)CMSG_DATA(cmsg),
-					 &ts);
-	}
-
-	if (ts.tv_sec != 0) {
-		time->seconds = ts.tv_sec;
-		time->nanoseconds = ts.tv_nsec;
-		DBGV("kernel recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
-#endif /* Linux or FreeBSD */
-	} else {
+	if (!timestampValid) {
 		/*
 		 * do not try to get by with recording the time here, better
 		 * to fail because the time recorded could be well after the
@@ -778,27 +823,36 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 	struct msghdr msg;
 	struct iovec vec[1];
 	struct sockaddr_in from_addr;
-
+	
 	union {
 		struct cmsghdr cm;
 		char	control[CMSG_SPACE(sizeof(struct timeval))];
 	}     cmsg_un;
-
+	
 	struct cmsghdr *cmsg;
-#if defined(linux) || defined(__APPLE__)
-	struct timeval *tv;
-	struct timespec *ts;
-#else
+	
+#if defined(SO_TIMESTAMPNS)
+	struct timespec * ts;
+#elif defined(SO_BINTIME)
+	struct bintime * bt;
 	struct timespec ts;
-#endif 
+#endif
+	
+#if defined(SO_TIMESTAMP)
+	struct timeval * tv;
+#endif
+	Boolean timestampValid = FALSE;
+	
+	
+	
 	vec[0].iov_base = buf;
 	vec[0].iov_len = PACKET_SIZE;
-
+	
 	memset(&msg, 0, sizeof(msg));
 	memset(&from_addr, 0, sizeof(from_addr));
 	memset(buf, 0, PACKET_SIZE);
 	memset(&cmsg_un, 0, sizeof(cmsg_un));
-
+	
 	msg.msg_name = (caddr_t)&from_addr;
 	msg.msg_namelen = sizeof(from_addr);
 	msg.msg_iov = vec;
@@ -806,12 +860,12 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 	msg.msg_control = cmsg_un.control;
 	msg.msg_controllen = sizeof(cmsg_un.control);
 	msg.msg_flags = 0;
-
+	
 	ret = recvmsg(netPath->generalSock, &msg, MSG_DONTWAIT);
 	if (ret <= 0) {
 		if (errno == EAGAIN || errno == EINTR)
 			return 0;
-
+		
 		return ret;
 	}
 	if (msg.msg_flags & MSG_TRUNC) {
@@ -827,58 +881,60 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 		ERROR("received truncated ancillary data\n");
 		return 0;
 	}
-	if (msg.msg_controllen < sizeof(cmsg_un.control)) {
-		ERROR("received short ancillary data (%ld/%ld)\n",
-		    (long)msg.msg_controllen, (long)sizeof(cmsg_un.control));
 
-		return 0;
-	}
 #ifdef PTP_EXPERIMENTAL
-	// Used for Hybrid mode
-	// FIXME: is this needed for general port? 
 	netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 #endif
-
 	
-#if defined(linux) || defined(__APPLE__)
-	tv = 0;
-	ts = 0;
-	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
+	
+	
+	if (msg.msg_controllen <= 0) {
+		ERROR("received short ancillary data (%ld/%ld)\n",
+		      (long)msg.msg_controllen, (long)sizeof(cmsg_un.control));
+		
+		return 0;
+	}
+	
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
 	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-
-		if (cmsg->cmsg_level == SOL_SOCKET && 
-		    cmsg->cmsg_type == SCM_TIMESTAMPNS)
-			ts = (struct timespec *)CMSG_DATA(cmsg);
-
+		if (cmsg->cmsg_level == SOL_SOCKET) {
+#if defined(SO_TIMESTAMPNS)
+			if(cmsg->cmsg_type == SCM_TIMESTAMPNS) {
+				ts = (struct timespec *)CMSG_DATA(cmsg);
+				time->seconds = ts->tv_sec;
+				time->nanoseconds = ts->tv_nsec;
+				timestampValid = TRUE;
+				DBGV("kernel NANO recv time stamp %us %dns\n", 
+				     time->seconds, time->nanoseconds);
+				break;
+			}
+#elif defined(SO_BINTIME)
+			if(cmsg->cmsg_type == SCM_BINTIME) {
+				bt = (struct bintime *)CMSG_DATA(cmsg);
+				bintime2timespec(bt, &ts);
+				time->seconds = ts.tv_sec
+				time->nanoseconds = ts.tv_nsec;
+				timestampValid = TRUE;
+				DBGV("kernel NANO recv time stamp %us %dns\n",
+				     time->seconds, time->nanoseconds);
+				break;
+			}
+#endif
+			
+#if defined(SO_TIMESTAMP)
+			if(cmsg->cmsg_type == SCM_TIMESTAMP) {
+				tv = (struct timeval *)CMSG_DATA(cmsg);
+				time->seconds = tv->tv_sec;
+				time->nanoseconds = tv->tv_usec * 1000;
+				timestampValid = TRUE;
+				DBGV("kernel MICRO recv time stamp %us %dns\n",
+				     time->seconds, time->nanoseconds);
+			}
+#endif
+		}
 	}
 
-
-	if (ts) {
-		time->seconds = ts->tv_sec;
-		time->nanoseconds = ts->tv_nsec;
-		DBGV("kernel NANO recv time stamp %us %dns\n", 
-		     time->seconds, time->nanoseconds);
-	} else if (tv) {
-		time->seconds = tv->tv_sec;
-		time->nanoseconds = tv->tv_usec * 1000;
-		DBGV("kernel recv time stamp %us %dns\n", 
-		     time->seconds, time->nanoseconds);
-#else /* FreeBSD has more accurate time stamps */
-	bzero(&ts, sizeof(ts));
-	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; 
-	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_level == SOL_SOCKET && 
-		    cmsg->cmsg_type == SCM_BINTIME)
-			bintime2timespec((struct bintime *)CMSG_DATA(cmsg),
-					 &ts);
-	}
-
-	if (ts.tv_sec != 0) {
-		time->seconds = ts.tv_sec;
-		time->nanoseconds = ts.tv_nsec;
-		DBGV("kernel recv time stamp %us %dns\n", time->seconds, time->nanoseconds);
-#endif /* Linux or FreeBSD */
-	} else {
+	if (!timestampValid) {
 		/*
 		 * do not try to get by with recording the time here, better
 		 * to fail because the time recorded could be well after the
