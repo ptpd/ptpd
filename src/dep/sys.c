@@ -239,7 +239,6 @@ int ether_ntohost_cache(char *hostname, struct ether_addr *addr)
 #endif
 
 	if (!valid) {
-		//DBG("__\n");
 		if(ether_ntohost(buf, addr)){
 			sprintf(buf, "%s", "unknown");
 		}
@@ -694,5 +693,3 @@ get_current_tickrate(void)
 }
 
 #endif  /* defined(linux) */
-
-

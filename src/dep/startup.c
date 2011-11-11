@@ -242,7 +242,7 @@ void disable_runtime_debug(void )
 #include <sys/stat.h>
 #include <libgen.h>
 
-#define LOCKFILE "/var/lock/kernel_clock"
+#define LOCKFILE "/var/run/kernel_clock"
 #define LOCKMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 
 int global_lock_fd;

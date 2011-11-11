@@ -310,23 +310,22 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 
 	DBGV("==> updateOffset\n");
 
-	{
-		//perform basic checks, using only local variables
-		TimeInternal master_to_slave_delay;
+	//perform basic checks, using only local variables
+	TimeInternal master_to_slave_delay;
 
 	/* calc 'master_to_slave_delay' */
 	subTime(&master_to_slave_delay, recv_time, send_time);
 
 	if (rtOpts->maxDelay) { /* If maxDelay is 0 then it's OFF */
 		if (master_to_slave_delay.seconds && rtOpts->maxDelay) {
-			INFO("updateDelay aborted, delay greater than 1"
+			INFO("updateOffset aborted, delay greater than 1"
 			     " second.");
 			msgDump(ptpClock);
 			return;
 		}
 
 		if (master_to_slave_delay.nanoseconds > rtOpts->maxDelay) {
-			INFO("updateDelay aborted, delay %d greater than "
+			INFO("updateOffset aborted, delay %d greater than "
 			     "administratively set maximum %d\n",
 			     master_to_slave_delay.nanoseconds, 
 			     rtOpts->maxDelay);
@@ -334,12 +333,10 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 			return;
 		}
 	}
-	}
 
 	// used for stats feedback 
 	ptpClock->char_last_msg='S';
 	ptpClock->last_packet_was_sync = TRUE;
-
 
 	/*
 	 * The packet has passed basic checks, so we'll:

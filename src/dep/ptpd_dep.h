@@ -274,8 +274,6 @@ void setTime(TimeInternal*);
 double getRand(void);
 Boolean adjFreq(Integer32);
 
-long get_current_tickrate(void);
-
 void recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time);
 
 #if defined(__APPLE__)
