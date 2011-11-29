@@ -721,7 +721,7 @@ void msgDebugDelayResp(MsgDelayResp *resp)
 void msgDebugManagement(MsgManagement *manage)
 {
 	NOTIFY("msgDebugDelayManage: targetPortIdentity.clockIdentity "
-	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx%02hhx:%02hhx\n",
+	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
 	       manage->targetPortIdentity.clockIdentity[0], 
 	       manage->targetPortIdentity.clockIdentity[1], 
 	       manage->targetPortIdentity.clockIdentity[2], 
