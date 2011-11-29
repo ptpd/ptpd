@@ -406,7 +406,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	
 	if (start && rtOpts->csvStats) {
 		start = 0;
-		printf("# Timestamp, State Clock ID, One Way Delay, "
+		printf("# Timestamp, State, Clock ID, One Way Delay, "
 		       "Offset From Master, Slave to Master, "
 		       "Master to Slave, Drift, Last packet Received\n");
 		fflush(stdout);
