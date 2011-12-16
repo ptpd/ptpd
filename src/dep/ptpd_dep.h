@@ -33,9 +33,20 @@
  /** \name System messages*/
  /**\{*/
 
+#define LOG_DEBUG1   7
+#define LOG_DEBUG2   8
+#define LOG_DEBUG3   9
+#define LOG_DEBUGV   9
+
+
+#define EMERGENCY(x, ...) message(LOG_EMERG, x, ##__VA_ARGS__)
+#define ALERT(x, ...)     message(LOG_ALERT, x, ##__VA_ARGS__)
+#define CRITICAL(x, ...)  message(LOG_CRIT, x, ##__VA_ARGS__)
 #define ERROR(x, ...)  message(LOG_ERR, x, ##__VA_ARGS__)
-#define PERROR(x, ...) message(LOG_ERR, x ": %m\n", ##__VA_ARGS__)
+#define PERROR(x, ...)    message(LOG_ERR, x "      (strerror: %m)", ##__VA_ARGS__)
+#define WARNING(x, ...)   message(LOG_WARNING, x, ##__VA_ARGS__)
 #define NOTIFY(x, ...) message(LOG_NOTICE, x, ##__VA_ARGS__)
+#define NOTICE(x, ...)    message(LOG_NOTICE, x, ##__VA_ARGS__)
 #define INFO(x, ...)   message(LOG_INFO, x, ##__VA_ARGS__)
 
 /** \}*/
@@ -153,6 +164,7 @@ void updateDelay (one_way_delay_filter*, RunTimeOpts*, PtpClock*,TimeInternal*);
 void updateOffset(TimeInternal*,TimeInternal*,
   offset_from_master_filter*,RunTimeOpts*,PtpClock*,TimeInternal*);
 void updateClock(RunTimeOpts*,PtpClock*);
+void servo_perform_clock_step(RunTimeOpts*,PtpClock*);
 /** \}*/
 
 /** \name startup.c (Unix API dependent)

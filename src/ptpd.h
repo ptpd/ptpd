@@ -99,6 +99,7 @@ void initData(RunTimeOpts*,PtpClock*);
  */
 /* protocol.c */
 void protocol(RunTimeOpts*,PtpClock*);
+void toState(UInteger8,RunTimeOpts*,PtpClock*);
 /** \}*/
 
 

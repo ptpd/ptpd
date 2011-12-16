@@ -46,7 +46,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 
 		if (slave_to_master_delay.nanoseconds > rtOpts->maxDelay) {
 			INFO("updateDelay aborted, delay %d greater than "
-			     "administratively set maximum %d\n",
+			     "administratively set maximum %d",
 			     slave_to_master_delay.nanoseconds, 
 			     rtOpts->maxDelay);
 			return;
@@ -107,6 +107,27 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	}
 }
 
+void
+servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+{
+    if(rtOpts->noAdjust){
+        WARNING("     Clock step blocked because of option -t\n");
+        return;
+    }
+
+    TimeInternal timeTmp;
+
+    getTime(&timeTmp);
+    subTime(&timeTmp, &timeTmp, &ptpClock->offsetFromMaster);
+
+    WARNING("     Performing hard frequency reset, by setting frequency to zero\n");
+    adjFreq(0);
+    ptpClock->observed_drift = 0;
+
+    setTime(&timeTmp);
+    initClock(rtOpts, ptpClock);
+    toState(PTP_FAULTY, rtOpts, ptpClock);      /* make a full protocol reset */
+}
 
 void 
 updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField, Boolean twoStep)
@@ -202,7 +223,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 
 		if (master_to_slave_delay.nanoseconds > rtOpts->maxDelay) {
 			INFO("updateDelay aborted, delay %d greater than "
-			     "administratively set maximum %d\n",
+			     "administratively set maximum %d",
 			     master_to_slave_delay.nanoseconds, 
 			     rtOpts->maxDelay);
 			return;
@@ -269,7 +290,7 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		if (ptpClock->offsetFromMaster.nanoseconds > rtOpts->maxReset) {
 			INFO("updateClock aborted, offset %d greater than "
-			     "administratively set maximum %d\n",
+			     "administratively set maximum %d",
 			     ptpClock->offsetFromMaster.nanoseconds, 
 			     rtOpts->maxReset);
 			goto display;

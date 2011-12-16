@@ -20,9 +20,6 @@ catch_close(int sig)
 	ptpdShutdown();
 
 	switch (sig) {
-	case SIGINT:
-		s = "interrupt";
-		break;
 	case SIGTERM:
 		s = "terminate";
 		break;
@@ -30,7 +27,7 @@ catch_close(int sig)
 		s = "?";
 	}
 
-	NOTIFY("shutdown on %s signal\n", s);
+	NOTIFY("shutdown on %s signal", s);
 
 	exit(0);
 }
@@ -44,11 +41,38 @@ void
 catch_sighup(int sig)
 {
 	if(!logToFile())
-		NOTIFY("SIGHUP logToFile failed\n");
+		ERROR("SIGHUP logToFile failed");
 	if(!recordToFile())
-		NOTIFY("SIGHUP recordToFile failed\n");
+		ERROR("SIGHUP recordToFile failed");
 
-	NOTIFY("I've been SIGHUP'd\n");
+	NOTIFY("I've been SIGHUP'd");
+}
+
+void
+catch_sigint(int sig)
+{
+    extern RunTimeOpts rtOpts;
+    servo_perform_clock_step(&rtOpts, ptpClock);
+}
+
+void
+catch_sigusr1(int sig)
+{
+    extern RunTimeOpts rtOpts;
+    Integer32 n;
+    n = rtOpts.maxDelay << 1;
+    NOTIFY("Increasing maxDelay threshold from %i to %i", rtOpts.maxDelay, n);
+    rtOpts.maxDelay = n;
+}
+
+void
+catch_sigusr2(int sig)
+{
+    extern RunTimeOpts rtOpts;
+    Integer32 n;
+    n = rtOpts.maxDelay >> 1; 
+    NOTIFY("Decreasing maxDelay threshold from %i to %i", rtOpts.maxDelay, n);
+    rtOpts.maxDelay = n;
 }
 
 /** 
@@ -64,7 +88,8 @@ logToFile()
 	if(rtOpts.logFd != -1)
 		close(rtOpts.logFd);
 	
-	if((rtOpts.logFd = creat(rtOpts.file, 0444)) != -1) {
+	/* Append to the log file instead of replacing it. Also use mask of 644 instead of 444 */
+	if((rtOpts.logFd = open(rtOpts.file, O_CREAT | O_APPEND | O_RDWR, 0644 )) != -1) {
 		dup2(rtOpts.logFd, STDOUT_FILENO);
 		dup2(rtOpts.logFd, STDERR_FILENO);
 	}
@@ -86,7 +111,7 @@ recordToFile()
 		fclose(rtOpts.recordFP);
 
 	if ((rtOpts.recordFP = fopen(rtOpts.recordFile, "w")) == NULL)
-		PERROR("could not open sync recording file");
+		ERROR("could not open sync recording file");
 	else
 		setlinebuf(rtOpts.recordFP);
 	return (rtOpts.recordFP != NULL);
@@ -296,7 +321,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		*ret = 2;
 		return 0;
 	} else {
-		DBG("allocated %d bytes for protocol engine data\n", 
+		DBG("allocated %d bytes for protocol engine data", 
 		    (int)sizeof(PtpClock));
 		ptpClock->foreign = (ForeignMasterRecord *)
 			calloc(rtOpts->max_foreign_records, 
@@ -308,7 +333,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			free(ptpClock);
 			return 0;
 		} else {
-			DBG("allocated %d bytes for foreign master data\n", 
+			DBG("allocated %d bytes for foreign master data", 
 			    (int)(rtOpts->max_foreign_records * 
 				  sizeof(ForeignMasterRecord)));
 		}
@@ -326,13 +351,15 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			*ret = 3;
 			return 0;
 		}
-		DBG("running as daemon\n");
+		DBG("running as daemon");
 	}
 #endif
 
-	signal(SIGINT, catch_close);
+	signal(SIGINT, catch_sigint);
 	signal(SIGTERM, catch_close);
 	signal(SIGHUP, catch_sighup);
+	signal(SIGUSR1, catch_sigusr1);
+	signal(SIGUSR2, catch_sigusr2);
 
 	*ret = 0;
 

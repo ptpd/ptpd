@@ -83,19 +83,40 @@ message(int priority, const char * format, ...)
 		}
 		vsyslog(priority, format, ap);
 	} else {
-		fprintf(stderr, "(ptpd %s) ",
-			priority == LOG_EMERG ? "emergency" :
-			priority == LOG_ALERT ? "alert" :
-			priority == LOG_CRIT ? "critical" :
-			priority == LOG_ERR ? "error" :
-			priority == LOG_WARNING ? "warning" :
-			priority == LOG_NOTICE ? "notice" :
-			priority == LOG_INFO ? "info" :
-			priority == LOG_DEBUG ? "debug" :
-			"???");
-		vfprintf(stderr, format, ap);
-	}
-	va_end(ap);
+
+        char time_str[MAXTIMESTR];
+        struct timeval now;
+
+        extern char *translatePortState(PtpClock *ptpClock);
+        extern PtpClock *ptpClock;
+
+        fprintf(stderr, "%s   (ptpd %-9s ",
+            rtOpts.csvStats ? "\n" : "",
+            priority == LOG_EMERG   ? "emergency)" :
+            priority == LOG_ALERT   ? "alert)" :
+            priority == LOG_CRIT    ? "critical)" :
+            priority == LOG_ERR     ? "error)" :
+            priority == LOG_WARNING ? "warning)" :
+            priority == LOG_NOTICE  ? "notice)" :
+            priority == LOG_INFO    ? "info)" :
+            priority == LOG_DEBUG   ? "debug1)" :
+            priority == LOG_DEBUG2  ? "debug2)" :
+            priority == LOG_DEBUGV  ? "debug3)" :
+            "unk)");
+        /*
+         * select debug tagged with timestamps. This will slow down PTP itself if you send a lot of messages!
+         * it also can cause problems in nested debug statements (which are solved by turning the signal
+         *  handling synchronous, and not calling this function inside assycnhonous signal processing)
+         */
+        gettimeofday(&now, 0);
+        strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&now.tv_sec));
+        fprintf(stderr, "%s.%06d ", time_str, (int)now.tv_usec  );
+        fprintf(stderr, " (%s)  ", ptpClock ?
+               translatePortState(ptpClock) : "___");
+
+        vfprintf(stderr, format, ap);
+    }
+    va_end(ap);
 }
 
 char *
