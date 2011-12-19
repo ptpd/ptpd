@@ -448,6 +448,7 @@ netInitTimestamping(NetPath * netPath)
 			PERROR("netInitTimestamping: failed to enable SO_TIMESTAMP");
 			result = FALSE;
 		}
+		result = TRUE;
 	}
 #endif
 
