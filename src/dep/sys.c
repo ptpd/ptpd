@@ -212,6 +212,16 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		    rtOpts->csvStats ? "" : "drift: ", 
 			       ptpClock->observed_drift);
 
+		/* Last column has the type of last packet processed by the servo */
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
+
+		if (!rtOpts->csvStats)
+			len += snprintf(sbuf + len, sizeof(sbuf) - len,
+			"last_msg: ");
+
+		len += snprintf(sbuf + len, sizeof(sbuf) - len,
+				"%c ", ptpClock->char_last_msg);
+
 	}
 	else {
 		if (ptpClock->portState == PTP_MASTER) {

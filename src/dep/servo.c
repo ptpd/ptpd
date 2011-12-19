@@ -25,6 +25,9 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* level clock */
 	if (!rtOpts->noAdjust)
 		adjFreq(0);
+
+	ptpClock->char_last_msg='I';
+
 }
 
 void 
@@ -32,6 +35,8 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 {
 
 	TimeInternal slave_to_master_delay;
+
+	ptpClock->char_last_msg='D';
 
 	/* calc 'slave_to_master_delay' */
 	subTime(&slave_to_master_delay, &ptpClock->delay_req_receive_time, 
@@ -210,6 +215,8 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	TimeInternal master_to_slave_delay;
 
 	DBGV("updateOffset\n");
+
+	ptpClock->char_last_msg='S';
 
 	/* calc 'master_to_slave_delay' */
 	subTime(&master_to_slave_delay, recv_time, send_time);

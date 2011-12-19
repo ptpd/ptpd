@@ -391,6 +391,9 @@ typedef struct {
 	UInteger8 port_communication_technology;
 	Octet port_uuid_field[PTP_UUID_LENGTH];
 
+	char char_last_msg;                             /* representation of last message processed by servo */
+
+
 } PtpClock;
 
 /**
