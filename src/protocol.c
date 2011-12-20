@@ -871,6 +871,9 @@ handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 
 				ptpClock->logMinDelayReqInterval = 
 					header->logMessageInterval;
+
+				if (rtOpts->displayStats)
+					displayStats(rtOpts, ptpClock);
 			} else {
 				DBGV("HandledelayResp : delayResp doesn't match with the delayReq. \n");
 				break;
