@@ -122,6 +122,12 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	subTime(&slave_to_master_delay, &ptpClock->delay_req_receive_time, 
 		&ptpClock->delay_req_send_time);
 
+	if (slave_to_master_delay.nanoseconds < 0) {
+		INFO("updateDelay aborted, delay %d is negative",
+		     slave_to_master_delay.nanoseconds);
+		return;
+	}
+
 	if (rtOpts->maxDelay) { /* If maxDelay is 0 then it's OFF */
 		if (slave_to_master_delay.seconds && rtOpts->maxDelay) {
 			INFO("updateDelay aborted, delay greater than 1"
