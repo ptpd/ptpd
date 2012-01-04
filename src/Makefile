@@ -40,14 +40,7 @@ CFLAGS += -DDBG_SIGUSR2_CHANGE_DEBUG
 
 CFLAGS += -DPTP_EXPERIMENTAL
 
-
-
-
-
-
-
 LDFLAGS+= -lm -lrt
-
 
 PROG = ptpd2
 SRCS = ptpd.c arith.c bmc.c protocol.c display.c\
@@ -70,7 +63,7 @@ TAGFILES = GPATH GRTAGS GSYMS GTAGS cscope.in.out cscope.out cscope.po.out
 all: $(PROG)
 
 $(PROG): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LDFLAGS)
 
 $(OBJS): $(HDRS)
 
