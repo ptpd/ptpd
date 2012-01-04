@@ -1319,6 +1319,8 @@ handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
 					updatePeerDelay (&ptpClock->owd_filt,rtOpts,ptpClock,&correctionField,FALSE);
 					break;
 				}
+				ptpClock->recvPDelayRespSequenceId = header->sequenceId;
+				
 			} else {
 				DBGV("HandlePdelayResp : Pdelayresp doesn't "
 				     "match with the PdelayReq. \n");
@@ -1362,8 +1364,8 @@ handlePDelayRespFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 		
 		case PTP_SLAVE:
 		case PTP_MASTER:
-			if (header->sequenceId == 
-			    ptpClock->sentPDelayReqSequenceId-1) {
+			if ((header->sequenceId == 
+			    ptpClock->sentPDelayReqSequenceId-1) && (header->sequenceId == ptpClock->recvPDelayRespSequenceId)) {
 				msgUnpackPDelayRespFollowUp(
 					ptpClock->msgIbuf,
 					&ptpClock->msgTmp.prespfollow);

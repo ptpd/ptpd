@@ -379,6 +379,7 @@ typedef struct {
 	UInteger16  sentAnnounceSequenceId;
 	UInteger16  recvPDelayReqSequenceId;
 	UInteger16  recvSyncSequenceId;
+	UInteger16  recvPDelayRespSequenceId;
 	Boolean  waitingForFollow;
 	Boolean  waitingForDelayResp;
 	
