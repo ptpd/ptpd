@@ -465,9 +465,14 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		if (!rtOpts->csvStats)
 			len += snprintf(sbuf + len, 
 					sizeof(sbuf) - len, "owd: ");
-
-		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
-		    &ptpClock->meanPathDelay);
+        
+		if(rtOpts->delayMechanism == E2E) {
+			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+						    &ptpClock->meanPathDelay);
+		} else {
+			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+						    &ptpClock->peerMeanPathDelay);
+		}
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
