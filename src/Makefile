@@ -73,4 +73,7 @@ tags:
 	$(DOXYGEN) Doxyfile
 
 clean:
+	$(RM) $(PROG) $(OBJS) make.out
+
+realclean:
 	$(RM) $(PROG) $(OBJS) $(TAGFILES) make.out
