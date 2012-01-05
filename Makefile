@@ -1,6 +1,6 @@
 # Root Makefile for ptpd, used for cutting releases
 
-VERSION = ptpd-2.1.0
+VERSION = ptpd-2.2.0
 
 release:
 	(cd src; make clean)
