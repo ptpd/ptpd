@@ -1,0 +1,24 @@
+The following is a checklist to be followed for releasing new versions
+of PTPd.
+
+*) Make sure that your svn is up to date (svn update)
+
+*) Build on FreeBSD
+
+*) Build on Linux
+
+*) Build on MacOS
+
+*) Check startup.c and ptpd.c for any changes to default options.
+
+*) Make sure that the manual page (ptpdX.8) matches the code.
+
+*) Create a release tag (svn cp)
+
+*) Update to the release tag
+
+*) Build for FreeBSD
+
+*) Build for Linux
+
+*) Build for Mac OS
