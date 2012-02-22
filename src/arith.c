@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
- *                         Martin Burnicki
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
@@ -38,75 +38,93 @@
 
 #include "ptpd.h"
 
-/* from annex C of the spec */
-UInteger32 
-crc_algorithm(Octet * buf, Integer16 length)
+
+void 
+integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)
 {
-	Integer16 i;
-	UInteger8 data;
-	UInteger32 polynomial = 0xedb88320, crc = 0xffffffff;
+	int sign;
+	int64_t scaledNanoseconds;
 
-	while (length-- > 0) {
-		data = *(UInteger8 *) (buf++);
+	scaledNanoseconds = bigint.msb;
+	scaledNanoseconds <<=32;
+	scaledNanoseconds += bigint.lsb;
+	
+	/*determine sign of result big integer number*/
 
-		for (i = 0; i < 8; i++) {
-			if ((crc ^ data) & 1) {
-				crc = (crc >> 1);
-				crc ^= polynomial;
-			} else {
-				crc = (crc >> 1);
-			}
-			data >>= 1;
-		}
+	if (scaledNanoseconds < 0)
+	{
+		scaledNanoseconds = -scaledNanoseconds;
+		sign = -1;
+	}
+	else
+	{
+		sign = 1;
 	}
 
-	return crc ^ 0xffffffff;
+	/*fractional nanoseconds are excluded (see 5.3.2)*/
+	scaledNanoseconds >>= 16;
+	internal->seconds = sign * (scaledNanoseconds / 1000000000);
+	internal->nanoseconds = sign * (scaledNanoseconds % 1000000000);
 }
 
-UInteger32 
-sum(Octet * buf, Integer16 length)
+
+void 
+fromInternalTime(TimeInternal * internal, Timestamp * external)
 {
-	UInteger32 sum = 0;
 
-	while (length-- > 0)
-		sum += *(UInteger8 *) (buf++);
+	/*
+	 * fromInternalTime is only used to convert time given by the system
+	 * to a timestamp As a consequence, no negative value can normally
+	 * be found in (internal)
+	 * 
+	 * Note that offsets are also represented with TimeInternal structure,
+	 * and can be negative, but offset are never convert into Timestamp
+	 * so there is no problem here.
+	 */
 
-	return sum;
+	if ((internal->seconds & ~INT_MAX) || 
+	    (internal->nanoseconds & ~INT_MAX)) {
+		DBG("Negative value canno't be converted into timestamp \n");
+		return;
+	} else {
+		external->secondsField.lsb = internal->seconds;
+		external->nanosecondsField = internal->nanoseconds;
+		external->secondsField.msb = 0;
+	}
+
 }
 
 void 
-fromInternalTime(TimeInternal * internal, TimeRepresentation * external, Boolean halfEpoch)
+toInternalTime(TimeInternal * internal, Timestamp * external)
 {
-	external->seconds = labs(internal->seconds) + halfEpoch * INT_MAX;
 
-	if (internal->seconds < 0 || internal->nanoseconds < 0) {
-		external->nanoseconds = labs(internal->nanoseconds) | ~INT_MAX;
+	/* Program will not run after 2038... */
+	if (external->secondsField.lsb < INT_MAX) {
+		internal->seconds = external->secondsField.lsb;
+		internal->nanoseconds = external->nanosecondsField;
 	} else {
-		external->nanoseconds = labs(internal->nanoseconds);
+		DBG("Clock servo canno't be executed : "
+		    "seconds field is higher than signed integer (32bits) \n");
+		return;
 	}
-
-	DBGV("fromInternalTime: %10ds %11dns -> %10us %11dns\n",
-	    internal->seconds, internal->nanoseconds,
-	    external->seconds, external->nanoseconds);
 }
 
 void 
-toInternalTime(TimeInternal * internal, TimeRepresentation * external, Boolean * halfEpoch)
+ts_to_InternalTime(struct timespec *a,  TimeInternal * b)
 {
-	*halfEpoch = external->seconds / INT_MAX;
 
-	if (external->nanoseconds & ~INT_MAX) {
-		internal->seconds = -(external->seconds % INT_MAX);
-		internal->nanoseconds = -(external->nanoseconds & INT_MAX);
-	} else {
-		internal->seconds = external->seconds % INT_MAX;
-		internal->nanoseconds = external->nanoseconds;
-	}
-
-	DBGV("toInternalTime: %10ds %11dns <- %10us %11dns\n",
-	    internal->seconds, internal->nanoseconds,
-	    external->seconds, external->nanoseconds);
+	b->seconds = a->tv_sec;
+	b->nanoseconds = a->tv_nsec;
 }
+
+void 
+tv_to_InternalTime(struct timeval *a,  TimeInternal * b)
+{
+
+	b->seconds = a->tv_sec;
+	b->nanoseconds = a->tv_usec * 1000;
+}
+
 
 void 
 normalizeTime(TimeInternal * r)
@@ -124,7 +142,7 @@ normalizeTime(TimeInternal * r)
 }
 
 void 
-addTime(TimeInternal * r, TimeInternal * x, TimeInternal * y)
+addTime(TimeInternal * r, const TimeInternal * x, const TimeInternal * y)
 {
 	r->seconds = x->seconds + y->seconds;
 	r->nanoseconds = x->nanoseconds + y->nanoseconds;
@@ -133,7 +151,7 @@ addTime(TimeInternal * r, TimeInternal * x, TimeInternal * y)
 }
 
 void 
-subTime(TimeInternal * r, TimeInternal * x, TimeInternal * y)
+subTime(TimeInternal * r, const TimeInternal * x, const TimeInternal * y)
 {
 	r->seconds = x->seconds - y->seconds;
 	r->nanoseconds = x->nanoseconds - y->nanoseconds;
@@ -146,6 +164,9 @@ subTime(TimeInternal * r, TimeInternal * x, TimeInternal * y)
 /// @param r the time to convert
 /// @param divisor 
 ///
+
+#if 0
+/* TODO: this function could be simplified, as currently it is only called to halve the time */
 void
 divTime(TimeInternal *r, int divisor)
 {
@@ -158,7 +179,97 @@ divTime(TimeInternal *r, int divisor)
 	nanoseconds = ((uint64_t)r->seconds * 1000000000) + r->nanoseconds;
 	nanoseconds /= divisor;
 
-	r->seconds = nanoseconds / 1000000000;
-	r->nanoseconds = nanoseconds % 1000000000;
+	r->seconds = 0;
+	r->nanoseconds = nanoseconds;
+	normalizeTime(r);
+} 
+#endif
 
+void div2Time(TimeInternal *r)
+{
+    r->nanoseconds += r->seconds % 2 * 1000000000;
+    r->seconds /= 2;
+    r->nanoseconds /= 2;
+	
+    normalizeTime(r);
 }
+
+
+
+/* clear an internal time value */
+void clearTime(TimeInternal *time)
+{
+	time->seconds     = 0;
+	time->nanoseconds = 0;
+}
+
+
+/* sets a time value to a certain nanoseconds */
+void nano_to_Time(TimeInternal *time, int nano)
+{
+	time->seconds     = 0;
+	time->nanoseconds = nano;
+	normalizeTime(time);
+}
+
+/* greater than operation */
+int gtTime(TimeInternal *x, TimeInternal *y)
+{
+	TimeInternal r;
+
+	subTime(&r, x, y);
+	return !isTimeInternalNegative(&r);
+}
+
+/* remove sign from variable */
+void absTime(TimeInternal *time)
+{
+	time->seconds       = abs(time->seconds);
+	time->nanoseconds   = abs(time->nanoseconds);
+}
+
+
+/* if 2 time values are close enough for X nanoseconds */
+int is_Time_close(TimeInternal *x, TimeInternal *y, int nanos)
+{
+	TimeInternal r1;
+	TimeInternal r2;
+
+	// first, subtract the 2 values. then call abs(), then call gtTime for requested the number of nanoseconds
+	subTime(&r1, x, y);
+	absTime(&r1);
+
+	nano_to_Time(&r2, nanos);
+	
+	return !gtTime(&r1, &r2);
+}
+
+
+
+int check_timestamp_is_fresh2(TimeInternal * timeA, TimeInternal * timeB)
+{
+	int ret;
+
+	ret = is_Time_close(timeA, timeB, 1000000);		// maximum 1 millisecond offset
+	DBG2("check_timestamp_is_fresh: %d\n ", ret);
+	return ret;
+}
+
+
+int check_timestamp_is_fresh(TimeInternal * timeA)
+{
+	TimeInternal timeB;
+	getTime(&timeB);
+
+	return check_timestamp_is_fresh2(timeA, &timeB);
+}
+
+
+int
+isTimeInternalNegative(const TimeInternal * p)
+{
+	return (p->seconds < 0) || (p->nanoseconds < 0);
+}
+
+
+

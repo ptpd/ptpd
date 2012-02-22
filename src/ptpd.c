@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
- *                         Martin Burnicki
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
@@ -30,9 +30,9 @@
 /**
  * @file   ptpd.c
  * @date   Wed Jun 23 10:13:38 2010
- * 
+ *
  * @brief  The main() function for the PTP daemon
- * 
+ *
  * This file contains very little code, as should be obvious,
  * and only serves to tie together the rest of the daemon.
  * All of the default options are set here, but command line
@@ -45,45 +45,96 @@
 RunTimeOpts rtOpts;			/* statically allocated run-time
 					 * configuration data */
 
+/*
+ * Global variable with the main PTP port. This is used to show the current state in DBG()/message()
+ * without having to pass the pointer everytime.
+ *
+ * if ptpd is extended to handle multiple ports (eg, to instantiate a Boundary Clock),
+ * then DBG()/message() needs a per-port pointer argument
+ */
+PtpClock *G_ptpClock = NULL;
+
 int
 main(int argc, char **argv)
 {
 	PtpClock *ptpClock;
 	Integer16 ret;
 
-	/* initialize run-time options to reasonable values */
+	/* initialize run-time options to default values */
+	rtOpts.announceInterval = DEFAULT_ANNOUNCE_INTERVAL;
 	rtOpts.syncInterval = DEFAULT_SYNC_INTERVAL;
-	memcpy(rtOpts.subdomainName, DEFAULT_PTP_DOMAIN_NAME, PTP_SUBDOMAIN_NAME_LENGTH);
-	memcpy(rtOpts.clockIdentifier, IDENTIFIER_DFLT, PTP_CODE_STRING_LENGTH);
-	rtOpts.clockVariance = DEFAULT_CLOCK_VARIANCE;
-	rtOpts.clockStratum = DEFAULT_CLOCK_STRATUM;
-	rtOpts.unicastAddress[0] = 0;
-	rtOpts.inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
-	rtOpts.outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
-	rtOpts.noResetClock = DEFAULT_NO_RESET_CLOCK;
-	rtOpts.s = DEFAULT_DELAY_S;
+	rtOpts.clockQuality.clockAccuracy = DEFAULT_CLOCK_ACCURACY;
+	rtOpts.clockQuality.clockClass = DEFAULT_CLOCK_CLASS;
+	rtOpts.clockQuality.offsetScaledLogVariance = DEFAULT_CLOCK_VARIANCE;
+	rtOpts.priority1 = DEFAULT_PRIORITY1;
+	rtOpts.priority2 = DEFAULT_PRIORITY2;
+	rtOpts.domainNumber = DEFAULT_DOMAIN_NUMBER;
+#ifdef PTP_EXPERIMENTAL
+	rtOpts.mcast_group_Number = 0;
+	rtOpts.do_hybrid_mode = 0;
+#endif
+	
+	// rtOpts.slaveOnly = FALSE;
+	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
+	rtOpts.ifaceName[0] = '\0';
+	rtOpts.do_unicast_mode = 0;
+
+	rtOpts.noAdjust = NO_ADJUST;  // false
+	// rtOpts.displayStats = FALSE;
+	// rtOpts.csvStats = FALSE;
+	/* Deep display of all packets seen by the daemon */
+	rtOpts.displayPackets = FALSE;
+	// rtOpts.unicastAddress
 	rtOpts.ap = DEFAULT_AP;
 	rtOpts.ai = DEFAULT_AI;
+	rtOpts.s = DEFAULT_DELAY_S;
+	rtOpts.inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
+	rtOpts.outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
 	rtOpts.max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
-	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
+	// rtOpts.ethernet_mode = FALSE;
+	// rtOpts.offset_first_updated = FALSE;
+	// rtOpts.file[0] = 0;
 	rtOpts.logFd = -1;
 	rtOpts.recordFP = NULL;
-	rtOpts.useSysLog = FALSE;
+	rtOpts.do_log_to_file = FALSE;
+	rtOpts.do_record_quality_file = FALSE;
+	rtOpts.nonDaemon = FALSE;
+
+	/*
+	 * defaults for new options
+	 */
+	rtOpts.slaveOnly = TRUE;
+	rtOpts.ignore_delayreq_interval_master = FALSE;
+	rtOpts.do_IGMP_refresh = TRUE;
+	rtOpts.useSysLog       = TRUE;
+	rtOpts.syslog_startup_messages_also_to_stdout = TRUE;		/* used to print inital messages both to syslog and screen */
+	rtOpts.announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
+#ifdef RUNTIME_DEBUG
+	rtOpts.debug_level = LOG_INFO;			/* by default debug messages as disabled, but INFO messages and below are printed */
+#endif
+
 	rtOpts.ttl = 1;
-	rtOpts.displayPackets = FALSE;
-	
+	rtOpts.delayMechanism   = DEFAULT_DELAY_MECHANISM;
+	rtOpts.noResetClock     = DEFAULT_NO_RESET_CLOCK;
+	rtOpts.log_seconds_between_message = 0;
+
+	rtOpts.initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
+	rtOpts.subsequent_delayreq = DEFAULT_DELAYREQ_INTERVAL;      // this will be updated if -g is given
+
+	/* Initialize run time options with command line arguments */
 	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts)))
 		return ret;
 
-	if (rtOpts.probe) {
-		probe(&rtOpts, ptpClock);
-	} else {
-		/* do the protocol engine */
-		protocol(&rtOpts, ptpClock);
-	}
+	/* global variable for message(), please see comment on top of this file */
+	G_ptpClock = ptpClock;
 
-	ptpdShutdown();
+	/* do the protocol engine */
+	protocol(&rtOpts, ptpClock);
+	/* forever loop.. */
+
+	ptpdShutdown(ptpClock);
 
 	NOTIFY("self shutdown, probably due to an error\n");
+
 	return 1;
 }

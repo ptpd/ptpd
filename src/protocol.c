@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
- *                         Martin Burnicki
+ *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
@@ -38,24 +38,35 @@
 
 #include "ptpd.h"
 
-Boolean	doInit(RunTimeOpts *, PtpClock *);
-void	doState(RunTimeOpts *, PtpClock *);
-void	toState(UInteger8, RunTimeOpts *, PtpClock *);
+Boolean doInit(RunTimeOpts*,PtpClock*);
+void doState(RunTimeOpts*,PtpClock*);
+void toState(UInteger8,RunTimeOpts*,PtpClock*);
 
-void	handle(RunTimeOpts *, PtpClock *);
-void	handleSync(MsgHeader *, Octet *, ssize_t, TimeInternal *, Boolean, RunTimeOpts *, PtpClock *);
-void	handleFollowUp(MsgHeader *, Octet *, ssize_t, Boolean, RunTimeOpts *, PtpClock *);
-void	handleDelayReq(MsgHeader *, Octet *, ssize_t, TimeInternal *, Boolean, RunTimeOpts *, PtpClock *);
-void	handleDelayResp(MsgHeader *, Octet *, ssize_t, Boolean, RunTimeOpts *, PtpClock *);
-void	handleManagement(MsgHeader *, Octet *, ssize_t, Boolean, RunTimeOpts *, PtpClock *);
+void handle(RunTimeOpts*,PtpClock*);
+void handleAnnounce(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+void handleSync(MsgHeader*,Octet*,ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+void handleFollowUp(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+void handlePDelayReq(MsgHeader*,Octet*,ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+void handleDelayReq(MsgHeader*,Octet*,ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+void handlePDelayResp(MsgHeader*,Octet*,TimeInternal* ,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+void handleDelayResp(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+void handlePDelayRespFollowUp(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+void handleManagement(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+void handleSignaling(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
 
-void	issueSync(RunTimeOpts *, PtpClock *);
-void	issueFollowup(TimeInternal *, RunTimeOpts *, PtpClock *);
-void	issueDelayReq(RunTimeOpts *, PtpClock *);
-void	issueDelayResp(TimeInternal *, MsgHeader *, RunTimeOpts *, PtpClock *);
-void	issueManagement(MsgHeader *, MsgManagement *, RunTimeOpts *, PtpClock *);
 
-MsgSync *addForeign(Octet *, MsgHeader *, PtpClock *);
+void issueAnnounce(RunTimeOpts*,PtpClock*);
+void issueSync(RunTimeOpts*,PtpClock*);
+void issueFollowup(TimeInternal*,RunTimeOpts*,PtpClock*);
+void issuePDelayReq(RunTimeOpts*,PtpClock*);
+void issueDelayReq(RunTimeOpts*,PtpClock*);
+void issuePDelayResp(TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
+void issueDelayResp(TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
+void issuePDelayRespFollowUp(TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
+void issueManagement(MsgHeader*,MsgManagement*,RunTimeOpts*,PtpClock*);
+
+
+void addForeign(Octet*,MsgHeader*,PtpClock*);
 
 
 /* loop forever. doState() has a switch for the actions and events to be
@@ -63,241 +74,203 @@ MsgSync *addForeign(Octet *, MsgHeader *, PtpClock *);
    'port_state' by calling toState(), but once they are done we loop around
    again and perform the actions required for the new 'port_state'. */
 void 
-protocol(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBG("event POWERUP\n");
 
 	toState(PTP_INITIALIZING, rtOpts, ptpClock);
 
-	DBGV("Debug Initializing...");
+	DBG("Debug Initializing...\n");
 
-	for (;;) {
-		if (ptpClock->port_state != PTP_INITIALIZING)
+	for (;;)
+	{
+		/* 20110701: this main loop was rewritten to be more clear */
+
+		if (ptpClock->portState == PTP_INITIALIZING) {
+			if (!doInit(rtOpts, ptpClock)) {
+				return;
+			}
+		} else {
 			doState(rtOpts, ptpClock);
-		else if (!doInit(rtOpts, ptpClock))
-			return;
+		}
 
+		
 		if (ptpClock->message_activity)
 			DBGV("activity\n");
-		else
-			DBGV("no activity\n");
+
+		/* Perform the heavy signal processing synchronously */
+		check_signals(rtOpts, ptpClock);
 	}
 }
 
-Boolean 
-doInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
-{
-	DBG("manufacturerIdentity: %s\n", MANUFACTURER_ID);
-
-	/* initialize networking */
-	netShutdown(&ptpClock->netPath);
-	if (!netInit(&ptpClock->netPath, rtOpts, ptpClock)) {
-		ERROR("failed to initialize network\n");
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-		return FALSE;
-	}
-	/* initialize other stuff */
-	initData(rtOpts, ptpClock);
-	initTimer();
-	initClock(rtOpts, ptpClock);
-	m1(ptpClock);
-	msgPackHeader(ptpClock->msgObuf, ptpClock);
-
-	DBG("sync message interval: %d\n", PTP_SYNC_INTERVAL_TIMEOUT(ptpClock->sync_interval));
-	DBG("clock identifier: %s\n", ptpClock->clock_identifier);
-	DBG("256*log2(clock variance): %d\n", ptpClock->clock_variance);
-	DBG("clock stratum: %d\n", ptpClock->clock_stratum);
-	DBG("clock preferred?: %s\n", ptpClock->preferred ? "yes" : "no");
-	DBG("bound interface name: %s\n", rtOpts->ifaceName);
-	DBG("communication technology: %d\n", ptpClock->port_communication_technology);
-	DBG("uuid: %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
-	    ptpClock->port_uuid_field[0], ptpClock->port_uuid_field[1], ptpClock->port_uuid_field[2],
-	    ptpClock->port_uuid_field[3], ptpClock->port_uuid_field[4], ptpClock->port_uuid_field[5]);
-	DBG("PTP subdomain name: %s\n", ptpClock->subdomain_name);
-	DBG("subdomain address: %hhx.%hhx.%hhx.%hhx\n",
-	    ptpClock->subdomain_address[0], ptpClock->subdomain_address[1],
-	    ptpClock->subdomain_address[2], ptpClock->subdomain_address[3]);
-	DBG("event port address: %hhx %hhx\n",
-	    ptpClock->event_port_address[0], ptpClock->event_port_address[1]);
-	DBG("general port address: %hhx %hhx\n",
-	    ptpClock->general_port_address[0], ptpClock->general_port_address[1]);
-
-	toState(PTP_LISTENING, rtOpts, ptpClock);
-	return TRUE;
-}
-
-/* handle actions and events for 'port_state' */
-void 
-doState(RunTimeOpts * rtOpts, PtpClock * ptpClock)
-{
-	UInteger8 state;
-
-	ptpClock->message_activity = FALSE;
-
-	switch (ptpClock->port_state) {
-	case PTP_LISTENING:
-	case PTP_PASSIVE:
-	case PTP_SLAVE:
-	case PTP_MASTER:
-		if (ptpClock->record_update) {
-			ptpClock->record_update = FALSE;
-			state = bmc(ptpClock->foreign, rtOpts, ptpClock);
-			if (state != ptpClock->port_state)
-				toState(state, rtOpts, ptpClock);
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	switch (ptpClock->port_state) {
-	case PTP_FAULTY:
-		/* imaginary troubleshooting */
-
-		DBG("event FAULT_CLEARED\n");
-		toState(PTP_INITIALIZING, rtOpts, ptpClock);
-		return;
-
-	case PTP_LISTENING:
-	case PTP_PASSIVE:
-	case PTP_UNCALIBRATED:
-	case PTP_SLAVE:
-		handle(rtOpts, ptpClock);
-
-		if (timerExpired(SYNC_RECEIPT_TIMER, ptpClock->itimer)) {
-			DBG("event SYNC_RECEIPT_TIMEOUT_EXPIRES\n");
-			ptpClock->number_foreign_records = 0;
-			ptpClock->foreign_record_i = 0;
-			if (!rtOpts->slaveOnly && ptpClock->clock_stratum != 255) {
-				m1(ptpClock);
-				toState(PTP_MASTER, rtOpts, ptpClock);
-			} else if (ptpClock->port_state != PTP_LISTENING)
-				toState(PTP_LISTENING, rtOpts, ptpClock);
-		}
-		break;
-
-	case PTP_MASTER:
-		if (timerExpired(SYNC_INTERVAL_TIMER, ptpClock->itimer)) {
-			DBGV("event SYNC_INTERVAL_TIMEOUT_EXPIRES\n");
-			issueSync(rtOpts, ptpClock);
-		}
-		handle(rtOpts, ptpClock);
-
-		if (rtOpts->slaveOnly || ptpClock->clock_stratum == 255)
-			toState(PTP_LISTENING, rtOpts, ptpClock);
-
-		break;
-
-	case PTP_DISABLED:
-		handle(rtOpts, ptpClock);
-		break;
-
-	default:
-		DBG("do unrecognized state\n");
-		break;
-	}
-}
 
 /* perform actions required when leaving 'port_state' and entering 'state' */
 void 
-toState(UInteger8 state, RunTimeOpts * rtOpts, PtpClock * ptpClock)
+toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	ptpClock->message_activity = TRUE;
-
+	
 	/* leaving state tasks */
-	switch (ptpClock->port_state) {
+	switch (ptpClock->portState)
+	{
 	case PTP_MASTER:
-		timerStop(SYNC_INTERVAL_TIMER, ptpClock->itimer);
-		timerStart(SYNC_RECEIPT_TIMER, PTP_SYNC_RECEIPT_TIMEOUT(ptpClock->sync_interval), ptpClock->itimer);
+		timerStop(SYNC_INTERVAL_TIMER, ptpClock->itimer);  
+		timerStop(ANNOUNCE_INTERVAL_TIMER, ptpClock->itimer);
+		timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer); 
 		break;
-
+		
 	case PTP_SLAVE:
-		initClock(rtOpts, ptpClock);
+		timerStop(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer);
+		
+		if (ptpClock->delayMechanism == E2E)
+			timerStop(DELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
+		else if (ptpClock->delayMechanism == P2P)
+			timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
+		
+		initClock(rtOpts, ptpClock); 
 		break;
-
+		
+	case PTP_PASSIVE:
+		timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
+		timerStop(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer);
+		break;
+		
+	case PTP_LISTENING:
+		timerStop(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer);
+		break;
+		
 	default:
 		break;
 	}
-
+	
 	/* entering state tasks */
-	switch (state) {
+
+	/*
+	 * No need of PRE_MASTER state because of only ordinary clock
+	 * implementation.
+	 */
+	
+	switch (state)
+	{
 	case PTP_INITIALIZING:
 		DBG("state PTP_INITIALIZING\n");
-		timerStop(SYNC_RECEIPT_TIMER, ptpClock->itimer);
-
-		ptpClock->port_state = PTP_INITIALIZING;
+		ptpClock->portState = PTP_INITIALIZING;
 		break;
-
+		
 	case PTP_FAULTY:
 		DBG("state PTP_FAULTY\n");
-		timerStop(SYNC_RECEIPT_TIMER, ptpClock->itimer);
-
-		ptpClock->port_state = PTP_FAULTY;
+		ptpClock->portState = PTP_FAULTY;
 		break;
-
+		
 	case PTP_DISABLED:
-		DBG("state change to PTP_DISABLED\n");
-		timerStop(SYNC_RECEIPT_TIMER, ptpClock->itimer);
-
-		ptpClock->port_state = PTP_DISABLED;
+		DBG("state PTP_DISABLED\n");
+		ptpClock->portState = PTP_DISABLED;
 		break;
-
+		
 	case PTP_LISTENING:
+		/* in Listening mode, make sure we don't send anything. Instead we just expect/wait for announces (started below) */
+		timerStop(SYNC_INTERVAL_TIMER,      ptpClock->itimer);
+		timerStop(ANNOUNCE_INTERVAL_TIMER,  ptpClock->itimer);
+		timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
+		timerStop(DELAYREQ_INTERVAL_TIMER,  ptpClock->itimer);
+		
+		/*
+		 *  Count how many _unique_ timeouts happen to us.
+		 *  If we were already in Listen mode, then do not count this as a seperate reset, but stil do a new IGMP refresh
+		 */
+		if (ptpClock->portState != PTP_LISTENING) {
+			ptpClock->reset_count++;
+		}
+
+		/* Revert to the original DelayReq interval, and ignore the one for the last master */
+		ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
+
+		/* force a IGMP refresh per reset */
+		if (rtOpts->do_IGMP_refresh) {
+			netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+		}
+		
+
 		DBG("state PTP_LISTENING\n");
-
-		timerStart(SYNC_RECEIPT_TIMER, PTP_SYNC_RECEIPT_TIMEOUT(ptpClock->sync_interval), ptpClock->itimer);
-
-		ptpClock->port_state = PTP_LISTENING;
+		INFO("  now in state PTP_LISTENING\n");
+		timerStart(ANNOUNCE_RECEIPT_TIMER, 
+			   (ptpClock->announceReceiptTimeout) * 
+			   (pow(2,ptpClock->logAnnounceInterval)), 
+			   ptpClock->itimer);
+		ptpClock->portState = PTP_LISTENING;
 		break;
 
 	case PTP_MASTER:
 		DBG("state PTP_MASTER\n");
-
-		if (ptpClock->port_state != PTP_PRE_MASTER)
-			timerStart(SYNC_INTERVAL_TIMER, PTP_SYNC_INTERVAL_TIMEOUT(ptpClock->sync_interval), ptpClock->itimer);
-
-		timerStop(SYNC_RECEIPT_TIMER, ptpClock->itimer);
-
-		ptpClock->port_state = PTP_MASTER;
+		INFO("  now in state PTP_MASTER\n");
+		
+		timerStart(SYNC_INTERVAL_TIMER, 
+			   pow(2,ptpClock->logSyncInterval), ptpClock->itimer);
+		DBG("SYNC INTERVAL TIMER : %f \n",
+		    pow(2,ptpClock->logSyncInterval));
+		timerStart(ANNOUNCE_INTERVAL_TIMER, 
+			   pow(2,ptpClock->logAnnounceInterval), 
+			   ptpClock->itimer);
+		timerStart(PDELAYREQ_INTERVAL_TIMER, 
+			   pow(2,ptpClock->logMinPdelayReqInterval), 
+			   ptpClock->itimer);
+		ptpClock->portState = PTP_MASTER;
 		break;
 
 	case PTP_PASSIVE:
 		DBG("state PTP_PASSIVE\n");
-		ptpClock->port_state = PTP_PASSIVE;
+		INFO("  now in state PTP_PASSIVE\n");
+
+		
+		timerStart(PDELAYREQ_INTERVAL_TIMER, 
+			   pow(2,ptpClock->logMinPdelayReqInterval), 
+			   ptpClock->itimer);
+		timerStart(ANNOUNCE_RECEIPT_TIMER, 
+			   (ptpClock->announceReceiptTimeout) * 
+			   (pow(2,ptpClock->logAnnounceInterval)), 
+			   ptpClock->itimer);
+		ptpClock->portState = PTP_PASSIVE;
+		p1(ptpClock, rtOpts);
 		break;
 
 	case PTP_UNCALIBRATED:
 		DBG("state PTP_UNCALIBRATED\n");
-		ptpClock->port_state = PTP_UNCALIBRATED;
+		ptpClock->portState = PTP_UNCALIBRATED;
 		break;
 
 	case PTP_SLAVE:
-		DBG("state PTP_PTP_SLAVE\n");
-
+		DBG("state PTP_SLAVE\n");
+		INFO("  now in state PTP_SLAVE\n");
+		
 		initClock(rtOpts, ptpClock);
-
-		/*
-		 * R is chosen to allow a few syncs before we first get a
-		 * one-way delay estimate
-		 */
-		/*
-		 * this is to allow the offset filter to fill for an
-		 * accurate initial clock reset
-		 */
-		ptpClock->Q = 0;
-		ptpClock->R = getRand(&ptpClock->random_seed) % 4 + 4;
-		DBG("Q = %d, R = %d\n", ptpClock->Q, ptpClock->R);
-
+		
 		ptpClock->waitingForFollow = FALSE;
-		ptpClock->delay_req_send_time.seconds = 0;
-		ptpClock->delay_req_send_time.nanoseconds = 0;
-		ptpClock->delay_req_receive_time.seconds = 0;
-		ptpClock->delay_req_receive_time.nanoseconds = 0;
+		ptpClock->waitingForDelayResp = FALSE;
 
-		timerStart(SYNC_RECEIPT_TIMER, PTP_SYNC_RECEIPT_TIMEOUT(ptpClock->sync_interval), ptpClock->itimer);
+		// FIXME: clear these vars inside initclock
+		clearTime(&ptpClock->pdelay_req_send_time);
+		clearTime(&ptpClock->pdelay_req_receive_time);
+		clearTime(&ptpClock->pdelay_resp_send_time);
+		clearTime(&ptpClock->pdelay_resp_receive_time);
+		
+		timerStart(OPERATOR_MESSAGES_TIMER,
+			   OPERATOR_MESSAGES_INTERVAL,
+			   ptpClock->itimer);
+		
+		timerStart(ANNOUNCE_RECEIPT_TIMER,
+			   (ptpClock->announceReceiptTimeout) * 
+			   (pow(2,ptpClock->logAnnounceInterval)), 
+			   ptpClock->itimer);
+		
+		/*
+		 * Previously, this state transition would start the delayreq timer immediately.
+		 * However, if this was faster than the first received sync, then the servo would drop the delayResp
+		 * Now, we only start the timer after we receive the first sync (in handle_sync())
+		 */
+		ptpClock->waiting_for_first_sync = TRUE;
+		ptpClock->waiting_for_first_delayresp = TRUE;
 
-		ptpClock->port_state = PTP_SLAVE;
+		ptpClock->portState = PTP_SLAVE;
 		break;
 
 	default:
@@ -305,20 +278,185 @@ toState(UInteger8 state, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		break;
 	}
 
-	NOTIFY("Port state changed to %s\n", translatePortState(ptpClock));
-
 	if (rtOpts->displayStats)
 		displayStats(rtOpts, ptpClock);
 }
 
-/* check and handle received messages */
+
+Boolean 
+doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+	DBG("manufacturerIdentity: %s\n", MANUFACTURER_ID);
+	
+	/* initialize networking */
+	netShutdown(&ptpClock->netPath);
+	if (!netInit(&ptpClock->netPath, rtOpts, ptpClock)) {
+		ERROR("failed to initialize network\n");
+		toState(PTP_FAULTY, rtOpts, ptpClock);
+		return FALSE;
+	}
+	
+	/* initialize other stuff */
+	initData(rtOpts, ptpClock);
+	initTimer();
+	initClock(rtOpts, ptpClock);
+	m1(rtOpts, ptpClock );
+	msgPackHeader(ptpClock->msgObuf, ptpClock);
+	
+	toState(PTP_LISTENING, rtOpts, ptpClock);
+	
+	return TRUE;
+}
+
+/* handle actions and events for 'port_state' */
 void 
-handle(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+	UInteger8 state;
+	
+	ptpClock->message_activity = FALSE;
+	
+	/* Process record_update (BMC algorithm) before everything else */
+	switch (ptpClock->portState)
+	{
+	case PTP_LISTENING:
+	case PTP_PASSIVE:
+	case PTP_SLAVE:
+	case PTP_MASTER:
+		/*State decision Event*/
+
+		/* If we received a valid Announce message, and can use it (record_update), then run the BMC algorithm */
+		if(ptpClock->record_update)
+		{
+			DBG2("event STATE_DECISION_EVENT\n");
+			ptpClock->record_update = FALSE;
+			state = bmc(ptpClock->foreign, rtOpts, ptpClock);
+			if(state != ptpClock->portState)
+				toState(state, rtOpts, ptpClock);
+		}
+		break;
+		
+	default:
+		break;
+	}
+	
+	
+	switch (ptpClock->portState)
+	{
+	case PTP_FAULTY:
+		/* imaginary troubleshooting */
+		DBG("event FAULT_CLEARED\n");
+		toState(PTP_INITIALIZING, rtOpts, ptpClock);
+		return;
+		
+	case PTP_LISTENING:
+	case PTP_UNCALIBRATED:
+	case PTP_SLAVE:
+	// passive mode behaves like the SLAVE state, in order to wait for the announce timeout of the current active master
+	case PTP_PASSIVE:
+		handle(rtOpts, ptpClock);
+		
+		/*
+		 * handle SLAVE timers:
+		 *   - No Announce message was received
+		 *   - Time to send new delayReq  (miss of delayResp is not monitored explicitelly)
+		 */
+		if (timerExpired(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer))
+		{
+			DBG("event ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES\n");
+			ptpClock->number_foreign_records = 0;
+			ptpClock->foreign_record_i = 0;
+
+			if(!ptpClock->slaveOnly && 
+			   ptpClock->clockQuality.clockClass != 255) {
+				m1(rtOpts,ptpClock);
+				toState(PTP_MASTER, rtOpts, ptpClock);
+
+			} else {
+				/*
+				 *  Force a reset when getting a timeout in state listening, that will lead to an IGMP reset
+				 *  previously this was not the case when we were already in LISTENING mode
+				 */
+				toState(PTP_LISTENING, rtOpts, ptpClock);
+			}
+		}
+		
+		if (timerExpired(OPERATOR_MESSAGES_TIMER, ptpClock->itimer)) {
+			reset_operator_messages(rtOpts, ptpClock);
+		}
+
+
+		if (ptpClock->delayMechanism == E2E) {
+			if(timerExpired(DELAYREQ_INTERVAL_TIMER,
+					ptpClock->itimer)) {
+				DBG2("event DELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
+				issueDelayReq(rtOpts,ptpClock);
+			}
+		} else if (ptpClock->delayMechanism == P2P) {
+			if (timerExpired(PDELAYREQ_INTERVAL_TIMER,
+					ptpClock->itimer)) {
+				DBGV("event PDELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
+				issuePDelayReq(rtOpts,ptpClock);
+			}
+
+			/* FIXME: Path delay should also rearm its timer with the value received from the Master */
+		}
+		break;
+
+	case PTP_MASTER:
+		/*
+		 * handle SLAVE timers:
+		 *   - Time to send new Sync
+		 *   - Time to send new Announce
+		 *   - Time to send new PathDelay
+		 *      (DelayResp has no timer - as these are sent and retransmitted by the slaves)
+		 */
+	
+		if (timerExpired(SYNC_INTERVAL_TIMER, ptpClock->itimer)) {
+			DBGV("event SYNC_INTERVAL_TIMEOUT_EXPIRES\n");
+			issueSync(rtOpts, ptpClock);
+		}
+		
+		if (timerExpired(ANNOUNCE_INTERVAL_TIMER, ptpClock->itimer)) {
+			DBGV("event ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES\n");
+			issueAnnounce(rtOpts, ptpClock);
+		}
+		
+		if (ptpClock->delayMechanism == P2P) {
+			if (timerExpired(PDELAYREQ_INTERVAL_TIMER,
+					ptpClock->itimer)) {
+				DBGV("event PDELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
+				issuePDelayReq(rtOpts,ptpClock);
+			}
+		}
+		
+		// TODO: why is handle() below expiretimer, while in slave is the opposite
+		handle(rtOpts, ptpClock);
+		
+		if (ptpClock->slaveOnly || ptpClock->clockQuality.clockClass == 255)
+			toState(PTP_LISTENING, rtOpts, ptpClock);
+		
+		break;
+
+	case PTP_DISABLED:
+		handle(rtOpts, ptpClock);
+		break;
+		
+	default:
+		DBG("(doState) do unrecognized state\n");
+		break;
+	}
+}
+
+
+/* check and handle received messages */
+void
+handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	int ret;
 	ssize_t length;
 	Boolean isFromSelf;
-	TimeInternal time = {0, 0};
+	TimeInternal time = { 0, 0 };
 
 	if (!ptpClock->message_activity) {
 		ret = netSelect(0, &ptpClock->netPath);
@@ -327,20 +465,25 @@ handle(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			toState(PTP_FAULTY, rtOpts, ptpClock);
 			return;
 		} else if (!ret) {
-			DBGV("handle: nothing\n");
+			/* DBGV("handle: nothing\n"); */
 			return;
 		}
 		/* else length > 0 */
 	}
+
 	DBGV("handle: something\n");
 
+	/* TODO: this should be based on the select actual FDs (if(FD_ISSET(...)) */
 	length = netRecvEvent(ptpClock->msgIbuf, &time, &ptpClock->netPath);
+
+
 	if (length < 0) {
 		PERROR("failed to receive on the event socket");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 		return;
 	} else if (!length) {
-		length = netRecvGeneral(ptpClock->msgIbuf, &ptpClock->netPath);
+		length = netRecvGeneral(ptpClock->msgIbuf, &time,
+					&ptpClock->netPath);
 		if (length < 0) {
 			PERROR("failed to receive on the general socket");
 			toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -348,73 +491,131 @@ handle(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		} else if (!length)
 			return;
 	}
-	ptpClock->message_activity = TRUE;
 
-	if (!msgPeek(ptpClock->msgIbuf, length))
-		return;
+	/*
+	 * make sure we use the TAI to UTC offset specified, if the master is sending the UTC_VALID bit
+	 *
+	 *
+	 * On the slave, all timestamps that we handle here have been collected by our local clock (loopback+kernel-level timestamp)
+	 * This includes delayReq just send, and delayResp, when it arrives.
+	 *
+	 * these are then adjusted to the same timebase of the Master (+34 leap seconds, as of 2011)
+	 *
+	 */
+	DBGV("__UTC_offset: %d %d \n", ptpClock->currentUtcOffsetValid, ptpClock->currentUtcOffset);
+	if (ptpClock->currentUtcOffsetValid) {
+		time.seconds += ptpClock->currentUtcOffset;
+	}
+
+	ptpClock->message_activity = TRUE;
 
 	if (length < HEADER_LENGTH) {
 		ERROR("message shorter than header length\n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 		return;
 	}
+
 	msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
 
-	DBGV("event Receipt of Message\n"
-	    "   version %d\n"
-	    "   type %d\n"
-	    "   uuid %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n"
-	    "   sequence %d\n"
-	    "   time %us %dns\n",
-	    ptpClock->msgTmpHeader.versionPTP,
-	    ptpClock->msgTmpHeader.control,
-	    ptpClock->msgTmpHeader.sourceUuid[0], ptpClock->msgTmpHeader.sourceUuid[1],
-	    ptpClock->msgTmpHeader.sourceUuid[2], ptpClock->msgTmpHeader.sourceUuid[3],
-	    ptpClock->msgTmpHeader.sourceUuid[4], ptpClock->msgTmpHeader.sourceUuid[5],
-	    ptpClock->msgTmpHeader.sequenceId,
-	    time.seconds, time.nanoseconds);
+	if (ptpClock->msgTmpHeader.versionPTP != ptpClock->versionNumber) {
+		DBG2("ignore version %d message\n", ptpClock->msgTmpHeader.versionPTP);
+		return;
+	}
 
-	if (ptpClock->msgTmpHeader.versionPTP != VERSION_PTP) {
-		DBGV("ignore version %d message\n", ptpClock->msgTmpHeader.versionPTP);
+	if(ptpClock->msgTmpHeader.domainNumber != ptpClock->domainNumber) {
+		DBG2("ignore message from domainNumber %d\n", ptpClock->msgTmpHeader.domainNumber);
 		return;
 	}
-	if (memcmp(ptpClock->msgTmpHeader.subdomain, ptpClock->subdomain_name,
-	    PTP_SUBDOMAIN_NAME_LENGTH)) {
-		DBGV("ignore message from subdomain %s\n", ptpClock->msgTmpHeader.subdomain);
-		return;
-	}
-	isFromSelf = ptpClock->msgTmpHeader.sourceCommunicationTechnology == ptpClock->port_communication_technology
-	    && ptpClock->msgTmpHeader.sourcePortId == ptpClock->port_id_field
-	    && !memcmp(ptpClock->msgTmpHeader.sourceUuid, ptpClock->port_uuid_field, PTP_UUID_LENGTH);
+
+	/*Spec 9.5.2.2*/	
+	isFromSelf = (ptpClock->portIdentity.portNumber == ptpClock->msgTmpHeader.sourcePortIdentity.portNumber
+		      && !memcmp(ptpClock->msgTmpHeader.sourcePortIdentity.clockIdentity, ptpClock->portIdentity.clockIdentity, CLOCK_IDENTITY_LENGTH));
 
 	/*
-	 * subtract the inbound latency adjustment if it is not a loop back
-	 * and the time stamp seems reasonable
+	 * subtract the inbound latency adjustment if it is not a loop
+	 *  back and the time stamp seems reasonable 
 	 */
 	if (!isFromSelf && time.seconds > 0)
 		subTime(&time, &time, &rtOpts->inboundLatency);
 
-	switch (ptpClock->msgTmpHeader.control) {
-	case PTP_SYNC_MESSAGE:
-		handleSync(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, length, &time, isFromSelf, rtOpts, ptpClock);
-		break;
 
-	case PTP_FOLLOWUP_MESSAGE:
-		handleFollowUp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, length, isFromSelf, rtOpts, ptpClock);
-		break;
+#ifdef PTPD_DBG
+	/* easy display of received messages */
+	char *st;
 
-	case PTP_DELAY_REQ_MESSAGE:
-		handleDelayReq(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, length, &time, isFromSelf, rtOpts, ptpClock);
+	switch(ptpClock->msgTmpHeader.messageType)
+	{
+	case ANNOUNCE:
+		st = "Announce";
 		break;
-
-	case PTP_DELAY_RESP_MESSAGE:
-		handleDelayResp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, length, isFromSelf, rtOpts, ptpClock);
+	case SYNC:
+		st = "Sync";
 		break;
-
-	case PTP_MANAGEMENT_MESSAGE:
-		handleManagement(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, length, isFromSelf, rtOpts, ptpClock);
+	case FOLLOW_UP:
+		st = "FollowUp";
 		break;
+	case DELAY_REQ:
+		st = "DelayReq";
+		break;
+	case DELAY_RESP:
+		st = "DelayResp";
+		break;
+	default:
+		st = "Unk";
+		break;
+	}
+	DBG("      ==> %s received\n", st);
+#endif
 
+	/*
+	 *  on the table below, note that only the event messsages are passed the local time,
+	 *  (collected by us by loopback+kernel TS, and adjusted with UTC seconds
+	 *
+	 *  (SYNC / DELAY_REQ / PDELAY_REQ / PDELAY_RESP)
+	 */
+	switch (ptpClock->msgTmpHeader.messageType)
+	{
+	case ANNOUNCE:
+		handleAnnounce(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
+			       length, isFromSelf, rtOpts, ptpClock);
+		break;
+	case SYNC:
+		handleSync(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
+			   length, &time, isFromSelf, rtOpts, ptpClock);
+		break;
+	case FOLLOW_UP:
+		handleFollowUp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
+			       length, isFromSelf, rtOpts, ptpClock);
+		break;
+	case DELAY_REQ:
+		handleDelayReq(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
+			       length, &time, isFromSelf, rtOpts, ptpClock);
+		break;
+	case PDELAY_REQ:
+		handlePDelayReq(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
+				length, &time, isFromSelf, rtOpts, ptpClock);
+		break;  
+	case DELAY_RESP:
+		handleDelayResp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
+				length, isFromSelf, rtOpts, ptpClock);
+		break;
+	case PDELAY_RESP:
+		handlePDelayResp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf,
+				 &time, length, isFromSelf, rtOpts, ptpClock);
+		break;
+	case PDELAY_RESP_FOLLOW_UP:
+		handlePDelayRespFollowUp(&ptpClock->msgTmpHeader, 
+					 ptpClock->msgIbuf, length, 
+					 isFromSelf, rtOpts, ptpClock);
+		break;
+	case MANAGEMENT:
+		handleManagement(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
+				 length, isFromSelf, rtOpts, ptpClock);
+		break;
+	case SIGNALING:
+		handleSignaling(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
+				length, isFromSelf, rtOpts, ptpClock);
+		break;
 	default:
 		DBG("handle: unrecognized message\n");
 		break;
@@ -425,431 +626,1031 @@ handle(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 }
 
+/*spec 9.5.3*/
 void 
-handleSync(MsgHeader * header, Octet * msgIbuf, ssize_t length, TimeInternal * time, Boolean isFromSelf, RunTimeOpts * rtOpts, PtpClock * ptpClock)
+handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+	       Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	MsgSync *sync;
-	TimeInternal originTimestamp;
+	Boolean isFromCurrentParent = FALSE; 
 
-	if (length < SYNC_PACKET_LENGTH) {
-		ERROR("short sync message\n");
+	DBGV("HandleAnnounce : Announce message received : \n");
+
+	if(length < ANNOUNCE_LENGTH) {
+		ERROR("short Announce message\n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 		return;
 	}
-	switch (ptpClock->port_state) {
-	case PTP_FAULTY:
+
+	//DBGV("  >> HandleAnnounce : %d  \n", ptpClock->portState);
+
+
+	switch (ptpClock->portState) {
 	case PTP_INITIALIZING:
+	case PTP_FAULTY:
 	case PTP_DISABLED:
-		DBGV("handleSync: disreguard\n");
+		DBG("Handleannounce : disregard\n");
 		return;
-
-	case PTP_UNCALIBRATED:
+		
+	case PTP_UNCALIBRATED:	
 	case PTP_SLAVE:
 		if (isFromSelf) {
-			DBG("handleSync: ignore from self\n");
+			DBGV("HandleAnnounce : Ignore message from self \n");
 			return;
 		}
-		if (getFlag(header->flags, PTP_SYNC_BURST) && !ptpClock->burst_enabled)
-			return;
+		
+		/*
+		 * Valid announce message is received : BMC algorithm
+		 * will be executed 
+		 */
+		ptpClock->record_update = TRUE;
 
-		DBGV("handleSync: looking for uuid %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
-		    ptpClock->parent_uuid[0], ptpClock->parent_uuid[1], ptpClock->parent_uuid[2],
-		    ptpClock->parent_uuid[3], ptpClock->parent_uuid[4], ptpClock->parent_uuid[5]);
+		isFromCurrentParent = !memcmp(
+			ptpClock->parentPortIdentity.clockIdentity,
+			header->sourcePortIdentity.clockIdentity,
+			CLOCK_IDENTITY_LENGTH)	&& 
+			(ptpClock->parentPortIdentity.portNumber == 
+			 header->sourcePortIdentity.portNumber);
+	
+		switch (isFromCurrentParent) {
+		case TRUE:
+	   		msgUnpackAnnounce(ptpClock->msgIbuf,
+					  &ptpClock->msgTmp.announce);
 
-		if (header->sequenceId > ptpClock->parent_last_sync_sequence_number
-		    && header->sourceCommunicationTechnology == ptpClock->parent_communication_technology
-		    && header->sourcePortId == ptpClock->parent_port_id
-		    && !memcmp(header->sourceUuid, ptpClock->parent_uuid, PTP_UUID_LENGTH)) {
-			/* addForeign() takes care of msgUnpackSync() */
-			ptpClock->record_update = TRUE;
-			sync = addForeign(ptpClock->msgIbuf, &ptpClock->msgTmpHeader, ptpClock);
+			/* update datasets (file bmc.c) */
+	   		s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
 
-			if (sync->syncInterval != ptpClock->sync_interval) {
-				DBGV("message's sync interval is %d, but clock's is %d\n", sync->syncInterval, ptpClock->sync_interval);
-				/*
-				 * spec recommends handling a sync interval
-				 * discrepancy as a fault
-				 */
-			}
-			ptpClock->sync_receive_time.seconds = time->seconds;
-			ptpClock->sync_receive_time.nanoseconds = time->nanoseconds;
+			DBG2("___ Announce: received Announce from current Master, so reset the Announce timer\n");
+	   		/*Reset Timer handling Announce receipt timeout*/
+	   		timerStart(ANNOUNCE_RECEIPT_TIMER,
+				   (ptpClock->announceReceiptTimeout) * 
+				   (pow(2,ptpClock->logAnnounceInterval)), 
+				   ptpClock->itimer);
 
-			if (!getFlag(header->flags, PTP_ASSIST)) {
-				ptpClock->waitingForFollow = FALSE;
+#ifdef PTP_EXPERIMENTAL
+			// remember IP address of our master for -U option
+			// todo: add this to bmc(), to cover the very first packet
+			ptpClock->MasterAddr = ptpClock->netPath.lastRecvAddr;
+#endif
+			break;
 
-				toInternalTime(&originTimestamp, &sync->originTimestamp, &ptpClock->halfEpoch);
-				updateOffset(&originTimestamp, &ptpClock->sync_receive_time,
-				    &ptpClock->ofm_filt, rtOpts, ptpClock);
-				updateClock(rtOpts, ptpClock);
-			} else {
-				ptpClock->waitingForFollow = TRUE;
-			}
+		case FALSE:
+			/*addForeign takes care of AnnounceUnpacking*/
+			/* the actual decision to change masters is only done in  doState() / record_update == TRUE / bmc() */
+			
+			/* the original code always called: addforeign(new master) + timerstart(announce) */
 
-			s1(header, sync, ptpClock);
-
-			if (!(--ptpClock->R)) {
-				issueDelayReq(rtOpts, ptpClock);
-
-				ptpClock->Q = 0;
-				ptpClock->R = getRand(&ptpClock->random_seed) % (PTP_DELAY_REQ_INTERVAL - 2) + 2;
-				DBG("Q = %d, R = %d\n", ptpClock->Q, ptpClock->R);
-			}
-			DBGV("SYNC_RECEIPT_TIMER reset\n");
-			timerStart(SYNC_RECEIPT_TIMER, PTP_SYNC_RECEIPT_TIMEOUT(ptpClock->sync_interval), ptpClock->itimer);
-
-			if (rtOpts->recordFP != NULL) 
-				fprintf(rtOpts->recordFP, "%d %llu\n", 
-					header->sequenceId, 
-					((time->seconds * 1000000000ULL) + 
-					 time->nanoseconds));
-
-		} else {
-			DBGV("handleSync: unwanted\n");
-		}
-
-	case PTP_MASTER:
-	default:
-		if (header->sourceCommunicationTechnology == ptpClock->clock_communication_technology
-		    || header->sourceCommunicationTechnology == PTP_DEFAULT
-		    || ptpClock->clock_communication_technology == PTP_DEFAULT) {
-			if (!isFromSelf) {
-				ptpClock->record_update = TRUE;
-				addForeign(ptpClock->msgIbuf, &ptpClock->msgTmpHeader, ptpClock);
-			} else if (ptpClock->port_state == PTP_MASTER && ptpClock->clock_followup_capable) {
-				addTime(time, time, &rtOpts->outboundLatency);
-				issueFollowup(time, rtOpts, ptpClock);
-			}
-		}
-		break;
-	}
-}
-
-void 
-handleFollowUp(MsgHeader * header, Octet * msgIbuf, ssize_t length, Boolean isFromSelf, RunTimeOpts * rtOpts, PtpClock * ptpClock)
-{
-	MsgFollowUp *follow;
-	TimeInternal preciseOriginTimestamp;
-
-	if (length < FOLLOW_UP_PACKET_LENGTH) {
-		ERROR("short folow up message\n");
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-		return;
-	}
-	switch (ptpClock->port_state) {
-	case PTP_SLAVE:
-		if (isFromSelf) {
-			DBG("handleFollowUp: ignore from self\n");
-			return;
-		}
-		if (getFlag(header->flags, PTP_SYNC_BURST) && !ptpClock->burst_enabled)
-			return;
-
-		DBGV("handleFollowUp: looking for uuid %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
-		    ptpClock->parent_uuid[0], ptpClock->parent_uuid[1], ptpClock->parent_uuid[2],
-		    ptpClock->parent_uuid[3], ptpClock->parent_uuid[4], ptpClock->parent_uuid[5]);
-
-		follow = &ptpClock->msgTmp.follow;
-		msgUnpackFollowUp(ptpClock->msgIbuf, follow);
-
-		if (ptpClock->waitingForFollow
-		    && follow->associatedSequenceId == ptpClock->parent_last_sync_sequence_number
-		    && header->sourceCommunicationTechnology == ptpClock->parent_communication_technology
-		    && header->sourcePortId == ptpClock->parent_port_id
-		    && !memcmp(header->sourceUuid, ptpClock->parent_uuid, PTP_UUID_LENGTH)) {
-			ptpClock->waitingForFollow = FALSE;
-
-			toInternalTime(&preciseOriginTimestamp, &follow->preciseOriginTimestamp, &ptpClock->halfEpoch);
-			updateOffset(&preciseOriginTimestamp, &ptpClock->sync_receive_time,
-			    &ptpClock->ofm_filt, rtOpts, ptpClock);
-			updateClock(rtOpts, ptpClock);
-		} else {
-			DBGV("handleFollowUp: unwanted\n");
-		}
-		break;
-
-	default:
-		DBGV("handleFollowUp: disreguard\n");
-		return;
-	}
-}
-
-void 
-handleDelayReq(MsgHeader * header, Octet * msgIbuf, ssize_t length, TimeInternal * time, Boolean isFromSelf, RunTimeOpts * rtOpts, PtpClock * ptpClock)
-{
-	if (length < DELAY_REQ_PACKET_LENGTH) {
-		ERROR("short delay request message\n");
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-		return;
-	}
-	switch (ptpClock->port_state) {
-	case PTP_MASTER:
-		if (isFromSelf) {
-			DBG("handleDelayReq: ignore from self\n");
-			return;
-		}
-		if (header->sourceCommunicationTechnology == ptpClock->clock_communication_technology
-		    || header->sourceCommunicationTechnology == PTP_DEFAULT
-		    || ptpClock->clock_communication_technology == PTP_DEFAULT) {
-			issueDelayResp(time, &ptpClock->msgTmpHeader, rtOpts, ptpClock);
-		}
-		break;
-
-	case PTP_SLAVE:
-		if (isFromSelf) {
-			DBG("handleDelayReq: self\n");
-
-			ptpClock->delay_req_send_time.seconds = time->seconds;
-			ptpClock->delay_req_send_time.nanoseconds = time->nanoseconds;
-
-			addTime(&ptpClock->delay_req_send_time, &ptpClock->delay_req_send_time, &rtOpts->outboundLatency);
-
-			if (ptpClock->delay_req_receive_time.seconds) {
-				updateDelay(&ptpClock->delay_req_send_time, 
-					    &ptpClock->delay_req_receive_time,
-					    &ptpClock->owd_filt, rtOpts, 
-					    ptpClock);
-
-				ptpClock->delay_req_send_time.seconds = 0;
-				ptpClock->delay_req_send_time.nanoseconds = 0;
-				ptpClock->delay_req_receive_time.seconds = 0;
-				ptpClock->delay_req_receive_time.nanoseconds = 0;
-			}
-		}
-		break;
-
-	default:
-		DBGV("handleDelayReq: disreguard\n");
-		return;
-	}
-}
-
-void 
-handleDelayResp(MsgHeader * header, Octet * msgIbuf, ssize_t length, Boolean isFromSelf, RunTimeOpts * rtOpts, PtpClock * ptpClock)
-{
-	MsgDelayResp *resp;
-
-	if (length < DELAY_RESP_PACKET_LENGTH) {
-		ERROR("short delay request message\n");
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-		return;
-	}
-	switch (ptpClock->port_state) {
-	case PTP_SLAVE:
-		if (isFromSelf) {
-			DBG("handleDelayResp: ignore from self\n");
-			return;
-		}
-		resp = &ptpClock->msgTmp.resp;
-		msgUnpackDelayResp(ptpClock->msgIbuf, resp);
-
-		if (ptpClock->sentDelayReq
-		    && resp->requestingSourceSequenceId == ptpClock->sentDelayReqSequenceId
-		    && resp->requestingSourceCommunicationTechnology == ptpClock->port_communication_technology
-		    && resp->requestingSourcePortId == ptpClock->port_id_field
-		    && !memcmp(resp->requestingSourceUuid, ptpClock->port_uuid_field, PTP_UUID_LENGTH)
-		    && header->sourceCommunicationTechnology == ptpClock->parent_communication_technology
-		    && header->sourcePortId == ptpClock->parent_port_id
-		    && !memcmp(header->sourceUuid, ptpClock->parent_uuid, PTP_UUID_LENGTH)) {
-			ptpClock->sentDelayReq = FALSE;
-
-			toInternalTime(&ptpClock->delay_req_receive_time, &resp->delayReceiptTimestamp, &ptpClock->halfEpoch);
-
-			if (ptpClock->delay_req_send_time.seconds) {
-				updateDelay(&ptpClock->delay_req_send_time, &ptpClock->delay_req_receive_time,
-				    &ptpClock->owd_filt, rtOpts, ptpClock);
-
-				ptpClock->delay_req_send_time.seconds = 0;
-				ptpClock->delay_req_send_time.nanoseconds = 0;
-				ptpClock->delay_req_receive_time.seconds = 0;
-				ptpClock->delay_req_receive_time.nanoseconds = 0;
-			}
-		} else {
-			DBGV("handleDelayResp: unwanted\n");
-		}
-		break;
-
-	default:
-		DBGV("handleDelayResp: disreguard\n");
-		return;
-	}
-}
-
-void 
-handleManagement(MsgHeader * header, Octet * msgIbuf, ssize_t length, Boolean isFromSelf, RunTimeOpts * rtOpts, PtpClock * ptpClock)
-{
-	MsgManagement *manage;
-
-	UInteger8 state;
-
-	if (ptpClock->port_state == PTP_INITIALIZING)
-		return;
-
-	manage = &ptpClock->msgTmp.manage;
-	msgUnpackManagement(ptpClock->msgIbuf, manage);
-
-	if ((manage->targetCommunicationTechnology == ptpClock->clock_communication_technology
-	    && !memcmp(manage->targetUuid, ptpClock->clock_uuid_field, PTP_UUID_LENGTH))
-	    || ((manage->targetCommunicationTechnology == PTP_DEFAULT
-	    || manage->targetCommunicationTechnology == ptpClock->clock_communication_technology)
-	    && !sum(manage->targetUuid, PTP_UUID_LENGTH))) {
-		switch (manage->managementMessageKey) {
-		case PTP_MM_OBTAIN_IDENTITY:
-		case PTP_MM_GET_DEFAULT_DATA_SET:
-		case PTP_MM_GET_CURRENT_DATA_SET:
-		case PTP_MM_GET_PARENT_DATA_SET:
-		case PTP_MM_GET_PORT_DATA_SET:
-		case PTP_MM_GET_GLOBAL_TIME_DATA_SET:
-		case PTP_MM_GET_FOREIGN_DATA_SET:
-			issueManagement(header, manage, rtOpts, ptpClock);
+			addForeign(ptpClock->msgIbuf,header,ptpClock);
+			timerStart(ANNOUNCE_RECEIPT_TIMER,
+				   (ptpClock->announceReceiptTimeout) * 
+				   (pow(2,ptpClock->logAnnounceInterval)), 
+				   ptpClock->itimer);
 			break;
 
 		default:
-			ptpClock->record_update = TRUE;
-			state = msgUnloadManagement(ptpClock->msgIbuf, manage, ptpClock, rtOpts);
-			if (state != ptpClock->port_state)
-				toState(state, rtOpts, ptpClock);
-			break;
+			DBG("HandleAnnounce : (isFromCurrentParent)"
+			     "strange value ! \n");
+	   		return;
+
+		} /* switch on (isFromCurrentParrent) */
+		break;
+
+	/*
+	 * Passive case: previously, this was handled in the default, just like the master case.
+	 * This the announce would call addForeign(), but NOT reset the timer, so after 12s it would expire and we would come alive periodically 
+	 *
+	 * This code is now merged with the slave case to reset the timer, and call addForeign() if it's a third master
+	 *
+	 */
+	case PTP_PASSIVE:
+		if (isFromSelf) {
+			DBGV("HandleAnnounce : Ignore message from self \n");
+			return;
 		}
-	} else {
-		DBG("handleManagement: unwanted\n");
+
+		/*
+		 * Valid announce message is received : BMC algorithm
+		 * will be executed
+		 */
+		ptpClock->record_update = TRUE;
+
+		isFromCurrentParent = !memcmp(
+			ptpClock->parentPortIdentity.clockIdentity,
+			header->sourcePortIdentity.clockIdentity,
+			CLOCK_IDENTITY_LENGTH)	&&
+			(ptpClock->parentPortIdentity.portNumber ==
+			 header->sourcePortIdentity.portNumber);
+
+		if (isFromCurrentParent) {
+			msgUnpackAnnounce(ptpClock->msgIbuf,
+					  &ptpClock->msgTmp.announce);
+
+			/* TODO: not in spec
+			 * datasets should not be updated by another master
+			 * this is the reason why we are PASSIVE and not SLAVE
+			 * this should be p1(ptpClock, rtOpts);
+			 */
+			/* update datasets (file bmc.c) */
+			s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
+
+			DBG("___ Announce: received Announce from current Master, so reset the Announce timer\n\n");
+			/*Reset Timer handling Announce receipt timeout*/
+			timerStart(ANNOUNCE_RECEIPT_TIMER,
+				   (ptpClock->announceReceiptTimeout) *
+				   (pow(2,ptpClock->logAnnounceInterval)),
+				   ptpClock->itimer);
+		} else {
+			/*addForeign takes care of AnnounceUnpacking*/
+			/* the actual decision to change masters is only done in  doState() / record_update == TRUE / bmc() */
+			/* the original code always called: addforeign(new master) + timerstart(announce) */
+
+			DBG("___ Announce: received Announce from another master, will add to the list, as it might be better\n\n");
+			DBGV("this is to be decided immediatly by bmc())\n\n");
+			addForeign(ptpClock->msgIbuf,header,ptpClock);
+		}
+		break;
+
+		
+	case PTP_MASTER:
+	case PTP_LISTENING:           /* listening mode still causes timeouts in order to send IGMP refreshes */
+	default :
+		if (isFromSelf) {
+			DBGV("HandleAnnounce : Ignore message from self \n");
+			return;
+		}
+
+		DBGV("Announce message from another foreign master\n");
+		addForeign(ptpClock->msgIbuf,header,ptpClock);
+		ptpClock->record_update = TRUE;    /* run BMC() as soon as possible */
+		break;
+
+	} /* switch on (port_state) */
+}
+
+
+void 
+handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+	   TimeInternal *time, Boolean isFromSelf, 
+	   RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+	TimeInternal OriginTimestamp;
+	TimeInternal correctionField;
+
+	Boolean isFromCurrentParent = FALSE;
+	DBGV("Sync message received : \n");
+	
+	if (length < SYNC_LENGTH) {
+		ERROR("short Sync message\n");
+		toState(PTP_FAULTY, rtOpts, ptpClock);
+		return;
+	}	
+
+	switch (ptpClock->portState) {
+	case PTP_INITIALIZING:
+	case PTP_FAULTY:
+	case PTP_DISABLED:
+		DBGV("HandleSync : disregard\n");
+		return;
+		
+	case PTP_UNCALIBRATED:	
+	case PTP_SLAVE:
+		if (isFromSelf) {
+			DBGV("HandleSync: Ignore message from self \n");
+			return;
+		}
+		isFromCurrentParent =
+			!memcmp(ptpClock->parentPortIdentity.clockIdentity,
+				header->sourcePortIdentity.clockIdentity,
+				CLOCK_IDENTITY_LENGTH) && 
+			(ptpClock->parentPortIdentity.portNumber == 
+			 header->sourcePortIdentity.portNumber);
+		
+		if (isFromCurrentParent) {
+			/* We only start our own delayReq timer after receiving the first sync */
+			if (ptpClock->waiting_for_first_sync) {
+				ptpClock->waiting_for_first_sync = FALSE;
+				NOTICE("Received first Sync from Master\n");
+				NOTICE("   going to arm DelayReq timer for the first time, with initial rate: %d\n",
+					ptpClock->logMinDelayReqInterval
+				);
+
+				if (ptpClock->delayMechanism == E2E)
+					timerStart(DELAYREQ_INTERVAL_TIMER,
+						   pow(2,ptpClock->logMinDelayReqInterval),
+						   ptpClock->itimer);
+				else if (ptpClock->delayMechanism == P2P)
+					timerStart(PDELAYREQ_INTERVAL_TIMER,
+						   pow(2,ptpClock->logMinPdelayReqInterval),
+						   ptpClock->itimer);
+			}
+
+			ptpClock->sync_receive_time.seconds = time->seconds;
+			ptpClock->sync_receive_time.nanoseconds = time->nanoseconds;
+
+			recordSync(rtOpts, header->sequenceId, time);
+
+			if ((header->flagField[0] & PTP_TWO_STEP) == PTP_TWO_STEP) {
+				DBG2("HandleSync: waiting for follow-up \n");
+
+				ptpClock->waitingForFollow = TRUE;
+				ptpClock->recvSyncSequenceId = 
+					header->sequenceId;
+				/*Save correctionField of Sync message*/
+				integer64_to_internalTime(
+					header->correctionfield,
+					&correctionField);
+				ptpClock->lastSyncCorrectionField.seconds = 
+					correctionField.seconds;
+				ptpClock->lastSyncCorrectionField.nanoseconds =
+					correctionField.nanoseconds;
+				break;
+			} else {
+				msgUnpackSync(ptpClock->msgIbuf,
+					      &ptpClock->msgTmp.sync);
+				integer64_to_internalTime(
+					ptpClock->msgTmpHeader.correctionfield,
+					&correctionField);
+				timeInternal_display(&correctionField);
+				ptpClock->waitingForFollow = FALSE;
+				toInternalTime(&OriginTimestamp,
+					       &ptpClock->msgTmp.sync.originTimestamp);
+				updateOffset(&OriginTimestamp,
+					     &ptpClock->sync_receive_time,
+					     &ptpClock->ofm_filt,rtOpts,
+					     ptpClock,&correctionField);
+				updateClock(rtOpts,ptpClock);
+				break;
+			}
+		} else {
+			DBG("HandleSync: Sync message received from "
+			     "another Master not our own \n");
+		}
+		break;
+
+	case PTP_MASTER:
+	default :
+		if (!isFromSelf) {
+			DBGV("HandleSync: Sync message received from "
+			     "another Master  \n");
+			break;
+		} if (ptpClock->twoStepFlag) {
+			DBGV("HandleSync: going to send followup message\n ");
+
+			/*Add latency*/
+			addTime(time,time,&rtOpts->outboundLatency);
+			issueFollowup(time,rtOpts,ptpClock);
+			break;
+		} else {
+			DBGV("HandleSync: Sync message received from self\n ");
+		}
 	}
 }
 
-/* pack and send various messages */
+
 void 
-issueSync(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+handleFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+	       Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	TimeInternal internalTime;
-	TimeRepresentation originTimestamp;
-
-	++ptpClock->last_sync_event_sequence_number;
-	ptpClock->grandmaster_sequence_number = ptpClock->last_sync_event_sequence_number;
-
-	getTime(&internalTime);
-	fromInternalTime(&internalTime, &originTimestamp, ptpClock->halfEpoch);
-	msgPackSync(ptpClock->msgObuf, FALSE, &originTimestamp, ptpClock);
-
-	if (!netSendEvent(ptpClock->msgObuf, SYNC_PACKET_LENGTH, 
-			  &ptpClock->netPath))
+	DBGV("Handlefollowup : Follow up message received \n");
+	
+	TimeInternal preciseOriginTimestamp;
+	TimeInternal correctionField;
+	Boolean isFromCurrentParent = FALSE;
+	
+	if (length < FOLLOW_UP_LENGTH)
+	{
+		ERROR("short Follow up message\n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
-	else
-		DBGV("sent sync message\n");
-}
-
-void 
-issueFollowup(TimeInternal * time, RunTimeOpts * rtOpts, PtpClock * ptpClock)
-{
-	TimeRepresentation preciseOriginTimestamp;
-
-	++ptpClock->last_general_event_sequence_number;
-
-	fromInternalTime(time, &preciseOriginTimestamp, ptpClock->halfEpoch);
-	msgPackFollowUp(ptpClock->msgObuf, ptpClock->last_sync_event_sequence_number, &preciseOriginTimestamp, ptpClock);
-
-	if (!netSendGeneral(ptpClock->msgObuf, FOLLOW_UP_PACKET_LENGTH, &ptpClock->netPath))
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-	else
-		DBGV("sent followup message\n");
-}
-
-void 
-issueDelayReq(RunTimeOpts * rtOpts, PtpClock * ptpClock)
-{
-	TimeInternal internalTime;
-	TimeRepresentation originTimestamp;
-
-	ptpClock->sentDelayReq = TRUE;
-	ptpClock->sentDelayReqSequenceId = ++ptpClock->last_sync_event_sequence_number;
-
-	getTime(&internalTime);
-	fromInternalTime(&internalTime, &originTimestamp, ptpClock->halfEpoch);
-	msgPackDelayReq(ptpClock->msgObuf, FALSE, &originTimestamp, ptpClock);
-
-	if (!netSendEvent(ptpClock->msgObuf, DELAY_REQ_PACKET_LENGTH, &ptpClock->netPath))
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-	else
-		DBGV("sent delay request message\n");
-}
-
-void 
-issueDelayResp(TimeInternal * time, MsgHeader * header, RunTimeOpts * rtOpts, PtpClock * ptpClock)
-{
-	TimeRepresentation delayReceiptTimestamp;
-
-	++ptpClock->last_general_event_sequence_number;
-
-	fromInternalTime(time, &delayReceiptTimestamp, ptpClock->halfEpoch);
-	msgPackDelayResp(ptpClock->msgObuf, header, &delayReceiptTimestamp, ptpClock);
-
-	if (!netSendGeneral(ptpClock->msgObuf, DELAY_RESP_PACKET_LENGTH, &ptpClock->netPath))
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-	else
-		DBGV("sent delay response message\n");
-}
-
-void 
-issueManagement(MsgHeader * header, MsgManagement * manage, RunTimeOpts * rtOpts, PtpClock * ptpClock)
-{
-	UInteger16 length;
-
-	++ptpClock->last_general_event_sequence_number;
-
-	if (!(length = msgPackManagementResponse(ptpClock->msgObuf, header, manage, ptpClock)))
 		return;
+	}
 
-	if (!netSendGeneral(ptpClock->msgObuf, length, &ptpClock->netPath))
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-	else
-		DBGV("sent management message\n");
+	if (isFromSelf)
+	{
+		DBGV("Handlefollowup : Ignore message from self \n");
+		return;
+	}
+
+	switch (ptpClock->portState)
+	{
+	case PTP_INITIALIZING:
+	case PTP_FAULTY:
+	case PTP_DISABLED:
+	case PTP_LISTENING:
+		DBGV("Handfollowup : disregard\n");
+		return;
+		
+	case PTP_UNCALIBRATED:	
+	case PTP_SLAVE:
+		isFromCurrentParent = 
+			!memcmp(ptpClock->parentPortIdentity.clockIdentity,
+				header->sourcePortIdentity.clockIdentity,
+				CLOCK_IDENTITY_LENGTH) && 
+			(ptpClock->parentPortIdentity.portNumber == 
+			 header->sourcePortIdentity.portNumber);
+	 	
+		if (isFromCurrentParent) {
+			if (ptpClock->waitingForFollow)	{
+				if ((ptpClock->recvSyncSequenceId == 
+				     header->sequenceId)) {
+					msgUnpackFollowUp(ptpClock->msgIbuf,
+							  &ptpClock->msgTmp.follow);
+					ptpClock->waitingForFollow = FALSE;
+					toInternalTime(&preciseOriginTimestamp,
+						       &ptpClock->msgTmp.follow.preciseOriginTimestamp);
+					integer64_to_internalTime(ptpClock->msgTmpHeader.correctionfield,
+								  &correctionField);
+					addTime(&correctionField,&correctionField,
+						&ptpClock->lastSyncCorrectionField);
+
+					/*
+					send_time = preciseOriginTimestamp (received inside followup)
+					recv_time = sync_receive_time (received as CMSG in handleEvent)
+					*/
+					updateOffset(&preciseOriginTimestamp,
+						     &ptpClock->sync_receive_time,&ptpClock->ofm_filt,
+						     rtOpts,ptpClock,
+						     &correctionField);
+					updateClock(rtOpts,ptpClock);
+					break;
+				} else
+					INFO("Ignored followup, SequenceID doesn't match with "
+					     "last Sync message \n");
+			} else
+				DBG2("Ignored followup, Slave was not waiting a follow up "
+				     "message \n");
+		} else
+			DBG2("Ignored, Follow up message is not from current parent \n");
+
+	case PTP_MASTER:
+	case PTP_PASSIVE:
+		DBGV("Ignored, Follow up message received from another master \n");
+		break;
+
+	default:
+    		DBG("do unrecognized state1\n");
+    		break;
+	} /* Switch on (port_state) */
+
 }
 
-/* add or update an entry in the foreign master data set */
-MsgSync *
-addForeign(Octet * buf, MsgHeader * header, PtpClock * ptpClock)
+
+void
+handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+	       TimeInternal *time, Boolean isFromSelf,
+	       RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	int i, j;
+	if (ptpClock->delayMechanism == E2E) {
+		DBGV("delayReq message received : \n");
+		
+		if (length < DELAY_REQ_LENGTH) {
+			ERROR("short DelayReq message\n");
+			toState(PTP_FAULTY, rtOpts, ptpClock);
+			return;
+		}
+
+		switch (ptpClock->portState) {
+		case PTP_INITIALIZING:
+		case PTP_FAULTY:
+		case PTP_DISABLED:
+		case PTP_UNCALIBRATED:
+		case PTP_LISTENING:
+		case PTP_PASSIVE:
+			DBGV("HandledelayReq : disregard\n");
+			return;
+
+		case PTP_SLAVE:
+			if (isFromSelf)	{
+				DBG("==> Handle DelayReq (%d)\n",
+					 header->sequenceId);
+				
+				if ((ptpClock->sentDelayReqSequenceId - 1) != header->sequenceId) {
+					INFO("HandledelayReq : disreguard delayreq because of wrong SeqNo\n");
+					break;
+				}
+
+				/*
+				 * Get sending timestamp from IP stack
+				 * with SO_TIMESTAMP
+				 */
+
+				/*
+				 *  Make sure we process the REQ _before_ the RESP. While we could do this by any order,
+				 *  (because it's implicitly indexed by (ptpClock->sentDelayReqSequenceId - 1), this is
+				 *  now made explicit
+				 */
+				ptpClock->waitingForDelayResp = TRUE;
+
+				ptpClock->delay_req_send_time.seconds = 
+					time->seconds;
+				ptpClock->delay_req_send_time.nanoseconds = 
+					time->nanoseconds;
+
+				/*Add latency*/
+				addTime(&ptpClock->delay_req_send_time,
+					&ptpClock->delay_req_send_time,
+					&rtOpts->outboundLatency);
+				break;
+			} else {
+				DBG2("HandledelayReq : disreguard delayreq from other client\n");
+			}
+			break;
+
+		case PTP_MASTER:
+			msgUnpackHeader(ptpClock->msgIbuf,
+					&ptpClock->delayReqHeader);
+
+#ifdef PTP_EXPERIMENTAL
+			// remember IP address of this client for -U option
+			ptpClock->LastSlaveAddr = ptpClock->netPath.lastRecvAddr;
+#endif
+					
+			issueDelayResp(time,&ptpClock->delayReqHeader,
+				       rtOpts,ptpClock);
+			break;
+
+		default:
+			DBG("do unrecognized state2\n");
+			break;
+		}
+	} else /* (Peer to Peer mode) */
+		ERROR("Delay messages are ignored in Peer to Peer mode\n");
+}
+
+void
+handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
+		Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+	if (ptpClock->delayMechanism == E2E) {
+		Boolean isFromCurrentParent = FALSE;
+		TimeInternal requestReceiptTimestamp;
+		TimeInternal correctionField;
+
+		DBGV("delayResp message received : \n");
+
+		if(length < DELAY_RESP_LENGTH) {
+			ERROR("short DelayResp message\n");
+			toState(PTP_FAULTY, rtOpts, ptpClock);
+			return;
+		}
+
+		switch(ptpClock->portState) {
+		case PTP_INITIALIZING:
+		case PTP_FAULTY:
+		case PTP_DISABLED:
+		case PTP_UNCALIBRATED:
+		case PTP_LISTENING:
+			DBGV("HandledelayResp : disregard\n");
+			return;
+
+		case PTP_SLAVE:
+			msgUnpackDelayResp(ptpClock->msgIbuf,
+					   &ptpClock->msgTmp.resp);
+
+			if ((memcmp(ptpClock->parentPortIdentity.clockIdentity,
+				    header->sourcePortIdentity.clockIdentity,
+				    CLOCK_IDENTITY_LENGTH) == 0 ) &&
+			    (ptpClock->parentPortIdentity.portNumber == 
+			     header->sourcePortIdentity.portNumber))
+				isFromCurrentParent = TRUE;
+			
+			if ((memcmp(ptpClock->portIdentity.clockIdentity,
+				    ptpClock->msgTmp.resp.requestingPortIdentity.clockIdentity,
+				    CLOCK_IDENTITY_LENGTH) == 0) &&
+			    ((ptpClock->sentDelayReqSequenceId - 1)== 
+			     header->sequenceId) &&
+			    (ptpClock->portIdentity.portNumber == 
+			     ptpClock->msgTmp.resp.requestingPortIdentity.portNumber)
+			    && isFromCurrentParent) {
+				DBG("==> Handle DelayResp (%d)\n",
+					 header->sequenceId);
+
+				if (!ptpClock->waitingForDelayResp) {
+					break;
+				}
+
+				ptpClock->waitingForDelayResp = FALSE;
+
+				toInternalTime(&requestReceiptTimestamp,
+					       &ptpClock->msgTmp.resp.receiveTimestamp);
+				ptpClock->delay_req_receive_time.seconds = 
+					requestReceiptTimestamp.seconds;
+				ptpClock->delay_req_receive_time.nanoseconds = 
+					requestReceiptTimestamp.nanoseconds;
+
+				integer64_to_internalTime(
+					header->correctionfield,
+					&correctionField);
+				
+				/*
+					send_time = delay_req_send_time (received as CMSG in handleEvent)
+					recv_time = requestReceiptTimestamp (received inside delayResp)
+				*/
+
+				updateDelay(&ptpClock->owd_filt,
+					    rtOpts,ptpClock, &correctionField);
+
+				if (ptpClock->waiting_for_first_delayresp) {
+					ptpClock->waiting_for_first_delayresp = FALSE;
+					NOTICE("  received first DelayResp from Master\n");
+				}
+
+				if (rtOpts->ignore_delayreq_interval_master == 0) {
+					DBGV("current delay_req: %d  new delay req: %d \n",
+						ptpClock->logMinDelayReqInterval,
+						header->logMessageInterval);
+
+					/* Accept new DelayReq value from the Master */
+					if (ptpClock->logMinDelayReqInterval != header->logMessageInterval) {
+						NOTICE("  received new DelayReq frequency %d from Master (was: %d)\n",
+							 header->logMessageInterval, ptpClock->logMinDelayReqInterval );
+					}
+
+					// collect new value indicated from the Master
+					ptpClock->logMinDelayReqInterval = header->logMessageInterval;
+					
+					/* FIXME: the actual rearming of this timer with the new value only happens later in doState()/issueDelayReq() */
+				} else {
+					if (ptpClock->logMinDelayReqInterval != rtOpts->subsequent_delayreq) {
+						NOTICE("  received new DelayReq frequency %d from command line (was: %d)\n",
+							rtOpts->subsequent_delayreq, ptpClock->logMinDelayReqInterval);
+					}
+					ptpClock->logMinDelayReqInterval = rtOpts->subsequent_delayreq;
+				}
+			} else {
+				DBG("HandledelayResp : delayResp doesn't match with the delayReq. \n");
+				break;
+			}
+		}
+	} else { /* (Peer to Peer mode) */
+		ERROR("Delay messages are disregarded in Peer to Peer mode \n");
+	}
+
+}
+
+
+void 
+handlePDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+		TimeInternal *time, Boolean isFromSelf, 
+		RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+	if (ptpClock->delayMechanism == P2P) {
+		DBGV("PdelayReq message received : \n");
+
+		if(length < PDELAY_REQ_LENGTH) {
+			ERROR("short PDelayReq message\n");
+			toState(PTP_FAULTY, rtOpts, ptpClock);
+			return;
+		}
+
+		switch (ptpClock->portState ) {
+		case PTP_INITIALIZING:
+		case PTP_FAULTY:
+		case PTP_DISABLED:
+		case PTP_UNCALIBRATED:
+		case PTP_LISTENING:
+			DBGV("HandlePdelayReq : disregard\n");
+			return;
+
+		case PTP_SLAVE:
+		case PTP_MASTER:
+		case PTP_PASSIVE:
+			if (isFromSelf) {
+				/*
+				 * Get sending timestamp from IP stack
+				 * with SO_TIMESTAMP
+				 */
+				ptpClock->pdelay_req_send_time.seconds = 
+					time->seconds;
+				ptpClock->pdelay_req_send_time.nanoseconds = 
+					time->nanoseconds;
+			
+				/*Add latency*/
+				addTime(&ptpClock->pdelay_req_send_time,
+					&ptpClock->pdelay_req_send_time,
+					&rtOpts->outboundLatency);
+				break;
+			} else {
+				msgUnpackHeader(ptpClock->msgIbuf,
+						&ptpClock->PdelayReqHeader);
+				issuePDelayResp(time, header, rtOpts, 
+						ptpClock);	
+				break;
+			}
+		default:
+			DBG("do unrecognized state3\n");
+			break;
+		}
+	} else /* (End to End mode..) */
+		ERROR("Peer Delay messages are disregarded in End to End "
+		      "mode \n");
+}
+
+void
+handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
+		 ssize_t length, Boolean isFromSelf, 
+		 RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+	if (ptpClock->delayMechanism == P2P) {
+		/* Boolean isFromCurrentParent = FALSE; NOTE: This is never used in this function */
+		TimeInternal requestReceiptTimestamp;
+		TimeInternal correctionField;
+	
+		DBGV("PdelayResp message received : \n");
+
+		if (length < PDELAY_RESP_LENGTH) {
+			ERROR("short PDelayResp message\n");
+			toState(PTP_FAULTY, rtOpts, ptpClock);
+			return;
+		}
+
+		switch (ptpClock->portState ) {
+		case PTP_INITIALIZING:
+		case PTP_FAULTY:
+		case PTP_DISABLED:
+		case PTP_UNCALIBRATED:
+		case PTP_LISTENING:
+			DBGV("HandlePdelayResp : disregard\n");
+			return;
+
+		case PTP_SLAVE:
+		case PTP_MASTER:
+			if (ptpClock->twoStepFlag && isFromSelf) {
+				addTime(time,time,&rtOpts->outboundLatency);
+				issuePDelayRespFollowUp(time,
+							&ptpClock->PdelayReqHeader,
+							rtOpts,ptpClock);
+				break;
+			}
+			msgUnpackPDelayResp(ptpClock->msgIbuf,
+					    &ptpClock->msgTmp.presp);
+		
+#if 0  /* NOTE: This is never used in this function. Should it? */
+			isFromCurrentParent = !memcmp(ptpClock->parentPortIdentity.clockIdentity,
+						      header->sourcePortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH) && 
+				(ptpClock->parentPortIdentity.portNumber == 
+				 header->sourcePortIdentity.portNumber);
+#endif	
+			if (!((ptpClock->sentPDelayReqSequenceId == 
+			       header->sequenceId) && 
+			      (!memcmp(ptpClock->portIdentity.clockIdentity,ptpClock->msgTmp.presp.requestingPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH))
+				 && ( ptpClock->portIdentity.portNumber == ptpClock->msgTmp.presp.requestingPortIdentity.portNumber)))	{
+
+				/* Two Step Clock */
+				if ((header->flagField[0] & PTP_TWO_STEP) == PTP_TWO_STEP) {
+					/*Store t4 (Fig 35)*/
+					ptpClock->pdelay_resp_receive_time.seconds = time->seconds;
+					ptpClock->pdelay_resp_receive_time.nanoseconds = time->nanoseconds;
+					/*store t2 (Fig 35)*/
+					toInternalTime(&requestReceiptTimestamp,
+						       &ptpClock->msgTmp.presp.requestReceiptTimestamp);
+					ptpClock->pdelay_req_receive_time.seconds = requestReceiptTimestamp.seconds;
+					ptpClock->pdelay_req_receive_time.nanoseconds = requestReceiptTimestamp.nanoseconds;
+					
+					integer64_to_internalTime(header->correctionfield,&correctionField);
+					ptpClock->lastPdelayRespCorrectionField.seconds = correctionField.seconds;
+					ptpClock->lastPdelayRespCorrectionField.nanoseconds = correctionField.nanoseconds;
+					break;
+				} else {
+				/* One step Clock */
+					/*Store t4 (Fig 35)*/
+					ptpClock->pdelay_resp_receive_time.seconds = time->seconds;
+					ptpClock->pdelay_resp_receive_time.nanoseconds = time->nanoseconds;
+					
+					integer64_to_internalTime(header->correctionfield,&correctionField);
+					updatePeerDelay (&ptpClock->owd_filt,rtOpts,ptpClock,&correctionField,FALSE);
+					break;
+				}
+				ptpClock->recvPDelayRespSequenceId = header->sequenceId;
+				
+			} else {
+				DBGV("HandlePdelayResp : Pdelayresp doesn't "
+				     "match with the PdelayReq. \n");
+				break;
+			}
+			break; /* XXX added by gnn for safety */
+		default:
+			DBG("do unrecognized state4\n");
+			break;
+		}
+	} else { /* (End to End mode..) */
+		ERROR("Peer Delay messages are disregarded in End to End "
+		      "mode \n");
+	}
+}
+
+void 
+handlePDelayRespFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+			 Boolean isFromSelf, RunTimeOpts *rtOpts, 
+			 PtpClock *ptpClock){
+
+	if (ptpClock->delayMechanism == P2P) {
+		TimeInternal responseOriginTimestamp;
+		TimeInternal correctionField;
+	
+		DBGV("PdelayRespfollowup message received : \n");
+	
+		if(length < PDELAY_RESP_FOLLOW_UP_LENGTH) {
+			ERROR("short PDelayRespfollowup message\n");
+			toState(PTP_FAULTY, rtOpts, ptpClock);
+			return;
+		}	
+	
+		switch(ptpClock->portState) {
+		case PTP_INITIALIZING:
+		case PTP_FAULTY:
+		case PTP_DISABLED:
+		case PTP_UNCALIBRATED:
+			DBGV("HandlePdelayResp : disregard\n");
+			return;
+		
+		case PTP_SLAVE:
+		case PTP_MASTER:
+			if ((header->sequenceId == 
+			    ptpClock->sentPDelayReqSequenceId-1) && (header->sequenceId == ptpClock->recvPDelayRespSequenceId)) {
+				msgUnpackPDelayRespFollowUp(
+					ptpClock->msgIbuf,
+					&ptpClock->msgTmp.prespfollow);
+				toInternalTime(
+					&responseOriginTimestamp,
+					&ptpClock->msgTmp.prespfollow.responseOriginTimestamp);
+				ptpClock->pdelay_resp_send_time.seconds = 
+					responseOriginTimestamp.seconds;
+				ptpClock->pdelay_resp_send_time.nanoseconds = 
+					responseOriginTimestamp.nanoseconds;
+				integer64_to_internalTime(
+					ptpClock->msgTmpHeader.correctionfield,
+					&correctionField);
+				addTime(&correctionField,&correctionField,
+					&ptpClock->lastPdelayRespCorrectionField);
+				updatePeerDelay (&ptpClock->owd_filt,
+						 rtOpts, ptpClock,
+						 &correctionField,TRUE);
+				break;
+			}
+		default:
+			DBGV("Disregard PdelayRespFollowUp message  \n");
+		}
+	} else { /* (End to End mode..) */
+		ERROR("Peer Delay messages are disregarded in End to End "
+		      "mode \n");
+	}
+}
+
+void 
+handleManagement(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+		 Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{}
+
+void 
+handleSignaling(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+		     Boolean isFromSelf, RunTimeOpts *rtOpts, 
+		     PtpClock *ptpClock)
+{}
+
+
+/*Pack and send on general multicast ip adress an Announce message*/
+void 
+issueAnnounce(RunTimeOpts *rtOpts,PtpClock *ptpClock)
+{
+	msgPackAnnounce(ptpClock->msgObuf,ptpClock);
+
+	if (!netSendGeneral(ptpClock->msgObuf,ANNOUNCE_LENGTH,
+			    &ptpClock->netPath, 0)) {
+		toState(PTP_FAULTY,rtOpts,ptpClock);
+		DBGV("Announce message can't be sent -> FAULTY state \n");
+	} else {
+		DBGV("Announce MSG sent ! \n");
+		ptpClock->sentAnnounceSequenceId++;
+	}
+}
+
+
+
+/*Pack and send on event multicast ip adress a Sync message*/
+void
+issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
+{
+	Timestamp originTimestamp;
+	TimeInternal internalTime;
+	getTime(&internalTime);
+	fromInternalTime(&internalTime,&originTimestamp);
+
+	msgPackSync(ptpClock->msgObuf,&originTimestamp,ptpClock);
+
+	if (!netSendEvent(ptpClock->msgObuf,SYNC_LENGTH,&ptpClock->netPath, 0)) {
+		toState(PTP_FAULTY,rtOpts,ptpClock);
+		DBGV("Sync message can't be sent -> FAULTY state \n");
+	} else {
+		DBGV("Sync MSG sent ! \n");
+		ptpClock->sentSyncSequenceId++;
+	}
+}
+
+
+/*Pack and send on general multicast ip adress a FollowUp message*/
+void
+issueFollowup(TimeInternal *time,RunTimeOpts *rtOpts,PtpClock *ptpClock)
+{
+	Timestamp preciseOriginTimestamp;
+	fromInternalTime(time,&preciseOriginTimestamp);
+	
+	msgPackFollowUp(ptpClock->msgObuf,&preciseOriginTimestamp,ptpClock);
+	
+	if (!netSendGeneral(ptpClock->msgObuf,FOLLOW_UP_LENGTH,
+			    &ptpClock->netPath, 0)) {
+		toState(PTP_FAULTY,rtOpts,ptpClock);
+		DBGV("FollowUp message can't be sent -> FAULTY state \n");
+	} else {
+		DBGV("FollowUp MSG sent ! \n");
+	}
+}
+
+
+/*Pack and send on event multicast ip adress a DelayReq message*/
+void
+issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
+{
+	Timestamp originTimestamp;
+	TimeInternal internalTime;
+
+	DBG("==> Issue DelayReq (%d)\n", ptpClock->sentDelayReqSequenceId );
+
+	/* call GTOD. This time is later replaced on handle_delayreq, to get the actual send timestamp from the OS */
+	getTime(&internalTime);
+	fromInternalTime(&internalTime,&originTimestamp);
+
+	// uses current sentDelayReqSequenceId
+	msgPackDelayReq(ptpClock->msgObuf,&originTimestamp,ptpClock);
+
+	Integer32 dst = 0;
+#ifdef PTP_EXPERIMENTAL
+	if (rtOpts->do_hybrid_mode) {
+		dst = ptpClock->MasterAddr;
+	}
+#endif
+
+	if (!netSendEvent(ptpClock->msgObuf,DELAY_REQ_LENGTH,
+			  &ptpClock->netPath, dst)) {
+		toState(PTP_FAULTY,rtOpts,ptpClock);
+		DBGV("delayReq message can't be sent -> FAULTY state \n");
+	} else {
+		DBGV("DelayReq MSG sent ! \n");
+		ptpClock->sentDelayReqSequenceId++;
+
+		/* From now on, we will only accept delayreq and delayresp of (sentDelayReqSequenceId - 1) */
+
+		/* Explicitelly re-arm timer for sending the next delayReq */
+		timerStart_random(DELAYREQ_INTERVAL_TIMER,
+		   pow(2,ptpClock->logMinDelayReqInterval),
+		   ptpClock->itimer);
+	}
+}
+
+/*Pack and send on event multicast ip adress a PDelayReq message*/
+void
+issuePDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
+{
+	Timestamp originTimestamp;
+	TimeInternal internalTime;
+	getTime(&internalTime);
+	fromInternalTime(&internalTime,&originTimestamp);
+	
+	msgPackPDelayReq(ptpClock->msgObuf,&originTimestamp,ptpClock);
+
+	if (!netSendPeerEvent(ptpClock->msgObuf,PDELAY_REQ_LENGTH,
+			      &ptpClock->netPath)) {
+		toState(PTP_FAULTY,rtOpts,ptpClock);
+		DBGV("PdelayReq message can't be sent -> FAULTY state \n");
+	} else {
+		DBGV("PDelayReq MSG sent ! \n");
+		ptpClock->sentPDelayReqSequenceId++;
+	}
+}
+
+/*Pack and send on event multicast ip adress a PDelayResp message*/
+void
+issuePDelayResp(TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts,
+		PtpClock *ptpClock)
+{
+	Timestamp requestReceiptTimestamp;
+	fromInternalTime(time,&requestReceiptTimestamp);
+	msgPackPDelayResp(ptpClock->msgObuf,header,
+			  &requestReceiptTimestamp,ptpClock);
+
+	if (!netSendPeerEvent(ptpClock->msgObuf,PDELAY_RESP_LENGTH,
+			      &ptpClock->netPath)) {
+		toState(PTP_FAULTY,rtOpts,ptpClock);
+		DBGV("PdelayResp message can't be sent -> FAULTY state \n");
+	} else {
+		DBGV("PDelayResp MSG sent ! \n");
+	}
+}
+
+
+/*Pack and send on event multicast ip adress a DelayResp message*/
+void
+issueDelayResp(TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+	Timestamp requestReceiptTimestamp;
+	fromInternalTime(time,&requestReceiptTimestamp);
+	msgPackDelayResp(ptpClock->msgObuf,header,&requestReceiptTimestamp,
+			 ptpClock);
+
+	Integer32 dst = 0;
+#ifdef PTP_EXPERIMENTAL
+	if (rtOpts->do_hybrid_mode) {
+		dst = ptpClock->LastSlaveAddr;
+	}
+#endif
+
+	if (!netSendGeneral(ptpClock->msgObuf,PDELAY_RESP_LENGTH,
+			    &ptpClock->netPath, dst)) {
+		toState(PTP_FAULTY,rtOpts,ptpClock);
+		DBGV("delayResp message can't be sent -> FAULTY state \n");
+	} else {
+		DBGV("PDelayResp MSG sent ! \n");
+	}
+}
+
+
+void
+issuePDelayRespFollowUp(TimeInternal *time, MsgHeader *header,
+			     RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+	Timestamp responseOriginTimestamp;
+	fromInternalTime(time,&responseOriginTimestamp);
+
+	msgPackPDelayRespFollowUp(ptpClock->msgObuf,header,
+				  &responseOriginTimestamp,ptpClock);
+
+	if (!netSendPeerGeneral(ptpClock->msgObuf,
+				PDELAY_RESP_FOLLOW_UP_LENGTH,
+				&ptpClock->netPath)) {
+		toState(PTP_FAULTY,rtOpts,ptpClock);
+		DBGV("PdelayRespFollowUp message can't be sent -> FAULTY state \n");
+	} else {
+		DBGV("PDelayRespFollowUp MSG sent ! \n");
+	}
+}
+
+void 
+issueManagement(MsgHeader *header,MsgManagement *manage,RunTimeOpts *rtOpts,
+		PtpClock *ptpClock)
+{}
+
+void 
+addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
+{
+	int i,j;
 	Boolean found = FALSE;
 
-	DBGV("updateForeign\n");
-
 	j = ptpClock->foreign_record_best;
-	for (i = 0; i < ptpClock->number_foreign_records; ++i) {
-		if (header->sourceCommunicationTechnology == ptpClock->foreign[j].foreign_master_communication_technology
-		    && header->sourcePortId == ptpClock->foreign[j].foreign_master_port_id
-		    && !memcmp(header->sourceUuid, ptpClock->foreign[j].foreign_master_uuid, PTP_UUID_LENGTH)) {
-			++ptpClock->foreign[j].foreign_master_syncs;
+	
+	/*Check if Foreign master is already known*/
+	for (i=0;i<ptpClock->number_foreign_records;i++) {
+		if (!memcmp(header->sourcePortIdentity.clockIdentity,
+			    ptpClock->foreign[j].foreignMasterPortIdentity.clockIdentity,
+			    CLOCK_IDENTITY_LENGTH) && 
+		    (header->sourcePortIdentity.portNumber == 
+		     ptpClock->foreign[j].foreignMasterPortIdentity.portNumber))
+		{
+			/*Foreign Master is already in Foreignmaster data set*/
+			ptpClock->foreign[j].foreignMasterAnnounceMessages++; 
 			found = TRUE;
-			DBGV("updateForeign: update record %d\n", j);
+			DBGV("addForeign : AnnounceMessage incremented \n");
+			msgUnpackHeader(buf,&ptpClock->foreign[j].header);
+			msgUnpackAnnounce(buf,&ptpClock->foreign[j].announce);
 			break;
 		}
-		j = (j + 1) % ptpClock->number_foreign_records;
+	
+		j = (j+1)%ptpClock->number_foreign_records;
 	}
 
+	/*New Foreign Master*/
 	if (!found) {
-		if (ptpClock->number_foreign_records < ptpClock->max_foreign_records)
-			++ptpClock->number_foreign_records;
-
+		if (ptpClock->number_foreign_records < 
+		    ptpClock->max_foreign_records) {
+			ptpClock->number_foreign_records++;
+		}
 		j = ptpClock->foreign_record_i;
-
-		ptpClock->foreign[j].foreign_master_communication_technology =
-		    header->sourceCommunicationTechnology;
-		ptpClock->foreign[j].foreign_master_port_id =
-		    header->sourcePortId;
-		memcpy(ptpClock->foreign[j].foreign_master_uuid,
-		    header->sourceUuid, PTP_UUID_LENGTH);
-
-		DBG("updateForeign: new record (%d,%d) %d %d %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
-		    ptpClock->foreign_record_i, ptpClock->number_foreign_records,
-		    ptpClock->foreign[j].foreign_master_communication_technology,
-		    ptpClock->foreign[j].foreign_master_port_id,
-		    ptpClock->foreign[j].foreign_master_uuid[0], ptpClock->foreign[j].foreign_master_uuid[1],
-		    ptpClock->foreign[j].foreign_master_uuid[2], ptpClock->foreign[j].foreign_master_uuid[3],
-		    ptpClock->foreign[j].foreign_master_uuid[4], ptpClock->foreign[j].foreign_master_uuid[5]);
-
-		ptpClock->foreign_record_i = (ptpClock->foreign_record_i + 1) % ptpClock->max_foreign_records;
+		
+		/*Copy new foreign master data set from Announce message*/
+		memcpy(ptpClock->foreign[j].foreignMasterPortIdentity.clockIdentity,
+		       header->sourcePortIdentity.clockIdentity,
+		       CLOCK_IDENTITY_LENGTH);
+		ptpClock->foreign[j].foreignMasterPortIdentity.portNumber = 
+			header->sourcePortIdentity.portNumber;
+		ptpClock->foreign[j].foreignMasterAnnounceMessages = 0;
+		
+		/*
+		 * header and announce field of each Foreign Master are
+		 * usefull to run Best Master Clock Algorithm
+		 */
+		msgUnpackHeader(buf,&ptpClock->foreign[j].header);
+		msgUnpackAnnounce(buf,&ptpClock->foreign[j].announce);
+		DBGV("New foreign Master added \n");
+		
+		ptpClock->foreign_record_i = 
+			(ptpClock->foreign_record_i+1) % 
+			ptpClock->max_foreign_records;	
 	}
-	msgUnpackHeader(buf, &ptpClock->foreign[j].header);
-	msgUnpackSync(buf, &ptpClock->foreign[j].sync);
-
-	return &ptpClock->foreign[j].sync;
 }

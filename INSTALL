@@ -1,30 +1,18 @@
-PTP Daemon Installation Instructions
+PTP Daemon Version 2 Build and Installation Instructions
 
-22 February 2011
+05 January 2012
 
 George V. Neville-Neil
 
-The PTP Daemon is known to work on FreeBSD, Mac, and Linux systems.
+The PTP Daemon is known to work on FreeBSD, NetBSD, Mac OS X and Linux systems.
 
-*) Building on FreeBSD and Mac OS X (Snow Leopard)
+*) Building 
 
 1) cd into the src/ directory
-2) Un comment the #-DBSD_INTERFACE_FUNCTIONS option:
-
-Turn this:
-CFLAGS = -Wall #-DBSD_INTERFACE_FUNCTIONS
-
-into this:
-CFLAGS = -Wall -DBSD_INTERFACE_FUNCTIONS
-
 3) Run "make"
 4) Read the manual page.
-5) Test it in place: ./ptpd -your -arguments -here
+5) Test it in place: ./ptpd2 -your -arguments -here
 6) Run "make install"
-
-*) Building on Linux
-
-Follow the steps above except for step number 2.
 
 The daemon may work on other Posix based systems but this is not
 guaranteed.  Patches and fixes are welcome on the source forge page
