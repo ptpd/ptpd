@@ -123,7 +123,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 		&ptpClock->delay_req_send_time);
 
 	if (slave_to_master_delay.nanoseconds < 0) {
-		INFO("updateDelay aborted, delay %d is negative",
+		INFO("updateDelay aborted, delay %d is negative\n",
 		     slave_to_master_delay.nanoseconds);
 		return;
 	}
