@@ -248,6 +248,8 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->waitingForDelayResp = FALSE;
 
 		// FIXME: clear these vars inside initclock
+		clearTime(&ptpClock->delay_req_send_time);
+		clearTime(&ptpClock->delay_req_receive_time);
 		clearTime(&ptpClock->pdelay_req_send_time);
 		clearTime(&ptpClock->pdelay_req_receive_time);
 		clearTime(&ptpClock->pdelay_resp_send_time);

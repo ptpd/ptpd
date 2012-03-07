@@ -108,11 +108,8 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	/* todo: do all intermediate calculations on temp vars */
 	TimeInternal prev_meanPathDelay = ptpClock->meanPathDelay;
 
-	
-
 	ptpClock->char_last_msg='D';
 
-	
 	{
 		//perform basic checks, using local variables only
 	TimeInternal slave_to_master_delay;
@@ -122,16 +119,25 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	subTime(&slave_to_master_delay, &ptpClock->delay_req_receive_time, 
 		&ptpClock->delay_req_send_time);
 
-	if (slave_to_master_delay.nanoseconds < 0) {
-		INFO("updateDelay aborted, delay %d is negative\n",
-		     slave_to_master_delay.nanoseconds);
-		return;
-	}
-
 	if (rtOpts->maxDelay) { /* If maxDelay is 0 then it's OFF */
+		if ((slave_to_master_delay.nanoseconds < 0) &&
+		    (abs(slave_to_master_delay.nanoseconds) > rtOpts->maxDelay)) {
+			INFO("updateDelay aborted, delay (sec: %d ns: %d) "
+			     "is negative\n",
+			     slave_to_master_delay.seconds,
+			     slave_to_master_delay.nanoseconds);
+			INFO("send (sec: %d ns: %d)\n	",
+			     ptpClock->delay_req_send_time.seconds,
+			     ptpClock->delay_req_send_time.nanoseconds);
+			INFO("recv (sec: %d n	s: %d)\n",
+			     ptpClock->delay_req_receive_time.seconds,
+			     ptpClock->delay_req_receive_time.nanoseconds);
+			goto display;
+		}
+
 		if (slave_to_master_delay.seconds && rtOpts->maxDelay) {
 			INFO("updateDelay aborted, delay greater than 1"
-			     " second.");
+			     " second.\n");
 			msgDump(ptpClock);
 				goto display;
 		}
@@ -325,7 +331,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	if (rtOpts->maxDelay) { /* If maxDelay is 0 then it's OFF */
 		if (master_to_slave_delay.seconds && rtOpts->maxDelay) {
 			INFO("updateOffset aborted, delay greater than 1"
-			     " second.");
+			     " second.\n");
 			msgDump(ptpClock);
 			return;
 		}
