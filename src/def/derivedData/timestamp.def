@@ -1,0 +1,7 @@
+/* Spec 5.3.3 Timestamp */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( secondsField, 6, UInteger48)
+OPERATE( nanosecondsField, 4, UInteger32)
+
+#undef OPERATE

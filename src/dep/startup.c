@@ -1,10 +1,24 @@
 /*-
- * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
- *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -461,10 +475,18 @@ void
 ptpdShutdown(PtpClock * ptpClock)
 {
 	netShutdown(&ptpClock->netPath);
-
-	
 	free(ptpClock->foreign);
+
+	/* free management messages, they can have dynamic memory allocated */
+	if(ptpClock->msgTmpHeader.messageType == MANAGEMENT)
+		freeManagementTLV(&ptpClock->msgTmp.manage);
+	freeManagementTLV(&ptpClock->outgoingManageTmp);
+
 	free(ptpClock);
+	ptpClock = NULL;
+
+	extern PtpClock* G_ptpClock;
+	G_ptpClock = NULL;
 
 	/* properly clean lockfile (eventough new deaemons can adquire the lock after we die) */
 	close(global_lock_fd);
@@ -1018,6 +1040,13 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 *
 	 */
 
+
+	/* Init user_description */
+	memset(ptpClock->user_description, 0, sizeof(ptpClock->user_description));
+	memcpy(ptpClock->user_description, &USER_DESCRIPTION, sizeof(USER_DESCRIPTION));
+	
+	/* Init outgoing management message */
+	ptpClock->outgoingManageTmp.tlv = NULL;
 
 	
 	/* First lock check, just to be user-friendly to the operator */

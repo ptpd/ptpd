@@ -1,0 +1,8 @@
+/* Spec Table 57 - TIME_PROPERTIES_DATA_SET management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( currentUtcOffset, 2, Integer16)
+OPERATE( ftra_ttra_ptp_utcv_li59_li61, 1, Octet)
+OPERATE( timeSource, 1, Enumeration8)
+
+#undef OPERATE

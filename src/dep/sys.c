@@ -1,13 +1,24 @@
 /*-
- * Copyright (c) 2011      George V. Neville-Neil, Steven Kreuzer,
- *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen,
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, Steven Kreuzer,
- *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -16,7 +27,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE

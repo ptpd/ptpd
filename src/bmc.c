@@ -1,6 +1,20 @@
 /*-
- * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
- *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
@@ -78,7 +92,7 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->domainNumber = rtOpts->domainNumber;
 	ptpClock->slaveOnly = rtOpts->slaveOnly;
 	if(rtOpts->slaveOnly)
-		rtOpts->clockQuality.clockClass = 255;
+		rtOpts->clockQuality.clockClass = SLAVE_ONLY_CLOCK_CLASS;
 
 /* Port configuration data set */
 
@@ -86,8 +100,8 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 * PortIdentity Init (portNumber = 1 for an ardinary clock spec
 	 * 7.5.2.3)
 	 */
-	memcpy(ptpClock->portIdentity.clockIdentity,ptpClock->clockIdentity,
-	       CLOCK_IDENTITY_LENGTH);
+	copyClockIdentity(ptpClock->portIdentity.clockIdentity,
+			ptpClock->clockIdentity);
 	ptpClock->portIdentity.portNumber = NUMBER_PORTS;
 
 	/* select the initial rate of delayreqs until we receive the first announce message */
@@ -124,14 +138,14 @@ void m1(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	clearTime(&ptpClock->meanPathDelay);
 
 	/*Parent data set*/
-	memcpy(ptpClock->parentPortIdentity.clockIdentity,
-	       ptpClock->clockIdentity,CLOCK_IDENTITY_LENGTH);
+	copyClockIdentity(ptpClock->parentPortIdentity.clockIdentity,
+	       ptpClock->clockIdentity);
 	ptpClock->parentPortIdentity.portNumber = 0;
 	ptpClock->parentStats = DEFAULT_PARENTS_STATS;
 	ptpClock->observedParentClockPhaseChangeRate = 0;
 	ptpClock->observedParentOffsetScaledLogVariance = 0;
-	memcpy(ptpClock->grandmasterIdentity,ptpClock->clockIdentity,
-	       CLOCK_IDENTITY_LENGTH);
+	copyClockIdentity(ptpClock->grandmasterIdentity,
+			ptpClock->clockIdentity);
 	ptpClock->grandmasterClockQuality.clockAccuracy = 
 		ptpClock->clockQuality.clockAccuracy;
 	ptpClock->grandmasterClockQuality.clockClass = 
@@ -170,12 +184,12 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 	ptpClock->stepsRemoved = announce->stepsRemoved + 1;
 
 	/* Parent DS */
-	memcpy(ptpClock->parentPortIdentity.clockIdentity,
-	       header->sourcePortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
+	copyClockIdentity(ptpClock->parentPortIdentity.clockIdentity,
+	       header->sourcePortIdentity.clockIdentity);
 	ptpClock->parentPortIdentity.portNumber = 
 		header->sourcePortIdentity.portNumber;
-	memcpy(ptpClock->grandmasterIdentity,announce->grandmasterIdentity,
-	       CLOCK_IDENTITY_LENGTH);
+	copyClockIdentity(ptpClock->grandmasterIdentity,
+			announce->grandmasterIdentity);
 	ptpClock->grandmasterClockQuality.clockAccuracy = 
 		announce->grandmasterClockQuality.clockAccuracy;
 	ptpClock->grandmasterClockQuality.clockClass = 
@@ -188,17 +202,17 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 	/* Timeproperties DS */
 	ptpClock->currentUtcOffset = announce->currentUtcOffset;
         /* "Valid" is bit 2 in second octet of flagfield */
-	ptpClock->currentUtcOffsetValid = ((header->flagField[1] & PTP_UTC_REASONABLE) == PTP_UTC_REASONABLE); 
+        ptpClock->currentUtcOffsetValid = IS_SET(header->flagField1, UTCV);
 
 	/* set PTP_PASSIVE-specific state */
 	p1(ptpClock, rtOpts);
 
-	ptpClock->leap59 = ((header->flagField[1] & PTP_LI_61) == PTP_LI_59);
-	ptpClock->leap61 = ((header->flagField[1] & PTP_LI_61) == PTP_LI_61);
-	ptpClock->timeTraceable = ((header->flagField[1] & TIME_TRACEABLE) == TIME_TRACEABLE);
-	ptpClock->frequencyTraceable = ((header->flagField[1] & FREQUENCY_TRACEABLE) == FREQUENCY_TRACEABLE);
-	ptpClock->ptpTimescale = ((header->flagField[1] & PTP_TIMESCALE) == PTP_TIMESCALE);
-	ptpClock->timeSource = announce->timeSource;
+        ptpClock->leap59 = IS_SET(header->flagField1, LI59);
+        ptpClock->leap61 = IS_SET(header->flagField1, LI61);
+        ptpClock->timeTraceable = IS_SET(header->flagField1, TTRA);
+        ptpClock->frequencyTraceable = IS_SET(header->flagField1, FTRA);
+        ptpClock->ptpTimescale = IS_SET(header->flagField1, PTPT);
+        ptpClock->timeSource = announce->timeSource;
 }
 
 
@@ -206,8 +220,8 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 void copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
 {
 	announce->grandmasterPriority1 = ptpClock->priority1;
-	memcpy(announce->grandmasterIdentity,ptpClock->clockIdentity,
-	       CLOCK_IDENTITY_LENGTH);
+	copyClockIdentity(announce->grandmasterIdentity,
+			ptpClock->clockIdentity);
 	announce->grandmasterClockQuality.clockClass = 
 		ptpClock->clockQuality.clockClass;
 	announce->grandmasterClockQuality.clockAccuracy = 
@@ -216,8 +230,8 @@ void copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
 		ptpClock->clockQuality.offsetScaledLogVariance;
 	announce->grandmasterPriority2 = ptpClock->priority2;
 	announce->stepsRemoved = 0;
-	memcpy(header->sourcePortIdentity.clockIdentity,
-	       ptpClock->clockIdentity,CLOCK_IDENTITY_LENGTH);
+	copyClockIdentity(header->sourcePortIdentity.clockIdentity,
+	       ptpClock->clockIdentity);
 }
 
 

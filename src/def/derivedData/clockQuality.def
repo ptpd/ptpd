@@ -1,0 +1,8 @@
+/* Spec 5.3.7 ClockQuality */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( clockClass, 1, UInteger8 )
+OPERATE( clockAccuracy, 1, Enumeration8 )
+OPERATE( offsetScaledLogVariance, 2, UInteger16)
+
+#undef OPERATE

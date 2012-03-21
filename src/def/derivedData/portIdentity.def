@@ -1,0 +1,7 @@
+/* Spec 5.3.5 PortIdentity */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( clockIdentity, CLOCK_IDENTITY_LENGTH, ClockIdentity)
+OPERATE( portNumber, 2, UInteger16)
+
+#undef OPERATE

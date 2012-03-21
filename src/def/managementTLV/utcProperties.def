@@ -1,0 +1,8 @@
+/* Spec Table 58 - UTC_PROPERTIES management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( currentUtcOffset, 2, Integer16)
+OPERATE( utcv_li59_li61, 1, Octet)
+OPERATE( reserved, 1, Octet)
+
+#undef OPERATE

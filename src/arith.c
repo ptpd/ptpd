@@ -1,6 +1,20 @@
 /*-
- * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
- *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
@@ -38,6 +52,11 @@
 
 #include "ptpd.h"
 
+void
+internalTime_to_integer64(TimeInternal internal, Integer64 *bigint)
+{
+	/* TODO: implement me */
+}
 
 void 
 integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)

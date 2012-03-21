@@ -1,0 +1,12 @@
+/* Spec Table 37 - Management message fields */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( header, 34, MsgHeader)
+OPERATE( targetPortIdentity, 10, PortIdentity)
+OPERATE( startingBoundaryHops, 1, UInteger8)
+OPERATE( boundaryHops, 1, UInteger8)
+OPERATE( reserved0, 0, NibbleUpper)
+OPERATE( actionField, 1, Enumeration4Lower)
+OPERATE( reserved1, 1, Octet)
+
+#undef OPERATE

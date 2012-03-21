@@ -1,6 +1,20 @@
 /*-
- * Copyright (c) 2009-2011 George V. Neville-Neil, Steven Kreuzer, 
- *                         Martin Burnicki, Gael Mace, Alexandre Van Kempen
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
@@ -39,7 +53,7 @@
 #include "ptpd.h"
 
 /**\brief Display an Integer64 type*/
-void 
+void
 integer64_display(Integer64 * bigint)
 {
 	DBGV("Integer 64 : \n");
@@ -48,7 +62,7 @@ integer64_display(Integer64 * bigint)
 }
 
 /**\brief Display an UInteger48 type*/
-void 
+void
 uInteger48_display(UInteger48 * bigint)
 {
 	DBGV("Integer 48 : \n");
@@ -57,7 +71,7 @@ uInteger48_display(UInteger48 * bigint)
 }
 
 /** \brief Display a TimeInternal Structure*/
-void 
+void
 timeInternal_display(TimeInternal * timeInternal)
 {
 	DBGV("seconds : %d \n", timeInternal->seconds);
@@ -65,7 +79,7 @@ timeInternal_display(TimeInternal * timeInternal)
 }
 
 /** \brief Display a Timestamp Structure*/
-void 
+void
 timestamp_display(Timestamp * timestamp)
 {
 	uInteger48_display(&timestamp->secondsField);
@@ -73,35 +87,30 @@ timestamp_display(Timestamp * timestamp)
 }
 
 /**\brief Display a Clockidentity Structure*/
-void 
+void
 clockIdentity_display(ClockIdentity clockIdentity)
 {
-
 	DBGV(
 	    "ClockIdentity : %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
 	    clockIdentity[0], clockIdentity[1], clockIdentity[2],
 	    clockIdentity[3], clockIdentity[4], clockIdentity[5],
 	    clockIdentity[6], clockIdentity[7]
 	);
-
 }
 
 /**\brief Display MAC address*/
-void 
+void
 clockUUID_display(Octet * sourceUuid)
 {
-
 	DBGV(
 	    "sourceUuid %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
-	    sourceUuid[0], sourceUuid[1], sourceUuid[2],
-	    sourceUuid[3], sourceUuid[4], sourceUuid[5]
+	    sourceUuid[0], sourceUuid[1], sourceUuid[2], sourceUuid[3],
+	    sourceUuid[4], sourceUuid[5]
 	);
-
 }
 
-
 /**\brief Display Network info*/
-void 
+void
 netPath_display(NetPath * net)
 {
 	struct in_addr addr;
@@ -117,7 +126,7 @@ netPath_display(NetPath * net)
 }
 
 /**\brief Display a IntervalTimer Structure*/
-void 
+void
 intervalTimer_display(IntervalTimer * ptimer)
 {
 	DBGV("interval : %d \n", ptimer->interval);
@@ -125,28 +134,23 @@ intervalTimer_display(IntervalTimer * ptimer)
 	DBGV("expire : %d \n", ptimer->expire);
 }
 
-
-
-
 /**\brief Display a TimeInterval Structure*/
-void 
+void
 timeInterval_display(TimeInterval * timeInterval)
 {
 	integer64_display(&timeInterval->scaledNanoseconds);
 }
 
-
 /**\brief Display a Portidentity Structure*/
-void 
+void
 portIdentity_display(PortIdentity * portIdentity)
 {
-	clockIdentity_display((char *)portIdentity->clockIdentity);
+	clockIdentity_display(portIdentity->clockIdentity);
 	DBGV("port number : %d \n", portIdentity->portNumber);
-
 }
 
 /**\brief Display a Clockquality Structure*/
-void 
+void
 clockQuality_display(ClockQuality * clockQuality)
 {
 	DBGV("clockClass : %d \n", clockQuality->clockClass);
@@ -154,9 +158,24 @@ clockQuality_display(ClockQuality * clockQuality)
 	DBGV("offsetScaledLogVariance : %d \n", clockQuality->offsetScaledLogVariance);
 }
 
+/**\brief Display PTPText Structure*/
+void
+PTPText_display(PTPText *p, PtpClock *ptpClock)
+{
+	/* Allocate new memory to append null-terminator to the text field.
+	 * This allows printing the textField as a string
+	 */
+	Octet *str;
+	XMALLOC(str, p->lengthField + 1);
+	memcpy(str, p->textField, p->lengthField);
+	str[p->lengthField] = '\0';
+	DBGV("    lengthField : %d \n", p->lengthField);
+	DBGV("    textField : %s \n", str);
+	free(str);
+}
 
 /**\brief Display the Network Interface Name*/
-void 
+void
 iFaceName_display(Octet * iFaceName)
 {
 
@@ -172,7 +191,7 @@ iFaceName_display(Octet * iFaceName)
 }
 
 /**\brief Display an Unicast Adress*/
-void 
+void
 unicast_display(Octet * unicast)
 {
 
@@ -189,7 +208,7 @@ unicast_display(Octet * unicast)
 
 
 /**\brief Display Sync message*/
-void 
+void
 msgSync_display(MsgSync * sync)
 {
 	DBGV("Message Sync : \n");
@@ -198,7 +217,7 @@ msgSync_display(MsgSync * sync)
 }
 
 /**\brief Display Header message*/
-void 
+void
 msgHeader_display(MsgHeader * header)
 {
 	DBGV("Message header : \n");
@@ -208,8 +227,10 @@ msgHeader_display(MsgHeader * header)
 	DBGV("versionPTP : %d\n", header->versionPTP);
 	DBGV("messageLength : %d\n", header->messageLength);
 	DBGV("domainNumber : %d\n", header->domainNumber);
-	DBGV("FlagField %02hhx:%02hhx\n", header->flagField[0], header->flagField[1]);
-	integer64_display(&header->correctionfield);
+	DBGV("FlagField %02hhx:%02hhx\n", header->flagField0, header->flagField1);
+	DBGV("CorrectionField : \n");
+	integer64_display(&header->correctionField);
+	DBGV("SourcePortIdentity : \n");
 	portIdentity_display(&header->sourcePortIdentity);
 	DBGV("sequenceId : %d\n", header->sequenceId);
 	DBGV("controlField : %d\n", header->controlField);
@@ -218,7 +239,7 @@ msgHeader_display(MsgHeader * header)
 }
 
 /**\brief Display Announce message*/
-void 
+void
 msgAnnounce_display(MsgAnnounce * announce)
 {
 	DBGV("Announce Message : \n");
@@ -239,21 +260,21 @@ msgAnnounce_display(MsgAnnounce * announce)
 }
 
 /**\brief Display Follow_UP message*/
-void 
+void
 msgFollowUp_display(MsgFollowUp * follow)
 {
 	timestamp_display(&follow->preciseOriginTimestamp);
 }
 
 /**\brief Display DelayReq message*/
-void 
+void
 msgDelayReq_display(MsgDelayReq * req)
 {
 	timestamp_display(&req->originTimestamp);
 }
 
 /**\brief Display DelayResp message*/
-void 
+void
 msgDelayResp_display(MsgDelayResp * resp)
 {
 	timestamp_display(&resp->receiveTimestamp);
@@ -261,14 +282,14 @@ msgDelayResp_display(MsgDelayResp * resp)
 }
 
 /**\brief Display Pdelay_Req message*/
-void 
+void
 msgPDelayReq_display(MsgPDelayReq * preq)
 {
 	timestamp_display(&preq->originTimestamp);
 }
 
 /**\brief Display Pdelay_Resp message*/
-void 
+void
 msgPDelayResp_display(MsgPDelayResp * presp)
 {
 
@@ -277,7 +298,7 @@ msgPDelayResp_display(MsgPDelayResp * presp)
 }
 
 /**\brief Display Pdelay_Resp Follow Up message*/
-void 
+void
 msgPDelayRespFollowUp_display(MsgPDelayRespFollowUp * prespfollow)
 {
 
@@ -285,8 +306,195 @@ msgPDelayRespFollowUp_display(MsgPDelayRespFollowUp * prespfollow)
 	portIdentity_display(&prespfollow->requestingPortIdentity);
 }
 
+/**\brief Display Management message*/
+void
+msgManagement_display(MsgManagement * manage)
+{
+        DBGV("Management Message : \n");
+        DBGV("\n");
+        DBGV("targetPortIdentity : \n");
+	portIdentity_display(&manage->targetPortIdentity);
+	DBGV("startingBoundaryHops : %d \n", manage->startingBoundaryHops);
+	DBGV("boundaryHops : %d \n", manage->boundaryHops);
+	DBGV("actionField : %d\n", manage->actionField);
+}
+
+/**\brief Display ManagementTLV Slave Only message*/
+void
+mMSlaveOnly_display(MMSlaveOnly *slaveOnly, PtpClock *ptpClock)
+{
+	DBGV("Slave Only ManagementTLV message \n");
+	DBGV("SO : %d \n", slaveOnly->so);
+}
+
+/**\brief Display ManagementTLV Clock Description message*/
+void
+mMClockDescription_display(MMClockDescription *clockDescription, PtpClock *ptpClock)
+{
+	DBGV("Clock Description ManagementTLV message \n");
+	DBGV("clockType0 : %d \n", clockDescription->clockType0);
+	DBGV("clockType1 : %d \n", clockDescription->clockType1);
+	DBGV("physicalLayerProtocol : \n");
+	PTPText_display(&clockDescription->physicalLayerProtocol, ptpClock);
+	DBGV("physicalAddressLength : %d \n", clockDescription->physicalAddress.addressLength);
+	if(clockDescription->physicalAddress.addressField) {
+		DBGV("physicalAddressField : \n");
+		clockUUID_display(clockDescription->physicalAddress.addressField);
+	}
+	DBGV("protocolAddressNetworkProtocol : %d \n", clockDescription->protocolAddress.networkProtocol);
+	DBGV("protocolAddressLength : %d \n", clockDescription->protocolAddress.addressLength);
+	if(clockDescription->protocolAddress.addressField) {
+		DBGV("protocolAddressField : %d.%d.%d.%d \n",
+			(UInteger8)clockDescription->protocolAddress.addressField[0],
+			(UInteger8)clockDescription->protocolAddress.addressField[1],
+			(UInteger8)clockDescription->protocolAddress.addressField[2],
+			(UInteger8)clockDescription->protocolAddress.addressField[3]);
+	}
+	DBGV("manufacturerIdentity0 : %d \n", clockDescription->manufacturerIdentity0);
+	DBGV("manufacturerIdentity1 : %d \n", clockDescription->manufacturerIdentity1);
+	DBGV("manufacturerIdentity2 : %d \n", clockDescription->manufacturerIdentity2);
+	DBGV("productDescription : \n");
+	PTPText_display(&clockDescription->productDescription, ptpClock);
+	DBGV("revisionData : \n");
+	PTPText_display(&clockDescription->revisionData, ptpClock);
+	DBGV("userDescription : \n");
+	PTPText_display(&clockDescription->userDescription, ptpClock);
+	DBGV("profileIdentity0 : %d \n", clockDescription->profileIdentity0);
+	DBGV("profileIdentity1 : %d \n", clockDescription->profileIdentity1);
+	DBGV("profileIdentity2 : %d \n", clockDescription->profileIdentity2);
+	DBGV("profileIdentity3 : %d \n", clockDescription->profileIdentity3);
+	DBGV("profileIdentity4 : %d \n", clockDescription->profileIdentity4);
+	DBGV("profileIdentity5 : %d \n", clockDescription->profileIdentity5);
+}
+
+void
+mMUserDescription_display(MMUserDescription* userDescription, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMInitialize_display(MMInitialize* initialize, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMDefaultDataSet_display(MMDefaultDataSet* defaultDataSet, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMCurrentDataSet_display(MMCurrentDataSet* currentDataSet, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMParentDataSet_display(MMParentDataSet* parentDataSet, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMTimePropertiesDataSet_display(MMTimePropertiesDataSet* timePropertiesDataSet, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMPortDataSet_display(MMPortDataSet* portDataSet, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMPriority1_display(MMPriority1* priority1, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMPriority2_display(MMPriority2* priority2, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMDomain_display(MMDomain* domain, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMLogAnnounceInterval_display(MMLogAnnounceInterval* logAnnounceInterval, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMAnnounceReceiptTimeout_display(MMAnnounceReceiptTimeout* announceReceiptTimeout, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMLogSyncInterval_display(MMLogSyncInterval* logSyncInterval, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMVersionNumber_display(MMVersionNumber* versionNumber, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMTime_display(MMTime* time, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMClockAccuracy_display(MMClockAccuracy* clockAccuracy, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMUtcProperties_display(MMUtcProperties* utcProperties, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMTraceabilityProperties_display(MMTraceabilityProperties* traceabilityProperties, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMDelayMechanism_display(MMDelayMechanism* delayMechanism, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMLogMinPdelayReqInterval_display(MMLogMinPdelayReqInterval* logMinPdelayReqInterval, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMErrorStatus_display(MMErrorStatus* errorStatus, PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
 /**\brief Display runTimeOptions structure*/
-void 
+void
 displayRunTimeOpts(RunTimeOpts * rtOpts)
 {
 
@@ -319,10 +527,9 @@ displayRunTimeOpts(RunTimeOpts * rtOpts)
 
 
 /**\brief Display Default data set of a PtpClock*/
-void 
+void
 displayDefault(PtpClock * ptpClock)
 {
-
 	DBGV("---Ptp Clock Default Data Set-- \n");
 	DBGV("\n");
 	DBGV("twoStepFlag : %d \n", ptpClock->twoStepFlag);
@@ -338,10 +545,9 @@ displayDefault(PtpClock * ptpClock)
 
 
 /**\brief Display Current data set of a PtpClock*/
-void 
+void
 displayCurrent(PtpClock * ptpClock)
 {
-
 	DBGV("---Ptp Clock Current Data Set-- \n");
 	DBGV("\n");
 
@@ -356,10 +562,9 @@ displayCurrent(PtpClock * ptpClock)
 
 
 /**\brief Display Parent data set of a PtpClock*/
-void 
+void
 displayParent(PtpClock * ptpClock)
 {
-
 	DBGV("---Ptp Clock Parent Data Set-- \n");
 	DBGV("\n");
 	portIdentity_display(&(ptpClock->parentPortIdentity));
@@ -375,10 +580,9 @@ displayParent(PtpClock * ptpClock)
 }
 
 /**\brief Display Global data set of a PtpClock*/
-void 
+void
 displayGlobal(PtpClock * ptpClock)
 {
-
 	DBGV("---Ptp Clock Global Time Data Set-- \n");
 	DBGV("\n");
 
@@ -394,10 +598,9 @@ displayGlobal(PtpClock * ptpClock)
 }
 
 /**\brief Display Port data set of a PtpClock*/
-void 
+void
 displayPort(PtpClock * ptpClock)
 {
-
 	DBGV("---Ptp Clock Port Data Set-- \n");
 	DBGV("\n");
 
@@ -416,7 +619,7 @@ displayPort(PtpClock * ptpClock)
 }
 
 /**\brief Display ForeignMaster data set of a PtpClock*/
-void 
+void
 displayForeignMaster(PtpClock * ptpClock)
 {
 
@@ -451,7 +654,7 @@ displayForeignMaster(PtpClock * ptpClock)
 
 /**\brief Display other data set of a PtpClock*/
 
-void 
+void
 displayOthers(PtpClock * ptpClock)
 {
 
@@ -524,7 +727,7 @@ displayOthers(PtpClock * ptpClock)
 
 
 /**\brief Display Buffer in & out of a PtpClock*/
-void 
+void
 displayBuffer(PtpClock * ptpClock)
 {
 
@@ -576,7 +779,7 @@ displayBuffer(PtpClock * ptpClock)
 
 
 /**\brief Display All data set of a PtpClock*/
-void 
+void
 displayPtpClock(PtpClock * ptpClock)
 {
 

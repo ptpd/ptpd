@@ -1,0 +1,11 @@
+This directory contains component macro .def files that are referenced by X-Macros in
+the ptpd source code.
+
+The component macros are used to define message, derived data
+types, and management TLV fields.
+
+The X-Macros are used to automatically generate most of
+the code used to pack, unpack, and free ptp data fields.
+
+Documentation on how to use X-Macros can be found at:
+http://en.wikibooks.org/wiki/C_Programming/Preprocessor#X-Macros

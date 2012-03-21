@@ -1,0 +1,6 @@
+/* Spec 5.3.2 TimeInterval*/
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( scaledNanoseconds, 8, Integer64)
+
+#undef OPERATE

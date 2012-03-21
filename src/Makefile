@@ -24,10 +24,13 @@
 #
 #######
 
+VERSION = 2.2.0
+
 RM = rm -f
+SYMLINK = ln -s
 
 # start with CFLAGS += ..., so additional CFLAGs can be specified e.g. on the make command line
-CFLAGS += -Wall -g
+CFLAGS += -Wall -g -fPIC
 
 CFLAGS += -DRUNTIME_DEBUG
 #CFLAGS += -DPTPD_DBG
@@ -40,10 +43,16 @@ CFLAGS += -DDBG_SIGUSR2_CHANGE_DEBUG
 
 CFLAGS += -DPTP_EXPERIMENTAL
 
-LDFLAGS+= -lm -lrt
+LDFLAGS = -lm -lrt
+STATICLIBFLAGS = rcs
+SHAREDLIBFLAGS = -shared -Wl,-soname
 
 PROG = ptpd2
-SRCS = ptpd.c arith.c bmc.c protocol.c display.c\
+STATICLIB = libptpd2.a
+SHAREDLIB = libptpd2.so
+SHAREDLIBVER = $(SHAREDLIB).$(VERSION)
+
+SRCS = ptpd.c arith.c bmc.c protocol.c display.c management.c \
 	dep/msg.c dep/net.c dep/servo.c dep/startup.c dep/sys.c dep/timer.c
 
 OBJS = $(SRCS:.c=.o)
@@ -60,10 +69,19 @@ TAGFILES = GPATH GRTAGS GSYMS GTAGS cscope.in.out cscope.out cscope.po.out
 .c.o:
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
-all: $(PROG)
 
 $(PROG): $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
+
+$(STATICLIB): $(OBJS)
+	$(AR) $(STATICLIBFLAGS) $(STATICLIB) $(OBJS)
+
+$(SHAREDLIB): $(OBJS)
+	$(CC) $(SHAREDLIBFLAGS),$(SHAREDLIB) -o $(SHAREDLIB) $(OBJS)
+        # create shared lib symlink with ptpd version extension
+	$(SYMLINK) $(SHAREDLIB) $(SHAREDLIBVER)
+
+all: $(PROG) $(STATICLIB) $(SHAREDLIB)
 
 $(OBJS): $(HDRS)
 
@@ -73,7 +91,7 @@ tags:
 	$(DOXYGEN) Doxyfile
 
 clean:
-	$(RM) $(PROG) $(OBJS) make.out
+	$(RM) $(PROG) $(STATICLIB) $(SHAREDLIB) $(SHAREDLIBVER) $(OBJS) $(TAGFILES) make.out
 
-realclean:
-	$(RM) $(PROG) $(OBJS) $(TAGFILES) make.out
+realclean: clean
+	$(RM) $(TAGFILES)

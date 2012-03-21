@@ -1,0 +1,8 @@
+/* Spec 5.3.6 PortAddress */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( networkProtocol, 2, Enumeration16)
+OPERATE( addressLength, 2, UInteger16)
+OPERATE( addressField, data->addressLength, Octet*)
+
+#undef OPERATE

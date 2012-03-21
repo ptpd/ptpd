@@ -1,0 +1,6 @@
+/* Spec Table 43 - USER_DESCRIPTION management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( initializeKey, 2, UInteger16)
+
+#undef OPERATE

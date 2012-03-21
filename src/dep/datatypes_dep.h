@@ -18,8 +18,14 @@ typedef unsigned int UInteger32;
 typedef unsigned short Enumeration16;
 typedef unsigned char Enumeration8;
 typedef unsigned char Enumeration4;
+typedef unsigned char Enumeration4Upper;
+typedef unsigned char Enumeration4Lower;
 typedef unsigned char UInteger4;
+typedef unsigned char UInteger4Upper;
+typedef unsigned char UInteger4Lower;
 typedef unsigned char Nibble;
+typedef unsigned char NibbleUpper;
+typedef unsigned char NibbleLower;
 
 /**
 * \brief Implementation specific of UInteger48 type

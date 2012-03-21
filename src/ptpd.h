@@ -51,6 +51,20 @@
 #include "datatypes.h"
 #include "dep/ptpd_dep.h"
 
+/* NOTE: this macro can be refactored into a function */
+#define XMALLOC(ptr,size) \
+	if(!((ptr)=malloc(size))) { \
+		PERROR("failed to allocate memory"); \
+		ptpdShutdown(ptpClock); \
+		exit(1); \
+	}
+
+#define IS_SET(data, bitpos) \
+	((data & ( 0x1 << bitpos )) == (0x1 << bitpos))
+
+#define SET_FIELD(data, bitpos) \
+	data << bitpos
+
 #define min(a,b)     (((a)<(b))?(a):(b))
 #define max(a,b)     (((a)>(b))?(a):(b))
 
@@ -64,6 +78,10 @@
  * \brief Convert Integer64 into TimeInternal structure
  */
 void integer64_to_internalTime(Integer64,TimeInternal*);
+/**
+ * \brief Convert TimeInternal structure to Integer64
+ */
+void internalTime_to_integer64(TimeInternal, Integer64*);
 /**
  * \brief Convert TimeInternal into Timestamp structure (defined by the spec)
  */
@@ -144,6 +162,68 @@ void initData(RunTimeOpts*,PtpClock*);
 void protocol(RunTimeOpts*,PtpClock*);
 /** \}*/
 
+/** \name management.c
+ * -Management message support*/
+ /**\{*/
+/* management.c */
+/**
+ * \brief Management message support
+ */
+void handleMMNullManagement(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMClockDescription(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMSlaveOnly(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMUserDescription(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMSaveInNonVolatileStorage(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMResetNonVolatileStorage(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMInitialize(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMDefaultDataSet(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMCurrentDataSet(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMParentDataSet(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMTimePropertiesDataSet(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMPortDataSet(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMPriority1(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMPriority2(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMDomain(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMLogAnnounceInterval(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMAnnounceReceiptTimeout(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMLogSyncInterval(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMVersionNumber(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMEnablePort(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMDisablePort(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMTime(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMClockAccuracy(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMUtcProperties(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMTraceabilityProperties(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMDelayMechanism(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMLogMinPdelayReqInterval(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMErrorStatus(MsgManagement*);
+void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement *outgoing,
+                                PtpClock *ptpClock, Enumeration16 mgmtId,
+                                Enumeration16 errorId);
+/** \}*/
+
+/*
+ * \brief Packing and Unpacking macros
+ */
+#define DECLARE_PACK( type ) void pack##type( void*, void* );
+
+DECLARE_PACK( NibbleUpper )
+DECLARE_PACK( Enumeration4Lower )
+DECLARE_PACK( UInteger4Lower )
+DECLARE_PACK( UInteger16 )
+DECLARE_PACK( UInteger8 )
+DECLARE_PACK( Octet )
+DECLARE_PACK( Integer8 )
+DECLARE_PACK( UInteger48 )
+DECLARE_PACK( Integer64 )
+
+#define DECLARE_UNPACK( type ) void unpack##type( void*, void*, PtpClock *ptpClock );
+
+DECLARE_UNPACK( Boolean )
+DECLARE_UNPACK( Enumeration4Lower )
+DECLARE_UNPACK( Octet )
+DECLARE_UNPACK( UInteger48 )
+DECLARE_UNPACK( Integer64 )
 
 //Diplay functions usefull to debug
 void displayRunTimeOpts(RunTimeOpts*);
@@ -164,6 +244,7 @@ void integer64_display (Integer64*);
 void timeInterval_display(TimeInterval*);
 void portIdentity_display(PortIdentity*);
 void clockQuality_display (ClockQuality*);
+void PTPText_display(PTPText*, PtpClock*);
 void iFaceName_display(Octet*);
 void unicast_display(Octet*);
 
@@ -175,6 +256,33 @@ void msgPDelayReq_display(MsgPDelayReq*);
 void msgDelayReq_display(MsgDelayReq * req);
 void msgDelayResp_display(MsgDelayResp * resp);
 void msgPDelayResp_display(MsgPDelayResp * presp);
+void msgPDelayRespFollowUp_display(MsgPDelayRespFollowUp * prespfollow);
+void msgManagement_display(MsgManagement * manage);
+
+
+void mMSlaveOnly_display(MMSlaveOnly*, PtpClock*);
+void mMClockDescription_display(MMClockDescription*, PtpClock*);
+void mMUserDescription_display(MMUserDescription*, PtpClock*);
+void mMInitialize_display(MMInitialize*, PtpClock*);
+void mMDefaultDataSet_display(MMDefaultDataSet*, PtpClock*);
+void mMCurrentDataSet_display(MMCurrentDataSet*, PtpClock*);
+void mMParentDataSet_display(MMParentDataSet*, PtpClock*);
+void mMTimePropertiesDataSet_display(MMTimePropertiesDataSet*, PtpClock*);
+void mMPortDataSet_display(MMPortDataSet*, PtpClock*);
+void mMPriority1_display(MMPriority1*, PtpClock*);
+void mMPriority2_display(MMPriority2*, PtpClock*);
+void mMDomain_display(MMDomain*, PtpClock*);
+void mMLogAnnounceInterval_display(MMLogAnnounceInterval*, PtpClock*);
+void mMAnnounceReceiptTimeout_display(MMAnnounceReceiptTimeout*, PtpClock*);
+void mMLogSyncInterval_display(MMLogSyncInterval*, PtpClock*);
+void mMVersionNumber_display(MMVersionNumber*, PtpClock*);
+void mMTime_display(MMTime*, PtpClock*);
+void mMClockAccuracy_display(MMClockAccuracy*, PtpClock*);
+void mMUtcProperties_display(MMUtcProperties*, PtpClock*);
+void mMTraceabilityProperties_display(MMTraceabilityProperties*, PtpClock*);
+void mMDelayMechanism_display(MMDelayMechanism*, PtpClock*);
+void mMLogMinPdelayReqInterval_display(MMLogMinPdelayReqInterval*, PtpClock*);
+void mMErrorStatus_display(MMErrorStatus*, PtpClock*);
 
 void clearTime(TimeInternal *time);
 int isTimeInternalNegative(const TimeInternal * p);

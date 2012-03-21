@@ -1,0 +1,13 @@
+/* PhysicalAddress */
+
+/*
+ * This is not a derived data type from the standard.
+ * Defining this type simplifies the implementation of
+ * the Management Clock Description message
+ */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( addressLength, 2, UInteger16)
+OPERATE( addressField, data->addressLength, Octet*)
+
+#undef OPERATE

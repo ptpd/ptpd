@@ -1,0 +1,7 @@
+/* Spec Table 59 - TRACEABILITY_PROPERTIES management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( ftra_ttra, 1, Octet)
+OPERATE( reserved, 1, Octet)
+
+#undef OPERATE
