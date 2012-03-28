@@ -23,7 +23,7 @@
 #define PRODUCT_DESCRIPTION \
   ";;"
 #define REVISION \
-  ";;2.1"
+  ";;2.2"
 #define USER_DESCRIPTION \
   "PTPDv2"
 #define USER_DESCRIPTION_MAX 128
