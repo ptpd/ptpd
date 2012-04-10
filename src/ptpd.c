@@ -95,7 +95,6 @@ main(int argc, char **argv)
 
 	rtOpts.noAdjust = NO_ADJUST;  // false
 	// rtOpts.displayStats = FALSE;
-	// rtOpts.csvStats = FALSE;
 	/* Deep display of all packets seen by the daemon */
 	rtOpts.displayPackets = FALSE;
 	// rtOpts.unicastAddress
@@ -108,6 +107,8 @@ main(int argc, char **argv)
 	// rtOpts.ethernet_mode = FALSE;
 	// rtOpts.offset_first_updated = FALSE;
 	// rtOpts.file[0] = 0;
+	rtOpts.maxDelayAutoTune = FALSE;
+	rtOpts.discardedPacketThreshold = 60;
 	rtOpts.logFd = -1;
 	rtOpts.recordFP = NULL;
 	rtOpts.do_log_to_file = FALSE;

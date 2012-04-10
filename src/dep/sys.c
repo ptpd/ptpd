@@ -153,36 +153,33 @@ translatePortState(PtpClock *ptpClock)
 {
 	char *s;
 	switch(ptpClock->portState) {
-	case PTP_INITIALIZING:  s = "init";  break;
-	case PTP_FAULTY:        s = "flt";   break;
-	case PTP_LISTENING:
-		/* seperate init-reset from real resets */
-		if(ptpClock->reset_count == 1){
-			s = "lstn_init";
-		} else {
-			s = "lstn_reset";
-		}
-		break;
-	case PTP_PASSIVE:       s = "pass";  break;
-	case PTP_UNCALIBRATED:  s = "uncl";  break;
-	case PTP_SLAVE:         s = "slv";   break;
-	case PTP_PRE_MASTER:    s = "pmst";  break;
-	case PTP_MASTER:        s = "mst";   break;
-	case PTP_DISABLED:      s = "dsbl";  break;
-	default:                s = "?";     break;
+	    case PTP_INITIALIZING:  s = "init";  break;
+	    case PTP_FAULTY:        s = "flt";   break;
+	    case PTP_LISTENING:
+		    /* seperate init-reset from real resets */
+		    if(ptpClock->reset_count == 1){
+		    	s = "lstn_init";
+		    } else {
+		    	s = "lstn_reset";
+		    }
+		    break;
+	    case PTP_PASSIVE:       s = "pass";  break;
+	    case PTP_UNCALIBRATED:  s = "uncl";  break;
+	    case PTP_SLAVE:         s = "slv";   break;
+	    case PTP_PRE_MASTER:    s = "pmst";  break;
+	    case PTP_MASTER:        s = "mst";   break;
+	    case PTP_DISABLED:      s = "dsbl";  break;
+	    default:                s = "?";     break;
 	}
 	return s;
 }
 
 
 int 
-snprint_ClockIdentity(char *s, int max_len, const ClockIdentity id, const char *info)
+snprint_ClockIdentity(char *s, int max_len, const ClockIdentity id)
 {
 	int len = 0;
 	int i;
-
-	if (info)
-		len += snprintf(&s[len], max_len - len, "%s", info);
 
 	for (i = 0; ;) {
 		len += snprintf(&s[len], max_len - len, "%02x", (unsigned char) id[i]);
@@ -197,13 +194,10 @@ snprint_ClockIdentity(char *s, int max_len, const ClockIdentity id, const char *
 
 /* show the mac address in an easy way */
 int
-snprint_ClockIdentity_mac(char *s, int max_len, const ClockIdentity id, const char *info)
+snprint_ClockIdentity_mac(char *s, int max_len, const ClockIdentity id)
 {
 	int len = 0;
 	int i;
-
-	if (info)
-		len += snprintf(&s[len], max_len - len, "%s", info);
 
 	for (i = 0; ;) {
 		/* skip bytes 3 and 4 */
@@ -270,7 +264,7 @@ int ether_ntohost_cache(char *hostname, struct ether_addr *addr)
 
 /* Show the hostname configured in /etc/ethers */
 int
-snprint_ClockIdentity_ntohost(char *s, int max_len, const ClockIdentity id, const char *info)
+snprint_ClockIdentity_ntohost(char *s, int max_len, const ClockIdentity id)
 {
 	int len = 0;
 	int i,j;
@@ -299,20 +293,17 @@ snprint_ClockIdentity_ntohost(char *s, int max_len, const ClockIdentity id, cons
 
 
 int 
-snprint_PortIdentity(char *s, int max_len, const PortIdentity *id, const char *info)
+snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 {
 	int len = 0;
 
-	if (info)
-		len += snprintf(&s[len], max_len - len, "%s", info);
-
 #ifdef PRINT_MAC_ADDRESSES
-	len += snprint_ClockIdentity_mac(&s[len], max_len - len, id->clockIdentity, NULL);
+	len += snprint_ClockIdentity_mac(&s[len], max_len - len, id->clockIdentity);
 #else	
-	len += snprint_ClockIdentity(&s[len], max_len - len, id->clockIdentity, NULL);
+	len += snprint_ClockIdentity(&s[len], max_len - len, id->clockIdentity);
 #endif
 
-	len += snprint_ClockIdentity_ntohost(&s[len], max_len - len, id->clockIdentity, NULL);
+	len += snprint_ClockIdentity_ntohost(&s[len], max_len - len, id->clockIdentity);
 
 	len += snprintf(&s[len], max_len - len, "/%02x", (unsigned) id->portNumber);
 	return len;
@@ -398,6 +389,27 @@ message(int priority, const char * format, ...)
 	va_end(ap);
 }
 
+void
+increaseMaxDelayThreshold()
+{
+	extern RunTimeOpts rtOpts;
+	NOTIFY("Increasing maxDelay threshold from %i to %i\n", rtOpts.maxDelay, 
+	       rtOpts.maxDelay << 1);
+
+	rtOpts.maxDelay <<= 1;
+}
+
+void
+decreaseMaxDelayThreshold()
+{
+	extern RunTimeOpts rtOpts;
+	if ((rtOpts.maxDelay >> 1) < rtOpts.origMaxDelay)
+		return;
+	NOTIFY("Decreasing maxDelay threshold from %i to %i\n", 
+	       rtOpts.maxDelay, rtOpts.maxDelay >> 1);
+	rtOpts.maxDelay >>= 1;
+}
+
 void 
 displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
@@ -413,19 +425,16 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		return;
 	}
 
-
-	
-	if (start && rtOpts->csvStats) {
+	if (start) {
 		start = 0;
 		printf("# Timestamp, State, Clock ID, One Way Delay, "
 		       "Offset From Master, Slave to Master, "
-		       "Master to Slave, Drift, Last packet Received\n");
+		       "Master to Slave, Drift, Discarded Packet Count, Last packet Received\n");
 		fflush(stdout);
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
 
 	getTime(&now);
-
 
 	/*
 	 * print one log entry per X seconds, to reduce disk usage.
@@ -445,38 +454,31 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		}
 	}
 	ptpClock->last_packet_was_sync = FALSE;
-	
 
 	time_s = now.seconds;
 	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&time_s));
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s%s.%06d, %s",
-		       rtOpts->csvStats ? "" : "state: ",
-		       time_str, (int)now.nanoseconds/1000,
-		       translatePortState(ptpClock));
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s.%06d, %s, ",
+		       time_str, (int)now.nanoseconds/1000, /* Timestamp */
+		       translatePortState(ptpClock)); /* State */
 
 	if (ptpClock->portState == PTP_SLAVE) {
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-			 &ptpClock->parentPortIdentity, " ");
+			 &ptpClock->parentPortIdentity); /* Clock ID */
 
 		/* 
 		 * if grandmaster ID differs from parent port ID then
 		 * also print GM ID 
 		 */
 		if (memcmp(ptpClock->grandmasterIdentity, 
-			   ptpClock->parentPortIdentity.clockIdentity, 
+			   ptpClock->parentPortIdentity.clockIdentity,
 			   CLOCK_IDENTITY_LENGTH)) {
-			len += snprint_ClockIdentity(sbuf + len, 
+			len += snprint_ClockIdentity(sbuf + len,
 						     sizeof(sbuf) - len,
-						     ptpClock->grandmasterIdentity, 
-						     " GM:");
+						     ptpClock->grandmasterIdentity);
 		}
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
-		if (!rtOpts->csvStats)
-			len += snprintf(sbuf + len, 
-					sizeof(sbuf) - len, "owd: ");
-        
 		if(rtOpts->delayMechanism == E2E) {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 						    &ptpClock->meanPathDelay);
@@ -487,63 +489,34 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
-		if (!rtOpts->csvStats)
-			len += snprintf(sbuf + len, sizeof(sbuf) - len, 
-					"ofm: ");
-
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 		    &ptpClock->offsetFromMaster);
 
-
-
 		/* print MS and SM with sign */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
-		if (!rtOpts->csvStats)
-			len += snprintf(sbuf + len, sizeof(sbuf) - len,
-			"stm: ");
 			
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 				&(ptpClock->delaySM));
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
-
-		if (!rtOpts->csvStats)
-			len += snprintf(sbuf + len, sizeof(sbuf) - len,
-			"mts: ");
-
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 				&(ptpClock->delayMS));
 
-		
-		len += sprintf(sbuf + len, ", %s%d",
-		    rtOpts->csvStats ? "" : "drift: ", 
-			       ptpClock->observed_drift);
+		len += sprintf(sbuf + len, ", %d, %i, %c",
+			       ptpClock->observed_drift,
+			       ptpClock->discardedPacketCount,
+			       ptpClock->char_last_msg);
 
-
-
-
-		/* Last column has the type of last packet processed by the servo */
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
-
-		if (!rtOpts->csvStats)
-			len += snprintf(sbuf + len, sizeof(sbuf) - len,
-			"last_msg: ");
-
-		len += snprintf(sbuf + len, sizeof(sbuf) - len,
-				"%c ", ptpClock->char_last_msg);
-
-	}
-	else {
+	} else {
 		if ((ptpClock->portState == PTP_MASTER) || (ptpClock->portState == PTP_PASSIVE)) {
 
 			len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-				 &ptpClock->parentPortIdentity, " ");
+				 &ptpClock->parentPortIdentity);
 							 
 			//len += snprintf(sbuf + len, sizeof(sbuf) - len, ")");
 		}
 
-		
 		/* show the current reset number on the log */
 		if (ptpClock->portState == PTP_LISTENING) {
 			len += snprintf(sbuf + len,
@@ -551,7 +524,6 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 						     " %d ", ptpClock->reset_count);
 		}
 	}
-
 	
 	/* add final \n in normal status lines */
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
@@ -562,8 +534,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
 	}
 #endif
-	write(1, sbuf, rtOpts->csvStats ? len : SCREEN_MAXSZ + 1);
-	
+	write(1, sbuf, len);
 }
 
 

@@ -511,7 +511,6 @@ displayRunTimeOpts(RunTimeOpts * rtOpts)
 	unicast_display(rtOpts->unicastAddress);
 	DBGV("noAdjust : %d \n", rtOpts->noAdjust);
 	DBGV("displayStats : %d \n", rtOpts->displayStats);
-	DBGV("csvStats : %d \n", rtOpts->csvStats);
 	iFaceName_display(rtOpts->ifaceName);
 	DBGV("ap : %d \n", rtOpts->ap);
 	DBGV("aI : %d \n", rtOpts->ai);

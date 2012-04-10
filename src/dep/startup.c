@@ -549,7 +549,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 	dump_command_line_parameters(argc, argv);
 
-	const char *getopt_string = "HgGWb:cCf:ST:dDPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:";
+	const char *getopt_string = "HgGWb:cCf:ST:DPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:A:";
 
 	/* parse command line arguments */
 	while ((c = getopt(argc, argv, getopt_string)) != -1) {
@@ -582,7 +582,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"-S                DON'T send messages to syslog\n"
 				"\n"
 				"-T NUMBER         set multicast time to live\n"
-				"-d                display stats (per received packet, see also -V)\n"
 				"-D                display stats in .csv format (per received packet, see also -V)\n"
 				"-P                display each received packet in detail\n"
 				"-R FILE           record data about sync packets in a seperate file\n"
@@ -691,7 +690,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			rtOpts->useSysLog    = FALSE;
 			rtOpts->syslog_startup_messages_also_to_stdout = TRUE;
 			rtOpts->displayStats = TRUE;
-			rtOpts->csvStats     = TRUE;
 			rtOpts->log_seconds_between_message = 0;
 			rtOpts->do_log_to_file = FALSE;
 			break;
@@ -719,13 +717,10 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 #endif
 			break;
 			
-		case 'd':
-			rtOpts->displayStats = TRUE;
-			break;
 		case 'D':
 			rtOpts->displayStats = TRUE;
-			rtOpts->csvStats = TRUE;
 			break;
+
 		case 'P':
 			rtOpts->displayPackets = TRUE;
 			break;
@@ -749,8 +744,12 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				return (0);
 			}
 			break;
+		case 'A':
+			rtOpts->maxDelayAutoTune = TRUE;
+			rtOpts->discardedPacketThreshold = atoi(optarg);
+			break;
 		case 'M':
-			rtOpts->maxDelay = atoi(optarg);
+			rtOpts->maxDelay = rtOpts->origMaxDelay = atoi(optarg);
 			if (rtOpts->maxDelay > 1000000000) {
 				ERROR("Use -x to prevent jumps of more"
 				       " than one second.");
@@ -1073,10 +1072,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		return 0;
 	}
 
-
-
-
-
 	/* Manage open files: stats and quality file */
 	if(rtOpts->do_record_quality_file){
 		if (recordToFile(rtOpts))
@@ -1092,10 +1087,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			PERROR("could not open output file");
 
 		rtOpts->displayStats = TRUE;
-		rtOpts->csvStats = TRUE;
 	}
-
-
 
 	/*  DAEMON */
 #ifdef PTPD_NO_DAEMON
@@ -1104,8 +1096,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	}
 #endif
 
-
-	
 	if(rtOpts->nonDaemon == 0){
 		/* fork to daemon */
 		if (daemon(0, noclose) == -1) {
@@ -1129,7 +1119,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			return 0;
 		}
 	}
-
 	
 	/* use new synchronous signal handlers */
 	signal(SIGINT,  catch_signals);
@@ -1145,7 +1134,3 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 	return ptpClock;
 }
-
-
-
-

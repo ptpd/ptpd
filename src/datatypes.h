@@ -622,6 +622,7 @@ typedef struct {
 	Integer32 MasterAddr;                           // used for hybrid mode, when receiving announces
 	Integer32 LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
 #endif
+	Integer32 discardedPacketCount;                 // used for autotuning the maxDelay threshold
 
 } PtpClock;
 
@@ -649,9 +650,11 @@ typedef struct {
 	Boolean	noResetClock;
 	Integer32 maxReset; /* Maximum number of nanoseconds to reset */
 	Integer32 maxDelay; /* Maximum number of nanoseconds of delay */
+	Integer32 origMaxDelay; /* Lower bound of nanoseconds of delay */
+	Boolean maxDelayAutoTune;
+	Integer32 discardedPacketThreshold;
 	Boolean	noAdjust;
 	Boolean	displayStats;
-	Boolean	csvStats;
 	Boolean displayPackets;
 	Octet unicastAddress[MAXHOSTNAMELEN];
 	Integer32 ap, ai;
