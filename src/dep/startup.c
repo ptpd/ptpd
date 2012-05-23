@@ -227,6 +227,7 @@ check_signals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	
 }
 
+#ifdef RUNTIME_DEBUG
 /* These functions are useful to temporarily enable Debug around parts of code, similar to bash's "set -x" */
 void enable_runtime_debug(void )
 {
@@ -241,7 +242,7 @@ void disable_runtime_debug(void )
 	
 	rtOpts.debug_level = LOG_INFO;
 }
-
+#endif
 
 /*
  * Lock via filesystem implementation, as described in "Advanced Programming in the UNIX Environment, 2nd ed"

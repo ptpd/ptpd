@@ -1330,7 +1330,6 @@ handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
 					integer64_to_internalTime(header->correctionField,&correctionField);
 					ptpClock->lastPdelayRespCorrectionField.seconds = correctionField.seconds;
 					ptpClock->lastPdelayRespCorrectionField.nanoseconds = correctionField.nanoseconds;
-					break;
 				} else {
 				/* One step Clock */
 					/*Store t4 (Fig 35)*/
@@ -1339,10 +1338,9 @@ handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
 					
 					integer64_to_internalTime(header->correctionField,&correctionField);
 					updatePeerDelay (&ptpClock->owd_filt,rtOpts,ptpClock,&correctionField,FALSE);
-					break;
 				}
 				ptpClock->recvPDelayRespSequenceId = header->sequenceId;
-				
+				break;
 			} else {
 				DBGV("HandlePdelayResp : Pdelayresp doesn't "
 				     "match with the PdelayReq. \n");
