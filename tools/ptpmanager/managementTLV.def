@@ -1,0 +1,8 @@
+/* Spec Table 39 - Management TLV fields */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( tlvType, 2, Enumeration16)
+OPERATE( lengthField, 2, UInteger16)
+OPERATE( managementId, 2, Enumeration16)
+
+#undef OPERATE
