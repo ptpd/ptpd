@@ -341,7 +341,7 @@ message(int priority, const char * format, ...)
 #endif
 
 		if (!logOpened) {
-			openlog("ptpd2", 0, LOG_DAEMON);
+			openlog(PTPD_PROGNAME, 0, LOG_DAEMON);
 			logOpened = TRUE;
 		}
 		vsyslog(priority, format, ap);

@@ -326,7 +326,9 @@ pgrep_matches(char *name)
 	char answer[BUF_SIZE];
 	int matches;
 
-	snprintf(command, BUF_SIZE - 1, "pgrep -x %s | wc -l", name);
+	/* use pgrep to count processes with the given name
+	 * but exclude our own pid from the search results */
+	snprintf(command, BUF_SIZE - 1, "pgrep -x %s | grep -v ^%ld$ | wc -l", name, (long)getpid());
 
 	if( query_shell(command, answer, BUF_SIZE) < 0){
 		return -1;
@@ -510,7 +512,7 @@ void dump_command_line_parameters(int argc, char **argv)
 	}
 
 	INFO("\n");
-	INFO("Starting ptpd2 daemon with parameters:      %s\n", sbuf);
+	INFO("Starting %s daemon with parameters:      %s\n", PTPD_PROGNAME, sbuf);
 }
 
 
@@ -519,7 +521,7 @@ display_short_help(char *error)
 {
 	printf(
 			//"\n"
-			"ptpd2:\n"
+			PTPD_PROGNAME ":\n"
 			"   -gGW          Protocol mode (slave/master with ntp/master without ntp)\n"
 			"   -b <dev>      Interface to use\n"
 			"\n"
@@ -1053,7 +1055,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	if(rtOpts->ignore_daemon_lock == 0){
 		/* check and create Lock */
 		if(daemon_already_running()){
-			ERROR("  Error:   Multiple ptpd2 instances detected (-L to ignore lock file %s)\n", LOCKFILE);
+			ERROR("  Error:   Multiple " PTPD_PROGNAME " instances detected (-L to ignore lock file %s)\n", LOCKFILE);
 			*ret = 3;
 			return 0;
 		}
@@ -1064,7 +1066,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	}
 
 
-	if(check_parallel_daemons("ptpd", ptp_daemons_expected, ptp_daemons_strict, rtOpts) &&
+	if(check_parallel_daemons(PTPD_PROGNAME, ptp_daemons_expected, ptp_daemons_strict, rtOpts) &&
 	   check_parallel_daemons("ntpd", ntp_daemons_expected, ntp_daemons_strict, rtOpts))
 	{
 		/* ok */

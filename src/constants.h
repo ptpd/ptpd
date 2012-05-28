@@ -9,6 +9,8 @@
 * and enumeration defined in the spec
  */
 
+#define PTPD_PROGNAME "ptpd2"
+
 /* FIXME: make these parameterized, either through command-line options or make variables */
  #define MANUFACTURER_ID \
   "MaceG VanKempen;2.0.0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
