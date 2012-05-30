@@ -3,18 +3,19 @@
 
 #include <sys/param.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <net/if_arp.h>
+#include <net/if.h>
+
+#include <stdio.h>
+#include <string.h>
 #include <stdarg.h>
 #include <syslog.h>
 #include <limits.h>
-#include <net/if_arp.h>
-#include <net/if.h>
 
 #define MANAGEMENT_LENGTH 48
 #define CLOCK_IDENTITY_LENGTH 8
@@ -22,6 +23,11 @@
 #define PACKET_SIZE  300
 #define MANAGEMENT 13
 
+#define TLV_MANAGEMENT 0
+#define TLV_MANAGEMENT_ERROR_STATUS 1
+#define RESPONSE 0
+#define ACK 1
+#define MM_CLOCK_DESCRIPTION 0
 
 typedef enum {FALSE=0, TRUE} Boolean;
 typedef char Octet;
@@ -94,11 +100,5 @@ typedef struct {
 	#include "management.def"
 	ManagementTLV* tlv;
 }MsgManagement;
-
-#define TLV_MANAGEMENT 0
-#define TLV_MANAGEMENT_ERROR_STATUS 1
-#define RESPONSE 0
-#define ACK 1
-#define MM_CLOCK_DESCRIPTION 0
 
 #endif /*MANAGER_H_*/
