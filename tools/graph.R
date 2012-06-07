@@ -42,6 +42,7 @@ file = argv[1]
 ptplog = read.table(file, fill=TRUE, sep=",", col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "drift", "packet"), blank.lines.skip=TRUE, header=FALSE, skip=100) 
 ymin = min(ptplog$offset, na.rm=TRUE)
 ymax = max(ptplog$offset, na.rm=TRUE) * 2
+png(filename=paste(basename(file), ".png", sep=""),height=960, width=1280, bg="white")
 plot(ptplog$delay, y=NULL, xaxt = "n" ,type="n", ylim=range(ymin, ymax),
      main="PTP Results", xlab="Time", ylab="Nanoseconds")
 legend(100, ymax,
