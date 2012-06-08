@@ -34,11 +34,17 @@
 # Description: A tool to graph the offset vs. the master to slave
 # delay vs. the slave to mater delay vs. the calculated delay from a
 # PTPd output file generated with the -D flag.
+#
+# Usage: graph.R input_file [output_file]
+#
 
 argv <- commandArgs(TRUE)
 
 file = argv[1]
-
+output = argv[2]
+if (is.na(output))
+  output = paste(basename(file), ".png", sep="")
+  
 ptplog = read.table(file, fill=TRUE, sep=",", col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "drift", "packet"), blank.lines.skip=TRUE, header=FALSE, skip=100) 
 ymin = min(min(ptplog$offset, na.rm=TRUE), min(ptplog$delay, na.rm=TRUE),
   min(ptplog$master.to.slave, na.rm=TRUE),
@@ -46,7 +52,7 @@ ymin = min(min(ptplog$offset, na.rm=TRUE), min(ptplog$delay, na.rm=TRUE),
 ymax = max(max(ptplog$offset, na.rm=TRUE), max(ptplog$delay, na.rm=TRUE),
   max(ptplog$master.to.slave, na.rm=TRUE),
   max(ptplog$slave.to.master, na.rm=TRUE))
-png(filename=paste(basename(file), ".png", sep=""),height=960, width=1280, bg="white")
+png(filename=output, height=960, width=1280, bg="white")
 plot(ptplog$delay, y=NULL, xaxt = "n" ,type="n", ylim=range(ymin, ymax),
      main="PTP Results", xlab="Time", ylab="Nanoseconds")
 legend(100, ymax,
