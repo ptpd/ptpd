@@ -13,18 +13,47 @@
 #define PTP_EVENT_PORT 4200
 
 
-int out_sequence;
-int in_sequence;
 NetPath * netPath;
 
 /* Function to pack the header of outgoing message */
 void 
-packCommonHeader(Octet *message)
+packCommonHeader(Octet *buf)
 {
 	printf("Taking default values..\n");
-
-/* packing to be done here */
 	
+	Nibble transport = 0x80;
+	Nibble versionNumber = 0x02;
+	UInteger8 domainNumber = 0x00;
+	
+	*(UInteger8 *) (buf + 0) = transport;
+	/*Message Type = 13 */
+	*(UInteger8 *) (buf + 0) = 	*(UInteger8 *) (buf + 0) | 0x0D;
+	
+	*(unsigned char *)(buf + 1) = *(unsigned char *)(buf + 1) & 0x00;
+	*(UInteger4 *) (buf + 1) = *(unsigned char *)(buf + 1) | versionNumber;
+	*(UInteger8 *) (buf + 4) = domainNumber;
+	*(unsigned char *)(buf + 5) = 0x00;
+	*(unsigned char *)(buf + 6) = 0x04;
+	*(unsigned char *)(buf + 7) = 0x00;
+	
+	/*correction field to be zero for management messages*/
+	memset((buf + 8), 0, 8);
+	
+	/*reserved2 to be 0*/
+	memset((buf + 16), 0, 4);
+	
+	/* To be corrected: temporarily setting sourcePortIdentity to be zero*/
+	memset((buf + 20), 0, 10);
+	
+	/* sequence id */
+	*(UInteger16 *) (buf + 30) = out_sequence + 1;
+	
+	/*Table 23*/
+	*(UInteger8 *) (buf + 32) = 0x04;	
+	
+	/*Table 24*/
+	*(UInteger8 *) (buf + 33) = 0x7F;
+
 }
 
 /*Function to pack Management Header*/
@@ -34,34 +63,27 @@ packManagementHeader(Octet *message)
 	/* Take inputs for packing Management Header for eg: actionField */
 	
 	/*
-	printf("Enter action of management message, i.e. SET or GET\n");
+	 printf("Enter action of management message, i.e. SET or GET\n");
 	scanf("%c", &actionField);
 	*/
 	
 	printf("Taking default values...\n");
 	/* packing to be done with proper values
-	 * currently header is not packed properly
+	 * CURRENTLY FOLLOWING PACKING IS NOT PROPER
 	 */
-	MsgManagement *outgoing = (MsgManagement*)(message);
+
+	unsigned char actionField;
+	int offset = sizeof(MsgHeader);
+	MsgManagement *manage = (MsgManagement*)(message);
+	manage->targetPortIdentity.portNumber = 4;	
+	manage->actionField = actionField;	
+	//Similarly take other inputs
 	
-	outgoing->header.transportSpecific = 0x0;
-	outgoing->header.messageType = MANAGEMENT;
-    outgoing->header.versionPTP = 2;
-	outgoing->header.domainNumber = 0;
-
-    outgoing->header.flagField0 = 0x00;
-    outgoing->header.flagField1 = 0x00;
-    outgoing->header.correctionField.msb = 0;
-    outgoing->header.correctionField.lsb = 0;
-
-	memcpy(outgoing->header.sourcePortIdentity.clockIdentity, 				\
-			"00:26:9e:ff:fe:a65b:7e", CLOCK_IDENTITY_LENGTH);	
-	outgoing->header.sourcePortIdentity.portNumber = 1;
-	outgoing->header.sequenceId = in_sequence+1;
-	outgoing->header.controlField = 0x0; 
-	outgoing->header.logMessageInterval = 0x7F;
-
-	out_length += HEADER_LENGTH;
+	/* Pack managementTLV */
+	manage->tlv = (ManagementTLV*)malloc(sizeof(ManagementTLV));
+	manage->tlv->dataField = NULL;
+	
+	out_length += MANAGEMENT_LENGTH;
 }
 
 /*

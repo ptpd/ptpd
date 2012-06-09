@@ -56,6 +56,9 @@ typedef struct {
 } Integer64;
 
 int out_length;
+UInteger16 out_sequence;
+UInteger16 in_sequence;
+
 
 Boolean receivedFlag;
 /**
