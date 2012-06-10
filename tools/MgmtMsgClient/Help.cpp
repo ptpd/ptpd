@@ -1,8 +1,10 @@
 /** 
  * @file Help.cpp
- * This class will be used to print help messages
+ * @author Tomasz Kleinschmidt
  * 
  * @brief Help class implementation
+ * 
+ * This class will be used to print help messages.
  */
 
 #include <stdio.h>
@@ -20,9 +22,9 @@ void printHelp(const char* appName) {
             "   -a --address [address]                  Set IPv4 address of the server (default set to %s)\n"
             "   -m --message [type] [action] <value>    Send management message of given type and value\n"
             "   -h --help                               Display this message\n"
-            "   -p --port [port]                        Set port number the server is listening on (default set to %d)\n\n"
+            "   -p --port [port]                        Set port number the server is listening on (default set to %s)\n\n"
             "Type '%s {-m --message} print' to print a list of management messages and assigned actions.\n",
-            appName, U_ADDRESS, U_PORT, appName);
+            appName, U_ADDRESS, PTP_GENERAL_PORT, appName);
 }
 
 /**

@@ -1,8 +1,10 @@
 /**
  * @file MgmtMsgClient.cpp
- * Used as a glue for all of the client classes
+ * @author Tomasz Kleinschmidt
  * 
  * @brief Main file for the PTPd Management Message Client
+ * 
+ * Used as an interface between a user and the application.
  */
 
 #include <cstdlib>
@@ -11,7 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "Help.h"
+#include "Client.h"
+#include "const.h"
+#include "OptBuffer.h"
 
 using namespace std;
 
@@ -24,6 +28,7 @@ static int verbose_flag;
  */
 int main(int argc, char** argv) {
     int c;
+    OptBuffer* optBuf = new OptBuffer(argv[0]);
     
     while (1)
     {
@@ -65,23 +70,30 @@ int main(int argc, char** argv) {
                break;
      
             case 'h':
-                printHelp(argv[0]);
+                printf ("option -h\n");
+                optBuf->help_print = true;
+                //printHelp(argv[0]);
+                //return 0;
                 break;
      
             case 'a':
                 printf ("option -a with value `%s'\n", optarg);
+                memcpy(optBuf->u_address, optarg, MAX_ADDR_STR_LEN + 1);
                 break;
      
             case 'm':
                 printf ("option -m with value `%s'\n", optarg);
                 
+                //Print messages list and exit
                 if (strcmp(optarg, "print") == 0)
-                    printMgmtMsgsList();
+                    optBuf->msg_print = true;
+                    //printMgmtMsgsList();
                 
                 break;
      
             case 'p':
                 printf ("option -p with value `%s'\n", optarg);
+                memcpy(optBuf->u_port, optarg, MAX_PORT_STR_LEN + 1);
                 break;
      
             case '?':
@@ -107,6 +119,8 @@ int main(int argc, char** argv) {
             printf ("%s ", argv[optind++]);
         putchar ('\n');
     }
+    
+    mainClient(optBuf);
 
     return 0;
 }

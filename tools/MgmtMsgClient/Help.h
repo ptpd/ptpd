@@ -1,5 +1,7 @@
 /** 
  * @file Help.h
+ * @author Tomasz Kleinschmidt
+ * 
  * @brief Help class definition
  */
 
