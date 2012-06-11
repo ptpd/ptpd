@@ -9,8 +9,8 @@
 #include "stdlib.h"
 #include "ptpmanager.h"
 
-#define PTP_GENERAL_PORT 4201
-#define PTP_EVENT_PORT 4200
+#define PTP_GENERAL_PORT 320
+#define PTP_EVENT_PORT 319
 
 
 NetPath * netPath;
@@ -31,10 +31,12 @@ packCommonHeader(Octet *buf)
 	
 	*(unsigned char *)(buf + 1) = *(unsigned char *)(buf + 1) & 0x00;
 	*(UInteger4 *) (buf + 1) = *(unsigned char *)(buf + 1) | versionNumber;
+
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH);
 	*(UInteger8 *) (buf + 4) = domainNumber;
 	*(unsigned char *)(buf + 5) = 0x00;
-	*(unsigned char *)(buf + 6) = 0x04;
-	*(unsigned char *)(buf + 7) = 0x00;
+	*(unsigned char *)(buf + 6) = 0x04; /*Table 20*/
+	*(unsigned char *)(buf + 7) = 0x00; /*Table 20*/
 	
 	/*correction field to be zero for management messages*/
 	memset((buf + 8), 0, 8);
@@ -46,7 +48,7 @@ packCommonHeader(Octet *buf)
 	memset((buf + 20), 0, 10);
 	
 	/* sequence id */
-	*(UInteger16 *) (buf + 30) = out_sequence + 1;
+	*(UInteger16 *) (buf + 30) = flip16(out_sequence + 1);
 	
 	/*Table 23*/
 	*(UInteger8 *) (buf + 32) = 0x04;	
@@ -58,31 +60,25 @@ packCommonHeader(Octet *buf)
 
 /*Function to pack Management Header*/
 void 
-packManagementHeader(Octet *message)
+packManagementHeader(Octet *buf)
 {
-	/* Take inputs for packing Management Header for eg: actionField */
+	MsgManagement *manage = (MsgManagement*)(buf);
 	
-	/*
-	 printf("Enter action of management message, i.e. SET or GET\n");
-	scanf("%c", &actionField);
-	*/
+	/* targetPortIdentity to be zero for now*/
+	memset((buf + 34), 0, 10);
 	
-	printf("Taking default values...\n");
-	/* packing to be done with proper values
-	 * CURRENTLY FOLLOWING PACKING IS NOT PROPER
+	/* assuming that management message doesn't need to
+	 * be retransmitted by boundary clocks
+	 */  
+	*(UInteger8 *) (buf + 44) = 0x00;
+	*(UInteger8 *) (buf + 45) = 0x00;
+	
+	/* reserved fields to be zero
+	 * and actionField to be set during packing tlv data
 	 */
+	*(UInteger8 *) (buf + 46) = 0x00;
+	*(UInteger8 *) (buf + 47) = 0x00;
 
-	unsigned char actionField;
-	int offset = sizeof(MsgHeader);
-	MsgManagement *manage = (MsgManagement*)(message);
-	manage->targetPortIdentity.portNumber = 4;	
-	manage->actionField = actionField;	
-	//Similarly take other inputs
-	
-	/* Pack managementTLV */
-	manage->tlv = (ManagementTLV*)malloc(sizeof(ManagementTLV));
-	manage->tlv->dataField = NULL;
-	
 	out_length += MANAGEMENT_LENGTH;
 }
 
@@ -90,6 +86,33 @@ packManagementHeader(Octet *message)
  * Functions to pack payload for each type of managementId. 
  * These will ask questions from user and set the data fields accordingly.
  */
+void 
+packMMNullManagement(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+6);
+	*(UInteger16 *) (buf + 48) = flip16(TLV_MANAGEMENT);
+	/* lengthField = 2+N*/
+	*(UInteger16 *) (buf + 50) = flip16(0x0002);
+	/*managementId Table 40*/
+	*(UInteger16 *) (buf + 52) = flip16(0x0000);
+	
+	printf("\n>actionField (0 for GET, 1 for SET, 3 for Command) ?");
+	scanf("%d",&actionField);
+	if (actionField == 0)
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+	else if (actionField == 1)
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+	else if (actionField == 3)
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | COMMAND;
+	else
+		printf("This action is not allowed\n");
+		
+	out_length += 6;
+} 
+
 void 
 packMMClockDescription(); 
 
@@ -100,8 +123,6 @@ netInit(char *ifaceName)
 	int temp;
 	struct sockaddr_in addr;
 	
-	//printf("netInit\n");
-
 	/* open sockets */
 	if ((netPath->eventSock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 || 
 			(netPath->generalSock = socket(PF_INET, SOCK_DGRAM, 
@@ -279,7 +300,7 @@ main(int argc, char *argv[ ])
 	Octet *inmessage = (Octet*)(malloc(PACKET_SIZE));
 	memset(inmessage, 0, sizeof(MANAGEMENT_LENGTH));
 	
-	unsigned short tlvtype;
+	int tlvtype;
 	int managementId;
 	
 	out_sequence = 0;
@@ -320,27 +341,30 @@ main(int argc, char *argv[ ])
 		switch (getCommandId(command)){
 
 		case 1:
-				printf("Packing Header..\n");
-
 				packCommonHeader(outmessage);	
-			
-				printf("Packing Management Header...\n");		
 				packManagementHeader(outmessage);
 			
-				printf("Please enter Tlv type and management id\n");
-				scanf("%d, %d", &tlvtype, &managementId);
+				printf(">tlvType (1 for TLV_MANAGEMENT) ?");
+				scanf("%d", &tlvtype);
 			
 				if (tlvtype==TLV_MANAGEMENT){
+					printf(">managementId ?");
+					scanf("%d", &managementId);
+			
 					switch(managementId){
+					case MM_NULL_MANAGEMENT:
+						packMMNullManagement(outmessage);
+						break;
 					case MM_CLOCK_DESCRIPTION:
 						packMMClockDescription(); 	
 						break;
-					//similarly for other managementIds	
+					
 					}
+				} else {
+					printf("Only TLV_MANAGEMENT (0) is allowed");
+					break;
 				}
 
-				printf("Sending message....\n");
-			
 				if (!netSendGeneral(outmessage, sizeof(outmessage),
 					 argv[1]))
 					printf("Error sending message\n");
@@ -386,7 +410,7 @@ main(int argc, char *argv[ ])
 			break;
 		
 		default:
-			printf("Invalid command\n>");
+			printf("Invalid command\n");
 		}
 		
 		printf(">");
