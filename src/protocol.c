@@ -294,11 +294,15 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 #if !defined(__APPLE__)
 
 		/* 
-		 * leap second pending in kernel but no leap second
-		 * info from GM - withdraw kernel leap second 
+		 * leap second pending in kernel but no leap second 
+		 * info from GM - withdraw kernel leap second
+		 * if the flags have disappeared but we're past 
+		 * leap second event, do nothing - kernel flags 
+		 * will be unset in handleAnnounce()
 		 */
-		if( (!ptpClock->leap59 && !ptpClock->leap61) &&
-		    (checkTimexFlags(STA_INS) || checkTimexFlags(STA_DEL))) {
+		if((!ptpClock->leap59 && !ptpClock->leap61) &&
+		    !ptpClock->leapSecondInProgress &&
+		   (checkTimexFlags(STA_INS) || checkTimexFlags(STA_DEL))) {
 			WARNING("=== Leap second pending in kernel but not on "
 				"GM: aborting kernel leap second\n");
 			unsetTimexFlags(STA_INS | STA_DEL, TRUE);

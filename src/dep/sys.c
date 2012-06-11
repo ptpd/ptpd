@@ -654,6 +654,10 @@ setTimexFlags(int flags, Boolean quiet)
 	tmx.modes = MOD_STATUS;
 
 	tmx.status = getTimexFlags();
+	if(tmx.status == -1) 
+		return;
+	/* unset all read-only flags */
+	tmx.status &= ~TIMEX_READONLY;
 	tmx.status |= flags;
 
 	ret = adjtimex(&tmx);
@@ -690,6 +694,10 @@ unsetTimexFlags(int flags, Boolean quiet)
 	tmx.modes = MOD_STATUS;
 
 	tmx.status = getTimexFlags();
+	if(tmx.status == -1) 
+		return;
+	/* unset all read-only flags */
+	tmx.status &= ~TIMEX_READONLY;
 	tmx.status &= ~flags;
 
 	ret = adjtimex(&tmx);

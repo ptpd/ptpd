@@ -122,6 +122,14 @@ section 7.6.2.5, page 56:
 #define TLV_LENGTH					6
 /** \}*/
 
+/* 
+ * adjtimex() / ntp_adjtime() read-only flag bitmask
+ * used to make sure we're not attempting to set any read-only flags
+ */
+
+#define TIMEX_READONLY STA_PPSSIGNAL | STA_PPSJITTER | STA_PPSWANDER | \
+	STA_PPSERROR | STA_CLOCKERR
+
 /*Enumeration defined in tables of the spec*/
 
 /**

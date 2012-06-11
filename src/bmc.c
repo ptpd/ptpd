@@ -260,7 +260,12 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 			WARNING("=== Leap second pending! Setting kernel to %s "
 				"one second at midnight\n",
 				ptpClock->leap61 ? "add" : "delete");
-			setTimexFlags(ptpClock->leap61 ? STA_INS : STA_DEL,FALSE);
+		    if (!checkTimexFlags(ptpClock->leap61 ? STA_INS : STA_DEL)) {
+			    unsetTimexFlags(ptpClock->leap61 ? STA_DEL : STA_INS,
+					    TRUE);
+			    setTimexFlags(ptpClock->leap61 ? STA_INS : STA_DEL,
+					  FALSE);
+		    }
 #else
 			WARNING("=== Leap second pending! No kernel leap second "
 				"API support - expect a clock jump at "
