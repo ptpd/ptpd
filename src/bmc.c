@@ -218,7 +218,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 	/* set PTP_PASSIVE-specific state */
 	p1(ptpClock, rtOpts);
 
-	/* XXX gnn - only set leap state in slave mode */
+	/* only set leap state in slave mode */
 	if (ptpClock->portState == PTP_SLAVE) {
 		ptpClock->leap59 = IS_SET(header->flagField1, LI59);
 		ptpClock->leap61 = IS_SET(header->flagField1, LI61);
