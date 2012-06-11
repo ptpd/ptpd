@@ -645,6 +645,103 @@ adjFreq(Integer32 adj)
 	return !adjtimex(&t);
 }
 
+void
+setTimexFlags(int flags, Boolean quiet)
+{
+	struct timex tmx;
+	int ret;
+
+	tmx.modes = MOD_STATUS;
+
+	tmx.status = getTimexFlags();
+	tmx.status |= flags;
+
+	ret = adjtimex(&tmx);
+
+	if (ret < 0)
+		PERROR("Could not set adjtimex flags: %s", strerror(errno));
+
+	if(!quiet && ret > 2) {
+		switch (ret) {
+		case TIME_OOP:
+			WARNING("Adjtimex: leap second already in progress\n");
+			break;
+		case TIME_WAIT:
+			WARNING("Adjtimex: leap second already occurred\n");
+			break;
+#if !defined(TIME_BAD)
+		case TIME_ERROR:
+#else
+		case TIME_BAD:
+#endif /* TIME_BAD */
+		default:
+			DBGV("unsetTimexFlags: adjtimex() returned TIME_BAD\n");
+			break;
+		}
+	}
+}
+
+void
+unsetTimexFlags(int flags, Boolean quiet) 
+{
+	struct timex tmx;
+	int ret;
+
+	tmx.modes = MOD_STATUS;
+
+	tmx.status = getTimexFlags();
+	tmx.status &= ~flags;
+
+	ret = adjtimex(&tmx);
+
+	if (ret < 0)
+		PERROR("Could not unset adjtimex flags: %s", strerror(errno));
+
+	if(!quiet && ret > 2) {
+		switch (ret) {
+		case TIME_OOP:
+			WARNING("Adjtimex: leap second already in progress\n");
+			break;
+		case TIME_WAIT:
+			WARNING("Adjtimex: leap second already occurred\n");
+			break;
+#if !defined(TIME_BAD)
+		case TIME_ERROR:
+#else
+		case TIME_BAD:
+#endif /* TIME_BAD */
+		default:
+			DBGV("unsetTimexFlags: adjtimex() returned TIME_BAD\n");
+			break;
+		}
+	}
+}
+
+int getTimexFlags(void)
+{
+	struct timex tmx;
+	int ret;
+
+	tmx.modes = 0;
+	ret = adjtimex(&tmx);
+	if (ret < 0) {
+		PERROR("Could not read adjtimex flags: %s", strerror(errno));
+		return(-1);
+
+	}
+
+	return( tmx.status );
+}
+
+Boolean
+checkTimexFlags(int flags) {
+
+    int tflags = getTimexFlags();
+    if (tflags == -1) 
+	    return FALSE;
+    return ((tflags & flags) == flags);
+}
+
 #else
 
 void

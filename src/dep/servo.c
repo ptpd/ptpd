@@ -119,6 +119,11 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 void 
 updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
+
+	/* updates paused, leap second pending - do nothing */
+        if(ptpClock->leapSecondInProgress)
+		return;
+
 	/* todo: do all intermediate calculations on temp vars */
 	TimeInternal prev_meanPathDelay = ptpClock->meanPathDelay;
 
@@ -354,6 +359,13 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
     offset_from_master_filter * ofm_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
+
+	DBGV("UTCOffset: %d | leap 59: %d |  leap61: %d\n", 
+	     ptpClock->currentUtcOffset,ptpClock->leap59,ptpClock->leap61);
+        /* updates paused, leap second pending - do nothing */
+        if(ptpClock->leapSecondInProgress)
+		return;
+
 	DBGV("==> updateOffset\n");
 
 	//perform basic checks, using only local variables
@@ -517,6 +529,10 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	Integer32 adj;
 	//TimeInternal timeTmp;
+
+	/* updates paused, leap second pending - do nothing */
+        if(ptpClock->leapSecondInProgress)
+            return;
 
 	DBGV("==> updateClock\n");
 

@@ -279,16 +279,32 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   ptpClock->itimer);
 		
 		/*
-		 * Previously, this state transition would start the delayreq timer immediately.
-		 * However, if this was faster than the first received sync, then the servo would drop the delayResp
-		 * Now, we only start the timer after we receive the first sync (in handle_sync())
+		 * Previously, this state transition would start the
+		 * delayreq timer immediately.  However, if this was
+		 * faster than the first received sync, then the servo
+		 * would drop the delayResp Now, we only start the
+		 * timer after we receive the first sync (in
+		 * handle_sync())
 		 */
 		ptpClock->waiting_for_first_sync = TRUE;
 		ptpClock->waiting_for_first_delayresp = TRUE;
 
 		ptpClock->portState = PTP_SLAVE;
-		break;
 
+#if !defined(__APPLE__)
+
+		/* 
+		 * leap second pending in kernel but no leap second
+		 * info from GM - withdraw kernel leap second 
+		 */
+		if( (!ptpClock->leap59 && !ptpClock->leap61) &&
+		    (checkTimexFlags(STA_INS) || checkTimexFlags(STA_DEL))) {
+			WARNING("=== Leap second pending in kernel but not on "
+				"GM: aborting kernel leap second\n");
+			unsetTimexFlags(STA_INS | STA_DEL, TRUE);
+		}
+#endif /* apple */
+		break;
 	default:
 		DBG("to unrecognized state\n");
 		break;
@@ -420,6 +436,42 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 			/* FIXME: Path delay should also rearm its timer with the value received from the Master */
 		}
+
+                /* XXX wowczarek: handle leap second timers */
+                if (ptpClock->leap59 || ptpClock->leap61) 
+                        DBGV("seconds to midnight: %d\n",secondsToMidnight());
+
+                 if(timerExpired(LEAP_SECOND_PENDING_TIMER,ptpClock->itimer)) {
+                    /* leap second period is over */
+                    if(ptpClock->leapSecondInProgress) {
+                            /* 
+                             * do not unpause offset calculation just
+                             * yet, just indicate and it will be
+                             * unpaused in handleAnnounce
+                            */
+                            ptpClock->leapSecondPending = FALSE;
+                            timerStop(LEAP_SECOND_PENDING_TIMER,ptpClock->itimer);
+                    /* leap second period has just started */
+                    } else if(ptpClock->leapSecondPending) {
+                            WARNING("=== Leap second event imminent - pausing"
+				    "offset updates\n");
+                            ptpClock->leapSecondInProgress = TRUE;
+#if !defined(__APPLE__)
+                            if(!checkTimexFlags(ptpClock->leap61 ? 
+						STA_INS : STA_DEL)) {
+                                    WARNING("=== Kernel leap second flags have "
+					    "been unset - attempting to set "
+					    "again");
+                                    setTimexFlags(ptpClock->leap61 ? 
+						  STA_INS : STA_DEL, FALSE);
+                            }
+#endif /* apple */
+			    timerStart(LEAP_SECOND_PENDING_TIMER,
+				       getPauseBeforeMidnight(ptpClock->logAnnounceInterval) + 
+				       getPauseAfterMidnight(ptpClock->logAnnounceInterval),
+				       ptpClock->itimer);
+		    }
+		 }
 		break;
 
 	case PTP_MASTER:
@@ -701,6 +753,29 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			/* update datasets (file bmc.c) */
 	   		s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
 
+			/* update current master in the fmr as well */
+			memcpy(&ptpClock->foreign[ptpClock->foreign_record_best].header,
+			       header,sizeof(MsgHeader));
+			memcpy(&ptpClock->foreign[ptpClock->foreign_record_best].announce,
+			       &ptpClock->msgTmp.announce,sizeof(MsgAnnounce));
+
+			if(ptpClock->leapSecondInProgress) {
+				/*
+				 * if leap second period is over
+				 * (pending == FALSE, inProgress ==
+				 * TRUE), unpause offset calculation
+				 * (received first announce after leap
+				 * second)
+				*/
+				if (!ptpClock->leapSecondPending) {
+					WARNING("=== Leap second event over - "
+						"resuming offset updates\n");
+					ptpClock->leapSecondInProgress=FALSE;
+					ptpClock->leap59 = FALSE;
+					ptpClock->leap61 = FALSE;
+					unsetTimexFlags(STA_INS | STA_DEL, TRUE);
+				}
+			}
 			DBG2("___ Announce: received Announce from current Master, so reset the Announce timer\n");
 	   		/*Reset Timer handling Announce receipt timeout*/
 	   		timerStart(ANNOUNCE_RECEIPT_TIMER,

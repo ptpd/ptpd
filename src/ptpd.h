@@ -306,6 +306,10 @@ int isTimeInternalNegative(const TimeInternal * p);
 int check_timestamp_is_fresh2(TimeInternal * timeA, TimeInternal * timeB);
 int check_timestamp_is_fresh(TimeInternal * timeA);
 
+float secondsToMidnight(void);
+float getPauseBeforeMidnight(Integer8 announceInterval);
+float getPauseAfterMidnight(Integer8 announceInterval);
+
 void toState(UInteger8,RunTimeOpts*,PtpClock*);
 
 

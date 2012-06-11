@@ -498,6 +498,8 @@ typedef struct {
 	Boolean timeTraceable;
 	Boolean frequencyTraceable;
 	Boolean ptpTimescale;
+        Boolean leapSecondInProgress;
+        Boolean leapSecondPending;
 	Enumeration8 timeSource;
 
 	/* Port configuration data set */

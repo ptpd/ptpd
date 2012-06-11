@@ -40,6 +40,9 @@
 #define DEFAULT_AI                   	1000
 #define DEFAULT_DELAY_S              	6
 #define DEFAULT_ANNOUNCE_INTERVAL    	1      /* 0 in 802.1AS */
+#define LEAP_SECOND_PAUSE_PERIOD        2      /* how long before/after leap */
+                                               /* second event we pause offset */
+                                               /* calculation */
 
 /* Master mode operates in ARB (UTC) timescale, without TAI+leap seconds */
 #define DEFAULT_UTC_OFFSET           	0
@@ -160,6 +163,7 @@ enum {
 
   /* non-spec timers */
   OPERATOR_MESSAGES_TIMER,  /* used to limit the operator messages */
+  LEAP_SECOND_PENDING_TIMER, /* timer used for handling leap second operations */
   TIMER_ARRAY_SIZE
 };
 

@@ -369,6 +369,13 @@ void recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time
 void 	adjTime(Integer32);
 #endif /* __APPLE__ */
 
+#if !defined(__APPLE__)
+void setTimexFlags(int flags, Boolean quiet);
+void unsetTimexFlags(int flags, Boolean quiet);
+int getTimexFlags(void);
+Boolean checkTimexFlags(int flags);
+#endif /* apple */
+
 /** \}*/
 
 /** \name timer.c (Unix API dependent)

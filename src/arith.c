@@ -52,6 +52,8 @@
 
 #include "ptpd.h"
 
+double round (double __x);
+
 void
 internalTime_to_integer64(TimeInternal internal, Integer64 *bigint)
 {
@@ -290,5 +292,32 @@ isTimeInternalNegative(const TimeInternal * p)
 	return (p->seconds < 0) || (p->nanoseconds < 0);
 }
 
+float
+secondsToMidnight(void) 
+{
+	TimeInternal now;
+
+	getTime(&now);
+
+	Integer32 stmI = (now.seconds - (now.seconds % 86400) + 86400) - 
+		now.seconds;
+
+	return (stmI + 0.0 - now.nanoseconds / 1E9);
+}
 
 
+float
+getPauseBeforeMidnight(Integer8 announceInterval) 
+{
+	return ((secondsToMidnight() <= getPauseAfterMidnight(announceInterval)) ?
+		secondsToMidnight() : getPauseAfterMidnight(announceInterval));
+}
+
+
+float
+getPauseAfterMidnight(Integer8 announceInterval) 
+{
+	return((LEAP_SECOND_PAUSE_PERIOD > 2 * pow(2,announceInterval)) ?
+	       LEAP_SECOND_PAUSE_PERIOD + 0.0  : 2 * pow(2,announceInterval) + 
+	       0.0);
+}

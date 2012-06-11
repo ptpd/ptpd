@@ -180,6 +180,16 @@ void p1(PtpClock *ptpClock, RunTimeOpts *rtOpts)
 /*Local clock is synchronized to Ebest Table 16 (9.3.5) of the spec*/
 void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts *rtOpts)
 {
+
+	Boolean previousLeap59 = FALSE, previousLeap61 = FALSE;
+	Integer16 previousUtcOffset = 0;
+
+	if (ptpClock->portState == PTP_SLAVE) {
+		previousLeap59 = ptpClock->leap59;
+		previousLeap61 = ptpClock->leap61;
+		previousUtcOffset = ptpClock->currentUtcOffset;
+	}
+
 	/* Current DS */
 	ptpClock->stepsRemoved = announce->stepsRemoved + 1;
 
@@ -201,18 +211,78 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 
 	/* Timeproperties DS */
 	ptpClock->currentUtcOffset = announce->currentUtcOffset;
+
         /* "Valid" is bit 2 in second octet of flagfield */
         ptpClock->currentUtcOffsetValid = IS_SET(header->flagField1, UTCV);
 
 	/* set PTP_PASSIVE-specific state */
 	p1(ptpClock, rtOpts);
 
-        ptpClock->leap59 = IS_SET(header->flagField1, LI59);
-        ptpClock->leap61 = IS_SET(header->flagField1, LI61);
+	/* XXX gnn - only set leap state in slave mode */
+	if (ptpClock->portState == PTP_SLAVE) {
+		ptpClock->leap59 = IS_SET(header->flagField1, LI59);
+		ptpClock->leap61 = IS_SET(header->flagField1, LI61);
+	}
+
         ptpClock->timeTraceable = IS_SET(header->flagField1, TTRA);
         ptpClock->frequencyTraceable = IS_SET(header->flagField1, FTRA);
         ptpClock->ptpTimescale = IS_SET(header->flagField1, PTPT);
         ptpClock->timeSource = announce->timeSource;
+
+	/* Leap second handling */
+
+        if (ptpClock->portState == PTP_SLAVE) {
+		if(ptpClock->leap59 && ptpClock->leap61) {
+			ERROR("Both Leap59 and Leap61 flags set!\n");
+			toState(PTP_FAULTY, rtOpts, ptpClock);
+			return;
+		}
+
+		/* one of the leap second flags has suddenly been unset */
+		if(ptpClock->leapSecondPending && 
+		    !ptpClock->leapSecondInProgress &&
+		    ((previousLeap59 != ptpClock->leap59) || 
+		     (previousLeap61 != ptpClock->leap61))) {
+			WARNING("=== Leap second event aborted by GM!");
+			ptpClock->leapSecondPending = FALSE;
+			ptpClock->leapSecondInProgress = FALSE;
+			timerStop(LEAP_SECOND_PENDING_TIMER, ptpClock->itimer);
+#if !defined(__APPLE__)
+			unsetTimexFlags(STA_INS | STA_DEL,TRUE);
+#endif /* apple */
+		}
+
+		/* one of the leap second flags has been set */
+		if( (previousLeap59 != ptpClock->leap59) ||
+		    (previousLeap61 != ptpClock->leap61)) {
+
+#if !defined(__APPLE__)
+			WARNING("=== Leap second pending! Setting kernel to %s "
+				"one second at midnight\n",
+				ptpClock->leap61 ? "add" : "delete");
+			setTimexFlags(ptpClock->leap61 ? STA_INS : STA_DEL,FALSE);
+#else
+			WARNING("=== Leap second pending! No kernel leap second "
+				"API support - expect a clock jump at "
+				"midnight!\n");
+#endif /* apple */
+			ptpClock->leapSecondPending = TRUE;
+			timerStart(LEAP_SECOND_PENDING_TIMER,
+				   secondsToMidnight() - 
+				   getPauseBeforeMidnight(ptpClock->logAnnounceInterval),
+				   ptpClock->itimer);
+		}
+		if((previousUtcOffset != ptpClock->currentUtcOffset) && 
+		   !ptpClock->leapSecondPending && 
+		   !ptpClock->leapSecondInProgress ) {
+			WARNING("=== UTC offset changed from %d to %d with "
+				"no leap second pending!\n",
+				previousUtcOffset, ptpClock->currentUtcOffset);
+		} else if( previousUtcOffset != ptpClock->currentUtcOffset) {
+			WARNING("=== UTC offset changed from %d to %d\n",
+				previousUtcOffset,ptpClock->currentUtcOffset);
+		}
+	}
 }
 
 
