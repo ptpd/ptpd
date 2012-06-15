@@ -457,7 +457,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
                             timerStop(LEAP_SECOND_PENDING_TIMER,ptpClock->itimer);
                     /* leap second period has just started */
                     } else if(ptpClock->leapSecondPending) {
-                            WARNING("=== Leap second event imminent - pausing"
+                            WARNING("=== Leap second event imminent - pausing "
 				    "offset updates\n");
                             ptpClock->leapSecondInProgress = TRUE;
 #if !defined(__APPLE__)

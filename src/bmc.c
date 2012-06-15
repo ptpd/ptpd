@@ -253,8 +253,9 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 		}
 
 		/* one of the leap second flags has been set */
-		if( (previousLeap59 != ptpClock->leap59) ||
-		    (previousLeap61 != ptpClock->leap61)) {
+		if( ((previousLeap59 != ptpClock->leap59) ||
+		    (previousLeap61 != ptpClock->leap61)) &&
+		    (ptpClock->leap59 || ptpClock->leap61)) {
 
 #if !defined(__APPLE__)
 			WARNING("=== Leap second pending! Setting kernel to %s "

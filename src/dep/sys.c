@@ -651,6 +651,8 @@ setTimexFlags(int flags, Boolean quiet)
 	struct timex tmx;
 	int ret;
 
+	memset(&tmx, 0, sizeof(tmx));
+
 	tmx.modes = MOD_STATUS;
 
 	tmx.status = getTimexFlags();
@@ -691,6 +693,8 @@ unsetTimexFlags(int flags, Boolean quiet)
 	struct timex tmx;
 	int ret;
 
+	memset(&tmx, 0, sizeof(tmx));
+
 	tmx.modes = MOD_STATUS;
 
 	tmx.status = getTimexFlags();
@@ -729,6 +733,8 @@ int getTimexFlags(void)
 {
 	struct timex tmx;
 	int ret;
+
+	memset(&tmx, 0, sizeof(tmx));
 
 	tmx.modes = 0;
 	ret = adjtimex(&tmx);
