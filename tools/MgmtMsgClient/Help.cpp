@@ -10,11 +10,13 @@
 #include <stdio.h>
 
 #include "Help.h"
-#include "const.h"
+#include "constants.h"
+#include "constants_dep.h"
 
 /**
- * This method will be used to print the help message
- * @param appName The name of the application
+ * This method will be used to print the help message.
+ * 
+ * @param appName       The name of the application.
  */
 void printHelp(const char* appName) {
     printf("PTPd Management Message Client usage: %s [options]\n"

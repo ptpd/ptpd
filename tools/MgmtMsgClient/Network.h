@@ -8,11 +8,14 @@
 #ifndef NETWORK_H
 #define	NETWORK_H
 
-int initNetwork(char* port, char* hostName);
-void disableNetwork(int sockFd);
+#include <netdb.h>
+#include "datatypes_dep.h"
 
-void sendMessage();
-void receiveMessage();
+int initNetwork(char* port, char* hostName, struct addrinfo** addrInfo);
+void disableNetwork(int sockFd, struct addrinfo** addrInfo);
+
+void sendMessage(int sockFd, Octet* buf, UInteger16 length, struct addrinfo* addrInfo);
+void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_storage* addr, socklen_t* len);
 
 #endif	/* NETWORK_H */
 

@@ -9,7 +9,8 @@
 #include <stdlib.h>
 
 #include "OptBuffer.h"
-#include "const.h"
+#include "constants.h"
+#include "constants_dep.h"
 
 /**
  * The constructor should allocate memory for all the options and assign default values

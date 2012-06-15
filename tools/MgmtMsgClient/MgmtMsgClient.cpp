@@ -14,7 +14,7 @@
 #include <string.h>
 
 #include "Client.h"
-#include "const.h"
+#include "constants.h"
 #include "OptBuffer.h"
 
 using namespace std;
