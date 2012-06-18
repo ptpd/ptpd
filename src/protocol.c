@@ -1124,7 +1124,7 @@ handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 					 header->sequenceId);
 				
 				if ((ptpClock->sentDelayReqSequenceId - 1) != header->sequenceId) {
-					INFO("HandledelayReq : disreguard delayreq because of wrong SeqNo\n");
+					INFO("HandledelayReq : disregard delayreq because of wrong SeqNo\n");
 					break;
 				}
 
