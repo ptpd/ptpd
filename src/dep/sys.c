@@ -659,7 +659,7 @@ setTimexFlags(int flags, Boolean quiet)
 	if(tmx.status == -1) 
 		return;
 	/* unset all read-only flags */
-	tmx.status &= ~TIMEX_READONLY;
+	tmx.status &= ~STA_RONLY;
 	tmx.status |= flags;
 
 	ret = adjtimex(&tmx);
@@ -701,7 +701,7 @@ unsetTimexFlags(int flags, Boolean quiet)
 	if(tmx.status == -1) 
 		return;
 	/* unset all read-only flags */
-	tmx.status &= ~TIMEX_READONLY;
+	tmx.status &= ~STA_RONLY;
 	tmx.status &= ~flags;
 
 	ret = adjtimex(&tmx);
