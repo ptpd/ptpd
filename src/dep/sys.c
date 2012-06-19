@@ -756,6 +756,36 @@ checkTimexFlags(int flags) {
     return ((tflags & flags) == flags);
 }
 
+/*
+ * TODO: track NTP API changes - NTP API version check
+ * is required - the method of setting the TAI offset
+ * may change with next API versions
+ */
+
+#if defined(MOD_TAI) &&  NTP_API == 4
+void
+setKernelUtcOffset(int utc_offset) {
+
+	struct timex tmx;
+	int ret;
+
+	memset(&tmx, 0, sizeof(tmx));
+
+	tmx.modes = MOD_TAI;
+	tmx.constant = utc_offset;
+
+	DBG2("Kernel NTP API supports TAI offset. "
+	     "Setting TAI offset to %d", utc_offset);
+
+	ret = adjtimex(&tmx);
+
+	if (ret < 0) {
+		PERROR("Could not set kernel TAI offset: %s", strerror(errno));
+	}
+}
+#endif /* MOD_TAI */
+
+
 #else
 
 void

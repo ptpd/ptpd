@@ -229,6 +229,17 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
         ptpClock->ptpTimescale = IS_SET(header->flagField1, PTPT);
         ptpClock->timeSource = announce->timeSource;
 
+#if defined(MOD_TAI) &&  NTP_API == 4
+	/*
+	 * update kernel TAI offset, but only if timescale is
+	 * PTP not ARB - spec section 7.2
+	 */
+        if (ptpClock->ptpTimescale &&
+            (ptpClock->currentUtcOffset != previousUtcOffset)) {
+		setKernelUtcOffset(ptpClock->currentUtcOffset);
+        }
+#endif /* MOD_TAI */
+
 	/* Leap second handling */
 
         if (ptpClock->portState == PTP_SLAVE) {

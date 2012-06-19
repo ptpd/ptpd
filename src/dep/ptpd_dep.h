@@ -374,6 +374,11 @@ void setTimexFlags(int flags, Boolean quiet);
 void unsetTimexFlags(int flags, Boolean quiet);
 int getTimexFlags(void);
 Boolean checkTimexFlags(int flags);
+
+#if defined(MOD_TAI) &&  NTP_API == 4
+void setKernelUtcOffset(int utc_offset);
+#endif /* MOD_TAI */
+
 #endif /* apple */
 
 /** \}*/
