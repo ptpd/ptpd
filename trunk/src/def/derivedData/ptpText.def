@@ -1,7 +1,0 @@
-/* Spec 5.3.9 PTPText */
-
-/* to use these definitions, #define OPERATE then #include this file in your source */
-OPERATE( lengthField, 1, UInteger8)
-OPERATE( textField, data->lengthField, Octet*)
-
-#undef OPERATE
