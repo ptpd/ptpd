@@ -305,15 +305,6 @@ secondsToMidnight(void)
 	return (stmI + 0.0 - now.nanoseconds / 1E9);
 }
 
-
-float
-getPauseBeforeMidnight(Integer8 announceInterval) 
-{
-	return ((secondsToMidnight() <= getPauseAfterMidnight(announceInterval)) ?
-		secondsToMidnight() : getPauseAfterMidnight(announceInterval));
-}
-
-
 float
 getPauseAfterMidnight(Integer8 announceInterval) 
 {

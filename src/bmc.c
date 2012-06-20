@@ -257,17 +257,21 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 			WARNING("=== Leap second event aborted by GM!");
 			ptpClock->leapSecondPending = FALSE;
 			ptpClock->leapSecondInProgress = FALSE;
-			timerStop(LEAP_SECOND_PENDING_TIMER, ptpClock->itimer);
+			timerStop(LEAP_SECOND_PAUSE_TIMER, ptpClock->itimer);
 #if !defined(__APPLE__)
 			unsetTimexFlags(STA_INS | STA_DEL,TRUE);
 #endif /* apple */
 		}
 
-		/* one of the leap second flags has been set */
-		if( ((previousLeap59 != ptpClock->leap59) ||
-		    (previousLeap61 != ptpClock->leap61)) &&
-		    (ptpClock->leap59 || ptpClock->leap61)) {
-
+		/*
+		 * one of the leap second flags has been set
+		 * or flags are lit but we have no event pending
+		 */
+		if( (ptpClock->leap59 || ptpClock->leap61) && (
+		    (!ptpClock->leapSecondPending && 
+		    !ptpClock->leapSecondInProgress ) ||
+		    ((!previousLeap59 && ptpClock->leap59) ||
+		    (!previousLeap61 && ptpClock->leap61)))) {
 #if !defined(__APPLE__)
 			WARNING("=== Leap second pending! Setting kernel to %s "
 				"one second at midnight\n",
@@ -283,12 +287,10 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 				"API support - expect a clock jump at "
 				"midnight!\n");
 #endif /* apple */
+			/* only set the flag, the rest happens in doState() */
 			ptpClock->leapSecondPending = TRUE;
-			timerStart(LEAP_SECOND_PENDING_TIMER,
-				   secondsToMidnight() - 
-				   getPauseBeforeMidnight(ptpClock->logAnnounceInterval),
-				   ptpClock->itimer);
 		}
+
 		if((previousUtcOffset != ptpClock->currentUtcOffset) && 
 		   !ptpClock->leapSecondPending && 
 		   !ptpClock->leapSecondInProgress ) {

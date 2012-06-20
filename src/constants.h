@@ -163,7 +163,7 @@ enum {
 
   /* non-spec timers */
   OPERATOR_MESSAGES_TIMER,  /* used to limit the operator messages */
-  LEAP_SECOND_PENDING_TIMER, /* timer used for handling leap second operations */
+  LEAP_SECOND_PAUSE_TIMER, /* timer used for pausing updates when leap second is imminent */
   TIMER_ARRAY_SIZE
 };
 

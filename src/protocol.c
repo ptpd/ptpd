@@ -441,24 +441,27 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			/* FIXME: Path delay should also rearm its timer with the value received from the Master */
 		}
 
-                /* XXX wowczarek: handle leap second timers */
                 if (ptpClock->leap59 || ptpClock->leap61) 
-                        DBGV("seconds to midnight: %d\n",secondsToMidnight());
+                        DBGV("seconds to midnight: %.3f\n",secondsToMidnight());
 
-                 if(timerExpired(LEAP_SECOND_PENDING_TIMER,ptpClock->itimer)) {
-                    /* leap second period is over */
-                    if(ptpClock->leapSecondInProgress) {
+                /* leap second period is over */
+                 if(timerExpired(LEAP_SECOND_PAUSE_TIMER,ptpClock->itimer) &&
+                    ptpClock->leapSecondInProgress) {
                             /* 
                              * do not unpause offset calculation just
                              * yet, just indicate and it will be
-                             * unpaused in handleAnnounce
+                             * unpaused in handleAnnounce()
                             */
                             ptpClock->leapSecondPending = FALSE;
-                            timerStop(LEAP_SECOND_PENDING_TIMER,ptpClock->itimer);
-                    /* leap second period has just started */
-                    } else if(ptpClock->leapSecondPending) {
+                            timerStop(LEAP_SECOND_PAUSE_TIMER,ptpClock->itimer);
+                    } 
+		/* check if leap second is near and if we should pause updates */
+		if( ptpClock->leapSecondPending &&
+		    !ptpClock->leapSecondInProgress &&
+		    (secondsToMidnight() <= 
+		    getPauseAfterMidnight(ptpClock->logAnnounceInterval))) {
                             WARNING("=== Leap second event imminent - pausing "
-				    "offset updates\n");
+				    "clock and offset updates\n");
                             ptpClock->leapSecondInProgress = TRUE;
 #if !defined(__APPLE__)
                             if(!checkTimexFlags(ptpClock->leap61 ? 
@@ -470,12 +473,18 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 						  STA_INS : STA_DEL, FALSE);
                             }
 #endif /* apple */
-			    timerStart(LEAP_SECOND_PENDING_TIMER,
-				       getPauseBeforeMidnight(ptpClock->logAnnounceInterval) + 
+			    /*
+			     * start pause timer from now until [pause] after
+			     * midnight, plus an extra second if inserting
+			     * a leap second
+			     */
+			    timerStart(LEAP_SECOND_PAUSE_TIMER,
+				       secondsToMidnight() + 
+				       (int)ptpClock->leap61 + 
 				       getPauseAfterMidnight(ptpClock->logAnnounceInterval),
 				       ptpClock->itimer);
-		    }
-		 }
+		}
+
 		break;
 
 	case PTP_MASTER:
@@ -773,7 +782,7 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 				*/
 				if (!ptpClock->leapSecondPending) {
 					WARNING("=== Leap second event over - "
-						"resuming offset updates\n");
+						"resuming clock and offset updates\n");
 					ptpClock->leapSecondInProgress=FALSE;
 					ptpClock->leap59 = FALSE;
 					ptpClock->leap61 = FALSE;
