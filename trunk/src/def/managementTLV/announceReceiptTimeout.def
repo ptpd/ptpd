@@ -1,0 +1,7 @@
+/* Spec Table 63 - ANNOUNCE_RECEIPT_TIMEOUT management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( announceReceiptTimeout, 1, UInteger8)
+OPERATE( reserved, 1, Octet)
+
+#undef OPERATE

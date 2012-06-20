@@ -1,0 +1,16 @@
+/* Spec Table 61 - PORT_DATA_SET management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( portIdentity, 10, PortIdentity)
+OPERATE( portState, 1, Enumeration8)
+OPERATE( logMinDelayReqInterval, 1, Integer8)
+OPERATE( peerMeanPathDelay, 8, TimeInterval)
+OPERATE( logAnnounceInterval, 1, Integer8)
+OPERATE( announceReceiptTimeout, 1, UInteger8)
+OPERATE( logSyncInterval, 1, Integer8)
+OPERATE( delayMechanism, 1, Enumeration8)
+OPERATE( logMinPdelayReqInterval, 1, Integer8)
+OPERATE( reserved, 0, NibbleUpper)
+OPERATE( versionNumber, 1, UInteger4Lower)
+
+#undef OPERATE

@@ -1,0 +1,7 @@
+/* Spec Table 66 - LOG_MIN_PDELAY_REQ_INTERVAL management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( logMinPdelayReqInterval, 1, Integer8)
+OPERATE( reserved, 1, Octet)
+
+#undef OPERATE

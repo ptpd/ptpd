@@ -1,0 +1,8 @@
+/* Spec Table 71 - MANAGEMENT_ERROR_STATUS TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( managementId, 2, Enumeration16)
+OPERATE( reserved, 4, UInteger32)
+OPERATE( displayData, 1 + data->displayData.lengthField, PTPText)
+
+#undef OPERATE

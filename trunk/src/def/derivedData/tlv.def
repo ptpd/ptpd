@@ -1,0 +1,8 @@
+/* Spec 5.3.8 TLV */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( tlvType, 2, Enumeration16)
+OPERATE( lengthField, 2, UInteger16)
+OPERATE( valueField, data->lengthField, Octet*)
+
+#undef OPERATE

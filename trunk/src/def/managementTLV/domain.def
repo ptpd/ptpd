@@ -1,0 +1,7 @@
+/* Spec Table 53 - DOMAIN management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( domainNumber, 1, UInteger8)
+OPERATE( reserved, 1, Octet)
+
+#undef OPERATE

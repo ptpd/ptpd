@@ -1,0 +1,108 @@
+2012-06-20  George Neville-Neil  <gnn@neville-neil.com>
+
+	* 2.2.2 release
+
+	* Leap second fix
+	
+2012-01-05  George Neville-Neil  <gnn@neville-neil.com>
+
+	* 2.2.0 release
+
+	* Patches: 3134556, 3296405
+
+	* Added support for Mac OS X (tested on Snow Leopard and Lion)
+
+	* Protocol implementation Fixes:
+
+	* Bugs Fixed
+
+	- Client now correctly accepts the Master DelayReq rate
+	- DelayMS and delaySM now correctly show the sign when negative
+	- Sanity Flags: client now requires -g or -G for slave/master operation.
+	- Client can print the MAC address of its master (instead of EEUI)
+	- master now sends ARB timescale only with utc_offset of zero
+	- slave now only uses the last UTC_Offset if UTC_Valid bit is on.
+	- passive masters no longer become active every 12s,
+	- first delayreq is postponed until we receive the first sync
+	- -G (master with ntpd) now announces a better clock class of 13
+	- delayReq period is now uniformly randomized from range
+	- updated to the PTPv2 messages rates (sync / delayreq / announce )
+	- operator is warned once when the we slew the clock at maximum speed
+	- and several others too minor too mention
+
+	* System fixes and new features
+
+	- Frequency adjustment is now calculated in double precision
+	- Kernel timestamps are now in nanoseconds precision
+	- Timer system overhead was reduced to 16 alarms per second (was 1000)
+	- each reset now generates an IGMP leave/join operation to
+	  the multicast group
+	- Log file is now appended, with the right permissions
+	- Debug messages show a timestamp
+	- Signals are now processed synchronously (to avoid race conditions)
+	- Configurable amount of logging (to avoid filling up /var/log)
+	- client now checks own filelock, $0 and well-known daemons.
+	- unicast messages can use DNS
+	- syslog support (-S)
+	- quality file can be generated with received syncs (-R)
+	- messages can be dumped for debug (-P)
+	- gnore packets that result in large deltas (-M)
+	- SIGUSR1 now steps the clock to the current PTP offset
+	- SIGUSR2 now cycles the domain number (useful for testing)
+	- reverted R135 timer change from integer back to floating point
+	- rand() is now seeded with last digits of our own mac address
+	- IGMP_refresh waits 100ms between drop() and add()
+	- checked to run without leaks inside valgrind 3.5.0
+	- last message received is identified by a column on the statistics log
+	- messages are sent to Syslog by default. reversed -S flag
+	- statistcs file now display /etc/ethers names (besides mac address)
+	- option -C is console mode with full verbosity
+	- startup warnings are also duplicated in stdout
+	- startup: lockfile is checked twice: once at init, to return
+	  correct errorlevel, and a second time after deaemon()
+	- check for root uid()
+	- improvements in parallel daemons checking
+	- command line parameters are dumped at init
+	- Set the unicast flag when sending unicast packets
+	  (experimental, hybrid mode only).
+
+	- Reimplemented integer64_to_internalTime not to use doubles
+	- Replaced divTime by div2Time
+	- Replaced all time.seconds = time.nanoseconds = 0 by clearTime(&time)
+	- Replaced all hex values by named flags
+	- Optimized comparison of clockIdentity in bmc.c
+	- Resolved issue of comparison of offsetScaledLogVariance 
+	- Optimized bmcStateDecision not to call bmcDataSetComparison so often with the same parameters
+	- displayStats now uses getTime instead of gettimeofday
+
+2011-02-01  George Neville-Neil  <gnn@neville-neil.com>
+
+	* Add support for DNS lookup of timeserver for unicast.
+
+	* Add support for unicasting delay requests.
+
+	* Add code to dump packets on demand via the -P flag as well as in
+	response to updates that violate either the -M or -O flags.
+
+2010-10-12  George Neville-Neil  <gnn@neville-neil.com>
+
+	* 2.1.0 First main line release of PTPv2 code base
+	(IEEE-1588-2008)
+
+	* Add code to limit how much of an offset or delay the client is
+	willing to tolerate.
+
+	* Add support for BINTIME on FreeBSD which gives more accurate
+	packet timestamps.
+
+	* Add quality file support
+
+	* Fix significant bugs that prevented correct operation in
+	End-to-End mode.
+
+	* Add support for syslog.
+
+	* Add support for user configurable TTL.
+
+	* Clean up code formatting, headers, comments etc.
+

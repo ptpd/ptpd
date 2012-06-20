@@ -1,0 +1,22 @@
+PTP Daemon Version 2 Build and Installation Instructions
+
+05 January 2012
+
+George V. Neville-Neil
+
+The PTP Daemon is known to work on FreeBSD, NetBSD, Mac OS X and Linux systems.
+
+*) Building 
+
+1) cd into the src/ directory
+3) Run "make"
+4) Read the manual page.
+5) Test it in place: ./ptpd2 -your -arguments -here
+6) Run "make install"
+
+The daemon may work on other Posix based systems but this is not
+guaranteed.  Patches and fixes are welcome on the source forge page
+
+http://ptpd.sf.net
+
+or via mail to gnn@freebsd.org

@@ -1,0 +1,196 @@
+.\" -*- nroff -*"
+.TH ptpd2 8 "January, 2012" "version 2.2.0" "Precision Time Protocol daemon"
+.SH NAME
+ptpd2 \- Precision Time Protocol daemon (1588-2008)
+.SH SYNOPSIS
+.B ptpd2
+[?]
+[-B]
+[-c]
+[-C]
+[-S]
+[-f FILE]
+[-R FILE]
+[-d]
+[-D]
+[-P]
+[-x]
+[-O NUMBER]
+[-M NUMBER]
+[-t]
+[-T ttl]
+[-a NUMBER,NUMBER]
+[-w NUMBER]
+[-b NAME]
+[-u ADDRESS]
+[-I group]
+[-U]
+[-e]
+[-h]
+[-l NUMBER,NUMBER]
+[-o NUMBER]
+[-i NUMBER]
+[-n NUMBER]
+[-y NUMBER]
+[-m NUMBER]
+[-V NUMBER]
+[-g]
+[-v NUMBER]
+[-r NUMBER]
+[-N NUMBER]
+[-s NUMBER]
+[-p NUMBER]
+[-q NUMBER]
+[-G]
+[-W]
+[-Y NUMBER]
+[-L]
+[-j]
+.SH DESCRIPTION
+Implements the Precision Time Protocol (PTP) Version 2 as defined by the IEEE
+1588-2008 standard. PTP was developed to provide very precise time
+coordination of LAN connected computers.
+.PP
+PTPd is a complete implementation of the IEEE 1588 v2 specification for a
+standard (ordinary) clock. PTPd has been tested with and is known
+to work properly with other IEEE 1588 implementations. The source code
+for PTPd is freely available under a BSD-style license. Thanks to
+contributions from users, PTPd is becoming an increasingly portable,
+interoperable, and stable IEEE 1588 implementation.
+.PP
+For more information, see http://ptpd.sourceforge.net/
+.SH OPTIONS
+.TP
+.B \-?
+display a short help text
+.TP
+.B \-B
+enable debugging if it has been previously compiled in
+.TP
+.B \-c
+run in command line (non-daemon) mode
+.TP
+.B \-C
+run in command line mode and display statistics and logs
+.TP
+.B \-S
+do not log information to syslog
+.TP
+.B \-f FILE
+send output to FILE
+.TP
+.B \-R FILE
+record a quality FILE
+.TP
+.B \-D
+display stats in .csv format
+.TP
+.B \-x
+do not reset the clock if off by more than one second
+.TP
+.B \-M NUMBER
+do not accept delay values of more than NUMBER nanoseconds
+.TP
+.B \-O NUMBER
+do not reset the clock if offset is more than NUMBER nanoseconds
+.TP
+.B \-P
+display packets received for debugging purposes
+.TP
+.B \-t
+do not adjust the system clock
+.TP
+.B \-T
+set multicast TTL for packets.  Defaults to 1.
+.TP
+.B \-a NUMBER,NUMBER
+specify clock servo P and I attenuations
+.TP
+.B \-w NUMBER
+specify one way delay filter stiffness
+.TP
+.B \-b NAME
+bind PTP to network interface NAME
+.TP
+.B \-u ADDRESS
+also send uni-cast to ADDRESS
+.TP
+.B \-I
+multicast group for PTP_EXPERIMENTAL mode
+.TP
+.B \-U
+enable hybrid mode which uses both unicast and multicast, requires PTP_EXPERIMENTAL
+.TP
+.B \-e
+run in ethernet mode (currently unimplemented)
+.TP
+.B \-h
+run in End to End mode
+.TP
+.B \-l NUMBER,NUMBER
+specify inbound, outbound latency in nsec
+.TP
+.B \-o NUMBER
+specify current UTC offset
+.TP
+.B \-i NUMBER
+specify PTP domain number
+.TP
+.B \-n NUMBER
+specify announce interval in 2^NUMBER sec
+.TP
+.B \-y NUMBER
+specify sync interval in 2^NUMBER sec
+.TP
+.B \-m NUMBER
+specify max number of foreign master records
+.TP
+.B \-N NUMBER
+announce receipt timeout
+.TP
+.B \-V
+limit displaying statistics by setting the seconds between log messages
+.TP
+.B \-g
+run as slave only
+.TP
+.B \-v NUMBER
+specify system clock allen variance
+.TP
+.B \-r NUMBER
+specify system clock accuracy
+.TP
+.B \-s NUMBER
+specify system clock class
+.TP
+.B \-p NUMBER
+specify priority1 attribute
+.TP
+.B \-q NUMBER
+specify priority2 attribute
+.TP
+.B \-G
+run as master with connection to NTP
+.TP
+.B \-W
+run as master without NTP
+.TP
+.B \-Y NUMBER
+set an initial delay request value
+.TP
+.B \-L
+enable running multiple ptpd2 daemons
+.TP
+.B \-j
+turn off IGMP refresh messages
+
+.SH AUTHORS
+Gael Mace <gael_mace@users.sourceforge.net> & Alexandre Van
+Kempen. 
+.PP
+Steven Kreuzer <skreuzer@freebsd.org> 
+.PP
+George Neville-Neil <gnn@freebsd.org>
+.PP
+This manual page was written by Gael Mace for any Linux
+environment project.
