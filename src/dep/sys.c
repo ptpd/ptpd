@@ -429,7 +429,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		start = 0;
 		printf("# Timestamp, State, Clock ID, One Way Delay, "
 		       "Offset From Master, Slave to Master, "
-		       "Master to Slave, Drift, Discarded Packet Count, Last packet Received\n");
+		       "Master to Slave, Drift, Last packet Received\n");
 		fflush(stdout);
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
@@ -503,9 +503,8 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 				&(ptpClock->delayMS));
 
-		len += sprintf(sbuf + len, ", %d, %i, %c",
+		len += sprintf(sbuf + len, ", %d, %c",
 			       ptpClock->observed_drift,
-			       ptpClock->discardedPacketCount,
 			       ptpClock->char_last_msg);
 
 	} else {
