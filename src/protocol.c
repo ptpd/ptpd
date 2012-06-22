@@ -293,7 +293,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if((!ptpClock->leap59 && !ptpClock->leap61) &&
 		    !ptpClock->leapSecondInProgress &&
 		   (checkTimexFlags(STA_INS) || checkTimexFlags(STA_DEL))) {
-			WARNING(INFO_PREFIX" Leap second pending in kernel but not on "
+			WARNING(INFO_PREFIX"Leap second pending in kernel but not on "
 				"GM: aborting kernel leap second\n");
 			unsetTimexFlags(STA_INS | STA_DEL, TRUE);
 		}
@@ -421,7 +421,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					INFO(INFO_PREFIX"GM announce timeout, disqualified current best GM");
 					netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
 				} else {
-					INFO(INFO_PREFIX" No active masters present\n");
+					INFO(INFO_PREFIX"No active masters present\n");
 					ptpClock->number_foreign_records = 0;
 					ptpClock->foreign_record_i = 0;
 					toState(PTP_LISTENING, rtOpts, ptpClock);
@@ -475,13 +475,13 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    !ptpClock->leapSecondInProgress &&
 		    (secondsToMidnight() <= 
 		    getPauseAfterMidnight(ptpClock->logAnnounceInterval))) {
-                            WARNING(INFO_PREFIX" Leap second event imminent - pausing "
+                            WARNING(INFO_PREFIX"Leap second event imminent - pausing "
 				    "clock and offset updates\n");
                             ptpClock->leapSecondInProgress = TRUE;
 #if !defined(__APPLE__)
                             if(!checkTimexFlags(ptpClock->leap61 ? 
 						STA_INS : STA_DEL)) {
-                                    WARNING(INFO_PREFIX" Kernel leap second flags have "
+                                    WARNING(INFO_PREFIX"Kernel leap second flags have "
 					    "been unset - attempting to set "
 					    "again");
                                     setTimexFlags(ptpClock->leap61 ? 
@@ -796,7 +796,7 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 				 * second)
 				*/
 				if (!ptpClock->leapSecondPending) {
-					WARNING(INFO_PREFIX" Leap second event over - "
+					WARNING(INFO_PREFIX"Leap second event over - "
 						"resuming clock and offset updates\n");
 					ptpClock->leapSecondInProgress=FALSE;
 					ptpClock->leap59 = FALSE;
