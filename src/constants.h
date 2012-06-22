@@ -13,7 +13,7 @@
 
 /* FIXME: make these parameterized, either through command-line options or make variables */
  #define MANUFACTURER_ID \
-  "MaceG VanKempen;2.2.3\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+  "ptpd.sf.net;2.3.0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 #define MANUFACTURER_ID_OUI0 \
   0xFF
 #define MANUFACTURER_ID_OUI1 \
@@ -27,7 +27,7 @@
 #define REVISION \
   ";;2.2"
 #define USER_VERSION \
-  "2.2.3-svn"
+  "2.3.0-svn"
 #define USER_DESCRIPTION \
   "PTPDv2"
 #define USER_DESCRIPTION_MAX 128
