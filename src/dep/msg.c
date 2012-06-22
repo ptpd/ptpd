@@ -1308,7 +1308,7 @@ msgUnpackHeader(Octet * buf, MsgHeader * header)
 void
 msgPackHeader(Octet * buf, PtpClock * ptpClock)
 {
-	Nibble transport = 0x80;
+	Nibble transport = 0x00;
 
 	/* (spec annex D) */
 	*(UInteger8 *) (buf + 0) = transport;
