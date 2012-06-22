@@ -13,7 +13,7 @@
 
 /* FIXME: make these parameterized, either through command-line options or make variables */
  #define MANUFACTURER_ID \
-  "MaceG VanKempen;2.0.0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+  "MaceG VanKempen;2.2.3\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 #define MANUFACTURER_ID_OUI0 \
   0xFF
 #define MANUFACTURER_ID_OUI1 \
@@ -26,9 +26,15 @@
   ";;"
 #define REVISION \
   ";;2.2"
+#define USER_VERSION \
+  "2.2.3-svn"
 #define USER_DESCRIPTION \
   "PTPDv2"
 #define USER_DESCRIPTION_MAX 128
+
+/* Indentation string used in logs */
+#define INFO_PREFIX \
+  "=== "
 
 /* implementation specific constants */
 #define DEFAULT_INBOUND_LATENCY      	0       /* in nsec */
@@ -309,6 +315,10 @@ enum {
  * \brief PTP states
  */
 enum {
+/*
+ * Update to portState_getName() is required
+ * (display.c) if changes are made here
+ */
   PTP_INITIALIZING=1,  PTP_FAULTY,  PTP_DISABLED,
   PTP_LISTENING,  PTP_PRE_MASTER,  PTP_MASTER,
   PTP_PASSIVE,  PTP_UNCALIBRATED,  PTP_SLAVE

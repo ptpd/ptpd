@@ -159,6 +159,8 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	
 	/* entering state tasks */
 
+	DBG("state %s\n",portState_getName(state));
+
 	/*
 	 * No need of PRE_MASTER state because of only ordinary clock
 	 * implementation.
@@ -167,17 +169,14 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	switch (state)
 	{
 	case PTP_INITIALIZING:
-		DBG("state PTP_INITIALIZING\n");
 		ptpClock->portState = PTP_INITIALIZING;
 		break;
 		
 	case PTP_FAULTY:
-		DBG("state PTP_FAULTY\n");
 		ptpClock->portState = PTP_FAULTY;
 		break;
 		
 	case PTP_DISABLED:
-		DBG("state PTP_DISABLED\n");
 		ptpClock->portState = PTP_DISABLED;
 		break;
 		
@@ -205,19 +204,15 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 		
 
-		DBG("state PTP_LISTENING\n");
-		INFO("  now in state PTP_LISTENING\n");
 		timerStart(ANNOUNCE_RECEIPT_TIMER, 
 			   (ptpClock->announceReceiptTimeout) * 
 			   (pow(2,ptpClock->logAnnounceInterval)), 
 			   ptpClock->itimer);
 		ptpClock->portState = PTP_LISTENING;
+		displayStatus(ptpClock, "Now in state: ");
 		break;
 
 	case PTP_MASTER:
-		DBG("state PTP_MASTER\n");
-		INFO("  now in state PTP_MASTER\n");
-		
 		timerStart(SYNC_INTERVAL_TIMER, 
 			   pow(2,ptpClock->logSyncInterval), ptpClock->itimer);
 		DBG("SYNC INTERVAL TIMER : %f \n",
@@ -229,13 +224,10 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   pow(2,ptpClock->logMinPdelayReqInterval), 
 			   ptpClock->itimer);
 		ptpClock->portState = PTP_MASTER;
+		displayStatus(ptpClock, "Now in state: ");
 		break;
 
 	case PTP_PASSIVE:
-		DBG("state PTP_PASSIVE\n");
-		INFO("  now in state PTP_PASSIVE\n");
-
-		
 		timerStart(PDELAYREQ_INTERVAL_TIMER, 
 			   pow(2,ptpClock->logMinPdelayReqInterval), 
 			   ptpClock->itimer);
@@ -244,18 +236,15 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   (pow(2,ptpClock->logAnnounceInterval)), 
 			   ptpClock->itimer);
 		ptpClock->portState = PTP_PASSIVE;
+		displayStatus(ptpClock, "Now in state: ");
 		p1(ptpClock, rtOpts);
 		break;
 
 	case PTP_UNCALIBRATED:
-		DBG("state PTP_UNCALIBRATED\n");
 		ptpClock->portState = PTP_UNCALIBRATED;
 		break;
 
 	case PTP_SLAVE:
-		DBG("state PTP_SLAVE\n");
-		INFO("  now in state PTP_SLAVE\n");
-		
 		initClock(rtOpts, ptpClock);
 		
 		ptpClock->waitingForFollow = FALSE;
@@ -290,6 +279,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->waiting_for_first_delayresp = TRUE;
 
 		ptpClock->portState = PTP_SLAVE;
+		displayStatus(ptpClock, "Now in state: ");
 
 #if !defined(__APPLE__)
 
@@ -303,7 +293,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if((!ptpClock->leap59 && !ptpClock->leap61) &&
 		    !ptpClock->leapSecondInProgress &&
 		   (checkTimexFlags(STA_INS) || checkTimexFlags(STA_DEL))) {
-			WARNING("=== Leap second pending in kernel but not on "
+			WARNING(INFO_PREFIX" Leap second pending in kernel but not on "
 				"GM: aborting kernel leap second\n");
 			unsetTimexFlags(STA_INS | STA_DEL, TRUE);
 		}
@@ -403,23 +393,48 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if (timerExpired(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer))
 		{
 			DBG("event ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES\n");
-			ptpClock->number_foreign_records = 0;
-			ptpClock->foreign_record_i = 0;
 
 			if(!ptpClock->slaveOnly && 
 			   ptpClock->clockQuality.clockClass != SLAVE_ONLY_CLOCK_CLASS) {
+				ptpClock->number_foreign_records = 0;
+				ptpClock->foreign_record_i = 0;
 				m1(rtOpts,ptpClock);
 				toState(PTP_MASTER, rtOpts, ptpClock);
 
+			} else if(ptpClock->portState != PTP_LISTENING) {
+
+				/*
+				* Don't reset yet - just disqualify current GM.
+				* If another live master exists, it will be selected,
+				* otherwise, timer will cycle and we will reset.
+				* Also don't clear the FMR just yet.
+				*/
+				if (ptpClock->grandmasterClockQuality.clockClass != 255 &&
+				    ptpClock->grandmasterPriority1 != 255 &&
+				    ptpClock->grandmasterPriority2 != 255) {
+					ptpClock->grandmasterClockQuality.clockClass = 255;
+					ptpClock->grandmasterPriority1 = 255;
+					ptpClock->grandmasterPriority2 = 255;
+					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterPriority1=255;
+					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterPriority2=255;
+					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterClockQuality.clockClass=255;
+					INFO(INFO_PREFIX"GM announce timeout, disqualified current best GM");
+					netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+				} else {
+					INFO(INFO_PREFIX" No active masters present\n");
+					ptpClock->number_foreign_records = 0;
+					ptpClock->foreign_record_i = 0;
+					toState(PTP_LISTENING, rtOpts, ptpClock);
+					}
 			} else {
 				/*
 				 *  Force a reset when getting a timeout in state listening, that will lead to an IGMP reset
 				 *  previously this was not the case when we were already in LISTENING mode
 				 */
-				toState(PTP_LISTENING, rtOpts, ptpClock);
-			}
-		}
-		
+				    toState(PTP_LISTENING, rtOpts, ptpClock);
+                                }
+                }
+
 		if (timerExpired(OPERATOR_MESSAGES_TIMER, ptpClock->itimer)) {
 			reset_operator_messages(rtOpts, ptpClock);
 		}
@@ -460,13 +475,13 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    !ptpClock->leapSecondInProgress &&
 		    (secondsToMidnight() <= 
 		    getPauseAfterMidnight(ptpClock->logAnnounceInterval))) {
-                            WARNING("=== Leap second event imminent - pausing "
+                            WARNING(INFO_PREFIX" Leap second event imminent - pausing "
 				    "clock and offset updates\n");
                             ptpClock->leapSecondInProgress = TRUE;
 #if !defined(__APPLE__)
                             if(!checkTimexFlags(ptpClock->leap61 ? 
 						STA_INS : STA_DEL)) {
-                                    WARNING("=== Kernel leap second flags have "
+                                    WARNING(INFO_PREFIX" Kernel leap second flags have "
 					    "been unset - attempting to set "
 					    "again");
                                     setTimexFlags(ptpClock->leap61 ? 
@@ -781,7 +796,7 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 				 * second)
 				*/
 				if (!ptpClock->leapSecondPending) {
-					WARNING("=== Leap second event over - "
+					WARNING(INFO_PREFIX" Leap second event over - "
 						"resuming clock and offset updates\n");
 					ptpClock->leapSecondInProgress=FALSE;
 					ptpClock->leap59 = FALSE;
@@ -806,14 +821,12 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 		case FALSE:
 			/*addForeign takes care of AnnounceUnpacking*/
 			/* the actual decision to change masters is only done in  doState() / record_update == TRUE / bmc() */
-			
-			/* the original code always called: addforeign(new master) + timerstart(announce) */
-
+			/*
+			 * wowczarek: do not restart timer here:
+			 * the slave will  sit idle if current parent
+			 * is not announcing, but another GM is
+			 */
 			addForeign(ptpClock->msgIbuf,header,ptpClock);
-			timerStart(ANNOUNCE_RECEIPT_TIMER,
-				   (ptpClock->announceReceiptTimeout) * 
-				   (pow(2,ptpClock->logAnnounceInterval)), 
-				   ptpClock->itimer);
 			break;
 
 		default:

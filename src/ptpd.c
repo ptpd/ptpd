@@ -149,7 +149,7 @@ main(int argc, char **argv)
 
 	ptpdShutdown(ptpClock);
 
-	NOTIFY("self shutdown, probably due to an error\n");
+	NOTIFY(INFO_PREFIX"Self shutdown, probably due to an error\n");
 
 	return 1;
 }

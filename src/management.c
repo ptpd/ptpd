@@ -1004,13 +1004,14 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
 	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_TIME;
-
-	MMTime* data = NULL;
+/* commented out to suppress unused variable compiler warning */
+//	MMTime* data = NULL;
 	switch( incoming->actionField )
 	{
 	case SET:
 		DBGV(" SET action\n");
-		data = (MMTime*)incoming->tlv->dataField;
+/* commented out to suppress unused variable compiler warning */
+//		data = (MMTime*)incoming->tlv->dataField;
 		/* SET actions */
 		/* TODO: add currentTime */
 	case GET:

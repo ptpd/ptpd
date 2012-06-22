@@ -774,7 +774,33 @@ displayBuffer(PtpClock * ptpClock)
 	DBGV("\n");
 }
 
+/**\convert port state to string*/
+const char
+*portState_getName(Enumeration8 portState)
+{
+    static const char *ptpStates[] = {
+        [PTP_INITIALIZING] = "PTP_INITIALIZING",
+        [PTP_FAULTY] = "PTP_FAULTY",
+        [PTP_DISABLED] = "PTP_DISABLED",
+        [PTP_LISTENING] = "PTP_LISTENING",
+        [PTP_PRE_MASTER] = "PTP_PRE_MASTER",
+        [PTP_MASTER] = "PTP_MASTER",
+        [PTP_PASSIVE] = "PTP_PASSIVE",
+        [PTP_UNCALIBRATED] = "PTP_UNCALIBRATED",
+        [PTP_SLAVE] = "PTP_SLAVE"
+    };
 
+    /* converting to int to avoid compiler warnings when comparing enum*/
+    static const int max = PTP_SLAVE;
+    int intstate = portState;
+
+    if( intstate < 0 || intstate > max ) {
+        return("PTP_UNKNOWN");
+    }
+
+    return(ptpStates[portState]);
+
+}
 
 
 /**\brief Display All data set of a PtpClock*/

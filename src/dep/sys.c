@@ -536,6 +536,29 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	write(1, sbuf, len);
 }
 
+void 
+displayStatus(PtpClock *ptpClock, const char *prefixMessage) {
+
+	static char sbuf[SCREEN_BUFSZ];
+	int len = 0;
+
+	memset(sbuf, ' ', sizeof(sbuf));
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, INFO_PREFIX"%s", prefixMessage);
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", 
+			portState_getName(ptpClock->portState));
+
+	if (ptpClock->portState == PTP_SLAVE ||
+	    ptpClock->portState == PTP_MASTER ||
+	    ptpClock->portState == PTP_PASSIVE) {
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", Best master: ");
+		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
+			&ptpClock->foreign[ptpClock->foreign_record_best].header.sourcePortIdentity);
+        }
+
+        len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
+        INFO("%s",sbuf);
+}
+
 
 void
 recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time)

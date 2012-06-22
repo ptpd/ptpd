@@ -1143,6 +1143,6 @@ netRefreshIGMP(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		return FALSE;
 	}
 	
-	INFO("refreshed IGMP multicast memberships\n");
+	INFO("Refreshed IGMP multicast memberships\n");
 	return TRUE;
 }

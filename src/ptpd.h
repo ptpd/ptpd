@@ -247,6 +247,7 @@ void clockQuality_display (ClockQuality*);
 void PTPText_display(PTPText*, PtpClock*);
 void iFaceName_display(Octet*);
 void unicast_display(Octet*);
+const char *portState_getName(Enumeration8 portState);
 
 void msgHeader_display(MsgHeader*);
 void msgAnnounce_display(MsgAnnounce*);

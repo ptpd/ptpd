@@ -129,7 +129,7 @@ do_signal_close(PtpClock * ptpClock)
 {
 	ptpdShutdown(ptpClock);
 
-	NOTIFY("shutdown on close signal\n");
+	NOTIFY(INFO_PREFIX"Shutdown on close signal\n");
 	exit(0);
 }
 
@@ -544,20 +544,22 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	PtpClock * ptpClock;
 	int c, noclose = 0;
 	int mode_selected = 0;		// 1: slave / 2: master, with ntp / 3: master without ntp
+	Boolean skipArgvDump = FALSE; /* skip the listing of parameters in modes like -H or -h */
 
 	int ntp_daemons_expected = 0;
 	int ntp_daemons_strict = 1;
 	int ptp_daemons_expected = 0;
 	int ptp_daemons_strict = 1;
 
-	dump_command_line_parameters(argc, argv);
-
 	const char *getopt_string = "HgGWb:cCf:ST:DPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:A:";
+
+
 
 	/* parse command line arguments */
 	while ((c = getopt(argc, argv, getopt_string)) != -1) {
 		switch (c) {
 		case '?':
+			skipArgvDump = TRUE;
 			printf("\n");
 			display_short_help("Please input correct parameters (use -H for complete help file)");
 			*ret = 1;
@@ -565,6 +567,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 			
 		case 'H':
+			skipArgvDump = TRUE;
 			printf(
 				"\nUsage:  ptpv2d [OPTION]\n\n"
 				"Ptpv2d runs on UDP/IP , E2E mode by default\n"
@@ -947,6 +950,12 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		}
 	}
 
+	/* Display startup info and argv if not called with -? or -H */
+	if (!skipArgvDump) {
+		NOTICE("\n");
+		NOTICE("%s%s version %s starting\n",INFO_PREFIX, USER_DESCRIPTION, USER_VERSION);
+		dump_command_line_parameters(argc, argv);
+	}
 
 	/*
 	 * we try to catch as many error conditions as possible, but before we call daemon().
