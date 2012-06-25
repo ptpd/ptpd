@@ -550,6 +550,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	int ntp_daemons_strict = 1;
 	int ptp_daemons_expected = 0;
 	int ptp_daemons_strict = 1;
+	int i = 0;
 
 	const char *getopt_string = "HgGWb:cCf:ST:DPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:A:";
 
@@ -1116,6 +1117,17 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			return 0;
 		}
 		INFO("  Info:    Now running as a daemon\n");
+		/*
+		 * Wait for the parent process to terminate, but not forever.
+		 * On some systems this happened after we tried re-acquiring
+		 * the lock, so the lock would fail. Hence, we wait.
+		 */
+		for (i = 0; i < 1000000; i++) {
+			/* Once we've been reaped by init, parent PID will be 1 */
+			if(getppid() == 1)
+				break;
+			usleep(1);
+		}
 	}
 
 	/* if syslog is on, send all messages to syslog only  */
