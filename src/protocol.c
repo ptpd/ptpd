@@ -1144,9 +1144,12 @@ handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			if (isFromSelf)	{
 				DBG("==> Handle DelayReq (%d)\n",
 					 header->sequenceId);
-				
-				if ((ptpClock->sentDelayReqSequenceId - 1) != header->sequenceId) {
-					INFO("HandledelayReq : disregard delayreq because of wrong SeqNo\n");
+
+				if ( ((UInteger16)(header->sequenceId + 1)) !=
+					ptpClock->sentDelayReqSequenceId) {
+					INFO("HandledelayReq : disregard delayreq because of sequence gap\n");
+					DBG("==> header: %d, last sent: %d\n", header->sequenceId,
+					    ptpClock->sentDelayReqSequenceId);
 					break;
 				}
 
