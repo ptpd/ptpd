@@ -687,9 +687,9 @@ typedef struct {
 	Boolean syslog_startup_messages_also_to_stdout;
 	
 #ifdef PTP_EXPERIMENTAL
-	int do_hybrid_mode;
+	Boolean do_hybrid_mode;
 #endif
-	int do_unicast_mode;
+	Boolean do_unicast_mode;
 
 #ifdef RUNTIME_DEBUG
 	int debug_level;

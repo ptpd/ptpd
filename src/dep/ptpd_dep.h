@@ -356,6 +356,7 @@ void DBG_time(const char *name, const TimeInternal  p);
 void message(int priority, const char *format, ...);
 void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock);
 void displayStatus(PtpClock *ptpClock, const char *prefixMessage);
+void displayPortIdentity(PortIdentity *port, const char *prefixMessage);
 void increaseMaxDelayThreshold();
 void decreaseMaxDelayThreshold();
 Boolean nanoSleep(TimeInternal*);

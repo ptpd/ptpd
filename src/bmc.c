@@ -254,7 +254,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 		    !ptpClock->leapSecondInProgress &&
 		    ((previousLeap59 != ptpClock->leap59) || 
 		     (previousLeap61 != ptpClock->leap61))) {
-			WARNING(INFO_PREFIX"Leap second event aborted by GM!");
+			WARNING(INFO_PREFIX "Leap second event aborted by GM!");
 			ptpClock->leapSecondPending = FALSE;
 			ptpClock->leapSecondInProgress = FALSE;
 			timerStop(LEAP_SECOND_PAUSE_TIMER, ptpClock->itimer);
@@ -273,7 +273,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 		    ((!previousLeap59 && ptpClock->leap59) ||
 		    (!previousLeap61 && ptpClock->leap61)))) {
 #if !defined(__APPLE__)
-			WARNING(INFO_PREFIX"Leap second pending! Setting kernel to %s "
+			WARNING(INFO_PREFIX "Leap second pending! Setting kernel to %s "
 				"one second at midnight\n",
 				ptpClock->leap61 ? "add" : "delete");
 		    if (!checkTimexFlags(ptpClock->leap61 ? STA_INS : STA_DEL)) {
@@ -283,7 +283,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 					  FALSE);
 		    }
 #else
-			WARNING(INFO_PREFIX"Leap second pending! No kernel leap second "
+			WARNING(INFO_PREFIX "Leap second pending! No kernel leap second "
 				"API support - expect a clock jump at "
 				"midnight!\n");
 #endif /* apple */
@@ -294,11 +294,11 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 		if((previousUtcOffset != ptpClock->currentUtcOffset) && 
 		   !ptpClock->leapSecondPending && 
 		   !ptpClock->leapSecondInProgress ) {
-			WARNING(INFO_PREFIX"UTC offset changed from %d to %d with "
+			WARNING(INFO_PREFIX "UTC offset changed from %d to %d with "
 				"no leap second pending!\n",
 				previousUtcOffset, ptpClock->currentUtcOffset);
 		} else if( previousUtcOffset != ptpClock->currentUtcOffset) {
-			WARNING(INFO_PREFIX"UTC offset changed from %d to %d\n",
+			WARNING(INFO_PREFIX "UTC offset changed from %d to %d\n",
 				previousUtcOffset,ptpClock->currentUtcOffset);
 		}
 	}
@@ -454,7 +454,8 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 	if (rtOpts->slaveOnly)	{
 		s1(header,announce,ptpClock, rtOpts);
 		if (newBM) {
-			INFO (INFO_PREFIX"New best master selected");
+			displayPortIdentity(&header->sourcePortIdentity,
+					    "New best master selected:");
 			if (ptpClock->portState == PTP_SLAVE)
 				displayStatus(ptpClock, "State: ");
 		}
@@ -476,7 +477,8 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 		} else if (comp > 0) {
 			s1(header,announce,ptpClock, rtOpts);
 			if (newBM) {
-				INFO ("New best master selected");
+				displayPortIdentity(&header->sourcePortIdentity,
+						    "New best master selected:");
 				if(ptpClock->portState == PTP_PASSIVE)
 					displayStatus(ptpClock, "State: ");
 			}
@@ -491,7 +493,8 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 		} else if (comp > 0) {
 			s1(header,announce,ptpClock, rtOpts);
 			if (newBM) {
-				INFO ("New best master selected");
+				displayPortIdentity(&header->sourcePortIdentity,
+						    "New best master selected:");
 				if(ptpClock->portState == PTP_SLAVE)
 					displayStatus(ptpClock, "State: ");
 			}

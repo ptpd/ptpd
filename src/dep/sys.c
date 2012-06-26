@@ -537,13 +537,14 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 }
 
 void 
-displayStatus(PtpClock *ptpClock, const char *prefixMessage) {
+displayStatus(PtpClock *ptpClock, const char *prefixMessage) 
+{
 
 	static char sbuf[SCREEN_BUFSZ];
 	int len = 0;
 
 	memset(sbuf, ' ', sizeof(sbuf));
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, INFO_PREFIX"%s", prefixMessage);
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, INFO_PREFIX "%s", prefixMessage);
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", 
 			portState_getName(ptpClock->portState));
 
@@ -555,6 +556,19 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage) {
 			&ptpClock->foreign[ptpClock->foreign_record_best].header.sourcePortIdentity);
         }
 
+        len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
+        INFO("%s",sbuf);
+}
+
+void 
+displayPortIdentity(PortIdentity *port, const char *prefixMessage) 
+{
+	static char sbuf[SCREEN_BUFSZ];
+	int len = 0;
+
+	memset(sbuf, ' ', sizeof(sbuf));
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, INFO_PREFIX "%s ", prefixMessage);
+	len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len, port);
         len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
         INFO("%s",sbuf);
 }

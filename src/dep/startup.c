@@ -129,7 +129,7 @@ do_signal_close(PtpClock * ptpClock)
 {
 	ptpdShutdown(ptpClock);
 
-	NOTIFY(INFO_PREFIX"Shutdown on close signal\n");
+	NOTIFY(INFO_PREFIX "Shutdown on close signal\n");
 	exit(0);
 }
 
@@ -288,17 +288,18 @@ daemon_already_running(void)
 	INFO("  Info:    Going to check lock %s\n", LOCKFILE);
 	global_lock_fd = open(LOCKFILE, O_RDWR|O_CREAT, LOCKMODE);
 	if (global_lock_fd < 0) {
-		syslog(LOG_ERR, "can't open %s: %s", LOCKFILE, strerror(errno));
-		PERROR("can't open %s: %s", LOCKFILE, strerror(errno));
-		exit(1);
+		PERROR("can't open %s", LOCKFILE);
+		return(1);
 	}
 	if (lockfile(global_lock_fd) < 0) {
 		if (errno == EACCES || errno == EAGAIN) {
-			close(global_lock_fd);
-			return(1);
+			PERROR("can't lock %s: already locked by another "
+				"process - multiple " PTPD_PROGNAME
+				" instances running?", LOCKFILE);
+		} else {
+			PERROR("can't lock %s:", LOCKFILE);
 		}
-		syslog(LOG_ERR, "can't lock %s: %s", LOCKFILE, strerror(errno));
-		PERROR("can't lock %s: %s", LOCKFILE, strerror(errno));
+		close(global_lock_fd);
 		return(1);
 	}
 	ftruncate(global_lock_fd, 0);
@@ -306,39 +307,6 @@ daemon_already_running(void)
 	write(global_lock_fd, buf, strlen(buf)+1);
 	return(0);
 }
-
-
-
-
-int query_shell(char *command, char *answer, int answer_size);
-
-
-
-/* return number of pgrep exact matches to the given string
- * -1: error
- * 0: no matches
- * >0: number of matches
- */
-int
-pgrep_matches(char *name)
-{
-	char command[BUF_SIZE];
-	char answer[BUF_SIZE];
-	int matches;
-
-	/* use pgrep to count processes with the given name
-	 * but exclude our own pid from the search results */
-	snprintf(command, BUF_SIZE - 1, "pgrep -x %s | grep -v ^%ld$ | wc -l", name, (long)getpid());
-
-	if( query_shell(command, answer, BUF_SIZE) < 0){
-		return -1;
-	};
-	
-	sscanf(answer, "%d", &matches);
-	return (matches);
-}
-
-
 
 /*
  * This function executes a given shell command (including pipes), and returns the first line of the output
@@ -379,6 +347,33 @@ int query_shell(char *command, char *answer, int answer_size)
 
 	return 0;
 }
+
+/* return number of pgrep exact matches to the given string
+ * -1: error
+ * 0: no matches
+ * >0: number of matches
+ */
+int
+pgrep_matches(char *name)
+{
+	char command[BUF_SIZE];
+	char answer[BUF_SIZE];
+	int matches;
+
+	/* use pgrep to count processes with the given name
+	 * but exclude our own pid from the search results */
+	snprintf(command, BUF_SIZE - 1, "pgrep -x %s | grep -v ^%ld$ | wc -l", name, (long)getpid());
+
+	if( query_shell(command, answer, BUF_SIZE) < 0){
+		return -1;
+	};
+	
+	sscanf(answer, "%d", &matches);
+	return (matches);
+}
+
+
+
 
 
 /*
@@ -781,7 +776,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 
 		case 'u':
-			rtOpts->do_unicast_mode = 1;
+			rtOpts->do_unicast_mode = TRUE;
 			strncpy(rtOpts->unicastAddress, optarg, 
 				MAXHOSTNAMELEN);
 
@@ -795,7 +790,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			 
 		case 'U':
 #ifdef PTP_EXPERIMENTAL
-			rtOpts->do_hybrid_mode = 1;
+			rtOpts->do_hybrid_mode = TRUE;
 #else
 			INFO("Hybrid mode not enabled. Please compile with PTP_EXPERIMENTAL\n");
 #endif
@@ -978,21 +973,28 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 #ifdef PTP_EXPERIMENTAL
 	if(rtOpts->do_unicast_mode && rtOpts->do_hybrid_mode){
-		ERROR("Cant specify both -u and -U\n");
+		ERROR("Error: Cant specify both -u and -U\n");
+		*ret = 3;
+		return 0;
+	}
+	if(rtOpts->do_hybrid_mode && !rtOpts->ignore_delayreq_interval_master) {
+		ERROR("Error: Delay Request interval override (-Y n,n) must be "
+		      "specified in Hybrid mode\n");
 		*ret = 3;
 		return 0;
 	}
 #endif
 
-
-
-
-
-
+	if(rtOpts->do_unicast_mode && !rtOpts->ignore_delayreq_interval_master) {
+		ERROR("Error: Delay Request interval override (-Y n,n) must be "
+		      "specified in Unicast mode\n");
+		*ret = 3;
+		return 0;
+	}
 
 	ptpClock = (PtpClock *) calloc(1, sizeof(PtpClock));
 	if (!ptpClock) {
-		PERROR("failed to allocate memory for protocol engine data");
+		PERROR("Error: Failed to allocate memory for protocol engine data");
 		*ret = 2;
 		return 0;
 	} else {
@@ -1065,7 +1067,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	if(rtOpts->ignore_daemon_lock == 0){
 		/* check and create Lock */
 		if(daemon_already_running()){
-			ERROR("  Error:   Multiple " PTPD_PROGNAME " instances detected (-L to ignore lock file %s)\n", LOCKFILE);
+			ERROR(INFO_PREFIX "Error: file lock failed (use -L to ignore lock file)\n");
 			*ret = 3;
 			return 0;
 		}
@@ -1131,14 +1133,14 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	}
 
 	/* if syslog is on, send all messages to syslog only  */
-	rtOpts->syslog_startup_messages_also_to_stdout = FALSE;   
+	rtOpts->syslog_startup_messages_also_to_stdout = FALSE;
 
 
 	/* Second lock check, to replace the contents with our own new PID. It seems that F_WRLCK is not inherited to the child, so we lock again */
 	if(rtOpts->ignore_daemon_lock == 0){
 		/* check and create Lock */
 		if(daemon_already_running()){
-			ERROR("Multiple instances of this daemon detected (Use option -L to ignore lock file %s)\n", LOCKFILE);
+			ERROR(INFO_PREFIX "Error: file lock failed (use -L to ignore lock file)\n");
 			*ret = 3;
 			return 0;
 		}

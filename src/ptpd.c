@@ -85,13 +85,13 @@ main(int argc, char **argv)
 	rtOpts.domainNumber = DEFAULT_DOMAIN_NUMBER;
 #ifdef PTP_EXPERIMENTAL
 	rtOpts.mcast_group_Number = 0;
-	rtOpts.do_hybrid_mode = 0;
+	rtOpts.do_hybrid_mode = FALSE;
 #endif
 	
 	// rtOpts.slaveOnly = FALSE;
 	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
 	rtOpts.ifaceName[0] = '\0';
-	rtOpts.do_unicast_mode = 0;
+	rtOpts.do_unicast_mode = FALSE;
 
 	rtOpts.noAdjust = NO_ADJUST;  // false
 	// rtOpts.displayStats = FALSE;
@@ -149,7 +149,7 @@ main(int argc, char **argv)
 
 	ptpdShutdown(ptpClock);
 
-	NOTIFY(INFO_PREFIX"Self shutdown, probably due to an error\n");
+	NOTIFY(INFO_PREFIX "Self shutdown, probably due to an error\n");
 
 	return 1;
 }
