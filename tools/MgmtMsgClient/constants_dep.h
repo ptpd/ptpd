@@ -1,7 +1,7 @@
 /** 
- * @file constants_dep.h
+ * @file        constants_dep.h
  *
- * @brief Constants defined by the specification
+ * @brief       Constants defined by the specification
  */
 
 #ifndef CONSTANTS_DEP_H
@@ -11,6 +11,25 @@
 
 #define PTP_EVENT_PORT    "319"
 #define PTP_GENERAL_PORT  "320"
+
+/* features, only change to refelect changes in implementation */
+#define VERSION_PTP 2
+
+/** \name Packet length
+ Minimal length values for each message.
+ If TLV used length could be higher.*/
+ /**\{*/
+#define HEADER_LENGTH           34
+#define MANAGEMENT_LENGTH       48
+#define TLV_LENGTH              6
+/** \}*/
+
+/**
+ * @brief Domain Number (Table 2 in the spec)*/
+
+enum {
+	DFLT_DOMAIN_NUMBER = 0, ALT1_DOMAIN_NUMBER, ALT2_DOMAIN_NUMBER, ALT3_DOMAIN_NUMBER
+};
 
 /**
  * @brief PTP Management Message managementId values (Table 40 in the spec)

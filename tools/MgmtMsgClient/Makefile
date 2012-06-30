@@ -1,7 +1,7 @@
 ## -*- Makefile -*-
 ##
 ## User: Tomasz Kleinschmidt
-## Time: 2012-06-09 16:28:49
+## Time: 2012-06-24 21:03:29
 ## Makefile created by Oracle Solaris Studio.
 ##
 ## This file is generated automatically.
@@ -27,6 +27,7 @@ all: $(TARGETDIR_MgmtMsgClient)/MgmtMsgClient
 OBJS_MgmtMsgClient =  \
 	$(TARGETDIR_MgmtMsgClient)/OptBuffer.o \
 	$(TARGETDIR_MgmtMsgClient)/Client.o \
+	$(TARGETDIR_MgmtMsgClient)/OutgoingManagementMessage.o \
 	$(TARGETDIR_MgmtMsgClient)/Help.o \
 	$(TARGETDIR_MgmtMsgClient)/Network.o \
 	$(TARGETDIR_MgmtMsgClient)/MgmtMsgClient.o
@@ -47,6 +48,9 @@ $(TARGETDIR_MgmtMsgClient)/OptBuffer.o: $(TARGETDIR_MgmtMsgClient) OptBuffer.cpp
 $(TARGETDIR_MgmtMsgClient)/Client.o: $(TARGETDIR_MgmtMsgClient) Client.cpp
 	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ Client.cpp
 
+$(TARGETDIR_MgmtMsgClient)/OutgoingManagementMessage.o: $(TARGETDIR_MgmtMsgClient) OutgoingManagementMessage.cpp
+	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ OutgoingManagementMessage.cpp
+
 $(TARGETDIR_MgmtMsgClient)/Help.o: $(TARGETDIR_MgmtMsgClient) Help.cpp
 	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ Help.cpp
 
@@ -64,6 +68,7 @@ clean:
 		$(TARGETDIR_MgmtMsgClient)/MgmtMsgClient \
 		$(TARGETDIR_MgmtMsgClient)/OptBuffer.o \
 		$(TARGETDIR_MgmtMsgClient)/Client.o \
+		$(TARGETDIR_MgmtMsgClient)/OutgoingManagementMessage.o \
 		$(TARGETDIR_MgmtMsgClient)/Help.o \
 		$(TARGETDIR_MgmtMsgClient)/Network.o \
 		$(TARGETDIR_MgmtMsgClient)/MgmtMsgClient.o

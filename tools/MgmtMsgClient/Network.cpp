@@ -66,12 +66,12 @@ int initNetwork(char* hostName, char* port, struct addrinfo** addrInfo) {
      * Add an adequate verification and notification. */ 
     
     //bind to the port
-    error = bind(sockFd, sockRes->ai_addr, sockRes->ai_addrlen);
-	
-    if (error != 0) {		
-        perror("bind()");		
-        exit(1);	
-    }
+//    error = bind(sockFd, sockRes->ai_addr, sockRes->ai_addrlen);
+//	
+//    if (error != 0) {		
+//        perror("bind()");		
+//        exit(1);	
+//    }
     
     printf("Client connected to %s on port %s\n", hostName, port);
     

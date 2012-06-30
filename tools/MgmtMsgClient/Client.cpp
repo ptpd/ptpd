@@ -9,12 +9,15 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "Client.h"
 #include "Help.h"
 #include "Network.h"
-#include "OptBuffer.h"
+#include "OutgoingManagementMessage.h"
+//#include "OptBuffer.h"
 
+#include "constants.h"
 #include "datatypes_dep.h"
 #include "string.h"
 
@@ -43,9 +46,14 @@ void mainClient(OptBuffer* optBuf) {
     sockFd = initNetwork(optBuf->u_address, optBuf->u_port, &unicastAddress);
     
     /* send <--> receive will be here */
+    Octet *buf = (Octet*)(malloc(PACKET_SIZE));
     
-    /*Octet msg[10] = "ala";
-    sendMessage(sockFd, msg, strlen(msg), unicastAddress);*/
+    OutgoingManagementMessage *outMessage = new OutgoingManagementMessage(buf, optBuf);
+    free(outMessage);
+    
+    sendMessage(sockFd, buf, PACKET_SIZE, unicastAddress);
+    
+    free(buf);
     
     /*Octet msg[300];
     receiveMessage(sockFd, msg, strlen(msg), &fromAddr, &fromLen);*/
