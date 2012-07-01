@@ -9,8 +9,8 @@
 #include "constants.h"
 #include "ptpmanager.h"
 
-#define PTP_GENERAL_PORT 320
-#define PTP_EVENT_PORT 319
+#define PTP_GENERAL_PORT 4201
+#define PTP_EVENT_PORT 4200
 
 NetPath * netPath;
 
@@ -79,22 +79,70 @@ packManagementHeader(Octet *buf)
 	out_length += MANAGEMENT_LENGTH;
 }
 
+
+Boolean 
+packCommandOnly(Octet *buf, MsgManagement* manage)
+{
+	int actionField;
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	manage->tlv->lengthField = flip16(0x0002);
+	
+	printf("\n>actionField (3 for Command)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case COMMAND:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | COMMAND;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	out_length += TLV_LENGTH;
+	return TRUE;
+}
+
+Boolean
+packGETOnly(Octet *buf, MsgManagement* manage)
+{
+	int actionField;
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	manage->tlv->lengthField = flip16(0x0002);
+	
+	printf("\n>actionField (0 for GET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	out_length += TLV_LENGTH;
+	return TRUE;
+}
+
 /*
  * Functions to pack payload for each type of managementId. 
  * These will ask questions from user and set the data fields accordingly.
  */
-void 
+Boolean
 packMMNullManagement(Octet *buf)
 {
 	int actionField;
-	
 	MsgManagement *manage = (MsgManagement*)(buf);
 	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
 	*(UInteger16 *) (buf + 48) = flip16(TLV_MANAGEMENT);
 	/* lengthField = 2+N*/
 	*(UInteger16 *) (buf + 50) = flip16(0x0002);
 	/*managementId Table 40*/
-	*(UInteger16 *) (buf + 52) = flip16(0x0000);
+	*(UInteger16 *) (buf + 52) = flip16(MM_NULL_MANAGEMENT);
 	
 	printf("\n>actionField (0 for GET, 1 for SET, 3 for Command) ?");
 	scanf("%d",&actionField);
@@ -104,39 +152,26 @@ packMMNullManagement(Octet *buf)
 		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
 	else if (actionField == 3)
 		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | COMMAND;
-	else
-		printf("This action is not allowed\n");
-		
-	out_length += TLV_LENGTH;
-} 
-
-void 
-packMMClockDescription(Octet *buf)
-{
-	int actionField;
-	
-	MsgManagement *manage = (MsgManagement*)(buf);
-	manage->tlv = (ManagementTLV*)(buf+48);
-	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
-	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
-	/*managementId Table 40*/
-	manage->tlv->managementId = flip16(0x0001);
-	manage->tlv->lengthField = flip16(0x0002);
-	
-	printf("\n>actionField (0 for GET) ?");
-	scanf("%d",&actionField);
-	switch(actionField){
-	case GET:
-		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
-		break;
-	default:
-		printf("This action is not allowed\n"); /*Table 40*/
+	else {
+		printf("This action is not allowed for this managementId\n");
+		return FALSE;
 	}
 		
 	out_length += TLV_LENGTH;
+	return TRUE;
+} 
+
+Boolean 
+packMMClockDescription(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_CLOCK_DESCRIPTION);
+	return packGETOnly(buf,manage);
 }
 
-void
+Boolean
 packMMUserDescription(Octet *buf)
 {
 	int actionField;
@@ -147,8 +182,8 @@ packMMUserDescription(Octet *buf)
 	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
 	manage->tlv->lengthField = flip16(0x0002);
 	/*managementId Table 40*/
-	manage->tlv->managementId = flip16(0x0002);
-	
+	manage->tlv->managementId = flip16(MM_USER_DESCRIPTION);
+
 	//*(UInteger16 *) (buf + 52) = flip16(0x0002);		
 	printf("\n>actionField (0 for GET, 1 for SET) ?");
 	scanf("%d",&actionField);
@@ -170,7 +205,7 @@ packMMUserDescription(Octet *buf)
 		
 		if (data->userDescription.lengthField > USER_DESCRIPTION_MAX){
 			printf("user description exceeds specification length");
-			return;
+			return FALSE;
 		}
 		
 		data->userDescription.textField = 
@@ -203,62 +238,35 @@ packMMUserDescription(Octet *buf)
 		free(data);
 		break;		       
 	default:
-		printf("This action is not allowed\n");
+		printf("This action is not allowed for this managementId\n");
+		return FALSE;
 	}
 		
+	return TRUE;
 }
 
 
-void
+Boolean
 packMMSaveInNonVolatileStorage(Octet *buf)
 {
-	int actionField;
-	
 	MsgManagement *manage = (MsgManagement*)(buf);
 	manage->tlv = (ManagementTLV*)(buf+48);
-	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
-	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
 	/*managementId Table 40*/
-	manage->tlv->managementId = flip16(0x0003);
-	manage->tlv->lengthField = flip16(0x0002);
-	
-	printf("\n>actionField (0 for GET) ?");
-	scanf("%d",&actionField);
-	switch(actionField){
-	case COMMAND:
-		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | COMMAND;
-		break;
-	default:
-		printf("This action is not allowed\n"); /*Table 40*/
-	}
-
+	manage->tlv->managementId = flip16(MM_SAVE_IN_NON_VOLATILE_STORAGE);
+	return packCommandOnly(buf,manage);
 }
 
-void
-packMMResetInNonVolatileStorage(Octet *buf)
+Boolean
+packMMResetNonVolatileStorage(Octet *buf)
 {
-	int actionField;
-	
 	MsgManagement *manage = (MsgManagement*)(buf);
 	manage->tlv = (ManagementTLV*)(buf+48);
-	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
-	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
 	/*managementId Table 40*/
-	manage->tlv->managementId = flip16(0x0004);
-	manage->tlv->lengthField = flip16(0x0002);
-	
-	printf("\n>actionField (0 for GET) ?");
-	scanf("%d",&actionField);
-	switch(actionField){
-	case COMMAND:
-		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | COMMAND;
-		break;
-	default:
-		printf("This action is not allowed\n"); /*Table 40*/
-	}
+	manage->tlv->managementId = flip16(MM_RESET_NON_VOLATILE_STORAGE);
+	return packCommandOnly(buf,manage);
 }
 
-void
+Boolean
 packMMInitialize(Octet *buf)
 {
 	int actionField;
@@ -268,21 +276,29 @@ packMMInitialize(Octet *buf)
 	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
 	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
 	/*managementId Table 40*/
-	manage->tlv->managementId = flip16(0x0005);
-	manage->tlv->lengthField = flip16(0x0002);
-	
-	printf("\n>actionField (0 for GET) ?");
+	manage->tlv->managementId = flip16(MM_INITIALIZE);
+	out_length += TLV_LENGTH;	
+
+	printf("\n>actionField (3 for Command) ?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case COMMAND:
 		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | COMMAND;
+		printf("Initialize key (0 for Initialize event)?");
+		scanf("%hu",(UInteger16*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH));
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
 	}
+	
+	return TRUE;
 }
 
-void
+Boolean
 packMMFaultLog(Octet *buf)
 {
 	int actionField;
@@ -292,23 +308,88 @@ packMMFaultLog(Octet *buf)
 	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
 	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
 	/*managementId Table 40*/
-	manage->tlv->managementId = flip16(0x0006);
-	manage->tlv->lengthField = flip16(0x0002);
-	
+	manage->tlv->managementId = flip16(MM_FAULT_LOG);
+	out_length += TLV_LENGTH;
+
 	printf("\n>actionField (0 for GET) ?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
 		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		printf("Number of fault logs to be returned (0-128)?");
+		scanf("%hu",(UInteger16*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH));
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
 	}
 
+	return TRUE;
 }
 
-void
+Boolean
 packMMFaultLogReset(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	manage->tlv->managementId = flip16(MM_FAULT_LOG_RESET);
+	return packCommandOnly(buf,manage);
+}
+
+Boolean
+packMMTime(Octet *buf)
+{
+	int actionField;
+
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_TIME);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+
+		UInteger32 hours;
+		UInteger32 mins;
+		UInteger32 secs;
+		UInteger32 nanosecs;
+		UInteger16 epoch;
+		printf(">Timestamp - Epoch Number?");
+		scanf("%hu",&epoch);
+		*(UInteger16 *)((Octet*)(manage->tlv) + TLV_LENGTH) = flip16(epoch);
+		printf(">Timestamp 'hours mins secs nanosecs' Eg - '1 20 30 400' ?");
+		scanf("%u %u %u %u",&hours,&mins,&secs,&nanosecs);
+		*(UInteger32*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH + 2) = 
+								flip32(hours*60*60 + mins*60 + secs);
+		*(UInteger32*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH + 6) = 
+								flip32(nanosecs);								
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 10);
+		manage->tlv->lengthField = flip16(0x000C);
+		out_length += 10;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+Boolean
+packMMClockAccuracy(Octet *buf)
 {
 	int actionField;
 	
@@ -317,19 +398,548 @@ packMMFaultLogReset(Octet *buf)
 	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
 	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
 	/*managementId Table 40*/
-	manage->tlv->managementId = flip16(0x0007);
+	manage->tlv->managementId = flip16(MM_CLOCK_ACCURACY);
 	manage->tlv->lengthField = flip16(0x0002);
-	
-	printf("\n>actionField (0 for GET) ?");
+	out_length += TLV_LENGTH;
+
+	printf("\n>actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
-	case COMMAND:
-		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | COMMAND;
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		printf(">clock accuracy number (20-31) see table 6?");
+		scanf("%hhu",(UInteger8 *)(manage->tlv) + TLV_LENGTH);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+
 		break;
 	default:
-		printf("This action is not allowed\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
 	}
+	
+	return TRUE;
 }
+
+Boolean
+packMMEnablePort(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	manage->tlv->managementId = flip16(MM_ENABLE_PORT);
+	return packCommandOnly(buf,manage);
+}
+
+
+Boolean
+packMMDisablePort(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	manage->tlv->managementId = flip16(MM_DISABLE_PORT);
+	return packCommandOnly(buf,manage);
+}
+
+Boolean 
+packMMDefaultDataSet(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_DEFAULT_DATA_SET);
+	return 	packGETOnly(buf,manage);
+}
+
+
+Boolean
+packMMPriority1(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_PRIORITY1);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+		
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		printf("value of Priority1?");
+		scanf("%hhu",(UInteger8 *)(manage->tlv) + TLV_LENGTH);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+Boolean
+packMMPriority2(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_PRIORITY2);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		printf("value of Priority2?");
+		scanf("%hhu",(UInteger8 *)(manage->tlv) + TLV_LENGTH);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+
+Boolean
+packMMDomain(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_DOMAIN);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		printf("value of domainNumber?");
+		scanf("%hhu",(UInteger8 *)(manage->tlv) + TLV_LENGTH);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+Boolean
+packMMSlaveOnly(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_SLAVE_ONLY);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		unsigned int slaveOnly;
+		printf("Slave Only (1 for yes, 0 for no)?");
+		scanf("%u",&slaveOnly);
+		if (slaveOnly == 1)
+			*((UInteger8 *)(manage->tlv) + TLV_LENGTH) = 0x01;
+		 else if (slaveOnly == 0)
+			*((UInteger8 *)(manage->tlv) + TLV_LENGTH) = 0x00;
+		 else {
+		 	printf("Invalid value\n");
+			return FALSE;
+		}
+		
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+
+Boolean 
+packMMCurrentDataSet(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_CURRENT_DATA_SET);
+	return 	packGETOnly(buf,manage);
+}
+
+Boolean 
+packMMParentDataSet(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_PARENT_DATA_SET);
+	return packGETOnly(buf,manage);
+}
+
+Boolean 
+packMMTimePropertiesDataSet(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_TIME_PROPERTIES_DATA_SET);
+	return packGETOnly(buf,manage);
+}
+
+Boolean 
+packMMPortDataSet(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_PORT_DATA_SET);
+	return packGETOnly(buf,manage);
+}
+
+Boolean 
+packMMTransparentClockDefaultDataSet(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_TRANSPARENT_CLOCK_DEFAULT_DATA_SET);
+	return packGETOnly(buf,manage);
+}
+
+Boolean 
+packMMTransparentClockPortDataSet(Octet *buf)
+{
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_TRANSPARENT_CLOCK_PORT_DATA_SET);
+	return packGETOnly(buf,manage);
+}
+
+
+Boolean
+packMMPrimaryDomain(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_PRIMARY_DOMAIN);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		printf("value of primaryDomain?");
+		scanf("%hhu",(UInteger8 *)(manage->tlv) + TLV_LENGTH);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+
+Boolean
+packMMLogAnnounceInterval(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_LOG_ANNOUNCE_INTERVAL);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		printf("value of log announce interval?");
+		scanf("%hhd",(Integer8 *)(manage->tlv) + TLV_LENGTH);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+
+Boolean
+packMMAnnounceReceiptTimeout(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_ANNOUNCE_RECEIPT_TIMEOUT);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		printf("value of Announce Receipt Timeout?");
+		scanf("%hhu",(UInteger8 *)(manage->tlv) + TLV_LENGTH);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+Boolean
+packMMLogSyncInterval(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_LOG_SYNC_INTERVAL);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		printf("value of log sync interval?");
+		scanf("%hhd",(Integer8 *)(manage->tlv) + TLV_LENGTH);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+Boolean
+packMMVersionNumber(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_VERSION_NUMBER);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		UInteger8 versionNumber;
+		printf("version number?");
+		scanf("%hhd",&versionNumber);
+		*((UInteger8*)(manage->tlv) + TLV_LENGTH) = versionNumber & 0x0F;
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+
+Boolean
+packMMLogMinPdelayReqInterval(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_LOG_MIN_PDELAY_REQ_INTERVAL);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		printf("value of log_min_pdelay_req_interval?");
+		scanf("%hhd",(Integer8 *)(manage->tlv) + TLV_LENGTH);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+Boolean
+packMMDelayMechanism(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_DELAY_MECHANISM);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		printf("delay mechanism?");
+		scanf("%hhu",(Enumeration8 *)(manage->tlv) + TLV_LENGTH);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+Boolean 
+packMMUtcProperties(Octet *buf)
+{
+}
+
+Boolean 
+packMMTraceabilityProperties(Octet *buf)
+{
+}
+
 
 
 /*function to initialize the UDP networking stuff*/
@@ -544,7 +1154,6 @@ main(int argc, char *argv[ ])
 	'show_previous' to display received response, \n \
 	'show_fields' to see management message fields\ncommand>");
 
-	//command[0] = '\0';
 	scanf("%s", command);
 
 	int j = 0;
@@ -552,6 +1161,7 @@ main(int argc, char *argv[ ])
 
 		memset(outmessage, 0, PACKET_SIZE);
 		memset(inmessage, 0, PACKET_SIZE);
+		toSend = TRUE;
 		
 		switch (getCommandId(command)){
 
@@ -564,40 +1174,129 @@ main(int argc, char *argv[ ])
 			
 				if (tlvtype==TLV_MANAGEMENT){
 					printf(">managementId (0-7)?");
-					scanf("%d", &managementId);
+					scanf("%x", &managementId);
 			
 					switch(managementId){
 					case MM_NULL_MANAGEMENT:
-						packMMNullManagement(outmessage);
+						toSend = packMMNullManagement(outmessage);
 						break;
 					case MM_CLOCK_DESCRIPTION:
-						packMMClockDescription(outmessage); 	
+						toSend = packMMClockDescription(outmessage); 	
 						break;
 					case MM_USER_DESCRIPTION:
-						packMMUserDescription(outmessage);
+						toSend = packMMUserDescription(outmessage);
 						break;
 					case MM_SAVE_IN_NON_VOLATILE_STORAGE:
-						packMMSaveInNonVolatileStorage(outmessage);
+						toSend = packMMSaveInNonVolatileStorage(outmessage);
 						break;
 					case MM_RESET_NON_VOLATILE_STORAGE:
-						packMMResetInNonVolatileStorage(outmessage);	
+						toSend = packMMResetNonVolatileStorage(outmessage);	
 						break;
 					case MM_INITIALIZE:
-						packMMInitialize(outmessage);
+						toSend = packMMInitialize(outmessage);
 						break;
 					case MM_FAULT_LOG:
-						packMMFaultLog(outmessage);
+						toSend = packMMFaultLog(outmessage);
 						break;
 					case MM_FAULT_LOG_RESET:
-						packMMFaultLogReset(outmessage);
+						toSend = packMMFaultLogReset(outmessage);
 						break;
+					case MM_DEFAULT_DATA_SET:
+						toSend = packMMDefaultDataSet(outmessage);
+						break;
+					case MM_CURRENT_DATA_SET:
+						toSend = packMMCurrentDataSet(outmessage);
+						break;
+						case MM_PARENT_DATA_SET:
+								toSend = packMMParentDataSet(outmessage);
+								break;
+						case MM_TIME_PROPERTIES_DATA_SET:
+								toSend = packMMTimePropertiesDataSet(outmessage);
+								break;
+						case MM_PORT_DATA_SET:
+								toSend = packMMPortDataSet(outmessage);
+								break;
+						case MM_PRIORITY1:
+								toSend = packMMPriority1(outmessage);
+								break;
+						case MM_PRIORITY2:
+								toSend = packMMPriority2(outmessage);
+								break;
+						case MM_DOMAIN:
+								toSend = packMMDomain(outmessage);
+								break;
+					case MM_SLAVE_ONLY:
+						toSend = packMMSlaveOnly(outmessage);
+						break;
+						case MM_LOG_ANNOUNCE_INTERVAL:
+								toSend = packMMLogAnnounceInterval(outmessage);
+								break;
+						case MM_ANNOUNCE_RECEIPT_TIMEOUT:
+								toSend = packMMAnnounceReceiptTimeout(outmessage);
+								break;
+						case MM_LOG_SYNC_INTERVAL:
+								toSend = packMMLogSyncInterval(outmessage);
+								break;
+						case MM_VERSION_NUMBER:
+								toSend = packMMVersionNumber(outmessage);
+								break;
+						case MM_ENABLE_PORT:
+								toSend = packMMEnablePort(outmessage);
+								break;
+						case MM_DISABLE_PORT:
+								toSend = packMMDisablePort(outmessage);
+								break;
+						case MM_TIME:
+								toSend = packMMTime(outmessage);
+								break;
+						case MM_CLOCK_ACCURACY:
+								toSend = packMMClockAccuracy(outmessage);
+								break;
+						case MM_UTC_PROPERTIES:
+								toSend = packMMUtcProperties(outmessage);
+								break;
+						case MM_TRACEABILITY_PROPERTIES:
+								toSend = packMMTraceabilityProperties(outmessage);
+								break;
+						case MM_DELAY_MECHANISM:
+								toSend = packMMDelayMechanism(outmessage);
+								break;
+						case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
+								toSend = packMMLogMinPdelayReqInterval(outmessage);
+								break;
+					case MM_TRANSPARENT_CLOCK_DEFAULT_DATA_SET:
+							toSend = packMMTransparentClockDefaultDataSet(outmessage);
+							break;
+					case MM_TRANSPARENT_CLOCK_PORT_DATA_SET:
+							toSend = packMMTransparentClockPortDataSet(outmessage);
+							break;
+					case MM_PRIMARY_DOMAIN:
+							toSend = packMMPrimaryDomain(outmessage);
+							break;
+				
+					case MM_TIMESCALE_PROPERTIES:
+					case MM_UNICAST_NEGOTIATION_ENABLE:
+					case MM_PATH_TRACE_LIST:
+					case MM_PATH_TRACE_ENABLE:
+					case MM_GRANDMASTER_CLUSTER_TABLE:
+					case MM_UNICAST_MASTER_TABLE:
+					case MM_UNICAST_MASTER_MAX_TABLE_SIZE:
+					case MM_ACCEPTABLE_MASTER_TABLE:
+					case MM_ACCEPTABLE_MASTER_TABLE_ENABLED:
+					case MM_ACCEPTABLE_MASTER_MAX_TABLE_SIZE:
+					case MM_ALTERNATE_MASTER:
+					case MM_ALTERNATE_TIME_OFFSET_ENABLE:
+					case MM_ALTERNATE_TIME_OFFSET_NAME:
+					case MM_ALTERNATE_TIME_OFFSET_MAX_KEY:
+					case MM_ALTERNATE_TIME_OFFSET_PROPERTIES:
+
 					default:
-						printf("This managementId is not supported yet\n");
+						printf("This managementId is not supported.\n");
 						toSend = FALSE;
 					}
 					
 				} else {
-					printf("Only TLV_MANAGEMENT (0) is allowed\n");
+					printf("Only TLV_MANAGEMENT (enter 1 for this) is allowed yet\n");
 					toSend = FALSE;
 					break;
 				}
@@ -607,7 +1306,7 @@ main(int argc, char *argv[ ])
 						 argv[1]))
 						printf("Error sending message\n");
 					else {
-						printf("Management message sent, waiting for response...\n");
+						printf("Message sent, waiting for response...\n");
 
 						receivedFlag = FALSE;
 //						for (;;){
@@ -663,5 +1362,3 @@ main(int argc, char *argv[ ])
 	netShutdown();
 	return (0);
 }
-
-
