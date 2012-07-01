@@ -9,8 +9,8 @@
 #include "constants.h"
 #include "ptpmanager.h"
 
-#define PTP_GENERAL_PORT 4201
-#define PTP_EVENT_PORT 4200
+#define PTP_GENERAL_PORT 320
+#define PTP_EVENT_PORT 319
 
 NetPath * netPath;
 
