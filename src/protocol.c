@@ -598,7 +598,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 * On the slave, all timestamps that we handle here have been collected by our local clock (loopback+kernel-level timestamp)
 	 * This includes delayReq just send, and delayResp, when it arrives.
 	 *
-	 * these are then adjusted to the same timebase of the Master (+34 leap seconds, as of 2011)
+	 * these are then adjusted to the same timebase of the Master (+35 leap seconds, as of July 2012)
 	 *
 	 */
 	DBGV("__UTC_offset: %d %d \n", ptpClock->currentUtcOffsetValid, ptpClock->currentUtcOffset);
