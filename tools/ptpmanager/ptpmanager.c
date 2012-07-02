@@ -31,7 +31,6 @@ packCommonHeader(Octet *buf)
 	*(unsigned char *)(buf + 1) = *(unsigned char *)(buf + 1) & 0x00;
 	*(UInteger4 *) (buf + 1) = *(unsigned char *)(buf + 1) | versionNumber;
 
-//	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH);
 	*(UInteger8 *) (buf + 4) = domainNumber;
 	*(unsigned char *)(buf + 5) = 0x00;
 	*(unsigned char *)(buf + 6) = 0x04; /*Table 20*/
@@ -96,7 +95,7 @@ packCommandOnly(Octet *buf, MsgManagement* manage)
 		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | COMMAND;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -120,7 +119,7 @@ packGETOnly(Octet *buf, MsgManagement* manage)
 		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -209,9 +208,9 @@ packMMUserDescription(Octet *buf)
 		}
 		
 		data->userDescription.textField = 
-						(Octet*)malloc(data->userDescription.lengthField);
+					(Octet*)malloc(data->userDescription.lengthField);
 		memcpy(data->userDescription.textField,
-                        text, data->userDescription.lengthField);
+                    text, data->userDescription.lengthField);
 
 		memcpy((Octet*)manage->tlv + TLV_LENGTH, data, 1);	
 		memcpy((Octet*)manage->tlv +  TLV_LENGTH + 1,
@@ -222,8 +221,7 @@ packMMUserDescription(Octet *buf)
         /* is the TLV length odd? TLV must be even according to Spec 5.3.8 */
         if (data->userDescription.lengthField % 2 == 0){
         	memset(buf + MANAGEMENT_LENGTH + 
-	        		TLV_LENGTH + data->userDescription.lengthField + 1,
-    	    		0,1);
+	        		TLV_LENGTH + data->userDescription.lengthField + 1, 0, 1);
 			dataFieldLength = data->userDescription.lengthField + 2;
 		} 
 		else {	
@@ -291,7 +289,7 @@ packMMInitialize(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n");
 		return FALSE;
 	}
 	
@@ -323,7 +321,7 @@ packMMFaultLog(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 
@@ -381,7 +379,7 @@ packMMTime(Octet *buf)
 		out_length += 10;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -418,7 +416,7 @@ packMMClockAccuracy(Octet *buf)
 
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -484,7 +482,7 @@ packMMPriority1(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -520,7 +518,7 @@ packMMPriority2(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -557,7 +555,7 @@ packMMDomain(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -604,7 +602,7 @@ packMMSlaveOnly(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -702,7 +700,7 @@ packMMPrimaryDomain(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -739,7 +737,7 @@ packMMLogAnnounceInterval(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -776,7 +774,7 @@ packMMAnnounceReceiptTimeout(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -812,7 +810,7 @@ packMMLogSyncInterval(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -850,7 +848,7 @@ packMMVersionNumber(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -887,7 +885,7 @@ packMMLogMinPdelayReqInterval(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -923,7 +921,7 @@ packMMDelayMechanism(Octet *buf)
 		out_length += 2;
 		break;
 	default:
-		printf("This action is not allowed for this managementId\n"); /*Table 40*/
+		printf("This action is not allowed for this managementId\n"); 
 		return FALSE;
 	}
 	
@@ -933,14 +931,138 @@ packMMDelayMechanism(Octet *buf)
 Boolean 
 packMMUtcProperties(Octet *buf)
 {
+	int actionField;
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_UTC_PROPERTIES);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		Integer16 currentUtcOffset;
+		UInteger8 l161;
+		UInteger8 l159;
+		UInteger8 utcv;
+		printf("value of currentUtcOffset?");
+		scanf("%hd",&currentUtcOffset);
+		printf("value of UTCV,L1-59,L1-61 (Boolean) Eg - 1,0,0 ?");
+		scanf("%hhu,%hhu,%hhu",&utcv,&l159,&l161);
+		if (utcv > 1 || l159 > 1 || l161 > 1){
+			printf("Enter only boolean values (1 or 0) separated by comma\n");
+			return FALSE;
+		}
+		
+		*(Integer16*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH) =
+							flip16(currentUtcOffset);
+		*(UInteger8*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH + 2) = 
+							(utcv<<2 & 0x04) | (l159<<1 & 0x02) | (l161 & 0x01);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 4);
+		*(UInteger8*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH + 3) = 0x00;
+		out_length += 4;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); 
+		return FALSE;
+	}
+	
+	return TRUE;
 }
 
 Boolean 
 packMMTraceabilityProperties(Octet *buf)
 {
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_TRACEABILITY_PROPERTIES);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		UInteger8 ftra;
+		UInteger8 ttra;
+		printf("value of FTRA,TTRA (Boolean) Eg - 1,0 ?");
+		scanf("%hhu,%hhu",&ftra,&ttra);
+		if (ftra > 1 || ttra > 1){
+			printf("Enter only boolean values (1 or 0) separated by comma\n");
+			return FALSE;
+		}
+		*(UInteger8*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH) = 
+							(ftra<<5 & 0x20) | (ttra<<4 & 0x10);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); 
+		return FALSE;
+	}
+	return TRUE;
 }
 
-
+Boolean 
+packMMTimescaleProperties(Octet *buf)
+{
+	int actionField;
+	
+	MsgManagement *manage = (MsgManagement*)(buf);
+	manage->tlv = (ManagementTLV*)(buf+48);
+	*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH);
+	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
+	/*managementId Table 40*/
+	manage->tlv->managementId = flip16(MM_TIMESCALE_PROPERTIES);
+	manage->tlv->lengthField = flip16(0x0002);
+	out_length += TLV_LENGTH;
+	
+	printf("\n>actionField (0 for GET, 1 for SET)?");
+	scanf("%d",&actionField);
+	switch(actionField){
+	case GET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
+		break;
+	case SET:
+		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
+		UInteger8 ptp;
+		printf("value of timeSource?");
+		scanf("%hhu",(Enumeration8*)(manage->tlv) + TLV_LENGTH + 1);
+		printf("value of ptp (Boolean)?");
+		scanf("%hhu",&ptp);
+		if (ptp > 1){
+			printf("Enter only boolean values (1 or 0)\n");
+			return FALSE;
+		}
+		*(UInteger8*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH) = (ptp<<3 & 0x08);
+		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
+		manage->tlv->lengthField = flip16(0x0004);
+		out_length += 2;
+		break;
+	default:
+		printf("This action is not allowed for this managementId\n"); 
+		return FALSE;
+	}
+	return TRUE;
+}
 
 /*function to initialize the UDP networking stuff*/
 Boolean 
@@ -1173,7 +1295,7 @@ main(int argc, char *argv[ ])
 				scanf("%d", &tlvtype);
 			
 				if (tlvtype==TLV_MANAGEMENT){
-					printf(">managementId (0-7)?");
+					printf(">managementId (see Table 40) (Eg: '2010' for ClockAccuracy)?");
 					scanf("%x", &managementId);
 			
 					switch(managementId){
@@ -1207,74 +1329,76 @@ main(int argc, char *argv[ ])
 					case MM_CURRENT_DATA_SET:
 						toSend = packMMCurrentDataSet(outmessage);
 						break;
-						case MM_PARENT_DATA_SET:
-								toSend = packMMParentDataSet(outmessage);
-								break;
-						case MM_TIME_PROPERTIES_DATA_SET:
-								toSend = packMMTimePropertiesDataSet(outmessage);
-								break;
-						case MM_PORT_DATA_SET:
-								toSend = packMMPortDataSet(outmessage);
-								break;
-						case MM_PRIORITY1:
-								toSend = packMMPriority1(outmessage);
-								break;
-						case MM_PRIORITY2:
-								toSend = packMMPriority2(outmessage);
-								break;
-						case MM_DOMAIN:
-								toSend = packMMDomain(outmessage);
-								break;
+					case MM_PARENT_DATA_SET:
+						toSend = packMMParentDataSet(outmessage);
+						break;
+					case MM_TIME_PROPERTIES_DATA_SET:
+						toSend = packMMTimePropertiesDataSet(outmessage);
+						break;
+					case MM_PORT_DATA_SET:
+						toSend = packMMPortDataSet(outmessage);
+						break;
+					case MM_PRIORITY1:
+						toSend = packMMPriority1(outmessage);
+						break;
+					case MM_PRIORITY2:
+						toSend = packMMPriority2(outmessage);
+						break;
+					case MM_DOMAIN:
+						toSend = packMMDomain(outmessage);
+						break;
 					case MM_SLAVE_ONLY:
 						toSend = packMMSlaveOnly(outmessage);
 						break;
-						case MM_LOG_ANNOUNCE_INTERVAL:
-								toSend = packMMLogAnnounceInterval(outmessage);
-								break;
-						case MM_ANNOUNCE_RECEIPT_TIMEOUT:
-								toSend = packMMAnnounceReceiptTimeout(outmessage);
-								break;
-						case MM_LOG_SYNC_INTERVAL:
-								toSend = packMMLogSyncInterval(outmessage);
-								break;
-						case MM_VERSION_NUMBER:
-								toSend = packMMVersionNumber(outmessage);
-								break;
-						case MM_ENABLE_PORT:
-								toSend = packMMEnablePort(outmessage);
-								break;
-						case MM_DISABLE_PORT:
-								toSend = packMMDisablePort(outmessage);
-								break;
-						case MM_TIME:
-								toSend = packMMTime(outmessage);
-								break;
-						case MM_CLOCK_ACCURACY:
-								toSend = packMMClockAccuracy(outmessage);
-								break;
-						case MM_UTC_PROPERTIES:
-								toSend = packMMUtcProperties(outmessage);
-								break;
-						case MM_TRACEABILITY_PROPERTIES:
-								toSend = packMMTraceabilityProperties(outmessage);
-								break;
-						case MM_DELAY_MECHANISM:
-								toSend = packMMDelayMechanism(outmessage);
-								break;
-						case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
-								toSend = packMMLogMinPdelayReqInterval(outmessage);
-								break;
+					case MM_LOG_ANNOUNCE_INTERVAL:
+						toSend = packMMLogAnnounceInterval(outmessage);
+						break;
+					case MM_ANNOUNCE_RECEIPT_TIMEOUT:
+						toSend = packMMAnnounceReceiptTimeout(outmessage);
+						break;
+					case MM_LOG_SYNC_INTERVAL:
+						toSend = packMMLogSyncInterval(outmessage);
+						break;
+					case MM_VERSION_NUMBER:
+						toSend = packMMVersionNumber(outmessage);
+						break;
+					case MM_ENABLE_PORT:
+						toSend = packMMEnablePort(outmessage);
+						break;
+					case MM_DISABLE_PORT:
+						toSend = packMMDisablePort(outmessage);
+						break;
+					case MM_TIME:
+						toSend = packMMTime(outmessage);
+						break;
+					case MM_CLOCK_ACCURACY:
+						toSend = packMMClockAccuracy(outmessage);
+						break;
+					case MM_UTC_PROPERTIES:
+						toSend = packMMUtcProperties(outmessage);
+						break;
+					case MM_TRACEABILITY_PROPERTIES:
+						toSend = packMMTraceabilityProperties(outmessage);
+						break;
+					case MM_DELAY_MECHANISM:
+						toSend = packMMDelayMechanism(outmessage);
+						break;
+					case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
+						toSend = packMMLogMinPdelayReqInterval(outmessage);
+						break;
 					case MM_TRANSPARENT_CLOCK_DEFAULT_DATA_SET:
-							toSend = packMMTransparentClockDefaultDataSet(outmessage);
-							break;
+						toSend = packMMTransparentClockDefaultDataSet(outmessage);
+						break;
 					case MM_TRANSPARENT_CLOCK_PORT_DATA_SET:
-							toSend = packMMTransparentClockPortDataSet(outmessage);
-							break;
+						toSend = packMMTransparentClockPortDataSet(outmessage);
+						break;
 					case MM_PRIMARY_DOMAIN:
-							toSend = packMMPrimaryDomain(outmessage);
-							break;
-				
+						toSend = packMMPrimaryDomain(outmessage);
+						break;
 					case MM_TIMESCALE_PROPERTIES:
+						toSend = packMMTimescaleProperties(outmessage);
+						break;
+	
 					case MM_UNICAST_NEGOTIATION_ENABLE:
 					case MM_PATH_TRACE_LIST:
 					case MM_PATH_TRACE_ENABLE:
@@ -1350,7 +1474,7 @@ main(int argc, char *argv[ ])
 			break;
 		
 		default:
-			printf("Invalid command\n");
+			printf("Invalid command\n\n");
 		}
 
 		printf("command>");
