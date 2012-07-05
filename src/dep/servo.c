@@ -133,16 +133,20 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				INFO("recv (sec: %d n	s: %d)\n",
 				     ptpClock->delay_req_receive_time.seconds,
 				     ptpClock->delay_req_receive_time.nanoseconds);
-				ptpClock->discardedPacketCount++;
-				goto autotune;
+				if (rtOpts->maxDelayAutoTune) {
+				    ptpClock->discardedPacketCount++;
+				    goto autotune;
+				}
 			}
 
 			if (slave_to_master_delay.seconds && rtOpts->maxDelay) {
 				INFO("updateDelay aborted, delay greater than 1 second\n");
 				if (rtOpts->displayPackets)
 					msgDump(ptpClock);
-				ptpClock->discardedPacketCount++;
-				goto autotune;
+				if (rtOpts->maxDelayAutoTune) {
+					ptpClock->discardedPacketCount++;
+					goto autotune;
+				}
 			}
 
 			if (slave_to_master_delay.nanoseconds > rtOpts->maxDelay) {
@@ -152,8 +156,10 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				     rtOpts->maxDelay);
 				if (rtOpts->displayPackets)
 					msgDump(ptpClock);
-				ptpClock->discardedPacketCount++;
-				goto autotune;
+				if (rtOpts->maxDelayAutoTune) {
+					ptpClock->discardedPacketCount++;
+					goto autotune;
+				}
 			}
 		}
 	}
@@ -166,8 +172,8 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	if (rtOpts->offset_first_updated) {
 		Integer16 s;
 
-		ptpClock->discardedPacketCount--;
-			
+		if (rtOpts->maxDelayAutoTune)
+			ptpClock->discardedPacketCount--;
 		/*
 		 * calc 'slave_to_master_delay' (Master to Slave delay is
 		 * already computed in updateOffset )
