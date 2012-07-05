@@ -1154,6 +1154,11 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	signal(SIGUSR1, catch_signals);
 	signal(SIGUSR2, catch_signals);
 
+#if defined PTPD_SNMP
+	/* Start SNMP subsystem */
+	snmpInit(ptpClock);
+#endif
+
 	*ret = 0;
 
 	INFO("  Info:    Startup finished sucessfully\n");

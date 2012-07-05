@@ -52,6 +52,13 @@
 
 #include "../ptpd.h"
 
+#if defined PTPD_SNMP
+#include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-includes.h>
+#include <net-snmp/agent/net-snmp-agent-includes.h>
+#endif
+
+
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
 #if !defined(SO_TIMESTAMPNS) && !defined(SO_TIMESTAMP) && !defined(SO_BINTIME)
 #error kernel-level timestamps not detected
@@ -632,6 +639,10 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 	int ret, nfds;
 	fd_set readfds;
 	struct timeval tv, *tv_ptr;
+#if defined PTPD_SNMP
+	struct timeval snmp_timer_wait;
+	int snmpblock = 0;
+#endif
 
 	if (timeout < 0)
 		return FALSE;
@@ -651,13 +662,34 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 		nfds = netPath->eventSock;
 	else
 		nfds = netPath->generalSock;
+	nfds++;
 
-	ret = select(nfds + 1, &readfds, 0, 0, tv_ptr) > 0;
+#if defined PTPD_SNMP
+	snmpblock = 1;
+	if (tv_ptr) {
+		snmpblock = 0;
+		memcpy(&snmp_timer_wait, tv_ptr, sizeof(struct timeval));
+	}
+	snmp_select_info(&nfds, &readfds, &snmp_timer_wait, &snmpblock);
+	if (snmpblock == 0)
+		tv_ptr = &snmp_timer_wait;
+#endif
+	ret = select(nfds, &readfds, 0, 0, tv_ptr);
 
 	if (ret < 0) {
 		if (errno == EAGAIN || errno == EINTR)
 			return 0;
 	}
+#if defined PTPD_SNMP
+	/* Maybe we have received SNMP related data */
+	if (ret > 0) {
+		snmp_read(&readfds);
+	} else if (ret == 0) {
+		snmp_timeout();
+		run_alarms();
+	}
+	netsnmp_check_outstanding_agent_requests();
+#endif
 	return ret;
 }
 
@@ -747,6 +779,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 #ifdef PTP_EXPERIMENTAL
 	netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 #endif
+	netPath->receivedPackets++;
 
 
 
@@ -893,7 +926,7 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 #ifdef PTP_EXPERIMENTAL
 	netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 #endif
-	
+	netPath->receivedPackets++;
 	
 	
 	if (msg.msg_controllen <= 0) {
@@ -989,6 +1022,8 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_ds
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending uni-cast event message\n");
+		else
+			netPath->sentPackets++;
 		/* 
 		 * Need to forcibly loop back the packet since
 		 * we are not using multicast. 
@@ -1009,6 +1044,8 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_ds
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending multi-cast event message\n");
+		else
+			netPath->sentPackets++;
 	}
 
 	return ret;
@@ -1036,6 +1073,8 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending uni-cast general message\n");
+		else
+			netPath->sentPackets++;
 	} else {
 		addr.sin_addr.s_addr = netPath->multicastAddr;
 
@@ -1044,6 +1083,8 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending multi-cast general message\n");
+		else
+			netPath->sentPackets++;
 	}
 	return ret;
 }
@@ -1097,6 +1138,8 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending uni-cast event message\n");
+		else
+			netPath->sentPackets++;
 
 		/* 
 		 * Need to forcibly loop back the packet since
@@ -1117,6 +1160,8 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("error sending multi-cast event message\n");
+		else
+			netPath->sentPackets++;
 	}
 	return ret;
 }

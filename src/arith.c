@@ -57,7 +57,11 @@ double round (double __x);
 void
 internalTime_to_integer64(TimeInternal internal, Integer64 *bigint)
 {
-	/* TODO: implement me */
+	int64_t scaledNanoseconds;
+	scaledNanoseconds   = internal.seconds * 1000000000 + internal.nanoseconds;
+	scaledNanoseconds <<= 16;
+	bigint->msb = (scaledNanoseconds >> 32) & 0xffffffff;
+	bigint->lsb = scaledNanoseconds & 0xffffffff;
 }
 
 void 

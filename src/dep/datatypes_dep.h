@@ -78,6 +78,9 @@ typedef struct {
     Integer32 lastRecvAddr;
 #endif
 
+    uint64_t sentPackets;
+    uint64_t receivedPackets;
+
 } NetPath;
 
 #endif /*DATATYPES_DEP_H_*/

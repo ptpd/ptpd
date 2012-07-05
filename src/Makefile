@@ -14,7 +14,7 @@
 #
 #   -DPTPD_NO_DAEMON             forces option -c
 #
-#   -PTP_EXPERIMENTAL            Allows non-standard compliant experimental options:
+#   -DPTP_EXPERIMENTAL           Allows non-standard compliant experimental options:
 #                                   -U: Hybrid mode
 #                                   -I: choose multicast group
 #
@@ -24,10 +24,13 @@
 #
 #######
 
-VERSION = 2.2.2
+VERSION = 2.3.0
 
 RM = rm -f
 SYMLINK = ln -s
+
+# SNMP support?
+SNMP = yes
 
 # start with CFLAGS += ..., so additional CFLAGs can be specified e.g. on the make command line
 CFLAGS += -Wall -g -fPIC
@@ -54,6 +57,14 @@ SHAREDLIBVER = $(SHAREDLIB).$(VERSION)
 
 SRCS = ptpd.c arith.c bmc.c protocol.c display.c management.c \
 	dep/msg.c dep/net.c dep/servo.c dep/startup.c dep/sys.c dep/timer.c
+
+# SNMP
+ifeq ($(SNMP),yes)
+LDFLAGS += `net-snmp-config --agent-libs`
+CFLAGS  += `net-snmp-config --base-cflags`
+CFLAGS  += -DPTPD_SNMP
+SRCS    += dep/snmp.c
+endif
 
 OBJS = $(SRCS:.c=.o)
 
