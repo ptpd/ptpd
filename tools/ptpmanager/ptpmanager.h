@@ -18,6 +18,7 @@
 #include <syslog.h>
 #include <limits.h>
 
+#include "constants.h"
 
 typedef enum {FALSE=0, TRUE} Boolean;
 typedef char Octet;
@@ -49,7 +50,8 @@ int out_length;
 UInteger16 out_sequence;
 UInteger16 in_sequence;
 Boolean receivedFlag;
-
+Octet *outmessage;
+Octet *inmessage;
 /**
 * \brief Struct used to store network datas
  */
@@ -57,6 +59,8 @@ typedef struct {
   Integer32 eventSock, generalSock;
 
 } NetPath;
+
+NetPath * netPath;
 
 enum {
 	PTP_ETHER, PTP_DEFAULT

@@ -12,6 +12,9 @@
 #define flip16(x) htons(x)
 #define flip32(x) htonl(x)
 
+#define PTP_GENERAL_PORT 4201
+#define PTP_EVENT_PORT 4200
+
 /**
  * \brief PTP Management Message managementId values (Table 40 in the spec)
  */
