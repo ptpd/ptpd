@@ -96,9 +96,11 @@ void handleMMNullManagement(MsgManagement* incoming, MsgManagement* outgoing, Pt
 	case GET:
 	case SET:
 		DBGV(" GET or SET mgmt msg\n");
+		outgoing->actionField = RESPONSE;
 		break;
 	case COMMAND:
 		DBGV(" COMMAND mgmt msg\n");
+		outgoing->actionField = ACKNOWLEDGE;
 		break;
 	default:
 		DBGV(" unknown actionType \n");

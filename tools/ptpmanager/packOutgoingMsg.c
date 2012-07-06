@@ -266,7 +266,7 @@ packCommandOnly(Octet *buf, MsgManagement* manage)
 	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
 	manage->tlv->lengthField = flip16(0x0002);
 	
-	printf("\n>actionField (3 for Command)?");
+	printf(">actionField (3 for Command)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case COMMAND:
@@ -290,7 +290,7 @@ packGETOnly(Octet *buf, MsgManagement* manage)
 	manage->tlv->tlvType = flip16(TLV_MANAGEMENT);
 	manage->tlv->lengthField = flip16(0x0002);
 	
-	printf("\n>actionField (0 for GET)?");
+	printf(">actionField (0 for GET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -321,7 +321,7 @@ packMMNullManagement(Octet *buf)
 	/*managementId Table 40*/
 	*(UInteger16 *) (buf + 52) = flip16(MM_NULL_MANAGEMENT);
 	
-	printf("\n>actionField (0 for GET, 1 for SET, 3 for Command) ?");
+	printf(">actionField (0 for GET, 1 for SET, 3 for Command) ?");
 	scanf("%d",&actionField);
 	if (actionField == 0)
 		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | GET;
@@ -362,7 +362,7 @@ packMMUserDescription(Octet *buf)
 	manage->tlv->managementId = flip16(MM_USER_DESCRIPTION);
 
 	//*(UInteger16 *) (buf + 52) = flip16(0x0002);		
-	printf("\n>actionField (0 for GET, 1 for SET) ?");
+	printf(">actionField (0 for GET, 1 for SET) ?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -376,7 +376,7 @@ packMMUserDescription(Octet *buf)
 		data = (MMUserDescription*)malloc(sizeof(MMUserDescription));
 		char text[128];
 		int dataFieldLength = 0;
-		printf("\n>UserDescription (DeviceName;PhysicalLocation)?");
+		printf(">UserDescription (DeviceName;PhysicalLocation)?");
 		scanf("%s",text);
 		data->userDescription.lengthField = strlen(text);
 		
@@ -455,7 +455,7 @@ packMMInitialize(Octet *buf)
 	manage->tlv->managementId = flip16(MM_INITIALIZE);
 	out_length += TLV_LENGTH;	
 
-	printf("\n>actionField (3 for Command) ?");
+	printf(">actionField (3 for Command) ?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case COMMAND:
@@ -487,7 +487,7 @@ packMMFaultLog(Octet *buf)
 	manage->tlv->managementId = flip16(MM_FAULT_LOG);
 	out_length += TLV_LENGTH;
 
-	printf("\n>actionField (0 for GET) ?");
+	printf(">actionField (0 for GET) ?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -529,7 +529,7 @@ packMMTime(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -578,7 +578,7 @@ packMMClockAccuracy(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -645,7 +645,7 @@ packMMPriority1(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 		
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -681,7 +681,7 @@ packMMPriority2(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -718,7 +718,7 @@ packMMDomain(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -755,7 +755,7 @@ packMMSlaveOnly(Octet *buf)
 	out_length += TLV_LENGTH;
 
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -863,7 +863,7 @@ packMMPrimaryDomain(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -900,7 +900,7 @@ packMMLogAnnounceInterval(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -937,7 +937,7 @@ packMMAnnounceReceiptTimeout(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -973,7 +973,7 @@ packMMLogSyncInterval(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -1009,7 +1009,7 @@ packMMVersionNumber(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -1048,7 +1048,7 @@ packMMLogMinPdelayReqInterval(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -1084,7 +1084,7 @@ packMMDelayMechanism(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -1119,7 +1119,7 @@ packMMUtcProperties(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -1170,7 +1170,7 @@ packMMTraceabilityProperties(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:
@@ -1213,7 +1213,7 @@ packMMTimescaleProperties(Octet *buf)
 	manage->tlv->lengthField = flip16(0x0002);
 	out_length += TLV_LENGTH;
 	
-	printf("\n>actionField (0 for GET, 1 for SET)?");
+	printf(">actionField (0 for GET, 1 for SET)?");
 	scanf("%d",&actionField);
 	switch(actionField){
 	case GET:

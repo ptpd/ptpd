@@ -17,17 +17,14 @@ netInit(char *ifaceName)
 	struct sockaddr_in addr;
 	
 	/* open sockets */
-	if ((netPath->eventSock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 || 
-			(netPath->generalSock = socket(PF_INET, SOCK_DGRAM, 
+	if ((netPath->generalSock = socket(PF_INET, SOCK_DGRAM, 
 					      IPPROTO_UDP)) < 0) {
 		printf("failed to initalize sockets");
 		return (FALSE);
 	}
 	
 	temp = 1;			/* allow address reuse */
-	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_REUSEADDR, 
-		       &temp, sizeof(int)) < 0 ||
-	     setsockopt(netPath->generalSock, SOL_SOCKET, SO_REUSEADDR, 
+	if (setsockopt(netPath->generalSock, SOL_SOCKET, SO_REUSEADDR, 
 			  &temp, sizeof(int)) < 0) {
 		printf("failed to set socket reuse\n");
 	}
@@ -38,21 +35,12 @@ netInit(char *ifaceName)
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
-
-/* To be used later for receiving management response */
-/*	if (bind(netPath->generalSock, (struct sockaddr *)&addr, 
+	if (bind(netPath->generalSock, (struct sockaddr *)&addr, 
 		 sizeof(struct sockaddr_in)) < 0) {
 		printf("failed to bind general socket");
 		return (FALSE);
 	}
 
-	addr.sin_port = htons(PTP_EVENT_PORT);
-	if (bind(netPath->eventSock, (struct sockaddr *)&addr, 
-		 sizeof(struct sockaddr_in)) < 0) {
-		printf("failed to bind event socket");
-		return (FALSE);
-	}
-*/
 
 #ifdef linux
 	/*
@@ -64,9 +52,7 @@ netInit(char *ifaceName)
 	 *   http://developerweb.net/viewtopic.php?id=6471
 	 *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
 	 */
-	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
-			ifaceName, strlen(ifaceName)) < 0 ||
-		 setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINDTODEVICE,
+	if (setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINDTODEVICE,
 			ifaceName, strlen(ifaceName)) < 0){
 			
 		printf("failed to call SO_BINDTODEVICE on the interface\n");
@@ -105,19 +91,29 @@ netSendGeneral(Octet * buf, UInteger16 length, char *ip)
 
 /* Function to receive the management response/ack/error message */
 ssize_t
-netRecv(Octet *message)
+netRecv(Octet *message, char *src)
 {
+	ssize_t ret = 0;
+	char srcIp[16];
+	int try;
+	struct sockaddr_in client_addr;
+   	socklen_t len = sizeof(client_addr);
+	
+	for (try = 0;try < 3; try++){
+		ret = recvfrom(netPath->generalSock, message, PACKET_SIZE , 0 , 
+							(struct sockaddr *)&client_addr, &len);
+		if (ret == 0 || (strcmp(inet_ntop(AF_INET, &(client_addr.sin_addr), srcIp, 
+				sizeof(srcIp)), src) == 0))
+			return (ret);
+		else
+			printf("false\n");
+	}
 }
 
 /*shutdown the network layer*/
 Boolean 
 netShutdown()
 {
-	/* Close sockets */
-	if (netPath->eventSock > 0)
-		close(netPath->eventSock);
-	netPath->eventSock = -1;
-
 	if (netPath->generalSock > 0)
 		close(netPath->generalSock);
 	netPath->generalSock = -1;

@@ -51,14 +51,15 @@ sendMessage(Octet* outmessage, char *dest)
 		 * TODO wait for some time to receive a response 
 		 * or ack, if not received till timeout send the 
 		 * management message again, Use receivedFlag for this.
+		 *
+		 * Currently, 'receive' is 'blocking' and therefore program hangs if 
+		 * packet delivery fails. TODO: Use non-blocking call.
 		 */
-
-			if (netRecv(inmessage)) {
-				memset(inmessage, 0, PACKET_SIZE);
+			memset(inmessage, 0, PACKET_SIZE);
+			if (netRecv(inmessage, dest)) {
 				handleIncomingMsg(inmessage);
 				in_sequence++;
 			}
-			printf("received messages not handled yet\n");
 		//}
 	}
 }
@@ -66,7 +67,7 @@ sendMessage(Octet* outmessage, char *dest)
 /* 
  * The code implements ptpmanager responsible for sending and 
  * receiving management messages. Main function receives user commands and 
- * executes it. It also receives management response from server and handles it
+ * executes it. 
  */
 int 
 main(int argc, char *argv[ ])
@@ -122,8 +123,6 @@ main(int argc, char *argv[ ])
 					sendMessage(outmessage,argv[1]);
 					out_sequence++;
 				}
-
-			printf("\n");
 			break;
 		
 		case 2:
