@@ -19,34 +19,27 @@ public:
     
 private:
     #define DECLARE_PACK( type ) void pack##type( void*, void* );
-    //PACK_SIMPLE
-    //DECLARE_PACK( NibbleUpper )
-    //DECLARE_PACK( Enumeration4Lower )
-    //DECLARE_PACK( UInteger4Lower )
-    DECLARE_PACK( UInteger16 )
-    DECLARE_PACK( UInteger8 )
-    DECLARE_PACK( Octet )
-    DECLARE_PACK( Integer8 )
-    DECLARE_PACK( UInteger48 )
-    DECLARE_PACK( Integer64 )
-            
+
     DECLARE_PACK( Boolean )
     DECLARE_PACK( Enumeration8 )
-    
-    //PACK_ENDIAN
     DECLARE_PACK( Enumeration16 )
+    DECLARE_PACK( Integer8 )
+    DECLARE_PACK( UInteger8 )
     DECLARE_PACK( Integer16)
+    DECLARE_PACK( UInteger16 )
     DECLARE_PACK( Integer32 )
     DECLARE_PACK( UInteger32 )
-            
+    DECLARE_PACK( UInteger48 )
+    DECLARE_PACK( Integer64 )
+    DECLARE_PACK( Octet )
+         
     #define DECLARE_PACK_LOWER_AND_UPPER( type ) \
         void pack##type##Lower( void* from, void* to ); \
         void pack##type##Upper( void* from, void* to );
 
     DECLARE_PACK_LOWER_AND_UPPER( Enumeration4 )
-    DECLARE_PACK_LOWER_AND_UPPER( UInteger4 )
     DECLARE_PACK_LOWER_AND_UPPER( Nibble )
-            
+    DECLARE_PACK_LOWER_AND_UPPER( UInteger4 )        
         
     void packClockIdentity( ClockIdentity *c, Octet *buf);
     void packPortIdentity( PortIdentity *p, Octet *buf);

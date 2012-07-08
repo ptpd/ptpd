@@ -15,6 +15,7 @@
 #include "OutgoingManagementMessage.h"
 #include "app_dep.h"
 #include "constants_dep.h"
+#include "MgmtMsgClient.h"
 
 
 #define PACK_SIMPLE( type ) \
@@ -43,10 +44,10 @@ void OutgoingManagementMessage::pack##type##Upper( void* from, void* to ) \
 }
 
 PACK_SIMPLE( Boolean )
-PACK_SIMPLE( UInteger8 )
-PACK_SIMPLE( Octet )
 PACK_SIMPLE( Enumeration8 )
 PACK_SIMPLE( Integer8 )
+PACK_SIMPLE( UInteger8 )
+PACK_SIMPLE( Octet )
 
 PACK_ENDIAN( Enumeration16, 16 )
 PACK_ENDIAN( Integer16, 16 )
@@ -55,14 +56,16 @@ PACK_ENDIAN( Integer32, 32 )
 PACK_ENDIAN( UInteger32, 32 )
 
 PACK_LOWER_AND_UPPER( Enumeration4 )
-PACK_LOWER_AND_UPPER( UInteger4 )
 PACK_LOWER_AND_UPPER( Nibble )
+PACK_LOWER_AND_UPPER( UInteger4 )
 
 
 OutgoingManagementMessage::OutgoingManagementMessage(Octet* buf, OptBuffer* optBuf) {
     this->outgoing = (MsgManagement *)malloc(sizeof(MsgManagement));
     
     handleMMNullManagement(this->outgoing, GET);
+    
+    DBG("packing management message \n");
     packMsgManagement(this->outgoing, buf);
     packManagementTLV(this->outgoing->tlv, buf);
 }
@@ -74,26 +77,26 @@ OutgoingManagementMessage::~OutgoingManagementMessage() {
 
 void OutgoingManagementMessage::packInteger64( void* i, void *buf )
 {
-	packUInteger32(&((Integer64*)i)->lsb, buf);
-	packInteger32(&((Integer64*)i)->msb, buf + 4);
+    packUInteger32(&((Integer64*)i)->lsb, buf);
+    packInteger32(&((Integer64*)i)->msb, buf + 4);
 }
 
 void OutgoingManagementMessage::packClockIdentity( ClockIdentity *c, Octet *buf)
 {
-	int i;
-	for(i = 0; i < CLOCK_IDENTITY_LENGTH; i++) {
-		packOctet(&((*c)[i]),(buf+i));
-	}
+    int i;
+    for(i = 0; i < CLOCK_IDENTITY_LENGTH; i++) {
+        packOctet(&((*c)[i]),(buf+i));
+    }
 }
 
 void OutgoingManagementMessage::packPortIdentity( PortIdentity *p, Octet *buf)
 {
-	int offset = 0;
-	PortIdentity *data = p;
-	#define OPERATE( name, size, type) \
-		pack##type (&data->name, buf + offset); \
-		offset = offset + size;
-	#include "../../src/def/derivedData/portIdentity.def"
+    int offset = 0;
+    PortIdentity *data = p;
+    #define OPERATE( name, size, type) \
+            pack##type (&data->name, buf + offset); \
+            offset = offset + size;
+    #include "../../src/def/derivedData/portIdentity.def"
 }
 
 void OutgoingManagementMessage::packMsgHeader(MsgHeader *h, Octet *buf)
@@ -186,7 +189,7 @@ void OutgoingManagementMessage::initOutgoingMsgManagement(/*MsgManagement* incom
  */
 void OutgoingManagementMessage::handleMMNullManagement(/*MsgManagement* incoming, */MsgManagement* outgoing/*, PtpClock* ptpClock*/, Enumeration4 actionField)
 {
-    //DBGV("received NULL_MANAGEMENT message\n");
+    DBG("handling NULL_MANAGEMENT message\n");
 
     initOutgoingMsgManagement(/*incoming, */outgoing/*, ptpClock*/);
     outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -195,20 +198,20 @@ void OutgoingManagementMessage::handleMMNullManagement(/*MsgManagement* incoming
 
     switch(actionField)
     {
-    case GET:
-    case SET:
-            //DBGV(" GET or SET mgmt msg\n");
+        case GET:
+        case SET:
+            DBG("GET or SET mgmt msg\n");
             break;
-    case COMMAND:
-            //DBGV(" COMMAND mgmt msg\n");
+        case COMMAND:
+            DBG("COMMAND mgmt msg\n");
             break;
-    default:
-            //DBGV(" unknown actionType \n");
+        default:
+            DBG("unknown actionType\n");
             //free(outgoing->tlv);
             /*handleErrorManagementMessage(incoming, outgoing,
                     ptpClock, MM_NULL_MANAGEMENT,
                     NOT_SUPPORTED);*/
-        break;
+            break;
     }
 }
 

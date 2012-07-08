@@ -1,7 +1,7 @@
 ## -*- Makefile -*-
 ##
 ## User: Tomasz Kleinschmidt
-## Time: 2012-06-24 21:03:29
+## Time: 2012-07-07 23:57:10
 ## Makefile created by Oracle Solaris Studio.
 ##
 ## This file is generated automatically.
@@ -29,7 +29,9 @@ OBJS_MgmtMsgClient =  \
 	$(TARGETDIR_MgmtMsgClient)/Client.o \
 	$(TARGETDIR_MgmtMsgClient)/OutgoingManagementMessage.o \
 	$(TARGETDIR_MgmtMsgClient)/Help.o \
+	$(TARGETDIR_MgmtMsgClient)/IncomingManagementMessage.o \
 	$(TARGETDIR_MgmtMsgClient)/Network.o \
+	$(TARGETDIR_MgmtMsgClient)/Display.o \
 	$(TARGETDIR_MgmtMsgClient)/MgmtMsgClient.o
 USERLIBS_MgmtMsgClient = $(SYSLIBS_MgmtMsgClient) 
 DEPLIBS_MgmtMsgClient =  
@@ -54,8 +56,14 @@ $(TARGETDIR_MgmtMsgClient)/OutgoingManagementMessage.o: $(TARGETDIR_MgmtMsgClien
 $(TARGETDIR_MgmtMsgClient)/Help.o: $(TARGETDIR_MgmtMsgClient) Help.cpp
 	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ Help.cpp
 
+$(TARGETDIR_MgmtMsgClient)/IncomingManagementMessage.o: $(TARGETDIR_MgmtMsgClient) IncomingManagementMessage.cpp
+	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ IncomingManagementMessage.cpp
+
 $(TARGETDIR_MgmtMsgClient)/Network.o: $(TARGETDIR_MgmtMsgClient) Network.cpp
 	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ Network.cpp
+
+$(TARGETDIR_MgmtMsgClient)/Display.o: $(TARGETDIR_MgmtMsgClient) Display.cpp
+	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ Display.cpp
 
 $(TARGETDIR_MgmtMsgClient)/MgmtMsgClient.o: $(TARGETDIR_MgmtMsgClient) MgmtMsgClient.cpp
 	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ MgmtMsgClient.cpp
@@ -70,7 +78,9 @@ clean:
 		$(TARGETDIR_MgmtMsgClient)/Client.o \
 		$(TARGETDIR_MgmtMsgClient)/OutgoingManagementMessage.o \
 		$(TARGETDIR_MgmtMsgClient)/Help.o \
+		$(TARGETDIR_MgmtMsgClient)/IncomingManagementMessage.o \
 		$(TARGETDIR_MgmtMsgClient)/Network.o \
+		$(TARGETDIR_MgmtMsgClient)/Display.o \
 		$(TARGETDIR_MgmtMsgClient)/MgmtMsgClient.o
 	$(CCADMIN)
 	rm -f -r $(TARGETDIR_MgmtMsgClient)

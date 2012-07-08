@@ -9,6 +9,7 @@
 #define	NETWORK_H
 
 #include <netdb.h>
+
 #include "datatypes_dep.h"
 
 int initNetwork(char* port, char* hostName, struct addrinfo** addrInfo);

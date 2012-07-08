@@ -10,16 +10,16 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "Client.h"
 #include "Help.h"
 #include "Network.h"
+#include "IncomingManagementMessage.h"
 #include "OutgoingManagementMessage.h"
-//#include "OptBuffer.h"
 
 #include "constants.h"
 #include "datatypes_dep.h"
-#include "string.h"
 
 /**
  * This method will be used to deliver all of the requested actions to the
@@ -52,6 +52,16 @@ void mainClient(OptBuffer* optBuf) {
     free(outMessage);
     
     sendMessage(sockFd, buf, PACKET_SIZE, unicastAddress);
+    
+    //free(buf);
+    memset(buf, 0, PACKET_SIZE);
+    
+    receiveMessage(sockFd, buf, PACKET_SIZE, &fromAddr, &fromLen);
+    
+    IncomingManagementMessage *inMessage = new IncomingManagementMessage(buf, optBuf);
+    free(inMessage);
+    
+    //printf("Received:\n\n%s", buf);
     
     free(buf);
     

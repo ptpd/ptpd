@@ -13,15 +13,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "MgmtMsgClient.h"
 #include "Client.h"
 #include "constants.h"
 #include "OptBuffer.h"
 
 using namespace std;
 
-// TODO: 'verbose' flag handling
 /* Flag set by ‘--verbose’. */
-static int verbose_flag;
+int verbose_flag = 0;
 
 /*
  * 
@@ -62,27 +62,27 @@ int main(int argc, char** argv) {
                 /* If this option set a flag, do nothing else now. */
                 if (long_options[option_index].flag != 0)
                     break;
-                printf ("option %s", long_options[option_index].name);
+                DBG("option %s", long_options[option_index].name);
                 
                 if (optarg)
-                    printf (" with arg %s\n", optarg);
+                    DBG(" with arg %s\n", optarg);
                 
                break;
      
             case 'h':
-                printf ("option -h\n");
+                DBG("option -h\n");
                 optBuf->help_print = true;
                 //printHelp(argv[0]);
                 //return 0;
                 break;
      
             case 'a':
-                printf ("option -a with value `%s'\n", optarg);
+                DBG("option -a with value `%s'\n", optarg);
                 memcpy(optBuf->u_address, optarg, MAX_ADDR_STR_LEN + 1);
                 break;
      
             case 'm':
-                printf ("option -m with value `%s'\n", optarg);
+                DBG("option -m with value `%s'\n", optarg);
                 
                 //Print messages list and exit
                 if (strcmp(optarg, "print") == 0)
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
                 break;
      
             case 'p':
-                printf ("option -p with value `%s'\n", optarg);
+                DBG("option -p with value `%s'\n", optarg);
                 memcpy(optBuf->u_port, optarg, MAX_PORT_STR_LEN + 1);
                 break;
      
@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
      * and ‘--brief’ as they are encountered,
      * we report the final status resulting from them. */
     if (verbose_flag)
-        puts ("verbose flag is set");
+        DBG("verbose flag is set\n");
      
     /* Print any remaining command line arguments (not options). */
     if (optind < argc)
