@@ -529,7 +529,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->message_activity = TRUE;
 
 	if (length < HEADER_LENGTH) {
-		ERROR("message shorter than header length\n");
+		printf("message shorter than header length\n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 		return;
 	}
@@ -537,12 +537,12 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
 
 	if (ptpClock->msgTmpHeader.versionPTP != ptpClock->versionNumber) {
-		DBG2("ignore version %d message\n", ptpClock->msgTmpHeader.versionPTP);
+		printf("ignore version %d message\n", ptpClock->msgTmpHeader.versionPTP);
 		return;
 	}
 
 	if(ptpClock->msgTmpHeader.domainNumber != ptpClock->domainNumber) {
-		DBG2("ignore message from domainNumber %d\n", ptpClock->msgTmpHeader.domainNumber);
+		printf("ignore message from domainNumber %d\n", ptpClock->msgTmpHeader.domainNumber);
 		return;
 	}
 
@@ -1076,6 +1076,7 @@ handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			}
 			break;
 
+
 		case PTP_MASTER:
 			msgUnpackHeader(ptpClock->msgIbuf,
 					&ptpClock->delayReqHeader);
@@ -1421,28 +1422,28 @@ void
 handleManagement(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
 		 Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	DBGV("Management message received : \n");
+	printf("\n\nManagement message received : \n");
 
 	if (isFromSelf) {
-		DBGV("handleManagement: Ignore message from self \n");
+		printf("handleManagement: Ignore message from self \n");
 		return;
 	}
 
 	msgUnpackManagement(ptpClock->msgIbuf,&ptpClock->msgTmp.manage, header, ptpClock);
 
 	if(ptpClock->msgTmp.manage.tlv == NULL) {
-		DBGV("handleManagement: TLV is empty\n");
+		printf("handleManagement: TLV is empty\n");
 		return;
 	}
 
 	/* is this an error status management TLV? */
 	if(ptpClock->msgTmp.manage.tlv->tlvType == TLV_MANAGEMENT_ERROR_STATUS) {
-		DBGV("handleManagement: Error Status TLV\n");
+		printf("handleManagement: Error Status TLV\n");
 		unpackMMErrorStatus(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
 		handleMMErrorStatus(&ptpClock->msgTmp.manage);
 		/* cleanup msgTmp managementTLV */
 		if(ptpClock->msgTmp.manage.tlv) {
-			DBGV("cleanup ptpClock->msgTmp.manage message \n");
+			printf("cleanup ptpClock->msgTmp.manage message \n");
 			if(ptpClock->msgTmp.manage.tlv->dataField) {
 				freeMMErrorStatusTLV(ptpClock->msgTmp.manage.tlv);
 				free(ptpClock->msgTmp.manage.tlv->dataField);
@@ -1452,139 +1453,139 @@ handleManagement(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 		return;
 	} else if (ptpClock->msgTmp.manage.tlv->tlvType != TLV_MANAGEMENT) {
 		/* do nothing, implemention specific handling */
-		DBGV("handleManagement: Currently unsupported management TLV type\n");
+		printf("handleManagement: Currently unsupported management TLV type\n");
 		return;
 	}
 
 	switch(ptpClock->msgTmp.manage.tlv->managementId)
 	{
 	case MM_NULL_MANAGEMENT:
-		DBGV("handleManagement: Null Management\n");
+		printf("handleManagement: Null Management\n");
 		handleMMNullManagement(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
 		break;
 	case MM_CLOCK_DESCRIPTION:
-		DBGV("handleManagement: Clock Description\n");
+		printf("handleManagement: Clock Description\n");
 		unpackMMClockDescription(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
 		handleMMClockDescription(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
 		break;
 	case MM_USER_DESCRIPTION:
-		DBGV("handleManagement: User Description\n");
+		printf("handleManagement: User Description\n");
 		unpackMMUserDescription(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
 		handleMMUserDescription(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
 		break;
 	case MM_SAVE_IN_NON_VOLATILE_STORAGE:
-		DBGV("handleManagement: Save In Non-Volatile Storage\n");
+		printf("handleManagement: Save In Non-Volatile Storage\n");
 		handleMMSaveInNonVolatileStorage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
 		break;
 	case MM_RESET_NON_VOLATILE_STORAGE:
-		DBGV("handleManagement: Reset Non-Volatile Storage\n");
+		printf("handleManagement: Reset Non-Volatile Storage\n");
 		handleMMResetNonVolatileStorage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
 		break;
 	case MM_INITIALIZE:
-		DBGV("handleManagement: Initialize\n");
+		printf("handleManagement: Initialize\n");
 		unpackMMInitialize(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
 		handleMMInitialize(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
 		break;
 	case MM_DEFAULT_DATA_SET:
-		DBGV("handleManagement: Default Data Set\n");
+		printf("handleManagement: Default Data Set\n");
 		unpackMMDefaultDataSet(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
 		handleMMDefaultDataSet(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
 		break;
 	case MM_CURRENT_DATA_SET:
-		DBGV("handleManagement: Current Data Set\n");
+		printf("handleManagement: Current Data Set\n");
 		unpackMMCurrentDataSet(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
 		handleMMCurrentDataSet(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
 		break;
         case MM_PARENT_DATA_SET:
-                DBGV("handleManagement: Parent Data Set\n");
+                printf("handleManagement: Parent Data Set\n");
                 unpackMMParentDataSet(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMParentDataSet(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_TIME_PROPERTIES_DATA_SET:
-                DBGV("handleManagement: TimeProperties Data Set\n");
+                printf("handleManagement: TimeProperties Data Set\n");
                 unpackMMTimePropertiesDataSet(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMTimePropertiesDataSet(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_PORT_DATA_SET:
-                DBGV("handleManagement: Port Data Set\n");
+                printf("handleManagement: Port Data Set\n");
                 unpackMMPortDataSet(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMPortDataSet(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_PRIORITY1:
-                DBGV("handleManagement: Priority1\n");
+                printf("handleManagement: Priority1\n");
                 unpackMMPriority1(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMPriority1(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_PRIORITY2:
-                DBGV("handleManagement: Priority2\n");
+                printf("handleManagement: Priority2\n");
                 unpackMMPriority2(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMPriority2(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_DOMAIN:
-                DBGV("handleManagement: Domain\n");
+                printf("handleManagement: Domain\n");
                 unpackMMDomain(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMDomain(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
 	case MM_SLAVE_ONLY:
-		DBGV("handleManagement: Slave Only\n");
+		printf("handleManagement: Slave Only\n");
 		unpackMMSlaveOnly(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
 		handleMMSlaveOnly(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
 		break;
         case MM_LOG_ANNOUNCE_INTERVAL:
-                DBGV("handleManagement: Log Announce Interval\n");
+                printf("handleManagement: Log Announce Interval\n");
                 unpackMMLogAnnounceInterval(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMLogAnnounceInterval(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_ANNOUNCE_RECEIPT_TIMEOUT:
-                DBGV("handleManagement: Announce Receipt Timeout\n");
+                printf("handleManagement: Announce Receipt Timeout\n");
                 unpackMMAnnounceReceiptTimeout(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMAnnounceReceiptTimeout(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_LOG_SYNC_INTERVAL:
-                DBGV("handleManagement: Log Sync Interval\n");
+                printf("handleManagement: Log Sync Interval\n");
                 unpackMMLogSyncInterval(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMLogSyncInterval(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_VERSION_NUMBER:
-                DBGV("handleManagement: Version Number\n");
+                printf("handleManagement: Version Number\n");
                 unpackMMVersionNumber(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMVersionNumber(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_ENABLE_PORT:
-                DBGV("handleManagement: Enable Port\n");
+                printf("handleManagement: Enable Port\n");
                 handleMMEnablePort(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_DISABLE_PORT:
-                DBGV("handleManagement: Disable Port\n");
+                printf("handleManagement: Disable Port\n");
                 handleMMDisablePort(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_TIME:
-                DBGV("handleManagement: Time\n");
+                printf("handleManagement: Time\n");
                 unpackMMTime(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMTime(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_CLOCK_ACCURACY:
-                DBGV("handleManagement: Clock Accuracy\n");
+                printf("handleManagement: Clock Accuracy\n");
                 unpackMMClockAccuracy(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMClockAccuracy(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_UTC_PROPERTIES:
-                DBGV("handleManagement: Utc Properties\n");
+                printf("handleManagement: Utc Properties\n");
                 unpackMMUtcProperties(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMUtcProperties(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_TRACEABILITY_PROPERTIES:
-                DBGV("handleManagement: Traceability Properties\n");
+                printf("handleManagement: Traceability Properties\n");
                 unpackMMTraceabilityProperties(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMTraceabilityProperties(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_DELAY_MECHANISM:
-                DBGV("handleManagement: Delay Mechanism\n");
+                printf("handleManagement: Delay Mechanism\n");
                 unpackMMDelayMechanism(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMDelayMechanism(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
         case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
-                DBGV("handleManagement: Log Min Pdelay Req Interval\n");
+                printf("handleManagement: Log Min Pdelay Req Interval\n");
                 unpackMMLogMinPdelayReqInterval(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
                 handleMMLogMinPdelayReqInterval(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
@@ -1608,14 +1609,14 @@ handleManagement(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 	case MM_TRANSPARENT_CLOCK_DEFAULT_DATA_SET:
 	case MM_TRANSPARENT_CLOCK_PORT_DATA_SET:
 	case MM_PRIMARY_DOMAIN:
-		DBGV("handleManagement: Currently unsupported managementTLV %d\n",
+		printf("handleManagement: Currently unsupported managementTLV %d\n",
 				ptpClock->msgTmp.manage.tlv->managementId);
 		handleErrorManagementMessage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp,
 			ptpClock, ptpClock->msgTmp.manage.tlv->managementId,
 			NOT_SUPPORTED);
 		break;
 	default:
-		DBGV("handleManagement: Unknown managementTLV %d\n",
+		printf("handleManagement: Unknown managementTLV %d\n",
 				ptpClock->msgTmp.manage.tlv->managementId);
 		handleErrorManagementMessage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp,
 			ptpClock, ptpClock->msgTmp.manage.tlv->managementId,
@@ -1851,10 +1852,10 @@ issueManagementRespOrAck(MsgManagement *outgoing, RunTimeOpts *rtOpts,
 
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
 				&ptpClock->netPath, 0)) {
-		DBGV("Management response/acknowledge can't be sent -> FAULTY state \n");
+		printf("Management response/acknowledge can't be sent -> FAULTY state \n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 	} else {
-		DBGV("Management response/acknowledge msg sent \n");
+		printf("Management response/acknowledge msg sent \n");
 	}
 }
 
@@ -1873,10 +1874,10 @@ issueManagementErrorStatus(MsgManagement *outgoing, RunTimeOpts *rtOpts, PtpCloc
 
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
 				&ptpClock->netPath, 0)) {
-		DBGV("Management error status can't be sent -> FAULTY state \n");
+		printf("Management error status can't be sent -> FAULTY state \n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 	} else {
-		DBGV("Management error status msg sent \n");
+		printf("Management error status msg sent \n");
 	}
 
 }

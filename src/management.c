@@ -84,7 +84,7 @@ void initOutgoingMsgManagement(MsgManagement* incoming, MsgManagement* outgoing,
 /**\brief Handle incoming NULL_MANAGEMENT message*/
 void handleMMNullManagement(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received NULL_MANAGEMENT message\n");
+	printf("received NULL_MANAGEMENT message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -95,15 +95,15 @@ void handleMMNullManagement(MsgManagement* incoming, MsgManagement* outgoing, Pt
 	{
 	case GET:
 	case SET:
-		DBGV(" GET or SET mgmt msg\n");
+		printf(" GET or SET mgmt msg\n");
 		outgoing->actionField = RESPONSE;
 		break;
 	case COMMAND:
-		DBGV(" COMMAND mgmt msg\n");
+		printf(" COMMAND mgmt msg\n");
 		outgoing->actionField = ACKNOWLEDGE;
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_NULL_MANAGEMENT,
@@ -115,7 +115,7 @@ void handleMMNullManagement(MsgManagement* incoming, MsgManagement* outgoing, Pt
 /**\brief Handle incoming CLOCK_DESCRIPTION management message*/
 void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received CLOCK_DESCRIPTION management message \n");
+	printf("received CLOCK_DESCRIPTION management message \n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -126,7 +126,7 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
 	switch(incoming->actionField)
 	{
 	case GET:
-		DBGV(" GET action \n");
+		printf(" GET action \n");
 		/* Table 38 */
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof( MMClockDescription));
@@ -193,11 +193,11 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
 		data->profileIdentity5 = 0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action \n");
+		printf(" RESPONSE action \n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_CLOCK_DESCRIPTION,
@@ -208,7 +208,7 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
 /**\brief Handle incoming SLAVE_ONLY management message type*/
 void handleMMSlaveOnly(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received SLAVE_ONLY management message \n");
+	printf("received SLAVE_ONLY management message \n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -219,13 +219,13 @@ void handleMMSlaveOnly(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 	switch (incoming->actionField)
 	{
 	case SET:
-		DBGV(" SET action \n");
+		printf(" SET action \n");
 		data = (MMSlaveOnly*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->slaveOnly = data->so;
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action \n");
+		printf(" GET action \n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMSlaveOnly));
 		data = (MMSlaveOnly*)outgoing->tlv->dataField;
@@ -234,7 +234,7 @@ void handleMMSlaveOnly(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		data->reserved = 0x0;
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_SLAVE_ONLY,
@@ -245,7 +245,7 @@ void handleMMSlaveOnly(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 /**\brief Handle incoming USER_DESCRIPTION management message type*/
 void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received USER_DESCRIPTION message\n");
+	printf("received USER_DESCRIPTION message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -256,7 +256,7 @@ void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, P
 	switch(incoming->actionField)
 	{
 	case SET:
-		DBGV(" SET action \n");
+		printf(" SET action \n");
 		data = (MMUserDescription*)incoming->tlv->dataField;
 		UInteger8 userDescriptionLength = data->userDescription.lengthField;
 		if(userDescriptionLength <= USER_DESCRIPTION_MAX) {
@@ -265,12 +265,13 @@ void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, P
 					userDescriptionLength);
 			/* add null-terminator to make use of C string function strlen later */
 			ptpClock->user_description[userDescriptionLength] = '\0';
+			printf("==> %d , %s, %s,\n",(int)data->userDescription.lengthField, data->userDescription.textField, ptpClock->user_description);
 		} else {
 			WARNING("management user description exceeds specification length \n");
 		}
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action \n");
+		printf(" GET action \n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof( MMUserDescription));
 		data = (MMUserDescription*)outgoing->tlv->dataField;
@@ -284,7 +285,7 @@ void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, P
                         data->userDescription.lengthField);
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_USER_DESCRIPTION,
@@ -296,7 +297,7 @@ void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, P
 /**\brief Handle incoming SAVE_IN_NON_VOLATILE_STORAGE management message type*/
 void handleMMSaveInNonVolatileStorage(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received SAVE_IN_NON_VOLATILE_STORAGE message\n");
+	printf("received SAVE_IN_NON_VOLATILE_STORAGE message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -310,7 +311,7 @@ void handleMMSaveInNonVolatileStorage(MsgManagement* incoming, MsgManagement* ou
 	case ACKNOWLEDGE:
 		/* issue a NOT_SUPPORTED error management message, intentionally fall through */
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_SAVE_IN_NON_VOLATILE_STORAGE,
@@ -322,7 +323,7 @@ void handleMMSaveInNonVolatileStorage(MsgManagement* incoming, MsgManagement* ou
 /**\brief Handle incoming RESET_NON_VOLATILE_STORAGE management message type*/
 void handleMMResetNonVolatileStorage(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received RESET_NON_VOLATILE_STORAGE message\n");
+	printf("received RESET_NON_VOLATILE_STORAGE message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -336,7 +337,7 @@ void handleMMResetNonVolatileStorage(MsgManagement* incoming, MsgManagement* out
 	case ACKNOWLEDGE:
 		/* issue a NOT_SUPPORTED error management message, intentionally fall through */
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_RESET_NON_VOLATILE_STORAGE,
@@ -348,7 +349,7 @@ void handleMMResetNonVolatileStorage(MsgManagement* incoming, MsgManagement* out
 /**\brief Handle incoming INITIALIZE management message type*/
 void handleMMInitialize(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received INITIALIZE message\n");
+	printf("received INITIALIZE message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -360,7 +361,7 @@ void handleMMInitialize(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 	switch( incoming->actionField )
 	{
 	case COMMAND:
-		DBGV(" COMMAND action\n");
+		printf(" COMMAND action\n");
 		outgoing->actionField = ACKNOWLEDGE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMInitialize));
 		incomingData = (MMInitialize*)incoming->tlv->dataField;
@@ -374,16 +375,16 @@ void handleMMInitialize(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 			break;
 		default:
 			/* do nothing, implementation specific */
-			DBGV("initializeKey != 0, do nothing\n");
+			printf("initializeKey != 0, do nothing\n");
 		}
 		outgoingData->initializeKey = incomingData->initializeKey;
 		break;
 	case ACKNOWLEDGE:
-		DBGV(" ACKNOWLEDGE action\n");
+		printf(" ACKNOWLEDGE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_INITIALIZE,
@@ -395,7 +396,7 @@ void handleMMInitialize(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 /**\brief Handle incoming DEFAULT_DATA_SET management message type*/
 void handleMMDefaultDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received DEFAULT_DATA_SET message\n");
+	printf("received DEFAULT_DATA_SET message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -406,7 +407,7 @@ void handleMMDefaultDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 	switch( incoming->actionField )
 	{
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMDefaultDataSet));
 		data = (MMDefaultDataSet*)outgoing->tlv->dataField;
@@ -430,11 +431,11 @@ void handleMMDefaultDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 		data->reserved1 = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_DEFAULT_DATA_SET,
@@ -446,7 +447,7 @@ void handleMMDefaultDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 /**\brief Handle incoming CURRENT_DATA_SET management message type*/
 void handleMMCurrentDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received CURRENT_DATA_SET message\n");
+	printf("received CURRENT_DATA_SET message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -457,7 +458,7 @@ void handleMMCurrentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 	switch( incoming->actionField )
 	{
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof( MMCurrentDataSet));
 		data = (MMCurrentDataSet*)outgoing->tlv->dataField;
@@ -481,11 +482,11 @@ void handleMMCurrentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 		data->meanPathDelay.scaledNanoseconds.msb = mPD.scaledNanoseconds.msb;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_CURRENT_DATA_SET,
@@ -497,7 +498,7 @@ void handleMMCurrentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 /**\brief Handle incoming PARENT_DATA_SET management message type*/
 void handleMMParentDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received PARENT_DATA_SET message\n");
+	printf("received PARENT_DATA_SET message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -508,7 +509,7 @@ void handleMMParentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 	switch( incoming->actionField )
 	{
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMParentDataSet));
 		data = (MMParentDataSet*)outgoing->tlv->dataField;
@@ -531,11 +532,11 @@ void handleMMParentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		copyClockIdentity(data->grandmasterIdentity, ptpClock->grandmasterIdentity);
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_PARENT_DATA_SET,
@@ -547,7 +548,7 @@ void handleMMParentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 /**\brief Handle incoming PROPERTIES_DATA_SET management message type*/
 void handleMMTimePropertiesDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received TIME_PROPERTIES message\n");
+	printf("received TIME_PROPERTIES message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -558,7 +559,7 @@ void handleMMTimePropertiesDataSet(MsgManagement* incoming, MsgManagement* outgo
 	switch( incoming->actionField )
 	{
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMTimePropertiesDataSet));
 		data = (MMTimePropertiesDataSet*)outgoing->tlv->dataField;
@@ -574,11 +575,11 @@ void handleMMTimePropertiesDataSet(MsgManagement* incoming, MsgManagement* outgo
 		data->timeSource = ptpClock->timeSource;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_TIME_PROPERTIES_DATA_SET,
@@ -590,7 +591,7 @@ void handleMMTimePropertiesDataSet(MsgManagement* incoming, MsgManagement* outgo
 /**\brief Handle incoming PORT_DATA_SET management message type*/
 void handleMMPortDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received PORT_DATA_SET message\n");
+	printf("received PORT_DATA_SET message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -601,7 +602,7 @@ void handleMMPortDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 	switch( incoming->actionField )
 	{
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMPortDataSet));
 		data = (MMPortDataSet*)outgoing->tlv->dataField;
@@ -625,11 +626,11 @@ void handleMMPortDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 		data->versionNumber = ptpClock->versionNumber;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action \n");
+		printf(" RESPONSE action \n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_PORT_DATA_SET,
@@ -641,7 +642,7 @@ void handleMMPortDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 /**\brief Handle incoming PRIORITY1 management message type*/
 void handleMMPriority1(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received PRIORITY1 message\n");
+	printf("received PRIORITY1 message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -652,13 +653,14 @@ void handleMMPriority1(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMPriority1*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->priority1 = data->priority1;
+		printf("Priority 1 = %hhu\n",ptpClock->priority1);
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMPriority1));
 		data = (MMPriority1*)outgoing->tlv->dataField;
@@ -667,11 +669,11 @@ void handleMMPriority1(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_PRIORITY1,
@@ -683,7 +685,7 @@ void handleMMPriority1(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 /**\brief Handle incoming PRIORITY2 management message type*/
 void handleMMPriority2(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received PRIORITY2 message\n");
+	printf("received PRIORITY2 message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -694,13 +696,14 @@ void handleMMPriority2(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMPriority2*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->priority2 = data->priority2;
+		printf("Priority 2 = %hhu\n",ptpClock->priority2);
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMPriority2));
 		data = (MMPriority2*)outgoing->tlv->dataField;
@@ -709,11 +712,11 @@ void handleMMPriority2(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_PRIORITY2,
@@ -725,7 +728,7 @@ void handleMMPriority2(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 /**\brief Handle incoming DOMAIN management message type*/
 void handleMMDomain(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received DOMAIN message\n");
+	printf("received DOMAIN message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -736,13 +739,14 @@ void handleMMDomain(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* 
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMDomain*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->domainNumber = data->domainNumber;
+		printf("Domain 1 = %hhu\n",ptpClock->domainNumber);
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMDomain));
 		data = (MMDomain*)outgoing->tlv->dataField;
@@ -751,11 +755,11 @@ void handleMMDomain(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* 
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_DOMAIN,
@@ -767,7 +771,7 @@ void handleMMDomain(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* 
 /**\brief Handle incoming LOG_ANNOUNCE_INTERVAL management message type*/
 void handleMMLogAnnounceInterval(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received LOG_ANNOUNCE_INTERVAL message\n");
+	printf("received LOG_ANNOUNCE_INTERVAL message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -778,13 +782,13 @@ void handleMMLogAnnounceInterval(MsgManagement* incoming, MsgManagement* outgoin
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMLogAnnounceInterval*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->logAnnounceInterval = data->logAnnounceInterval;
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMLogAnnounceInterval));
 		data = (MMLogAnnounceInterval*)outgoing->tlv->dataField;
@@ -793,11 +797,11 @@ void handleMMLogAnnounceInterval(MsgManagement* incoming, MsgManagement* outgoin
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_LOG_ANNOUNCE_INTERVAL,
@@ -809,7 +813,7 @@ void handleMMLogAnnounceInterval(MsgManagement* incoming, MsgManagement* outgoin
 /**\brief Handle incoming ANNOUNCE_RECEIPT_TIMEOUT management message type*/
 void handleMMAnnounceReceiptTimeout(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received ANNOUNCE_RECEIPT_TIMEOUT message\n");
+	printf("received ANNOUNCE_RECEIPT_TIMEOUT message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -820,13 +824,13 @@ void handleMMAnnounceReceiptTimeout(MsgManagement* incoming, MsgManagement* outg
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMAnnounceReceiptTimeout*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->announceReceiptTimeout = data->announceReceiptTimeout;
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMAnnounceReceiptTimeout));
 		data = (MMAnnounceReceiptTimeout*)outgoing->tlv->dataField;
@@ -835,11 +839,11 @@ void handleMMAnnounceReceiptTimeout(MsgManagement* incoming, MsgManagement* outg
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_ANNOUNCE_RECEIPT_TIMEOUT,
@@ -851,7 +855,7 @@ void handleMMAnnounceReceiptTimeout(MsgManagement* incoming, MsgManagement* outg
 /**\brief Handle incoming LOG_SYNC_INTERVAL management message type*/
 void handleMMLogSyncInterval(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received LOG_SYNC_INTERVAL message\n");
+	printf("received LOG_SYNC_INTERVAL message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -862,13 +866,13 @@ void handleMMLogSyncInterval(MsgManagement* incoming, MsgManagement* outgoing, P
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMLogSyncInterval*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->logSyncInterval = data->logSyncInterval;
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMLogSyncInterval));
 		data = (MMLogSyncInterval*)outgoing->tlv->dataField;
@@ -877,11 +881,11 @@ void handleMMLogSyncInterval(MsgManagement* incoming, MsgManagement* outgoing, P
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_LOG_SYNC_INTERVAL,
@@ -893,7 +897,7 @@ void handleMMLogSyncInterval(MsgManagement* incoming, MsgManagement* outgoing, P
 /**\brief Handle incoming VERSION_NUMBER management message type*/
 void handleMMVersionNumber(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received VERSION_NUMBER message\n");
+	printf("received VERSION_NUMBER message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -904,13 +908,13 @@ void handleMMVersionNumber(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMVersionNumber*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->versionNumber = data->versionNumber;
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMVersionNumber));
 		data = (MMVersionNumber*)outgoing->tlv->dataField;
@@ -920,11 +924,11 @@ void handleMMVersionNumber(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		data->reserved1 = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_VERSION_NUMBER,
@@ -936,7 +940,7 @@ void handleMMVersionNumber(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 /**\brief Handle incoming ENABLE_PORT management message type*/
 void handleMMEnablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received ENABLE_PORT message\n");
+	printf("received ENABLE_PORT message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -946,7 +950,7 @@ void handleMMEnablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 	switch( incoming->actionField )
 	{
 	case COMMAND:
-		DBGV(" COMMAND action\n");
+		printf(" COMMAND action\n");
 		outgoing->actionField = ACKNOWLEDGE;
 		/* check if port is disabled, if so then initialize */
 		if(ptpClock->portState == PTP_DISABLED) {
@@ -954,10 +958,10 @@ void handleMMEnablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 		}
 		break;
 	case ACKNOWLEDGE:
-		DBGV(" ACKNOWLEDGE action\n");
+		printf(" ACKNOWLEDGE action\n");
 		/* TODO: implementation specific */
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_ENABLE_PORT,
@@ -969,7 +973,7 @@ void handleMMEnablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 /**\brief Handle incoming DISABLE_PORT management message type*/
 void handleMMDisablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received DISABLE_PORT message\n");
+	printf("received DISABLE_PORT message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -979,16 +983,16 @@ void handleMMDisablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 	switch( incoming->actionField )
 	{
 	case COMMAND:
-		DBGV(" COMMAND action\n");
+		printf(" COMMAND action\n");
 		outgoing->actionField = ACKNOWLEDGE;
 		/* disable port */
 		ptpClock->portState = PTP_DISABLED;
 		break;
 	case ACKNOWLEDGE:
-		DBGV(" ACKNOWLEDGE action\n");
+		printf(" ACKNOWLEDGE action\n");
 		/* TODO: implementation specific */
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_DISABLE_PORT,
@@ -1000,7 +1004,7 @@ void handleMMDisablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 /**\brief Handle incoming TIME management message type*/
 void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received TIME message\n");
+	printf("received TIME message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -1011,21 +1015,21 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMTime*)incoming->tlv->dataField;
 		/* SET actions */
 		/* TODO: add currentTime */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		/* TODO: implement action */
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_TIME,
@@ -1037,7 +1041,7 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 /**\brief Handle incoming CLOCK_ACCURACY management message type*/
 void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received CLOCK_ACCURACY message\n");
+	printf("received CLOCK_ACCURACY message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -1048,13 +1052,14 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMClockAccuracy*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->clockQuality.clockAccuracy = data->clockAccuracy;
+		printf("Clock Accuracy = %x\n",ptpClock->clockQuality.clockAccuracy);
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMClockAccuracy));
 		data = (MMClockAccuracy*)outgoing->tlv->dataField;
@@ -1063,11 +1068,11 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_CLOCK_ACCURACY,
@@ -1079,7 +1084,7 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 /**\brief Handle incoming UTC_PROPERTIES management message type*/
 void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received UTC_PROPERTIES message\n");
+	printf("received UTC_PROPERTIES message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -1090,17 +1095,19 @@ void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMUtcProperties*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->currentUtcOffset = data->currentUtcOffset;
+		printf("currentUtcOffset = %hd\n",ptpClock->currentUtcOffset);
 		/* set bit */
 		ptpClock->currentUtcOffsetValid = IS_SET(data->utcv_li59_li61, UTCV);
+		printf("bool byte = %hhu\n",data->utcv_li59_li61);
 		ptpClock->leap59 = IS_SET(data->utcv_li59_li61, LI59);
 		ptpClock->leap61 = IS_SET(data->utcv_li59_li61, LI61);
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMUtcProperties));
 		data = (MMUtcProperties*)outgoing->tlv->dataField;
@@ -1113,11 +1120,11 @@ void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_UTC_PROPERTIES,
@@ -1129,7 +1136,7 @@ void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 /**\brief Handle incoming TRACEABILITY_PROPERTIES management message type*/
 void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received TRACEABILITY_PROPERTIES message\n");
+	printf("received TRACEABILITY_PROPERTIES message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -1140,14 +1147,15 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMTraceabilityProperties*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->frequencyTraceable = IS_SET(data->ftra_ttra, FTRA);
 		ptpClock->timeTraceable = IS_SET(data->ftra_ttra, TTRA);
+		printf("bool byte = %hhu\n",data->ftra_ttra);
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMTraceabilityProperties));
 		data = (MMTraceabilityProperties*)outgoing->tlv->dataField;
@@ -1158,11 +1166,11 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf("RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf("unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_TRACEABILITY_PROPERTIES,
@@ -1174,7 +1182,7 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 /**\brief Handle incoming DELAY_MECHANISM management message type*/
 void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received DELAY_MECHANISM message\n");
+	printf("received DELAY_MECHANISM message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -1185,13 +1193,13 @@ void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, Pt
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMDelayMechanism*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->delayMechanism = data->delayMechanism;
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMDelayMechanism));
 		data = (MMDelayMechanism*)outgoing->tlv->dataField;
@@ -1200,11 +1208,11 @@ void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, Pt
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_DELAY_MECHANISM,
@@ -1216,7 +1224,7 @@ void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, Pt
 /**\brief Handle incoming LOG_MIN_PDELAY_REQ_INTERVAL management message type*/
 void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
-	DBGV("received LOG_MIN_PDELAY_REQ_INTERVAL message\n");
+	printf("received LOG_MIN_PDELAY_REQ_INTERVAL message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -1227,13 +1235,13 @@ void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* out
 	switch( incoming->actionField )
 	{
 	case SET:
-		DBGV(" SET action\n");
+		printf(" SET action\n");
 		data = (MMLogMinPdelayReqInterval*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->logMinPdelayReqInterval = data->logMinPdelayReqInterval;
 		/* intentionally fall through to GET case */
 	case GET:
-		DBGV(" GET action\n");
+		printf(" GET action\n");
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMLogMinPdelayReqInterval));
 		data = (MMLogMinPdelayReqInterval*)outgoing->tlv->dataField;
@@ -1242,11 +1250,11 @@ void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* out
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
-		DBGV(" RESPONSE action\n");
+		printf(" RESPONSE action\n");
 		/* TODO: implementation specific */
 		break;
 	default:
-		DBGV(" unknown actionType \n");
+		printf(" unknown actionType \n");
 		free(outgoing->tlv);
 		handleErrorManagementMessage(incoming, outgoing,
 			ptpClock, MM_LOG_MIN_PDELAY_REQ_INTERVAL,
@@ -1258,7 +1266,7 @@ void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* out
 /**\brief Handle incoming ERROR_STATUS management message type*/
 void handleMMErrorStatus(MsgManagement *incoming)
 {
-	DBGV("received MANAGEMENT_ERROR_STATUS message \n");
+	printf("received MANAGEMENT_ERROR_STATUS message \n");
 	/* implementation specific */
 }
 

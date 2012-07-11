@@ -553,7 +553,6 @@ packMMTime(Octet *buf)
 		*(UInteger32*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH + 6) = 
 								flip32(nanosecs);								
 		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 10);
-		manage->tlv->lengthField = flip16(0x000C);
 		out_length += 10;
 		break;
 	default:
