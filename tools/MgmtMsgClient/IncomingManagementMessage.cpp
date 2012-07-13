@@ -2,38 +2,41 @@
  * @file        IncomingManagementMessage.cpp
  * @author      Tomasz Kleinschmidt
  * 
- * @brief       IncomingManagementMessage class implementation
+ * @brief       IncomingManagementMessage class implementation.
+ * 
+ * This class is used to handle incoming management messages.
  */
+
+#include "IncomingManagementMessage.h"
 
 #include <netinet/in.h>
 #include <stdlib.h>
 
-#include "IncomingManagementMessage.h"
 #include "app_dep.h"
 #include "constants_dep.h"
 #include "datatypes.h"
 #include "datatypes_dep.h"
-#include "Display.h"
+#include "display.h"
 
 #define UNPACK_SIMPLE( type ) \
-void IncomingManagementMessage::unpack##type( void* from, void* to/*, PtpClock *ptpClock */) \
+void IncomingManagementMessage::unpack##type( void* from, void* to) \
 { \
         *(type *)from = *(type *)to; \
 }
 
 #define UNPACK_ENDIAN( type, size ) \
-void IncomingManagementMessage::unpack##type( void* from, void* to/*, PtpClock *ptpClock */) \
+void IncomingManagementMessage::unpack##type( void* from, void* to) \
 { \
         *(type *)from = flip##size( *(type *)to ); \
 }
 
 #define UNPACK_LOWER_AND_UPPER( type ) \
-void IncomingManagementMessage::unpack##type##Lower( void* from, void* to/*, PtpClock *ptpClock */) \
+void IncomingManagementMessage::unpack##type##Lower( void* from, void* to) \
 { \
 	*(type *)to = *(char *)from & 0x0F; \
 } \
 \
-void IncomingManagementMessage::unpack##type##Upper( void* from, void* to/*, PtpClock *ptpClock */) \
+void IncomingManagementMessage::unpack##type##Upper( void* from, void* to) \
 { \
 	*(type *)to = *(char *)from & 0xF0; \
 }
@@ -52,89 +55,139 @@ UNPACK_LOWER_AND_UPPER( Enumeration4 )
 UNPACK_LOWER_AND_UPPER( Nibble )
 UNPACK_LOWER_AND_UPPER( UInteger4 )
 
+/**
+ * @brief IncomingManagementMessage constructor.
+ * 
+ * @param buf           Buffer with a received message.
+ * @param optBuf        Buffer with application options.
+ * 
+ * The constructor allocates memory and trigger all necessary actions.
+ */
 IncomingManagementMessage::IncomingManagementMessage(Octet* buf, OptBuffer* optBuf) {
     this->incoming = (MsgManagement *)malloc(sizeof(MsgManagement));
     
-//    unpackMsgManagement(buf, this->incoming);
-//    unpackManagementTLV(buf, this->incoming);
     msgUnpackManagement(buf, this->incoming);
 }
 
+/**
+ * @brief IncomingManagementMessage deconstructor.
+ * 
+ * The deconstructor frees memory.
+ */
 IncomingManagementMessage::~IncomingManagementMessage() {
     free(this->incoming->tlv);
     free(this->incoming);
 }
 
-void IncomingManagementMessage::unpackInteger64( void *buf, void *i/*, PtpClock *ptpClock*/)
+/**
+ * @brief Unpack an Integer64 type.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param i     Integer64 object to unpack.
+ */
+void IncomingManagementMessage::unpackInteger64( void *buf, void *i)
 {
-    unpackUInteger32(buf, &((Integer64*)i)->lsb/*, ptpClock*/);
-    //unpackInteger32(buf + 4, &((Integer64*)i)->msb/*, ptpClock*/);
-    unpackInteger32(static_cast<char*>(buf) + 4, &((Integer64*)i)->msb/*, ptpClock*/);
+    unpackUInteger32(buf, &((Integer64*)i)->lsb);
+    unpackInteger32(static_cast<char*>(buf) + 4, &((Integer64*)i)->msb);
 }
 
-void IncomingManagementMessage::unpackClockIdentity( Octet *buf, ClockIdentity *c/*, PtpClock *ptpClock*/)
+/**
+ * @brief Unpack a Clockidentity Structure.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param c     Clockidentity Structure to unpack.
+ */
+void IncomingManagementMessage::unpackClockIdentity( Octet *buf, ClockIdentity *c)
 {
     int i;
     for(i = 0; i < CLOCK_IDENTITY_LENGTH; i++) {
-            unpackOctet((buf+i),&((*c)[i])/*, ptpClock*/);
+            unpackOctet((buf+i),&((*c)[i]));
     }
 }
 
-void IncomingManagementMessage::unpackPortIdentity( Octet *buf, PortIdentity *p/*, PtpClock *ptpClock*/)
+/**
+ * @brief Unpack a PortIdentity Structure.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param p     PortIdentity Structure to unpack.
+ */
+void IncomingManagementMessage::unpackPortIdentity( Octet *buf, PortIdentity *p)
 {
     int offset = 0;
     PortIdentity* data = p;
     #define OPERATE( name, size, type) \
-            unpack##type (buf + offset, &data->name/*, ptpClock*/); \
+            unpack##type (buf + offset, &data->name); \
             offset = offset + size;
     #include "../../src/def/derivedData/portIdentity.def"
 }
 
-void IncomingManagementMessage::unpackMsgHeader(Octet *buf, MsgHeader *header/*, PtpClock *ptpClock*/)
+/**
+ * @brief Unpack message header.
+ * 
+ * @param buf           Buffer with a received message.
+ * @param header        Message header to unpack.      
+ */
+void IncomingManagementMessage::unpackMsgHeader(Octet *buf, MsgHeader *header)
 {
     int offset = 0;
     MsgHeader* data = header;
     #define OPERATE( name, size, type) \
-            unpack##type (buf + offset, &data->name/*, ptpClock*/); \
+            unpack##type (buf + offset, &data->name); \
             offset = offset + size;
     #include "../../src/def/message/header.def"
 
     msgHeader_display(data);
 }
 
-void IncomingManagementMessage::unpackMsgManagement(Octet *buf, MsgManagement *m/*, PtpClock *ptpClock*/)
+/**
+ * @brief Unpack management message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message to unpack.
+ */
+void IncomingManagementMessage::unpackMsgManagement(Octet *buf, MsgManagement *m)
 {
     int offset = 0;
     MsgManagement* data = m;
     #define OPERATE( name, size, type) \
-            unpack##type (buf + offset, &data->name/*, ptpClock*/); \
+            unpack##type (buf + offset, &data->name); \
             offset = offset + size;
     #include "../../src/def/message/management.def"
 
-//	#ifdef PTPD_DBG
     msgManagement_display(data);
-//	#endif /* PTPD_DBG */
 }
 
-void IncomingManagementMessage::unpackManagementTLV(Octet *buf, MsgManagement *m/*, PtpClock* ptpClock*/)
+/**
+ * @brief Unpack management TLV.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with TLV to unpack.
+ */
+void IncomingManagementMessage::unpackManagementTLV(Octet *buf, MsgManagement *m)
 {
     int offset = 0;
     //XMALLOC(m->tlv, sizeof(ManagementTLV));
     m->tlv = (ManagementTLV*) malloc (sizeof(ManagementTLV));
     /* read the management TLV */
     #define OPERATE( name, size, type ) \
-            unpack##type( buf + MANAGEMENT_LENGTH + offset, &m->tlv->name/*, ptpClock */); \
+            unpack##type( buf + MANAGEMENT_LENGTH + offset, &m->tlv->name); \
             offset = offset + size;
     #include "../../src/def/managementTLV/managementTLV.def"
 }
 
-void IncomingManagementMessage::msgUnpackManagement(Octet *buf, MsgManagement * manage/*, MsgHeader * header*//*, PtpClock *ptpClock*/)
+/**
+ * @brief Handle management message unpacking.
+ * 
+ * @param buf           Buffer with a received message.
+ * @param manage        Management message to be handled.        
+ */
+void IncomingManagementMessage::msgUnpackManagement(Octet *buf, MsgManagement * manage)
 {
-	unpackMsgManagement(buf, manage/*, ptpClock*/);
+	unpackMsgManagement(buf, manage);
 
 	if ( manage->header.messageLength > MANAGEMENT_LENGTH )
 	{
-		unpackManagementTLV(buf, manage/*, ptpClock*/);
+		unpackManagementTLV(buf, manage);
 
 		/* at this point, we know what managementTLV we have, so return and
 		 * let someone else handle the data */

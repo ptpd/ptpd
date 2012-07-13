@@ -2,14 +2,15 @@
  * @file        IncomingManagementMessage.h
  * @author      Tomasz Kleinschmidt
  *
- * @brief       IncomingManagementMessage class definition
+ * @brief       IncomingManagementMessage class definition.
  */
 
 #ifndef INCOMINGMANAGEMENTMESSAGE_H
 #define	INCOMINGMANAGEMENTMESSAGE_H
 
-#include "datatypes.h"
 #include "OptBuffer.h"
+
+#include "datatypes.h"
 
 class IncomingManagementMessage {
 public:
@@ -17,7 +18,7 @@ public:
     virtual ~IncomingManagementMessage();
     
 private:
-    #define DECLARE_UNPACK( type ) void unpack##type( void*, void*/*, PtpClock *ptpClock */);
+    #define DECLARE_UNPACK( type ) void unpack##type( void*, void* );
     
     DECLARE_UNPACK( Enumeration16 )
     DECLARE_UNPACK( Integer8 )
@@ -37,13 +38,13 @@ private:
     DECLARE_UNPACK_LOWER_AND_UPPER( Nibble )
     DECLARE_UNPACK_LOWER_AND_UPPER( UInteger4 )
             
-    void unpackClockIdentity( Octet *buf, ClockIdentity *c/*, PtpClock *ptpClock*/);
-    void unpackPortIdentity( Octet *buf, PortIdentity *p/*, PtpClock *ptpClock*/);
-    void unpackMsgHeader(Octet *buf, MsgHeader *header/*, PtpClock *ptpClock*/);
-    void unpackMsgManagement(Octet *buf, MsgManagement *m/*, PtpClock *ptpClock*/);
-    void unpackManagementTLV(Octet *buf, MsgManagement *m/*, PtpClock* ptpClock*/);
+    void unpackClockIdentity( Octet *buf, ClockIdentity *c);
+    void unpackPortIdentity( Octet *buf, PortIdentity *p);
+    void unpackMsgHeader(Octet *buf, MsgHeader *header);
+    void unpackMsgManagement(Octet *buf, MsgManagement *m);
+    void unpackManagementTLV(Octet *buf, MsgManagement *m);
     
-    void msgUnpackManagement(Octet *buf, MsgManagement * manage/*, MsgHeader * header*//*, PtpClock *ptpClock*/);
+    void msgUnpackManagement(Octet *buf, MsgManagement * manage);
     
     MsgManagement *incoming;
 };

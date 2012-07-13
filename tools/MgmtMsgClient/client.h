@@ -1,8 +1,8 @@
 /** 
- * @file Client.h
- * @author Tomasz Kleinschmidt
+ * @file        client.h
+ * @author      Tomasz Kleinschmidt
  *
- * @brief Client class definition.
+ * @brief       Main function definition.
  */
 
 #ifndef CLIENT_H

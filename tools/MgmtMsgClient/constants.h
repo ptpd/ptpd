@@ -2,7 +2,7 @@
  * @file        constants.h
  * @author      Tomasz Kleinschmidt
  * 
- * @brief       Constants used throughout the code
+ * @brief       Constants used throughout the code.
  */
 
 #ifndef CONSTANTS_H

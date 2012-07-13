@@ -1,8 +1,8 @@
 /** 
- * @file Help.h
- * @author Tomasz Kleinschmidt
+ * @file        Help.h
+ * @author      Tomasz Kleinschmidt
  * 
- * @brief Help class definition
+ * @brief       Help messages printing functions definitions.
  */
 
 #ifndef HELP_H

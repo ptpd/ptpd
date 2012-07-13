@@ -1,11 +1,13 @@
 /**
- * @file MgmtMsgClient.cpp
- * @author Tomasz Kleinschmidt
+ * @file        MgmtMsgClient.cpp
+ * @author      Tomasz Kleinschmidt
  * 
- * @brief Main file for the PTPd Management Message Client
+ * @brief       Main file for the PTPd Management Message Client.
  * 
  * Used as an interface between a user and the application.
  */
+
+#include "MgmtMsgClient.h"
 
 #include <cstdlib>
 #include <getopt.h>
@@ -13,18 +15,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "MgmtMsgClient.h"
-#include "Client.h"
-#include "constants.h"
 #include "OptBuffer.h"
+
+#include "client.h"
+#include "constants.h"
 
 using namespace std;
 
 /* Flag set by ‘--verbose’. */
 int verbose_flag = 0;
 
-/*
+/**
+ * @brief Main function.
  * 
+ * The main function is responsible for parsing arguments passed by a user
+ * and passing them on.
  */
 int main(int argc, char** argv) {
     int c;

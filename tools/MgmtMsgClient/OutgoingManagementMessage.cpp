@@ -1,22 +1,25 @@
 /** 
- * @file OutgoingManagementMessage.cpp
- * @author Tomasz Kleinschmidt
+ * @file        OutgoingManagementMessage.cpp
+ * @author      Tomasz Kleinschmidt
  * 
- * @brief OutgoingManagementMessage class implementation
+ * @brief       OutgoingManagementMessage class implementation.
+ * 
+ * This class is used to handle outgoing management messages.
  */
+
+#include "OutgoingManagementMessage.h"
 
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-//Temporary for assigning ClockIdentity
-#include <string.h>
-
-#include "OutgoingManagementMessage.h"
-#include "app_dep.h"
-#include "constants_dep.h"
 #include "MgmtMsgClient.h"
 
+#include "app_dep.h"
+#include "constants_dep.h"
+
+//Temporary for assigning ClockIdentity
+#include <string.h>
 
 #define PACK_SIMPLE( type ) \
 void OutgoingManagementMessage::pack##type( void* from, void* to ) \
@@ -59,33 +62,48 @@ PACK_LOWER_AND_UPPER( Enumeration4 )
 PACK_LOWER_AND_UPPER( Nibble )
 PACK_LOWER_AND_UPPER( UInteger4 )
 
-
+/**
+ * @brief OutgoingManagementMessage constructor.
+ * 
+ * @param buf           Buffer with a message to send.
+ * @param optBuf        Buffer with application options.
+ * 
+ * The constructor allocates memory and trigger all necessary actions.
+ */
 OutgoingManagementMessage::OutgoingManagementMessage(Octet* buf, OptBuffer* optBuf) {
     this->outgoing = (MsgManagement *)malloc(sizeof(MsgManagement));
     
-    //handleMMNullManagement(this->outgoing, GET);
     handleManagement(optBuf, buf, this->outgoing);
-    
-    DBG("packing management message \n");
-    
-    this->outgoing->header.messageLength = MANAGEMENT_LENGTH + TLV_LENGTH + this->outgoing->tlv->lengthField;
-    
-    packMsgManagement(this->outgoing, buf);
-    packManagementTLV(this->outgoing->tlv, buf);
 }
 
+/**
+ * @brief OutgoingManagementMessage deconstructor.
+ * 
+ * The deconstructor frees memory.
+ */
 OutgoingManagementMessage::~OutgoingManagementMessage() {
     free(this->outgoing->tlv);
     free(this->outgoing);
 }
 
+/**
+ * @brief Pack an Integer64 type.
+ * 
+ * @param buf   Buffer with a message to send.
+ * @param i     Integer64 object to pack.
+ */
 void OutgoingManagementMessage::packInteger64( void* i, void *buf )
 {
     packUInteger32(&((Integer64*)i)->lsb, buf);
-    //packInteger32(&((Integer64*)i)->msb, buf + 4);
     packInteger32(&((Integer64*)i)->msb, static_cast<char*>(buf) + 4);
 }
 
+/**
+ * @brief Pack a Clockidentity Structure.
+ * 
+ * @param c     Clockidentity Structure to pack.
+ * @param buf   Buffer with a message to send.
+ */
 void OutgoingManagementMessage::packClockIdentity( ClockIdentity *c, Octet *buf)
 {
     int i;
@@ -94,6 +112,12 @@ void OutgoingManagementMessage::packClockIdentity( ClockIdentity *c, Octet *buf)
     }
 }
 
+/**
+ * @brief Pack a PortIdentity Structure.
+ * 
+ * @param p     PortIdentity Structure to pack.
+ * @param buf   Buffer with a message to send.
+ */
 void OutgoingManagementMessage::packPortIdentity( PortIdentity *p, Octet *buf)
 {
     int offset = 0;
@@ -104,6 +128,12 @@ void OutgoingManagementMessage::packPortIdentity( PortIdentity *p, Octet *buf)
     #include "../../src/def/derivedData/portIdentity.def"
 }
 
+/**
+ * @brief Pack message header.
+ * 
+ * @param header        Message header to pack. 
+ * @param buf           Buffer with a message to send.     
+ */
 void OutgoingManagementMessage::packMsgHeader(MsgHeader *h, Octet *buf)
 {
     int offset = 0;
@@ -119,6 +149,12 @@ void OutgoingManagementMessage::packMsgHeader(MsgHeader *h, Octet *buf)
     #include "../../src/def/message/header.def"
 }
 
+/**
+ * @brief Pack management message.
+ * 
+ * @param m     Management message to pack.
+ * @param buf   Buffer with a message to send.
+ */
 void OutgoingManagementMessage::packMsgManagement(MsgManagement *m, Octet *buf)
 {
     int offset = 0;
@@ -135,6 +171,12 @@ void OutgoingManagementMessage::packMsgManagement(MsgManagement *m, Octet *buf)
 
 }
 
+/**
+ * @brief Pack management TLV.
+ * 
+ * @param tlv   Management TLV to pack.
+ * @param buf   Buffer with a message to send.
+ */
 void OutgoingManagementMessage::packManagementTLV(ManagementTLV *tlv, Octet *buf)
 {
     int offset = 0;
@@ -145,9 +187,11 @@ void OutgoingManagementMessage::packManagementTLV(ManagementTLV *tlv, Octet *buf
 }
 
 /**
- * @brief Initialize outgoing management message fields
+ * @brief Initialize outgoing management message fields.
+ * 
+ * @param outgoing      Outgoing management message to initialize.
  */
-void OutgoingManagementMessage::initOutgoingMsgManagement(/*MsgManagement* incoming, */MsgManagement* outgoing/*, PtpClock *ptpClock*/)
+void OutgoingManagementMessage::initOutgoingMsgManagement(MsgManagement* outgoing)
 { 
     /* set header fields */
     outgoing->header.transportSpecific = 0x0;
@@ -161,11 +205,9 @@ void OutgoingManagementMessage::initOutgoingMsgManagement(/*MsgManagement* incom
     outgoing->header.correctionField.lsb = 0;
     
     /* TODO: Assign value to sourcePortIdentity */
-    //copyPortIdentity(&outgoing->header.sourcePortIdentity, &ptpClock->portIdentity);
     memset(&(outgoing->header.sourcePortIdentity), 0, sizeof(PortIdentity));
     
     /* TODO: Assign value to sequenceId */
-    //outgoing->header.sequenceId = incoming->header.sequenceId;
     outgoing->header.sequenceId = 0;
     
     outgoing->header.controlField = 0x0; /* deprecrated for ptp version 2 */
@@ -173,11 +215,9 @@ void OutgoingManagementMessage::initOutgoingMsgManagement(/*MsgManagement* incom
 
     /* set management message fields */
     /* TODO: Assign value to targetPortIdentity */
-    //copyPortIdentity( &outgoing->targetPortIdentity, &incoming->header.sourcePortIdentity );
     memset(&(outgoing->targetPortIdentity), 1, sizeof(PortIdentity));
     
     /* TODO: Assign value to startingBoundaryHops */
-    //outgoing->startingBoundaryHops = incoming->startingBoundaryHops - incoming->boundaryHops;
     outgoing->startingBoundaryHops = 0;
     
     outgoing->boundaryHops = outgoing->startingBoundaryHops;
@@ -189,6 +229,13 @@ void OutgoingManagementMessage::initOutgoingMsgManagement(/*MsgManagement* incom
     outgoing->tlv->dataField = NULL;
 }
 
+/**
+ * @brief Handle management message.
+ * 
+ * @param optBuf        Buffer with application options.
+ * @param buf           Buffer with a message to send.
+ * @param outgoing      Outgoing management message to handle.
+ */
 void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, MsgManagement* outgoing)
 {
     switch(optBuf->mgmt_id)
@@ -246,30 +293,30 @@ void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, 
         case MM_PRIMARY_DOMAIN:
             printf("handleManagement: Currently unsupported managementTLV %d\n", optBuf->mgmt_id);
             exit(1);
-//                handleErrorManagementMessage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp,
-//                        ptpClock, ptpClock->msgTmp.manage.tlv->managementId,
-//                        NOT_SUPPORTED);
-//            break;
         
         default:
             printf("handleManagement: Unknown managementTLV %d\n", optBuf->mgmt_id);
             exit(1);
-//                handleErrorManagementMessage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp,
-//                        ptpClock, ptpClock->msgTmp.manage.tlv->managementId,
-//                        NO_SUCH_ID);
-//            break;
-
     }
+    
+    outgoing->header.messageLength = MANAGEMENT_LENGTH + TLV_LENGTH + outgoing->tlv->lengthField;
+    
+    DBG("packing management message\n");
+    packMsgManagement(outgoing, buf);
+    packManagementTLV(outgoing->tlv, buf);
 }
 
 /**
- * @brief Handle incoming NULL_MANAGEMENT message
+ * @brief Handle incoming NULL_MANAGEMENT message.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
-void OutgoingManagementMessage::handleMMNullManagement(/*MsgManagement* incoming, */MsgManagement* outgoing/*, PtpClock* ptpClock*/, Enumeration4 actionField)
+void OutgoingManagementMessage::handleMMNullManagement(MsgManagement* outgoing, Enumeration4 actionField)
 {
     DBG("handling NULL_MANAGEMENT message\n");
 
-    initOutgoingMsgManagement(/*incoming, */outgoing/*, ptpClock*/);
+    initOutgoingMsgManagement(outgoing);
     outgoing->tlv->tlvType = TLV_MANAGEMENT;
     outgoing->tlv->lengthField = 2;
     outgoing->tlv->managementId = MM_NULL_MANAGEMENT;
@@ -286,11 +333,6 @@ void OutgoingManagementMessage::handleMMNullManagement(/*MsgManagement* incoming
         default:
             printf("handleMMNullManagement: unknown or unsupported actionType\n");
             exit(1);
-            //free(outgoing->tlv);
-            /*handleErrorManagementMessage(incoming, outgoing,
-                    ptpClock, MM_NULL_MANAGEMENT,
-                    NOT_SUPPORTED);*/
-            //break;
     }
 }
 

@@ -1,10 +1,11 @@
 /** 
- * @file datatypes.h
+ * @file        datatypes.h
+ * @author      Tomasz Kleinschmidt
  * 
- * @brief Main structures used in ptpdv2
+ * @brief       Main structures used in ptpdv2.
  *
  * This header file defines structures defined by the spec 
- * and needed messages structures
+ * and needed messages structures.
  */
 
 #ifndef DATATYPES_H

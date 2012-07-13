@@ -1,8 +1,8 @@
 /** 
- * @file OptBuffer.h
- * @author Tomasz Kleinschmidt
+ * @file        OptBuffer.h
+ * @author      Tomasz Kleinschmidt
  *
- * @brief OptBuffer class definition
+ * @brief       OptBuffer class definition.
  */
 
 #ifndef OPTBUFFER_H

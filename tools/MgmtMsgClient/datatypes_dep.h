@@ -1,7 +1,8 @@
 /** 
- * @file datatypes_dep.h
+ * @file        datatypes_dep.h
+ * @author      Tomasz Kleinschmidt
  *
- * @brief Implementation specific datatypes
+ * @brief       Implementation specific datatypes.
  */
 
 #ifndef DATATYPES_DEP_H

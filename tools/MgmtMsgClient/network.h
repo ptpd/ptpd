@@ -1,8 +1,8 @@
 /** 
- * @file Network.h
- * @author Tomasz Kleinschmidt
+ * @file        network.h
+ * @author      Tomasz Kleinschmidt
  *
- * @brief Network class definition.
+ * @brief       Network functions definitions.
  */
 
 #ifndef NETWORK_H

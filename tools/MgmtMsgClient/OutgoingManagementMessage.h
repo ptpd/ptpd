@@ -2,15 +2,16 @@
  * @file        OutgoingManagementMessage.h
  * @author      Tomasz Kleinschmidt
  *
- * @brief       OutgoingManagementMessage class definition
+ * @brief       OutgoingManagementMessage class definition.
  */
 
 #ifndef OUTGOINGMANAGEMENTMESSAGE_H
 #define	OUTGOINGMANAGEMENTMESSAGE_H
 
+#include "OptBuffer.h"
+
 #include "datatypes.h"
 #include "datatypes_dep.h"
-#include "OptBuffer.h"
 
 class OutgoingManagementMessage {
 public:
@@ -47,10 +48,10 @@ private:
     void packMsgManagement(MsgManagement *m, Octet *buf);
     void packManagementTLV(ManagementTLV *tlv, Octet *buf);
     
-    void initOutgoingMsgManagement(/*MsgManagement* incoming, */MsgManagement* outgoing/*, PtpClock *ptpClock*/);
+    void initOutgoingMsgManagement(MsgManagement* outgoing);
     
     void handleManagement(OptBuffer* optBuf, Octet* buf, MsgManagement* outgoing);
-    void handleMMNullManagement(/*MsgManagement* incoming, */MsgManagement* outgoing/*, PtpClock* ptpClock*/, Enumeration4 actionField);
+    void handleMMNullManagement(MsgManagement* outgoing, Enumeration4 actionField);
     
     MsgManagement *outgoing;
 };

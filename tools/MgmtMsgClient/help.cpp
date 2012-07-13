@@ -1,22 +1,23 @@
 /** 
- * @file Help.cpp
- * @author Tomasz Kleinschmidt
+ * @file        Help.cpp
+ * @author      Tomasz Kleinschmidt
  * 
- * @brief Help class implementation
+ * @brief       Help messages.
  * 
- * This class will be used to print help messages.
+ * Functions to print help messages.
  */
+
+#include "help.h"
 
 #include <stdio.h>
 
-#include "Help.h"
 #include "constants.h"
 #include "constants_dep.h"
 
 /**
- * This method will be used to print the help message.
+ * @brief Print help message.
  * 
- * @param appName       The name of the application.
+ * @param appName       Name of the application.
  */
 void printHelp(const char* appName) {
     printf("PTPd Management Message Client usage: %s [options]\n"
@@ -35,7 +36,7 @@ void printHelp(const char* appName) {
 }
 
 /**
- * This method will be used to print a brief list of management messages and assigned actions
+ * @brief Print a brief list of management messages and assigned actions.
  */
 void printMgmtMsgsList() {
     printf("managementId name                   \tmanagementId value (hex)      \tAllowed actions               \tApplies to\n"

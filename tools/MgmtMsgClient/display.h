@@ -2,7 +2,7 @@
  * @file        Display.h
  * @author      Tomasz Kleinschmidt
  *
- * @brief       Display class definition.
+ * @brief       Display functions definitions.
  */
 
 #ifndef DISPLAY_H

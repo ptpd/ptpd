@@ -1,7 +1,8 @@
 /** 
  * @file        constants_dep.h
+ * @author      Tomasz Kleinschmidt
  *
- * @brief       Constants defined by the specification
+ * @brief       Constants defined by the specification.
  */
 
 #ifndef CONSTANTS_DEP_H
@@ -15,7 +16,8 @@
 /* features, only change to refelect changes in implementation */
 #define VERSION_PTP 2
 
-/** \name Packet length
+/** 
+ * @name Packet length
  Minimal length values for each message.
  If TLV used length could be higher.*/
  /**\{*/
@@ -25,7 +27,8 @@
 /** \}*/
 
 /**
- * @brief Domain Number (Table 2 in the spec)*/
+ * @brief Domain Number (Table 2 in the spec)
+ */
 
 enum {
 	DFLT_DOMAIN_NUMBER = 0, ALT1_DOMAIN_NUMBER, ALT2_DOMAIN_NUMBER, ALT3_DOMAIN_NUMBER

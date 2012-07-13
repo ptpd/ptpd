@@ -1,20 +1,29 @@
 /** 
- * @file OptBuffer.cpp
- * @author Tomasz Kleinschmidt
+ * @file        OptBuffer.cpp
+ * @author      Tomasz Kleinschmidt
  * 
- * @brief OptBuffer class implementation
+ * @brief       OptBuffer class implementation.
+ * 
+ * This class is used to store application options passed by a user.
  */
+
+#include "OptBuffer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "OptBuffer.h"
+#include "MgmtMsgClient.h"
+
 #include "constants.h"
 #include "constants_dep.h"
 
 /**
- * The constructor should allocate memory for all the options and assign default values
+ * @brief OptBuffer constructor.
+ * 
+ * @param appName       Name of the application.
+ * 
+ * The constructor allocates memory and assigns default values.
  */
 OptBuffer::OptBuffer(char* appName) {
     this->help_arg = appName;
@@ -34,7 +43,9 @@ OptBuffer::OptBuffer(char* appName) {
 }
 
 /**
- * The deconstructor should free the memory
+ * @brief OptBuffer deconstructor.
+ * 
+ * The deconstructor frees memory.
  */
 OptBuffer::~OptBuffer() {
     free(this->u_address);
@@ -47,6 +58,11 @@ OptBuffer::~OptBuffer() {
         free(this->value);
 }
 
+/**
+ * @brief Parse action type.
+ * 
+ * @param actionType    Action type to be parsed.
+ */
 void OptBuffer::mgmtActionTypeParser(char* actionType)
 {
     if (!strcmp("GET", actionType))
@@ -65,7 +81,7 @@ void OptBuffer::mgmtActionTypeParser(char* actionType)
         this->action_type = ACKNOWLEDGE;
     
     else {
-        printf("ERROR: unknown actionType\n");
+        ERROR("unknown actionType\n");
         exit(1);
     }
     
@@ -73,6 +89,11 @@ void OptBuffer::mgmtActionTypeParser(char* actionType)
     return;
 }
 
+/**
+ * @brief Parse management id.
+ * 
+ * @param mgmtId    Management id to be parsed.
+ */
 void OptBuffer::mgmtIdParser(char* mgmtId) {
     if (!strcmp("NULL_MANAGEMENT", mgmtId))
         this->mgmt_id = MM_NULL_MANAGEMENT;
@@ -216,7 +237,7 @@ void OptBuffer::mgmtIdParser(char* mgmtId) {
         this->mgmt_id = MM_PRIMARY_DOMAIN;
     
     else {
-        printf("ERROR: unknown managementTLV\n");
+        ERROR("unknown managementTLV\n");
         exit(1);
     }
 

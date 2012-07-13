@@ -2,14 +2,14 @@
  * @file        Display.cpp
  * @author      Tomasz Kleinschmidt
  *
- * @brief       Display class implementation.
+ * @brief       Display functions.
  */
+
+#include "display.h"
 
 #include <stdio.h>
 
-#include "Display.h"
-
-/**\brief Display an Integer64 type*/
+/**@brief Display an Integer64 type*/
 void integer64_display(Integer64 * bigint)
 {
 	printf("Integer 64 : \n");
@@ -17,7 +17,7 @@ void integer64_display(Integer64 * bigint)
 	printf("MSB : %d\n", bigint->msb);
 }
 
-/**\brief Display a Clockidentity Structure*/
+/**@brief Display a Clockidentity Structure*/
 void clockIdentity_display(ClockIdentity clockIdentity)
 {
     printf("ClockIdentity : %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
@@ -27,7 +27,7 @@ void clockIdentity_display(ClockIdentity clockIdentity)
     );
 }
 
-/**\brief Display a Portidentity Structure*/
+/**@brief Display a Portidentity Structure*/
 void portIdentity_display(PortIdentity * portIdentity)
 {
     clockIdentity_display(portIdentity->clockIdentity);
@@ -35,10 +35,10 @@ void portIdentity_display(PortIdentity * portIdentity)
 }
 
 
-/**\brief Display Header message*/
+/**@brief Display Header message*/
 void msgHeader_display(MsgHeader * header)
 {
-	printf("Message header : \n");
+	printf("\nMessage header : \n");
 	printf("\n");
 	printf("transportSpecific : %d\n", header->transportSpecific);
 	printf("messageType : %d\n", header->messageType);
@@ -56,10 +56,10 @@ void msgHeader_display(MsgHeader * header)
 	printf("\n");
 }
 
-/**\brief Display Management message*/
+/**@brief Display Management message*/
 void msgManagement_display(MsgManagement * manage)
 {
-    printf("Management Message : \n");
+    printf("\nManagement Message : \n");
     printf("\n");
     printf("targetPortIdentity : \n");
     portIdentity_display(&manage->targetPortIdentity);

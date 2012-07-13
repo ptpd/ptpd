@@ -1,31 +1,32 @@
 /** 
- * @file Network.cpp
- * @author Tomasz Kleinschmidt
+ * @file        network.cpp
+ * @author      Tomasz Kleinschmidt
  * 
- * @brief Network class implementation.
+ * @brief       Network functions.
  * 
- * This class will be used to initialize and manage network connections
- * between the client and the server.
+ * Functions to initialize and manage network connection between 
+ * client and server.
  */
+
+#include "network.h"
 
 #include <err.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "MgmtMsgClient.h"
-#include "Network.h"
 
 /**
- * This method will be used to initialize socket communication between the client
- * and the server.
+ * @brief Initialize network connection between client and server.
  * 
- * @param hostName      The hostname or the IP address of the server.
- * @param port          The port number that the server is listening on.
+ * @param hostName      Hostname or IP address of the server.
+ * @param port          Port number that the server is listening on.
+ * @param addrInfo      Structure to store address info of the server.
  */
 int initNetwork(char* hostName, char* port, char* ifaceName, struct addrinfo** addrInfo) {
     int error, sockFd, yes = 1;
@@ -112,8 +113,7 @@ int initNetwork(char* hostName, char* port, char* ifaceName, struct addrinfo** a
 }
 
 /**
- * This method will be used to free the address specification data and close
- * the socket.
+ * @brief Close network connection.
  * 
  * @param sockFd        A descriptor identifying a socket.
  * @param addrInfo      A structure containing the destination address.
@@ -124,7 +124,7 @@ void disableNetwork(int sockFd, struct addrinfo** addrInfo) {
 }
 
 /**
- * This method will be used to send messages to the server.
+ * @brief Send message to the server.
  * 
  * @param sockFd        A descriptor identifying a socket.
  * @param buf           A buffer containing the message to be sent.
@@ -143,7 +143,7 @@ void sendMessage(int sockFd, Octet* buf, UInteger16 length, struct addrinfo* add
 }
 
 /**
- * This method will be used to receive messages from the server.
+ * @brief Receive message from the server.
  * 
  * @param sockFd        A descriptor identifying a bound socket.
  * @param buf           A buffer for the incoming data.

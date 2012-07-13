@@ -1,32 +1,33 @@
 /** 
- * @file Client.cpp
- * @author Tomasz Kleinschmidt
+ * @file        client.cpp
+ * @author      Tomasz Kleinschmidt
  * 
- * @brief Client class implementation.
+ * @brief       Main function of the application.
  * 
- * This class will be used as a glue for all of the functionalities that
+ * This function is used as a glue for all of the functionalities that
  * the application is supposed to deliver.
  */
+
+#include "client.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-#include "Client.h"
-#include "Help.h"
-#include "Network.h"
 #include "IncomingManagementMessage.h"
+#include "MgmtMsgClient.h"
 #include "OutgoingManagementMessage.h"
 
 #include "constants.h"
 #include "datatypes_dep.h"
+#include "help.h"
+#include "network.h"
 
-#include <unistd.h>
 /**
- * This method will be used to deliver all of the requested actions to the
- * user.
+ * This function is used to deliver all of requested actions to a user.
  * 
- * @param optBuf        A buffer with arguments passed from the user.
+ * @param optBuf        A buffer with arguments passed from a user.
  */
 void mainClient(OptBuffer* optBuf) {
     int sockFd;
@@ -45,17 +46,17 @@ void mainClient(OptBuffer* optBuf) {
     }
     
     if (!optBuf->interface_set) {
-        printf("ERROR: Interface name not defined\n");
+        ERROR("Interface name not defined\n");
         exit(1);
     }
     
     if (!optBuf->mgmt_id_set) {
-        printf("ERROR: managementTLV not defined\n");
+        ERROR("Management TLV not defined\n");
         exit(1);
     }
     
     if (!optBuf->action_type_set) {
-        printf("ERROR: actionType not defined\n");
+        ERROR("Action type not defined\n");
         exit(1);
     }
     
