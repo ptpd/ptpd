@@ -27,14 +27,15 @@
  * @param hostName      The hostname or the IP address of the server.
  * @param port          The port number that the server is listening on.
  */
-int initNetwork(char* hostName, char* port, struct addrinfo** addrInfo) {
+int initNetwork(char* hostName, char* port, char* ifaceName, struct addrinfo** addrInfo) {
     int error, sockFd, yes = 1;
     struct addrinfo sockHints, *sockRes;
     
     memset(&sockHints, 0, sizeof(sockHints)); 
             
+    sockHints.ai_family = PF_INET;
     sockHints.ai_socktype = SOCK_DGRAM;
-    sockHints.ai_family = AF_INET;
+    sockHints.ai_protocol = IPPROTO_UDP;
 	
     //get host address data
     error = getaddrinfo(hostName, port, &sockHints, &sockRes);
@@ -63,16 +64,47 @@ int initNetwork(char* hostName, char* port, struct addrinfo** addrInfo) {
         exit(1);	
     }
     
-    /* TODO: Bind to the PTP port needs root privileges.
-     * Add an adequate verification and notification. */ 
+    memset(&sockHints, 0, sizeof(sockHints)); 
+            
+    sockHints.ai_socktype = SOCK_DGRAM;
+    sockHints.ai_family = AF_INET;
+    sockHints.ai_flags = AI_PASSIVE; // use my IP
+
+    //get host address data
+    error = getaddrinfo(NULL, port, &sockHints, &sockRes);
+	
+    if (error) {		
+        errx(1, "%s", gai_strerror(error));		
+        exit(1);	
+    }
     
-    //bind to the port
+    //bind to the local port
     error = bind(sockFd, sockRes->ai_addr, sockRes->ai_addrlen);
 	
     if (error != 0) {		
         perror("bind()");		
         exit(1);	
     }
+    
+#ifdef linux
+   /*
+    * The following code makes sure that the data is only received on the specified interface.
+    * Without this option, it's possible to receive PTP from another interface, and confuse the protocol.
+    * Calling bind() with the IP address of the device instead of INADDR_ANY does not work.
+    *
+    * More info:
+    *   http://developerweb.net/viewtopic.php?id=6471
+    *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
+    */
+    
+    error = setsockopt(sockFd, SOL_SOCKET, SO_BINDTODEVICE, ifaceName, strlen(ifaceName));
+    
+    if (error != 0) {		
+        perror("setsockopt()");		
+        exit(1);	
+    }
+    
+#endif
     
     DBG("Client connected to %s on port %s\n", hostName, port);
     
@@ -102,6 +134,8 @@ void disableNetwork(int sockFd, struct addrinfo** addrInfo) {
 void sendMessage(int sockFd, Octet* buf, UInteger16 length, struct addrinfo* addrInfo) {
     ssize_t ret;
     
+    DBG("sending management message \n");
+    
     if ((ret = sendto(sockFd, buf, length, 0, addrInfo->ai_addr, addrInfo->ai_addrlen)) <= 0) {
         perror("send()");
 	exit(1);
@@ -109,8 +143,7 @@ void sendMessage(int sockFd, Octet* buf, UInteger16 length, struct addrinfo* add
 }
 
 /**
- * This method will be used to free the address specification data and close
- * the socket.
+ * This method will be used to receive messages from the server.
  * 
  * @param sockFd        A descriptor identifying a bound socket.
  * @param buf           A buffer for the incoming data.
@@ -122,6 +155,8 @@ void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_s
     ssize_t ret;
     
     *len = sizeof(*addr);
+    
+    DBG("receiving management message \n");
     
     if ((ret = recvfrom(sockFd, buf, length, 0, (struct sockaddr *)addr, len)) == -1) {
         perror("recvfrom()");

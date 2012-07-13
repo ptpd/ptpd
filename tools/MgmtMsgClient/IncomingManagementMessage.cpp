@@ -68,7 +68,8 @@ IncomingManagementMessage::~IncomingManagementMessage() {
 void IncomingManagementMessage::unpackInteger64( void *buf, void *i/*, PtpClock *ptpClock*/)
 {
     unpackUInteger32(buf, &((Integer64*)i)->lsb/*, ptpClock*/);
-    unpackInteger32(buf + 4, &((Integer64*)i)->msb/*, ptpClock*/);
+    //unpackInteger32(buf + 4, &((Integer64*)i)->msb/*, ptpClock*/);
+    unpackInteger32(static_cast<char*>(buf) + 4, &((Integer64*)i)->msb/*, ptpClock*/);
 }
 
 void IncomingManagementMessage::unpackClockIdentity( Octet *buf, ClockIdentity *c/*, PtpClock *ptpClock*/)

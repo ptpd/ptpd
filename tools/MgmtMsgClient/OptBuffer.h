@@ -13,15 +13,26 @@ public:
     OptBuffer(char* appName);
     virtual ~OptBuffer();
     
+    bool action_type_set;
+    bool help_print;
+    bool interface_set;
+    bool mgmt_id_set;
+    bool msg_print;
+    bool value_set;
+    
     char* help_arg;
+    char* interface;
     char* u_address;
     char* u_port;
+    char* value;
     
-    bool msg_print;
-    bool help_print;
+    unsigned int action_type;
+    unsigned int mgmt_id;
+    
+    void mgmtActionTypeParser(char* actionType);
+    void mgmtIdParser(char* mgmtId);
 
 private:
-    
 };
 
 #endif	/* OPTBUFFER_H */

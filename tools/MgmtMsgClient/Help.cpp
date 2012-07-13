@@ -21,10 +21,15 @@
 void printHelp(const char* appName) {
     printf("PTPd Management Message Client usage: %s [options]\n"
             "Options:\n"
-            "   -a --address [address]                  Set IPv4 address of the server (default set to %s)\n"
-            "   -m --message [type] [action] <value>    Send management message of given type and value\n"
+            "   -a --address [address]                  IPv4 address of a server (default set to %s)\n"
+            "   -c --action [action]                    Type of action to be handled by a management message\n"
             "   -h --help                               Display this message\n"
-            "   -p --port [port]                        Set port number the server is listening on (default set to %s)\n\n"
+            "   -i --interface [name]                   Bind to network interface of given name\n"
+            "   -m --message [type]                     Handle management message of given type\n"
+            "   -p --port [port]                        Port number a server is listening on (default set to %s)\n"
+            "   -v --value [value]                      Value for a 'COMMAND' action (redundant in most cases)\n"
+            "   --verbose                               Print additional status messages (useful for debugging)\n"
+            "\n"
             "Type '%s {-m --message} print' to print a list of management messages and assigned actions.\n",
             appName, U_ADDRESS, PTP_GENERAL_PORT, appName);
 }
@@ -33,7 +38,6 @@ void printHelp(const char* appName) {
  * This method will be used to print a brief list of management messages and assigned actions
  */
 void printMgmtMsgsList() {
-    // TODO: Table 40 - managementId values
     printf("managementId name                   \tmanagementId value (hex)      \tAllowed actions               \tApplies to\n"
             "\n"
             "===Applicable to all node types===================================================================================\n"

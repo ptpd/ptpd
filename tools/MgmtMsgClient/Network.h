@@ -12,7 +12,7 @@
 
 #include "datatypes_dep.h"
 
-int initNetwork(char* port, char* hostName, struct addrinfo** addrInfo);
+int initNetwork(char* port, char* hostName, char* ifaceName, struct addrinfo** addrInfo);
 void disableNetwork(int sockFd, struct addrinfo** addrInfo);
 
 void sendMessage(int sockFd, Octet* buf, UInteger16 length, struct addrinfo* addrInfo);

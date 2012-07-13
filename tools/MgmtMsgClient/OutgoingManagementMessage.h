@@ -49,6 +49,7 @@ private:
     
     void initOutgoingMsgManagement(/*MsgManagement* incoming, */MsgManagement* outgoing/*, PtpClock *ptpClock*/);
     
+    void handleManagement(OptBuffer* optBuf, Octet* buf, MsgManagement* outgoing);
     void handleMMNullManagement(/*MsgManagement* incoming, */MsgManagement* outgoing/*, PtpClock* ptpClock*/, Enumeration4 actionField);
     
     MsgManagement *outgoing;

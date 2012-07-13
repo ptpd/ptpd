@@ -63,9 +63,13 @@ PACK_LOWER_AND_UPPER( UInteger4 )
 OutgoingManagementMessage::OutgoingManagementMessage(Octet* buf, OptBuffer* optBuf) {
     this->outgoing = (MsgManagement *)malloc(sizeof(MsgManagement));
     
-    handleMMNullManagement(this->outgoing, GET);
+    //handleMMNullManagement(this->outgoing, GET);
+    handleManagement(optBuf, buf, this->outgoing);
     
     DBG("packing management message \n");
+    
+    this->outgoing->header.messageLength = MANAGEMENT_LENGTH + TLV_LENGTH + this->outgoing->tlv->lengthField;
+    
     packMsgManagement(this->outgoing, buf);
     packManagementTLV(this->outgoing->tlv, buf);
 }
@@ -78,7 +82,8 @@ OutgoingManagementMessage::~OutgoingManagementMessage() {
 void OutgoingManagementMessage::packInteger64( void* i, void *buf )
 {
     packUInteger32(&((Integer64*)i)->lsb, buf);
-    packInteger32(&((Integer64*)i)->msb, buf + 4);
+    //packInteger32(&((Integer64*)i)->msb, buf + 4);
+    packInteger32(&((Integer64*)i)->msb, static_cast<char*>(buf) + 4);
 }
 
 void OutgoingManagementMessage::packClockIdentity( ClockIdentity *c, Octet *buf)
@@ -169,7 +174,7 @@ void OutgoingManagementMessage::initOutgoingMsgManagement(/*MsgManagement* incom
     /* set management message fields */
     /* TODO: Assign value to targetPortIdentity */
     //copyPortIdentity( &outgoing->targetPortIdentity, &incoming->header.sourcePortIdentity );
-    memset(&(outgoing->targetPortIdentity), 0, sizeof(PortIdentity));
+    memset(&(outgoing->targetPortIdentity), 1, sizeof(PortIdentity));
     
     /* TODO: Assign value to startingBoundaryHops */
     //outgoing->startingBoundaryHops = incoming->startingBoundaryHops - incoming->boundaryHops;
@@ -182,6 +187,79 @@ void OutgoingManagementMessage::initOutgoingMsgManagement(/*MsgManagement* incom
     //XMALLOC(outgoing->tlv, sizeof(ManagementTLV));
     outgoing->tlv = (ManagementTLV*) malloc (sizeof(ManagementTLV));
     outgoing->tlv->dataField = NULL;
+}
+
+void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, MsgManagement* outgoing)
+{
+    switch(optBuf->mgmt_id)
+    {
+        case MM_NULL_MANAGEMENT:
+            DBG("handleManagement: Null Management\n");
+            handleMMNullManagement(outgoing, optBuf->action_type);
+            break;
+                
+        case MM_CLOCK_DESCRIPTION:
+        case MM_USER_DESCRIPTION:
+        case MM_SAVE_IN_NON_VOLATILE_STORAGE:
+        case MM_RESET_NON_VOLATILE_STORAGE:
+        case MM_INITIALIZE:
+        case MM_DEFAULT_DATA_SET:
+        case MM_CURRENT_DATA_SET:
+        case MM_PARENT_DATA_SET:
+        case MM_TIME_PROPERTIES_DATA_SET:
+        case MM_PORT_DATA_SET:
+        case MM_PRIORITY1:
+        case MM_PRIORITY2:
+        case MM_DOMAIN:
+        case MM_SLAVE_ONLY:
+        case MM_LOG_ANNOUNCE_INTERVAL:
+        case MM_ANNOUNCE_RECEIPT_TIMEOUT:
+        case MM_LOG_SYNC_INTERVAL:
+        case MM_VERSION_NUMBER:
+        case MM_ENABLE_PORT:
+        case MM_DISABLE_PORT:
+        case MM_TIME:
+        case MM_CLOCK_ACCURACY:
+        case MM_UTC_PROPERTIES:
+        case MM_TRACEABILITY_PROPERTIES:
+        case MM_DELAY_MECHANISM:
+        case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
+        case MM_FAULT_LOG:
+        case MM_FAULT_LOG_RESET:
+        case MM_TIMESCALE_PROPERTIES:
+        case MM_UNICAST_NEGOTIATION_ENABLE:
+        case MM_PATH_TRACE_LIST:
+        case MM_PATH_TRACE_ENABLE:
+        case MM_GRANDMASTER_CLUSTER_TABLE:
+        case MM_UNICAST_MASTER_TABLE:
+        case MM_UNICAST_MASTER_MAX_TABLE_SIZE:
+        case MM_ACCEPTABLE_MASTER_TABLE:
+        case MM_ACCEPTABLE_MASTER_TABLE_ENABLED:
+        case MM_ACCEPTABLE_MASTER_MAX_TABLE_SIZE:
+        case MM_ALTERNATE_MASTER:
+        case MM_ALTERNATE_TIME_OFFSET_ENABLE:
+        case MM_ALTERNATE_TIME_OFFSET_NAME:
+        case MM_ALTERNATE_TIME_OFFSET_MAX_KEY:
+        case MM_ALTERNATE_TIME_OFFSET_PROPERTIES:
+        case MM_TRANSPARENT_CLOCK_DEFAULT_DATA_SET:
+        case MM_TRANSPARENT_CLOCK_PORT_DATA_SET:
+        case MM_PRIMARY_DOMAIN:
+            printf("handleManagement: Currently unsupported managementTLV %d\n", optBuf->mgmt_id);
+            exit(1);
+//                handleErrorManagementMessage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp,
+//                        ptpClock, ptpClock->msgTmp.manage.tlv->managementId,
+//                        NOT_SUPPORTED);
+//            break;
+        
+        default:
+            printf("handleManagement: Unknown managementTLV %d\n", optBuf->mgmt_id);
+            exit(1);
+//                handleErrorManagementMessage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp,
+//                        ptpClock, ptpClock->msgTmp.manage.tlv->managementId,
+//                        NO_SUCH_ID);
+//            break;
+
+    }
 }
 
 /**
@@ -206,12 +284,13 @@ void OutgoingManagementMessage::handleMMNullManagement(/*MsgManagement* incoming
             DBG("COMMAND mgmt msg\n");
             break;
         default:
-            DBG("unknown actionType\n");
+            printf("handleMMNullManagement: unknown or unsupported actionType\n");
+            exit(1);
             //free(outgoing->tlv);
             /*handleErrorManagementMessage(incoming, outgoing,
                     ptpClock, MM_NULL_MANAGEMENT,
                     NOT_SUPPORTED);*/
-            break;
+            //break;
     }
 }
 

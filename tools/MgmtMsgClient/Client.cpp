@@ -21,6 +21,7 @@
 #include "constants.h"
 #include "datatypes_dep.h"
 
+#include <unistd.h>
 /**
  * This method will be used to deliver all of the requested actions to the
  * user.
@@ -43,9 +44,24 @@ void mainClient(OptBuffer* optBuf) {
         return;
     }
     
-    sockFd = initNetwork(optBuf->u_address, optBuf->u_port, &unicastAddress);
+    if (!optBuf->interface_set) {
+        printf("ERROR: Interface name not defined\n");
+        exit(1);
+    }
     
-    /* send <--> receive will be here */
+    if (!optBuf->mgmt_id_set) {
+        printf("ERROR: managementTLV not defined\n");
+        exit(1);
+    }
+    
+    if (!optBuf->action_type_set) {
+        printf("ERROR: actionType not defined\n");
+        exit(1);
+    }
+    
+    sockFd = initNetwork(optBuf->u_address, optBuf->u_port, optBuf->interface, &unicastAddress);
+    
+    /* send <--> receive */
     Octet *buf = (Octet*)(malloc(PACKET_SIZE));
     
     OutgoingManagementMessage *outMessage = new OutgoingManagementMessage(buf, optBuf);
@@ -53,20 +69,14 @@ void mainClient(OptBuffer* optBuf) {
     
     sendMessage(sockFd, buf, PACKET_SIZE, unicastAddress);
     
-    //free(buf);
     memset(buf, 0, PACKET_SIZE);
     
     receiveMessage(sockFd, buf, PACKET_SIZE, &fromAddr, &fromLen);
     
     IncomingManagementMessage *inMessage = new IncomingManagementMessage(buf, optBuf);
-    free(inMessage);
-    
-    //printf("Received:\n\n%s", buf);
+    free(inMessage);  
     
     free(buf);
-    
-    /*Octet msg[300];
-    receiveMessage(sockFd, msg, strlen(msg), &fromAddr, &fromLen);*/
     
     disableNetwork(sockFd, &unicastAddress);
     

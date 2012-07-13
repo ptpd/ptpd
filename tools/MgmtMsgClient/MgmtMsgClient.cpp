@@ -40,17 +40,20 @@ int main(int argc, char** argv) {
             
             /* These options don't set a flag.
              * We distinguish them by their indices. */
-            {"address", required_argument, 0, 'a'},
-            {"message", required_argument, 0, 'm'},
-            {"help",    no_argument,       0, 'h'},
-            {"port",    required_argument, 0, 'p'},
+            {"action",          required_argument, 0, 'c'},
+            {"address",         required_argument, 0, 'a'},
+            {"help",            no_argument,       0, 'h'},
+            {"interface",       required_argument, 0, 'i'},
+            {"message",         required_argument, 0, 'm'},
+            {"port",            required_argument, 0, 'p'},
+            {"value",           required_argument, 0, 'v'},
             {0, 0, 0, 0}
         };
            
         /* getopt_long stores the option index here. */
         int option_index = 0;
      
-        c = getopt_long (argc, argv, "a:m:hp:", long_options, &option_index);
+        c = getopt_long (argc, argv, "a:c:hi:m:p:v:", long_options, &option_index);
         
         /* Detect the end of the options. */
         if (c == -1)
@@ -69,31 +72,48 @@ int main(int argc, char** argv) {
                 
                break;
      
-            case 'h':
-                DBG("option -h\n");
-                optBuf->help_print = true;
-                //printHelp(argv[0]);
-                //return 0;
-                break;
-     
             case 'a':
                 DBG("option -a with value `%s'\n", optarg);
                 memcpy(optBuf->u_address, optarg, MAX_ADDR_STR_LEN + 1);
+                break;
+                
+            case 'c':
+                DBG("option -c with value `%s'\n", optarg);
+                optBuf->mgmtActionTypeParser(optarg);
+                break;
+                
+            case 'h':
+                DBG("option -h\n");
+                optBuf->help_print = true;
+                break;
+                
+            case 'i':
+                DBG("option -i with value `%s'\n", optarg);
+                optBuf->interface = (char*)calloc(strlen(optarg), sizeof(char));
+                memcpy(optBuf->interface, optarg, strlen(optarg));
+                optBuf->interface_set = true;
                 break;
      
             case 'm':
                 DBG("option -m with value `%s'\n", optarg);
                 
-                //Print messages list and exit
                 if (strcmp(optarg, "print") == 0)
                     optBuf->msg_print = true;
-                    //printMgmtMsgsList();
+                else
+                    optBuf->mgmtIdParser(optarg);
                 
                 break;
      
             case 'p':
                 DBG("option -p with value `%s'\n", optarg);
                 memcpy(optBuf->u_port, optarg, MAX_PORT_STR_LEN + 1);
+                break;
+                
+            case 'v':
+                DBG("option -v with value `%s'\n", optarg);
+                optBuf->value = (char*)calloc(strlen(optarg), sizeof(char));
+                memcpy(optBuf->value, optarg, strlen(optarg));
+                optBuf->value_set = true;
                 break;
      
             case '?':
