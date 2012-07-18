@@ -592,6 +592,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"-O NUMBER         do not reset the clock if offset is more than NUMBER nanoseconds\n"
 
 				"-t                do not make any changes to the system clock\n"
+				"-A NUMBER         enable autotune with discarded packet threshold of NUMBER\n"
 				"-M NUMBER         do not accept delay values of more than NUMBER nanoseconds\n"
 				"-a 10,1000        specify clock servo Proportional and Integral attenuations\n"
 				"-w NUMBER         specify one way delay filter stiffness\n"
