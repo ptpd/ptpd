@@ -28,6 +28,7 @@ public:
     
     unsigned int action_type;
     unsigned int mgmt_id;
+    unsigned int timeout;
     
     void mgmtActionTypeParser(char* actionType);
     void mgmtIdParser(char* mgmtId);

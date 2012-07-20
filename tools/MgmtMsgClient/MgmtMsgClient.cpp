@@ -51,6 +51,7 @@ int main(int argc, char** argv) {
             {"interface",       required_argument, 0, 'i'},
             {"message",         required_argument, 0, 'm'},
             {"port",            required_argument, 0, 'p'},
+            {"timeout",         required_argument, 0, 't'},
             {"value",           required_argument, 0, 'v'},
             {0, 0, 0, 0}
         };
@@ -58,7 +59,7 @@ int main(int argc, char** argv) {
         /* getopt_long stores the option index here. */
         int option_index = 0;
      
-        c = getopt_long (argc, argv, "a:c:hi:m:p:v:", long_options, &option_index);
+        c = getopt_long (argc, argv, "a:c:hi:m:p:t:v:", long_options, &option_index);
         
         /* Detect the end of the options. */
         if (c == -1)
@@ -112,6 +113,11 @@ int main(int argc, char** argv) {
             case 'p':
                 DBG("option -p with value `%s'\n", optarg);
                 memcpy(optBuf->u_port, optarg, MAX_PORT_STR_LEN + 1);
+                break;
+                
+            case 't':
+                DBG("option -t with value `%s'\n", optarg);
+                sscanf(optarg, "%u", &(optBuf->timeout));
                 break;
                 
             case 'v':

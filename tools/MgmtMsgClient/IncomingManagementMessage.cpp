@@ -276,7 +276,7 @@ void IncomingManagementMessage::handleManagement(/*OptBuffer* optBuf, */Octet* b
     switch(incoming->tlv->managementId)
     {
         case MM_NULL_MANAGEMENT:
-            DBG("handleManagement: Null Management\n");
+            //DBG("handleManagement: Null Management\n");
             //handleMMNullManagement(outgoing, optBuf->action_type);
             break;
                 

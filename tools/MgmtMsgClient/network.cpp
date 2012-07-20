@@ -153,7 +153,7 @@ void sendMessage(int sockFd, Octet* buf, UInteger16 length, struct addrinfo* add
  * @param addr          A buffer in a sockaddr structure that will hold the source address.
  * @param len           A pointer to the size of the source address buffer.
  */
-void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_storage* addr, socklen_t* len, bool isNullMgmt) {
+void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_storage* addr, socklen_t* len, bool isNullMgmt, unsigned int recvTimeout) {
     int result;
     fd_set socks;
     ssize_t ret;
@@ -164,7 +164,7 @@ void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_s
     FD_ZERO(&socks);
     FD_SET(sockFd, &socks);
     
-    timeout.tv_sec = RECV_TIMEOUT;
+    timeout.tv_sec = recvTimeout;
     timeout.tv_usec = 0;
     
     DBG("receiving management message \n");

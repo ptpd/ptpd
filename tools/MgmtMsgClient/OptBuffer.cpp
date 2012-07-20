@@ -40,6 +40,8 @@ OptBuffer::OptBuffer(char* appName) {
     this->mgmt_id_set = false;
     this->msg_print = false;
     this->value_set = false;
+    
+    this->timeout = RECV_TIMEOUT;
 }
 
 /**

@@ -16,7 +16,7 @@ int initNetwork(char* port, char* hostName, char* ifaceName, struct addrinfo** a
 void disableNetwork(int sockFd, struct addrinfo** addrInfo);
 
 void sendMessage(int sockFd, Octet* buf, UInteger16 length, struct addrinfo* addrInfo);
-void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_storage* addr, socklen_t* len, bool isNullMgmt);
+void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_storage* addr, socklen_t* len, bool isNullMgmt, unsigned int timeout);
 
 #endif	/* NETWORK_H */
 

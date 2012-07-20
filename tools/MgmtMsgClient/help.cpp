@@ -28,11 +28,12 @@ void printHelp(const char* appName) {
             "   -i --interface [name]                   Bind to network interface of given name\n"
             "   -m --message [type]                     Handle management message of given type\n"
             "   -p --port [port]                        Port number a server is listening on (default set to %s)\n"
-            "   -v --value [value]                      Value for a 'COMMAND' action (redundant in most cases)\n"
+            "   -t --timeout [timeout]                  Time in seconds to wait for a message to be received (default set to %us)\n"
+            "   -v --value [value]                      Value for a 'SET' or a 'COMMAND' action\n"
             "   --verbose                               Print additional status messages (useful for debugging)\n"
             "\n"
             "Type '%s {-m --message} print' to print a list of management messages and assigned actions.\n",
-            appName, U_ADDRESS, PTP_GENERAL_PORT, appName);
+            appName, U_ADDRESS, PTP_GENERAL_PORT, RECV_TIMEOUT, appName);
 }
 
 /**

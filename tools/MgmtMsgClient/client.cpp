@@ -75,7 +75,7 @@ void mainClient(OptBuffer* optBuf) {
     
     memset(buf, 0, PACKET_SIZE);
     
-    receiveMessage(sockFd, buf, PACKET_SIZE, &fromAddr, &fromLen, isNullManagement);
+    receiveMessage(sockFd, buf, PACKET_SIZE, &fromAddr, &fromLen, isNullManagement, optBuf->timeout);
     
     IncomingManagementMessage *inMessage = new IncomingManagementMessage(buf, optBuf);
     free(inMessage);  
