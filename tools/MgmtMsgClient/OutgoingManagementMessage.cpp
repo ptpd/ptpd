@@ -17,6 +17,7 @@
 
 #include "app_dep.h"
 #include "constants_dep.h"
+#include "freeing.h"
 
 //Temporary for assigning ClockIdentity
 #include <string.h>
@@ -82,7 +83,8 @@ OutgoingManagementMessage::OutgoingManagementMessage(Octet* buf, OptBuffer* optB
  * The deconstructor frees memory.
  */
 OutgoingManagementMessage::~OutgoingManagementMessage() {
-    free(this->outgoing->tlv);
+    //free(this->outgoing->tlv);
+    freeManagementTLV(this->outgoing);
     free(this->outgoing);
 }
 
@@ -186,6 +188,192 @@ void OutgoingManagementMessage::packManagementTLV(ManagementTLV *tlv, Octet *buf
     #include "../../src/def/managementTLV/managementTLV.def"
 }
 
+void OutgoingManagementMessage::msgPackManagement(Octet *buf, MsgManagement *outgoing)
+{
+    DBG("packing management message \n");
+    packMsgManagement(outgoing, buf);
+}
+
+/* Pack Management message into OUT buffer */
+void OutgoingManagementMessage::msgPackManagementTLV(Octet *buf, MsgManagement *outgoing)
+{
+    DBG("packing ManagementTLV message \n");
+
+    UInteger16 lengthField = 0;
+
+    switch(outgoing->tlv->managementId)
+    {
+	case MM_NULL_MANAGEMENT:
+	case MM_SAVE_IN_NON_VOLATILE_STORAGE:
+	case MM_RESET_NON_VOLATILE_STORAGE:
+	case MM_ENABLE_PORT:
+	case MM_DISABLE_PORT:
+//		lengthField = 0;
+//		break;
+	case MM_CLOCK_DESCRIPTION:
+//		lengthField = packMMClockDescription(outgoing, buf);
+//		#ifdef PTPD_DBG
+//		mMClockDescription_display(
+//				(MMClockDescription*)outgoing->tlv->dataField, ptpClock);
+//		#endif /* PTPD_DBG */
+//		break;
+        case MM_USER_DESCRIPTION:
+//                lengthField = packMMUserDescription(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMUserDescription_display(
+//                                (MMUserDescription*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_INITIALIZE:
+//                lengthField = packMMInitialize(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMInitialize_display(
+//                                (MMInitialize*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_DEFAULT_DATA_SET:
+//                lengthField = packMMDefaultDataSet(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMDefaultDataSet_display(
+//                                (MMDefaultDataSet*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_CURRENT_DATA_SET:
+//                lengthField = packMMCurrentDataSet(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMCurrentDataSet_display(
+//                                (MMCurrentDataSet*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_PARENT_DATA_SET:
+//                lengthField = packMMParentDataSet(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMParentDataSet_display(
+//                                (MMParentDataSet*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_TIME_PROPERTIES_DATA_SET:
+//                lengthField = packMMTimePropertiesDataSet(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMTimePropertiesDataSet_display(
+//                                (MMTimePropertiesDataSet*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_PORT_DATA_SET:
+//                lengthField = packMMPortDataSet(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMPortDataSet_display(
+//                                (MMPortDataSet*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_PRIORITY1:
+//                lengthField = packMMPriority1(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMPriority1_display(
+//                                (MMPriority1*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_PRIORITY2:
+//                lengthField = packMMPriority2(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMPriority2_display(
+//                                (MMPriority2*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_DOMAIN:
+//                lengthField = packMMDomain(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMDomain_display(
+//                                (MMDomain*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+	case MM_SLAVE_ONLY:
+//		lengthField = packMMSlaveOnly(outgoing, buf);
+//		#ifdef PTPD_DBG
+//		mMSlaveOnly_display(
+//				(MMSlaveOnly*)outgoing->tlv->dataField, ptpClock);
+//		#endif /* PTPD_DBG */
+//		break;
+        case MM_LOG_ANNOUNCE_INTERVAL:
+//                lengthField = packMMLogAnnounceInterval(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMLogAnnounceInterval_display(
+//                                (MMLogAnnounceInterval*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_ANNOUNCE_RECEIPT_TIMEOUT:
+//                lengthField = packMMAnnounceReceiptTimeout(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMAnnounceReceiptTimeout_display(
+//                                (MMAnnounceReceiptTimeout*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_LOG_SYNC_INTERVAL:
+//                lengthField = packMMLogSyncInterval(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMLogSyncInterval_display(
+//                                (MMLogSyncInterval*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_VERSION_NUMBER:
+//                lengthField = packMMVersionNumber(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMVersionNumber_display(
+//                                (MMVersionNumber*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_TIME:
+//                lengthField = packMMTime(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMTime_display(
+//                                (MMTime*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_CLOCK_ACCURACY:
+//                lengthField = packMMClockAccuracy(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMClockAccuracy_display(
+//                                (MMClockAccuracy*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_UTC_PROPERTIES:
+//                lengthField = packMMUtcProperties(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMUtcProperties_display(
+//                                (MMUtcProperties*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_TRACEABILITY_PROPERTIES:
+//                lengthField = packMMTraceabilityProperties(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMTraceabilityProperties_display(
+//                                (MMTraceabilityProperties*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_DELAY_MECHANISM:
+//                lengthField = packMMDelayMechanism(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMDelayMechanism_display(
+//                                (MMDelayMechanism*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+        case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
+//                lengthField = packMMLogMinPdelayReqInterval(outgoing, buf);
+//                #ifdef PTPD_DBG
+//                mMLogMinPdelayReqInterval_display(
+//                                (MMLogMinPdelayReqInterval*)outgoing->tlv->dataField, ptpClock);
+//                #endif /* PTPD_DBG */
+//                break;
+	default:
+		DBG("packing management msg: unsupported id \n");
+    }
+
+    /* set lengthField */
+    outgoing->tlv->lengthField = lengthField;
+
+    packManagementTLV((ManagementTLV*)outgoing->tlv, buf);
+}
+
 /**
  * @brief Initialize outgoing management message fields.
  * 
@@ -195,7 +383,7 @@ void OutgoingManagementMessage::initOutgoingMsgManagement(MsgManagement* outgoin
 { 
     /* set header fields */
     outgoing->header.transportSpecific = 0x0;
-    outgoing->header.messageType = 0x0D;
+    outgoing->header.messageType = MANAGEMENT;
     outgoing->header.versionPTP = VERSION_PTP;
     outgoing->header.domainNumber = DFLT_DOMAIN_NUMBER;
     /* set header flagField to zero for management messages, Spec 13.3.2.6 */
@@ -228,6 +416,8 @@ void OutgoingManagementMessage::initOutgoingMsgManagement(MsgManagement* outgoin
     outgoing->tlv = (ManagementTLV*) malloc (sizeof(ManagementTLV));
     outgoing->tlv->dataField = NULL;
 }
+
+
 
 /**
  * @brief Handle management message.
@@ -299,11 +489,13 @@ void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, 
             exit(1);
     }
     
+    /* pack ManagementTLV */
+    msgPackManagementTLV( buf, outgoing);
+
+    /* set header messageLength, the outgoing->tlv->lengthField is now valid */
     outgoing->header.messageLength = MANAGEMENT_LENGTH + TLV_LENGTH + outgoing->tlv->lengthField;
-    
-    DBG("packing management message\n");
-    packMsgManagement(outgoing, buf);
-    packManagementTLV(outgoing->tlv, buf);
+
+    msgPackManagement( buf, outgoing);
 }
 
 /**
@@ -335,4 +527,3 @@ void OutgoingManagementMessage::handleMMNullManagement(MsgManagement* outgoing, 
             exit(1);
     }
 }
-

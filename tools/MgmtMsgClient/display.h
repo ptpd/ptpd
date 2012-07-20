@@ -17,5 +17,7 @@ void portIdentity_display(PortIdentity * portIdentity);
 void msgHeader_display(MsgHeader * header);
 void msgManagement_display(MsgManagement * manage);
 
+void mMErrorStatus_display(MMErrorStatus* errorStatus);
+
 #endif	/* DISPLAY_H */
 

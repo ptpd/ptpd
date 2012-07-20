@@ -21,6 +21,8 @@
 
 #include "MgmtMsgClient.h"
 
+#include "constants.h"
+
 /**
  * @brief Initialize network connection between client and server.
  * 
@@ -79,7 +81,7 @@ int initNetwork(char* hostName, char* port, char* ifaceName, struct addrinfo** a
         exit(1);	
     }
     
-    //bind to the local port
+    //bind to a local port
     error = bind(sockFd, sockRes->ai_addr, sockRes->ai_addrlen);
 	
     if (error != 0) {		
@@ -151,15 +153,40 @@ void sendMessage(int sockFd, Octet* buf, UInteger16 length, struct addrinfo* add
  * @param addr          A buffer in a sockaddr structure that will hold the source address.
  * @param len           A pointer to the size of the source address buffer.
  */
-void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_storage* addr, socklen_t* len) {
+void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_storage* addr, socklen_t* len, bool isNullMgmt) {
+    int result;
+    fd_set socks;
     ssize_t ret;
+    struct timeval timeout;
     
     *len = sizeof(*addr);
     
+    FD_ZERO(&socks);
+    FD_SET(sockFd, &socks);
+    
+    timeout.tv_sec = RECV_TIMEOUT;
+    timeout.tv_usec = 0;
+    
     DBG("receiving management message \n");
     
-    if ((ret = recvfrom(sockFd, buf, length, 0, (struct sockaddr *)addr, len)) == -1) {
-        perror("recvfrom()");
+    if ((result = select(sockFd + 1, &socks, NULL, NULL, &timeout)) != 0) {
+        if ((ret = recvfrom(sockFd, buf, length, 0, (struct sockaddr *)addr, len)) == -1) {
+            perror("recvfrom()");
+            exit(1);
+        }
+    }
+    else if (result < 0) {
+        perror("select()");
+        exit(1);
+    }
+    else {
+        /* We should except no response to NULL_MANAGEMENT unless some Error
+         is reported. In this case no reponse is considered a success. In other
+         way, timeout exceeding is reported. */
+        if (isNullMgmt)
+            printf("NULL_MANAGEMENT message receives no response by default\n");
+        else
+            printf("timeout exceeded...\n");
         exit(1);
     }
 }

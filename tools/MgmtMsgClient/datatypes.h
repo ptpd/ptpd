@@ -20,12 +20,36 @@
 typedef Octet ClockIdentity[CLOCK_IDENTITY_LENGTH];
 
 /**
+ * @brief The PTPText data type is used to represent textual material in PTP messages
+ */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/derivedData/ptpText.def"
+} PTPText;
+
+/**
  * @brief The PortIdentity identifies a PTP port.
  */
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
         #include "../../src/def/derivedData/portIdentity.def"
 } PortIdentity;
+
+/**
+ * @brief The PortAdress type represents the protocol address of a PTP port
+ */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/derivedData/portAddress.def"
+} PortAddress;
+
+/**
+ * @brief The PhysicalAddress type is used to represent a physical address
+ */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/derivedData/physicalAddress.def"
+} PhysicalAddress;
 
 /**
  * @brief The common header for all PTP messages (Table 18 of the spec)
@@ -52,6 +76,33 @@ typedef struct {
 	#include "../../src/def/message/management.def"
 	ManagementTLV* tlv;
 }MsgManagement;
+
+/**
+ * @brief Management TLV Clock Description fields (Table 41 of the spec)
+ */
+/* Management TLV Clock Description Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/managementTLV/clockDescription.def"
+} MMClockDescription;
+
+/**
+ * @brief Management TLV User Description fields (Table 43 of the spec)
+ */
+/* Management TLV User Description Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/managementTLV/userDescription.def"
+} MMUserDescription;
+
+/**
+ * @brief Management TLV Error Status fields (Table 71 of the spec)
+ */
+/* Management TLV Error Status Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/managementTLV/errorStatus.def"
+} MMErrorStatus;
 
 #endif	/* DATATYPES_H */
 

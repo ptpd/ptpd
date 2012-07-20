@@ -40,11 +40,18 @@ private:
             
     void unpackClockIdentity( Octet *buf, ClockIdentity *c);
     void unpackPortIdentity( Octet *buf, PortIdentity *p);
+    void unpackPTPText( Octet *buf, PTPText *s);
+    
     void unpackMsgHeader(Octet *buf, MsgHeader *header);
     void unpackMsgManagement(Octet *buf, MsgManagement *m);
     void unpackManagementTLV(Octet *buf, MsgManagement *m);
     
     void msgUnpackManagement(Octet *buf, MsgManagement * manage);
+    
+    void unpackMMErrorStatus(Octet *buf, MsgManagement* m);
+    
+    void handleManagement(/*OptBuffer* optBuf, */Octet* buf, MsgManagement* incoming);
+    void handleMMErrorStatus(MsgManagement *incoming);
     
     MsgManagement *incoming;
 };

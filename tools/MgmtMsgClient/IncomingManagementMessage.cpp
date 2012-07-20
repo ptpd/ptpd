@@ -10,13 +10,18 @@
 #include "IncomingManagementMessage.h"
 
 #include <netinet/in.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "MgmtMsgClient.h"
 
 #include "app_dep.h"
 #include "constants_dep.h"
 #include "datatypes.h"
 #include "datatypes_dep.h"
 #include "display.h"
+#include "freeing.h"
 
 #define UNPACK_SIMPLE( type ) \
 void IncomingManagementMessage::unpack##type( void* from, void* to) \
@@ -66,7 +71,7 @@ UNPACK_LOWER_AND_UPPER( UInteger4 )
 IncomingManagementMessage::IncomingManagementMessage(Octet* buf, OptBuffer* optBuf) {
     this->incoming = (MsgManagement *)malloc(sizeof(MsgManagement));
     
-    msgUnpackManagement(buf, this->incoming);
+    handleManagement(buf, this->incoming);
 }
 
 /**
@@ -75,7 +80,9 @@ IncomingManagementMessage::IncomingManagementMessage(Octet* buf, OptBuffer* optB
  * The deconstructor frees memory.
  */
 IncomingManagementMessage::~IncomingManagementMessage() {
-    free(this->incoming->tlv);
+//    if (this->incoming->tlv != NULL)
+//        free(this->incoming->tlv);
+    freeManagementTLV(this->incoming);
     free(this->incoming);
 }
 
@@ -121,6 +128,18 @@ void IncomingManagementMessage::unpackPortIdentity( Octet *buf, PortIdentity *p)
     #include "../../src/def/derivedData/portIdentity.def"
 }
 
+void IncomingManagementMessage::unpackPTPText( Octet *buf, PTPText *s)
+{
+    unpackUInteger8(buf, &s->lengthField);
+    if(s->lengthField) {
+        //XMALLOC(s->textField, s->lengthField);
+        s->textField = (Octet*) malloc (s->lengthField);
+        memcpy( s->textField, buf+1, s->lengthField);
+    } else {
+        s->textField = NULL;
+    }
+}
+
 /**
  * @brief Unpack message header.
  * 
@@ -136,6 +155,8 @@ void IncomingManagementMessage::unpackMsgHeader(Octet *buf, MsgHeader *header)
             offset = offset + size;
     #include "../../src/def/message/header.def"
 
+    /* TODO: if data->messageType != MANAGEMENT then report ERROR (or not if 
+     TLV unsupported) */
     msgHeader_display(data);
 }
 
@@ -185,7 +206,7 @@ void IncomingManagementMessage::msgUnpackManagement(Octet *buf, MsgManagement * 
 {
 	unpackMsgManagement(buf, manage);
 
-	if ( manage->header.messageLength > MANAGEMENT_LENGTH )
+	if (manage->header.messageLength > MANAGEMENT_LENGTH)
 	{
 		unpackManagementTLV(buf, manage);
 
@@ -197,4 +218,126 @@ void IncomingManagementMessage::msgUnpackManagement(Octet *buf, MsgManagement * 
 	{
 		manage->tlv = NULL;
 	}
+}
+
+void IncomingManagementMessage::unpackMMErrorStatus(Octet *buf, MsgManagement* m)
+{
+        int offset = 0;
+        //XMALLOC(m->tlv->dataField, sizeof(MMErrorStatus));
+        m->tlv->dataField = (Octet*) malloc (sizeof(MMErrorStatus));
+        MMErrorStatus* data = (MMErrorStatus*)m->tlv->dataField;
+        #define OPERATE( name, size, type ) \
+            unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset, &data->name ); \
+            offset = offset + size;
+        #include "../../src/def/managementTLV/errorStatus.def"
+
+        //#ifdef PTPD_DBG
+        mMErrorStatus_display(data);
+        //#endif /* PTPD_DBG */
+}
+
+void IncomingManagementMessage::handleManagement(/*OptBuffer* optBuf, */Octet* buf, MsgManagement* incoming)
+{
+    DBG("Management message received : \n");
+
+//    if (isFromSelf) {
+//        DBG("handleManagement: Ignore message from self \n");
+//        return;
+//    }
+
+    msgUnpackManagement(buf, incoming);
+
+    if(incoming->tlv == NULL) {
+        DBG("handleManagement: TLV is empty\n");
+        return;
+    }
+
+    /* is this an error status management TLV? */
+    if(incoming->tlv->tlvType == TLV_MANAGEMENT_ERROR_STATUS) {
+        DBG("handleManagement: Error Status TLV\n");
+        unpackMMErrorStatus(buf, incoming);
+        handleMMErrorStatus(incoming);
+//            /* cleanup msgTmp managementTLV */
+//            if(ptpClock->msgTmp.manage.tlv) {
+//                    DBGV("cleanup ptpClock->msgTmp.manage message \n");
+//                    if(ptpClock->msgTmp.manage.tlv->dataField) {
+//                            freeMMErrorStatusTLV(ptpClock->msgTmp.manage.tlv);
+//                            free(ptpClock->msgTmp.manage.tlv->dataField);
+//                    }
+//                    free(ptpClock->msgTmp.manage.tlv);
+//            }
+        return;
+    } else if (incoming->tlv->tlvType != TLV_MANAGEMENT) {
+        /* do nothing, implemention specific handling */
+        DBG("handleManagement: Currently unsupported management TLV type\n");
+        return;
+    }
+        
+    switch(incoming->tlv->managementId)
+    {
+        case MM_NULL_MANAGEMENT:
+            DBG("handleManagement: Null Management\n");
+            //handleMMNullManagement(outgoing, optBuf->action_type);
+            break;
+                
+        case MM_CLOCK_DESCRIPTION:
+        case MM_USER_DESCRIPTION:
+        case MM_SAVE_IN_NON_VOLATILE_STORAGE:
+        case MM_RESET_NON_VOLATILE_STORAGE:
+        case MM_INITIALIZE:
+        case MM_DEFAULT_DATA_SET:
+        case MM_CURRENT_DATA_SET:
+        case MM_PARENT_DATA_SET:
+        case MM_TIME_PROPERTIES_DATA_SET:
+        case MM_PORT_DATA_SET:
+        case MM_PRIORITY1:
+        case MM_PRIORITY2:
+        case MM_DOMAIN:
+        case MM_SLAVE_ONLY:
+        case MM_LOG_ANNOUNCE_INTERVAL:
+        case MM_ANNOUNCE_RECEIPT_TIMEOUT:
+        case MM_LOG_SYNC_INTERVAL:
+        case MM_VERSION_NUMBER:
+        case MM_ENABLE_PORT:
+        case MM_DISABLE_PORT:
+        case MM_TIME:
+        case MM_CLOCK_ACCURACY:
+        case MM_UTC_PROPERTIES:
+        case MM_TRACEABILITY_PROPERTIES:
+        case MM_DELAY_MECHANISM:
+        case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
+        case MM_FAULT_LOG:
+        case MM_FAULT_LOG_RESET:
+        case MM_TIMESCALE_PROPERTIES:
+        case MM_UNICAST_NEGOTIATION_ENABLE:
+        case MM_PATH_TRACE_LIST:
+        case MM_PATH_TRACE_ENABLE:
+        case MM_GRANDMASTER_CLUSTER_TABLE:
+        case MM_UNICAST_MASTER_TABLE:
+        case MM_UNICAST_MASTER_MAX_TABLE_SIZE:
+        case MM_ACCEPTABLE_MASTER_TABLE:
+        case MM_ACCEPTABLE_MASTER_TABLE_ENABLED:
+        case MM_ACCEPTABLE_MASTER_MAX_TABLE_SIZE:
+        case MM_ALTERNATE_MASTER:
+        case MM_ALTERNATE_TIME_OFFSET_ENABLE:
+        case MM_ALTERNATE_TIME_OFFSET_NAME:
+        case MM_ALTERNATE_TIME_OFFSET_MAX_KEY:
+        case MM_ALTERNATE_TIME_OFFSET_PROPERTIES:
+        case MM_TRANSPARENT_CLOCK_DEFAULT_DATA_SET:
+        case MM_TRANSPARENT_CLOCK_PORT_DATA_SET:
+        case MM_PRIMARY_DOMAIN:
+            printf("handleManagement: Currently unsupported managementTLV %d\n", incoming->tlv->managementId);
+            exit(1);
+        
+        default:
+            printf("handleManagement: Unknown managementTLV %d\n", incoming->tlv->managementId);
+            exit(1);
+    }
+}
+
+/**\brief Handle incoming ERROR_STATUS management message type*/
+void IncomingManagementMessage::handleMMErrorStatus(MsgManagement *incoming)
+{
+	DBG("received MANAGEMENT_ERROR_STATUS message \n");
+	/* implementation specific */
 }

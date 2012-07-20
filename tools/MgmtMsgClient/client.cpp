@@ -20,6 +20,7 @@
 #include "OutgoingManagementMessage.h"
 
 #include "constants.h"
+#include "constants_dep.h"
 #include "datatypes_dep.h"
 #include "help.h"
 #include "network.h"
@@ -60,6 +61,8 @@ void mainClient(OptBuffer* optBuf) {
         exit(1);
     }
     
+    bool isNullManagement = true ? optBuf->mgmt_id == MM_NULL_MANAGEMENT : false;
+    
     sockFd = initNetwork(optBuf->u_address, optBuf->u_port, optBuf->interface, &unicastAddress);
     
     /* send <--> receive */
@@ -72,7 +75,7 @@ void mainClient(OptBuffer* optBuf) {
     
     memset(buf, 0, PACKET_SIZE);
     
-    receiveMessage(sockFd, buf, PACKET_SIZE, &fromAddr, &fromLen);
+    receiveMessage(sockFd, buf, PACKET_SIZE, &fromAddr, &fromLen, isNullManagement);
     
     IncomingManagementMessage *inMessage = new IncomingManagementMessage(buf, optBuf);
     free(inMessage);  

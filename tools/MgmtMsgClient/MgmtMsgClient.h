@@ -19,5 +19,11 @@ extern int verbose_flag;
                 fprintf(stderr, __VA_ARGS__); \
         } while (0)
 
+#define XMALLOC(ptr,size) \
+        if(!((ptr)=malloc(size))) { \
+                perror("failed to allocate memory"); \
+		exit(1); \
+	}
+
 #endif	/* MGMTMSGCLIENT_H */
 

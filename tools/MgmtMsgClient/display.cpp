@@ -68,3 +68,8 @@ void msgManagement_display(MsgManagement * manage)
     printf("actionField : %d\n", manage->actionField);
 }
 
+void mMErrorStatus_display(MMErrorStatus* errorStatus)
+{
+	/* TODO: implement me */
+}
+

@@ -48,6 +48,9 @@ private:
     void packMsgManagement(MsgManagement *m, Octet *buf);
     void packManagementTLV(ManagementTLV *tlv, Octet *buf);
     
+    void msgPackManagement(Octet *buf, MsgManagement *outgoing);
+    void msgPackManagementTLV(Octet *buf, MsgManagement *outgoing);
+    
     void initOutgoingMsgManagement(MsgManagement* outgoing);
     
     void handleManagement(OptBuffer* optBuf, Octet* buf, MsgManagement* outgoing);

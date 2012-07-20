@@ -1,7 +1,7 @@
 ## -*- Makefile -*-
 ##
 ## User: Tomasz Kleinschmidt
-## Time: 2012-07-13 22:02:48
+## Time: 2012-07-19 23:20:00
 ## Makefile created by Oracle Solaris Studio.
 ##
 ## This file is generated automatically.
@@ -31,6 +31,7 @@ OBJS_MgmtMsgClient =  \
 	$(TARGETDIR_MgmtMsgClient)/help.o \
 	$(TARGETDIR_MgmtMsgClient)/OutgoingManagementMessage.o \
 	$(TARGETDIR_MgmtMsgClient)/display.o \
+	$(TARGETDIR_MgmtMsgClient)/freeing.o \
 	$(TARGETDIR_MgmtMsgClient)/IncomingManagementMessage.o \
 	$(TARGETDIR_MgmtMsgClient)/MgmtMsgClient.o
 USERLIBS_MgmtMsgClient = $(SYSLIBS_MgmtMsgClient) 
@@ -62,6 +63,9 @@ $(TARGETDIR_MgmtMsgClient)/OutgoingManagementMessage.o: $(TARGETDIR_MgmtMsgClien
 $(TARGETDIR_MgmtMsgClient)/display.o: $(TARGETDIR_MgmtMsgClient) display.cpp
 	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ display.cpp
 
+$(TARGETDIR_MgmtMsgClient)/freeing.o: $(TARGETDIR_MgmtMsgClient) freeing.cpp
+	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ freeing.cpp
+
 $(TARGETDIR_MgmtMsgClient)/IncomingManagementMessage.o: $(TARGETDIR_MgmtMsgClient) IncomingManagementMessage.cpp
 	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ IncomingManagementMessage.cpp
 
@@ -80,6 +84,7 @@ clean:
 		$(TARGETDIR_MgmtMsgClient)/help.o \
 		$(TARGETDIR_MgmtMsgClient)/OutgoingManagementMessage.o \
 		$(TARGETDIR_MgmtMsgClient)/display.o \
+		$(TARGETDIR_MgmtMsgClient)/freeing.o \
 		$(TARGETDIR_MgmtMsgClient)/IncomingManagementMessage.o \
 		$(TARGETDIR_MgmtMsgClient)/MgmtMsgClient.o
 	$(CCADMIN)

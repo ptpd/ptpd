@@ -143,5 +143,10 @@ enum {
 	ACKNOWLEDGE
 };
 
+/**
+ * \brief MANAGEMENT MESSAGE
+ */
+#define MANAGEMENT      0x0D
+
 #endif	/* CONSTANTS_DEP_H */
 
