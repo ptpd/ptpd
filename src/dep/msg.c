@@ -1338,7 +1338,7 @@ msgPackSync(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x00;
 	/* Two step flag - table 20: Sync and PDelayResp only */
 	if (ptpClock->twoStepFlag)
-		*(UInteger8 *) (buf + 6) = *(UInteger8 *) (buf + 6) | PTP_TWO_STEP;
+		*(UInteger8 *) (buf + 6) |= PTP_TWO_STEP;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(SYNC_LENGTH);
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentSyncSequenceId);
@@ -1587,7 +1587,7 @@ msgPackPDelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTim
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x03;
 	/* Two step flag - table 20: Sync and PDelayResp only */
 	if (ptpClock->twoStepFlag)
-		*(UInteger8 *) (buf + 6) = *(UInteger8 *) (buf + 6) | PTP_TWO_STEP;
+		*(UInteger8 *) (buf + 6) |= PTP_TWO_STEP;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(PDELAY_RESP_LENGTH);
 	*(UInteger8 *) (buf + 4) = header->domainNumber;
