@@ -1314,10 +1314,8 @@ msgPackHeader(Octet * buf, PtpClock * ptpClock)
 	*(UInteger8 *) (buf + 0) = transport;
 	*(UInteger4 *) (buf + 1) = ptpClock->versionNumber;
 	*(UInteger8 *) (buf + 4) = ptpClock->domainNumber;
-
-	/* TODO: this bit should have been active only for sync and PdelayResp */
-	if (ptpClock->twoStepFlag)
-		*(UInteger8 *) (buf + 6) = PTP_TWO_STEP;
+	/* clear flag field - message packing functions should populate it */
+	memset((buf + 6), 0, 2);
 
 	memset((buf + 8), 0, 8);
 	copyClockIdentity((buf + 20), ptpClock->portIdentity.clockIdentity);
@@ -1338,6 +1336,9 @@ msgPackSync(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x00;
+	/* Two step flag - table 20: Sync and PDelayResp only */
+	if (ptpClock->twoStepFlag)
+		*(UInteger8 *) (buf + 6) = *(UInteger8 *) (buf + 6) | PTP_TWO_STEP;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(SYNC_LENGTH);
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentSyncSequenceId);
@@ -1574,10 +1575,6 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 		flip16(header->sourcePortIdentity.portNumber);
 }
 
-
-
-
-
 /*pack PdelayResp message into OUT buffer of ptpClock*/
 void 
 msgPackPDelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTimestamp, PtpClock * ptpClock)
@@ -1588,6 +1585,9 @@ msgPackPDelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTim
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x03;
+	/* Two step flag - table 20: Sync and PDelayResp only */
+	if (ptpClock->twoStepFlag)
+		*(UInteger8 *) (buf + 6) = *(UInteger8 *) (buf + 6) | PTP_TWO_STEP;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(PDELAY_RESP_LENGTH);
 	*(UInteger8 *) (buf + 4) = header->domainNumber;
