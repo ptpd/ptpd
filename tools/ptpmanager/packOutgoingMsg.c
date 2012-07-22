@@ -196,8 +196,6 @@ packOutgoingMsg(Octet *buf)
 void 
 packCommonHeader(Octet *buf)
 {
-	printf("Taking default values..\n");
-	
 	Nibble transport = 0x80;
 	Nibble versionNumber = 0x02;
 	UInteger8 domainNumber = 0x00;
@@ -239,7 +237,7 @@ void
 packManagementHeader(Octet *buf)
 {
 	/* targetPortIdentity to be zero for now*/
-	memset((buf + 34), 0, 10);
+	memset((buf + 34), 1, 10);
 	
 	/* assuming that management message doesn't need to
 	 * be retransmitted by boundary clocks
@@ -553,6 +551,7 @@ packMMTime(Octet *buf)
 		*(UInteger32*)(buf + MANAGEMENT_LENGTH + TLV_LENGTH + 6) = 
 								flip32(nanosecs);								
 		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 10);
+		manage->tlv->lengthField = flip16(0x000C);
 		out_length += 10;
 		break;
 	default:

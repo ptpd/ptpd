@@ -99,7 +99,6 @@ typedef struct {
 	PTPText userDescription;
 } MMUserDescription;
 
-
 /**
 * \brief Management message fields (Table 37 of the spec)
  */

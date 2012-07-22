@@ -52,21 +52,111 @@ unpackManagementHeader(Octet *inmessage, MsgManagement *manage)
 void 
 handleManagementResponse(Octet *inmessage, MsgManagement *manage)
 {
-	printf("Received a RESPONSE management message. Not handled yet\n");
+	printf("Received a RESPONSE management message.\n");
+	switch(manage->tlv->managementId){
+    case MM_NULL_MANAGEMENT:
+    case MM_CLOCK_DESCRIPTION:
+    case MM_USER_DESCRIPTION:
+    case MM_SAVE_IN_NON_VOLATILE_STORAGE:
+    case MM_RESET_NON_VOLATILE_STORAGE:
+    case MM_INITIALIZE:
+    case MM_DEFAULT_DATA_SET:
+    case MM_CURRENT_DATA_SET:
+    case MM_PARENT_DATA_SET:
+    case MM_TIME_PROPERTIES_DATA_SET:
+    case MM_PORT_DATA_SET:
+    case MM_PRIORITY1:
+    case MM_PRIORITY2:
+    case MM_DOMAIN:
+    case MM_SLAVE_ONLY:
+    case MM_LOG_ANNOUNCE_INTERVAL:
+    case MM_ANNOUNCE_RECEIPT_TIMEOUT:
+    case MM_LOG_SYNC_INTERVAL:
+    case MM_VERSION_NUMBER:
+    case MM_ENABLE_PORT:
+    case MM_DISABLE_PORT:
+    case MM_TIME:
+    case MM_CLOCK_ACCURACY:
+    case MM_UTC_PROPERTIES:
+    case MM_TRACEABILITY_PROPERTIES:
+    case MM_DELAY_MECHANISM:
+    case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
+    case MM_FAULT_LOG:
+    case MM_FAULT_LOG_RESET:
+    case MM_TIMESCALE_PROPERTIES:
+    case MM_UNICAST_NEGOTIATION_ENABLE:
+    case MM_PATH_TRACE_LIST:
+    case MM_PATH_TRACE_ENABLE:
+    case MM_GRANDMASTER_CLUSTER_TABLE:
+    case MM_UNICAST_MASTER_TABLE:
+    case MM_UNICAST_MASTER_MAX_TABLE_SIZE:
+    case MM_ACCEPTABLE_MASTER_TABLE:
+    case MM_ACCEPTABLE_MASTER_TABLE_ENABLED:
+    case MM_ACCEPTABLE_MASTER_MAX_TABLE_SIZE:
+    case MM_ALTERNATE_MASTER:
+    case MM_ALTERNATE_TIME_OFFSET_ENABLE:
+    case MM_ALTERNATE_TIME_OFFSET_NAME:
+    case MM_ALTERNATE_TIME_OFFSET_MAX_KEY:
+    case MM_ALTERNATE_TIME_OFFSET_PROPERTIES:
+    case MM_TRANSPARENT_CLOCK_DEFAULT_DATA_SET:
+    case MM_TRANSPARENT_CLOCK_PORT_DATA_SET:
+    case MM_PRIMARY_DOMAIN:
+        printf("Currently unhandled managementTLV Response %d\n", 
+        		manage->tlv->managementId);
+		return;
+    default:
+        printf("Unknown managementTLV in response %d\n", 
+        		manage->tlv->managementId);
+        return;
+    }
 }
 
 /*Function to handle management ack*/
 void 
 handleManagementAck(Octet *inmessage, MsgManagement *manage)
 {
-	printf("Received ACKNOWLEDGEMENT management message\n");
+	if (outmessage != NULL)
+		if (*(UInteger16 *) (outmessage + 52) == manage->tlv->managementId)
+			printf("Received ACKNOWLEDGEMENT. Command executed.\n");
+	else
+		printf("Received ACKNOWLEDGEMENT. Not for your command.\n");
 }
 
 /*Function to handle management error message*/
 void 
 handleManagementError(Octet *inmessage, MsgManagement *manage)
 {
-	printf("Received TLV_MANAGEMENT_ERROR_STATUS. Not handled yet\n");
+	printf("Received TLV_MANAGEMENT_ERROR_STATUS.\n");
+	if (outmessage != NULL && *(UInteger16 *) (outmessage + 52) == 
+			*(UInteger16 *) (inmessage + 54))
+		switch(manage->tlv->managementId){
+		case RESPONSE_TOO_BIG:
+			printf("Response Too Big\n");
+			break;
+		case NO_SUCH_ID:
+			printf("The managementId is not recognized.\n");
+			break;
+		case WRONG_LENGTH:
+			printf("The managementId was identified but the length of the data "
+			 		"was wrong.\n");
+			break;
+		case WRONG_VALUE:
+			printf("The managementId and length were correct but one or more values"
+					" were wrong.\n");
+			break;
+		case NOT_SETABLE:
+			printf("Some of the variables in the set command were not updated "
+			"because they are not configurable.\n");
+			break;
+		case NOT_SUPPORTED:
+			printf("The requested operation is not supported in this node.\n");
+			break;
+		case GENERAL_ERROR:
+			printf("A general error occured.\n");
+			break;
+		default:
+			printf("Unknown Error code\n");
+		}
 }
 
 void handleIncomingMsg(Octet *inmessage)
