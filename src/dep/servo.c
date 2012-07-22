@@ -64,16 +64,17 @@ reset_operator_messages(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 void
 initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
-    DBG("initClock\n");
-    /* clear vars */
-    ptpClock->owd_filt.s_exp = 0;	/* clears one-way delay filter */
+	DBG("initClock\n");
 
+
+/* do not reset frequency here - restoreDrift will do it if necessary */
 #if !defined(__APPLE__)
-    if (!rtOpts->noAdjust)
-        adjFreq(0);
 	ptpClock->observed_drift = 0;
 #endif /* apple */
-	
+
+	/* clear vars */
+	ptpClock->owd_filt.s_exp = 0;	/* clears one-way delay filter */
+
 	/* clean more original filter variables */
 	clearTime(&ptpClock->offsetFromMaster);
 	clearTime(&ptpClock->meanPathDelay);
@@ -90,7 +91,7 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	ptpClock->char_last_msg='I';
 
 	reset_operator_messages(rtOpts, ptpClock);
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	/* For Hybrid mode */
 	ptpClock->MasterAddr = 0;
 #endif

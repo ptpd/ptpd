@@ -373,15 +373,24 @@ Boolean nanoSleep(TimeInternal*);
 void getTime(TimeInternal*);
 void setTime(TimeInternal*);
 double getRand(void);
-Boolean adjFreq(Integer32);
+
 
 void recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time);
 
 #if defined(__APPLE__)
-void 	adjTime(Integer32);
+void adjTime(Integer32);
 #endif /* __APPLE__ */
 
 #if !defined(__APPLE__)
+
+Boolean adjFreq(Integer32);
+Integer32 getAdjFreq(void);
+
+/* Observed drift save / recovery functions */
+void restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet);
+void saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet);
+
+/* Helper function to manage ntpadjtime / adjtimex flags */
 void setTimexFlags(int flags, Boolean quiet);
 void unsetTimexFlags(int flags, Boolean quiet);
 int getTimexFlags(void);

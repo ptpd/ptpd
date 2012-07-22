@@ -140,7 +140,10 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			timerStop(DELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
 		else if (ptpClock->delayMechanism == P2P)
 			timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
-		
+#if !defined(__APPLE__)
+		/* save observed drift value, don't inform user */
+		saveDrift(ptpClock, rtOpts, TRUE);
+#endif /* apple */
 		initClock(rtOpts, ptpClock); 
 		break;
 		
@@ -246,7 +249,14 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	case PTP_SLAVE:
 		initClock(rtOpts, ptpClock);
-		
+#if !defined(__APPLE__)
+		/*
+		 * restore the observed drift value using the selected method,
+		 * reset on failure or when -F 0 (default) is used, don't inform user
+		 */
+		restoreDrift(ptpClock, rtOpts, TRUE);
+#endif /* apple */
+
 		ptpClock->waitingForFollow = FALSE;
 		ptpClock->waitingForDelayResp = FALSE;
 
@@ -329,6 +339,11 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	initData(rtOpts, ptpClock);
 	initTimer();
 	initClock(rtOpts, ptpClock);
+#if !defined(__APPLE__)
+	/* restore observed drift and inform user */
+	if(ptpClock->slaveOnly)
+		restoreDrift(ptpClock, rtOpts, FALSE);
+#endif /* apple */
 	m1(rtOpts, ptpClock );
 	msgPackHeader(ptpClock->msgObuf, ptpClock);
 	
@@ -811,7 +826,7 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 				   (pow(2,ptpClock->logAnnounceInterval)), 
 				   ptpClock->itimer);
 
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 			// remember IP address of our master for -U option
 			// todo: add this to bmc(), to cover the very first packet
 			ptpClock->MasterAddr = ptpClock->netPath.lastRecvAddr;
@@ -1184,7 +1199,7 @@ handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 			msgUnpackHeader(ptpClock->msgIbuf,
 					&ptpClock->delayReqHeader);
 
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 			// remember IP address of this client for -U option
 			ptpClock->LastSlaveAddr = ptpClock->netPath.lastRecvAddr;
 #endif
@@ -1824,7 +1839,7 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	msgPackDelayReq(ptpClock->msgObuf,&originTimestamp,ptpClock);
 
 	Integer32 dst = 0;
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	if (rtOpts->do_hybrid_mode) {
 		dst = ptpClock->MasterAddr;
 	}
@@ -1897,7 +1912,7 @@ issueDelayResp(TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts, PtpCloc
 			 ptpClock);
 
 	Integer32 dst = 0;
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	if (rtOpts->do_hybrid_mode) {
 		dst = ptpClock->LastSlaveAddr;
 	}

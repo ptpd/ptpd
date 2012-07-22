@@ -137,7 +137,7 @@ chooseMcastGroup(RunTimeOpts * rtOpts, struct in_addr *netAddr)
 
 	char *addrStr;
 
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	switch(rtOpts->mcast_group_Number){
 	case 0:
 		addrStr = DEFAULT_PTP_DOMAIN_ADDRESS;
@@ -555,7 +555,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 *   http://developerweb.net/viewtopic.php?id=6471
 	 *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
 	 */
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	if ( !rtOpts->do_hybrid_mode )
 #endif
 	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
@@ -639,8 +639,11 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 	int ret, nfds;
 	fd_set readfds;
 	struct timeval tv, *tv_ptr;
+
+	extern RunTimeOpts rtOpts;
+
 #if defined PTPD_SNMP
-	struct timeval snmp_timer_wait;
+	struct timeval snmp_timer_wait = { 0, 0}; // initialise to avoid unused warnings when SNMP disabled
 	int snmpblock = 0;
 #endif
 
@@ -665,6 +668,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 	nfds++;
 
 #if defined PTPD_SNMP
+if (rtOpts.snmp_enabled) {
 	snmpblock = 1;
 	if (tv_ptr) {
 		snmpblock = 0;
@@ -673,7 +677,9 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 	snmp_select_info(&nfds, &readfds, &snmp_timer_wait, &snmpblock);
 	if (snmpblock == 0)
 		tv_ptr = &snmp_timer_wait;
+}
 #endif
+
 	ret = select(nfds, &readfds, 0, 0, tv_ptr);
 
 	if (ret < 0) {
@@ -681,6 +687,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 			return 0;
 	}
 #if defined PTPD_SNMP
+if (rtOpts.snmp_enabled) {
 	/* Maybe we have received SNMP related data */
 	if (ret > 0) {
 		snmp_read(&readfds);
@@ -689,6 +696,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 		run_alarms();
 	}
 	netsnmp_check_outstanding_agent_requests();
+}
 #endif
 	return ret;
 }
@@ -776,7 +784,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		ERROR("received truncated ancillary data\n");
 		return 0;
 	}
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 #endif
 	netPath->receivedPackets++;
@@ -923,7 +931,7 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 		return 0;
 	}
 
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 #endif
 	netPath->receivedPackets++;

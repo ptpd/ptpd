@@ -94,6 +94,19 @@
 #define ALTERNATE_PTP_DOMAIN2_ADDRESS  "224.0.1.131"
 #define ALTERNATE_PTP_DOMAIN3_ADDRESS  "224.0.1.132"
 
+/* default lock file location and mode */
+#define DEFAULT_LOCKFILE "/var/run/kernel_clock"
+#define LOCKMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
+
+/* default drift file location */
+#define DEFAULT_DRIFTFILE "/etc/ptpd_osclock.drift"
+
+/* drift recovery metod for use with -F */
+enum {
+	DRIFT_RESET = 0,
+	DRIFT_KERNEL,
+	DRIFT_FILE
+};
 
 
 #define MM_STARTING_BOUNDARY_HOPS  0x7fff

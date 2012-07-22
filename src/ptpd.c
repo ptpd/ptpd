@@ -83,7 +83,7 @@ main(int argc, char **argv)
 	rtOpts.priority1 = DEFAULT_PRIORITY1;
 	rtOpts.priority2 = DEFAULT_PRIORITY2;
 	rtOpts.domainNumber = DEFAULT_DOMAIN_NUMBER;
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	rtOpts.mcast_group_Number = 0;
 	rtOpts.do_hybrid_mode = FALSE;
 #endif
@@ -135,6 +135,13 @@ main(int argc, char **argv)
 
 	rtOpts.initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
 	rtOpts.subsequent_delayreq = DEFAULT_DELAYREQ_INTERVAL;      // this will be updated if -g is given
+
+	rtOpts.drift_recovery_method = DRIFT_RESET;
+	strncpy(rtOpts.driftFile, DEFAULT_DRIFTFILE, PATH_MAX);
+	/* placeholder for a configurable lock file */
+	strncpy(rtOpts.lockFile, DEFAULT_LOCKFILE, PATH_MAX);
+
+	rtOpts.snmp_enabled = FALSE;
 
 	/* Initialize run time options with command line arguments */
 	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts)))

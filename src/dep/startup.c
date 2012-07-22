@@ -257,9 +257,6 @@ void disable_runtime_debug(void )
 #include <sys/stat.h>
 #include <libgen.h>
 
-#define LOCKFILE "/var/run/kernel_clock"
-#define LOCKMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
-
 int global_lock_fd;
 
 
@@ -281,31 +278,43 @@ lockfile(int fd)
  * a discussion where the lock file should reside: http://rute.2038bug.com/node38.html.gz#SECTION003859000000000000000
  */
 int
-daemon_already_running(void)
+daemon_already_running(PtpClock *ptpClock, RunTimeOpts * rtOpts)
 {
 	char    buf[16];
 
-	INFO("  Info:    Going to check lock %s\n", LOCKFILE);
-	global_lock_fd = open(LOCKFILE, O_RDWR|O_CREAT, LOCKMODE);
+	INFO("  Info:    Going to check lock %s\n", rtOpts->lockFile);
+	global_lock_fd = open(rtOpts->lockFile, O_RDWR|O_CREAT, LOCKMODE);
 	if (global_lock_fd < 0) {
-		PERROR("can't open %s", LOCKFILE);
+		PERROR("couldn't open %s", rtOpts->lockFile);
 		return(1);
 	}
 	if (lockfile(global_lock_fd) < 0) {
 		if (errno == EACCES || errno == EAGAIN) {
-			PERROR("can't lock %s: already locked by another "
+			PERROR("couldn't lock %s: already locked by another "
 				"process - multiple " PTPD_PROGNAME
-				" instances running?", LOCKFILE);
+				" instances running?", rtOpts->lockFile);
 		} else {
-			PERROR("can't lock %s:", LOCKFILE);
+			PERROR("couldn't lock %s:", rtOpts->lockFile);
 		}
-		close(global_lock_fd);
-		return(1);
+		goto failure;
 	}
-	ftruncate(global_lock_fd, 0);
+	if(ftruncate(global_lock_fd, 0) == -1) {
+		PERROR("couldn't call ftruncate() on %s: %s",
+			rtOpts->lockFile, strerror(errno));
+		goto failure;
+	}
 	sprintf(buf, "%ld\n", (long)getpid());
-	write(global_lock_fd, buf, strlen(buf)+1);
+	if ( write(global_lock_fd, buf, strlen(buf)+1) == -1) {
+		PERROR("couldnt write to lock file %s: %s",
+			rtOpts->lockFile, strerror(errno));
+		goto failure;
+	}
 	return(0);
+
+	failure:
+	close(global_lock_fd);
+	return(1);
+
 }
 
 /*
@@ -331,7 +340,10 @@ int query_shell(char *command, char *answer, int answer_size)
 	};
 
 	// get first line of popen
-	fgets(answer, answer_size - 1, fp);
+	if (fgets(answer, answer_size - 1, fp) == NULL) {
+		PERROR("can't read command line output from %s", command);
+		return -1;
+	}
 
 	DBG2("Query_shell: _%s_ -> _%s_\n", command, answer);
 
@@ -371,10 +383,6 @@ pgrep_matches(char *name)
 	sscanf(answer, "%d", &matches);
 	return (matches);
 }
-
-
-
-
 
 /*
  * expected: number of expected deamons
@@ -472,6 +480,9 @@ recordToFile(RunTimeOpts * rtOpts)
 void 
 ptpdShutdown(PtpClock * ptpClock)
 {
+
+	extern RunTimeOpts rtOpts;
+
 	netShutdown(&ptpClock->netPath);
 	free(ptpClock->foreign);
 
@@ -479,6 +490,12 @@ ptpdShutdown(PtpClock * ptpClock)
 	if(ptpClock->msgTmpHeader.messageType == MANAGEMENT)
 		freeManagementTLV(&ptpClock->msgTmp.manage);
 	freeManagementTLV(&ptpClock->outgoingManageTmp);
+
+#if !defined(__APPLE__)
+	/* write observed drift to driftfile if enabled, inform user */
+	if(ptpClock->slaveOnly)
+		saveDrift(ptpClock, &rtOpts, FALSE);
+#endif /* apple */
 
 	free(ptpClock);
 	ptpClock = NULL;
@@ -488,7 +505,8 @@ ptpdShutdown(PtpClock * ptpClock)
 
 	/* properly clean lockfile (eventough new deaemons can adquire the lock after we die) */
 	close(global_lock_fd);
-	unlink(LOCKFILE);
+	unlink(rtOpts.lockFile);
+
 }
 
 void dump_command_line_parameters(int argc, char **argv)
@@ -547,9 +565,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	int ptp_daemons_strict = 1;
 	int i = 0;
 
-	const char *getopt_string = "HgGWb:cCf:ST:DPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:A:";
-
-
+	const char *getopt_string = "HgGWb:cCf:ST:DPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:A:F:K:E";
 
 	/* parse command line arguments */
 	while ((c = getopt(argc, argv, getopt_string)) != -1) {
@@ -592,12 +608,19 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"-O NUMBER         do not reset the clock if offset is more than NUMBER nanoseconds\n"
 
 				"-t                do not make any changes to the system clock\n"
+				"-F NUMBER         specify observed drift recovery method:\n"
+				"                    0: start from zero frequency offset (default)\n"
+				"                    1: read last frequency offset from kernel NTP API\n"
+				"                    2: read last observed drift from "DEFAULT_DRIFTFILE"\n"
+				"                       (or specify drift file with -K)\n"
+				"-K FILE           save / load drift to FILE (use with -F 2)\n"
 				"-A NUMBER         enable autotune with discarded packet threshold of NUMBER\n"
 				"-M NUMBER         do not accept delay values of more than NUMBER nanoseconds\n"
 				"-a 10,1000        specify clock servo Proportional and Integral attenuations\n"
 				"-w NUMBER         specify one way delay filter stiffness\n"
 				"\n"
 				"-u ADDRESS        Unicast mode: send all messages in unicast to ADDRESS\n"
+#ifdef PTPD_EXPERIMENTAL
 				"-U                Hybrid  mode: send DELAY messages in unicast\n"
 				"                    This causes all delayReq messages to be sent in unicast to the\n"
 				"                    IP address of the Master (taken from the last announce received).\n"
@@ -605,6 +628,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"                    (from the corresponding delayReq message).\n"
 				"                    All other messages are send in multicast\n"
 				"\n"
+#endif /* PTPD_EXPERIMENTAL */
 				"-e                run in ethernet mode (level2) \n"
 				"-h                run in End to End mode \n"
 				"-z                run in Peer-delay mode\n"
@@ -614,7 +638,12 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"\n"
 				"-o NUMBER         specify current UTC offset\n"
 				"-i NUMBER         specify PTP domain number (between 0-3)\n"
+#ifdef PTPD_EXPERIMENTAL
 				"-I NUMBER         specify Mcast group (between 0-3, emulates PTPv1 group selection)\n"
+#endif /* PTPD_EXPERIMENTAL */
+#ifdef PTPD_SNMP
+				"-E                enable SNMP agent (PTP_MIB))\n"
+#endif /* PTPD_SNMP */
 				
 				"\n"
 				"-n NUMBER         specify announce interval in 2^NUMBER sec\n"
@@ -708,7 +737,9 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			strncpy(rtOpts->file, optarg, PATH_MAX);
 			rtOpts->do_log_to_file = TRUE;
 			break;
-
+		case 'K':
+			strncpy(rtOpts->driftFile, optarg, PATH_MAX);
+			break; 
 		case 'B':
 #ifdef RUNTIME_DEBUG
 			(rtOpts->debug_level)++;
@@ -719,7 +750,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			INFO("runtime debug not enabled. Please compile with RUNTIME_DEBUG\n");
 #endif
 			break;
-			
+
 		case 'D':
 			rtOpts->displayStats = TRUE;
 			break;
@@ -790,10 +821,10 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 			 
 		case 'U':
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 			rtOpts->do_hybrid_mode = TRUE;
 #else
-			INFO("Hybrid mode not enabled. Please compile with PTP_EXPERIMENTAL\n");
+			INFO("Hybrid mode not enabled. Please compile with PTPD_EXPERIMENTAL\n");
 #endif
 			break;
 
@@ -813,13 +844,19 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 
 		case 'I':
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 			rtOpts->mcast_group_Number = strtol(optarg, &optarg, 0);
 #else
-			INFO("Multicast group selection not enabled. Please compile with PTP_EXPERIMENTAL\n");
+			INFO("Multicast group selection not enabled. Please compile with PTPD_EXPERIMENTAL\n");
 #endif
 			break;
-
+		case 'E':
+#ifdef PTPD_SNMP
+			rtOpts->snmp_enabled = TRUE;
+#else
+			INFO("SNMP agent support not enabled. Please compile with PTPD_SNMP\n");
+#endif /* PTPD_SNMP */
+			break;
 
 			
 		case 'y':
@@ -929,6 +966,26 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				rtOpts->ignore_delayreq_interval_master = TRUE;
 			}
 			break;
+                case 'F':
+			rtOpts->drift_recovery_method = atoi(optarg);
+			if (rtOpts->drift_recovery_method < 0 || rtOpts->drift_recovery_method > 2) {
+				ERROR("Error: invalid drift recovery option value. Valid is 0, 1 or 2.");
+				*ret = 1;
+				return (0);
+                        }
+
+			switch (rtOpts->drift_recovery_method) {
+				case DRIFT_KERNEL:
+					INFO("observed drift will be loaded from kernel\n");
+					break;
+				case DRIFT_FILE:
+					INFO("observed drift will be loaded from drift file\n");
+					break;
+				default: /* shouldn't happen */
+					break;
+                        }
+
+                        break;
 
 		case 'L':
 			/* enable running multiple ptpd2 daemons */
@@ -972,7 +1029,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		return 0;
 	}
 
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	if(rtOpts->do_unicast_mode && rtOpts->do_hybrid_mode){
 		ERROR("Error: Cant specify both -u and -U\n");
 		*ret = 3;
@@ -1021,8 +1078,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	memset(ptpClock->msgIbuf, 0, PACKET_SIZE);
 	memset(ptpClock->msgObuf, 0, PACKET_SIZE);
 
-
- 
 	/*
 	 * This section discusses some of the complexities of doing proper Locking and Background Daemon programs.
 	 *
@@ -1067,7 +1122,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	/* First lock check, just to be user-friendly to the operator */
 	if(rtOpts->ignore_daemon_lock == 0){
 		/* check and create Lock */
-		if(daemon_already_running()){
+		if(daemon_already_running(ptpClock, rtOpts)){
 			ERROR(INFO_PREFIX "Error: file lock failed (use -L to ignore lock file)\n");
 			*ret = 3;
 			return 0;
@@ -1140,7 +1195,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	/* Second lock check, to replace the contents with our own new PID. It seems that F_WRLCK is not inherited to the child, so we lock again */
 	if(rtOpts->ignore_daemon_lock == 0){
 		/* check and create Lock */
-		if(daemon_already_running()){
+		if(daemon_already_running(ptpClock, rtOpts)){
 			ERROR(INFO_PREFIX "Error: file lock failed (use -L to ignore lock file)\n");
 			*ret = 3;
 			return 0;
@@ -1157,7 +1212,8 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 #if defined PTPD_SNMP
 	/* Start SNMP subsystem */
-	snmpInit(ptpClock);
+	if (rtOpts->snmp_enabled)
+		snmpInit(ptpClock);
 #endif
 
 	*ret = 0;

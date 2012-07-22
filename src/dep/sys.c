@@ -533,7 +533,9 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
 	}
 #endif
-	write(1, sbuf, len);
+	if (write(1, sbuf, len) == -1) {
+		PERROR("couldn't log statistics: %s", strerror(errno));
+	}
 }
 
 void 
@@ -681,6 +683,142 @@ adjFreq(Integer32 adj)
 	return !adjtimex(&t);
 }
 
+Integer32
+getAdjFreq(void)
+{
+	struct timex t;
+	Integer32 freq;
+	float float_freq;
+
+	DBGV("getAdjFreq called\n");
+
+	memset(&t, 0, sizeof(t));
+	t.modes = 0;
+	adjtimex(&t);
+
+	float_freq = (t.freq + 0.0) / ((1<<16) / 1000.0);
+	freq = (Integer32)round(float_freq);
+	DBGV("          kernel adj is: float %f, Integer32 %d, kernel freq is: %d",
+		float_freq, freq, t.freq);
+
+	return(freq);
+}
+
+void
+restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
+{
+
+	FILE *driftFP;
+	Boolean reset_offset = FALSE;
+	Integer32 recovered_drift;
+
+	DBGV("restoreDrift called\n");
+
+	if (ptpClock->drift_saved && rtOpts->drift_recovery_method > 0 ) {
+		ptpClock->observed_drift = ptpClock->last_saved_drift;
+		if (!rtOpts->noAdjust)
+			adjFreq(-ptpClock->last_saved_drift);
+		DBG("loaded cached drift");
+		return;
+	}
+
+	switch (rtOpts->drift_recovery_method) {
+
+		case DRIFT_KERNEL:
+
+			recovered_drift = -getAdjFreq();
+			if (quiet)
+				DBGV("Observed_drift loaded from kernel: %d\n",
+					recovered_drift);
+			else
+				INFO("Observed_drift loaded from kernel: %d\n",
+					recovered_drift);
+
+		break;
+
+		case DRIFT_FILE:
+
+			if( (driftFP = fopen(rtOpts->driftFile,"r")) == NULL) {
+				PERROR("Could not open drift file %s: %s\n",
+					rtOpts->driftFile, strerror(errno));
+				reset_offset = TRUE;
+				break;
+			}
+
+			if (fscanf(driftFP, "%d", &recovered_drift) != 1) {
+				PERROR("Could not load saved offset from drift file\n");
+				reset_offset = TRUE;
+				fclose(driftFP);
+				break;
+			}
+
+			fclose(driftFP);
+			if(quiet)
+				DBGV("Observed drift loaded from %s: %d\n",
+					rtOpts->driftFile,
+					recovered_drift);
+			else
+				INFO("Observed drift loaded from %s: %d\n",
+					rtOpts->driftFile,
+					recovered_drift);
+		break;
+
+		default:
+
+			reset_offset = TRUE;
+
+	}
+
+	if (reset_offset) {
+		if (!rtOpts->noAdjust)
+		adjFreq(0);
+		ptpClock->observed_drift = 0;
+		return;
+	}
+
+	ptpClock->observed_drift = recovered_drift;
+
+/*
+ * temporary: will be used when clock stabilisation
+ * estimation is implemented
+ */
+//	ptpClock->drift_saved = TRUE;
+	ptpClock->last_saved_drift = recovered_drift;
+	if (!rtOpts->noAdjust)
+		adjFreq(-recovered_drift);
+
+}
+
+void
+saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
+{
+	FILE *driftFP;
+
+	DBGV("saveDrift called\n");
+
+	if (rtOpts->drift_recovery_method > 0) {
+		ptpClock->last_saved_drift = ptpClock->observed_drift;
+		ptpClock->drift_saved = TRUE;
+	}
+
+	if (rtOpts->drift_recovery_method != DRIFT_FILE)
+		return;
+
+	if( (driftFP = fopen(rtOpts->driftFile,"w")) == NULL) {
+		PERROR("Could not open drift file %s for writing", rtOpts->driftFile);
+		return;
+	}
+
+	fprintf(driftFP, "%d\n", ptpClock->observed_drift);
+
+	if (quiet) {
+		DBGV("Wrote observed drift to %s", rtOpts->driftFile);
+	} else {
+		INFO("Wrote observed drift to %s", rtOpts->driftFile);
+	}
+	fclose(driftFP);
+}
+
 void
 setTimexFlags(int flags, Boolean quiet)
 {
@@ -785,11 +923,11 @@ int getTimexFlags(void)
 
 Boolean
 checkTimexFlags(int flags) {
+	int tflags = getTimexFlags();
 
-    int tflags = getTimexFlags();
-    if (tflags == -1) 
-	    return FALSE;
-    return ((tflags & flags) == flags);
+	if (tflags == -1) 
+		return FALSE;
+	return ((tflags & flags) == flags);
 }
 
 /*
@@ -839,7 +977,6 @@ adjTime(Integer32 nanoseconds)
 }
 
 #endif /* __APPLE__ */
-
 
 
 #if 0 && defined (linux)  /* NOTE: This is actually not used */

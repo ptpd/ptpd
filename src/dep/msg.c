@@ -53,7 +53,7 @@
 
 #include "../ptpd.h"
 
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 extern RunTimeOpts rtOpts; 
 #endif
 
@@ -1515,7 +1515,7 @@ msgPackDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_REQ_LENGTH);
 
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	if(rtOpts.do_hybrid_mode)
 		*(char *)(buf + 6) |= PTP_UNICAST;
 #endif
@@ -1547,7 +1547,7 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_RESP_LENGTH);
 	*(UInteger8 *) (buf + 4) = header->domainNumber;
 
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	if(rtOpts.do_hybrid_mode)    
 		*(char *)(buf + 6) |= PTP_UNICAST;
 #endif

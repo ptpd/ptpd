@@ -616,11 +616,16 @@ typedef struct {
 	int waiting_for_first_sync;                     /* we'll only start the delayReq timer after the first sync */
 	int waiting_for_first_delayresp;                /* Just for information purposes */
 	Boolean startup_in_progress;
-	
+
+	uint32_t init_timestamp;                        /* When the clock was last initialised */
+	Integer32 stabilisation_time;                   /* How long (seconds) it took to stabilise the clock */
+	Integer32 last_saved_drift;                     /* Last observed drift value written to file */
+	Boolean drift_saved;                            /* Did we save a drift value already? */
+
 	/* user description is max size + 1 to leave space for a null terminator */
 	Octet user_description[USER_DESCRIPTION_MAX + 1];
 
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	Integer32 MasterAddr;                           // used for hybrid mode, when receiving announces
 	Integer32 LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
 #endif
@@ -642,7 +647,7 @@ typedef struct {
 	UInteger8 priority1;
 	UInteger8 priority2;
 	UInteger8 domainNumber;
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
 	UInteger8 mcast_group_Number;
 #endif
 
@@ -685,8 +690,14 @@ typedef struct {
 	int subsequent_delayreq;
 	Boolean ignore_delayreq_interval_master;
 	Boolean syslog_startup_messages_also_to_stdout;
-	
-#ifdef PTP_EXPERIMENTAL
+
+	char lockFile[PATH_MAX]; /* lock file location */
+	char driftFile[PATH_MAX]; /* drift file location */
+	int drift_recovery_method; /* how the observed drift is managed between restart */
+
+	Boolean snmp_enabled; /* SNMP subsystem enabled / disabled even if compiled in */
+
+#ifdef PTPD_EXPERIMENTAL
 	Boolean do_hybrid_mode;
 #endif
 	Boolean do_unicast_mode;

@@ -14,9 +14,10 @@
 #
 #   -DPTPD_NO_DAEMON             forces option -c
 #
-#   -DPTP_EXPERIMENTAL           Allows non-standard compliant experimental options:
+#   -DPTPD_EXPERIMENTAL           Allows non-standard compliant experimental options:
 #                                   -U: Hybrid mode
 #                                   -I: choose multicast group
+#   -DPTPD_SNMP                   Enables SNMP agent support (PTP-MIB)
 #
 # Mutually exclusive defines (useful for testing):
 #   -DDBG_SIGUSR2_CHANGE_DOMAIN: SIGUSR2 cycles the PTP domain number
@@ -44,7 +45,7 @@ CFLAGS += -DRUNTIME_DEBUG
 #CFLAGS += -DDBG_SIGUSR2_CHANGE_DOMAIN
 CFLAGS += -DDBG_SIGUSR2_CHANGE_DEBUG
 
-CFLAGS += -DPTP_EXPERIMENTAL
+CFLAGS += -DPTPD_EXPERIMENTAL
 
 LDFLAGS = -lm -lrt
 STATICLIBFLAGS = rcs

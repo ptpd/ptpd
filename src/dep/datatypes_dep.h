@@ -73,7 +73,7 @@ typedef struct {
     /* used by IGMP refresh */
     struct in_addr interfaceAddr;
 
-#ifdef PTP_EXPERIMENTAL
+#ifdef PTPD_EXPERIMENTAL
     /* used for Hybrid mode */
     Integer32 lastRecvAddr;
 #endif
