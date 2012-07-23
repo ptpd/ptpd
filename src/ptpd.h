@@ -249,6 +249,9 @@ void iFaceName_display(Octet*);
 void unicast_display(Octet*);
 const char *portState_getName(Enumeration8 portState);
 
+void displayCounters(PtpClock*);
+void displayStatistics(PtpClock*);
+
 void msgHeader_display(MsgHeader*);
 void msgAnnounce_display(MsgAnnounce*);
 void msgSync_display(MsgSync *sync);

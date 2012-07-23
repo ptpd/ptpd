@@ -244,8 +244,8 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 
         if (ptpClock->portState == PTP_SLAVE) {
 		if(ptpClock->leap59 && ptpClock->leap61) {
-			ERROR("Both Leap59 and Leap61 flags set!\n");
-			toState(PTP_FAULTY, rtOpts, ptpClock);
+			DBG("Both Leap59 and Leap61 flags set!\n");
+			ptpClock->counters.protocolErrors++;
 			return;
 		}
 
@@ -456,6 +456,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 		if (newBM) {
 			displayPortIdentity(&header->sourcePortIdentity,
 					    "New best master selected:");
+			ptpClock->counters.masterChanges++;
 			if (ptpClock->portState == PTP_SLAVE)
 				displayStatus(ptpClock, "State: ");
 		}
@@ -479,6 +480,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 			if (newBM) {
 				displayPortIdentity(&header->sourcePortIdentity,
 						    "New best master selected:");
+				ptpClock->counters.masterChanges++;
 				if(ptpClock->portState == PTP_PASSIVE)
 					displayStatus(ptpClock, "State: ");
 			}
@@ -495,6 +497,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 			if (newBM) {
 				displayPortIdentity(&header->sourcePortIdentity,
 						    "New best master selected:");
+				ptpClock->counters.masterChanges++;
 				if(ptpClock->portState == PTP_SLAVE)
 					displayStatus(ptpClock, "State: ");
 			}
@@ -504,8 +507,10 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 		}
 	}
 
+	ptpClock->counters.protocolErrors++;
 	/*  MB: Is this the return code below correct? */
 	/*  Anyway, it's a valid return code. */
+
 	return PTP_FAULTY;
 }
 

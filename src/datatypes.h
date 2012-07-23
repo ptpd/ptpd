@@ -446,6 +446,88 @@ typedef struct
 } ForeignMasterRecord;
 
 /**
+ * \struct PtpdCounters
+ * \brief Ptpd engine counters per port
+ */
+typedef struct
+{
+
+	/*
+	 * message sent/received counters:
+	 * - sent only incremented on success,
+	 * - received only incremented when message valid and accepted,
+	 * - looped messages to self don't increment received,
+	 */
+	uint32_t announceMessagesSent;
+	uint32_t announceMessagesReceived;
+	uint32_t syncMessagesSent;
+	uint32_t syncMessagesReceived;
+	uint32_t followUpMessagesSent;
+	uint32_t followUpMessagesReceived;
+	uint32_t delayReqMessagesSent;
+	uint32_t delayReqMessagesReceived;
+	uint32_t delayRespMessagesSent;
+	uint32_t delayRespMessagesReceived;
+	uint32_t pdelayReqMessagesSent;
+	uint32_t pdelayReqMessagesReceived;
+	uint32_t pdelayRespMessagesSent;
+	uint32_t pdelayRespMessagesReceived;
+	uint32_t pdelayRespFollowUpMessagesSent;
+	uint32_t pdelayRespFollowUpMessagesReceived;
+	uint32_t signalingMessagesSent;
+	uint32_t signalingMessagesReceived;
+	uint32_t managementMessagesSent;
+	uint32_t managementMessagesReceived;
+
+/* not implemented yet */
+#if 0
+	/* FMR counters */
+	uint32_t foreignAdded; // implement me! /* number of insertions to FMR */
+	uint32_t foreignMax; // implement me! /* maximum foreign masters seen */
+	uint32_t foreignRemoved; // implement me! /* number of FMR records deleted */
+	uint32_t foreignOverflow; // implement me! /* how many times the FMR was full */
+#endif /* 0 */
+
+	/* protocol engine counters */
+
+	uint32_t stateTransitions;	  /* number of state changes */
+	uint32_t masterChanges;		  /* number of BM changes as result of BMC */
+	uint32_t announceTimeouts;	  /* number of announce receipt timeouts */
+
+	/* discarded / uknown */
+	uint32_t discardedMessages;	  /* only messages we shouldn't be receiving - ignored from self don't count */
+	uint32_t unknownMessages;	  /* unknown type - also increments discarded */
+
+	/* error counters */
+	uint32_t messageRecvErrors;	  /* message receive errors */
+	uint32_t messageSendErrors;	  /* message send errors */
+	uint32_t messageFormatErrors;	  /* headers or messages too short etc. */
+	uint32_t protocolErrors;	  /* conditions that shouldn't happen */
+	uint32_t versionMismatchErrors;	  /* V1 received, V2 expected - also increments discarded */
+	uint32_t domainMismatchErrors;	  /* different domain than configured - also increments discarded */
+	uint32_t sequenceMismatchErrors;  /* mismatched sequence IDs - also increments discarded */
+	uint32_t delayModeMismatchErrors; /* P2P received, E2E expected or vice versa - incremets discarded */
+
+} PtpdCounters;
+
+/**
+ * \struct PtpdStats
+ * \brief Ptpd clock statistics per port
+ */
+typedef struct
+{
+
+    Integer32 ofmMean; /* mean offset from master - accuracy*/
+    Integer32 ofmStdDev; /* offset from master standard deviation - precision */
+    /* TODO: investigate MAD - Mean Absolute Deviation */
+    Integer32 ofmMedian; /* offset from master median - effective accuracy*/
+    /* TODO: investigate velocity/acceleration as statistical measures */
+    Integer32 driftStdDev; /* observed drift standard deviation */
+
+} PtpdStats;
+
+
+/**
  * \struct PtpClock
  * \brief Main program data structure
  */
@@ -631,6 +713,21 @@ typedef struct {
 #endif
 	Integer32 discardedPacketCount;                 // used for autotuning the maxDelay threshold
 
+	/*
+	 * counters - useful for debugging and monitoring,
+	 * should be exposed through management messages
+	 * and SNMP eventually
+	 */
+	PtpdCounters counters;
+
+	/*
+	 * basic clock statistics information, useful
+	 * for monitoring servo performance and estimating
+	 * clock stability - should be exposed through
+	 * management messages and SNMP eventually
+	*/
+	PtpdStats stats;
+
 } PtpClock;
 
 /**
@@ -693,7 +790,7 @@ typedef struct {
 
 	char lockFile[PATH_MAX]; /* lock file location */
 	char driftFile[PATH_MAX]; /* drift file location */
-	int drift_recovery_method; /* how the observed drift is managed between restart */
+	int drift_recovery_method; /* how the observed drift is managed between restarts */
 
 	Boolean snmp_enabled; /* SNMP subsystem enabled / disabled even if compiled in */
 

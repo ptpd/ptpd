@@ -802,8 +802,115 @@ const char
 
 }
 
+/**\brief Display all PTP clock (port) counters*/
+void
+displayCounters(PtpClock * ptpClock)
+{
 
-/**\brief Display All data set of a PtpClock*/
+	/* TODO: print port identity */
+	INFO("============= PTP port counters =============\n");
+
+	INFO("Message counters:\n");
+	INFO("              announceMessagesSent : %d\n",
+		ptpClock->counters.announceMessagesSent);
+	INFO("          announceMessagesReceived : %d\n",
+		ptpClock->counters.announceMessagesReceived);
+	INFO("                  syncMessagesSent : %d\n",
+		ptpClock->counters.syncMessagesSent);
+	INFO("              syncMessagesReceived : %d\n",
+		ptpClock->counters.syncMessagesReceived);
+	INFO("              followUpMessagesSent : %d\n",
+		ptpClock->counters.followUpMessagesSent);
+	INFO("          followUpMessagesReceived : %d\n",
+		ptpClock->counters.followUpMessagesReceived);
+	INFO("              delayReqMessagesSent : %d\n",
+		 ptpClock->counters.delayReqMessagesSent);
+	INFO("          delayReqMessagesReceived : %d\n",
+		ptpClock->counters.delayReqMessagesReceived);
+	INFO("             delayRespMessagesSent : %d\n",
+		ptpClock->counters.delayRespMessagesSent);
+	INFO("         delayRespMessagesReceived : %d\n",
+		ptpClock->counters.delayRespMessagesReceived);
+	INFO("             pdelayReqMessagesSent : %d\n",
+		ptpClock->counters.pdelayReqMessagesSent);
+	INFO("         pdelayReqMessagesReceived : %d\n",
+		ptpClock->counters.pdelayReqMessagesReceived);
+	INFO("            pdelayRespMessagesSent : %d\n",
+		ptpClock->counters.pdelayRespMessagesSent);
+	INFO("        pdelayRespMessagesReceived : %d\n",
+		ptpClock->counters.pdelayRespMessagesReceived);
+	INFO("    pdelayRespFollowUpMessagesSent : %d\n",
+		ptpClock->counters.pdelayRespFollowUpMessagesSent);
+	INFO("pdelayRespFollowUpMessagesReceived : %d\n",
+		ptpClock->counters.pdelayRespFollowUpMessagesReceived);
+	INFO("             signalingMessagesSent : %d\n",
+		ptpClock->counters.signalingMessagesSent);
+	INFO("         signalingMessagesReceived : %d\n",
+		ptpClock->counters.signalingMessagesReceived);
+	INFO("            managementMessagesSent : %d\n",
+		ptpClock->counters.managementMessagesSent);
+	INFO("        managementMessagesReceived : %d\n",
+		ptpClock->counters.managementMessagesReceived);
+
+/* not implemented yet */
+#if 0
+	INFO("FMR counters:\n");
+	INFO("                      foreignAdded : %d\n",
+		ptpClock->counters.foreignAdded);
+	INFO("                        foreignMax : %d\n",
+		ptpClock->counters.foreignMax);
+	INFO("                    foreignRemoved : %d\n",
+		ptpClock->counters.foreignRemoved);
+	INFO("                   foreignOverflow : %d\n",
+		ptpClock->counters.foreignOverflow);
+#endif /* 0 */
+
+	INFO("Protocol engine counters:\n");
+	INFO("                  stateTransitions : %d\n",
+		ptpClock->counters.stateTransitions);
+	INFO("                     masterChanges : %d\n",
+		ptpClock->counters.masterChanges);
+	INFO("                  announceTimeouts : %d\n",
+		ptpClock->counters.announceTimeouts);
+
+	INFO("Discarded / unknown message counters:\n");
+	INFO("                 discardedMessages : %d\n",
+		ptpClock->counters.discardedMessages);
+	INFO("                   unknownMessages : %d\n",
+		ptpClock->counters.unknownMessages);
+
+	INFO("Error counters:\n");
+	INFO("                 messageSendErrors : %d\n",
+		ptpClock->counters.messageSendErrors);
+	INFO("                 messageRecvErrors : %d\n",
+		ptpClock->counters.messageRecvErrors);
+	INFO("               messageFormatErrors : %d\n",
+		ptpClock->counters.messageFormatErrors);
+	INFO("                    protocolErrors : %d\n",
+		ptpClock->counters.protocolErrors);
+	INFO("             versionMismatchErrors : %d\n",
+		ptpClock->counters.versionMismatchErrors);
+	INFO("              domainMismatchErrors : %d\n",
+		ptpClock->counters.domainMismatchErrors);
+	INFO("            sequenceMismatchErrors : %d\n",
+		ptpClock->counters.sequenceMismatchErrors);
+	INFO("           delayModeMismatchErrors : %d\n",
+		ptpClock->counters.delayModeMismatchErrors);
+}
+
+/**\brief Display all PTP clock (port) statistics*/
+void
+displayStatistics(PtpClock* ptpClock)
+{
+
+	INFO("Clock stats: ofm mean: %d, ofm median: %d,"
+	     "ofm std dev: %d, observed drift std dev: %d\n",
+	     ptpClock->stats.ofmMean, ptpClock->stats.ofmMedian,
+	     ptpClock->stats.ofmStdDev, ptpClock->stats.driftStdDev);
+
+}
+
+/**\brief Display All data sets and counters of a PtpClock*/
 void
 displayPtpClock(PtpClock * ptpClock)
 {
@@ -816,5 +923,7 @@ displayPtpClock(PtpClock * ptpClock)
 	displayForeignMaster(ptpClock);
 	displayBuffer(ptpClock);
 	displayOthers(ptpClock);
+	displayCounters(ptpClock);
+	displayStatistics(ptpClock);
 
 }
