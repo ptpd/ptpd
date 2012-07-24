@@ -48,6 +48,195 @@ unpackManagementHeader(Octet *inmessage, MsgManagement *manage)
 	manage->tlv->managementId = flip16(*(UInteger16 *) (inmessage + 52));
 }
 
+
+void
+handleUserDescription(MsgManagement *manage)
+{
+	char tempBuf[100];
+	MMUserDescription *data = (MMUserDescription *)(inmessage + 54);
+	data->userDescription.textField = (Octet*)(inmessage + 55);
+	memcpy(tempBuf,data->userDescription.textField,data->userDescription.lengthField);
+	tempBuf[data->userDescription.lengthField] = '\0';
+	printf("Lengthfield: %hhu\n",data->userDescription.lengthField);
+	printf("Name_of_device;Physical_location = %s\n",tempBuf);
+}
+
+void
+handlePriority1(MsgManagement *manage)
+{
+	MMPriority1* data = (MMPriority1 *)(inmessage + 54);
+	printf("Priority1 = %hhu\n",data->priority1);
+}
+
+void
+handlePriority2(MsgManagement *manage)
+{
+	MMPriority2* data = (MMPriority2 *)(inmessage + 54);
+	printf("Priority1 = %hhu\n",data->priority2);
+}
+
+void
+handleDomain(MsgManagement *manage)
+{
+	MMDomain* data = (MMDomain*)(inmessage + 54);
+	printf("Domain = %hhu\n",data->domainNumber);
+}
+
+void
+handleSlaveOnly(MsgManagement *manage)
+{
+	MMSlaveOnly* data = (MMSlaveOnly*)(inmessage + 54);
+	if ((data->so && 01) == 0)
+		printf("SlaveOnly = False\n");
+	else
+		printf("SlaveOnly = True\n");
+}
+
+void
+handleLogAnnounceInterval(MsgManagement *manage)
+{
+	MMLogAnnounceInterval* data = (MMLogAnnounceInterval*)(inmessage + 54);
+	printf("LogAnnounceInterval = %hhd\n",data->logAnnounceInterval);
+}
+
+void
+handleAnnounceReceiptTimeout(MsgManagement *manage)
+{
+	MMAnnounceReceiptTimeout* data = (MMAnnounceReceiptTimeout*)(inmessage + 54);
+	printf("AnnounceReceiptTimeout = %hhu\n",data->announceReceiptTimeout);
+}
+
+void
+handleLogSyncInterval(MsgManagement *manage)
+{
+	MMLogSyncInterval* data = (MMLogSyncInterval*)(inmessage + 54);
+	printf("LogSyncInterval = %hhd\n",data->logSyncInterval);
+}
+
+void
+handleVersionNumber(MsgManagement *manage)
+{
+	MMVersionNumber* data = (MMVersionNumber*)(inmessage + 54);
+	printf("VersionNumber = %hhu\n",data->versionNumber);
+}
+
+void
+handleClockAccuracy(MsgManagement *manage)
+{
+	MMClockAccuracy* data = (MMClockAccuracy*)(inmessage + 54);
+	printf("ClockAccuracy = %hhu\n",data->clockAccuracy);
+	switch(data->clockAccuracy){
+	case 32:
+		printf("The time is accurate to within 25 ns\n");
+		break;
+	case 33:
+		printf("The time is accurate to within 100 ns\n");
+		break;
+	case 34:
+		printf("The time is accurate to within 250 ns\n");
+		break;
+	case 35:
+		printf("The time is accurate to within 1 microsec\n");
+		break;
+	case 36:
+		printf("The time is accurate to within 2.5 microsec\n");
+		break;
+	case 37:
+		printf("The time is accurate to within 10 microsec\n");
+		break;
+	case 38:
+		printf("The time is accurate to within 25 microsec\n");
+		break;
+	case 39:
+		printf("The time is accurate to within 100 microsec\n");
+		break;
+	case 40:
+		printf("The time is accurate to within 250 microsec\n");
+		break;
+	case 41:
+		printf("The time is accurate to within 1 millisec\n");
+		break;
+	case 42:
+		printf("The time is accurate to within 2.5 millisec\n");
+		break;
+	case 43:
+		printf("The time is accurate to within 10 millisec\n");
+		break;
+	case 44:
+		printf("The time is accurate to within 25 millisec\n");
+		break;
+	case 45:
+		printf("The time is accurate to within 100 millisec\n");
+		break;
+	case 46:
+		printf("The time is accurate to within 250 millisec\n");
+		break;
+	case 47:
+		printf("The time is accurate to within 1 sec\n");
+		break;
+	case 48:
+		printf("The time is accurate to within 10 sec\n");
+		break;
+	case 49:
+		printf("The time is accurate to > 10 sec\n");
+		break;
+	default:
+		printf("Unknown accuracy\n");
+	}
+}
+
+void
+handleUtcProperties(MsgManagement *manage)
+{
+	MMUtcProperties* data = (MMUtcProperties*)(inmessage + 54);
+	printf("currentUtcOffset = %hd\n",data->currentUtcOffset);
+	if ((data->utcv_li59_li61 & 0x04) == 0)
+		printf("UTCV = False, ");
+	else
+		printf("UTCV = True, ");
+		
+	if ((data->utcv_li59_li61 & 0x02) == 0)
+		printf("L1-59 = False, ");
+	else
+		printf("L1-59 = True, ");
+		
+	if ((data->utcv_li59_li61 & 0x01) == 0)
+		printf("L1-61 = False\n");
+	else
+		printf("L1-61 = True\n");
+}
+
+void
+handleTraceabilityProperties(MsgManagement *manage)
+{
+	MMTraceabilityProperties* data = (MMTraceabilityProperties*)(inmessage + 54);
+	if ((data->ftra_ttra & 0x20) == 0)
+		printf("FTRA = False, ");
+	else
+		printf("FTRA = True, ");
+		
+	if ((data->ftra_ttra & 0x10) == 0)
+		printf("TTRA = False\n");
+	else
+		printf("TTRA = True\n");
+		
+}
+
+void
+handleDelayMechanism(MsgManagement *manage)
+{
+	MMDelayMechanism* data = (MMDelayMechanism*)(inmessage + 54);
+	printf("DelayMechanism = %hhu\n",data->delayMechanism);
+}
+
+void
+handleLogMinRequirement(MsgManagement *manage)
+{
+	MMLogMinPdelayReqInterval* data = (MMLogMinPdelayReqInterval*)(inmessage + 54);
+	printf("LogMinPdelayReqInterval = %hhu\n",data->logMinPdelayReqInterval);
+}
+
+
 /*Function to handle management response and display the required fields*/
 void 
 handleManagementResponse(Octet *inmessage, MsgManagement *manage)
@@ -55,32 +244,70 @@ handleManagementResponse(Octet *inmessage, MsgManagement *manage)
 	printf("Received a RESPONSE management message.\n");
 	switch(manage->tlv->managementId){
     case MM_NULL_MANAGEMENT:
-    case MM_CLOCK_DESCRIPTION:
+    	//nothing to handle
+    	break;
+
     case MM_USER_DESCRIPTION:
-    case MM_SAVE_IN_NON_VOLATILE_STORAGE:
-    case MM_RESET_NON_VOLATILE_STORAGE:
-    case MM_INITIALIZE:
+    	handleUserDescription(manage);
+    	break;
+    case MM_PRIORITY1:
+       	handlePriority1(manage);
+    	break;
+    case MM_PRIORITY2:
+       	handlePriority2(manage);
+    	break;
+    case MM_DOMAIN:
+       	handleDomain(manage);
+       	break;
+    case MM_SLAVE_ONLY:
+       	handleSlaveOnly(manage);
+       	break;
+    case MM_LOG_ANNOUNCE_INTERVAL:
+       	handleLogAnnounceInterval(manage);
+       	break;
+    case MM_ANNOUNCE_RECEIPT_TIMEOUT:
+       	handleAnnounceReceiptTimeout(manage);
+       	break;
+    case MM_LOG_SYNC_INTERVAL:
+       	handleLogSyncInterval(manage);
+       	break;
+    case MM_VERSION_NUMBER:
+       	handleVersionNumber(manage);
+       	break;
+    case MM_CLOCK_ACCURACY:
+       	handleClockAccuracy(manage);
+       	break;
+    case MM_UTC_PROPERTIES:
+       	handleUtcProperties(manage);
+       	break;
+    case MM_TRACEABILITY_PROPERTIES:
+       	handleTraceabilityProperties(manage);
+       	break;
+    case MM_DELAY_MECHANISM:
+       	handleDelayMechanism(manage);
+       	break;
+    case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
+    	handleLogMinRequirement(manage);
+	    break;
+	    
+    case MM_CLOCK_DESCRIPTION:
     case MM_DEFAULT_DATA_SET:
     case MM_CURRENT_DATA_SET:
     case MM_PARENT_DATA_SET:
     case MM_TIME_PROPERTIES_DATA_SET:
     case MM_PORT_DATA_SET:
-    case MM_PRIORITY1:
-    case MM_PRIORITY2:
-    case MM_DOMAIN:
-    case MM_SLAVE_ONLY:
-    case MM_LOG_ANNOUNCE_INTERVAL:
-    case MM_ANNOUNCE_RECEIPT_TIMEOUT:
-    case MM_LOG_SYNC_INTERVAL:
-    case MM_VERSION_NUMBER:
+		printf("Yet to handle the response\n");
+		break;
+		
+	case MM_SAVE_IN_NON_VOLATILE_STORAGE:
+    case MM_RESET_NON_VOLATILE_STORAGE:
+    case MM_INITIALIZE:
     case MM_ENABLE_PORT:
     case MM_DISABLE_PORT:
-    case MM_TIME:
-    case MM_CLOCK_ACCURACY:
-    case MM_UTC_PROPERTIES:
-    case MM_TRACEABILITY_PROPERTIES:
-    case MM_DELAY_MECHANISM:
-    case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
+    	printf("But Ack was expected\n");
+    	break;
+
+	case MM_TIME:    	
     case MM_FAULT_LOG:
     case MM_FAULT_LOG_RESET:
     case MM_TIMESCALE_PROPERTIES:

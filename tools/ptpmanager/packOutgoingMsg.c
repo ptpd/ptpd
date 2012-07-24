@@ -584,7 +584,7 @@ packMMClockAccuracy(Octet *buf)
 		break;
 	case SET:
 		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
-		printf(">clock accuracy number (20-31) see table 6?");
+		printf(">clock accuracy number (32-49) see table 6?");
 		scanf("%hhu",(UInteger8 *)(manage->tlv) + TLV_LENGTH);
 		*(UInteger16 *) (buf + 2) = flip16(MANAGEMENT_LENGTH+TLV_LENGTH + 2);
 		manage->tlv->lengthField = flip16(0x0004);

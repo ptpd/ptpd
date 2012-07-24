@@ -265,7 +265,7 @@ void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, P
 					userDescriptionLength);
 			/* add null-terminator to make use of C string function strlen later */
 			ptpClock->user_description[userDescriptionLength] = '\0';
-			printf("==> %d , %s, %s,\n",(int)data->userDescription.lengthField, data->userDescription.textField, ptpClock->user_description);
+			printf("lengthField: %d , TextField: %s,\n",(int)data->userDescription.lengthField, ptpClock->user_description);
 		} else {
 			WARNING("management user description exceeds specification length \n");
 		}
@@ -283,6 +283,7 @@ void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, P
                 memcpy(data->userDescription.textField,
                         ptpClock->user_description,
                         data->userDescription.lengthField);
+		printf("lengthField: %d , TextField: %s,\n",(int)data->userDescription.lengthField, data->userDescription.textField);
 		break;
 	default:
 		printf(" unknown actionType \n");
@@ -1056,7 +1057,7 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		data = (MMClockAccuracy*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->clockQuality.clockAccuracy = data->clockAccuracy;
-		printf("Clock Accuracy = %x\n",ptpClock->clockQuality.clockAccuracy);
+		printf("Clock Accuracy = %hhu\n",ptpClock->clockQuality.clockAccuracy);
 		/* intentionally fall through to GET case */
 	case GET:
 		printf(" GET action\n");
@@ -1065,6 +1066,8 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		data = (MMClockAccuracy*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->clockAccuracy = ptpClock->clockQuality.clockAccuracy;
+		printf("Clock Accuracy = %hhu\n",ptpClock->clockQuality.clockAccuracy);
+		printf("Clock Accuracy = %x\n",ptpClock->clockQuality.clockAccuracy);
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1117,6 +1120,7 @@ void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		Octet li59 = SET_FIELD(ptpClock->leap59, LI59);
 		Octet li61 = SET_FIELD(ptpClock->leap61, LI61);
 		data->utcv_li59_li61 = utcv | li59 | li61;
+		printf("bool byte = %hhu\n",data->utcv_li59_li61);
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1163,6 +1167,7 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 		Octet ftra = SET_FIELD(ptpClock->frequencyTraceable, FTRA);
 		Octet ttra = SET_FIELD(ptpClock->timeTraceable, TTRA);
 		data->ftra_ttra = ftra | ttra;
+		printf("bool byte = %hhu\n",data->ftra_ttra);
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
