@@ -40,7 +40,9 @@ private:
             
     void unpackClockIdentity( Octet *buf, ClockIdentity *c);
     void unpackPortIdentity( Octet *buf, PortIdentity *p);
+    void unpackPortAddress( Octet *buf, PortAddress *p);
     void unpackPTPText( Octet *buf, PTPText *s);
+    void unpackPhysicalAddress( Octet *buf, PhysicalAddress *p);
     
     void unpackMsgHeader(Octet *buf, MsgHeader *header);
     void unpackMsgManagement(Octet *buf, MsgManagement *m);
@@ -48,9 +50,11 @@ private:
     
     void msgUnpackManagement(Octet *buf, MsgManagement * manage);
     
+    void unpackMMClockDescription( Octet *buf, MsgManagement* m);
     void unpackMMErrorStatus(Octet *buf, MsgManagement* m);
     
     void handleManagement(/*OptBuffer* optBuf, */Octet* buf, MsgManagement* incoming);
+    void handleMMClockDescription(MsgManagement* incoming);
     void handleMMErrorStatus(MsgManagement *incoming);
     
     MsgManagement *incoming;

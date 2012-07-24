@@ -55,6 +55,7 @@ private:
     
     void handleManagement(OptBuffer* optBuf, Octet* buf, MsgManagement* outgoing);
     void handleMMNullManagement(MsgManagement* outgoing, Enumeration4 actionField);
+    void handleMMClockDescription(MsgManagement* outgoing, Enumeration4 actionField);
     
     MsgManagement *outgoing;
 };

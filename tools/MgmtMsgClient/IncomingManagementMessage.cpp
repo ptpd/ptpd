@@ -128,6 +128,19 @@ void IncomingManagementMessage::unpackPortIdentity( Octet *buf, PortIdentity *p)
     #include "../../src/def/derivedData/portIdentity.def"
 }
 
+void IncomingManagementMessage::unpackPortAddress( Octet *buf, PortAddress *p)
+{
+    unpackEnumeration16( buf, &p->networkProtocol);
+    unpackUInteger16( buf+2, &p->addressLength);
+    if(p->addressLength) {
+        //XMALLOC(p->addressField, p->addressLength);
+        p->addressField = (Octet*) malloc (p->addressLength);
+        memcpy( p->addressField, buf+4, p->addressLength);
+    } else {
+        p->addressField = NULL;
+    }
+}
+
 void IncomingManagementMessage::unpackPTPText( Octet *buf, PTPText *s)
 {
     unpackUInteger8(buf, &s->lengthField);
@@ -139,6 +152,19 @@ void IncomingManagementMessage::unpackPTPText( Octet *buf, PTPText *s)
         s->textField = NULL;
     }
 }
+
+void IncomingManagementMessage::unpackPhysicalAddress( Octet *buf, PhysicalAddress *p)
+{
+    unpackUInteger16( buf, &p->addressLength);
+    if(p->addressLength) {
+        //XMALLOC(p->addressField, p->addressLength);
+        p->addressField = (Octet*) malloc (p->addressLength);
+        memcpy( p->addressField, buf+2, p->addressLength);
+    } else {
+        p->addressField = NULL;
+    }
+}
+
 
 /**
  * @brief Unpack message header.
@@ -220,6 +246,24 @@ void IncomingManagementMessage::msgUnpackManagement(Octet *buf, MsgManagement * 
 	}
 }
 
+void IncomingManagementMessage::unpackMMClockDescription( Octet *buf, MsgManagement* m)
+{
+	int offset = 0;
+	//XMALLOC(m->tlv->dataField, sizeof(MMClockDescription));
+        m->tlv->dataField = (Octet*) malloc (sizeof(MMClockDescription));
+	MMClockDescription* data = (MMClockDescription*)m->tlv->dataField;
+	memset(data, 0, sizeof(MMClockDescription));
+	#define OPERATE( name, size, type ) \
+		unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+			      &data->name ); \
+		offset = offset + size;
+	#include "../../src/def/managementTLV/clockDescription.def"
+
+	//#ifdef PTPD_DBG
+	mMClockDescription_display(data);
+	//#endif /* PTPD_DBG */
+}
+
 void IncomingManagementMessage::unpackMMErrorStatus(Octet *buf, MsgManagement* m)
 {
         int offset = 0;
@@ -276,11 +320,16 @@ void IncomingManagementMessage::handleManagement(/*OptBuffer* optBuf, */Octet* b
     switch(incoming->tlv->managementId)
     {
         case MM_NULL_MANAGEMENT:
-            //DBG("handleManagement: Null Management\n");
+            DBG("handleManagement: Null Management\n");
             //handleMMNullManagement(outgoing, optBuf->action_type);
             break;
                 
         case MM_CLOCK_DESCRIPTION:
+            DBG("handleManagement: Clock Description\n");
+            handleMMClockDescription(incoming);
+            unpackMMClockDescription(buf, incoming);
+            break;
+                
         case MM_USER_DESCRIPTION:
         case MM_SAVE_IN_NON_VOLATILE_STORAGE:
         case MM_RESET_NON_VOLATILE_STORAGE:
@@ -331,6 +380,26 @@ void IncomingManagementMessage::handleManagement(/*OptBuffer* optBuf, */Octet* b
         
         default:
             printf("handleManagement: Unknown managementTLV %d\n", incoming->tlv->managementId);
+            exit(1);
+    }
+}
+
+/**\brief Handle incoming CLOCK_DESCRIPTION management message*/
+void IncomingManagementMessage::handleMMClockDescription(MsgManagement* incoming)
+{
+    DBG("received CLOCK_DESCRIPTION management message \n");
+
+    switch(incoming->actionField)
+    {
+        case RESPONSE:
+            DBG(" RESPONSE action \n");
+            break;
+        default:
+            ERROR(" unknown actionType \n");
+            //free(outgoing->tlv);
+//            handleErrorManagementMessage(incoming, outgoing,
+//                    ptpClock, MM_CLOCK_DESCRIPTION,
+//                    NOT_SUPPORTED);
             exit(1);
     }
 }

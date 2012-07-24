@@ -436,6 +436,11 @@ void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, 
             break;
                 
         case MM_CLOCK_DESCRIPTION:
+            DBG("handleManagement: Clock Description\n");
+            handleMMClockDescription(outgoing, optBuf->action_type);
+            //unpackMMClockDescription(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
+            break;
+                
         case MM_USER_DESCRIPTION:
         case MM_SAVE_IN_NON_VOLATILE_STORAGE:
         case MM_RESET_NON_VOLATILE_STORAGE:
@@ -499,7 +504,7 @@ void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, 
 }
 
 /**
- * @brief Handle incoming NULL_MANAGEMENT message.
+ * @brief Handle outgoing NULL_MANAGEMENT message.
  * 
  * @param outgoing      Outgoing management message to handle.
  * @param actionField   Management message action type.
@@ -524,6 +529,35 @@ void OutgoingManagementMessage::handleMMNullManagement(MsgManagement* outgoing, 
             break;
         default:
             printf("handleMMNullManagement: unknown or unsupported actionType\n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing CLOCK_DESCRIPTION management message
+ */
+void OutgoingManagementMessage::handleMMClockDescription(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling CLOCK_DESCRIPTION management message \n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_CLOCK_DESCRIPTION;
+    
+    outgoing->actionField = actionField;
+
+    switch(actionField)
+    {
+        case GET:
+            DBG(" GET action \n");
+            break;
+        case RESPONSE:
+            DBG(" RESPONSE action \n");
+            /* TODO: implementation specific */
+            break;
+        default:
+            printf(" unknown actionType \n");
             exit(1);
     }
 }

@@ -8,6 +8,8 @@
 #include "display.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /**@brief Display an Integer64 type*/
 void integer64_display(Integer64 * bigint)
@@ -27,12 +29,39 @@ void clockIdentity_display(ClockIdentity clockIdentity)
     );
 }
 
+/**@brief Display MAC address*/
+void clockUUID_display(Octet * sourceUuid)
+{
+    printf(
+        "sourceUuid %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+        sourceUuid[0], sourceUuid[1], sourceUuid[2], sourceUuid[3],
+        sourceUuid[4], sourceUuid[5]
+    );
+}
+
 /**@brief Display a Portidentity Structure*/
 void portIdentity_display(PortIdentity * portIdentity)
 {
     clockIdentity_display(portIdentity->clockIdentity);
     printf("port number : %d \n", portIdentity->portNumber);
 }
+
+/**@brief Display PTPText Structure*/
+void PTPText_display(PTPText *p)
+{
+    /* Allocate new memory to append null-terminator to the text field.
+        * This allows printing the textField as a string
+        */
+    Octet *str;
+    //XMALLOC(str, p->lengthField + 1);
+    str = (Octet*) malloc (p->lengthField + 1);
+    memcpy(str, p->textField, p->lengthField);
+    str[p->lengthField] = '\0';
+    printf("    lengthField : %d \n", p->lengthField);
+    printf("    textField : %s \n", str);
+    free(str);
+}
+
 
 
 /**@brief Display Header message*/
@@ -66,6 +95,47 @@ void msgManagement_display(MsgManagement * manage)
     printf("startingBoundaryHops : %d \n", manage->startingBoundaryHops);
     printf("boundaryHops : %d \n", manage->boundaryHops);
     printf("actionField : %d\n", manage->actionField);
+}
+
+/**
+ * @brief Display ManagementTLV Clock Description message
+ */
+void mMClockDescription_display(MMClockDescription *clockDescription)
+{
+	printf("Clock Description ManagementTLV message \n");
+	printf("clockType0 : %d \n", clockDescription->clockType0);
+	printf("clockType1 : %d \n", clockDescription->clockType1);
+	printf("physicalLayerProtocol : \n");
+	PTPText_display(&clockDescription->physicalLayerProtocol);
+	printf("physicalAddressLength : %d \n", clockDescription->physicalAddress.addressLength);
+	if(clockDescription->physicalAddress.addressField) {
+		printf("physicalAddressField : \n");
+		clockUUID_display(clockDescription->physicalAddress.addressField);
+	}
+	printf("protocolAddressNetworkProtocol : %d \n", clockDescription->protocolAddress.networkProtocol);
+	printf("protocolAddressLength : %d \n", clockDescription->protocolAddress.addressLength);
+	if(clockDescription->protocolAddress.addressField) {
+		printf("protocolAddressField : %d.%d.%d.%d \n",
+			(UInteger8)clockDescription->protocolAddress.addressField[0],
+			(UInteger8)clockDescription->protocolAddress.addressField[1],
+			(UInteger8)clockDescription->protocolAddress.addressField[2],
+			(UInteger8)clockDescription->protocolAddress.addressField[3]);
+	}
+	printf("manufacturerIdentity0 : %d \n", clockDescription->manufacturerIdentity0);
+	printf("manufacturerIdentity1 : %d \n", clockDescription->manufacturerIdentity1);
+	printf("manufacturerIdentity2 : %d \n", clockDescription->manufacturerIdentity2);
+	printf("productDescription : \n");
+	PTPText_display(&clockDescription->productDescription);
+	printf("revisionData : \n");
+	PTPText_display(&clockDescription->revisionData);
+	printf("userDescription : \n");
+	PTPText_display(&clockDescription->userDescription);
+	printf("profileIdentity0 : %d \n", clockDescription->profileIdentity0);
+	printf("profileIdentity1 : %d \n", clockDescription->profileIdentity1);
+	printf("profileIdentity2 : %d \n", clockDescription->profileIdentity2);
+	printf("profileIdentity3 : %d \n", clockDescription->profileIdentity3);
+	printf("profileIdentity4 : %d \n", clockDescription->profileIdentity4);
+	printf("profileIdentity5 : %d \n", clockDescription->profileIdentity5);
 }
 
 void mMErrorStatus_display(MMErrorStatus* errorStatus)
