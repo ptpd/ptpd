@@ -604,14 +604,7 @@ nanoSleep(TimeInternal * t)
 void
 getTime(TimeInternal * time)
 {
-#if defined(__APPLE__)
-
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	time->seconds = tv.tv_sec;
-	time->nanoseconds = tv.tv_usec * 1000;
-
-#else
+#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 
 	struct timespec tp;
 	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
@@ -621,21 +614,53 @@ getTime(TimeInternal * time)
 	time->seconds = tp.tv_sec;
 	time->nanoseconds = tp.tv_nsec;
 
-#endif /* __APPLE__ */
+#else
+
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	time->seconds = tv.tv_sec;
+	time->nanoseconds = tv.tv_usec * 1000;
+
+#endif /* _POSIX_TIMERS */
 }
 
 void
 setTime(TimeInternal * time)
 {
-	struct timeval tv;
 
+#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
+
+	struct timespec tp;
+	tp.tv_sec = time->seconds;
+	tp.tv_nsec = time->nanoseconds;
+
+#else
+
+	struct timeval tv;
 	tv.tv_sec = time->seconds;
 	tv.tv_usec = time->nanoseconds / 1000;
+
+#endif /* _POSIX_TIMERS */
+
+
 	WARNING("Going to step the system clock to %ds %dns\n",
 	       time->seconds, time->nanoseconds);
+
+#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
+
+	if (clock_settime(CLOCK_REALTIME, &tp) < 0) {
+		PERROR("clock_settime() failed");
+	}
+
+#else
+
 	settimeofday(&tv, 0);
+
+#endif /* _POSIX_TIMERS */
+
 	WARNING("Finished stepping the system clock to %ds %dns\n",
 	       time->seconds, time->nanoseconds);
+
 }
 
 
