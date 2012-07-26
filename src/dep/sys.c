@@ -585,7 +585,7 @@ recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time)
 		);
 }
 
-Boolean 
+Boolean
 nanoSleep(TimeInternal * t)
 {
 	struct timespec ts, tr;
@@ -601,16 +601,18 @@ nanoSleep(TimeInternal * t)
 	return TRUE;
 }
 
-void 
+void
 getTime(TimeInternal * time)
 {
-#if defined(linux) || defined(__APPLE__)
+#if defined(__APPLE__)
 
 	struct timeval tv;
 	gettimeofday(&tv, 0);
 	time->seconds = tv.tv_sec;
 	time->nanoseconds = tv.tv_usec * 1000;
+
 #else
+
 	struct timespec tp;
 	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
 		PERROR("clock_gettime() failed, exiting.");
@@ -618,14 +620,15 @@ getTime(TimeInternal * time)
 	}
 	time->seconds = tp.tv_sec;
 	time->nanoseconds = tp.tv_nsec;
-#endif /* linux || __APPLE__ */
+
+#endif /* __APPLE__ */
 }
 
-void 
+void
 setTime(TimeInternal * time)
 {
 	struct timeval tv;
- 
+
 	tv.tv_sec = time->seconds;
 	tv.tv_usec = time->nanoseconds / 1000;
 	WARNING("Going to step the system clock to %ds %dns\n",
