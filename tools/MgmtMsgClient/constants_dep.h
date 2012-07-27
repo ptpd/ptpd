@@ -16,6 +16,8 @@
 /* features, only change to refelect changes in implementation */
 #define VERSION_PTP 2
 
+#define USER_DESCRIPTION_MAX 128
+
 /** 
  * @name Packet length
  Minimal length values for each message.

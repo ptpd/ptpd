@@ -165,7 +165,6 @@ void IncomingManagementMessage::unpackPhysicalAddress( Octet *buf, PhysicalAddre
     }
 }
 
-
 /**
  * @brief Unpack message header.
  * 
@@ -181,8 +180,6 @@ void IncomingManagementMessage::unpackMsgHeader(Octet *buf, MsgHeader *header)
             offset = offset + size;
     #include "../../src/def/message/header.def"
 
-    /* TODO: if data->messageType != MANAGEMENT then report ERROR (or not if 
-     TLV unsupported) */
     msgHeader_display(data);
 }
 
@@ -264,6 +261,37 @@ void IncomingManagementMessage::unpackMMClockDescription( Octet *buf, MsgManagem
 	//#endif /* PTPD_DBG */
 }
 
+void IncomingManagementMessage::unpackMMUserDescription(Octet *buf, MsgManagement* m)
+{
+    int offset = 0;
+    //XMALLOC(m->tlv->dataField, sizeof(MMUserDescription));
+    m->tlv->dataField = (Octet*) malloc (sizeof(MMUserDescription));
+    MMUserDescription* data = (MMUserDescription*)m->tlv->dataField;
+    memset(data, 0, sizeof(MMUserDescription));
+    #define OPERATE( name, size, type ) \
+            unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+                            &data->name ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/userDescription.def"
+
+    mMUserDescription_display(data);
+}
+
+void IncomingManagementMessage::unpackMMInitialize( Octet *buf, MsgManagement* m)
+{
+    int offset = 0;
+    //XMALLOC(m->tlv->dataField, sizeof(MMInitialize));
+    m->tlv->dataField = (Octet*) malloc (sizeof(MMInitialize));
+    MMInitialize* data = (MMInitialize*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+                            &data->name ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/initialize.def"
+
+    mMInitialize_display(data);
+}
+
 void IncomingManagementMessage::unpackMMErrorStatus(Octet *buf, MsgManagement* m)
 {
         int offset = 0;
@@ -331,9 +359,27 @@ void IncomingManagementMessage::handleManagement(/*OptBuffer* optBuf, */Octet* b
             break;
                 
         case MM_USER_DESCRIPTION:
+            DBG("handleManagement: User Description\n");
+            handleMMUserDescription(incoming);
+            unpackMMUserDescription(buf, incoming);
+            break;
+                
         case MM_SAVE_IN_NON_VOLATILE_STORAGE:
+            DBG("handleManagement: Save In Non-Volatile Storage\n");
+            handleMMSaveInNonVolatileStorage(incoming);
+            break;
+            
         case MM_RESET_NON_VOLATILE_STORAGE:
+            DBG("handleManagement: Reset Non-Volatile Storage\n");
+            handleMMResetNonVolatileStorage(incoming);
+            break;
+            
         case MM_INITIALIZE:
+            DBG("handleManagement: Initialize\n");
+            handleMMInitialize(incoming);
+            unpackMMInitialize(buf, incoming);
+            break;
+                
         case MM_DEFAULT_DATA_SET:
         case MM_CURRENT_DATA_SET:
         case MM_PARENT_DATA_SET:
@@ -384,7 +430,9 @@ void IncomingManagementMessage::handleManagement(/*OptBuffer* optBuf, */Octet* b
     }
 }
 
-/**\brief Handle incoming CLOCK_DESCRIPTION management message*/
+/**
+ * @brief Handle incoming CLOCK_DESCRIPTION management message
+ */
 void IncomingManagementMessage::handleMMClockDescription(MsgManagement* incoming)
 {
     DBG("received CLOCK_DESCRIPTION management message \n");
@@ -404,7 +452,100 @@ void IncomingManagementMessage::handleMMClockDescription(MsgManagement* incoming
     }
 }
 
-/**\brief Handle incoming ERROR_STATUS management message type*/
+/**
+ * @brief Handle incoming USER_DESCRIPTION management message type
+ */
+void IncomingManagementMessage::handleMMUserDescription(MsgManagement* incoming)
+{
+    DBG("received USER_DESCRIPTION message\n");
+
+    switch(incoming->actionField)
+    {
+        case RESPONSE:
+            DBG(" RESPONSE action \n");
+            break;
+        default:
+            ERROR(" unknown actionType \n");
+//		free(outgoing->tlv);
+//		handleErrorManagementMessage(incoming, outgoing,
+//			ptpClock, MM_USER_DESCRIPTION,
+//			NOT_SUPPORTED);
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle incoming SAVE_IN_NON_VOLATILE_STORAGE management message type
+ */
+void IncomingManagementMessage::handleMMSaveInNonVolatileStorage(MsgManagement* incoming)
+{
+    DBG("received SAVE_IN_NON_VOLATILE_STORAGE message\n");
+
+    switch( incoming->actionField )
+    {
+        case COMMAND:
+                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
+        case ACKNOWLEDGE:
+                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
+        default:
+            DBG(" unknown actionType \n");
+//            free(outgoing->tlv);
+//            handleErrorManagementMessage(incoming, outgoing,
+//                    ptpClock, MM_SAVE_IN_NON_VOLATILE_STORAGE,
+//                    NOT_SUPPORTED);
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle incoming RESET_NON_VOLATILE_STORAGE management message type
+ */
+void IncomingManagementMessage::handleMMResetNonVolatileStorage(MsgManagement* incoming)
+{
+    DBG("received RESET_NON_VOLATILE_STORAGE message\n");
+
+    switch( incoming->actionField )
+    {
+        case COMMAND:
+                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
+        case ACKNOWLEDGE:
+                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
+        default:
+            DBG(" unknown actionType \n");
+//            free(outgoing->tlv);
+//            handleErrorManagementMessage(incoming, outgoing,
+//                    ptpClock, MM_SAVE_IN_NON_VOLATILE_STORAGE,
+//                    NOT_SUPPORTED);
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle incoming INITIALIZE management message type
+ */
+void IncomingManagementMessage::handleMMInitialize(MsgManagement* incoming)
+{
+    DBG("received INITIALIZE message\n");
+
+    switch( incoming->actionField )
+    {
+        case ACKNOWLEDGE:
+            DBG(" ACKNOWLEDGE action\n");
+            /* TODO: implementation specific */
+            break;
+        default:
+            DBG(" unknown actionType \n");
+//            free(outgoing->tlv);
+//            handleErrorManagementMessage(incoming, outgoing,
+//                    ptpClock, MM_INITIALIZE,
+//                    NOT_SUPPORTED);
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle incoming ERROR_STATUS management message type
+ */
 void IncomingManagementMessage::handleMMErrorStatus(MsgManagement *incoming)
 {
 	DBG("received MANAGEMENT_ERROR_STATUS message \n");

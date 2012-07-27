@@ -44,18 +44,27 @@ private:
         
     void packClockIdentity( ClockIdentity *c, Octet *buf);
     void packPortIdentity( PortIdentity *p, Octet *buf);
+    void packPTPText(PTPText *s, Octet *buf);
+    
+    UInteger16 packMMUserDescription( MsgManagement* m, Octet *buf);
+    UInteger16 packMMInitialize( MsgManagement* m, Octet *buf);
+    
     void packMsgHeader(MsgHeader *h, Octet *buf);
     void packMsgManagement(MsgManagement *m, Octet *buf);
     void packManagementTLV(ManagementTLV *tlv, Octet *buf);
     
     void msgPackManagement(Octet *buf, MsgManagement *outgoing);
-    void msgPackManagementTLV(Octet *buf, MsgManagement *outgoing);
+    void msgPackManagementTLV(OptBuffer* optBuf, Octet *buf, MsgManagement *outgoing);
     
     void initOutgoingMsgManagement(MsgManagement* outgoing);
     
     void handleManagement(OptBuffer* optBuf, Octet* buf, MsgManagement* outgoing);
     void handleMMNullManagement(MsgManagement* outgoing, Enumeration4 actionField);
     void handleMMClockDescription(MsgManagement* outgoing, Enumeration4 actionField);
+    void handleMMUserDescription(MsgManagement* outgoing, Enumeration4 actionField, PTPText userDescription);
+    void handleMMSaveInNonVolatileStorage(MsgManagement* outgoing, Enumeration4 actionField);
+    void handleMMResetNonVolatileStorage(MsgManagement* outgoing, Enumeration4 actionField);
+    void handleMMInitialize(MsgManagement* outgoing, Enumeration4 actionField, Enumeration16 initializeKey);
     
     MsgManagement *outgoing;
 };

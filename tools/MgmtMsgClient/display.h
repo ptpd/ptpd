@@ -20,6 +20,8 @@ void msgHeader_display(MsgHeader * header);
 void msgManagement_display(MsgManagement * manage);
 
 void mMClockDescription_display(MMClockDescription *clockDescription);
+void mMUserDescription_display(MMUserDescription* userDescription);
+void mMInitialize_display(MMInitialize* initialize);
 void mMErrorStatus_display(MMErrorStatus* errorStatus);
 
 #endif	/* DISPLAY_H */

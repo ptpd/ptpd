@@ -138,6 +138,106 @@ void mMClockDescription_display(MMClockDescription *clockDescription)
 	printf("profileIdentity5 : %d \n", clockDescription->profileIdentity5);
 }
 
+void mMUserDescription_display(MMUserDescription* userDescription)
+{
+	/* TODO: implement me */
+}
+
+void mMInitialize_display(MMInitialize* initialize)
+{
+	/* TODO: implement me */
+}
+
+//void mMDefaultDataSet_display(MMDefaultDataSet* defaultDataSet)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMCurrentDataSet_display(MMCurrentDataSet* currentDataSet)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMParentDataSet_display(MMParentDataSet* parentDataSet)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMTimePropertiesDataSet_display(MMTimePropertiesDataSet* timePropertiesDataSet)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMPortDataSet_display(MMPortDataSet* portDataSet)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMPriority1_display(MMPriority1* priority1)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMPriority2_display(MMPriority2* priority2)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMDomain_display(MMDomain* domain)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMLogAnnounceInterval_display(MMLogAnnounceInterval* logAnnounceInterval)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMAnnounceReceiptTimeout_display(MMAnnounceReceiptTimeout* announceReceiptTimeout)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMLogSyncInterval_display(MMLogSyncInterval* logSyncInterval)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMVersionNumber_display(MMVersionNumber* versionNumber)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMTime_display(MMTime* time)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMClockAccuracy_display(MMClockAccuracy* clockAccuracy)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMUtcProperties_display(MMUtcProperties* utcProperties)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMTraceabilityProperties_display(MMTraceabilityProperties* traceabilityProperties)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMDelayMechanism_display(MMDelayMechanism* delayMechanism)
+//{
+//	/* TODO: implement me */
+//}
+//
+//void mMLogMinPdelayReqInterval_display(MMLogMinPdelayReqInterval* logMinPdelayReqInterval)
+//{
+//	/* TODO: implement me */
+//}
+
 void mMErrorStatus_display(MMErrorStatus* errorStatus)
 {
 	/* TODO: implement me */

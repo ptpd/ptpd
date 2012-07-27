@@ -19,6 +19,7 @@
 
 #include "client.h"
 #include "constants.h"
+#include "datatypes_dep.h"
 
 using namespace std;
 
@@ -122,8 +123,9 @@ int main(int argc, char** argv) {
                 
             case 'v':
                 DBG("option -v with value `%s'\n", optarg);
-                optBuf->value = (char*)calloc(strlen(optarg), sizeof(char));
-                memcpy(optBuf->value, optarg, strlen(optarg));
+                optBuf->value.lengthField = strlen(optarg);
+                optBuf->value.textField = (Octet*)calloc(strlen(optarg), sizeof(Octet));
+                memcpy(optBuf->value.textField, optarg, strlen(optarg));
                 optBuf->value_set = true;
                 break;
      

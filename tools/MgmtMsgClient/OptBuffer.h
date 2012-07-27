@@ -8,6 +8,8 @@
 #ifndef OPTBUFFER_H
 #define	OPTBUFFER_H
 
+#include "datatypes.h"
+
 class OptBuffer {
 public:
     OptBuffer(char* appName);
@@ -24,7 +26,7 @@ public:
     char* interface;
     char* u_address;
     char* u_port;
-    char* value;
+    PTPText value;
     
     unsigned int action_type;
     unsigned int mgmt_id;

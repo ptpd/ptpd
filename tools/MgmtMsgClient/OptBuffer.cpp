@@ -17,6 +17,7 @@
 
 #include "constants.h"
 #include "constants_dep.h"
+#include "freeing.h"
 
 /**
  * @brief OptBuffer constructor.
@@ -57,7 +58,7 @@ OptBuffer::~OptBuffer() {
         free(this->interface);
                 
     if (this->value_set)
-        free(this->value);
+        freePTPText(&(this->value));
 }
 
 /**

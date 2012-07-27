@@ -130,6 +130,50 @@ void OutgoingManagementMessage::packPortIdentity( PortIdentity *p, Octet *buf)
     #include "../../src/def/derivedData/portIdentity.def"
 }
 
+void OutgoingManagementMessage::packPTPText(PTPText *s, Octet *buf)
+{
+	packUInteger8(&s->lengthField, buf);
+	if(s->lengthField) {
+		memcpy( buf+1, s->textField, s->lengthField);
+	}
+}
+
+UInteger16 OutgoingManagementMessage::packMMUserDescription( MsgManagement* m, Octet *buf)
+{
+	int offset = 0;
+	Octet pad = 0;
+	MMUserDescription* data = (MMUserDescription*)m->tlv->dataField;
+	#define OPERATE( name, size, type ) \
+		pack##type( &data->name,\
+			    buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset); \
+		offset = offset + size;
+	#include "../../src/def/managementTLV/userDescription.def"
+
+	/* is the TLV length odd? TLV must be even according to Spec 5.3.8 */
+	if(offset % 2) {
+		/* add pad of 1 according to Table 41 to make TLV length even */
+		packOctet(&pad, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset);
+		offset = offset + 1;
+	}
+
+	/* return length */
+	return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMInitialize( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMInitialize* data = (MMInitialize*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/initialize.def"
+
+    /* return length*/
+    return offset;
+}
+
 /**
  * @brief Pack message header.
  * 
@@ -195,7 +239,7 @@ void OutgoingManagementMessage::msgPackManagement(Octet *buf, MsgManagement *out
 }
 
 /* Pack Management message into OUT buffer */
-void OutgoingManagementMessage::msgPackManagementTLV(Octet *buf, MsgManagement *outgoing)
+void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *buf, MsgManagement *outgoing)
 {
     DBG("packing ManagementTLV message \n");
 
@@ -208,9 +252,11 @@ void OutgoingManagementMessage::msgPackManagementTLV(Octet *buf, MsgManagement *
 	case MM_RESET_NON_VOLATILE_STORAGE:
 	case MM_ENABLE_PORT:
 	case MM_DISABLE_PORT:
-//		lengthField = 0;
-//		break;
+            lengthField = 0;
+            break;
 	case MM_CLOCK_DESCRIPTION:
+            lengthField = 0;
+            break;
 //		lengthField = packMMClockDescription(outgoing, buf);
 //		#ifdef PTPD_DBG
 //		mMClockDescription_display(
@@ -218,19 +264,27 @@ void OutgoingManagementMessage::msgPackManagementTLV(Octet *buf, MsgManagement *
 //		#endif /* PTPD_DBG */
 //		break;
         case MM_USER_DESCRIPTION:
+            if (optBuf->action_type == SET)
+                lengthField = packMMUserDescription(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMUserDescription(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMUserDescription_display(
 //                                (MMUserDescription*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+            break;
         case MM_INITIALIZE:
+            if (optBuf->action_type == COMMAND)
+                lengthField = packMMInitialize(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMInitialize(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMInitialize_display(
 //                                (MMInitialize*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+            break;
         case MM_DEFAULT_DATA_SET:
 //                lengthField = packMMDefaultDataSet(outgoing, buf);
 //                #ifdef PTPD_DBG
@@ -442,9 +496,37 @@ void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, 
             break;
                 
         case MM_USER_DESCRIPTION:
+            DBG("handleManagement: User Description\n");
+            //unpackMMUserDescription(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
+            if ((optBuf->action_type == SET) && !optBuf->value_set) {
+                ERROR("User Description value not defined\n");
+                exit(1);
+            }
+            handleMMUserDescription(outgoing, optBuf->action_type, optBuf->value);
+            break;
+                
         case MM_SAVE_IN_NON_VOLATILE_STORAGE:
+            DBG("handleManagement: Save In Non-Volatile Storage\n");
+            handleMMSaveInNonVolatileStorage(outgoing, optBuf->action_type);
+            break;
+            
         case MM_RESET_NON_VOLATILE_STORAGE:
+            DBG("handleManagement: Reset Non-Volatile Storage\n");
+            handleMMResetNonVolatileStorage(outgoing, optBuf->action_type);
+            break;
+                
         case MM_INITIALIZE:
+            DBG("handleManagement: Initialize\n");
+//            unpackMMInitialize(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
+            Enumeration16 initializeKey;
+            if (optBuf->action_type == COMMAND)
+                sscanf(optBuf->value.textField, "%uh", &initializeKey);
+            else
+                initializeKey = 0; /* avoid uninitialized value */
+            
+            handleMMInitialize(outgoing, optBuf->action_type, initializeKey);
+            break;
+                
         case MM_DEFAULT_DATA_SET:
         case MM_CURRENT_DATA_SET:
         case MM_PARENT_DATA_SET:
@@ -495,12 +577,12 @@ void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, 
     }
     
     /* pack ManagementTLV */
-    msgPackManagementTLV( buf, outgoing);
+    msgPackManagementTLV(optBuf, buf, outgoing);
 
     /* set header messageLength, the outgoing->tlv->lengthField is now valid */
     outgoing->header.messageLength = MANAGEMENT_LENGTH + TLV_LENGTH + outgoing->tlv->lengthField;
 
-    msgPackManagement( buf, outgoing);
+    msgPackManagement(buf, outgoing);
 }
 
 /**
@@ -528,7 +610,7 @@ void OutgoingManagementMessage::handleMMNullManagement(MsgManagement* outgoing, 
             DBG("COMMAND mgmt msg\n");
             break;
         default:
-            printf("handleMMNullManagement: unknown or unsupported actionType\n");
+            ERROR(" unknown actionType \n");
             exit(1);
     }
 }
@@ -538,7 +620,7 @@ void OutgoingManagementMessage::handleMMNullManagement(MsgManagement* outgoing, 
  */
 void OutgoingManagementMessage::handleMMClockDescription(MsgManagement* outgoing, Enumeration4 actionField)
 {
-    DBG("handling CLOCK_DESCRIPTION management message \n");
+    DBG("handling CLOCK_DESCRIPTION message \n");
 
     initOutgoingMsgManagement(outgoing);
     outgoing->tlv->tlvType = TLV_MANAGEMENT;
@@ -552,12 +634,194 @@ void OutgoingManagementMessage::handleMMClockDescription(MsgManagement* outgoing
         case GET:
             DBG(" GET action \n");
             break;
-        case RESPONSE:
-            DBG(" RESPONSE action \n");
-            /* TODO: implementation specific */
-            break;
+//        case RESPONSE:
+//            DBG(" RESPONSE action \n");
+//            break;
         default:
-            printf(" unknown actionType \n");
+            ERROR(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing USER_DESCRIPTION management message type
+ */
+void OutgoingManagementMessage::handleMMUserDescription(MsgManagement* outgoing, Enumeration4 actionField, PTPText userDescription)
+{
+    DBG("handling USER_DESCRIPTION message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_USER_DESCRIPTION;
+    
+    outgoing->actionField = actionField;
+
+    MMUserDescription* data = NULL;
+    UInteger8 userDescriptionLength;
+//    outgoing->tlv->dataField = (MMUserDescription*) malloc (sizeof(MMUserDescription));
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action \n");
+            data = (MMUserDescription*) malloc (sizeof(MMUserDescription));
+            userDescriptionLength = userDescription.lengthField;
+            if(userDescriptionLength <= USER_DESCRIPTION_MAX) {
+                memset(data, 0, sizeof(MMUserDescription));
+                memcpy(data->userDescription.textField, userDescription.textField, userDescriptionLength);
+            } else {
+                ERROR("management user description exceeds specification length \n");
+                exit(1);
+            }
+            //outgoing->tlv->dataField = data;
+//            data = (MMUserDescription*)incoming->tlv->dataField;
+//            UInteger8 userDescriptionLength = data->userDescription.lengthField;
+//            if(userDescriptionLength <= USER_DESCRIPTION_MAX) {
+//                memset(ptpClock->user_description, 0, sizeof(ptpClock->user_description));
+//                memcpy(ptpClock->user_description, data->userDescription.textField,
+//                                userDescriptionLength);
+//                /* add null-terminator to make use of C string function strlen later */
+//                ptpClock->user_description[userDescriptionLength] = '\0';
+//            } else {
+//                WARNING("management user description exceeds specification length \n");
+//            }
+            outgoing->tlv->dataField = (Octet*) data;          
+            break;
+            
+        case GET:
+            DBG(" GET action \n");
+//            outgoing->actionField = RESPONSE;
+//            XMALLOC(outgoing->tlv->dataField, sizeof( MMUserDescription));
+//            data = (MMUserDescription*)outgoing->tlv->dataField;
+//            memset(data, 0, sizeof(MMUserDescription));
+//            /* GET actions */
+//            data->userDescription.lengthField = strlen(ptpClock->user_description);
+//            XMALLOC(data->userDescription.textField,
+//                                    data->userDescription.lengthField);
+//            memcpy(data->userDescription.textField,
+//                    ptpClock->user_description,
+//                    data->userDescription.lengthField);
+            break;
+            
+        default:
+            ERROR(" unknown actionType \n");
+//            free(outgoing->tlv);
+//            handleErrorManagementMessage(incoming, outgoing,
+//                    ptpClock, MM_USER_DESCRIPTION,
+//                    NOT_SUPPORTED);
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle incoming SAVE_IN_NON_VOLATILE_STORAGE management message type
+ */
+void OutgoingManagementMessage::handleMMSaveInNonVolatileStorage(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling SAVE_IN_NON_VOLATILE_STORAGE message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_SAVE_IN_NON_VOLATILE_STORAGE;
+
+    switch(actionField)
+    {
+        case COMMAND:
+                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
+        case ACKNOWLEDGE:
+                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
+        default:
+            ERROR(" unknown actionType \n");
+//                free(outgoing->tlv);
+//                handleErrorManagementMessage(incoming, outgoing,
+//                        ptpClock, MM_SAVE_IN_NON_VOLATILE_STORAGE,
+//                        NOT_SUPPORTED);
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle incoming RESET_NON_VOLATILE_STORAGE management message type
+ */
+void OutgoingManagementMessage::handleMMResetNonVolatileStorage(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling RESET_NON_VOLATILE_STORAGE message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_RESET_NON_VOLATILE_STORAGE;
+
+    switch(actionField)
+    {
+        case COMMAND:
+                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
+        case ACKNOWLEDGE:
+                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
+        default:
+            DBG(" unknown actionType \n");
+//            free(outgoing->tlv);
+//            handleErrorManagementMessage(incoming, outgoing,
+//                    ptpClock, MM_RESET_NON_VOLATILE_STORAGE,
+//                    NOT_SUPPORTED);
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle incoming INITIALIZE management message type
+ */
+void OutgoingManagementMessage::handleMMInitialize(MsgManagement* outgoing, Enumeration4 actionField, Enumeration16 initializeKey)
+{
+    DBG("handling INITIALIZE message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_INITIALIZE;
+    
+    outgoing->actionField = actionField;
+
+    MMInitialize* data = NULL;
+
+    switch( actionField )
+    {
+        case COMMAND:
+            DBG(" COMMAND action\n");
+            data = (MMInitialize*) malloc (sizeof(MMInitialize));
+//            XMALLOC(outgoing->tlv->dataField, sizeof(MMInitialize));
+//            incomingData = (MMInitialize*)incoming->tlv->dataField;
+//            outgoingData = (MMInitialize*)outgoing->tlv->dataField;
+            
+            /* Table 45 - INITIALIZATION_KEY enumeration */
+            switch( initializeKey )
+            {
+                case INITIALIZE_EVENT:
+                    /* cause INITIALIZE event */
+//                    ptpClock->portState = PTP_INITIALIZING;
+                    break;
+                default:
+                    /* do nothing, implementation specific */
+                    DBG("initializeKey != 0, do nothing\n");
+            }
+//            outgoingData->initializeKey = incomingData->initializeKey;
+            data->initializeKey = initializeKey;
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+//        case ACKNOWLEDGE:
+//            DBG(" ACKNOWLEDGE action\n");
+//            /* TODO: implementation specific */
+//            break;
+            
+        default:
+            DBG(" unknown actionType \n");
+//            free(outgoing->tlv);
+//            handleErrorManagementMessage(incoming, outgoing,
+//                    ptpClock, MM_INITIALIZE,
+//                    NOT_SUPPORTED);
             exit(1);
     }
 }

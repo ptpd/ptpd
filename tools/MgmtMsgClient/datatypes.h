@@ -96,6 +96,15 @@ typedef struct {
 } MMUserDescription;
 
 /**
+ * @brief Management TLV Initialize fields (Table 44 of the spec)
+ */
+/* Management TLV Initialize Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/managementTLV/initialize.def"
+} MMInitialize;
+
+/**
  * @brief Management TLV Error Status fields (Table 71 of the spec)
  */
 /* Management TLV Error Status Message */

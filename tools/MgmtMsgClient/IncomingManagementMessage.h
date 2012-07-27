@@ -51,10 +51,16 @@ private:
     void msgUnpackManagement(Octet *buf, MsgManagement * manage);
     
     void unpackMMClockDescription( Octet *buf, MsgManagement* m);
+    void unpackMMUserDescription(Octet *buf, MsgManagement* m);
+    void unpackMMInitialize( Octet *buf, MsgManagement* m);
     void unpackMMErrorStatus(Octet *buf, MsgManagement* m);
     
     void handleManagement(/*OptBuffer* optBuf, */Octet* buf, MsgManagement* incoming);
     void handleMMClockDescription(MsgManagement* incoming);
+    void handleMMUserDescription(MsgManagement* incoming);
+    void handleMMSaveInNonVolatileStorage(MsgManagement* incoming);
+    void handleMMResetNonVolatileStorage(MsgManagement* incoming);
+    void handleMMInitialize(MsgManagement* incoming);
     void handleMMErrorStatus(MsgManagement *incoming);
     
     MsgManagement *incoming;
