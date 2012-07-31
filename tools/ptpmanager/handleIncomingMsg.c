@@ -9,6 +9,52 @@
 
 #include "ptpmanager.h"
 
+void
+unpackClockIdentity(ClockIdentity dest, ClockIdentity src)
+{
+	memcpy(dest, src, CLOCK_IDENTITY_LENGTH);
+}
+
+void
+unpackPortIdentity(PortIdentity *dest, Octet *src)
+{
+	unpackClockIdentity(dest->clockIdentity, src);
+	dest->portNumber = flip16(*((UInteger16*)(src + 8)));
+}
+
+void
+unpackClockQuality(ClockQuality *dest, Octet *src)
+{
+	dest->clockClass = *(UInteger8*)(src);
+	dest->clockAccuracy = *(Enumeration8*)(src + 1);
+	dest->offsetScaledLogVariance = flip16(*(UInteger16*)(src + 2));
+}
+
+display_clockIdentity(ClockIdentity clockIdentity)
+{
+	printf("	clockIdentity = "
+ 		" %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+	    clockIdentity[0], clockIdentity[1], clockIdentity[2], clockIdentity[3], 
+	    clockIdentity[4], clockIdentity[5], clockIdentity[6], clockIdentity[7]);
+}
+
+void
+display_portIdentity(PortIdentity *portIdentity)
+{
+	display_clockIdentity(portIdentity->clockIdentity);
+	printf("	portNumber = %hu\n", portIdentity->portNumber);
+}
+
+/**\brief Display a Clockquality Structure*/
+void
+display_clockQuality(ClockQuality *clockQuality)
+{
+	printf("	clockClass : %hhu \n", clockQuality->clockClass);
+	printf("	clockAccuracy : %hhu \n", clockQuality->clockAccuracy);
+	printf("	offsetScaledLogVariance : %hu \n", 
+		clockQuality->offsetScaledLogVariance);
+}
+
 /*Function to unpack the header of received message*/
 void 
 unpackHeader(Octet *buf, MsgHeader *header)
@@ -25,9 +71,7 @@ unpackHeader(Octet *buf, MsgHeader *header)
 	memcpy(&header->correctionField.lsb, (buf + 12), 4);
 	header->correctionField.msb = flip32(header->correctionField.msb);
 	header->correctionField.lsb = flip32(header->correctionField.lsb);
-//	copyClockIdentity(header->sourcePortIdentity.clockIdentity, (buf + 20));
-	header->sourcePortIdentity.portNumber =
-		flip16(*(UInteger16 *) (buf + 28));
+	unpackPortIdentity(&(header->sourcePortIdentity), buf + 20);
 	header->sequenceId = flip16(*(UInteger16 *) (buf + 30));
 	header->controlField = (*(UInteger8 *) (buf + 32));
 	header->logMessageInterval = (*(Integer8 *) (buf + 33));
@@ -54,11 +98,78 @@ handleUserDescription(MsgManagement *manage)
 {
 	char tempBuf[100];
 	MMUserDescription *data = (MMUserDescription *)(inmessage + 54);
-	data->userDescription.textField = (Octet*)(inmessage + 55);
-	memcpy(tempBuf,data->userDescription.textField,data->userDescription.lengthField);
-	tempBuf[data->userDescription.lengthField] = '\0';
+	
+	data->userDescription.lengthField = *((UInteger8*)(inmessage + 54));
+	data->userDescription.textField = (Octet*)malloc(
+		data->userDescription.lengthField);
+	memset(data->userDescription.textField, 0, 
+		data->userDescription.lengthField);
+	memcpy(data->userDescription.textField, inmessage + 55, 
+		data->userDescription.lengthField);
+
 	printf("Lengthfield: %hhu\n",data->userDescription.lengthField);
-	printf("Name_of_device;Physical_location = %s\n",tempBuf);
+	printf("Name_of_device;Physical_location = %s\n",
+		data->userDescription.textField);
+}
+
+
+void
+handleDefaultDataSet(MsgManagement *manage)
+{
+	MMDefaultDataSet* data = (MMDefaultDataSet *)(inmessage + 54);
+
+	data->so_tsc = *((UInteger8*)( inmessage + 54));
+	data->numberPorts = flip16(*(UInteger16*)(inmessage + 56));
+	data->priority1 = *((UInteger8*) (inmessage + 58));
+	data->domainNumber = *((UInteger8*) (inmessage + 72));
+	unpackClockIdentity(data->clockIdentity, inmessage + 64);
+	data->priority2 = *((UInteger8*) (inmessage + 63));
+	unpackClockQuality(&(data->clockQuality), inmessage + 59);
+
+	
+	printf("defaultDS.twoStepFlag : %hhu \n", data->so_tsc & 0x01);
+	printf("defaultDS.slaveOnly : %hhu \n", (data->so_tsc >> 1));
+	printf("defaultDS.numberPorts : %hu \n", data->numberPorts);
+	printf("defaultDS.priority1 : %hhu \n", data->priority1);
+	printf("defaultDS.priority2 : %hhu \n", data->priority2);
+	printf("defaultDS.clockQuality:\n");
+	display_clockQuality(&(data->clockQuality));
+	display_clockIdentity(data->clockIdentity);
+	printf("defaultDS.domainNumber : %hhu \n", data->domainNumber);
+
+}
+
+void
+handleParentDataSet(MsgManagement *manage)
+{
+	MMParentDataSet* data = (MMParentDataSet *)(inmessage + 54);
+	unpackPortIdentity(&(data->parentPortIdentity),inmessage + 54);
+
+	unpackClockIdentity(data->grandmasterIdentity, inmessage + 78);
+	data->grandmasterPriority1 = *((UInteger8*)(inmessage + 72));
+	unpackClockQuality(&(data->grandmasterClockQuality), inmessage + 73);
+	data->grandmasterPriority2 = *((UInteger8*)(inmessage + 77));
+	data->observedParentOffsetScaledLogVariance = flip16(
+		*(UInteger16*)(inmessage + 66));
+	data->observedParentClockPhaseChangeRate = flip32(
+		*(Integer32*)(inmessage + 68));
+
+
+	printf("parentDS.parentPortIdentity:\n");
+	display_portIdentity(&(data->parentPortIdentity));
+	printf("parentDS.parentStats : %hhu \n", data->PS);
+	printf("parentDS.observedParentOffsetScaledLogVariance : %hu \n", 
+		data->observedParentOffsetScaledLogVariance);
+	printf("parentDS.observedParentClockPhaseChangeRate : %d \n",
+		data->observedParentClockPhaseChangeRate);
+	printf("parentDS.grandmasterClockQuality:\n");
+	display_clockQuality(&(data->grandmasterClockQuality));
+	display_clockIdentity(data->grandmasterIdentity);
+	printf("parentDS.grandmasterPriority1 : %hhu \n", 
+		data->grandmasterPriority1);
+	printf("parentDS.grandmasterPriority2 : %hhu \n",
+		data->grandmasterPriority2);
+
 }
 
 void
@@ -72,7 +183,7 @@ void
 handlePriority2(MsgManagement *manage)
 {
 	MMPriority2* data = (MMPriority2 *)(inmessage + 54);
-	printf("Priority1 = %hhu\n",data->priority2);
+	printf("Priority2 = %hhu\n",data->priority2);
 }
 
 void
@@ -237,11 +348,86 @@ handleLogMinRequirement(MsgManagement *manage)
 }
 
 
+void
+handleCurrentDataSet(MsgManagement *manage)
+{
+	MMCurrentDataSet* data = (MMCurrentDataSet*)(inmessage + 54);
+	printf("currentDS.stepsRemoved = %hu\n",data->stepsRemoved);
+	printf("currentDS.offsetFromMaster.scaledNanoseconds.lsb = %u\n",
+		data->offsetFromMaster.scaledNanoseconds.lsb);
+	printf("currentDS.offsetFromMaster.scaledNanoseconds.msb = %u\n",
+		data->offsetFromMaster.scaledNanoseconds.msb);
+	printf("currentDS.meanPathDelay.scaledNanoseconds.lsb = %u\n",
+		data->meanPathDelay.scaledNanoseconds.lsb);
+	printf("currentDS.meanPathDelay.scaledNanoseconds.msb = %d\n",
+		data->meanPathDelay.scaledNanoseconds.lsb);
+	
+}
+
+void
+handleTimePropertiesDataSet(MsgManagement *manage)
+{
+	MMTimePropertiesDataSet* data = (MMTimePropertiesDataSet*)(inmessage + 54);
+	printf("LogMinPdelayReqInterval = %hu\n",data->currentUtcOffset);
+	if ((data->ftra_ttra_ptp_utcv_li59_li61 & 0x20) == 0)
+		printf("FTRA = False, ");
+	else
+		printf("FTRA = True, ");
+
+	if ((data->ftra_ttra_ptp_utcv_li59_li61 & 0x10) == 0)
+		printf("TTRA = False, ");
+	else
+		printf("TTRA = True, ");
+
+	if ((data->ftra_ttra_ptp_utcv_li59_li61 & 0x04) == 0)
+		printf("UTCV = False, ");
+	else
+		printf("UTCV = True, ");
+		
+	if ((data->ftra_ttra_ptp_utcv_li59_li61 & 0x02) == 0)
+		printf("L1-59 = False, ");
+	else
+		printf("L1-59 = True, ");
+		
+	if ((data->ftra_ttra_ptp_utcv_li59_li61 & 0x01) == 0)
+		printf("L1-61 = False\n");
+	else
+		printf("L1-61 = True\n");
+		
+	printf("timePropertiesDS.timeSource = %hhu\n",data->timeSource);
+	
+}
+
+
+void
+handlePortDataSet(MsgManagement *manage)
+{
+	MMPortDataSet* data = (MMPortDataSet*)(inmessage + 54);
+	unpackPortIdentity(&(data->portIdentity),inmessage + 54);
+	printf("portDS.portIdentity:\n");
+	display_portIdentity(&(data->portIdentity));
+	printf("portDS.portState = %hhu\n", data->portState);
+	printf("portDS.logMinDelayReqInterval = %hhd\n", 
+		data->logMinDelayReqInterval);
+	printf("portDS.peerMeanPathDelay.scaledNanoseconds.lsb = %u\n", 
+		data->peerMeanPathDelay.scaledNanoseconds.lsb);
+	printf("portDS.peerMeanPathDelay.scaledNanoseconds.msb = %d\n", 
+		data->peerMeanPathDelay.scaledNanoseconds.msb);
+	printf("portDS.logAnnounceInterval = %hhd\n", data->logAnnounceInterval);
+	printf("portDS.announceReceiptTimeout = %hhu\n", data->announceReceiptTimeout);
+	printf("portDS.logSyncInterval = %hhu\n", data->logSyncInterval);
+	printf("portDS.delayMechanism = %hhu\n", data->delayMechanism);
+	printf("portDS.logMinPdelayReqInterval = %hhu\n", data->delayMechanism);
+	printf("portDS.versionNumber = %hhu\n", data->versionNumber);
+	
+}
+
 /*Function to handle management response and display the required fields*/
 void 
 handleManagementResponse(Octet *inmessage, MsgManagement *manage)
 {
 	printf("Received a RESPONSE management message.\n");
+	
 	switch(manage->tlv->managementId){
     case MM_NULL_MANAGEMENT:
     	//nothing to handle
@@ -289,13 +475,23 @@ handleManagementResponse(Octet *inmessage, MsgManagement *manage)
     case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
     	handleLogMinRequirement(manage);
 	    break;
+    case MM_CURRENT_DATA_SET:
+    	handleCurrentDataSet(manage);
+    	break;
+    case MM_TIME_PROPERTIES_DATA_SET:
+    	handleTimePropertiesDataSet(manage);
+    	break;
+    case MM_PORT_DATA_SET:
+    	handlePortDataSet(manage);
+    	break;
+    case MM_PARENT_DATA_SET:
+    	handleParentDataSet(manage);
+    	break;
+    case MM_DEFAULT_DATA_SET:
+    	handleDefaultDataSet(manage);
+    	break;
 	    
     case MM_CLOCK_DESCRIPTION:
-    case MM_DEFAULT_DATA_SET:
-    case MM_CURRENT_DATA_SET:
-    case MM_PARENT_DATA_SET:
-    case MM_TIME_PROPERTIES_DATA_SET:
-    case MM_PORT_DATA_SET:
 		printf("Yet to handle the response\n");
 		break;
 		
@@ -368,8 +564,8 @@ handleManagementError(Octet *inmessage, MsgManagement *manage)
 			 		"was wrong.\n");
 			break;
 		case WRONG_VALUE:
-			printf("The managementId and length were correct but one or more values"
-					" were wrong.\n");
+			printf("The managementId and length were correct but one or 
+				"more values were wrong.\n");
 			break;
 		case NOT_SETABLE:
 			printf("Some of the variables in the set command were not updated "

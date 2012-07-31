@@ -82,6 +82,24 @@ typedef struct {
 } PTPText;
 
 /**
+* \brief The ClockQuality represents the quality of a clock
+ */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/derivedData/clockQuality.def"
+} ClockQuality;
+
+/**
+* \brief The TimeInterval type represents time intervals
+ */
+typedef struct {
+	/* see src/def/README for a note on this X-macro */
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/derivedData/timeInterval.def"
+} TimeInterval;
+
+
+/**
  * \brief Management TLV message fields
  */
 /* Management TLV Message */
@@ -98,6 +116,24 @@ typedef struct {
 typedef struct {
 	PTPText userDescription;
 } MMUserDescription;
+
+/**
+ * \brief Management TLV Parent Data Set fields (Table 56 of the spec)
+ */
+/* Management TLV Parent Data Set Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/managementTLV/defaultDataSet.def"
+} MMDefaultDataSet;
+
+/**
+ * \brief Management TLV Parent Data Set fields (Table 56 of the spec)
+ */
+/* Management TLV Parent Data Set Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/managementTLV/parentDataSet.def"
+} MMParentDataSet;
 
 /**
  * \brief Management TLV Priority1 fields (Table 51 of the spec)
@@ -179,6 +215,34 @@ typedef struct {
 	#define OPERATE( name, size, type ) type name;
 	#include "../../src/def/managementTLV/clockAccuracy.def"
 } MMClockAccuracy;
+
+
+/**
+ * \brief Management TLV Current Data Set fields (Table 55 of the spec)
+ */
+/* Management TLV Current Data Set Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/managementTLV/currentDataSet.def"
+} MMCurrentDataSet;
+
+/**
+ * \brief Management TLV Time Properties Data Set fields (Table 57 of the spec)
+ */
+/* Management TLV Time Properties Data Set Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/managementTLV/timePropertiesDataSet.def"
+} MMTimePropertiesDataSet;
+
+/**
+ * \brief Management TLV Port Data Set fields (Table 61 of the spec)
+ */
+/* Management TLV Port Data Set Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/managementTLV/portDataSet.def"
+} MMPortDataSet;
 
 /**
  * \brief Management TLV UTC Properties fields (Table 58 of the spec)
