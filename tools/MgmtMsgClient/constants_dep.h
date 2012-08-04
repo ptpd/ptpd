@@ -8,6 +8,8 @@
 #ifndef CONSTANTS_DEP_H
 #define	CONSTANTS_DEP_H
 
+#define USER_DESCRIPTION "PTPDv2"
+
 #define CLOCK_IDENTITY_LENGTH 8
 
 #define PTP_EVENT_PORT    "319"
@@ -135,7 +137,7 @@ enum {
 };
 
 /**
- * \brief Management Message actions (Table 38 in the spec)
+ * @brief Management Message actions (Table 38 in the spec)
  */
 enum {
 	GET=0,
@@ -143,6 +145,18 @@ enum {
 	RESPONSE,
 	COMMAND,
 	ACKNOWLEDGE
+};
+
+/**
+ * @brief flagField1 bit position values (Table 20 in the spec)
+ */
+enum {
+	LI61=0,
+	LI59,
+	UTCV,
+	PTPT,
+	TTRA,
+	FTRA
 };
 
 /**

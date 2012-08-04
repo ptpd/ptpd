@@ -20,6 +20,7 @@
 #include "freeing.h"
 
 //Temporary for assigning ClockIdentity
+#include "display.h"
 #include <string.h>
 
 #define PACK_SIMPLE( type ) \
@@ -88,6 +89,12 @@ OutgoingManagementMessage::~OutgoingManagementMessage() {
     free(this->outgoing);
 }
 
+void OutgoingManagementMessage::packUInteger48( void *i, void *buf)
+{
+    packUInteger32(&((UInteger48*)i)->lsb, buf);
+    packUInteger16(&((UInteger48*)i)->msb, static_cast<char*>(buf) + 4);
+}
+
 /**
  * @brief Pack an Integer64 type.
  * 
@@ -112,6 +119,16 @@ void OutgoingManagementMessage::packClockIdentity( ClockIdentity *c, Octet *buf)
     for(i = 0; i < CLOCK_IDENTITY_LENGTH; i++) {
         packOctet(&((*c)[i]),(buf+i));
     }
+}
+
+void OutgoingManagementMessage::packTimestamp( Timestamp *t, Octet *buf)
+{
+    int offset = 0;
+    Timestamp *data = t;
+    #define OPERATE( name, size, type) \
+            pack##type (&data->name, buf + offset); \
+            offset = offset + size;
+    #include "../../src/def/derivedData/timestamp.def"
 }
 
 /**
@@ -169,6 +186,202 @@ UInteger16 OutgoingManagementMessage::packMMInitialize( MsgManagement* m, Octet 
                         buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
             offset = offset + size;
     #include "../../src/def/managementTLV/initialize.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMPriority1( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMPriority1* data = (MMPriority1*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/priority1.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMPriority2( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMPriority2* data = (MMPriority2*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/priority2.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMDomain( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMDomain* data = (MMDomain*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/domain.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMSlaveOnly( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMSlaveOnly* data = (MMSlaveOnly*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/slaveOnly.def"
+
+    /* return length */
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMLogAnnounceInterval( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMLogAnnounceInterval* data = (MMLogAnnounceInterval*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/logAnnounceInterval.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMAnnounceReceiptTimeout( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMAnnounceReceiptTimeout* data = (MMAnnounceReceiptTimeout*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/announceReceiptTimeout.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMLogSyncInterval( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMLogSyncInterval* data = (MMLogSyncInterval*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/logSyncInterval.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMVersionNumber( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMVersionNumber* data = (MMVersionNumber*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/versionNumber.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMTime( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMTime* data = (MMTime*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/time.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMClockAccuracy( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMClockAccuracy* data = (MMClockAccuracy*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/clockAccuracy.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMUtcProperties( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMUtcProperties* data = (MMUtcProperties*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/utcProperties.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMTraceabilityProperties( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMTraceabilityProperties* data = (MMTraceabilityProperties*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/traceabilityProperties.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMDelayMechanism( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMDelayMechanism* data = (MMDelayMechanism*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/delayMechanism.def"
+
+    /* return length*/
+    return offset;
+}
+
+UInteger16 OutgoingManagementMessage::packMMLogMinPdelayReqInterval( MsgManagement* m, Octet *buf)
+{
+    int offset = 0;
+    MMLogMinPdelayReqInterval* data = (MMLogMinPdelayReqInterval*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+            pack##type( &data->name,\
+                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+            offset = offset + size;
+    #include "../../src/def/managementTLV/logMinPdelayReqInterval.def"
 
     /* return length*/
     return offset;
@@ -268,6 +481,7 @@ void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *b
                 lengthField = packMMUserDescription(outgoing, buf);
             else
                 lengthField = 0;
+            
 //                lengthField = packMMUserDescription(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMUserDescription_display(
@@ -286,6 +500,8 @@ void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *b
 //                #endif /* PTPD_DBG */
             break;
         case MM_DEFAULT_DATA_SET:
+            lengthField = 0;
+            break;
 //                lengthField = packMMDefaultDataSet(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMDefaultDataSet_display(
@@ -293,6 +509,8 @@ void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *b
 //                #endif /* PTPD_DBG */
 //                break;
         case MM_CURRENT_DATA_SET:
+            lengthField = 0;
+            break;
 //                lengthField = packMMCurrentDataSet(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMCurrentDataSet_display(
@@ -300,6 +518,8 @@ void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *b
 //                #endif /* PTPD_DBG */
 //                break;
         case MM_PARENT_DATA_SET:
+            lengthField = 0;
+            break;
 //                lengthField = packMMParentDataSet(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMParentDataSet_display(
@@ -307,6 +527,8 @@ void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *b
 //                #endif /* PTPD_DBG */
 //                break;
         case MM_TIME_PROPERTIES_DATA_SET:
+            lengthField = 0;
+            break;
 //                lengthField = packMMTimePropertiesDataSet(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMTimePropertiesDataSet_display(
@@ -314,6 +536,8 @@ void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *b
 //                #endif /* PTPD_DBG */
 //                break;
         case MM_PORT_DATA_SET:
+            lengthField = 0;
+            break;
 //                lengthField = packMMPortDataSet(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMPortDataSet_display(
@@ -321,62 +545,96 @@ void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *b
 //                #endif /* PTPD_DBG */
 //                break;
         case MM_PRIORITY1:
+            if (optBuf->action_type == SET)
+                lengthField = packMMPriority1(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMPriority1(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMPriority1_display(
 //                                (MMPriority1*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+            break;
         case MM_PRIORITY2:
+            if (optBuf->action_type == SET)
+                lengthField = packMMPriority2(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMPriority2(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMPriority2_display(
 //                                (MMPriority2*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+            break;
         case MM_DOMAIN:
+            if (optBuf->action_type == SET)
+                lengthField = packMMDomain(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMDomain(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMDomain_display(
 //                                (MMDomain*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+                break;
 	case MM_SLAVE_ONLY:
+            if (optBuf->action_type == SET)
+                lengthField = packMMSlaveOnly(outgoing, buf);
+            else
+                lengthField = 0;
 //		lengthField = packMMSlaveOnly(outgoing, buf);
 //		#ifdef PTPD_DBG
 //		mMSlaveOnly_display(
 //				(MMSlaveOnly*)outgoing->tlv->dataField, ptpClock);
 //		#endif /* PTPD_DBG */
-//		break;
+		break;
         case MM_LOG_ANNOUNCE_INTERVAL:
+            if (optBuf->action_type == SET)
+                lengthField = packMMLogAnnounceInterval(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMLogAnnounceInterval(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMLogAnnounceInterval_display(
 //                                (MMLogAnnounceInterval*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+                break;
         case MM_ANNOUNCE_RECEIPT_TIMEOUT:
+            if (optBuf->action_type == SET)
+                lengthField = packMMAnnounceReceiptTimeout(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMAnnounceReceiptTimeout(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMAnnounceReceiptTimeout_display(
 //                                (MMAnnounceReceiptTimeout*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+                break;
         case MM_LOG_SYNC_INTERVAL:
+            if (optBuf->action_type == SET)
+                lengthField = packMMLogSyncInterval(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMLogSyncInterval(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMLogSyncInterval_display(
 //                                (MMLogSyncInterval*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+                break;
         case MM_VERSION_NUMBER:
+            if (optBuf->action_type == SET)
+                lengthField = packMMVersionNumber(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMVersionNumber(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMVersionNumber_display(
 //                                (MMVersionNumber*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+                break;
         case MM_TIME:
+            lengthField = 0;
+            break;
 //                lengthField = packMMTime(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMTime_display(
@@ -384,40 +642,60 @@ void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *b
 //                #endif /* PTPD_DBG */
 //                break;
         case MM_CLOCK_ACCURACY:
+            if (optBuf->action_type == SET)
+                lengthField = packMMClockAccuracy(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMClockAccuracy(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMClockAccuracy_display(
 //                                (MMClockAccuracy*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+                break;
         case MM_UTC_PROPERTIES:
+            if (optBuf->action_type == SET)
+                lengthField = packMMUtcProperties(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMUtcProperties(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMUtcProperties_display(
 //                                (MMUtcProperties*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+                break;
         case MM_TRACEABILITY_PROPERTIES:
+            if (optBuf->action_type == SET)
+                lengthField = packMMTraceabilityProperties(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMTraceabilityProperties(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMTraceabilityProperties_display(
 //                                (MMTraceabilityProperties*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+                break;
         case MM_DELAY_MECHANISM:
+            if (optBuf->action_type == SET)
+                lengthField = packMMDelayMechanism(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMDelayMechanism(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMDelayMechanism_display(
 //                                (MMDelayMechanism*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+                break;
         case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
+            if (optBuf->action_type == SET)
+                lengthField = packMMLogMinPdelayReqInterval(outgoing, buf);
+            else
+                lengthField = 0;
 //                lengthField = packMMLogMinPdelayReqInterval(outgoing, buf);
 //                #ifdef PTPD_DBG
 //                mMLogMinPdelayReqInterval_display(
 //                                (MMLogMinPdelayReqInterval*)outgoing->tlv->dataField, ptpClock);
 //                #endif /* PTPD_DBG */
-//                break;
+                break;
 	default:
 		DBG("packing management msg: unsupported id \n");
     }
@@ -492,16 +770,16 @@ void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, 
         case MM_CLOCK_DESCRIPTION:
             DBG("handleManagement: Clock Description\n");
             handleMMClockDescription(outgoing, optBuf->action_type);
-            //unpackMMClockDescription(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
             break;
                 
         case MM_USER_DESCRIPTION:
             DBG("handleManagement: User Description\n");
-            //unpackMMUserDescription(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
+            
             if ((optBuf->action_type == SET) && !optBuf->value_set) {
                 ERROR("User Description value not defined\n");
                 exit(1);
             }
+            
             handleMMUserDescription(outgoing, optBuf->action_type, optBuf->value);
             break;
                 
@@ -517,10 +795,16 @@ void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, 
                 
         case MM_INITIALIZE:
             DBG("handleManagement: Initialize\n");
-//            unpackMMInitialize(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
+            
             Enumeration16 initializeKey;
-            if (optBuf->action_type == COMMAND)
-                sscanf(optBuf->value.textField, "%uh", &initializeKey);
+            if (optBuf->action_type == COMMAND) {
+                if (!optBuf->value_set) {
+                    ERROR("Initialize value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%u", &initializeKey);  
+            }
             else
                 initializeKey = 0; /* avoid uninitialized value */
             
@@ -528,26 +812,269 @@ void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, 
             break;
                 
         case MM_DEFAULT_DATA_SET:
+            DBG("handleManagement: Default Data Set\n");
+            handleMMDefaultDataSet(outgoing, optBuf->action_type);
+            break;         
+                    
         case MM_CURRENT_DATA_SET:
+            DBG("handleManagement: Current Data Set\n");
+            handleMMCurrentDataSet(outgoing, optBuf->action_type);
+            break;
+                
         case MM_PARENT_DATA_SET:
+            DBG("handleManagement: Parent Data Set\n");
+            handleMMParentDataSet(outgoing, optBuf->action_type);
+            break;
+                
         case MM_TIME_PROPERTIES_DATA_SET:
+            DBG("handleManagement: TimeProperties Data Set\n");
+            handleMMTimePropertiesDataSet(outgoing, optBuf->action_type);
+            break;
+                
         case MM_PORT_DATA_SET:
+            DBG("handleManagement: Port Data Set\n");
+            handleMMPortDataSet(outgoing, optBuf->action_type);
+            break;
+                
         case MM_PRIORITY1:
+            DBG("handleManagement: Priority1\n");
+            
+            UInteger8 priority1;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Priority1 value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%u", &priority1);  
+            }
+            else
+                priority1 = 0; /* avoid uninitialized value */
+            
+            handleMMPriority1(outgoing, optBuf->action_type, priority1);
+            break;
+            
         case MM_PRIORITY2:
+            DBG("handleManagement: Priority2\n");
+            
+            UInteger8 priority2;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Priority2 value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%u", &priority2);  
+            }
+            else
+                priority2 = 0; /* avoid uninitialized value */
+            
+            handleMMPriority2(outgoing, optBuf->action_type, priority2);
+            break;
+            
         case MM_DOMAIN:
+            DBG("handleManagement: Domain\n");
+            
+            UInteger8 domainNumber;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Domain value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%u", &domainNumber);  
+            }
+            else
+                domainNumber = 0; /* avoid uninitialized value */
+            
+            handleMMDomain(outgoing, optBuf->action_type, domainNumber);
+            break;
+                
         case MM_SLAVE_ONLY:
+            DBG("handleManagement: Slave Only\n");
+            
+            Boolean so;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Slave Only value not defined\n");
+                    exit(1);
+                }
+                else {
+                    if ((!strcmp("TRUE", optBuf->value.textField)) ||
+                            (!strcmp("True", optBuf->value.textField)) ||
+                            (!strcmp("true", optBuf->value.textField)) ||
+                            (!strcmp("1", optBuf->value.textField))) {
+                        so = TRUE;
+                    }
+                    else if ((!strcmp("FALSE", optBuf->value.textField)) ||
+                            (!strcmp("False", optBuf->value.textField)) ||
+                            (!strcmp("false", optBuf->value.textField)) ||
+                            (!strcmp("0", optBuf->value.textField))) {
+                        so = FALSE;
+                    }
+                    else {
+                        ERROR("Wrong value\n");
+                        exit(1);
+                    }
+                }
+            }
+            else
+                so = FALSE; /* avoid uninitialized value */
+            
+            handleMMSlaveOnly(outgoing, optBuf->action_type, so);
+            break;
+            
         case MM_LOG_ANNOUNCE_INTERVAL:
+            DBG("handleManagement: Log Announce Interval\n");
+            
+            Integer8 logAnnounceInterval;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Log Announce Interval value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%d", &logAnnounceInterval);  
+            }
+            else
+                logAnnounceInterval = 0; /* avoid uninitialized value */
+            
+            handleMMLogAnnounceInterval(outgoing, optBuf->action_type, logAnnounceInterval);
+            break;
+            
         case MM_ANNOUNCE_RECEIPT_TIMEOUT:
+            DBG("handleManagement: Announce Receipt Timeout\n");
+            
+            UInteger8 announceReceiptTimeout;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Announce Receipt Timeout value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%u", &announceReceiptTimeout);  
+            }
+            else
+                announceReceiptTimeout = 0; /* avoid uninitialized value */
+            
+            handleMMAnnounceReceiptTimeout(outgoing, optBuf->action_type, announceReceiptTimeout);
+            break;
+            
         case MM_LOG_SYNC_INTERVAL:
+            DBG("handleManagement: Log Sync Interval\n");
+            
+            Integer8 logSyncInterval;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Log Sync Interval value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%d", &logSyncInterval);  
+            }
+            else
+                logSyncInterval = 0; /* avoid uninitialized value */
+            
+            handleMMLogSyncInterval(outgoing, optBuf->action_type, logSyncInterval);
+            break;
+            
         case MM_VERSION_NUMBER:
+            DBG("handleManagement: Version Number\n");
+            
+            UInteger4Lower versionNumber;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Version Number value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%x", &versionNumber);  
+            }
+            else
+                versionNumber = 0; /* avoid uninitialized value */
+            
+            handleMMVersionNumber(outgoing, optBuf->action_type, versionNumber);
+            break;
+            
         case MM_ENABLE_PORT:
+            DBG("handleManagement: Enable Port\n");
+            handleMMEnablePort(outgoing, optBuf->action_type);
+            break;
+                
         case MM_DISABLE_PORT:
+            DBG("handleManagement: Disable Port\n");
+            handleMMDisablePort(outgoing, optBuf->action_type);
+            break;
+                
         case MM_TIME:
+            DBG("handleManagement: Time\n");
+            handleMMTime(outgoing, optBuf->action_type);
+            break;
+                
         case MM_CLOCK_ACCURACY:
+            DBG("handleManagement: Clock Accuracy\n");
+            
+            Enumeration8 clockAccuracy;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Clock Accuracy value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%x", &clockAccuracy);  
+            }
+            else
+                clockAccuracy = 0; /* avoid uninitialized value */
+            
+            handleMMClockAccuracy(outgoing, optBuf->action_type, clockAccuracy);
+            break;
+
         case MM_UTC_PROPERTIES:
+            DBG("handleManagement: Utc Properties\n");
+            handleMMUtcProperties(outgoing, optBuf->action_type);
+            break;
+                
         case MM_TRACEABILITY_PROPERTIES:
+            DBG("handleManagement: Traceability Properties\n");
+            handleMMTraceabilityProperties(outgoing, optBuf->action_type);
+            break;
+                
         case MM_DELAY_MECHANISM:
+            DBG("handleManagement: Delay Mechanism\n");
+            
+            Enumeration8 delayMechanism;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Delay Mechanism value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%x", &delayMechanism);  
+            }
+            else
+                delayMechanism = 0; /* avoid uninitialized value */
+            
+            handleMMDelayMechanism(outgoing, optBuf->action_type, delayMechanism);
+            break;
+                
         case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
+            DBG("handleManagement: Log Min Pdelay Req Interval\n");
+            
+            Integer8 logMinPdelayReqInterval;
+            if (optBuf->action_type == SET) {
+                if (!optBuf->value_set) {
+                    ERROR("Log Min Pdelay Req Interval value not defined\n");
+                    exit(1);
+                }
+                else
+                    sscanf(optBuf->value.textField, "%d", &logMinPdelayReqInterval);  
+            }
+            else
+                logMinPdelayReqInterval = 0; /* avoid uninitialized value */
+            
+            handleMMLogMinPdelayReqInterval(outgoing, optBuf->action_type, logMinPdelayReqInterval);
+            break;
+                
         case MM_FAULT_LOG:
         case MM_FAULT_LOG_RESET:
         case MM_TIMESCALE_PROPERTIES:
@@ -634,9 +1161,7 @@ void OutgoingManagementMessage::handleMMClockDescription(MsgManagement* outgoing
         case GET:
             DBG(" GET action \n");
             break;
-//        case RESPONSE:
-//            DBG(" RESPONSE action \n");
-//            break;
+
         default:
             ERROR(" unknown actionType \n");
             exit(1);
@@ -659,57 +1184,36 @@ void OutgoingManagementMessage::handleMMUserDescription(MsgManagement* outgoing,
 
     MMUserDescription* data = NULL;
     UInteger8 userDescriptionLength;
-//    outgoing->tlv->dataField = (MMUserDescription*) malloc (sizeof(MMUserDescription));
     
     switch(actionField)
     {
         case SET:
             DBG(" SET action \n");
-            data = (MMUserDescription*) malloc (sizeof(MMUserDescription));
+            
             userDescriptionLength = userDescription.lengthField;
+            
             if(userDescriptionLength <= USER_DESCRIPTION_MAX) {
-                memset(data, 0, sizeof(MMUserDescription));
+                data = (MMUserDescription*) malloc (sizeof(MMUserDescription));
+                data->userDescription.textField = (Octet*) calloc (userDescriptionLength + 1, sizeof(Octet));
+                
                 memcpy(data->userDescription.textField, userDescription.textField, userDescriptionLength);
+                data->userDescription.textField[userDescription.lengthField] = '\0';
+                
+                data->userDescription.lengthField = userDescriptionLength;
             } else {
                 ERROR("management user description exceeds specification length \n");
                 exit(1);
             }
-            //outgoing->tlv->dataField = data;
-//            data = (MMUserDescription*)incoming->tlv->dataField;
-//            UInteger8 userDescriptionLength = data->userDescription.lengthField;
-//            if(userDescriptionLength <= USER_DESCRIPTION_MAX) {
-//                memset(ptpClock->user_description, 0, sizeof(ptpClock->user_description));
-//                memcpy(ptpClock->user_description, data->userDescription.textField,
-//                                userDescriptionLength);
-//                /* add null-terminator to make use of C string function strlen later */
-//                ptpClock->user_description[userDescriptionLength] = '\0';
-//            } else {
-//                WARNING("management user description exceeds specification length \n");
-//            }
+
             outgoing->tlv->dataField = (Octet*) data;          
             break;
             
         case GET:
             DBG(" GET action \n");
-//            outgoing->actionField = RESPONSE;
-//            XMALLOC(outgoing->tlv->dataField, sizeof( MMUserDescription));
-//            data = (MMUserDescription*)outgoing->tlv->dataField;
-//            memset(data, 0, sizeof(MMUserDescription));
-//            /* GET actions */
-//            data->userDescription.lengthField = strlen(ptpClock->user_description);
-//            XMALLOC(data->userDescription.textField,
-//                                    data->userDescription.lengthField);
-//            memcpy(data->userDescription.textField,
-//                    ptpClock->user_description,
-//                    data->userDescription.lengthField);
             break;
             
         default:
             ERROR(" unknown actionType \n");
-//            free(outgoing->tlv);
-//            handleErrorManagementMessage(incoming, outgoing,
-//                    ptpClock, MM_USER_DESCRIPTION,
-//                    NOT_SUPPORTED);
             exit(1);
     }
 }
@@ -729,15 +1233,11 @@ void OutgoingManagementMessage::handleMMSaveInNonVolatileStorage(MsgManagement* 
     switch(actionField)
     {
         case COMMAND:
-                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
-        case ACKNOWLEDGE:
-                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
+            printf("management message not supported \n");
+            exit(1);
+            
         default:
             ERROR(" unknown actionType \n");
-//                free(outgoing->tlv);
-//                handleErrorManagementMessage(incoming, outgoing,
-//                        ptpClock, MM_SAVE_IN_NON_VOLATILE_STORAGE,
-//                        NOT_SUPPORTED);
             exit(1);
     }
 }
@@ -757,15 +1257,11 @@ void OutgoingManagementMessage::handleMMResetNonVolatileStorage(MsgManagement* o
     switch(actionField)
     {
         case COMMAND:
-                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
-        case ACKNOWLEDGE:
-                /* issue a NOT_SUPPORTED error management message, intentionally fall through */
+            printf("management message not supported \n");
+            exit(1);
+            
         default:
             DBG(" unknown actionType \n");
-//            free(outgoing->tlv);
-//            handleErrorManagementMessage(incoming, outgoing,
-//                    ptpClock, MM_RESET_NON_VOLATILE_STORAGE,
-//                    NOT_SUPPORTED);
             exit(1);
     }
 }
@@ -791,37 +1287,753 @@ void OutgoingManagementMessage::handleMMInitialize(MsgManagement* outgoing, Enum
         case COMMAND:
             DBG(" COMMAND action\n");
             data = (MMInitialize*) malloc (sizeof(MMInitialize));
-//            XMALLOC(outgoing->tlv->dataField, sizeof(MMInitialize));
-//            incomingData = (MMInitialize*)incoming->tlv->dataField;
-//            outgoingData = (MMInitialize*)outgoing->tlv->dataField;
             
             /* Table 45 - INITIALIZATION_KEY enumeration */
             switch( initializeKey )
             {
                 case INITIALIZE_EVENT:
                     /* cause INITIALIZE event */
-//                    ptpClock->portState = PTP_INITIALIZING;
                     break;
                 default:
                     /* do nothing, implementation specific */
-                    DBG("initializeKey != 0, do nothing\n");
+                    DBG("initializeKey != 0, will do nothing\n");
             }
-//            outgoingData->initializeKey = incomingData->initializeKey;
+
             data->initializeKey = initializeKey;
+            
             outgoing->tlv->dataField = (Octet*) data;
             break;
             
-//        case ACKNOWLEDGE:
-//            DBG(" ACKNOWLEDGE action\n");
-//            /* TODO: implementation specific */
-//            break;
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing DEFAULT_DATA_SET management message type
+ */
+void OutgoingManagementMessage::handleMMDefaultDataSet(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling DEFAULT_DATA_SET message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_DEFAULT_DATA_SET;
+    
+    outgoing->actionField = actionField;
+
+    switch(actionField)
+    {
+        case GET:
+            DBG(" GET action\n");
+            break;
+
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing CURRENT_DATA_SET management message type
+ */
+void OutgoingManagementMessage::handleMMCurrentDataSet(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling CURRENT_DATA_SET message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_CURRENT_DATA_SET;
+    
+    outgoing->actionField = actionField;
+
+    switch(actionField)
+    {
+        case GET:
+            DBG(" GET action\n");
+            break;
+
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing PARENT_DATA_SET management message type
+ */
+void OutgoingManagementMessage::handleMMParentDataSet(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling PARENT_DATA_SET message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_PARENT_DATA_SET;
+    
+    outgoing->actionField = actionField;
+
+    switch(actionField)
+    {
+        case GET:
+            DBG(" GET action\n");
+            break;
+
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing PROPERTIES_DATA_SET management message type
+ */
+void OutgoingManagementMessage::handleMMTimePropertiesDataSet(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling TIME_PROPERTIES message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_TIME_PROPERTIES_DATA_SET;
+
+    outgoing->actionField = actionField;
+
+    switch(actionField)
+    {
+        case GET:
+            DBG(" GET action\n");
+            break;
+
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing PORT_DATA_SET management message type
+ */
+void OutgoingManagementMessage::handleMMPortDataSet(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling PORT_DATA_SET message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_PORT_DATA_SET;
+
+    outgoing->actionField = actionField;
+
+    switch(actionField)
+    {
+        case GET:
+            DBG(" GET action\n");
+            break;
+
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing PRIORITY1 management message type
+ */
+void OutgoingManagementMessage::handleMMPriority1(MsgManagement* outgoing, Enumeration4 actionField, UInteger8 priority1)
+{
+    DBG("handling PRIORITY1 message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_PRIORITY1;
+    
+    outgoing->actionField = actionField;
+
+    MMPriority1* data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+            data = (MMPriority1*) malloc (sizeof(MMPriority1));
+
+            data->priority1 = priority1;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+                
+        case GET:
+            DBG(" GET action\n");
+            break;
+                
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing PRIORITY2 management message type
+ */
+void OutgoingManagementMessage::handleMMPriority2(MsgManagement* outgoing, Enumeration4 actionField, UInteger8 priority2)
+{
+    DBG("handling PRIORITY2 message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_PRIORITY2;
+    
+    outgoing->actionField = actionField;
+
+    MMPriority2* data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+            data = (MMPriority2*) malloc (sizeof(MMPriority2));
+
+            data->priority2 = priority2;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+                
+        case GET:
+            DBG(" GET action\n");
+            break;
+                
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing DOMAIN management message type
+ */
+void OutgoingManagementMessage::handleMMDomain(MsgManagement* outgoing, Enumeration4 actionField, UInteger8 domainNumber)
+{
+    DBG("handling DOMAIN message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_DOMAIN;
+    
+    outgoing->actionField = actionField;
+
+    MMDomain* data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+            data = (MMDomain*) malloc (sizeof(MMDomain));
+
+            data->domainNumber = domainNumber;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+                
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing SLAVE_ONLY management message type
+ */
+void OutgoingManagementMessage::handleMMSlaveOnly(MsgManagement* outgoing, Enumeration4 actionField, Boolean so)
+{
+    DBG("handling SLAVE_ONLY management message \n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_SLAVE_ONLY;
+    
+    outgoing->actionField = actionField;
+
+    MMSlaveOnly* data = NULL;
+    
+    switch (actionField)
+    {
+        case SET:
+            DBG(" SET action \n");
+            data = (MMSlaveOnly*) malloc (sizeof(MMSlaveOnly));
+            
+            data->so = so;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+                
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing LOG_ANNOUNCE_INTERVAL management message type
+ */
+void OutgoingManagementMessage::handleMMLogAnnounceInterval(MsgManagement* outgoing, Enumeration4 actionField, Integer8 logAnnounceInterval)
+{
+    DBG("handling LOG_ANNOUNCE_INTERVAL message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_LOG_ANNOUNCE_INTERVAL;
+    
+    outgoing->actionField = actionField;
+
+    MMLogAnnounceInterval* data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+            data = (MMLogAnnounceInterval*) malloc (sizeof(MMLogAnnounceInterval));
+            
+            data->logAnnounceInterval = logAnnounceInterval;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+                
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing ANNOUNCE_RECEIPT_TIMEOUT management message type
+ */
+void OutgoingManagementMessage::handleMMAnnounceReceiptTimeout(MsgManagement* outgoing, Enumeration4 actionField, UInteger8 announceReceiptTimeout)
+{
+    DBG("handling ANNOUNCE_RECEIPT_TIMEOUT message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_ANNOUNCE_RECEIPT_TIMEOUT;
+    
+    outgoing->actionField = actionField;
+
+    MMAnnounceReceiptTimeout* data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+            data = (MMAnnounceReceiptTimeout*) malloc (sizeof(MMAnnounceReceiptTimeout));
+            
+            data->announceReceiptTimeout = announceReceiptTimeout;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+                
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing LOG_SYNC_INTERVAL management message type
+ */
+void OutgoingManagementMessage::handleMMLogSyncInterval(MsgManagement* outgoing, Enumeration4 actionField, Integer8 logSyncInterval)
+{
+    DBG("handling LOG_SYNC_INTERVAL message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_LOG_SYNC_INTERVAL;
+
+    outgoing->actionField = actionField;
+
+    MMLogSyncInterval* data = NULL;
+
+    switch(actionField)
+    {
+	case SET:
+            DBG(" SET action\n");
+            data = (MMLogSyncInterval*) malloc (sizeof(MMLogSyncInterval));
+            
+            data->logSyncInterval = logSyncInterval;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+                
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+
+}
+
+/**
+ * @brief Handle outgoing VERSION_NUMBER management message type
+ */
+void OutgoingManagementMessage::handleMMVersionNumber(MsgManagement* outgoing, Enumeration4 actionField, UInteger4Lower versionNumber)
+{
+    DBG("handling VERSION_NUMBER message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_VERSION_NUMBER;
+    
+    outgoing->actionField = actionField;
+
+    MMVersionNumber* data = NULL;
+    
+    switch(actionField)
+    {
+	case SET:
+            DBG(" SET action\n");
+            data = (MMVersionNumber*) malloc (sizeof(MMVersionNumber));
+            
+            data->versionNumber = versionNumber;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+                
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+
+}
+
+/**
+ * @brief Handle outgoing ENABLE_PORT management message type
+ */
+void OutgoingManagementMessage::handleMMEnablePort(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling ENABLE_PORT message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_ENABLE_PORT;
+    
+    outgoing->actionField = actionField;
+
+    switch(actionField)
+    {
+        case COMMAND:
+            DBG(" COMMAND action\n");
+            break;
+                
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing DISABLE_PORT management message type
+ */
+void OutgoingManagementMessage::handleMMDisablePort(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling DISABLE_PORT message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_DISABLE_PORT;
+
+    outgoing->actionField = actionField;
+
+    switch(actionField)
+    {
+        case COMMAND:
+            DBG(" COMMAND action\n");
+            break;
+                
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing TIME management message type
+ */
+void OutgoingManagementMessage::handleMMTime(MsgManagement* outgoing, Enumeration4 actionField/*, Timestamp currentTime*/)
+{
+    DBG("handling TIME message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_TIME;
+    
+    outgoing->actionField = actionField;
+/* commented out to suppress unused variable compiler warning */
+//    MMTime* data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+    /* commented out to suppress unused variable compiler warning */
+//            data = (MMTime*) malloc (sizeof(MMTime));
+//            
+//            data->currentTime = currentTime;
+//
+//            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
             
         default:
             DBG(" unknown actionType \n");
-//            free(outgoing->tlv);
-//            handleErrorManagementMessage(incoming, outgoing,
-//                    ptpClock, MM_INITIALIZE,
-//                    NOT_SUPPORTED);
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing CLOCK_ACCURACY management message type
+ */
+void OutgoingManagementMessage::handleMMClockAccuracy(MsgManagement* outgoing, Enumeration4 actionField, Enumeration8 clockAccuracy)
+{
+    DBG("handling CLOCK_ACCURACY message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_CLOCK_ACCURACY;
+    
+    outgoing->actionField = actionField;
+
+    MMClockAccuracy* data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+            data = (MMClockAccuracy*) malloc (sizeof(MMClockAccuracy));
+            
+            data->clockAccuracy = clockAccuracy;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+            
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing UTC_PROPERTIES management message type
+ */
+void OutgoingManagementMessage::handleMMUtcProperties(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling UTC_PROPERTIES message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_UTC_PROPERTIES;
+    
+    outgoing->actionField = actionField;
+
+    MMUtcProperties* data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+            data = (MMUtcProperties*) malloc (sizeof(MMUtcProperties));
+            
+            Integer16 currentUtcOffset;
+            UInteger8 utcv, li59, li61;
+            
+            printf("Values to set: \n");
+            printf(" currentUtcOffset: ");
+            scanf("%hd", &currentUtcOffset);
+            printf(" currentUtcOffsetValid: ");
+            scanf("%hhu", &utcv);
+            printf(" leap59: ");
+            scanf("%hhu", &li59);
+            printf(" leap61: ");
+            scanf("%hhu", &li61);
+            printf("\n");
+
+            data->currentUtcOffset = currentUtcOffset;
+            //data->utcv_li59_li61 = utcv | li59 | li61;
+            data->utcv_li59_li61 = (utcv<<2 & 0x04) | (li59<<1 & 0x02) | (li61 & 0x01);
+            
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+            
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing TRACEABILITY_PROPERTIES management message type
+ */
+void OutgoingManagementMessage::handleMMTraceabilityProperties(MsgManagement* outgoing, Enumeration4 actionField)
+{
+    DBG("handling TRACEABILITY_PROPERTIES message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_TRACEABILITY_PROPERTIES;
+    
+    outgoing->actionField = actionField;
+
+    MMTraceabilityProperties* data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+            data = (MMTraceabilityProperties*) malloc (sizeof(MMTraceabilityProperties));
+            
+            UInteger8 ftra, ttra;
+            
+            printf("Values to set: \n");
+            printf(" frequencyTraceable: ");
+            scanf("%hhu", &ftra);
+            printf(" timeTraceable: ");
+            scanf("%hhu", &ttra);
+            printf("\n");
+
+            data->ftra_ttra = ftra | ttra;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+            
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing DELAY_MECHANISM management message type
+ */
+void OutgoingManagementMessage::handleMMDelayMechanism(MsgManagement* outgoing, Enumeration4 actionField, Enumeration8 delayMechanism)
+{
+    DBG("handling DELAY_MECHANISM message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_DELAY_MECHANISM;
+    
+    outgoing->actionField = actionField;
+
+    MMDelayMechanism *data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+            data = (MMDelayMechanism*) malloc (sizeof(MMDelayMechanism));
+            
+            data->delayMechanism = delayMechanism;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+            
+        default:
+            DBG(" unknown actionType \n");
+            exit(1);
+    }
+}
+
+/**
+ * @brief Handle outgoing LOG_MIN_PDELAY_REQ_INTERVAL management message type
+ */
+void OutgoingManagementMessage::handleMMLogMinPdelayReqInterval(MsgManagement* outgoing, Enumeration4 actionField, Integer8 logMinPdelayReqInterval)
+{
+    DBG("handling LOG_MIN_PDELAY_REQ_INTERVAL message\n");
+
+    initOutgoingMsgManagement(outgoing);
+    outgoing->tlv->tlvType = TLV_MANAGEMENT;
+    outgoing->tlv->lengthField = 2;
+    outgoing->tlv->managementId = MM_LOG_MIN_PDELAY_REQ_INTERVAL;
+    
+    outgoing->actionField = actionField;
+
+    MMLogMinPdelayReqInterval* data = NULL;
+    
+    switch(actionField)
+    {
+        case SET:
+            DBG(" SET action\n");
+            data = (MMLogMinPdelayReqInterval*) malloc (sizeof(MMLogMinPdelayReqInterval));
+            
+            data->logMinPdelayReqInterval = logMinPdelayReqInterval;
+
+            outgoing->tlv->dataField = (Octet*) data;
+            break;
+            
+        case GET:
+            DBG(" GET action\n");
+            break;
+            
+        default:
+            DBG(" unknown actionType \n");
             exit(1);
     }
 }

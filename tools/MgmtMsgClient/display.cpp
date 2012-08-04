@@ -11,12 +11,29 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "constants_dep.h"
+
 /**@brief Display an Integer64 type*/
 void integer64_display(Integer64 * bigint)
 {
 	printf("Integer 64 : \n");
 	printf("LSB : %u\n", bigint->lsb);
 	printf("MSB : %d\n", bigint->msb);
+}
+
+/**@brief Display an UInteger48 type*/
+void uInteger48_display(UInteger48 * bigint)
+{
+    printf("Integer 48 : \n");
+    printf("LSB : %u\n", bigint->lsb);
+    printf("MSB : %u\n", bigint->msb);
+}
+
+/**@brief Display a Timestamp Structure*/
+void timestamp_display(Timestamp * timestamp)
+{
+    uInteger48_display(&timestamp->secondsField);
+    printf("nanoseconds %u \n", timestamp->nanosecondsField);
 }
 
 /**@brief Display a Clockidentity Structure*/
@@ -39,11 +56,25 @@ void clockUUID_display(Octet * sourceUuid)
     );
 }
 
+/**@brief Display a TimeInterval Structure*/
+void timeInterval_display(TimeInterval * timeInterval)
+{
+    integer64_display(&timeInterval->scaledNanoseconds);
+}
+
 /**@brief Display a Portidentity Structure*/
 void portIdentity_display(PortIdentity * portIdentity)
 {
     clockIdentity_display(portIdentity->clockIdentity);
     printf("port number : %d \n", portIdentity->portNumber);
+}
+
+/**@brief Display a Clockquality Structure*/
+void clockQuality_display(ClockQuality * clockQuality)
+{
+    printf("clockClass : %d \n", clockQuality->clockClass);
+    printf("clockAccuracy : %d \n", clockQuality->clockAccuracy);
+    printf("offsetScaledLogVariance : %d \n", clockQuality->offsetScaledLogVariance);
 }
 
 /**@brief Display PTPText Structure*/
@@ -140,106 +171,185 @@ void mMClockDescription_display(MMClockDescription *clockDescription)
 
 void mMUserDescription_display(MMUserDescription* userDescription)
 {
-	/* TODO: implement me */
+    printf("User Description ManagementTLV message \n");
+    printf("userDescription : \n");
+    PTPText_display((PTPText*)userDescription);
 }
 
 void mMInitialize_display(MMInitialize* initialize)
 {
-	/* TODO: implement me */
+    printf("Initialize ManagementTLV message \n");
+    printf("initializeKey : %u \n", initialize->initializeKey);
 }
 
-//void mMDefaultDataSet_display(MMDefaultDataSet* defaultDataSet)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMCurrentDataSet_display(MMCurrentDataSet* currentDataSet)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMParentDataSet_display(MMParentDataSet* parentDataSet)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMTimePropertiesDataSet_display(MMTimePropertiesDataSet* timePropertiesDataSet)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMPortDataSet_display(MMPortDataSet* portDataSet)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMPriority1_display(MMPriority1* priority1)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMPriority2_display(MMPriority2* priority2)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMDomain_display(MMDomain* domain)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMLogAnnounceInterval_display(MMLogAnnounceInterval* logAnnounceInterval)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMAnnounceReceiptTimeout_display(MMAnnounceReceiptTimeout* announceReceiptTimeout)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMLogSyncInterval_display(MMLogSyncInterval* logSyncInterval)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMVersionNumber_display(MMVersionNumber* versionNumber)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMTime_display(MMTime* time)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMClockAccuracy_display(MMClockAccuracy* clockAccuracy)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMUtcProperties_display(MMUtcProperties* utcProperties)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMTraceabilityProperties_display(MMTraceabilityProperties* traceabilityProperties)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMDelayMechanism_display(MMDelayMechanism* delayMechanism)
-//{
-//	/* TODO: implement me */
-//}
-//
-//void mMLogMinPdelayReqInterval_display(MMLogMinPdelayReqInterval* logMinPdelayReqInterval)
-//{
-//	/* TODO: implement me */
-//}
+void mMDefaultDataSet_display(MMDefaultDataSet* defaultDataSet)
+{
+    printf("Default Data Set ManagementTLV message \n");
+    bool tsc = ( defaultDataSet->so_tsc & 0x01 ) != 0x00;
+    bool so = ( defaultDataSet->so_tsc & 0x02 ) != 0x00;
+    printf("TSC : %d \n", tsc ? TRUE : FALSE);
+    printf("SO : %d \n", so ? TRUE : FALSE);
+    printf("numberPorts : %u \n", defaultDataSet->numberPorts);
+    printf("priority1 : %u \n", defaultDataSet->priority1);
+    clockQuality_display(&defaultDataSet->clockQuality);
+    printf("priority2 : %u \n", defaultDataSet->priority2);
+    clockIdentity_display(defaultDataSet->clockIdentity);
+    printf("domainNumber : %u \n", defaultDataSet->domainNumber);
+}
+
+void mMCurrentDataSet_display(MMCurrentDataSet* currentDataSet)
+{
+    printf("Current Data Set ManagementTLV message \n");
+    printf("stepsRemoved : %u \n", currentDataSet->stepsRemoved);
+    printf("offsetFromMaster : \n");
+    timeInterval_display(&currentDataSet->offsetFromMaster);
+    printf("meanPathDelay : \n");
+    timeInterval_display(&currentDataSet->meanPathDelay);
+}
+
+void mMParentDataSet_display(MMParentDataSet* parentDataSet)
+{
+    printf("Parent Data Set ManagementTLV message \n");
+    printf("parentPortIdentity : \n");
+    portIdentity_display(&parentDataSet->parentPortIdentity);
+    printf("PS : %u \n", parentDataSet->PS);
+    printf("observedParentOffsetScaledLogVariance : %u \n", parentDataSet->observedParentOffsetScaledLogVariance);
+    printf("observedParentClockPhaseChangeRate : %d \n", parentDataSet->observedParentClockPhaseChangeRate);
+    printf("grandmasterPriority1 : %u \n", parentDataSet->grandmasterPriority1);
+    printf("grandmasterClockQuality : \n");
+    clockQuality_display(&parentDataSet->grandmasterClockQuality);
+    printf("grandmasterPriority2 : %u \n", parentDataSet->grandmasterPriority2);
+    printf("grandmasterIdentity : \n");
+    clockIdentity_display(parentDataSet->grandmasterIdentity);
+}
+
+void mMTimePropertiesDataSet_display(MMTimePropertiesDataSet* timePropertiesDataSet)
+{
+    printf("Time Properties Data Set ManagementTLV message \n");
+    printf("currentUtcOffset : %d \n", timePropertiesDataSet->currentUtcOffset);
+    printf("ftra : %d \n", READ_FIELD(timePropertiesDataSet->ftra_ttra_ptp_utcv_li59_li61, FTRA));
+    printf("ttra : %d \n", READ_FIELD(timePropertiesDataSet->ftra_ttra_ptp_utcv_li59_li61, TTRA));
+    printf("ptp : %d \n", READ_FIELD(timePropertiesDataSet->ftra_ttra_ptp_utcv_li59_li61, PTPT));
+    printf("utcv : %d \n", READ_FIELD(timePropertiesDataSet->ftra_ttra_ptp_utcv_li59_li61, UTCV));
+    printf("li59 : %d \n", READ_FIELD(timePropertiesDataSet->ftra_ttra_ptp_utcv_li59_li61, LI59));
+    printf("li61 : %d \n", READ_FIELD(timePropertiesDataSet->ftra_ttra_ptp_utcv_li59_li61, LI61));
+    printf("timeSource : %x \n", timePropertiesDataSet->timeSource);
+}
+
+void mMPortDataSet_display(MMPortDataSet* portDataSet)
+{
+    printf("Parent Data Set ManagementTLV message \n");
+    printf("portIdentity : \n");
+    portIdentity_display(&portDataSet->portIdentity);
+    printf("portState : %x \n", portDataSet->portState);
+    printf("logMinDelayReqInterval : %d \n", portDataSet->logMinDelayReqInterval);
+    printf("peerMeanPathDelay : \n");
+    timeInterval_display(&portDataSet->peerMeanPathDelay);
+    printf("logAnnounceInterval : %d \n", portDataSet->logAnnounceInterval);
+    printf("announceReceiptTimeout : %u \n", portDataSet->announceReceiptTimeout);
+    printf("logSyncInterval : %d \n", portDataSet->logSyncInterval);
+    printf("delayMechanism : %x \n", portDataSet->delayMechanism);
+    printf("logMinPdelayReqInterval : %d \n", portDataSet->logMinPdelayReqInterval);
+    printf("versionNumber : %x \n", portDataSet->versionNumber & 0x0F);
+}
+
+void mMPriority1_display(MMPriority1* priority1)
+{
+    printf("Priority1 ManagementTLV message \n");
+    printf("priority1 : %u \n", priority1->priority1);
+}
+
+void mMPriority2_display(MMPriority2* priority2)
+{
+    printf("Priority2 ManagementTLV message \n");
+    printf("priority2 : %u \n", priority2->priority2);
+}
+
+void mMDomain_display(MMDomain* domain)
+{
+    printf("Domain ManagementTLV message \n");
+    printf("domainNumber : %u \n", domain->domainNumber);
+}
+
+/**
+ * @brief Display ManagementTLV Slave Only message
+ */
+void mMSlaveOnly_display(MMSlaveOnly *slaveOnly)
+{
+    printf("Slave Only ManagementTLV message \n");
+    printf("SO : %d \n", slaveOnly->so);
+}
+
+void mMLogAnnounceInterval_display(MMLogAnnounceInterval* logAnnounceInterval)
+{
+    printf("Log Announce Interval ManagementTLV message \n");
+    printf("logAnnounceInterval : %d \n", logAnnounceInterval->logAnnounceInterval);
+}
+
+void mMAnnounceReceiptTimeout_display(MMAnnounceReceiptTimeout* announceReceiptTimeout)
+{
+    printf("Announce Receipt Timeout ManagementTLV message \n");
+    printf("announceReceiptTimeout : %u \n", announceReceiptTimeout->announceReceiptTimeout);
+}
+
+void mMLogSyncInterval_display(MMLogSyncInterval* logSyncInterval)
+{
+    printf("Log Sync Interval ManagementTLV message \n");
+    printf("logSyncInterval : %d \n", logSyncInterval->logSyncInterval);
+}
+
+void mMVersionNumber_display(MMVersionNumber* versionNumber)
+{
+    printf("Version Number ManagementTLV message \n");
+    printf("versionNumber : %x \n", versionNumber->versionNumber);
+}
+
+void mMTime_display(MMTime* time)
+{
+    printf("Time ManagementTLV message \n");
+    printf("currentTime : \n");
+    timestamp_display(&time->currentTime);
+}
+
+void mMClockAccuracy_display(MMClockAccuracy* clockAccuracy)
+{
+    printf("Clock Accuracy ManagementTLV message \n");
+    printf("clockAccuracy : %x \n", clockAccuracy->clockAccuracy);
+}
+
+void mMUtcProperties_display(MMUtcProperties* utcProperties)
+{
+    printf("Utc Properties ManagementTLV message \n");
+    printf("currentUtcOffset : %d \n", utcProperties->currentUtcOffset);
+    printf("utcv : %d \n", READ_FIELD(utcProperties->utcv_li59_li61, UTCV));
+    printf("li59 : %d \n", READ_FIELD(utcProperties->utcv_li59_li61, LI59));
+    printf("li61 : %d \n", READ_FIELD(utcProperties->utcv_li59_li61, LI61));
+}
+
+void mMTraceabilityProperties_display(MMTraceabilityProperties* traceabilityProperties)
+{
+    printf("Traceability Properties ManagementTLV message \n");
+    printf("ftra : %d \n", READ_FIELD(traceabilityProperties->ftra_ttra, FTRA));
+    printf("ttra : %d \n", READ_FIELD(traceabilityProperties->ftra_ttra, TTRA));
+}
+
+void mMDelayMechanism_display(MMDelayMechanism* delayMechanism)
+{
+    printf("Delay Mechanism ManagementTLV message \n");
+    printf("delayMechanism : %x \n", delayMechanism->delayMechanism);
+}
+
+void mMLogMinPdelayReqInterval_display(MMLogMinPdelayReqInterval* logMinPdelayReqInterval)
+{
+    printf("Log Min Pdelay Req Interval ManagementTLV message \n");
+    printf("logMinPdelayReqInterval : %d \n", logMinPdelayReqInterval->logMinPdelayReqInterval);
+}
 
 void mMErrorStatus_display(MMErrorStatus* errorStatus)
 {
-	/* TODO: implement me */
+    printf("Error Status management message \n");
+    printf("managementId : %u \n", errorStatus->managementId);
+    printf("displayData : \n");
+    PTPText_display(&errorStatus->displayData);
 }
 
