@@ -116,7 +116,8 @@ netRecv(Octet *message, char *dest)
     timeout_val.tv_sec = timeout;
     timeout_val.tv_usec = 0;
 	
-	if ((ret_select = select(netPath->generalSock + 1, &socks, NULL, NULL, &timeout_val)) != 0) {
+	if ((ret_select = select(netPath->generalSock + 1, &socks, NULL, NULL, 
+			&timeout_val)) != 0) {
 		ret = recvfrom(netPath->generalSock, message, PACKET_SIZE , 0 , 
 							(struct sockaddr *)&client_addr, &len);
 		if (ret == 0 || (strcmp(inet_ntop(AF_INET, &(client_addr.sin_addr), srcIp, 
@@ -130,7 +131,8 @@ netRecv(Octet *message, char *dest)
 		return 0;
 	}
 	else {
-		printf("Timed out. Please check that server is reachable and try again.\n");
+		printf("Timed out. Please check that server is reachable and try again."
+			" You can use 'send_previous'\n");
 		return 0;
 	}
 }

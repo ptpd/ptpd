@@ -131,7 +131,6 @@ unpackManagementHeader(Octet *inmessage, MsgManagement *manage)
 void
 handleUserDescription(MsgManagement *manage)
 {
-	char tempBuf[100];
 	MMUserDescription *data = (MMUserDescription *)(inmessage + 54);
 	int offset = 54;
 	printf("User Description:\n");

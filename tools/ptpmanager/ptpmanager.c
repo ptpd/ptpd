@@ -27,12 +27,10 @@ getCommandId(char *command)
 		return (6);
 	else if (strcmp(command, "show_tlv")==0)
 		return (7);
-	else if (strcmp(command, "show_clock_description")==0)
+	else if (strcmp(command, "show_mgmtIds") == 0)
 		return (8);
-	else if (strcmp(command, "show_default_data_set")==0)
-		return (9);
 	else if (strcmp(command, "set_timeout") == 0)
-		return (10);
+		return (9);
 	
 	return (0); /* for wrong command */
 }
@@ -148,14 +146,10 @@ main(int argc, char *argv[ ])
 			break;
 			
 		case 8:
-			show_clock_description();
-			break;
-		
-		case 9:
-			show_default_data_set();
+			show_mgmtIds();
 			break;
 			
-		case 10:
+		case 9:
 			set_timeout();
 			break;
 			
