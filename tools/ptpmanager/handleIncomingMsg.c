@@ -133,18 +133,9 @@ handleUserDescription(MsgManagement *manage)
 {
 	char tempBuf[100];
 	MMUserDescription *data = (MMUserDescription *)(inmessage + 54);
-	
-	data->userDescription.lengthField = *((UInteger8*)(inmessage + 54));
-	data->userDescription.textField = (Octet*)malloc(
-		data->userDescription.lengthField);
-	memset(data->userDescription.textField, 0, 
-		data->userDescription.lengthField);
-	memcpy(data->userDescription.textField, inmessage + 55, 
-		data->userDescription.lengthField);
-
-	printf("Lengthfield: %hhu\n",data->userDescription.lengthField);
-	printf("Name_of_device;Physical_location = %s\n",
-		data->userDescription.textField);
+	int offset = 54;
+	printf("User Description:\n");
+	PTPText_display(&offset);	
 }
 
 void 

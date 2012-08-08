@@ -61,7 +61,7 @@ packOutgoingMsg(Octet *buf)
 	scanf("%d", &tlvtype);
 
 	if (tlvtype==TLV_MANAGEMENT){
-		printf(">managementId (use command 'show_mgmtIds' to find managementId)?");
+		printf(">managementId (see Table 40) (Eg: '2010' for ClockAccuracy)?");
 		scanf("%x", &managementId);
 
 		switch(managementId){
