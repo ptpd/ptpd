@@ -45,6 +45,31 @@ display_portIdentity(PortIdentity *portIdentity)
 	printf("	portNumber = %hu\n", portIdentity->portNumber);
 }
 
+int 
+unpackPTPText(PTPText *text, Octet *src)
+{
+	text->lengthField = *(UInteger8*)(src);
+//	text->textField = (Octet*)malloc(text->lengthField);
+//	memcpy(text->textField, src + 1, text->lengthField);
+	return text->lengthField; 
+}
+
+/**\brief Display PTPText Structure*/
+void
+PTPText_display(int *offset)
+{
+  	int i;
+  	UInteger8 lengthField = *(UInteger8*)(inmessage + *offset);
+    printf("    lengthField : %hhu \n", lengthField);
+    printf("    textField : ");
+	for(i = 0; i < lengthField; i++)
+		printf("%c",*(UInteger8*)(inmessage + *offset + 1 + i));
+	printf("\n");
+		
+	*offset = *offset + 1 + lengthField;
+ 
+}
+
 /**\brief Display a Clockquality Structure*/
 void
 display_clockQuality(ClockQuality *clockQuality)
@@ -53,6 +78,16 @@ display_clockQuality(ClockQuality *clockQuality)
 	printf("	clockAccuracy : %hhu \n", clockQuality->clockAccuracy);
 	printf("	offsetScaledLogVariance : %hu \n", 
 		clockQuality->offsetScaledLogVariance);
+}
+
+/**\brief Display MAC address*/
+void
+clockUUID_display(Octet * sourceUuid)
+{
+	printf("sourceUuid %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+	    sourceUuid[0], sourceUuid[1], sourceUuid[2], sourceUuid[3],
+	    sourceUuid[4], sourceUuid[5]
+	);
 }
 
 /*Function to unpack the header of received message*/
@@ -112,6 +147,76 @@ handleUserDescription(MsgManagement *manage)
 		data->userDescription.textField);
 }
 
+void 
+handleClockDescription(MsgManagement *manage)
+{
+	MMClockDescription* data = (MMClockDescription *)(inmessage + 54);
+	int offset = 54, len;
+	
+	printf("Clock Description ManagementTLV message \n");
+	
+	data->clockType0 = *((UInteger8*)( inmessage + offset));
+	offset++;
+	data->clockType1 = *((UInteger8*)( inmessage + offset));
+	offset++;
+	printf("clockType0 : %hhu \n", data->clockType0);
+	printf("clockType1 : %hhu \n", data->clockType1);
+	
+	printf("physicalLayerProtocol : \n");
+	PTPText_display(&offset);
+
+	data->physicalAddress.addressLength = flip16(*(UInteger16*)
+			(inmessage + offset));
+	offset += 2;
+	printf("physicalAddressLength : %hu \n", 
+		data->physicalAddress.addressLength);
+	if(data->physicalAddress.addressField) {
+		printf("physicalAddressField : \n");
+		clockUUID_display(inmessage + offset);
+	}
+	offset += data->physicalAddress.addressLength;
+
+	data->protocolAddress.networkProtocol = flip16(
+		*(Enumeration16*)(inmessage + offset));
+	offset += 2;
+	data->protocolAddress.addressLength = flip16(
+		*(UInteger16*)(inmessage + offset));
+	offset += 2;
+	printf("protocolAddressNetworkProtocol : %hu \n", 
+		data->protocolAddress.networkProtocol);
+	printf("protocolAddressLength : %hu \n", 
+		data->protocolAddress.addressLength);
+	printf("3 %d\n", offset);
+	if(data->protocolAddress.addressField) {
+		printf("protocolAddressField : %d.%d.%d.%d \n",
+			*(UInteger8*)(inmessage + offset),
+			*(UInteger8*)(inmessage + offset + 1),
+			*(UInteger8*)(inmessage + offset + 2),
+			*(UInteger8*)(inmessage + offset + 3));
+	}
+	offset += data->protocolAddress.addressLength;
+
+	printf("manufacturerIdentity0 : %d \n", data->manufacturerIdentity0);
+	printf("manufacturerIdentity1 : %d \n", data->manufacturerIdentity1);
+	printf("manufacturerIdentity2 : %d \n", data->manufacturerIdentity2);
+	offset += 4; //One byte for reserved field.
+	
+	printf("productDescription : \n");
+	PTPText_display(&offset);
+
+	printf("revisionData : \n");
+	PTPText_display(&offset);
+
+	printf("userDescription : \n");
+	PTPText_display(&offset);
+	
+	printf("profileIdentity0 : %hhu \n", data->profileIdentity0);
+	printf("profileIdentity1 : %hhu \n", data->profileIdentity1);
+	printf("profileIdentity2 : %hhu \n", data->profileIdentity2);
+	printf("profileIdentity3 : %hhu \n", data->profileIdentity3);
+	printf("profileIdentity4 : %hhu \n", data->profileIdentity4);
+	printf("profileIdentity5 : %hhu \n", data->profileIdentity5);
+}
 
 void
 handleDefaultDataSet(MsgManagement *manage)
@@ -490,9 +595,8 @@ handleManagementResponse(Octet *inmessage, MsgManagement *manage)
     case MM_DEFAULT_DATA_SET:
     	handleDefaultDataSet(manage);
     	break;
-	    
     case MM_CLOCK_DESCRIPTION:
-		printf("Yet to handle the response\n");
+    	handleClockDescription(manage);
 		break;
 		
 	case MM_SAVE_IN_NON_VOLATILE_STORAGE:
@@ -564,7 +668,7 @@ handleManagementError(Octet *inmessage, MsgManagement *manage)
 			 		"was wrong.\n");
 			break;
 		case WRONG_VALUE:
-			printf("The managementId and length were correct but one or 
+			printf("The managementId and length were correct but one or" 
 				"more values were wrong.\n");
 			break;
 		case NOT_SETABLE:

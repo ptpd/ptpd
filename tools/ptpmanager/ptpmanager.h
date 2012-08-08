@@ -98,6 +98,21 @@ typedef struct {
 	#include "../../src/def/derivedData/timeInterval.def"
 } TimeInterval;
 
+/**
+* \brief The PortAdress type represents the protocol address of a PTP port
+ */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/derivedData/portAddress.def"
+} PortAddress;
+
+/**
+* \brief The PhysicalAddress type is used to represent a physical address
+ */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/derivedData/physicalAddress.def"
+} PhysicalAddress;
 
 /**
  * \brief Management TLV message fields
@@ -108,6 +123,15 @@ typedef struct {
 	#include "managementTLV.def"
 	Octet* dataField;
 } ManagementTLV;
+
+/**
+ * \brief Management TLV Clock Description fields (Table 41 of the spec)
+ */
+/* Management TLV Clock Description Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "../../src/def/managementTLV/clockDescription.def"
+} MMClockDescription;
 
 /**
  * \brief Management TLV User Description fields (Table 43 of the spec)
