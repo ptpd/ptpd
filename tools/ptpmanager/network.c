@@ -89,24 +89,51 @@ netSendGeneral(Octet * buf, UInteger16 length, char *ip)
 	return (ret);
 }
 
+/*Function to set timeout as provided by user */
+void
+set_timeout()
+{
+	printf("Timeout value in seconds? ");
+	scanf("%d",&timeout);
+}
+
 /* Function to receive the management response/ack/error message */
 ssize_t
-netRecv(Octet *message, char *src)
+netRecv(Octet *message, char *dest)
 {
 	ssize_t ret = 0;
 	char srcIp[16];
 	int try;
+	int ret_select;
+	fd_set socks;
 	struct sockaddr_in client_addr;
    	socklen_t len = sizeof(client_addr);
+   	struct timeval timeout_val;
+    
+    FD_ZERO(&socks);
+    FD_SET(netPath->generalSock, &socks);
+    
+    timeout_val.tv_sec = timeout;
+    timeout_val.tv_usec = 0;
 	
-	for (try = 0;try < 3; try++){
+	if ((ret_select = select(netPath->generalSock + 1, &socks, NULL, NULL, 
+			&timeout_val)) != 0) {
 		ret = recvfrom(netPath->generalSock, message, PACKET_SIZE , 0 , 
 							(struct sockaddr *)&client_addr, &len);
 		if (ret == 0 || (strcmp(inet_ntop(AF_INET, &(client_addr.sin_addr), srcIp, 
-				sizeof(srcIp)), src) == 0))
+				sizeof(srcIp)), dest) == 0))
 			return (ret);
 		else
 			printf("false\n");
+	}
+	else if (ret_select < 0){
+		printf("Network error (select)\n");
+		return 0;
+	}
+	else {
+		printf("Timed out. Please check that server is reachable and try again."
+			" You can use 'send_previous'\n");
+		return 0;
 	}
 }
 

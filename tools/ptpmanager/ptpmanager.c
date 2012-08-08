@@ -27,9 +27,9 @@ getCommandId(char *command)
 		return (6);
 	else if (strcmp(command, "show_tlv")==0)
 		return (7);
-	else if (strcmp(command, "show_clock_description")==0)
+	else if (strcmp(command, "show_mgmtIds") == 0)
 		return (8);
-	else if (strcmp(command, "show_default_data_set")==0)
+	else if (strcmp(command, "set_timeout") == 0)
 		return (9);
 	
 	return (0); /* for wrong command */
@@ -45,22 +45,11 @@ sendMessage(Octet* outmessage, char *dest)
 		printf("Message sent, waiting for response...\n");
 
 		receivedFlag = FALSE;
-//		for (;;){
-					
-		/* 
-		 * TODO wait for some time to receive a response 
-		 * or ack, if not received till timeout send the 
-		 * management message again, Use receivedFlag for this.
-		 *
-		 * Currently, 'receive' is 'blocking' and therefore program hangs if 
-		 * packet delivery fails. TODO: Use non-blocking call.
-		 */
-			memset(inmessage, 0, PACKET_SIZE);
-			if (netRecv(inmessage, dest)) {
-				handleIncomingMsg(inmessage);
-				in_sequence++;
-			}
-		//}
+		memset(inmessage, 0, PACKET_SIZE);
+		if (netRecv(inmessage, dest)) {
+			handleIncomingMsg(inmessage);
+			in_sequence++;
+		}
 	}
 }
 
@@ -81,6 +70,7 @@ main(int argc, char *argv[ ])
 	out_sequence = 0;
 	in_sequence = 0;
 	out_length = 0;
+	timeout = DEFAULT_TIMEOUT;
 	netPath = (NetPath*)malloc(sizeof(NetPath));
 	
 	if (outmessage == NULL || inmessage == NULL || netPath == NULL){
@@ -156,11 +146,11 @@ main(int argc, char *argv[ ])
 			break;
 			
 		case 8:
-			show_clock_description();
+			show_mgmtIds();
 			break;
-		
+			
 		case 9:
-			show_default_data_set();
+			set_timeout();
 			break;
 			
 		default:

@@ -52,6 +52,8 @@ UInteger16 in_sequence;
 Boolean receivedFlag;
 Octet *outmessage;
 Octet *inmessage;
+UInteger32 timeout;
+
 /**
 * \brief Struct used to store network datas
  */
