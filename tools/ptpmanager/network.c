@@ -79,10 +79,14 @@ netSendGeneral(Octet * buf, UInteger16 length, char *ip)
 		printf("\nAddress family is not supproted by this function\n");
 		return (0);
 	}
-	
+	int i;
+	printf("\n");
+	for(i=0;i<100;i++)
+	printf("     %d--%x          ",i,(int)*((buf)+i));
+
 	ret = sendto(netPath->generalSock, buf, out_length, 0, 
 			(struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-	
+	printf("\n\n%d\n\n",ret);
 	if (ret <= 0)
 	printf("error sending uni-cast general message\n");
 

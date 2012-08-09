@@ -42,6 +42,7 @@ sendMessage(Octet* outmessage, char *dest)
 		 dest))
 		printf("Error sending message\n");
 	else {
+	
 		printf("Message sent, waiting for response...\n");
 
 		receivedFlag = FALSE;
@@ -163,6 +164,7 @@ main(int argc, char *argv[ ])
 	
 	free(outmessage);
 	free(inmessage);	
+	free(netPath);
 	netShutdown();
 	return (0);
 }

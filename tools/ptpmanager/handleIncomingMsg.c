@@ -45,15 +45,6 @@ display_portIdentity(PortIdentity *portIdentity)
 	printf("	portNumber = %hu\n", portIdentity->portNumber);
 }
 
-int 
-unpackPTPText(PTPText *text, Octet *src)
-{
-	text->lengthField = *(UInteger8*)(src);
-//	text->textField = (Octet*)malloc(text->lengthField);
-//	memcpy(text->textField, src + 1, text->lengthField);
-	return text->lengthField; 
-}
-
 /**\brief Display PTPText Structure*/
 void
 PTPText_display(int *offset)
@@ -90,6 +81,50 @@ clockUUID_display(Octet * sourceUuid)
 	);
 }
 
+void
+display_commonHeader(MsgHeader *header)
+{
+	printf("\nMessage header :: \n");
+	printf("transportSpecific : %d\n", header->transportSpecific);
+	printf("messageType : %d\n", header->messageType);
+	printf("versionPTP : %d\n", header->versionPTP);
+	printf("messageLength : %d\n", header->messageLength);
+	printf("domainNumber : %d\n", header->domainNumber);
+	printf("FlagField %02hhx:%02hhx\n", header->flagField0, header->flagField1);
+	printf("CorrectionField.msb : \n", header->correctionField.msb);
+	printf("CorrectionField.lsb : \n", header->correctionField.lsb);
+	printf("SourcePortIdentity : \n");
+	display_portIdentity(&header->sourcePortIdentity);
+	printf("sequenceId : %d\n", header->sequenceId);
+	printf("controlField : %d\n", header->controlField);
+	printf("logMessageInterval : %d\n", header->logMessageInterval);
+	printf("\n");
+}
+
+/**@brief Display Management message*/
+void display_managementHeader(MsgManagement * manage)
+{
+    printf("\nManagement Message :: \n");
+    printf("targetPortIdentity : \n");
+    display_portIdentity(&manage->targetPortIdentity);
+    printf("startingBoundaryHops : %d \n", manage->startingBoundaryHops);
+    printf("boundaryHops : %d \n", manage->boundaryHops);
+    printf("actionField : %d\n", manage->actionField);
+}
+
+/**@brief Display Management message*/
+void display_tlvHeader(ManagementTLV * tlv)
+{
+	tlv->tlvType = flip16(*(UInteger16 *) (inmessage + 48));
+	tlv->lengthField = flip16(*(UInteger16 *) (inmessage + 50));
+	tlv->managementId = flip16(*(UInteger16 *) (inmessage + 52));
+
+    printf("\nTLV Header :: \n");
+    printf("tlvType : %d\n",tlv->tlvType);
+    printf("lengthField : %d\n", tlv->lengthField);
+    printf("managementId : %d\n", tlv->managementId);
+}
+
 /*Function to unpack the header of received message*/
 void 
 unpackHeader(Octet *buf, MsgHeader *header)
@@ -110,12 +145,15 @@ unpackHeader(Octet *buf, MsgHeader *header)
 	header->sequenceId = flip16(*(UInteger16 *) (buf + 30));
 	header->controlField = (*(UInteger8 *) (buf + 32));
 	header->logMessageInterval = (*(Integer8 *) (buf + 33));
+	
+//	display_commonHeader(header);
 }
 
 /*Function to unpack management header*/
 void 
 unpackManagementHeader(Octet *inmessage, MsgManagement *manage)
 {
+	unpackPortIdentity(&(manage->targetPortIdentity), inmessage + 34);
 	manage->startingBoundaryHops = (*(UInteger8 *)(inmessage + 44));
 	manage->boundaryHops = (*(UInteger8 *)(inmessage + 45)); 
 	manage->reserved0 = (*(Enumeration4 *)(inmessage + 46)) & 0xF0;
@@ -125,6 +163,8 @@ unpackManagementHeader(Octet *inmessage, MsgManagement *manage)
 	manage->tlv->tlvType = flip16(*(UInteger16 *) (inmessage + 48));
 	manage->tlv->lengthField = flip16(*(UInteger16 *) (inmessage + 50));
 	manage->tlv->managementId = flip16(*(UInteger16 *) (inmessage + 52));
+	
+//	display_managementHeader(manage);
 }
 
 
@@ -705,4 +745,6 @@ void handleIncomingMsg(Octet *inmessage)
 		printf("Received message is not a MANAGEMENT message\n");
 		return;
 	}
+	
+	free(manage.tlv);
 }

@@ -24,19 +24,61 @@ show_help()
 void
 show_commonheader()
 {
-	printf("Not implemented yet\n");
+	if (inmessage == NULL){
+		printf("No data in last received message\n");
+		return;
+	} else {
+		MsgHeader h; 
+		unpackHeader(inmessage, &h);
+		if (h.messageLength < HEADER_LENGTH){
+			printf("Last received message doesn't contain valid data\n");
+			return;
+		}
+		display_commonHeader(&h);
+	}
 }
 
 void
 show_managementheader()
 {
-	printf("Not implemented yet\n");
+	if (inmessage == NULL){
+		printf("No data in last received message\n");
+		return;
+	} else {
+		MsgHeader h; 
+		MsgManagement manage;
+		manage.tlv = (ManagementTLV *)malloc(sizeof(ManagementTLV));
+		unpackHeader(inmessage, &h);
+		if (h.messageLength < MANAGEMENT_LENGTH){
+			printf("Last received message doesn't contain valid data\n\n");
+			return;
+		}
+		unpackManagementHeader(inmessage, &manage);
+		display_managementHeader(&manage);
+		free(manage.tlv);
+	}
 }
 
 void
 show_tlv()
 {
-	printf("Not implemented yet\n");
+	if (inmessage == NULL){
+		printf("No data in last received message\n");
+		return;
+	} else {
+		MsgHeader h; 
+		MsgManagement manage;
+		manage.tlv = (ManagementTLV *)malloc(sizeof(ManagementTLV));
+		unpackHeader(inmessage, &h);
+		if (h.messageLength < MANAGEMENT_LENGTH + TLV_LENGTH){
+			printf("Last received message doesn't contain valid data\n\n");
+			return;
+		}
+		unpackManagementHeader(inmessage, &manage);
+		display_tlvHeader(&(manage.tlv));
+		free(manage.tlv);
+	}
+
 }
 
 void

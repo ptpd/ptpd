@@ -70,12 +70,12 @@ enum {
 
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
-	#include "portIdentity.def"
+	#include "../../src/def/derivedData/portIdentity.def"
 } PortIdentity;
 
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
-	#include "header.def"
+	#include "../../src/def/message/header.def"
 } MsgHeader;
 
 typedef struct {
@@ -122,7 +122,7 @@ typedef struct {
 /* Management TLV Message */
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
-	#include "managementTLV.def"
+	#include "../../src/def/managementTLV/managementTLV.def"
 	Octet* dataField;
 } ManagementTLV;
 
@@ -312,7 +312,7 @@ typedef struct {
 /*management Message*/
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
-	#include "management.def"
+	#include "../../src/def/message/management.def"
 	ManagementTLV* tlv;
 }MsgManagement;
 
