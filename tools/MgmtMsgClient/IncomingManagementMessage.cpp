@@ -1,3 +1,47 @@
+/*-
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
+ *                         National Instruments,
+ *                         Tomasz Kleinschmidt
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
+ * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ *
+ * All Rights Reserved
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 /** 
  * @file        IncomingManagementMessage.cpp
  * @author      Tomasz Kleinschmidt
@@ -82,12 +126,16 @@ IncomingManagementMessage::IncomingManagementMessage(Octet* buf, OptBuffer* optB
  * The deconstructor frees memory.
  */
 IncomingManagementMessage::~IncomingManagementMessage() {
-//    if (this->incoming->tlv != NULL)
-//        free(this->incoming->tlv);
     freeManagementTLV(this->incoming);
     free(this->incoming);
 }
 
+/**
+ * @brief Unpack an Integer48 type.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param i     Integer48 object to unpack.
+ */
 void IncomingManagementMessage::unpackUInteger48( void *buf, void *i)
 {
     unpackUInteger32(buf, &((UInteger48*)i)->lsb);
@@ -107,10 +155,10 @@ void IncomingManagementMessage::unpackInteger64( void *buf, void *i)
 }
 
 /**
- * @brief Unpack a Clockidentity Structure.
+ * @brief Unpack a ClockIdentity Structure.
  * 
  * @param buf   Buffer with a received message.
- * @param c     Clockidentity Structure to unpack.
+ * @param c     ClockIdentity Structure to unpack.
  */
 void IncomingManagementMessage::unpackClockIdentity( Octet *buf, ClockIdentity *c)
 {
@@ -120,6 +168,12 @@ void IncomingManagementMessage::unpackClockIdentity( Octet *buf, ClockIdentity *
     }
 }
 
+/**
+ * @brief Unpack a ClockQuality Structure.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param c     ClockQuality Structure to unpack.
+ */
 void IncomingManagementMessage::unpackClockQuality( Octet *buf, ClockQuality *c)
 {
     int offset = 0;
@@ -130,6 +184,12 @@ void IncomingManagementMessage::unpackClockQuality( Octet *buf, ClockQuality *c)
     #include "../../src/def/derivedData/clockQuality.def"
 }
 
+/**
+ * @brief Unpack a TimeInterval Structure.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param t     TimeInterval Structure to unpack.
+ */
 void IncomingManagementMessage::unpackTimeInterval( Octet *buf, TimeInterval *t)
 {
     int offset = 0;
@@ -140,6 +200,12 @@ void IncomingManagementMessage::unpackTimeInterval( Octet *buf, TimeInterval *t)
     #include "../../src/def/derivedData/timeInterval.def"
 }
 
+/**
+ * @brief Unpack a Timestamp Structure.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param t     Timestamp Structure to unpack.
+ */
 void IncomingManagementMessage::unpackTimestamp( Octet *buf, Timestamp *t)
 {
     int offset = 0;
@@ -166,37 +232,52 @@ void IncomingManagementMessage::unpackPortIdentity( Octet *buf, PortIdentity *p)
     #include "../../src/def/derivedData/portIdentity.def"
 }
 
+/**
+ * @brief Unpack a PortAddress Structure.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param p     PortAddress Structure to unpack.
+ */
 void IncomingManagementMessage::unpackPortAddress( Octet *buf, PortAddress *p)
 {
     unpackEnumeration16( buf, &p->networkProtocol);
     unpackUInteger16( buf+2, &p->addressLength);
     if(p->addressLength) {
-        //XMALLOC(p->addressField, p->addressLength);
-        p->addressField = (Octet*) malloc (p->addressLength);
+        XMALLOC(p->addressField, Octet*, p->addressLength);
         memcpy( p->addressField, buf+4, p->addressLength);
     } else {
         p->addressField = NULL;
     }
 }
 
+/**
+ * @brief Unpack a PTPText Structure.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param p     PTPText Structure to unpack.
+ */
 void IncomingManagementMessage::unpackPTPText( Octet *buf, PTPText *s)
 {
     unpackUInteger8(buf, &s->lengthField);
     if(s->lengthField) {
-        //XMALLOC(s->textField, s->lengthField);
-        s->textField = (Octet*) malloc (s->lengthField);
+        XMALLOC(s->textField, Octet*, s->lengthField);
         memcpy( s->textField, buf+1, s->lengthField);
     } else {
         s->textField = NULL;
     }
 }
 
+/**
+ * @brief Unpack a PhysicalAddress Structure.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param p     PhysicalAddress Structure to unpack.
+ */
 void IncomingManagementMessage::unpackPhysicalAddress( Octet *buf, PhysicalAddress *p)
 {
     unpackUInteger16( buf, &p->addressLength);
     if(p->addressLength) {
-        //XMALLOC(p->addressField, p->addressLength);
-        p->addressField = (Octet*) malloc (p->addressLength);
+        XMALLOC(p->addressField, Octet*, p->addressLength);
         memcpy( p->addressField, buf+2, p->addressLength);
     } else {
         p->addressField = NULL;
@@ -243,13 +324,12 @@ void IncomingManagementMessage::unpackMsgManagement(Octet *buf, MsgManagement *m
  * @brief Unpack management TLV.
  * 
  * @param buf   Buffer with a received message.
- * @param m     Management message with TLV to unpack.
+ * @param m     Management message with a TLV to unpack.
  */
 void IncomingManagementMessage::unpackManagementTLV(Octet *buf, MsgManagement *m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv, sizeof(ManagementTLV));
-    m->tlv = (ManagementTLV*) malloc (sizeof(ManagementTLV));
+    XMALLOC(m->tlv, ManagementTLV*, sizeof(ManagementTLV));
     /* read the management TLV */
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + offset, &m->tlv->name); \
@@ -281,11 +361,16 @@ void IncomingManagementMessage::msgUnpackManagement(Octet *buf, MsgManagement * 
     }
 }
 
+/**
+ * @brief Unpack a Clock Description ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Clock Description ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMClockDescription( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMClockDescription));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMClockDescription));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMClockDescription));
     MMClockDescription* data = (MMClockDescription*)m->tlv->dataField;
     memset(data, 0, sizeof(MMClockDescription));
     #define OPERATE( name, size, type ) \
@@ -297,11 +382,16 @@ void IncomingManagementMessage::unpackMMClockDescription( Octet *buf, MsgManagem
     mMClockDescription_display(data);
 }
 
+/**
+ * @brief Unpack a User Description ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a User Description ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMUserDescription(Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMUserDescription));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMUserDescription));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMUserDescription));
     MMUserDescription* data = (MMUserDescription*)m->tlv->dataField;
     memset(data, 0, sizeof(MMUserDescription));
     #define OPERATE( name, size, type ) \
@@ -313,11 +403,16 @@ void IncomingManagementMessage::unpackMMUserDescription(Octet *buf, MsgManagemen
     mMUserDescription_display(data);
 }
 
+/**
+ * @brief Unpack an Initialize ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with an Initialize ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMInitialize( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMInitialize));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMInitialize));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMInitialize));
     MMInitialize* data = (MMInitialize*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -328,11 +423,16 @@ void IncomingManagementMessage::unpackMMInitialize( Octet *buf, MsgManagement* m
     mMInitialize_display(data);
 }
 
+/**
+ * @brief Unpack a Default Data Set ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Default Data Set ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMDefaultDataSet( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMDefaultDataSet));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMDefaultDataSet));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMDefaultDataSet));
     MMDefaultDataSet* data = (MMDefaultDataSet*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -343,11 +443,16 @@ void IncomingManagementMessage::unpackMMDefaultDataSet( Octet *buf, MsgManagemen
     mMDefaultDataSet_display(data);
 }
 
+/**
+ * @brief Unpack a Current Data Set ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Current Data Set ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMCurrentDataSet( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMCurrentDataSet));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMCurrentDataSet));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMCurrentDataSet));
     MMCurrentDataSet* data = (MMCurrentDataSet*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -358,11 +463,16 @@ void IncomingManagementMessage::unpackMMCurrentDataSet( Octet *buf, MsgManagemen
     mMCurrentDataSet_display(data);
 }
 
+/**
+ * @brief Unpack a Parent Data Set ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Parent Data Set ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMParentDataSet( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMParentDataSet));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMParentDataSet));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMParentDataSet));
     MMParentDataSet* data = (MMParentDataSet*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -373,11 +483,16 @@ void IncomingManagementMessage::unpackMMParentDataSet( Octet *buf, MsgManagement
     mMParentDataSet_display(data);
 }
 
+/**
+ * @brief Unpack a Time Properties Data Set ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Time Properties Data Set ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMTimePropertiesDataSet( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMTimePropertiesDataSet));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMTimePropertiesDataSet));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMTimePropertiesDataSet));
     MMTimePropertiesDataSet* data = (MMTimePropertiesDataSet*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -388,11 +503,16 @@ void IncomingManagementMessage::unpackMMTimePropertiesDataSet( Octet *buf, MsgMa
     mMTimePropertiesDataSet_display(data);
 }
 
+/**
+ * @brief Unpack a Port Data Set ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Port Data Set ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMPortDataSet( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMPortDataSet));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMPortDataSet));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMPortDataSet));
     MMPortDataSet* data = (MMPortDataSet*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -403,11 +523,16 @@ void IncomingManagementMessage::unpackMMPortDataSet( Octet *buf, MsgManagement* 
     mMPortDataSet_display(data);
 }
 
+/**
+ * @brief Unpack a Priority1 ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Priority1 ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMPriority1( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMPriority1));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMPriority1));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMPriority1));
     MMPriority1* data = (MMPriority1*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -418,11 +543,16 @@ void IncomingManagementMessage::unpackMMPriority1( Octet *buf, MsgManagement* m)
     mMPriority1_display(data);
 }
 
+/**
+ * @brief Unpack a Priority2 ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Priority2 ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMPriority2( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMPriority2));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMPriority2));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMPriority2));
     MMPriority2* data = (MMPriority2*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -433,11 +563,16 @@ void IncomingManagementMessage::unpackMMPriority2( Octet *buf, MsgManagement* m)
     mMPriority2_display(data);
 }
 
+/**
+ * @brief Unpack a Domain ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Domain ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMDomain( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMDomain));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMDomain));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMDomain));
     MMDomain* data = (MMDomain*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -448,11 +583,16 @@ void IncomingManagementMessage::unpackMMDomain( Octet *buf, MsgManagement* m)
     mMDomain_display(data);
 }
 
+/**
+ * @brief Unpack a Slave Only ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Slave Only ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMSlaveOnly( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMSlaveOnly));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMSlaveOnly));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMSlaveOnly));
     MMSlaveOnly* data = (MMSlaveOnly*)m->tlv->dataField;
     /* see src/def/README for a note on this X-macro */
     #define OPERATE( name, size, type ) \
@@ -464,11 +604,16 @@ void IncomingManagementMessage::unpackMMSlaveOnly( Octet *buf, MsgManagement* m)
     mMSlaveOnly_display(data);
 }
 
+/**
+ * @brief Unpack a Log Announce Interval ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Log Announce Interval ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMLogAnnounceInterval( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMLogAnnounceInterval));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMLogAnnounceInterval));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMLogAnnounceInterval));
     MMLogAnnounceInterval* data = (MMLogAnnounceInterval*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -479,11 +624,16 @@ void IncomingManagementMessage::unpackMMLogAnnounceInterval( Octet *buf, MsgMana
     mMLogAnnounceInterval_display(data);
 }
 
+/**
+ * @brief Unpack an Announce Receipt Timeout ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with an Announce Receipt Timeout ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMAnnounceReceiptTimeout( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField,sizeof(MMAnnounceReceiptTimeout));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMAnnounceReceiptTimeout));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMAnnounceReceiptTimeout));
     MMAnnounceReceiptTimeout* data = (MMAnnounceReceiptTimeout*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -494,11 +644,16 @@ void IncomingManagementMessage::unpackMMAnnounceReceiptTimeout( Octet *buf, MsgM
     mMAnnounceReceiptTimeout_display(data);
 }
 
+/**
+ * @brief Unpack a Log Sync Interval ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Log Sync Interval ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMLogSyncInterval( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMLogSyncInterval));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMLogSyncInterval));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMLogSyncInterval));
     MMLogSyncInterval* data = (MMLogSyncInterval*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -509,11 +664,16 @@ void IncomingManagementMessage::unpackMMLogSyncInterval( Octet *buf, MsgManageme
     mMLogSyncInterval_display(data);
 }
 
+/**
+ * @brief Unpack a Version Number ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Version Number ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMVersionNumber( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMVersionNumber));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMVersionNumber));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMVersionNumber));
     MMVersionNumber* data = (MMVersionNumber*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -524,11 +684,16 @@ void IncomingManagementMessage::unpackMMVersionNumber( Octet *buf, MsgManagement
     mMVersionNumber_display(data);
 }
 
+/**
+ * @brief Unpack a Time ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Time ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMTime( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMTime));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMTime));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMTime));
     MMTime* data = (MMTime*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -539,11 +704,16 @@ void IncomingManagementMessage::unpackMMTime( Octet *buf, MsgManagement* m)
     mMTime_display(data);
 }
 
+/**
+ * @brief Unpack a Clock Accuracy ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Clock Accuracy ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMClockAccuracy( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMClockAccuracy));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMClockAccuracy));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMClockAccuracy));
     MMClockAccuracy* data = (MMClockAccuracy*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -554,11 +724,16 @@ void IncomingManagementMessage::unpackMMClockAccuracy( Octet *buf, MsgManagement
     mMClockAccuracy_display(data);
 }
 
+/**
+ * @brief Unpack a Utc Properties ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Utc Properties ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMUtcProperties( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMUtcProperties));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMUtcProperties));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMUtcProperties));
     MMUtcProperties* data = (MMUtcProperties*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -569,11 +744,16 @@ void IncomingManagementMessage::unpackMMUtcProperties( Octet *buf, MsgManagement
     mMUtcProperties_display(data);
 }
 
+/**
+ * @brief Unpack a Traceability Properties ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Traceability Properties ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMTraceabilityProperties( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMTraceabilityProperties));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMTraceabilityProperties));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMTraceabilityProperties));
     MMTraceabilityProperties* data = (MMTraceabilityProperties*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -584,11 +764,16 @@ void IncomingManagementMessage::unpackMMTraceabilityProperties( Octet *buf, MsgM
     mMTraceabilityProperties_display(data);
 }
 
+/**
+ * @brief Unpack a Delay Mechanism ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Delay Mechanism ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMDelayMechanism( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMDelayMechanism));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMDelayMechanism));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMDelayMechanism));
     MMDelayMechanism* data = (MMDelayMechanism*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -599,11 +784,16 @@ void IncomingManagementMessage::unpackMMDelayMechanism( Octet *buf, MsgManagemen
     mMDelayMechanism_display(data);
 }
 
+/**
+ * @brief Unpack a Log Min Pdelay Req Interval ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with a Log Min Pdelay Req Interval ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMLogMinPdelayReqInterval( Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMLogMinPdelayReqInterval));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMLogMinPdelayReqInterval));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMLogMinPdelayReqInterval));
     MMLogMinPdelayReqInterval* data = (MMLogMinPdelayReqInterval*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
             unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -614,13 +804,16 @@ void IncomingManagementMessage::unpackMMLogMinPdelayReqInterval( Octet *buf, Msg
     mMLogMinPdelayReqInterval_display(data);
 }
 
-
-
+/**
+ * @brief Unpack an Error Status ManagementTLV message.
+ * 
+ * @param buf   Buffer with a received message.
+ * @param m     Management message with an Error Status ManagementTLV to unpack.
+ */
 void IncomingManagementMessage::unpackMMErrorStatus(Octet *buf, MsgManagement* m)
 {
     int offset = 0;
-    //XMALLOC(m->tlv->dataField, sizeof(MMErrorStatus));
-    m->tlv->dataField = (Octet*) malloc (sizeof(MMErrorStatus));
+    XMALLOC(m->tlv->dataField, Octet*, sizeof(MMErrorStatus));
     MMErrorStatus* data = (MMErrorStatus*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
         unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset, &data->name ); \
@@ -630,7 +823,13 @@ void IncomingManagementMessage::unpackMMErrorStatus(Octet *buf, MsgManagement* m
     mMErrorStatus_display(data);
 }
 
-void IncomingManagementMessage::handleManagement(/*OptBuffer* optBuf, */Octet* buf, MsgManagement* incoming)
+/**
+ * @brief Handle incoming management message.
+ * 
+ * @param buf           Buffer with a received message.
+ * @param incoming      Incoming management message.
+ */
+void IncomingManagementMessage::handleManagement(Octet* buf, MsgManagement* incoming)
 {
     DBG("Management message received : \n");
 
@@ -651,15 +850,6 @@ void IncomingManagementMessage::handleManagement(/*OptBuffer* optBuf, */Octet* b
         DBG("handleManagement: Error Status TLV\n");
         unpackMMErrorStatus(buf, incoming);
         handleMMErrorStatus(incoming);
-//            /* cleanup msgTmp managementTLV */
-//            if(ptpClock->msgTmp.manage.tlv) {
-//                    DBGV("cleanup ptpClock->msgTmp.manage message \n");
-//                    if(ptpClock->msgTmp.manage.tlv->dataField) {
-//                            freeMMErrorStatusTLV(ptpClock->msgTmp.manage.tlv);
-//                            free(ptpClock->msgTmp.manage.tlv->dataField);
-//                    }
-//                    free(ptpClock->msgTmp.manage.tlv);
-//            }
         return;
     } else if (incoming->tlv->tlvType != TLV_MANAGEMENT) {
         /* do nothing, implemention specific handling */
@@ -671,7 +861,6 @@ void IncomingManagementMessage::handleManagement(/*OptBuffer* optBuf, */Octet* b
     {
         case MM_NULL_MANAGEMENT:
             DBG("handleManagement: Null Management\n");
-            //handleMMNullManagement(outgoing, optBuf->action_type);
             break;
                 
         case MM_CLOCK_DESCRIPTION:
@@ -856,7 +1045,9 @@ void IncomingManagementMessage::handleManagement(/*OptBuffer* optBuf, */Octet* b
 }
 
 /**
- * @brief Handle incoming CLOCK_DESCRIPTION management message
+ * @brief Handle incoming CLOCK_DESCRIPTION management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMClockDescription(MsgManagement* incoming)
 {
@@ -874,7 +1065,9 @@ void IncomingManagementMessage::handleMMClockDescription(MsgManagement* incoming
 }
 
 /**
- * @brief Handle incoming USER_DESCRIPTION management message type
+ * @brief Handle incoming USER_DESCRIPTION management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMUserDescription(MsgManagement* incoming)
 {
@@ -892,7 +1085,9 @@ void IncomingManagementMessage::handleMMUserDescription(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming SAVE_IN_NON_VOLATILE_STORAGE management message type
+ * @brief Handle incoming SAVE_IN_NON_VOLATILE_STORAGE management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMSaveInNonVolatileStorage(MsgManagement* incoming)
 {
@@ -910,7 +1105,9 @@ void IncomingManagementMessage::handleMMSaveInNonVolatileStorage(MsgManagement* 
 }
 
 /**
- * @brief Handle incoming RESET_NON_VOLATILE_STORAGE management message type
+ * @brief Handle incoming RESET_NON_VOLATILE_STORAGE management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMResetNonVolatileStorage(MsgManagement* incoming)
 {
@@ -928,7 +1125,9 @@ void IncomingManagementMessage::handleMMResetNonVolatileStorage(MsgManagement* i
 }
 
 /**
- * @brief Handle incoming INITIALIZE management message type
+ * @brief Handle incoming INITIALIZE management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMInitialize(MsgManagement* incoming)
 {
@@ -947,7 +1146,9 @@ void IncomingManagementMessage::handleMMInitialize(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming DEFAULT_DATA_SET management message type
+ * @brief Handle incoming DEFAULT_DATA_SET management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMDefaultDataSet(MsgManagement* incoming)
 {
@@ -965,7 +1166,9 @@ void IncomingManagementMessage::handleMMDefaultDataSet(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming CURRENT_DATA_SET management message type
+ * @brief Handle incoming CURRENT_DATA_SET management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMCurrentDataSet(MsgManagement* incoming)
 {
@@ -983,7 +1186,9 @@ void IncomingManagementMessage::handleMMCurrentDataSet(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming PARENT_DATA_SET management message type
+ * @brief Handle incoming PARENT_DATA_SET management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMParentDataSet(MsgManagement* incoming)
 {
@@ -1001,7 +1206,9 @@ void IncomingManagementMessage::handleMMParentDataSet(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming PROPERTIES_DATA_SET management message type
+ * @brief Handle incoming PROPERTIES_DATA_SET management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMTimePropertiesDataSet(MsgManagement* incoming)
 {
@@ -1019,7 +1226,9 @@ void IncomingManagementMessage::handleMMTimePropertiesDataSet(MsgManagement* inc
 }
 
 /**
- * @brief Handle incoming PORT_DATA_SET management message type
+ * @brief Handle incoming PORT_DATA_SET management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMPortDataSet(MsgManagement* incoming)
 {
@@ -1037,7 +1246,9 @@ void IncomingManagementMessage::handleMMPortDataSet(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming PRIORITY1 management message type
+ * @brief Handle incoming PRIORITY1 management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMPriority1(MsgManagement* incoming)
 {
@@ -1055,7 +1266,9 @@ void IncomingManagementMessage::handleMMPriority1(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming PRIORITY2 management message type
+ * @brief Handle incoming PRIORITY2 management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMPriority2(MsgManagement* incoming)
 {
@@ -1073,7 +1286,9 @@ void IncomingManagementMessage::handleMMPriority2(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming DOMAIN management message type
+ * @brief Handle incoming DOMAIN management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMDomain(MsgManagement* incoming)
 {
@@ -1091,7 +1306,9 @@ void IncomingManagementMessage::handleMMDomain(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming SLAVE_ONLY management message type
+ * @brief Handle incoming SLAVE_ONLY management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMSlaveOnly(MsgManagement* incoming)
 {
@@ -1109,7 +1326,9 @@ void IncomingManagementMessage::handleMMSlaveOnly(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming LOG_ANNOUNCE_INTERVAL management message type
+ * @brief Handle incoming LOG_ANNOUNCE_INTERVAL management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMLogAnnounceInterval(MsgManagement* incoming)
 {
@@ -1127,7 +1346,9 @@ void IncomingManagementMessage::handleMMLogAnnounceInterval(MsgManagement* incom
 }
 
 /**
- * @brief Handle incoming ANNOUNCE_RECEIPT_TIMEOUT management message type
+ * @brief Handle incoming ANNOUNCE_RECEIPT_TIMEOUT management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMAnnounceReceiptTimeout(MsgManagement* incoming)
 {
@@ -1145,7 +1366,9 @@ void IncomingManagementMessage::handleMMAnnounceReceiptTimeout(MsgManagement* in
 }
 
 /**
- * @brief Handle incoming LOG_SYNC_INTERVAL management message type
+ * @brief Handle incoming LOG_SYNC_INTERVAL management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMLogSyncInterval(MsgManagement* incoming)
 {
@@ -1163,7 +1386,9 @@ void IncomingManagementMessage::handleMMLogSyncInterval(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming VERSION_NUMBER management message type
+ * @brief Handle incoming VERSION_NUMBER management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMVersionNumber(MsgManagement* incoming)
 {
@@ -1181,7 +1406,9 @@ void IncomingManagementMessage::handleMMVersionNumber(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming ENABLE_PORT management message type
+ * @brief Handle incoming ENABLE_PORT management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMEnablePort(MsgManagement* incoming)
 {
@@ -1199,7 +1426,9 @@ void IncomingManagementMessage::handleMMEnablePort(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming DISABLE_PORT management message type
+ * @brief Handle incoming DISABLE_PORT management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMDisablePort(MsgManagement* incoming)
 {
@@ -1217,7 +1446,9 @@ void IncomingManagementMessage::handleMMDisablePort(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming TIME management message type
+ * @brief Handle incoming TIME management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMTime(MsgManagement* incoming)
 {
@@ -1235,7 +1466,9 @@ void IncomingManagementMessage::handleMMTime(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming CLOCK_ACCURACY management message type
+ * @brief Handle incoming CLOCK_ACCURACY management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMClockAccuracy(MsgManagement* incoming)
 {
@@ -1253,7 +1486,9 @@ void IncomingManagementMessage::handleMMClockAccuracy(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming UTC_PROPERTIES management message type
+ * @brief Handle incoming UTC_PROPERTIES management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMUtcProperties(MsgManagement* incoming)
 {
@@ -1271,7 +1506,9 @@ void IncomingManagementMessage::handleMMUtcProperties(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming TRACEABILITY_PROPERTIES management message type
+ * @brief Handle incoming TRACEABILITY_PROPERTIES management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMTraceabilityProperties(MsgManagement* incoming)
 {
@@ -1289,7 +1526,9 @@ void IncomingManagementMessage::handleMMTraceabilityProperties(MsgManagement* in
 }
 
 /**
- * @brief Handle incoming DELAY_MECHANISM management message type
+ * @brief Handle incoming DELAY_MECHANISM management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMDelayMechanism(MsgManagement* incoming)
 {
@@ -1307,7 +1546,9 @@ void IncomingManagementMessage::handleMMDelayMechanism(MsgManagement* incoming)
 }
 
 /**
- * @brief Handle incoming LOG_MIN_PDELAY_REQ_INTERVAL management message type
+ * @brief Handle incoming LOG_MIN_PDELAY_REQ_INTERVAL management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMLogMinPdelayReqInterval(MsgManagement* incoming)
 {
@@ -1325,7 +1566,9 @@ void IncomingManagementMessage::handleMMLogMinPdelayReqInterval(MsgManagement* i
 }
 
 /**
- * @brief Handle incoming ERROR_STATUS management message type
+ * @brief Handle incoming ERROR_STATUS management message type.
+ * 
+ * @param incoming      Incoming management message.
  */
 void IncomingManagementMessage::handleMMErrorStatus(MsgManagement *incoming)
 {

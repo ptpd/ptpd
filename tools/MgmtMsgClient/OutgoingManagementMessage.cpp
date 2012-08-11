@@ -20,7 +20,6 @@
 #include "freeing.h"
 
 //Temporary for assigning ClockIdentity
-#include "display.h"
 #include <string.h>
 
 #define PACK_SIMPLE( type ) \
@@ -73,7 +72,7 @@ PACK_LOWER_AND_UPPER( UInteger4 )
  * The constructor allocates memory and trigger all necessary actions.
  */
 OutgoingManagementMessage::OutgoingManagementMessage(Octet* buf, OptBuffer* optBuf) {
-    this->outgoing = (MsgManagement *)malloc(sizeof(MsgManagement));
+    XMALLOC(this->outgoing, MsgManagement*, sizeof(MsgManagement));
     
     handleManagement(optBuf, buf, this->outgoing);
 }
@@ -84,11 +83,16 @@ OutgoingManagementMessage::OutgoingManagementMessage(Octet* buf, OptBuffer* optB
  * The deconstructor frees memory.
  */
 OutgoingManagementMessage::~OutgoingManagementMessage() {
-    //free(this->outgoing->tlv);
     freeManagementTLV(this->outgoing);
     free(this->outgoing);
 }
 
+/**
+ * @brief Pack an Integer48 type.
+ * 
+ * @param buf   Buffer with a message to send.
+ * @param i     Integer48 object to pack.
+ */
 void OutgoingManagementMessage::packUInteger48( void *i, void *buf)
 {
     packUInteger32(&((UInteger48*)i)->lsb, buf);
@@ -121,13 +125,19 @@ void OutgoingManagementMessage::packClockIdentity( ClockIdentity *c, Octet *buf)
     }
 }
 
+/**
+ * @brief Pack a Timestamp Structure.
+ * 
+ * @param t     Timestamp Structure to pack.
+ * @param buf   Buffer with a message to send.
+ */
 void OutgoingManagementMessage::packTimestamp( Timestamp *t, Octet *buf)
 {
     int offset = 0;
     Timestamp *data = t;
     #define OPERATE( name, size, type) \
-            pack##type (&data->name, buf + offset); \
-            offset = offset + size;
+        pack##type (&data->name, buf + offset); \
+        offset = offset + size;
     #include "../../src/def/derivedData/timestamp.def"
 }
 
@@ -142,245 +152,331 @@ void OutgoingManagementMessage::packPortIdentity( PortIdentity *p, Octet *buf)
     int offset = 0;
     PortIdentity *data = p;
     #define OPERATE( name, size, type) \
-            pack##type (&data->name, buf + offset); \
-            offset = offset + size;
+        pack##type (&data->name, buf + offset); \
+        offset = offset + size;
     #include "../../src/def/derivedData/portIdentity.def"
 }
 
+/**
+ * @brief Pack a PTPText Structure.
+ * 
+ * @param s     PTPText Structure to pack.
+ * @param buf   Buffer with a message to send.
+ */
 void OutgoingManagementMessage::packPTPText(PTPText *s, Octet *buf)
 {
-	packUInteger8(&s->lengthField, buf);
-	if(s->lengthField) {
-		memcpy( buf+1, s->textField, s->lengthField);
-	}
+    packUInteger8(&s->lengthField, buf);
+    if(s->lengthField) {
+        memcpy( buf+1, s->textField, s->lengthField);
+    }
 }
 
+/**
+ * @brief Pack a User Description ManagementTLV message.
+ * 
+ * @param m     Management message with a User Description ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMUserDescription( MsgManagement* m, Octet *buf)
 {
-	int offset = 0;
-	Octet pad = 0;
-	MMUserDescription* data = (MMUserDescription*)m->tlv->dataField;
-	#define OPERATE( name, size, type ) \
-		pack##type( &data->name,\
-			    buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset); \
-		offset = offset + size;
-	#include "../../src/def/managementTLV/userDescription.def"
+    int offset = 0;
+    Octet pad = 0;
+    MMUserDescription* data = (MMUserDescription*)m->tlv->dataField;
+    #define OPERATE( name, size, type ) \
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset); \
+        offset = offset + size;
+    #include "../../src/def/managementTLV/userDescription.def"
 
-	/* is the TLV length odd? TLV must be even according to Spec 5.3.8 */
-	if(offset % 2) {
-		/* add pad of 1 according to Table 41 to make TLV length even */
-		packOctet(&pad, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset);
-		offset = offset + 1;
-	}
+    /* is the TLV length odd? TLV must be even according to Spec 5.3.8 */
+    if(offset % 2) {
+        /* add pad of 1 according to Table 41 to make TLV length even */
+        packOctet(&pad, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset);
+        offset = offset + 1;
+    }
 
-	/* return length */
-	return offset;
+    /* return length */
+    return offset;
 }
 
+/**
+ * @brief Pack an Initialize ManagementTLV message.
+ * 
+ * @param m     Management message with an Initialize ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMInitialize( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMInitialize* data = (MMInitialize*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/initialize.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Priority1 ManagementTLV message.
+ * 
+ * @param m     Management message with a Priority1 ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMPriority1( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMPriority1* data = (MMPriority1*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/priority1.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Priority2 ManagementTLV message.
+ * 
+ * @param m     Management message with a Priority2 ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMPriority2( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMPriority2* data = (MMPriority2*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/priority2.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Domain ManagementTLV message.
+ * 
+ * @param m     Management message with a Domain ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMDomain( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMDomain* data = (MMDomain*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/domain.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Slave Only ManagementTLV message.
+ * 
+ * @param m     Management message with a Slave Only ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMSlaveOnly( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMSlaveOnly* data = (MMSlaveOnly*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/slaveOnly.def"
 
     /* return length */
     return offset;
 }
 
+/**
+ * @brief Pack a Log Announce Interval ManagementTLV message.
+ * 
+ * @param m     Management message with a Log Announce Interval ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMLogAnnounceInterval( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMLogAnnounceInterval* data = (MMLogAnnounceInterval*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/logAnnounceInterval.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack an Announce Receipt Timeout ManagementTLV message.
+ * 
+ * @param m     Management message with an Announce Receipt Timeout ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMAnnounceReceiptTimeout( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMAnnounceReceiptTimeout* data = (MMAnnounceReceiptTimeout*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/announceReceiptTimeout.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Log Sync Interval ManagementTLV message.
+ * 
+ * @param m     Management message with a Log Sync Interval ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMLogSyncInterval( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMLogSyncInterval* data = (MMLogSyncInterval*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/logSyncInterval.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Version Number ManagementTLV message.
+ * 
+ * @param m     Management message with a Version Number ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMVersionNumber( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMVersionNumber* data = (MMVersionNumber*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/versionNumber.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Time ManagementTLV message.
+ * 
+ * @param m     Management message with a Time ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMTime( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMTime* data = (MMTime*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/time.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Clock Accuracy ManagementTLV message.
+ * 
+ * @param m     Management message with a Clock Accuracy ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMClockAccuracy( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMClockAccuracy* data = (MMClockAccuracy*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/clockAccuracy.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Utc Properties ManagementTLV message.
+ * 
+ * @param m     Management message with a Utc Properties ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMUtcProperties( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMUtcProperties* data = (MMUtcProperties*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/utcProperties.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Traceability Properties ManagementTLV message.
+ * 
+ * @param m     Management message with a Traceability Properties ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMTraceabilityProperties( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMTraceabilityProperties* data = (MMTraceabilityProperties*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/traceabilityProperties.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Delay Mechanism ManagementTLV message.
+ * 
+ * @param m     Management message with a Delay Mechanism ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMDelayMechanism( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMDelayMechanism* data = (MMDelayMechanism*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/delayMechanism.def"
 
     /* return length*/
     return offset;
 }
 
+/**
+ * @brief Pack a Log Min Pdelay Req Interval ManagementTLV message.
+ * 
+ * @param m     Management message with a Log Min Pdelay Req Interval ManagementTLV to pack.
+ * @param buf   Buffer with an outgoing message.
+ */
 UInteger16 OutgoingManagementMessage::packMMLogMinPdelayReqInterval( MsgManagement* m, Octet *buf)
 {
     int offset = 0;
     MMLogMinPdelayReqInterval* data = (MMLogMinPdelayReqInterval*)m->tlv->dataField;
     #define OPERATE( name, size, type ) \
-            pack##type( &data->name,\
-                        buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &data->name, buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/logMinPdelayReqInterval.def"
 
     /* return length*/
@@ -403,8 +499,8 @@ void OutgoingManagementMessage::packMsgHeader(MsgHeader *h, Octet *buf)
     h->reserved2 = 0;
 
     #define OPERATE( name, size, type ) \
-            pack##type( &h->name, buf + offset ); \
-            offset = offset + size;
+        pack##type( &h->name, buf + offset ); \
+        offset = offset + size;
     #include "../../src/def/message/header.def"
 }
 
@@ -424,8 +520,8 @@ void OutgoingManagementMessage::packMsgManagement(MsgManagement *m, Octet *buf)
     m->reserved1 = 0;
 
     #define OPERATE( name, size, type) \
-            pack##type (&data->name, buf + offset); \
-            offset = offset + size;
+        pack##type (&data->name, buf + offset); \
+        offset = offset + size;
     #include "../../src/def/message/management.def"
 
 }
@@ -440,18 +536,30 @@ void OutgoingManagementMessage::packManagementTLV(ManagementTLV *tlv, Octet *buf
 {
     int offset = 0;
     #define OPERATE( name, size, type ) \
-            pack##type( &tlv->name, buf + MANAGEMENT_LENGTH + offset ); \
-            offset = offset + size;
+        pack##type( &tlv->name, buf + MANAGEMENT_LENGTH + offset ); \
+        offset = offset + size;
     #include "../../src/def/managementTLV/managementTLV.def"
 }
 
+/**
+ * @brief Initialize management message packing.
+ * 
+ * @param buf           Buffer with a message to send.
+ * @param outgoing      Management message to pack.
+ */
 void OutgoingManagementMessage::msgPackManagement(Octet *buf, MsgManagement *outgoing)
 {
     DBG("packing management message \n");
     packMsgManagement(outgoing, buf);
 }
 
-/* Pack Management message into OUT buffer */
+/**
+ * @brief Pack Management message into OUT buffer.
+ * 
+ * @param optBuf        Buffer with application options.
+ * @param buf           Buffer to which the message should be packed.
+ * @param outgoing      Outgoing management message to be packed.
+ */
 void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *buf, MsgManagement *outgoing)
 {
     DBG("packing ManagementTLV message \n");
@@ -465,239 +573,62 @@ void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *b
 	case MM_RESET_NON_VOLATILE_STORAGE:
 	case MM_ENABLE_PORT:
 	case MM_DISABLE_PORT:
-            lengthField = 0;
-            break;
-	case MM_CLOCK_DESCRIPTION:
-            lengthField = 0;
-            break;
-//		lengthField = packMMClockDescription(outgoing, buf);
-//		#ifdef PTPD_DBG
-//		mMClockDescription_display(
-//				(MMClockDescription*)outgoing->tlv->dataField, ptpClock);
-//		#endif /* PTPD_DBG */
-//		break;
-        case MM_USER_DESCRIPTION:
-            if (optBuf->action_type == SET)
-                lengthField = packMMUserDescription(outgoing, buf);
-            else
-                lengthField = 0;
-            
-//                lengthField = packMMUserDescription(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMUserDescription_display(
-//                                (MMUserDescription*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-            break;
-        case MM_INITIALIZE:
-            if (optBuf->action_type == COMMAND)
-                lengthField = packMMInitialize(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMInitialize(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMInitialize_display(
-//                                (MMInitialize*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-            break;
+        case MM_CLOCK_DESCRIPTION:
         case MM_DEFAULT_DATA_SET:
-            lengthField = 0;
-            break;
-//                lengthField = packMMDefaultDataSet(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMDefaultDataSet_display(
-//                                (MMDefaultDataSet*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-//                break;
         case MM_CURRENT_DATA_SET:
-            lengthField = 0;
-            break;
-//                lengthField = packMMCurrentDataSet(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMCurrentDataSet_display(
-//                                (MMCurrentDataSet*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-//                break;
         case MM_PARENT_DATA_SET:
-            lengthField = 0;
-            break;
-//                lengthField = packMMParentDataSet(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMParentDataSet_display(
-//                                (MMParentDataSet*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-//                break;
         case MM_TIME_PROPERTIES_DATA_SET:
-            lengthField = 0;
-            break;
-//                lengthField = packMMTimePropertiesDataSet(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMTimePropertiesDataSet_display(
-//                                (MMTimePropertiesDataSet*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-//                break;
         case MM_PORT_DATA_SET:
-            lengthField = 0;
-            break;
-//                lengthField = packMMPortDataSet(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMPortDataSet_display(
-//                                (MMPortDataSet*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-//                break;
-        case MM_PRIORITY1:
-            if (optBuf->action_type == SET)
-                lengthField = packMMPriority1(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMPriority1(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMPriority1_display(
-//                                (MMPriority1*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-            break;
-        case MM_PRIORITY2:
-            if (optBuf->action_type == SET)
-                lengthField = packMMPriority2(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMPriority2(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMPriority2_display(
-//                                (MMPriority2*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-            break;
-        case MM_DOMAIN:
-            if (optBuf->action_type == SET)
-                lengthField = packMMDomain(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMDomain(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMDomain_display(
-//                                (MMDomain*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-                break;
-	case MM_SLAVE_ONLY:
-            if (optBuf->action_type == SET)
-                lengthField = packMMSlaveOnly(outgoing, buf);
-            else
-                lengthField = 0;
-//		lengthField = packMMSlaveOnly(outgoing, buf);
-//		#ifdef PTPD_DBG
-//		mMSlaveOnly_display(
-//				(MMSlaveOnly*)outgoing->tlv->dataField, ptpClock);
-//		#endif /* PTPD_DBG */
-		break;
-        case MM_LOG_ANNOUNCE_INTERVAL:
-            if (optBuf->action_type == SET)
-                lengthField = packMMLogAnnounceInterval(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMLogAnnounceInterval(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMLogAnnounceInterval_display(
-//                                (MMLogAnnounceInterval*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-                break;
-        case MM_ANNOUNCE_RECEIPT_TIMEOUT:
-            if (optBuf->action_type == SET)
-                lengthField = packMMAnnounceReceiptTimeout(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMAnnounceReceiptTimeout(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMAnnounceReceiptTimeout_display(
-//                                (MMAnnounceReceiptTimeout*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-                break;
-        case MM_LOG_SYNC_INTERVAL:
-            if (optBuf->action_type == SET)
-                lengthField = packMMLogSyncInterval(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMLogSyncInterval(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMLogSyncInterval_display(
-//                                (MMLogSyncInterval*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-                break;
-        case MM_VERSION_NUMBER:
-            if (optBuf->action_type == SET)
-                lengthField = packMMVersionNumber(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMVersionNumber(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMVersionNumber_display(
-//                                (MMVersionNumber*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-                break;
         case MM_TIME:
             lengthField = 0;
             break;
-//                lengthField = packMMTime(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMTime_display(
-//                                (MMTime*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-//                break;
+        case MM_USER_DESCRIPTION:
+            lengthField = (optBuf->action_type == SET) ? packMMUserDescription(outgoing, buf) : 0;
+            break;
+        case MM_INITIALIZE:
+            lengthField = (optBuf->action_type == COMMAND) ? packMMInitialize(outgoing, buf) : 0;
+            break;
+        case MM_PRIORITY1:
+            lengthField = (optBuf->action_type == SET) ? packMMPriority1(outgoing, buf) : 0;
+            break;
+        case MM_PRIORITY2:
+            lengthField = (optBuf->action_type == SET) ? packMMPriority2(outgoing, buf) : 0;
+            break;
+        case MM_DOMAIN:
+            lengthField = (optBuf->action_type == SET) ? packMMDomain(outgoing, buf) : 0;
+            break;
+	case MM_SLAVE_ONLY:
+            lengthField = (optBuf->action_type == SET) ? packMMSlaveOnly(outgoing, buf) : 0;
+            break;
+        case MM_LOG_ANNOUNCE_INTERVAL:
+            lengthField = (optBuf->action_type == SET) ? packMMLogAnnounceInterval(outgoing, buf) : 0;
+            break;
+        case MM_ANNOUNCE_RECEIPT_TIMEOUT:
+            lengthField = (optBuf->action_type == SET) ? packMMAnnounceReceiptTimeout(outgoing, buf) : 0;
+            break;
+        case MM_LOG_SYNC_INTERVAL:
+            lengthField = (optBuf->action_type == SET) ? packMMLogSyncInterval(outgoing, buf) : 0;
+            break;
+        case MM_VERSION_NUMBER:
+            lengthField = (optBuf->action_type == SET) ? packMMVersionNumber(outgoing, buf) : 0;
+            break;
         case MM_CLOCK_ACCURACY:
-            if (optBuf->action_type == SET)
-                lengthField = packMMClockAccuracy(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMClockAccuracy(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMClockAccuracy_display(
-//                                (MMClockAccuracy*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-                break;
+            lengthField = (optBuf->action_type == SET) ? packMMClockAccuracy(outgoing, buf) : 0;
+            break;
         case MM_UTC_PROPERTIES:
-            if (optBuf->action_type == SET)
-                lengthField = packMMUtcProperties(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMUtcProperties(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMUtcProperties_display(
-//                                (MMUtcProperties*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-                break;
+            lengthField = (optBuf->action_type == SET) ? packMMUtcProperties(outgoing, buf) : 0;
+            break;
         case MM_TRACEABILITY_PROPERTIES:
-            if (optBuf->action_type == SET)
-                lengthField = packMMTraceabilityProperties(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMTraceabilityProperties(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMTraceabilityProperties_display(
-//                                (MMTraceabilityProperties*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-                break;
+            lengthField = (optBuf->action_type == SET) ? packMMTraceabilityProperties(outgoing, buf) : 0;
+            break;
         case MM_DELAY_MECHANISM:
-            if (optBuf->action_type == SET)
-                lengthField = packMMDelayMechanism(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMDelayMechanism(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMDelayMechanism_display(
-//                                (MMDelayMechanism*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-                break;
+            lengthField = (optBuf->action_type == SET) ? packMMDelayMechanism(outgoing, buf) : 0;
+            break;
         case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
-            if (optBuf->action_type == SET)
-                lengthField = packMMLogMinPdelayReqInterval(outgoing, buf);
-            else
-                lengthField = 0;
-//                lengthField = packMMLogMinPdelayReqInterval(outgoing, buf);
-//                #ifdef PTPD_DBG
-//                mMLogMinPdelayReqInterval_display(
-//                                (MMLogMinPdelayReqInterval*)outgoing->tlv->dataField, ptpClock);
-//                #endif /* PTPD_DBG */
-                break;
+            lengthField = (optBuf->action_type == SET) ? packMMLogMinPdelayReqInterval(outgoing, buf) : 0;
+            break;
 	default:
-		DBG("packing management msg: unsupported id \n");
+            DBG("packing management msg: unsupported id \n");
     }
 
     /* set lengthField */
@@ -744,12 +675,9 @@ void OutgoingManagementMessage::initOutgoingMsgManagement(MsgManagement* outgoin
     outgoing->actionField = 0; /* set default action, avoid uninitialized value */
 
     /* init managementTLV */
-    //XMALLOC(outgoing->tlv, sizeof(ManagementTLV));
-    outgoing->tlv = (ManagementTLV*) malloc (sizeof(ManagementTLV));
+    XMALLOC(outgoing->tlv, ManagementTLV*, sizeof(ManagementTLV));
     outgoing->tlv->dataField = NULL;
 }
-
-
 
 /**
  * @brief Handle management message.
@@ -1143,7 +1071,10 @@ void OutgoingManagementMessage::handleMMNullManagement(MsgManagement* outgoing, 
 }
 
 /**
- * @brief Handle outgoing CLOCK_DESCRIPTION management message
+ * @brief Handle outgoing CLOCK_DESCRIPTION management message.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMClockDescription(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1169,7 +1100,11 @@ void OutgoingManagementMessage::handleMMClockDescription(MsgManagement* outgoing
 }
 
 /**
- * @brief Handle outgoing USER_DESCRIPTION management message type
+ * @brief Handle outgoing USER_DESCRIPTION management message type.
+ * 
+ * @param outgoing              Outgoing management message to handle.
+ * @param actionField           Management message action type.
+ * @param userDescription       User Description to be set.   
  */
 void OutgoingManagementMessage::handleMMUserDescription(MsgManagement* outgoing, Enumeration4 actionField, PTPText userDescription)
 {
@@ -1193,8 +1128,8 @@ void OutgoingManagementMessage::handleMMUserDescription(MsgManagement* outgoing,
             userDescriptionLength = userDescription.lengthField;
             
             if(userDescriptionLength <= USER_DESCRIPTION_MAX) {
-                data = (MMUserDescription*) malloc (sizeof(MMUserDescription));
-                data->userDescription.textField = (Octet*) calloc (userDescriptionLength + 1, sizeof(Octet));
+                XMALLOC(data, MMUserDescription*, sizeof(MMUserDescription));
+                XCALLOC(data->userDescription.textField, Octet*, userDescriptionLength + 1, sizeof(Octet));
                 
                 memcpy(data->userDescription.textField, userDescription.textField, userDescriptionLength);
                 data->userDescription.textField[userDescription.lengthField] = '\0';
@@ -1219,7 +1154,10 @@ void OutgoingManagementMessage::handleMMUserDescription(MsgManagement* outgoing,
 }
 
 /**
- * @brief Handle incoming SAVE_IN_NON_VOLATILE_STORAGE management message type
+ * @brief Handle incoming SAVE_IN_NON_VOLATILE_STORAGE management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMSaveInNonVolatileStorage(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1243,7 +1181,10 @@ void OutgoingManagementMessage::handleMMSaveInNonVolatileStorage(MsgManagement* 
 }
 
 /**
- * @brief Handle incoming RESET_NON_VOLATILE_STORAGE management message type
+ * @brief Handle incoming RESET_NON_VOLATILE_STORAGE management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMResetNonVolatileStorage(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1267,7 +1208,11 @@ void OutgoingManagementMessage::handleMMResetNonVolatileStorage(MsgManagement* o
 }
 
 /**
- * @brief Handle incoming INITIALIZE management message type
+ * @brief Handle incoming INITIALIZE management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
+ * @param initializeKey Initialize Key to be used.
  */
 void OutgoingManagementMessage::handleMMInitialize(MsgManagement* outgoing, Enumeration4 actionField, Enumeration16 initializeKey)
 {
@@ -1286,7 +1231,7 @@ void OutgoingManagementMessage::handleMMInitialize(MsgManagement* outgoing, Enum
     {
         case COMMAND:
             DBG(" COMMAND action\n");
-            data = (MMInitialize*) malloc (sizeof(MMInitialize));
+            XMALLOC(data, MMInitialize*, sizeof(MMInitialize));
             
             /* Table 45 - INITIALIZATION_KEY enumeration */
             switch( initializeKey )
@@ -1311,7 +1256,10 @@ void OutgoingManagementMessage::handleMMInitialize(MsgManagement* outgoing, Enum
 }
 
 /**
- * @brief Handle outgoing DEFAULT_DATA_SET management message type
+ * @brief Handle outgoing DEFAULT_DATA_SET management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMDefaultDataSet(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1337,7 +1285,10 @@ void OutgoingManagementMessage::handleMMDefaultDataSet(MsgManagement* outgoing, 
 }
 
 /**
- * @brief Handle outgoing CURRENT_DATA_SET management message type
+ * @brief Handle outgoing CURRENT_DATA_SET management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMCurrentDataSet(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1363,7 +1314,10 @@ void OutgoingManagementMessage::handleMMCurrentDataSet(MsgManagement* outgoing, 
 }
 
 /**
- * @brief Handle outgoing PARENT_DATA_SET management message type
+ * @brief Handle outgoing PARENT_DATA_SET management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMParentDataSet(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1389,7 +1343,10 @@ void OutgoingManagementMessage::handleMMParentDataSet(MsgManagement* outgoing, E
 }
 
 /**
- * @brief Handle outgoing PROPERTIES_DATA_SET management message type
+ * @brief Handle outgoing PROPERTIES_DATA_SET management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMTimePropertiesDataSet(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1415,7 +1372,10 @@ void OutgoingManagementMessage::handleMMTimePropertiesDataSet(MsgManagement* out
 }
 
 /**
- * @brief Handle outgoing PORT_DATA_SET management message type
+ * @brief Handle outgoing PORT_DATA_SET management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMPortDataSet(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1441,7 +1401,11 @@ void OutgoingManagementMessage::handleMMPortDataSet(MsgManagement* outgoing, Enu
 }
 
 /**
- * @brief Handle outgoing PRIORITY1 management message type
+ * @brief Handle outgoing PRIORITY1 management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
+ * @param priority1     Priority1 to be set.
  */
 void OutgoingManagementMessage::handleMMPriority1(MsgManagement* outgoing, Enumeration4 actionField, UInteger8 priority1)
 {
@@ -1460,7 +1424,7 @@ void OutgoingManagementMessage::handleMMPriority1(MsgManagement* outgoing, Enume
     {
         case SET:
             DBG(" SET action\n");
-            data = (MMPriority1*) malloc (sizeof(MMPriority1));
+            XMALLOC(data, MMPriority1*, sizeof(MMPriority1));
 
             data->priority1 = priority1;
 
@@ -1478,7 +1442,11 @@ void OutgoingManagementMessage::handleMMPriority1(MsgManagement* outgoing, Enume
 }
 
 /**
- * @brief Handle outgoing PRIORITY2 management message type
+ * @brief Handle outgoing PRIORITY2 management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
+ * @param priority2     Priority2 to be set.
  */
 void OutgoingManagementMessage::handleMMPriority2(MsgManagement* outgoing, Enumeration4 actionField, UInteger8 priority2)
 {
@@ -1497,7 +1465,7 @@ void OutgoingManagementMessage::handleMMPriority2(MsgManagement* outgoing, Enume
     {
         case SET:
             DBG(" SET action\n");
-            data = (MMPriority2*) malloc (sizeof(MMPriority2));
+            XMALLOC(data, MMPriority2*, sizeof(MMPriority2));
 
             data->priority2 = priority2;
 
@@ -1515,7 +1483,11 @@ void OutgoingManagementMessage::handleMMPriority2(MsgManagement* outgoing, Enume
 }
 
 /**
- * @brief Handle outgoing DOMAIN management message type
+ * @brief Handle outgoing DOMAIN management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
+ * @param domainNumber  Domain Number to be set.
  */
 void OutgoingManagementMessage::handleMMDomain(MsgManagement* outgoing, Enumeration4 actionField, UInteger8 domainNumber)
 {
@@ -1534,7 +1506,7 @@ void OutgoingManagementMessage::handleMMDomain(MsgManagement* outgoing, Enumerat
     {
         case SET:
             DBG(" SET action\n");
-            data = (MMDomain*) malloc (sizeof(MMDomain));
+            XMALLOC(data, MMDomain*, sizeof(MMDomain));
 
             data->domainNumber = domainNumber;
 
@@ -1552,7 +1524,11 @@ void OutgoingManagementMessage::handleMMDomain(MsgManagement* outgoing, Enumerat
 }
 
 /**
- * @brief Handle outgoing SLAVE_ONLY management message type
+ * @brief Handle outgoing SLAVE_ONLY management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
+ * @param so            Slave Only property to be set.
  */
 void OutgoingManagementMessage::handleMMSlaveOnly(MsgManagement* outgoing, Enumeration4 actionField, Boolean so)
 {
@@ -1571,7 +1547,7 @@ void OutgoingManagementMessage::handleMMSlaveOnly(MsgManagement* outgoing, Enume
     {
         case SET:
             DBG(" SET action \n");
-            data = (MMSlaveOnly*) malloc (sizeof(MMSlaveOnly));
+            XMALLOC(data, MMSlaveOnly*, sizeof(MMSlaveOnly));
             
             data->so = so;
 
@@ -1589,7 +1565,11 @@ void OutgoingManagementMessage::handleMMSlaveOnly(MsgManagement* outgoing, Enume
 }
 
 /**
- * @brief Handle outgoing LOG_ANNOUNCE_INTERVAL management message type
+ * @brief Handle outgoing LOG_ANNOUNCE_INTERVAL management message type.
+ * 
+ * @param outgoing              Outgoing management message to handle.
+ * @param actionField           Management message action type.
+ * @param logAnnounceInterval   Log Announce Interval to be set.
  */
 void OutgoingManagementMessage::handleMMLogAnnounceInterval(MsgManagement* outgoing, Enumeration4 actionField, Integer8 logAnnounceInterval)
 {
@@ -1608,7 +1588,7 @@ void OutgoingManagementMessage::handleMMLogAnnounceInterval(MsgManagement* outgo
     {
         case SET:
             DBG(" SET action\n");
-            data = (MMLogAnnounceInterval*) malloc (sizeof(MMLogAnnounceInterval));
+            XMALLOC(data, MMLogAnnounceInterval*, sizeof(MMLogAnnounceInterval));
             
             data->logAnnounceInterval = logAnnounceInterval;
 
@@ -1626,7 +1606,11 @@ void OutgoingManagementMessage::handleMMLogAnnounceInterval(MsgManagement* outgo
 }
 
 /**
- * @brief Handle outgoing ANNOUNCE_RECEIPT_TIMEOUT management message type
+ * @brief Handle outgoing ANNOUNCE_RECEIPT_TIMEOUT management message type.
+ * 
+ * @param outgoing                      Outgoing management message to handle.
+ * @param actionField                   Management message action type.
+ * @param announceReceiptTimeout        Announce Receipt Timeout to be set.
  */
 void OutgoingManagementMessage::handleMMAnnounceReceiptTimeout(MsgManagement* outgoing, Enumeration4 actionField, UInteger8 announceReceiptTimeout)
 {
@@ -1645,7 +1629,7 @@ void OutgoingManagementMessage::handleMMAnnounceReceiptTimeout(MsgManagement* ou
     {
         case SET:
             DBG(" SET action\n");
-            data = (MMAnnounceReceiptTimeout*) malloc (sizeof(MMAnnounceReceiptTimeout));
+            XMALLOC(data, MMAnnounceReceiptTimeout*, sizeof(MMAnnounceReceiptTimeout));
             
             data->announceReceiptTimeout = announceReceiptTimeout;
 
@@ -1663,7 +1647,11 @@ void OutgoingManagementMessage::handleMMAnnounceReceiptTimeout(MsgManagement* ou
 }
 
 /**
- * @brief Handle outgoing LOG_SYNC_INTERVAL management message type
+ * @brief Handle outgoing LOG_SYNC_INTERVAL management message type.
+ * 
+ * @param outgoing              Outgoing management message to handle.
+ * @param actionField           Management message action type.
+ * @param logSyncInterval       Log Sync Interval to be set.
  */
 void OutgoingManagementMessage::handleMMLogSyncInterval(MsgManagement* outgoing, Enumeration4 actionField, Integer8 logSyncInterval)
 {
@@ -1682,7 +1670,7 @@ void OutgoingManagementMessage::handleMMLogSyncInterval(MsgManagement* outgoing,
     {
 	case SET:
             DBG(" SET action\n");
-            data = (MMLogSyncInterval*) malloc (sizeof(MMLogSyncInterval));
+            XMALLOC(data, MMLogSyncInterval*, sizeof(MMLogSyncInterval));
             
             data->logSyncInterval = logSyncInterval;
 
@@ -1701,7 +1689,11 @@ void OutgoingManagementMessage::handleMMLogSyncInterval(MsgManagement* outgoing,
 }
 
 /**
- * @brief Handle outgoing VERSION_NUMBER management message type
+ * @brief Handle outgoing VERSION_NUMBER management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
+ * @param versionNumber Version Number to be set.
  */
 void OutgoingManagementMessage::handleMMVersionNumber(MsgManagement* outgoing, Enumeration4 actionField, UInteger4Lower versionNumber)
 {
@@ -1720,7 +1712,7 @@ void OutgoingManagementMessage::handleMMVersionNumber(MsgManagement* outgoing, E
     {
 	case SET:
             DBG(" SET action\n");
-            data = (MMVersionNumber*) malloc (sizeof(MMVersionNumber));
+            XMALLOC(data, MMVersionNumber*, sizeof(MMVersionNumber));
             
             data->versionNumber = versionNumber;
 
@@ -1739,7 +1731,10 @@ void OutgoingManagementMessage::handleMMVersionNumber(MsgManagement* outgoing, E
 }
 
 /**
- * @brief Handle outgoing ENABLE_PORT management message type
+ * @brief Handle outgoing ENABLE_PORT management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMEnablePort(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1765,7 +1760,10 @@ void OutgoingManagementMessage::handleMMEnablePort(MsgManagement* outgoing, Enum
 }
 
 /**
- * @brief Handle outgoing DISABLE_PORT management message type
+ * @brief Handle outgoing DISABLE_PORT management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMDisablePort(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1791,7 +1789,10 @@ void OutgoingManagementMessage::handleMMDisablePort(MsgManagement* outgoing, Enu
 }
 
 /**
- * @brief Handle outgoing TIME management message type
+ * @brief Handle outgoing TIME management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMTime(MsgManagement* outgoing, Enumeration4 actionField/*, Timestamp currentTime*/)
 {
@@ -1811,7 +1812,7 @@ void OutgoingManagementMessage::handleMMTime(MsgManagement* outgoing, Enumeratio
         case SET:
             DBG(" SET action\n");
     /* commented out to suppress unused variable compiler warning */
-//            data = (MMTime*) malloc (sizeof(MMTime));
+//            XMALLOC(data, MMTime*, sizeof(MMTime));
 //            
 //            data->currentTime = currentTime;
 //
@@ -1829,7 +1830,11 @@ void OutgoingManagementMessage::handleMMTime(MsgManagement* outgoing, Enumeratio
 }
 
 /**
- * @brief Handle outgoing CLOCK_ACCURACY management message type
+ * @brief Handle outgoing CLOCK_ACCURACY management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
+ * @param clockAccuracy Clock Accuracy to be set.
  */
 void OutgoingManagementMessage::handleMMClockAccuracy(MsgManagement* outgoing, Enumeration4 actionField, Enumeration8 clockAccuracy)
 {
@@ -1848,7 +1853,7 @@ void OutgoingManagementMessage::handleMMClockAccuracy(MsgManagement* outgoing, E
     {
         case SET:
             DBG(" SET action\n");
-            data = (MMClockAccuracy*) malloc (sizeof(MMClockAccuracy));
+            XMALLOC(data, MMClockAccuracy*, sizeof(MMClockAccuracy));
             
             data->clockAccuracy = clockAccuracy;
 
@@ -1866,7 +1871,10 @@ void OutgoingManagementMessage::handleMMClockAccuracy(MsgManagement* outgoing, E
 }
 
 /**
- * @brief Handle outgoing UTC_PROPERTIES management message type
+ * @brief Handle outgoing UTC_PROPERTIES management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMUtcProperties(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1885,10 +1893,10 @@ void OutgoingManagementMessage::handleMMUtcProperties(MsgManagement* outgoing, E
     {
         case SET:
             DBG(" SET action\n");
-            data = (MMUtcProperties*) malloc (sizeof(MMUtcProperties));
+            XMALLOC(data, MMUtcProperties*, sizeof(MMUtcProperties));
             
             Integer16 currentUtcOffset;
-            UInteger8 utcv, li59, li61;
+            bool utcv, li59, li61;
             
             printf("Values to set: \n");
             printf(" currentUtcOffset: ");
@@ -1902,8 +1910,14 @@ void OutgoingManagementMessage::handleMMUtcProperties(MsgManagement* outgoing, E
             printf("\n");
 
             data->currentUtcOffset = currentUtcOffset;
-            //data->utcv_li59_li61 = utcv | li59 | li61;
-            data->utcv_li59_li61 = (utcv<<2 & 0x04) | (li59<<1 & 0x02) | (li61 & 0x01);
+            data->utcv_li59_li61 = 0;
+            
+            if (utcv)
+                SET_BIT(data->utcv_li59_li61, UTCV);
+            if (li59)
+                SET_BIT(data->utcv_li59_li61, LI59);
+            if(li61)
+                SET_BIT(data->utcv_li59_li61, LI61);
             
             outgoing->tlv->dataField = (Octet*) data;
             break;
@@ -1919,7 +1933,10 @@ void OutgoingManagementMessage::handleMMUtcProperties(MsgManagement* outgoing, E
 }
 
 /**
- * @brief Handle outgoing TRACEABILITY_PROPERTIES management message type
+ * @brief Handle outgoing TRACEABILITY_PROPERTIES management message type.
+ * 
+ * @param outgoing      Outgoing management message to handle.
+ * @param actionField   Management message action type.
  */
 void OutgoingManagementMessage::handleMMTraceabilityProperties(MsgManagement* outgoing, Enumeration4 actionField)
 {
@@ -1938,7 +1955,7 @@ void OutgoingManagementMessage::handleMMTraceabilityProperties(MsgManagement* ou
     {
         case SET:
             DBG(" SET action\n");
-            data = (MMTraceabilityProperties*) malloc (sizeof(MMTraceabilityProperties));
+            XMALLOC(data, MMTraceabilityProperties*, sizeof(MMTraceabilityProperties));
             
             UInteger8 ftra, ttra;
             
@@ -1949,7 +1966,12 @@ void OutgoingManagementMessage::handleMMTraceabilityProperties(MsgManagement* ou
             scanf("%hhu", &ttra);
             printf("\n");
 
-            data->ftra_ttra = ftra | ttra;
+            data->ftra_ttra = 0;
+            
+            if (ftra)
+                SET_BIT(data->ftra_ttra, FTRA);
+            if (ttra)
+                SET_BIT(data->ftra_ttra, TTRA);
 
             outgoing->tlv->dataField = (Octet*) data;
             break;
@@ -1965,7 +1987,11 @@ void OutgoingManagementMessage::handleMMTraceabilityProperties(MsgManagement* ou
 }
 
 /**
- * @brief Handle outgoing DELAY_MECHANISM management message type
+ * @brief Handle outgoing DELAY_MECHANISM management message type.
+ * 
+ * @param outgoing              Outgoing management message to handle.
+ * @param actionField           Management message action type.
+ * @param delayMechanism        Delay Mechanism to be set.
  */
 void OutgoingManagementMessage::handleMMDelayMechanism(MsgManagement* outgoing, Enumeration4 actionField, Enumeration8 delayMechanism)
 {
@@ -1984,7 +2010,7 @@ void OutgoingManagementMessage::handleMMDelayMechanism(MsgManagement* outgoing, 
     {
         case SET:
             DBG(" SET action\n");
-            data = (MMDelayMechanism*) malloc (sizeof(MMDelayMechanism));
+            XMALLOC(data, MMDelayMechanism*, sizeof(MMDelayMechanism));
             
             data->delayMechanism = delayMechanism;
 
@@ -2001,8 +2027,56 @@ void OutgoingManagementMessage::handleMMDelayMechanism(MsgManagement* outgoing, 
     }
 }
 
+/*-
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
+ *                         National Instruments,
+ *                         Tomasz Kleinschmidt
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
+ * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ *
+ * All Rights Reserved
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 /**
- * @brief Handle outgoing LOG_MIN_PDELAY_REQ_INTERVAL management message type
+ * @brief Handle outgoing LOG_MIN_PDELAY_REQ_INTERVAL management message type.
+ * 
+ * @param outgoing                      Outgoing management message to handle.
+ * @param actionField                   Management message action type.
+ * @param logMinPdelayReqInterval       Log Min Pdelay Req Interval to be set.
  */
 void OutgoingManagementMessage::handleMMLogMinPdelayReqInterval(MsgManagement* outgoing, Enumeration4 actionField, Integer8 logMinPdelayReqInterval)
 {
@@ -2021,7 +2095,7 @@ void OutgoingManagementMessage::handleMMLogMinPdelayReqInterval(MsgManagement* o
     {
         case SET:
             DBG(" SET action\n");
-            data = (MMLogMinPdelayReqInterval*) malloc (sizeof(MMLogMinPdelayReqInterval));
+            XMALLOC(data, MMLogMinPdelayReqInterval*, sizeof(MMLogMinPdelayReqInterval));
             
             data->logMinPdelayReqInterval = logMinPdelayReqInterval;
 
