@@ -1,7 +1,50 @@
-/**
- * @file   network.c
- * @date   Thurs July 5 01:24:10 2012
+/*-
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
+ * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ *
+ * All Rights Reserved
  * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
+ /**
+ * @file   network.c
+ * @date   Thurs July 5 01:24:10 2012 IST
+ * @author Himanshu Singh
  * @brief  Functions to intialize network, send and receive packets and close 
  *         network.
  */
@@ -17,14 +60,14 @@ netInit(char *ifaceName)
 	struct sockaddr_in addr;
 	
 	/* open sockets */
-	if ((netPath->generalSock = socket(PF_INET, SOCK_DGRAM, 
+	if ((generalSock = socket(PF_INET, SOCK_DGRAM, 
 					      IPPROTO_UDP)) < 0) {
 		printf("failed to initalize sockets");
 		return (FALSE);
 	}
 	
 	temp = 1;			/* allow address reuse */
-	if (setsockopt(netPath->generalSock, SOL_SOCKET, SO_REUSEADDR, 
+	if (setsockopt(generalSock, SOL_SOCKET, SO_REUSEADDR, 
 			  &temp, sizeof(int)) < 0) {
 		printf("failed to set socket reuse\n");
 	}
@@ -35,7 +78,7 @@ netInit(char *ifaceName)
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
-	if (bind(netPath->generalSock, (struct sockaddr *)&addr, 
+	if (bind(generalSock, (struct sockaddr *)&addr, 
 		 sizeof(struct sockaddr_in)) < 0) {
 		printf("failed to bind general socket");
 		return (FALSE);
@@ -52,7 +95,7 @@ netInit(char *ifaceName)
 	 *   http://developerweb.net/viewtopic.php?id=6471
 	 *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
 	 */
-	if (setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINDTODEVICE,
+	if (setsockopt(generalSock, SOL_SOCKET, SO_BINDTODEVICE,
 			ifaceName, strlen(ifaceName)) < 0){
 			
 		printf("failed to call SO_BINDTODEVICE on the interface\n");
@@ -79,9 +122,9 @@ netSendGeneral(Octet * buf, UInteger16 length, char *ip)
 		printf("\nAddress family is not supproted by this function\n");
 		return (0);
 	}
-	ret = sendto(netPath->generalSock, buf, out_length, 0, 
+
+	ret = sendto(generalSock, buf, out_length, 0, 
 			(struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-	printf("\n\n%d\n\n",ret);
 	if (ret <= 0)
 	printf("error sending uni-cast general message\n");
 
@@ -110,14 +153,14 @@ netRecv(Octet *message, char *dest)
    	struct timeval timeout_val;
     
     FD_ZERO(&socks);
-    FD_SET(netPath->generalSock, &socks);
+    FD_SET(generalSock, &socks);
     
     timeout_val.tv_sec = timeout;
     timeout_val.tv_usec = 0;
 	
-	if ((ret_select = select(netPath->generalSock + 1, &socks, NULL, NULL, 
+	if ((ret_select = select(generalSock + 1, &socks, NULL, NULL, 
 			&timeout_val)) != 0) {
-		ret = recvfrom(netPath->generalSock, message, PACKET_SIZE , 0 , 
+		ret = recvfrom(generalSock, message, PACKET_SIZE , 0 , 
 							(struct sockaddr *)&client_addr, &len);
 		if (ret == 0 || (strcmp(inet_ntop(AF_INET, &(client_addr.sin_addr), srcIp, 
 				sizeof(srcIp)), dest) == 0))
@@ -140,9 +183,9 @@ netRecv(Octet *message, char *dest)
 Boolean 
 netShutdown()
 {
-	if (netPath->generalSock > 0)
-		close(netPath->generalSock);
-	netPath->generalSock = -1;
+	if (generalSock > 0)
+		close(generalSock);
+	generalSock = -1;
 
 	return TRUE;
 }

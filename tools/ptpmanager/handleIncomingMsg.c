@@ -1,7 +1,50 @@
-/**
- * @file   handleIncomingMsg.c
- * @date   Thurs July 5 01:40:38 2012
+/*-
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
+ * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ *
+ * All Rights Reserved
  * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
+ /**
+ * @file   handleIncomingMsg.c
+ * @date   Thurs July 5 01:40:38 2012 IST
+ * @author Himanshu Singh
  * @brief  Functions  to parse the response/ack/error message received after 
  *         sending a management message and displays the field values 
  *         received message.
@@ -9,12 +52,14 @@
 
 #include "ptpmanager.h"
 
+/* Unpack ClockIdentity Structure */
 void
 unpackClockIdentity(ClockIdentity dest, ClockIdentity src)
 {
 	memcpy(dest, src, CLOCK_IDENTITY_LENGTH);
 }
 
+/*Unpack Port Identity structure */
 void
 unpackPortIdentity(PortIdentity *dest, Octet *src)
 {
@@ -22,6 +67,7 @@ unpackPortIdentity(PortIdentity *dest, Octet *src)
 	dest->portNumber = flip16(*((UInteger16*)(src + 8)));
 }
 
+/*Unpack Clock Quality structure */
 void
 unpackClockQuality(ClockQuality *dest, Octet *src)
 {
@@ -30,6 +76,7 @@ unpackClockQuality(ClockQuality *dest, Octet *src)
 	dest->offsetScaledLogVariance = flip16(*(UInteger16*)(src + 2));
 }
 
+/* brief display clockIdentity*/
 display_clockIdentity(ClockIdentity clockIdentity)
 {
 	printf("	clockIdentity = "
@@ -38,6 +85,7 @@ display_clockIdentity(ClockIdentity clockIdentity)
 	    clockIdentity[4], clockIdentity[5], clockIdentity[6], clockIdentity[7]);
 }
 
+/* brief display portIdentity*/
 void
 display_portIdentity(PortIdentity *portIdentity)
 {
@@ -81,6 +129,7 @@ clockUUID_display(Octet * sourceUuid)
 	);
 }
 
+/**\brief Display Common Header of all messages*/
 void
 display_commonHeader(MsgHeader *header)
 {
@@ -101,7 +150,7 @@ display_commonHeader(MsgHeader *header)
 	printf("\n");
 }
 
-/**@brief Display Management message*/
+/**\brief Display Management header*/
 void display_managementHeader(MsgManagement * manage)
 {
     printf("\nManagement Message :: \n");
@@ -112,7 +161,7 @@ void display_managementHeader(MsgManagement * manage)
     printf("actionField : %d\n", manage->actionField);
 }
 
-/**@brief Display Management message*/
+/**\brief Display tlv header*/
 void display_tlvHeader(ManagementTLV * tlv)
 {
 	tlv->tlvType = flip16(*(UInteger16 *) (inmessage + 48));
@@ -167,9 +216,9 @@ unpackManagementHeader(Octet *inmessage, MsgManagement *manage)
 //	display_managementHeader(manage);
 }
 
-
+/* Handle and display UserDescription*/
 void
-handleUserDescription(MsgManagement *manage)
+handleUserDescription( )
 {
 	MMUserDescription *data = (MMUserDescription *)(inmessage + 54);
 	int offset = 54;
@@ -177,8 +226,9 @@ handleUserDescription(MsgManagement *manage)
 	PTPText_display(&offset);	
 }
 
+/* Unpack and display ClockDescription */
 void 
-handleClockDescription(MsgManagement *manage)
+handleClockDescription( )
 {
 	MMClockDescription* data = (MMClockDescription *)(inmessage + 54);
 	int offset = 54, len;
@@ -248,8 +298,9 @@ handleClockDescription(MsgManagement *manage)
 	printf("profileIdentity5 : %hhu \n", data->profileIdentity5);
 }
 
+/* unpack and display default data set */
 void
-handleDefaultDataSet(MsgManagement *manage)
+handleDefaultDataSet( )
 {
 	MMDefaultDataSet* data = (MMDefaultDataSet *)(inmessage + 54);
 
@@ -274,8 +325,9 @@ handleDefaultDataSet(MsgManagement *manage)
 
 }
 
+/*Unpack and display ParentDataSet */
 void
-handleParentDataSet(MsgManagement *manage)
+handleParentDataSet( )
 {
 	MMParentDataSet* data = (MMParentDataSet *)(inmessage + 54);
 	unpackPortIdentity(&(data->parentPortIdentity),inmessage + 54);
@@ -307,29 +359,33 @@ handleParentDataSet(MsgManagement *manage)
 
 }
 
+/* Unpack and Display Priority1 */
 void
-handlePriority1(MsgManagement *manage)
+handlePriority1( )
 {
 	MMPriority1* data = (MMPriority1 *)(inmessage + 54);
 	printf("Priority1 = %hhu\n",data->priority1);
 }
 
+/* Unpack and display Priority2*/
 void
-handlePriority2(MsgManagement *manage)
+handlePriority2( )
 {
 	MMPriority2* data = (MMPriority2 *)(inmessage + 54);
 	printf("Priority2 = %hhu\n",data->priority2);
 }
 
+/* Unpack and display Domain*/
 void
-handleDomain(MsgManagement *manage)
+handleDomain( )
 {
 	MMDomain* data = (MMDomain*)(inmessage + 54);
 	printf("Domain = %hhu\n",data->domainNumber);
 }
 
+/* Unpack and display SlaveOnly*/
 void
-handleSlaveOnly(MsgManagement *manage)
+handleSlaveOnly( )
 {
 	MMSlaveOnly* data = (MMSlaveOnly*)(inmessage + 54);
 	if ((data->so && 01) == 0)
@@ -338,36 +394,41 @@ handleSlaveOnly(MsgManagement *manage)
 		printf("SlaveOnly = True\n");
 }
 
+/* Unpack and display LogAnnounceInterval */
 void
-handleLogAnnounceInterval(MsgManagement *manage)
+handleLogAnnounceInterval( )
 {
 	MMLogAnnounceInterval* data = (MMLogAnnounceInterval*)(inmessage + 54);
 	printf("LogAnnounceInterval = %hhd\n",data->logAnnounceInterval);
 }
 
+/* Unpack and display AnnounceReceiptTimeout */
 void
-handleAnnounceReceiptTimeout(MsgManagement *manage)
+handleAnnounceReceiptTimeout( )
 {
 	MMAnnounceReceiptTimeout* data = (MMAnnounceReceiptTimeout*)(inmessage + 54);
 	printf("AnnounceReceiptTimeout = %hhu\n",data->announceReceiptTimeout);
 }
 
+/* Unpack and display LogSyncInterval */
 void
-handleLogSyncInterval(MsgManagement *manage)
+handleLogSyncInterval( )
 {
 	MMLogSyncInterval* data = (MMLogSyncInterval*)(inmessage + 54);
 	printf("LogSyncInterval = %hhd\n",data->logSyncInterval);
 }
 
+/* Unpack and display VersionNumber */
 void
-handleVersionNumber(MsgManagement *manage)
+handleVersionNumber( )
 {
 	MMVersionNumber* data = (MMVersionNumber*)(inmessage + 54);
 	printf("VersionNumber = %hhu\n",data->versionNumber);
 }
 
+/* Unpack and display ClockAccuracy */
 void
-handleClockAccuracy(MsgManagement *manage)
+handleClockAccuracy( )
 {
 	MMClockAccuracy* data = (MMClockAccuracy*)(inmessage + 54);
 	printf("ClockAccuracy = %hhu\n",data->clockAccuracy);
@@ -431,8 +492,9 @@ handleClockAccuracy(MsgManagement *manage)
 	}
 }
 
+/* Unpack and displayUtcProperties*/
 void
-handleUtcProperties(MsgManagement *manage)
+handleUtcProperties( )
 {
 	MMUtcProperties* data = (MMUtcProperties*)(inmessage + 54);
 	printf("currentUtcOffset = %hd\n",data->currentUtcOffset);
@@ -452,8 +514,9 @@ handleUtcProperties(MsgManagement *manage)
 		printf("L1-61 = True\n");
 }
 
+/* Unpack and display TraceabilityProperties*/
 void
-handleTraceabilityProperties(MsgManagement *manage)
+handleTraceabilityProperties( )
 {
 	MMTraceabilityProperties* data = (MMTraceabilityProperties*)(inmessage + 54);
 	if ((data->ftra_ttra & 0x20) == 0)
@@ -468,23 +531,25 @@ handleTraceabilityProperties(MsgManagement *manage)
 		
 }
 
+/* Unpack and display DelayMechanism*/
 void
-handleDelayMechanism(MsgManagement *manage)
+handleDelayMechanism( )
 {
 	MMDelayMechanism* data = (MMDelayMechanism*)(inmessage + 54);
 	printf("DelayMechanism = %hhu\n",data->delayMechanism);
 }
 
+/* Handle and display LogMinRequirements */
 void
-handleLogMinRequirement(MsgManagement *manage)
+handleLogMinRequirement( )
 {
 	MMLogMinPdelayReqInterval* data = (MMLogMinPdelayReqInterval*)(inmessage + 54);
 	printf("LogMinPdelayReqInterval = %hhu\n",data->logMinPdelayReqInterval);
 }
 
-
+/* Unpack and display CurrentDataSet */
 void
-handleCurrentDataSet(MsgManagement *manage)
+handleCurrentDataSet( )
 {
 	MMCurrentDataSet* data = (MMCurrentDataSet*)(inmessage + 54);
 	printf("currentDS.stepsRemoved = %hu\n",data->stepsRemoved);
@@ -499,8 +564,9 @@ handleCurrentDataSet(MsgManagement *manage)
 	
 }
 
+/* Unpack and display TimePropertiesDataSet */
 void
-handleTimePropertiesDataSet(MsgManagement *manage)
+handleTimePropertiesDataSet( )
 {
 	MMTimePropertiesDataSet* data = (MMTimePropertiesDataSet*)(inmessage + 54);
 	printf("LogMinPdelayReqInterval = %hu\n",data->currentUtcOffset);
@@ -533,9 +599,9 @@ handleTimePropertiesDataSet(MsgManagement *manage)
 	
 }
 
-
+/* Unpack and display PortDataSet */
 void
-handlePortDataSet(MsgManagement *manage)
+handlePortDataSet()
 {
 	MMPortDataSet* data = (MMPortDataSet*)(inmessage + 54);
 	unpackPortIdentity(&(data->portIdentity),inmessage + 54);
@@ -557,9 +623,13 @@ handlePortDataSet(MsgManagement *manage)
 	
 }
 
-/*Function to handle management response and display the required fields*/
+/* Function to handle management response and display the required fields.
+ * This function is called only when a message is received with
+ * 'Response' actionfield. Appropriate handling function is called on the 
+ * basis of managementId. 
+ */
 void 
-handleManagementResponse(Octet *inmessage, MsgManagement *manage)
+handleManagementResponse(MsgManagement *manage)
 {
 	printf("Received a RESPONSE management message.\n");
 	
@@ -569,64 +639,64 @@ handleManagementResponse(Octet *inmessage, MsgManagement *manage)
     	break;
 
     case MM_USER_DESCRIPTION:
-    	handleUserDescription(manage);
+    	handleUserDescription();
     	break;
     case MM_PRIORITY1:
-       	handlePriority1(manage);
+       	handlePriority1();
     	break;
     case MM_PRIORITY2:
-       	handlePriority2(manage);
+       	handlePriority2();
     	break;
     case MM_DOMAIN:
-       	handleDomain(manage);
+       	handleDomain();
        	break;
     case MM_SLAVE_ONLY:
-       	handleSlaveOnly(manage);
+       	handleSlaveOnly();
        	break;
     case MM_LOG_ANNOUNCE_INTERVAL:
-       	handleLogAnnounceInterval(manage);
+       	handleLogAnnounceInterval();
        	break;
     case MM_ANNOUNCE_RECEIPT_TIMEOUT:
-       	handleAnnounceReceiptTimeout(manage);
+       	handleAnnounceReceiptTimeout();
        	break;
     case MM_LOG_SYNC_INTERVAL:
-       	handleLogSyncInterval(manage);
+       	handleLogSyncInterval();
        	break;
     case MM_VERSION_NUMBER:
-       	handleVersionNumber(manage);
+       	handleVersionNumber();
        	break;
     case MM_CLOCK_ACCURACY:
-       	handleClockAccuracy(manage);
+       	handleClockAccuracy();
        	break;
     case MM_UTC_PROPERTIES:
-       	handleUtcProperties(manage);
+       	handleUtcProperties();
        	break;
     case MM_TRACEABILITY_PROPERTIES:
-       	handleTraceabilityProperties(manage);
+       	handleTraceabilityProperties();
        	break;
     case MM_DELAY_MECHANISM:
-       	handleDelayMechanism(manage);
+       	handleDelayMechanism();
        	break;
     case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
-    	handleLogMinRequirement(manage);
+    	handleLogMinRequirement();
 	    break;
     case MM_CURRENT_DATA_SET:
-    	handleCurrentDataSet(manage);
+    	handleCurrentDataSet();
     	break;
     case MM_TIME_PROPERTIES_DATA_SET:
-    	handleTimePropertiesDataSet(manage);
+    	handleTimePropertiesDataSet();
     	break;
     case MM_PORT_DATA_SET:
-    	handlePortDataSet(manage);
+    	handlePortDataSet();
     	break;
     case MM_PARENT_DATA_SET:
-    	handleParentDataSet(manage);
+    	handleParentDataSet();
     	break;
     case MM_DEFAULT_DATA_SET:
-    	handleDefaultDataSet(manage);
+    	handleDefaultDataSet();
     	break;
     case MM_CLOCK_DESCRIPTION:
-    	handleClockDescription(manage);
+    	handleClockDescription();
 		break;
 		
 	case MM_SAVE_IN_NON_VOLATILE_STORAGE:
@@ -668,20 +738,24 @@ handleManagementResponse(Octet *inmessage, MsgManagement *manage)
     }
 }
 
-/*Function to handle management ack*/
+/* Function to handle management ack, received when a command gets executed
+ * at server
+ */
 void 
-handleManagementAck(Octet *inmessage, MsgManagement *manage)
+handleManagementAck(MsgManagement *manage)
 {
 	if (outmessage != NULL)
-		if (*(UInteger16 *) (outmessage + 52) == manage->tlv->managementId)
+		if (*(UInteger16 *) (outmessage + 52) == *(UInteger16 *) (inmessage + 52))
 			printf("Received ACKNOWLEDGEMENT. Command executed.\n");
-	else
-		printf("Received ACKNOWLEDGEMENT. Not for your command.\n");
+		else
+			printf("Received ACKNOWLEDGEMENT. Not for your command.\n");
 }
 
-/*Function to handle management error message*/
+/*Function to handle management error message, received when a sent message is 
+ * not supported at server or some error happens
+ */
 void 
-handleManagementError(Octet *inmessage, MsgManagement *manage)
+handleManagementError(MsgManagement *manage)
 {
 	printf("Received TLV_MANAGEMENT_ERROR_STATUS.\n");
 	if (outmessage != NULL && *(UInteger16 *) (outmessage + 52) == 
@@ -716,7 +790,10 @@ handleManagementError(Octet *inmessage, MsgManagement *manage)
 		}
 }
 
-void handleIncomingMsg(Octet *inmessage)
+/* Function which handles all received messages, checks the tlvtype and actionField
+ * and then passes it to appropriate method for unpacking and displaying
+ */
+void handleIncomingMsg()
 {
 	MsgHeader h; MsgManagement manage;
 	manage.tlv = (ManagementTLV *)malloc(sizeof(ManagementTLV));
@@ -732,12 +809,12 @@ void handleIncomingMsg(Octet *inmessage)
 		if (manage.tlv->tlvType == TLV_MANAGEMENT)
 		{
 			if (manage.actionField == RESPONSE)
-				handleManagementResponse(inmessage,&manage);
+				handleManagementResponse(&manage);
 			else if (manage.actionField == ACKNOWLEDGE)
-				handleManagementAck(inmessage, &manage);
+				handleManagementAck(&manage);
 		} 
 		else if (manage.tlv->tlvType == TLV_MANAGEMENT_ERROR_STATUS)
-			handleManagementError(inmessage, &manage);
+			handleManagementError(&manage);
 		else 
 			printf("Received management message with unknown tlyType\n");
 	} 

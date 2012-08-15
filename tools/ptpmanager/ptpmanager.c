@@ -1,7 +1,49 @@
-/**
- * @file   ptpmanager.c
- * @date   Wed May 29 11:40:38 2012
+/*-
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
+ *                         National Instruments.
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
+ * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ *
+ * All Rights Reserved
  * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+ /**
+ * @file   ptpmanager.c
+ * @date   Wed May 29 11:40:38 2012 IST
+ * @author Himanshu Singh
  * @brief  The code implements ptpmanager responsible for sending and 
  *         receiving management messages
  */
@@ -35,8 +77,9 @@ getCommandId(char *command)
 	return (0); /* for wrong command */
 }
 
+/* Sends the outmessage buffer and waits for response/ack/error*/
 void 
-sendMessage(Octet* outmessage, char *dest)
+sendMessage(char *dest)
 {
 	if (!netSendGeneral(outmessage, sizeof(outmessage),
 		 dest))
@@ -72,9 +115,8 @@ main(int argc, char *argv[ ])
 	in_sequence = 0;
 	out_length = 0;
 	timeout = DEFAULT_TIMEOUT;
-	netPath = (NetPath*)malloc(sizeof(NetPath));
-	
-	if (outmessage == NULL || inmessage == NULL || netPath == NULL){
+		
+	if (outmessage == NULL || inmessage == NULL){
 		err(1, "Malloc error");
 		exit(1);
 	}
@@ -104,21 +146,22 @@ main(int argc, char *argv[ ])
 	while (strcmp(command,"quit")){
 		
 		switch (getCommandId(command)){
-
+		
+		/* Based on commandId, applicable actions are taken*/
 		case 1:
 				toSend = TRUE;
 				memset(outmessage, 0, PACKET_SIZE);
-				toSend = packOutgoingMsg(outmessage);
+				toSend = packOutgoingMsg();
 				
 				if (toSend){
-					sendMessage(outmessage,argv[1]);
+					sendMessage(argv[1]);
 					out_sequence++;
 				}
 			break;
 		
 		case 2:
 			if (toSend && outmessage != NULL){
-				sendMessage(outmessage,argv[1]);
+				sendMessage(argv[1]);
 				out_sequence++;
 			}
 			else
@@ -131,7 +174,7 @@ main(int argc, char *argv[ ])
 			break;
 		
 		case 4:
-			handleIncomingMsg(inmessage);
+			handleIncomingMsg();
 			break;
 		
 		case 5:
@@ -164,7 +207,6 @@ main(int argc, char *argv[ ])
 	
 	free(outmessage);
 	free(inmessage);	
-	free(netPath);
 	netShutdown();
 	return (0);
 }
