@@ -93,6 +93,10 @@ show_managementheader()
 		MsgHeader h; 
 		MsgManagement manage;
 		manage.tlv = (ManagementTLV *)malloc(sizeof(ManagementTLV));
+		if (manage.tlv == NULL){
+			printf("malloc failed\n");
+			exit(1);
+		}
 		unpackHeader(inmessage, &h);
 		if (h.messageLength < MANAGEMENT_LENGTH){
 			printf("Last received message doesn't contain valid data\n\n");
@@ -115,6 +119,10 @@ show_tlv()
 		MsgHeader h; 
 		MsgManagement manage;
 		manage.tlv = (ManagementTLV *)malloc(sizeof(ManagementTLV));
+		if (manage.tlv == NULL){
+			printf("malloc failed\n");
+			exit(1);
+		}
 		unpackHeader(inmessage, &h);
 		if (h.messageLength < MANAGEMENT_LENGTH + TLV_LENGTH){
 			printf("Last received message doesn't contain valid data\n\n");

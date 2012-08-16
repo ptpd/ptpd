@@ -99,6 +99,8 @@ packOutgoingMsg()
 	int tlvtype;
 	int managementId;
 	
+	out_length = 0;
+	
 	packCommonHeader(outmessage);	
 	packManagementHeader(outmessage);
 
@@ -428,6 +430,10 @@ packMMUserDescription(Octet *buf)
 	case SET:
 		*(UInteger8 *) (buf + 46) = *(UInteger8 *) (buf + 46) | SET;
 		data = (MMUserDescription*)malloc(sizeof(MMUserDescription));
+		if (data == NULL){
+			printf("malloc failed\n");
+			return FALSE;
+		}
 		char text[128];
 		int dataFieldLength = 0;
 		printf(">UserDescription (DeviceName;PhysicalLocation)?");
@@ -441,6 +447,10 @@ packMMUserDescription(Octet *buf)
 		
 		data->userDescription.textField = 
 					(Octet*)malloc(data->userDescription.lengthField);
+		if (data->userDescription.textField == NULL){
+			printf("malloc failed\n");
+			return FALSE;
+		}
 		memcpy(data->userDescription.textField,
                     text, data->userDescription.lengthField);
 
