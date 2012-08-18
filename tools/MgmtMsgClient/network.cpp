@@ -67,6 +67,12 @@
 
 #include "constants.h"
 
+#include "constants_dep.h"
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <arpa/inet.h>
+#include <sys/ioctl.h>
+
 /**
  * @brief Initialize network connection between client and server.
  * 
@@ -233,6 +239,118 @@ void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_s
             printf("NULL_MANAGEMENT message receives no response by default\n");
         else
             printf("timeout exceeded...\n");
+        exit(0);
+    }
+}
+
+/**
+ * @brief Test if network layer is OK for PTP.
+ * 
+ * @param communicationTechnology       Communication technology to check.
+ */
+UInteger8 lookupCommunicationTechnology(UInteger8 communicationTechnology)
+{
+#ifdef linux
+    switch (communicationTechnology) {
+	case ARPHRD_ETHER:
+	case ARPHRD_EETHER:
+	case ARPHRD_IEEE802:
+            return PTP_ETHER;
+
+	default:
+            break;
+    }
+#endif  /* defined(linux) */
+
+    return PTP_DEFAULT;
+}
+
+/**
+ * @brief Resolve hardware address of a given interface.
+ * 
+ * @param sockFd        A descriptor identifying a bound socket.
+ * @param ifaceName     A buffer with the interface name.
+ * @param hwAddr        A buffer for the hardware address.
+ */
+void findIface(int sockFd, Octet* ifaceName, Octet* hwAddr)
+{
+#ifdef linux
+    UInteger8 communicationTechnology;
+    
+    struct ifreq device;
+    memcpy(device.ifr_name, ifaceName, 16);
+    
+    if (ioctl(sockFd, SIOCGIFHWADDR, &device) < 0)
+        WARNING("failed to get hardware address\n");
+    else if ((communicationTechnology = (lookupCommunicationTechnology(device.ifr_hwaddr.sa_family))) == PTP_DEFAULT)
+        WARNING("unsupported communication technology (%d)\n", communicationTechnology);
+    else {
+        DBG("Local MAC address used : %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+                device.ifr_ifru.ifru_hwaddr.sa_data[0], device.ifr_ifru.ifru_hwaddr.sa_data[1], 
+                device.ifr_ifru.ifru_hwaddr.sa_data[2], device.ifr_ifru.ifru_hwaddr.sa_data[3], 
+                device.ifr_ifru.ifru_hwaddr.sa_data[4], device.ifr_ifru.ifru_hwaddr.sa_data[5]);
+        memcpy(hwAddr, &device.ifr_ifru.ifru_hwaddr.sa_data, MAC_ADDR_STR_LEN);
+    }
+
+#else /* usually *BSD */
+    printf("BSD\n");
+
+    struct ifaddrs *if_list, *ifv4, *ifh;
+
+    if (getifaddrs(&if_list) < 0) {
+        perror("getifaddrs() failed");
         exit(1);
     }
+    /* find an IPv4, multicast, UP interface, right name(if supplied) */
+    for (ifv4 = if_list; ifv4 != NULL; ifv4 = ifv4->ifa_next) {
+        if ((ifv4->ifa_flags & IFF_UP) == 0)
+            continue;
+        if ((ifv4->ifa_flags & IFF_RUNNING) == 0)
+            continue;
+        if ((ifv4->ifa_flags & IFF_LOOPBACK))
+            continue;
+        if ((ifv4->ifa_flags & IFF_MULTICAST) == 0)
+            continue;
+        /* must have IPv4 address */
+        if (ifv4->ifa_addr->sa_family != AF_INET)
+            continue;
+        if (ifaceName[0] && strncmp(ifv4->ifa_name, ifaceName, IF_NAMESIZE) != 0)
+            continue;
+        break;
+    }
+
+    if (ifv4 == NULL) {
+        if (ifaceName[0]) {
+            ERROR("interface \"%s\" does not exist,"
+                    "or is not appropriate\n", ifaceName);
+        }
+        ERROR("no suitable interfaces found!");
+    }
+    
+    /* find the AF_LINK info associated with the chosen interface */
+    for (ifh = if_list; ifh != NULL; ifh = ifh->ifa_next) {
+        if (ifh->ifa_addr->sa_family != AF_LINK)
+            continue;
+        if (strncmp(ifv4->ifa_name, ifh->ifa_name, IF_NAMESIZE) == 0)
+            break;
+    }
+
+    if (ifh == NULL) {
+        WARNING("could not get hardware address for interface \"%s\"\n", ifv4->ifa_name);
+        return;
+    }
+    
+    /* check that the interface TYPE is OK */
+    if (((struct sockaddr_dl *)ifh->ifa_addr)->sdl_type != IFT_ETHER) {
+        WARNING("\"%s\" is not an ethernet interface!\n", ifh->ifa_name);
+        return;
+    }
+    
+    DBG("Local MAC address used : %s\n",
+            ether_ntoa((struct ether_addr *)LLADDR((struct sockaddr_dl *)ifh->ifa_addr))
+            );
+
+    memcpy(hwAddr, &ether_ntoa((struct ether_addr *)LLADDR((struct sockaddr_dl *)ifh->ifa_addr), MAC_ADDR_STR_LEN);
+
+#endif
 }

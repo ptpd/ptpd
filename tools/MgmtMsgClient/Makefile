@@ -1,7 +1,7 @@
 ## -*- Makefile -*-
 ##
 ## User: Tomasz Kleinschmidt
-## Time: 2012-07-19 23:20:00
+## Time: 2012-08-18 02:48:42
 ## Makefile created by Oracle Solaris Studio.
 ##
 ## This file is generated automatically.
@@ -33,6 +33,7 @@ OBJS_MgmtMsgClient =  \
 	$(TARGETDIR_MgmtMsgClient)/display.o \
 	$(TARGETDIR_MgmtMsgClient)/freeing.o \
 	$(TARGETDIR_MgmtMsgClient)/IncomingManagementMessage.o \
+	$(TARGETDIR_MgmtMsgClient)/SequnceIdConfiguration.o \
 	$(TARGETDIR_MgmtMsgClient)/MgmtMsgClient.o
 USERLIBS_MgmtMsgClient = $(SYSLIBS_MgmtMsgClient) 
 DEPLIBS_MgmtMsgClient =  
@@ -69,6 +70,9 @@ $(TARGETDIR_MgmtMsgClient)/freeing.o: $(TARGETDIR_MgmtMsgClient) freeing.cpp
 $(TARGETDIR_MgmtMsgClient)/IncomingManagementMessage.o: $(TARGETDIR_MgmtMsgClient) IncomingManagementMessage.cpp
 	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ IncomingManagementMessage.cpp
 
+$(TARGETDIR_MgmtMsgClient)/SequnceIdConfiguration.o: $(TARGETDIR_MgmtMsgClient) SequnceIdConfiguration.cpp
+	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ SequnceIdConfiguration.cpp
+
 $(TARGETDIR_MgmtMsgClient)/MgmtMsgClient.o: $(TARGETDIR_MgmtMsgClient) MgmtMsgClient.cpp
 	$(COMPILE.cc) $(CCFLAGS_MgmtMsgClient) $(CPPFLAGS_MgmtMsgClient) -o $@ MgmtMsgClient.cpp
 
@@ -86,6 +90,7 @@ clean:
 		$(TARGETDIR_MgmtMsgClient)/display.o \
 		$(TARGETDIR_MgmtMsgClient)/freeing.o \
 		$(TARGETDIR_MgmtMsgClient)/IncomingManagementMessage.o \
+		$(TARGETDIR_MgmtMsgClient)/SequnceIdConfiguration.o \
 		$(TARGETDIR_MgmtMsgClient)/MgmtMsgClient.o
 	$(CCADMIN)
 	rm -f -r $(TARGETDIR_MgmtMsgClient)

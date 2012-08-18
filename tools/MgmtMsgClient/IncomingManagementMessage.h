@@ -61,6 +61,10 @@ public:
     IncomingManagementMessage(Octet* buf, OptBuffer* optBuf);
     virtual ~IncomingManagementMessage();
     
+    bool handleManagement(OptBuffer* optBuf, Octet* buf, MsgManagement* incoming);
+    
+    MsgManagement *incoming;
+    
 private:
     #define DECLARE_UNPACK( type ) void unpack##type( void*, void* );
     
@@ -124,7 +128,7 @@ private:
     void unpackMMLogMinPdelayReqInterval( Octet *buf, MsgManagement* m);
     void unpackMMErrorStatus(Octet *buf, MsgManagement* m);
     
-    void handleManagement(/*OptBuffer* optBuf, */Octet* buf, MsgManagement* incoming);
+//    void handleManagement(/*OptBuffer* optBuf, */Octet* buf, MsgManagement* incoming);
     void handleMMClockDescription(MsgManagement* incoming);
     void handleMMUserDescription(MsgManagement* incoming);
     void handleMMSaveInNonVolatileStorage(MsgManagement* incoming);
@@ -153,7 +157,7 @@ private:
     void handleMMLogMinPdelayReqInterval(MsgManagement* incoming);
     void handleMMErrorStatus(MsgManagement *incoming);
     
-    MsgManagement *incoming;
+//    MsgManagement *incoming;
 };
 
 #endif	/* INCOMINGMANAGEMENTMESSAGE_H */

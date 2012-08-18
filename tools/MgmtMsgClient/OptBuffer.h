@@ -61,6 +61,7 @@ public:
     
     bool action_type_set;
     bool help_print;
+    bool hw_address_server_set;
     bool interface_set;
     bool mgmt_id_set;
     bool msg_print;
@@ -71,10 +72,19 @@ public:
     
     Octet* help_arg;
     Octet* interface;
+    Octet* hw_address;
+    Octet* hw_address_server;
     Octet* u_address;
     Octet* u_port;
+    
+    PortIdentity sourcePortIdentity;
+    PortIdentity targetPortIdentity;
+    
     PTPText value;
     
+    UInteger8 domainNumber;
+    UInteger16 portNumber; 
+    UInteger16 sequenceId;
     UInteger32 timeout;
     
     void mgmtActionTypeParser(Octet* actionType);

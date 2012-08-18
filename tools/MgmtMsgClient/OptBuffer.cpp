@@ -73,6 +73,8 @@
 OptBuffer::OptBuffer(Octet* appName) {
     this->help_arg = appName;
     
+    XCALLOC(this->hw_address, Octet*, MAC_ADDR_STR_LEN, sizeof(Octet));
+    
     XCALLOC(this->u_address, Octet*, MAX_ADDR_STR_LEN, sizeof(Octet));
     sprintf(this->u_address, "%s", U_ADDRESS);
     
@@ -81,12 +83,24 @@ OptBuffer::OptBuffer(Octet* appName) {
     
     this->action_type_set = false;
     this->help_print = false;
+    this->hw_address_server_set = false;
     this->interface_set = false;
     this->mgmt_id_set = false;
     this->msg_print = false;
     this->value_set = false;
     
     this->timeout = RECV_TIMEOUT;
+    
+    this->domainNumber = DFLT_DOMAIN_NUMBER;
+    this->portNumber = 0;
+    this->sequenceId = 0;
+    
+    memset(&(this->sourcePortIdentity), 0, sizeof(PortIdentity));
+    memset(&(this->targetPortIdentity), -1, sizeof(PortIdentity));
+    
+    /* set portNumber to 1, as we support a single PTP port, see
+     * spec 7.5.2.3 */
+    this->sourcePortIdentity.portNumber = 1;
 }
 
 /**
@@ -95,11 +109,15 @@ OptBuffer::OptBuffer(Octet* appName) {
  * The deconstructor frees memory.
  */
 OptBuffer::~OptBuffer() {
+    free(this->hw_address);
     free(this->u_address);
     free(this->u_port);
     
     if (this->interface_set)
         free(this->interface);
+    
+    if (this->hw_address_server_set)
+        free(this->hw_address_server);
                 
     if (this->value_set)
         freePTPText(&(this->value));
@@ -127,10 +145,8 @@ void OptBuffer::mgmtActionTypeParser(Octet* actionType)
     else if (!strcmp("ACKNOWLEDGE", actionType))
         this->action_type = ACKNOWLEDGE;
     
-    else {
+    else
         ERROR("unknown actionType\n");
-        exit(1);
-    }
     
     this->action_type_set = true;
     return;
@@ -283,10 +299,8 @@ void OptBuffer::mgmtIdParser(Octet* mgmtId) {
     else if (!strcmp("PRIMARY_DOMAIN", mgmtId))
         this->mgmt_id = MM_PRIMARY_DOMAIN;
     
-    else {
+    else
         ERROR("unknown managementTLV\n");
-        exit(1);
-    }
 
     this->mgmt_id_set = true;
     return;

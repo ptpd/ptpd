@@ -191,6 +191,10 @@ enum {
 	ACKNOWLEDGE
 };
 
+enum {
+	PTP_ETHER, PTP_DEFAULT
+};
+
 /**
  * @brief flagField1 bit position values (Table 20 in the spec)
  */

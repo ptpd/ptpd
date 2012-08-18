@@ -54,6 +54,7 @@
 
 #include "client.h"
 
+#include <ctime>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,6 +63,7 @@
 #include "IncomingManagementMessage.h"
 #include "MgmtMsgClient.h"
 #include "OutgoingManagementMessage.h"
+#include "SequnceIdConfiguration.h"
 
 #include "constants.h"
 #include "constants_dep.h"
@@ -75,6 +77,7 @@
  * @param optBuf        A buffer with arguments passed from a user.
  */
 void mainClient(OptBuffer* optBuf) {
+    bool ret;
     int sockFd;
     Octet *buf;
     socklen_t fromLen;
@@ -109,21 +112,41 @@ void mainClient(OptBuffer* optBuf) {
     bool isNullManagement = true ? optBuf->mgmt_id == MM_NULL_MANAGEMENT : false;
     
     sockFd = initNetwork(optBuf->u_address, optBuf->u_port, optBuf->interface, &unicastAddress);
+    findIface(sockFd, optBuf->interface, optBuf->hw_address);
+    
+    SequnceIdConfiguration *seqIdCfg = new SequnceIdConfiguration(optBuf);
+    delete(seqIdCfg);
     
     /* send <--> receive */
     XMALLOC(buf, Octet*, PACKET_SIZE);
     
     OutgoingManagementMessage *outMessage = new OutgoingManagementMessage(buf, optBuf);
-    free(outMessage);
+    delete(outMessage);
     
     sendMessage(sockFd, buf, PACKET_SIZE, unicastAddress);
     
     memset(buf, 0, PACKET_SIZE);
     
-    receiveMessage(sockFd, buf, PACKET_SIZE, &fromAddr, &fromLen, isNullManagement, optBuf->timeout);
+    /* initiate message receiveing until a received message is a mangement message
+     * or timeout excedeed
+     */
+    time_t timeout = time(NULL) + optBuf->timeout;
+    do {
+        receiveMessage(sockFd, buf, PACKET_SIZE, &fromAddr, &fromLen, isNullManagement, optBuf->timeout);
+
+        IncomingManagementMessage *inMessage = new IncomingManagementMessage(buf, optBuf);
+        ret = inMessage->handleManagement(optBuf, buf, inMessage->incoming);
+        delete(inMessage);
+
+        memset(buf, 0, PACKET_SIZE);
+        
+        if (ret == TRUE)
+            break;
+        
+    } while (time(NULL) <= timeout);
     
-    IncomingManagementMessage *inMessage = new IncomingManagementMessage(buf, optBuf);
-    free(inMessage);  
+    if (ret == FALSE)
+        printf("timeout exceeded...\n");
     
     free(buf);
     

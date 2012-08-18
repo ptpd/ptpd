@@ -52,6 +52,8 @@
 #ifndef CONSTANTS_H
 #define	CONSTANTS_H
 
+#define MAC_ADDR_STR_LEN 6
+
 #define MAX_ADDR_STR_LEN 50
 #define MAX_PORT_STR_LEN 50
 
@@ -60,6 +62,8 @@
 #define PACKET_SIZE  300 //ptpdv1 value kept because of use of TLV...
 
 #define RECV_TIMEOUT 3 //Default timeout for a receive function (in seconds)
+
+#define SEQUENCE_ID_CFG_FILENAME "sequenceId.cfg"
 
 #define U_ADDRESS "127.0.0.1"
 

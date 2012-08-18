@@ -118,6 +118,7 @@ private:
     void msgPackManagement(Octet *buf, MsgManagement *outgoing);
     void msgPackManagementTLV(OptBuffer* optBuf, Octet *buf, MsgManagement *outgoing);
     
+    void initClockIdentity(ClockIdentity clockIdentity, Octet* hwAddr);
     void initOutgoingMsgManagement(MsgManagement* outgoing);
     
     void handleManagement(OptBuffer* optBuf, Octet* buf, MsgManagement* outgoing);

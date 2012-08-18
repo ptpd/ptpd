@@ -117,7 +117,7 @@ UNPACK_LOWER_AND_UPPER( UInteger4 )
 IncomingManagementMessage::IncomingManagementMessage(Octet* buf, OptBuffer* optBuf) {
     this->incoming = (MsgManagement *)malloc(sizeof(MsgManagement));
     
-    handleManagement(buf, this->incoming);
+//    handleManagement(buf, this->incoming);
 }
 
 /**
@@ -299,7 +299,7 @@ void IncomingManagementMessage::unpackMsgHeader(Octet *buf, MsgHeader *header)
             offset = offset + size;
     #include "../../src/def/message/header.def"
 
-    msgHeader_display(data);
+//    msgHeader_display(data);
 }
 
 /**
@@ -317,7 +317,7 @@ void IncomingManagementMessage::unpackMsgManagement(Octet *buf, MsgManagement *m
             offset = offset + size;
     #include "../../src/def/message/management.def"
 
-    msgManagement_display(data);
+//    msgManagement_display(data);
 }
 
 /**
@@ -829,20 +829,32 @@ void IncomingManagementMessage::unpackMMErrorStatus(Octet *buf, MsgManagement* m
  * @param buf           Buffer with a received message.
  * @param incoming      Incoming management message.
  */
-void IncomingManagementMessage::handleManagement(Octet* buf, MsgManagement* incoming)
+bool IncomingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, MsgManagement* incoming)
 {
-    DBG("Management message received : \n");
-
-//    if (isFromSelf) {
-//        DBG("handleManagement: Ignore message from self \n");
-//        return;
-//    }
-
     msgUnpackManagement(buf, incoming);
+    
+    if (incoming->header.messageType != MANAGEMENT) {
+        DBG("handleManagement: Ignore message other than management \n");
+        return FALSE;
+    }
+    
+    /*Spec 9.5.2.2*/	
+    bool isFromSelf = ((incoming->header.sourcePortIdentity.portNumber == optBuf->sourcePortIdentity.portNumber) 
+    && !memcmp(incoming->header.sourcePortIdentity.clockIdentity, optBuf->sourcePortIdentity.clockIdentity, CLOCK_IDENTITY_LENGTH));
+    
+    if (isFromSelf) {
+        DBG("handleManagement: Ignore message from self \n");
+        return FALSE;
+    }
+    
+    /* At this point we have a valid management message */
+    DBG("Management message received : \n");
+    msgHeader_display(&incoming->header);
+    msgManagement_display(incoming);
 
     if(incoming->tlv == NULL) {
         DBG("handleManagement: TLV is empty\n");
-        return;
+        return TRUE;
     }
 
     /* is this an error status management TLV? */
@@ -850,11 +862,11 @@ void IncomingManagementMessage::handleManagement(Octet* buf, MsgManagement* inco
         DBG("handleManagement: Error Status TLV\n");
         unpackMMErrorStatus(buf, incoming);
         handleMMErrorStatus(incoming);
-        return;
+        return TRUE;
     } else if (incoming->tlv->tlvType != TLV_MANAGEMENT) {
         /* do nothing, implemention specific handling */
         DBG("handleManagement: Currently unsupported management TLV type\n");
-        return;
+        return TRUE;
     }
         
     switch(incoming->tlv->managementId)
@@ -1036,12 +1048,14 @@ void IncomingManagementMessage::handleManagement(Octet* buf, MsgManagement* inco
         case MM_TRANSPARENT_CLOCK_PORT_DATA_SET:
         case MM_PRIMARY_DOMAIN:
             printf("handleManagement: Currently unsupported managementTLV %d\n", incoming->tlv->managementId);
-            exit(1);
+            return TRUE;
         
         default:
             printf("handleManagement: Unknown managementTLV %d\n", incoming->tlv->managementId);
-            exit(1);
+            return TRUE;
     }
+    
+    return TRUE;
 }
 
 /**

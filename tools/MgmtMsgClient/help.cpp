@@ -68,16 +68,19 @@ void printHelp(const char* appName) {
             "Options:\n"
             "   -a --address [address]                  IPv4 address of a server (default set to %s)\n"
             "   -c --action [action]                    Type of action to be handled by a management message\n"
+            "   -d --domainNumber [domainNumber]        Domain number of a server (default set to %u)\n"
             "   -h --help                               Display this message\n"
             "   -i --interface [name]                   Bind to network interface of given name\n"
             "   -m --message [type]                     Handle management message of given type\n"
+            "   -M --mac [MAC]                          MAC address of a server (default set to \"All 1's\")\n"
             "   -p --port [port]                        Port number a server is listening on (default set to %s)\n"
+            "   -P --portNumber [portNumber]            Index identifying a specific PTP port on a server (default set to \"All 1's\")\n"
             "   -t --timeout [timeout]                  Time in seconds to wait for a message to be received (default set to %us)\n"
             "   -v --value [value]                      Value for a 'SET' or a 'COMMAND' action\n"
             "   --verbose                               Print additional status messages (useful for debugging)\n"
             "\n"
             "Type '%s {-m --message} print' to print a list of management messages and assigned actions.\n",
-            appName, U_ADDRESS, PTP_GENERAL_PORT, RECV_TIMEOUT, appName);
+            appName, U_ADDRESS, DFLT_DOMAIN_NUMBER, PTP_GENERAL_PORT, RECV_TIMEOUT, appName);
 }
 
 /**

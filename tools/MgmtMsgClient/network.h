@@ -62,5 +62,8 @@ void disableNetwork(int sockFd, struct addrinfo** addrInfo);
 void sendMessage(int sockFd, Octet* buf, UInteger16 length, struct addrinfo* addrInfo);
 void receiveMessage(int sockFd, Octet* buf, UInteger16 length, struct sockaddr_storage* addr, socklen_t* len, bool isNullMgmt, unsigned int timeout);
 
+UInteger8 lookupCommunicationTechnology(UInteger8 communicationTechnology);
+void findIface(int sockFd, Octet* ifaceName, Octet* hwAddr);
+
 #endif	/* NETWORK_H */
 

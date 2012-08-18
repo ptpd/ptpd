@@ -92,10 +92,13 @@ int main(int argc, char** argv) {
              * We distinguish them by their indices. */
             {"action",          required_argument, 0, 'c'},
             {"address",         required_argument, 0, 'a'},
+            {"domainNumber",    required_argument, 0, 'd'},
             {"help",            no_argument,       0, 'h'},
             {"interface",       required_argument, 0, 'i'},
             {"message",         required_argument, 0, 'm'},
+            {"mac",             required_argument, 0, 'M'},
             {"port",            required_argument, 0, 'p'},
+            {"portNumber",      required_argument, 0, 'P'},
             {"timeout",         required_argument, 0, 't'},
             {"value",           required_argument, 0, 'v'},
             {0, 0, 0, 0}
@@ -104,7 +107,7 @@ int main(int argc, char** argv) {
         /* getopt_long stores the option index here. */
         int option_index = 0;
      
-        c = getopt_long (argc, argv, "a:c:hi:m:p:t:v:", long_options, &option_index);
+        c = getopt_long (argc, argv, "a:c:d:hi:m:M:p:P:t:v:", long_options, &option_index);
         
         /* Detect the end of the options. */
         if (c == -1)
@@ -132,6 +135,11 @@ int main(int argc, char** argv) {
                 DBG("option -c with value `%s'\n", optarg);
                 optBuf->mgmtActionTypeParser(optarg);
                 break;
+            
+            case 'd':
+                DBG("option -d with value `%s'\n", optarg);
+                sscanf(optarg, "%u", &(optBuf->domainNumber));
+                break;
                 
             case 'h':
                 DBG("option -h\n");
@@ -154,10 +162,29 @@ int main(int argc, char** argv) {
                     optBuf->mgmtIdParser(optarg);
                 
                 break;
+                
+            case 'M':
+                DBG("option -M with value `%s'\n", optarg);
+                XCALLOC(optBuf->hw_address_server, Octet*, strlen(optarg), sizeof(Octet));
+                if (sscanf(optarg, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", 
+                        &(optBuf->hw_address_server[0]), &(optBuf->hw_address_server[1]), 
+                        &(optBuf->hw_address_server[2]), &(optBuf->hw_address_server[3]), 
+                        &(optBuf->hw_address_server[4]), &(optBuf->hw_address_server[5])) != 6) {
+                    ERROR("Invalid MAC address\n");
+                }
+                else
+                    optBuf->hw_address_server_set = true;
+                
+                break;
      
             case 'p':
                 DBG("option -p with value `%s'\n", optarg);
                 memcpy(optBuf->u_port, optarg, MAX_PORT_STR_LEN + 1);
+                break;
+                
+            case 'P':
+                DBG("option -P with value `%s'\n", optarg);
+                sscanf(optarg, "%hu", &(optBuf->portNumber));
                 break;
                 
             case 't':

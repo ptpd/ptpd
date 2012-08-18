@@ -1,3 +1,47 @@
+/*-
+ * Copyright (c) 2011-2012 George V. Neville-Neil,
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen,
+ *                         Inaqui Delgado,
+ *                         Rick Ratzel,
+ *                         National Instruments,
+ *                         Tomasz Kleinschmidt
+ * Copyright (c) 2009-2010 George V. Neville-Neil, 
+ *                         Steven Kreuzer, 
+ *                         Martin Burnicki, 
+ *                         Jan Breuer,
+ *                         Gael Mace, 
+ *                         Alexandre Van Kempen
+ *
+ * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ *
+ * All Rights Reserved
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 /** 
  * @file        OutgoingManagementMessage.cpp
  * @author      Tomasz Kleinschmidt
@@ -638,6 +682,30 @@ void OutgoingManagementMessage::msgPackManagementTLV(OptBuffer* optBuf, Octet *b
 }
 
 /**
+ * @brief Init clockIdentity with MAC address and 0xFF and 0xFE.
+ * 
+ * @param clockIdentity Clock Identity to initialize.
+ * @param hwAddr        MAC address.
+ */
+void OutgoingManagementMessage::initClockIdentity(ClockIdentity clockIdentity, Octet* hwAddr){
+   /*
+    * init clockIdentity with MAC address and 0xFF and 0xFE. see
+    * spec 7.5.2.2.2
+    */
+    int j = 0;
+    for (int i=0; i<CLOCK_IDENTITY_LENGTH; i++)
+    {
+        if (i==3) clockIdentity[i] = 0xFF;
+        else if (i==4) clockIdentity[i] = 0xFE;
+        else
+        {
+            clockIdentity[i] = hwAddr[j];
+            j++;
+        }
+    }
+}
+
+/**
  * @brief Initialize outgoing management message fields.
  * 
  * @param outgoing      Outgoing management message to initialize.
@@ -655,20 +723,18 @@ void OutgoingManagementMessage::initOutgoingMsgManagement(MsgManagement* outgoin
     outgoing->header.correctionField.msb = 0;
     outgoing->header.correctionField.lsb = 0;
     
-    /* TODO: Assign value to sourcePortIdentity */
+    /* set default sourcePortIdentity, avoid uninitialized value */
     memset(&(outgoing->header.sourcePortIdentity), 0, sizeof(PortIdentity));
     
-    /* TODO: Assign value to sequenceId */
     outgoing->header.sequenceId = 0;
     
     outgoing->header.controlField = 0x0; /* deprecrated for ptp version 2 */
     outgoing->header.logMessageInterval = 0x7F;
 
     /* set management message fields */
-    /* TODO: Assign value to targetPortIdentity */
-    memset(&(outgoing->targetPortIdentity), 1, sizeof(PortIdentity));
+    /* set default targetPortIdentity, avoid uninitialized value */
+    memset(&(outgoing->targetPortIdentity), -1, sizeof(PortIdentity));
     
-    /* TODO: Assign value to startingBoundaryHops */
     outgoing->startingBoundaryHops = 0;
     
     outgoing->boundaryHops = outgoing->startingBoundaryHops;
@@ -1033,6 +1099,24 @@ void OutgoingManagementMessage::handleManagement(OptBuffer* optBuf, Octet* buf, 
     
     /* pack ManagementTLV */
     msgPackManagementTLV(optBuf, buf, outgoing);
+    
+    /* set domain number */
+    if (optBuf->domainNumber != DFLT_DOMAIN_NUMBER)
+        outgoing->header.domainNumber = optBuf->domainNumber;
+    
+    /* set sequenceId */
+    outgoing->header.sequenceId = optBuf->sequenceId;
+    
+    /* set SourcePortIdentity*/
+    initClockIdentity(optBuf->sourcePortIdentity.clockIdentity, optBuf->hw_address);
+    memcpy(outgoing->header.sourcePortIdentity.clockIdentity, optBuf->sourcePortIdentity.clockIdentity, CLOCK_IDENTITY_LENGTH);
+    outgoing->header.sourcePortIdentity.portNumber = optBuf->sourcePortIdentity.portNumber;
+    
+    /* set TargetPortIdentity*/
+    if (optBuf->hw_address_server)
+        initClockIdentity(outgoing->targetPortIdentity.clockIdentity, optBuf->hw_address_server);
+    if (optBuf->portNumber != 0)
+        outgoing->targetPortIdentity.portNumber = optBuf->portNumber;
 
     /* set header messageLength, the outgoing->tlv->lengthField is now valid */
     outgoing->header.messageLength = MANAGEMENT_LENGTH + TLV_LENGTH + outgoing->tlv->lengthField;
@@ -2026,50 +2110,6 @@ void OutgoingManagementMessage::handleMMDelayMechanism(MsgManagement* outgoing, 
             exit(1);
     }
 }
-
-/*-
- * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
- *                         Jan Breuer,
- *                         Gael Mace, 
- *                         Alexandre Van Kempen,
- *                         Inaqui Delgado,
- *                         Rick Ratzel,
- *                         National Instruments,
- *                         Tomasz Kleinschmidt
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
- *                         Jan Breuer,
- *                         Gael Mace, 
- *                         Alexandre Van Kempen
- *
- * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
- *
- * All Rights Reserved
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 
 /**
  * @brief Handle outgoing LOG_MIN_PDELAY_REQ_INTERVAL management message type.

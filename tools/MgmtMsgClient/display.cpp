@@ -196,7 +196,6 @@ void msgHeader_display(MsgHeader * header)
 	printf("sequenceId : %d\n", header->sequenceId);
 	printf("controlField : %d\n", header->controlField);
 	printf("logMessageInterval : %d\n", header->logMessageInterval);
-	printf("\n");
 }
 
 /**

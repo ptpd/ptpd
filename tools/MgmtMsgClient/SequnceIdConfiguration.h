@@ -43,47 +43,30 @@
  */
 
 /** 
- * @file        MgmtMsgClient.h
+ * @file        SequnceIdConfiguration.h
  * @author      Tomasz Kleinschmidt
  *
- * @brief       Debug messages printing and memory allocation functions.
+ * @brief       SequnceIdConfiguration class definition.
  */
 
-#ifndef MGMTMSGCLIENT_H
-#define	MGMTMSGCLIENT_H
+#ifndef SEQUNCEIDCONFIGURATION_H
+#define	SEQUNCEIDCONFIGURATION_H
 
-extern int verbose_flag;
+#include <map>
 
-#define DBG(...) \
-        do { if (verbose_flag) { \
-                fprintf(stderr, "DBG: "); \
-                fprintf(stderr, __VA_ARGS__); } \
-        } while (0)
+#include "OptBuffer.h"
 
-#define ERROR(...) \
-        {do { \
-                fprintf(stderr, "ERROR: "); \
-                fprintf(stderr, __VA_ARGS__); \
-        } while (0); \
-        exit(1);}
+#include "datatypes_dep.h"
 
-#define WARNING(...) \
-        do { \
-                fprintf(stderr, "WARNING: "); \
-                fprintf(stderr, __VA_ARGS__); \
-        } while (0)
+class SequnceIdConfiguration {
+public:
+    SequnceIdConfiguration(OptBuffer* optBuf);
+    virtual ~SequnceIdConfiguration();
+    
+private:
+    std::map<Octet*, UInteger16> sequenceIdBuf;
+    std::map<Octet*, UInteger16>::iterator it;
+};
 
-#define XCALLOC(ptr, type, nelements, size) \
-        if(!((ptr)=(type)calloc(nelements, size))) { \
-                perror("failed to allocate memory"); \
-		exit(1); \
-	}
-
-#define XMALLOC(ptr, type, size) \
-        if(!((ptr)=(type)malloc(size))) { \
-                perror("failed to allocate memory"); \
-		exit(1); \
-	}
-
-#endif	/* MGMTMSGCLIENT_H */
+#endif	/* SEQUNCEIDCONFIGURATION_H */
 
