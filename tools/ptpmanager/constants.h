@@ -8,7 +8,8 @@
 #define MANAGEMENT 13
 #define TLV_LENGTH 6
 #define USER_DESCRIPTION_MAX 128
-#define DEFAULT_TIMEOUT 10
+#define DEFAULT_TIMEOUT 15
+#define MAX_WAIT_MESSAGES 35
 
 #define flip16(x) htons(x)
 #define flip32(x) htonl(x)

@@ -77,6 +77,7 @@ netInit(char *ifaceName)
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(PTP_GENERAL_PORT);
+//	addr.sin_port = htons(4201);
 
 	if (bind(generalSock, (struct sockaddr *)&addr, 
 		 sizeof(struct sockaddr_in)) < 0) {
@@ -165,8 +166,8 @@ netRecv(Octet *message, char *dest)
 		if (ret == 0 || (strcmp(inet_ntop(AF_INET, &(client_addr.sin_addr), srcIp, 
 				sizeof(srcIp)), dest) == 0))
 			return (ret);
-		else
-			printf("false\n");
+	//	else
+//			printf("false\n");
 	}
 	else if (ret_select < 0){
 		printf("Network error (select)\n");

@@ -140,8 +140,8 @@ display_commonHeader(MsgHeader *header)
 	printf("messageLength : %d\n", header->messageLength);
 	printf("domainNumber : %d\n", header->domainNumber);
 	printf("FlagField %02hhx:%02hhx\n", header->flagField0, header->flagField1);
-	printf("CorrectionField.msb : \n", header->correctionField.msb);
-	printf("CorrectionField.lsb : \n", header->correctionField.lsb);
+	printf("CorrectionField.msb : %d\n", header->correctionField.msb);
+	printf("CorrectionField.lsb : %d\n", header->correctionField.lsb);
 	printf("SourcePortIdentity : \n");
 	display_portIdentity(&header->sourcePortIdentity);
 	printf("sequenceId : %d\n", header->sequenceId);
@@ -266,7 +266,6 @@ handleClockDescription( )
 		data->protocolAddress.networkProtocol);
 	printf("protocolAddressLength : %hu \n", 
 		data->protocolAddress.addressLength);
-	printf("3 %d\n", offset);
 	if(data->protocolAddress.addressField) {
 		printf("protocolAddressField : %d.%d.%d.%d \n",
 			*(UInteger8*)(inmessage + offset),
@@ -276,9 +275,9 @@ handleClockDescription( )
 	}
 	offset += data->protocolAddress.addressLength;
 
-	printf("manufacturerIdentity0 : %d \n", data->manufacturerIdentity0);
-	printf("manufacturerIdentity1 : %d \n", data->manufacturerIdentity1);
-	printf("manufacturerIdentity2 : %d \n", data->manufacturerIdentity2);
+	printf("manufacturerIdentity0 : %d \n", *(Integer8*)(inmessage + offset));
+	printf("manufacturerIdentity1 : %d \n", *(Integer8*)(inmessage + offset + 1));
+	printf("manufacturerIdentity2 : %d \n", *(Integer8*)(inmessage + offset + 2));
 	offset += 4; //One byte for reserved field.
 	
 	printf("productDescription : \n");
@@ -793,7 +792,8 @@ handleManagementError(MsgManagement *manage)
 /* Function which handles all received messages, checks the tlvtype and actionField
  * and then passes it to appropriate method for unpacking and displaying
  */
-void handleIncomingMsg()
+Boolean
+handleIncomingMsg()
 {
 	MsgHeader h; MsgManagement manage;
 	manage.tlv = (ManagementTLV *)malloc(sizeof(ManagementTLV));
@@ -802,10 +802,8 @@ void handleIncomingMsg()
 		exit(1);
 	}
 	unpackHeader(inmessage, &h);
-	if (h.messageLength < MANAGEMENT_LENGTH){
-		printf("Truncated message\n");
-		return;
-	}
+	if (h.messageLength < MANAGEMENT_LENGTH)
+		return FALSE;
 	
 	if (h.messageType == MANAGEMENT){
 		receivedFlag = TRUE;
@@ -819,13 +817,16 @@ void handleIncomingMsg()
 		} 
 		else if (manage.tlv->tlvType == TLV_MANAGEMENT_ERROR_STATUS)
 			handleManagementError(&manage);
-		else 
-			printf("Received management message with unknown tlyType\n");
+		else {
+//			printf("Received management message with unknown tlyType\n");
+			return FALSE;
+		}
 	} 
 	else {
-		printf("Received message is not a MANAGEMENT message\n");
-		return;
+//		printf("Received message is not a MANAGEMENT message\n");
+		return FALSE;
 	}
 	
 	free(manage.tlv);
+	return receivedFlag;
 }

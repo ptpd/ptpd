@@ -90,10 +90,19 @@ sendMessage(char *dest)
 
 		receivedFlag = FALSE;
 		memset(inmessage, 0, PACKET_SIZE);
-		if (netRecv(inmessage, dest)) {
-			handleIncomingMsg(inmessage);
-			in_sequence++;
+		int tries;
+		for ( tries = 0; tries < MAX_WAIT_MESSAGES && receivedFlag == FALSE; 
+			tries++) {	
+			if (netRecv(inmessage, dest))
+				receivedFlag = handleIncomingMsg(inmessage);
+			else
+				return;
 		}
+		if (receivedFlag)
+			in_sequence++;
+		else
+			printf("Timeout. Did not receive a valid Management message."
+			       "You can resend your message using 'send_previous' command\n");
 	}
 }
 
