@@ -305,3 +305,4 @@ void OptBuffer::mgmtIdParser(Octet* mgmtId) {
     this->mgmt_id_set = true;
     return;
 }
+

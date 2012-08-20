@@ -144,3 +144,4 @@ void printMgmtMsgsList() {
             "DELAY_MECHANISM                    \t6000                          \tGET, SET                      \tport\n"
             "LOG_MIN_ PDELAY_REQ_INTERVAL       \t6001                          \tGET, SET                      \tport\n");
 ;}
+

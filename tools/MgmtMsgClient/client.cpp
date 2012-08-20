@@ -60,6 +60,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifndef linux
+#include <netinet/in.h>
+#endif
+
 #include "IncomingManagementMessage.h"
 #include "MgmtMsgClient.h"
 #include "OutgoingManagementMessage.h"
@@ -154,3 +158,4 @@ void mainClient(OptBuffer* optBuf) {
     
     return;
 }
+

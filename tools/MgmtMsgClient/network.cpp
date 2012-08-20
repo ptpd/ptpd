@@ -55,7 +55,6 @@
 #include "network.h"
 
 #include <err.h>
-#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,15 +62,24 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <net/if.h>
+#ifdef linux
+#include <arpa/inet.h>
+#include <net/if_arp.h>
+#include <netdb.h>
+#include <sys/ioctl.h>
+#else /* BSD */
+#include <ifaddrs.h>
+#include <net/ethernet.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
+#include <netinet/in.h>
+#endif
+
 #include "MgmtMsgClient.h"
 
 #include "constants.h"
-
 #include "constants_dep.h"
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <arpa/inet.h>
-#include <sys/ioctl.h>
 
 /**
  * @brief Initialize network connection between client and server.
@@ -350,7 +358,8 @@ void findIface(int sockFd, Octet* ifaceName, Octet* hwAddr)
             ether_ntoa((struct ether_addr *)LLADDR((struct sockaddr_dl *)ifh->ifa_addr))
             );
 
-    memcpy(hwAddr, &ether_ntoa((struct ether_addr *)LLADDR((struct sockaddr_dl *)ifh->ifa_addr), MAC_ADDR_STR_LEN);
+    memcpy(hwAddr, ether_ntoa((struct ether_addr *)LLADDR((struct sockaddr_dl *)ifh->ifa_addr)), MAC_ADDR_STR_LEN);
 
 #endif
 }
+
