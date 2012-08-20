@@ -301,8 +301,6 @@ void findIface(int sockFd, Octet* ifaceName, Octet* hwAddr)
     }
 
 #else /* usually *BSD */
-    printf("BSD\n");
-
     struct ifaddrs *if_list, *ifv4, *ifh;
 
     if (getifaddrs(&if_list) < 0) {
