@@ -52,14 +52,14 @@
 
 #include "ptpmanager.h"
 
-/* Unpack ClockIdentity Structure */
+/**\brief Unpack ClockIdentity Structure */
 void
 unpackClockIdentity(ClockIdentity dest, ClockIdentity src)
 {
 	memcpy(dest, src, CLOCK_IDENTITY_LENGTH);
 }
 
-/*Unpack Port Identity structure */
+/**\brief Unpack Port Identity structure */
 void
 unpackPortIdentity(PortIdentity *dest, Octet *src)
 {
@@ -67,7 +67,7 @@ unpackPortIdentity(PortIdentity *dest, Octet *src)
 	dest->portNumber = flip16(*((UInteger16*)(src + 8)));
 }
 
-/*Unpack Clock Quality structure */
+/**\brief Unpack Clock Quality structure */
 void
 unpackClockQuality(ClockQuality *dest, Octet *src)
 {
@@ -76,7 +76,7 @@ unpackClockQuality(ClockQuality *dest, Octet *src)
 	dest->offsetScaledLogVariance = flip16(*(UInteger16*)(src + 2));
 }
 
-/* brief display clockIdentity*/
+/**\brief display clockIdentity*/
 display_clockIdentity(ClockIdentity clockIdentity)
 {
 	printf("	clockIdentity = "
@@ -85,7 +85,7 @@ display_clockIdentity(ClockIdentity clockIdentity)
 	    clockIdentity[4], clockIdentity[5], clockIdentity[6], clockIdentity[7]);
 }
 
-/* brief display portIdentity*/
+/**\brief  display PortIdentity Structure*/
 void
 display_portIdentity(PortIdentity *portIdentity)
 {
@@ -174,7 +174,7 @@ void display_tlvHeader(ManagementTLV * tlv)
     printf("managementId : %d\n", tlv->managementId);
 }
 
-/*Function to unpack the header of received message*/
+/**\brief Function to unpack the header of received message*/
 void 
 unpackHeader(Octet *buf, MsgHeader *header)
 {	
@@ -198,7 +198,7 @@ unpackHeader(Octet *buf, MsgHeader *header)
 //	display_commonHeader(header);
 }
 
-/*Function to unpack management header*/
+/**\brief Function to unpack management header*/
 void 
 unpackManagementHeader(Octet *inmessage, MsgManagement *manage)
 {
@@ -216,7 +216,7 @@ unpackManagementHeader(Octet *inmessage, MsgManagement *manage)
 //	display_managementHeader(manage);
 }
 
-/* Handle and display UserDescription*/
+/**\brief Handle and display UserDescription*/
 void
 handleUserDescription( )
 {
@@ -226,7 +226,7 @@ handleUserDescription( )
 	PTPText_display(&offset);	
 }
 
-/* Unpack and display ClockDescription */
+/**\brief Unpack and display ClockDescription */
 void 
 handleClockDescription( )
 {
@@ -297,7 +297,7 @@ handleClockDescription( )
 	printf("profileIdentity5 : %hhu \n", data->profileIdentity5);
 }
 
-/* unpack and display default data set */
+/**\brief unpack and display default data set */
 void
 handleDefaultDataSet( )
 {
@@ -324,7 +324,7 @@ handleDefaultDataSet( )
 
 }
 
-/*Unpack and display ParentDataSet */
+/**\brief Unpack and display ParentDataSet */
 void
 handleParentDataSet( )
 {
@@ -358,7 +358,7 @@ handleParentDataSet( )
 
 }
 
-/* Unpack and Display Priority1 */
+/**\brief Unpack and Display Priority1 */
 void
 handlePriority1( )
 {
@@ -366,7 +366,7 @@ handlePriority1( )
 	printf("Priority1 = %hhu\n",data->priority1);
 }
 
-/* Unpack and display Priority2*/
+/**\brief Unpack and display Priority2*/
 void
 handlePriority2( )
 {
@@ -374,7 +374,7 @@ handlePriority2( )
 	printf("Priority2 = %hhu\n",data->priority2);
 }
 
-/* Unpack and display Domain*/
+/**\brief Unpack and display Domain*/
 void
 handleDomain( )
 {
@@ -382,7 +382,7 @@ handleDomain( )
 	printf("Domain = %hhu\n",data->domainNumber);
 }
 
-/* Unpack and display SlaveOnly*/
+/**\brief Unpack and display SlaveOnly*/
 void
 handleSlaveOnly( )
 {
@@ -393,7 +393,7 @@ handleSlaveOnly( )
 		printf("SlaveOnly = True\n");
 }
 
-/* Unpack and display LogAnnounceInterval */
+/**\brief Unpack and display LogAnnounceInterval */
 void
 handleLogAnnounceInterval( )
 {
@@ -401,7 +401,7 @@ handleLogAnnounceInterval( )
 	printf("LogAnnounceInterval = %hhd\n",data->logAnnounceInterval);
 }
 
-/* Unpack and display AnnounceReceiptTimeout */
+/**\brief Unpack and display AnnounceReceiptTimeout */
 void
 handleAnnounceReceiptTimeout( )
 {
@@ -409,7 +409,7 @@ handleAnnounceReceiptTimeout( )
 	printf("AnnounceReceiptTimeout = %hhu\n",data->announceReceiptTimeout);
 }
 
-/* Unpack and display LogSyncInterval */
+/**\brief Unpack and display LogSyncInterval */
 void
 handleLogSyncInterval( )
 {
@@ -417,7 +417,7 @@ handleLogSyncInterval( )
 	printf("LogSyncInterval = %hhd\n",data->logSyncInterval);
 }
 
-/* Unpack and display VersionNumber */
+/**\brief Unpack and display VersionNumber */
 void
 handleVersionNumber( )
 {
@@ -425,7 +425,7 @@ handleVersionNumber( )
 	printf("VersionNumber = %hhu\n",data->versionNumber);
 }
 
-/* Unpack and display ClockAccuracy */
+/**\brief Unpack and display ClockAccuracy */
 void
 handleClockAccuracy( )
 {
@@ -491,7 +491,7 @@ handleClockAccuracy( )
 	}
 }
 
-/* Unpack and displayUtcProperties*/
+/**\brief Unpack and displayUtcProperties*/
 void
 handleUtcProperties( )
 {
@@ -513,7 +513,7 @@ handleUtcProperties( )
 		printf("L1-61 = True\n");
 }
 
-/* Unpack and display TraceabilityProperties*/
+/**\brief Unpack and display TraceabilityProperties*/
 void
 handleTraceabilityProperties( )
 {
@@ -530,7 +530,7 @@ handleTraceabilityProperties( )
 		
 }
 
-/* Unpack and display DelayMechanism*/
+/**\brief Unpack and display DelayMechanism*/
 void
 handleDelayMechanism( )
 {
@@ -538,7 +538,7 @@ handleDelayMechanism( )
 	printf("DelayMechanism = %hhu\n",data->delayMechanism);
 }
 
-/* Handle and display LogMinRequirements */
+/**\brief Handle and display LogMinRequirements */
 void
 handleLogMinRequirement( )
 {
@@ -546,7 +546,7 @@ handleLogMinRequirement( )
 	printf("LogMinPdelayReqInterval = %hhu\n",data->logMinPdelayReqInterval);
 }
 
-/* Unpack and display CurrentDataSet */
+/**\brief Unpack and display CurrentDataSet */
 void
 handleCurrentDataSet( )
 {
@@ -563,7 +563,7 @@ handleCurrentDataSet( )
 	
 }
 
-/* Unpack and display TimePropertiesDataSet */
+/**\brief Unpack and display TimePropertiesDataSet */
 void
 handleTimePropertiesDataSet( )
 {
@@ -598,7 +598,7 @@ handleTimePropertiesDataSet( )
 	
 }
 
-/* Unpack and display PortDataSet */
+/**\brief Unpack and display PortDataSet */
 void
 handlePortDataSet()
 {
@@ -622,7 +622,7 @@ handlePortDataSet()
 	
 }
 
-/* Function to handle management response and display the required fields.
+/**\brief Function to handle management response and display the required fields.
  * This function is called only when a message is received with
  * 'Response' actionfield. Appropriate handling function is called on the 
  * basis of managementId. 
@@ -737,7 +737,7 @@ handleManagementResponse(MsgManagement *manage)
     }
 }
 
-/* Function to handle management ack, received when a command gets executed
+/**\brief Function to handle management ack, received when a command gets executed
  * at server
  */
 void 
@@ -750,7 +750,7 @@ handleManagementAck(MsgManagement *manage)
 			printf("Received ACKNOWLEDGEMENT. Not for your command.\n");
 }
 
-/*Function to handle management error message, received when a sent message is 
+/**\brief Function to handle management error message, received when a sent message is 
  * not supported at server or some error happens
  */
 void 
@@ -789,8 +789,8 @@ handleManagementError(MsgManagement *manage)
 		}
 }
 
-/* Function which handles all received messages, checks the tlvtype and actionField
- * and then passes it to appropriate method for unpacking and displaying
+/**\brief Function which handles all received messages, checks the tlvtype and
+ * actionField and then passes it to appropriate method for unpacking and displaying
  */
 Boolean
 handleIncomingMsg()

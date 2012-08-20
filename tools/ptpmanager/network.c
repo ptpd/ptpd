@@ -52,7 +52,7 @@
 #include "ptpmanager.h"
 
 
-/*function to initialize the UDP networking stuff*/
+/**\brief function to initialize the UDP networking stuff*/
 Boolean 
 netInit(char *ifaceName)
 {
@@ -108,7 +108,7 @@ netInit(char *ifaceName)
 	return TRUE;
 }
 
-/*Function to send management messages*/
+/**\brief Function to send management messages*/
 ssize_t 
 netSendGeneral(Octet * buf, UInteger16 length, char *ip)
 {
@@ -132,7 +132,7 @@ netSendGeneral(Octet * buf, UInteger16 length, char *ip)
 	return (ret);
 }
 
-/*Function to set timeout as provided by user */
+/**\brief Function to set timeout as provided by user */
 void
 set_timeout()
 {
@@ -140,7 +140,7 @@ set_timeout()
 	scanf("%d",&timeout);
 }
 
-/* Function to receive the management response/ack/error message */
+/**\brief Function to receive the management response/ack/error message */
 ssize_t
 netRecv(Octet *message, char *dest)
 {
@@ -180,7 +180,7 @@ netRecv(Octet *message, char *dest)
 	}
 }
 
-/*shutdown the network layer*/
+/**\brief shutdown the network layer*/
 Boolean 
 netShutdown()
 {

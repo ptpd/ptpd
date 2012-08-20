@@ -50,6 +50,7 @@
 
 #include "ptpmanager.h"
 
+/**\brief Implements 'help' command*/
 void 
 show_help()
 {
@@ -64,7 +65,7 @@ show_help()
 	quit                     -  to close the program\n\n");
 }
 
-/* Implements 'show_commonheader'*/
+/**\brief  Implements 'show_commonheader' command*/
 void
 show_commonheader()
 {
@@ -82,7 +83,7 @@ show_commonheader()
 	}
 }
 
-/* Implements 'show_managementheader' */
+/**\brief Implements 'show_managementheader' */
 void
 show_managementheader()
 {
@@ -108,7 +109,7 @@ show_managementheader()
 	}
 }
 
-/* Implements 'show_tlv' command */
+/**\brief Implements 'show_tlv' command */
 void
 show_tlv()
 {
@@ -135,7 +136,7 @@ show_tlv()
 
 }
 
-/* Implements command to show available management messages, their managementIds
+/**\brief Implements command to show available management messages, their managementIds
  * and allowed actions
  */
 void

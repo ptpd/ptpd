@@ -1,3 +1,22 @@
+/**
+ * @file   ptpmanager.h
+ * @mainpage PTPManager Documentation
+ * @authors Himanshu Singh
+ * @version 2.0
+ * @date   Mon Aug 20 1:29:11 2012
+ * 
+ * @section implementation Implementation
+ * PTPManager is a command line client which prepares and sends management 
+ * messages to PTPd. It can be used to control and configure the PTPd using 
+ * management messages. These messages are used to query and update the PTP data
+ * sets maintained by clocks. These messages are also used to customize a PTP 
+ * system and for initialization and fault management. The results of queries and
+ * management commands are displayed on PTPManager console. So PTPManager 
+ * running on a management node, is used to control PTP daemons. 
+ *
+ * This header file includes all data structures used in PTPManager.
+ */
+ 
 #ifndef MANAGER_H
 #define MANAGER_H
 
@@ -59,16 +78,26 @@ enum {
 	PTP_ETHER, PTP_DEFAULT
 };
 
+/**
+* \brief The PortIdentity identifies a PTP port.
+ */
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
 	#include "../../src/def/derivedData/portIdentity.def"
 } PortIdentity;
 
+/**
+* \brief The common header for all PTP messages (Table 18 of the spec)
+ */
+/* Message header */
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
 	#include "../../src/def/message/header.def"
 } MsgHeader;
 
+/**
+* \brief The PTPText data type is used to represent textual material in PTP messages
+ */
 typedef struct {
   UInteger8 lengthField;
   Octet* textField;

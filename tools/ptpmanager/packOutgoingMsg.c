@@ -89,7 +89,7 @@ Boolean packMMUtcProperties(Octet*);
 Boolean packMMTraceabilityProperties(Octet*);
 Boolean packMMTimescaleProperties(Octet*);
 
-/*Function takes managementId and calls methods to pack headers
+/**\brief Function takes managementId and calls methods to pack headers
  * and tlv datafields 
  */
 Boolean 
@@ -244,7 +244,7 @@ packOutgoingMsg()
 	return toSend;
 }
 
-/* Function to pack the header of outgoing message */
+/**\brief Function to pack the header of outgoing message */
 void 
 packCommonHeader(Octet *buf)
 {
@@ -284,7 +284,7 @@ packCommonHeader(Octet *buf)
 
 }
 
-/*Function to pack Management Header*/
+/**\brief Function to pack Management Header*/
 void 
 packManagementHeader(Octet *buf)
 {
@@ -306,7 +306,7 @@ packManagementHeader(Octet *buf)
 	out_length += MANAGEMENT_LENGTH;
 }
 
-/*Function to pack common fields of all command actionField messages*/
+/**\brief Function to pack common fields of all command actionField messages*/
 Boolean 
 packCommandOnly(Octet *buf, MsgManagement* manage)
 {
@@ -331,7 +331,7 @@ packCommandOnly(Octet *buf, MsgManagement* manage)
 	return TRUE;
 }
 
-/*Function to pack common fields of all messages which support 
+/**\brief Function to pack common fields of all messages which support 
  *only GET actionField
  */
 Boolean
@@ -363,7 +363,7 @@ packGETOnly(Octet *buf, MsgManagement* manage)
  * These will ask questions from user and set the data fields accordingly.
  ************************************************************************/
  
-/*Pack NullManagement, tlv dataField does not contain anything.*/ 
+/**\brief Pack NullManagement, tlv dataField does not contain anything.*/ 
 Boolean
 packMMNullManagement(Octet *buf)
 {
@@ -393,7 +393,7 @@ packMMNullManagement(Octet *buf)
 	return TRUE;
 } 
 
-/*Pack Clock Description, supports only GET (Table 40) */
+/**\brief Pack Clock Description, supports only GET (Table 40) */
 Boolean 
 packMMClockDescription(Octet *buf)
 {
@@ -404,7 +404,7 @@ packMMClockDescription(Octet *buf)
 	return packGETOnly(buf,manage);
 }
 
-/*Pack User description based on Table 43 of spec, supports GET and SET. */
+/**\brief Pack User description based on Table 43 of spec, supports GET and SET. */
 Boolean
 packMMUserDescription(Octet *buf)
 {
@@ -485,7 +485,7 @@ packMMUserDescription(Octet *buf)
 	return TRUE;
 }
 
-/*Pack SaveInNonVolatileStorage TLV, supports command actionField*/ 
+/**\brief Pack SaveInNonVolatileStorage TLV, supports command actionField*/ 
 Boolean
 packMMSaveInNonVolatileStorage(Octet *buf)
 {
@@ -496,7 +496,7 @@ packMMSaveInNonVolatileStorage(Octet *buf)
 	return packCommandOnly(buf,manage);
 }
 
-/*Pack ResetNonVolatileStorage TLV, supports command actionField*/ 
+/**\brief Pack ResetNonVolatileStorage TLV, supports command actionField*/ 
 Boolean
 packMMResetNonVolatileStorage(Octet *buf)
 {
@@ -507,7 +507,7 @@ packMMResetNonVolatileStorage(Octet *buf)
 	return packCommandOnly(buf,manage);
 }
 
-/*Pack Initialize TLV based on table 44, supports command actionField*/ 
+/**\brief Pack Initialize TLV based on table 44, supports command actionField*/ 
 Boolean
 packMMInitialize(Octet *buf)
 {
@@ -540,7 +540,7 @@ packMMInitialize(Octet *buf)
 	return TRUE;
 }
 
-/*Pack FaultLog Tlv based on Table 47, supports GET only*/
+/**\brief Pack FaultLog Tlv based on Table 47, supports GET only*/
 Boolean
 packMMFaultLog(Octet *buf)
 {
@@ -573,7 +573,7 @@ packMMFaultLog(Octet *buf)
 	return TRUE;
 }
 
-/*Pack FaultLogReset, supports command actionField only*/
+/**\brief Pack FaultLogReset, supports command actionField only*/
 Boolean
 packMMFaultLogReset(Octet *buf)
 {
@@ -583,7 +583,7 @@ packMMFaultLogReset(Octet *buf)
 	return packCommandOnly(buf,manage);
 }
 
-/*Pack Time tlv based on table 48, supports GET and SET*/
+/**\brief Pack Time tlv based on table 48, supports GET and SET*/
 Boolean
 packMMTime(Octet *buf)
 {
@@ -633,7 +633,7 @@ packMMTime(Octet *buf)
 	return TRUE;
 }
 
-/*Pack ClockAccuracy based on table 49, supports GET and SET*/
+/**\brief Pack ClockAccuracy based on table 49, supports GET and SET*/
 Boolean
 packMMClockAccuracy(Octet *buf)
 {
@@ -671,7 +671,7 @@ packMMClockAccuracy(Octet *buf)
 	return TRUE;
 }
 
-/*Pack EnablePort which cause the DESIGNATED_ENABLED event to occur*/
+/**\brief Pack EnablePort which cause the DESIGNATED_ENABLED event to occur*/
 Boolean
 packMMEnablePort(Octet *buf)
 {
@@ -681,7 +681,7 @@ packMMEnablePort(Octet *buf)
 	return packCommandOnly(buf,manage);
 }
 
-/*Pack DisablePort command which cause the DESIGNATED_DISABLED event to occur*/
+/**\brief Pack DisablePort command which cause the DESIGNATED_DISABLED event to occur*/
 Boolean
 packMMDisablePort(Octet *buf)
 {
@@ -691,7 +691,7 @@ packMMDisablePort(Octet *buf)
 	return packCommandOnly(buf,manage);
 }
 
-/* Pack DefaultDataSet based on table 50, which is used to 
+/**\brief  Pack DefaultDataSet based on table 50, which is used to 
  * GET members of defaultDS
  */
 Boolean 
@@ -704,7 +704,7 @@ packMMDefaultDataSet(Octet *buf)
 	return 	packGETOnly(buf,manage);
 }
 
-/* Pack Priority1 of defaultDS, based on table 51, supports GET and SET*/
+/**\brief  Pack Priority1 of defaultDS, based on table 51, supports GET and SET*/
 Boolean
 packMMPriority1(Octet *buf)
 {
@@ -741,7 +741,7 @@ packMMPriority1(Octet *buf)
 	return TRUE;
 }
 
-/* Pack Priority1 of defaultDS, based on table 52, supports GET and SET*/
+/**\brief Pack Priority1 of defaultDS, based on table 52, supports GET and SET*/
 Boolean
 packMMPriority2(Octet *buf)
 {
@@ -778,7 +778,7 @@ packMMPriority2(Octet *buf)
 	return TRUE;
 }
 
-/* Pack Domain of defaultDS, based on table 53, supports GET and SET*/
+/**\brief Pack Domain of defaultDS, based on table 53, supports GET and SET*/
 Boolean
 packMMDomain(Octet *buf)
 {
@@ -815,7 +815,7 @@ packMMDomain(Octet *buf)
 	return TRUE;
 }
 
-/* Pack SlaveOnly of defaultDS, based on table 54, supports GET and SET*/
+/**\brief Pack SlaveOnly of defaultDS, based on table 54, supports GET and SET*/
 Boolean
 packMMSlaveOnly(Octet *buf)
 {
@@ -863,7 +863,7 @@ packMMSlaveOnly(Octet *buf)
 	return TRUE;
 }
 
-/*Pack CurrentDataSet based on Table 55, to GET the members of currentDS*/
+/**\brief Pack CurrentDataSet based on Table 55, to GET the members of currentDS*/
 Boolean 
 packMMCurrentDataSet(Octet *buf)
 {
@@ -874,7 +874,7 @@ packMMCurrentDataSet(Octet *buf)
 	return 	packGETOnly(buf,manage);
 }
 
-/*Pack ParentDataSet based on Table 56, to GET the members of parentDS*/
+/**\brief Pack ParentDataSet based on Table 56, to GET the members of parentDS*/
 Boolean 
 packMMParentDataSet(Octet *buf)
 {
@@ -885,7 +885,7 @@ packMMParentDataSet(Octet *buf)
 	return packGETOnly(buf,manage);
 }
 
-/* Pack TimePropertiesDataSet based on Table 57, 
+/**\brief  Pack TimePropertiesDataSet based on Table 57, 
  * to GET the members of timePropertiesDS
  */
 Boolean 
@@ -899,7 +899,7 @@ packMMTimePropertiesDataSet(Octet *buf)
 }
 
 
-/*Pack UTC properties, table 58*/
+/**\brief Pack UTC properties, table 58*/
 Boolean 
 packMMUtcProperties(Octet *buf)
 {
@@ -950,7 +950,7 @@ packMMUtcProperties(Octet *buf)
 	return TRUE;
 }
 
-/* Pack Tracebility properties, table 59*/
+/**\brief Pack Tracebility properties, table 59*/
 Boolean 
 packMMTraceabilityProperties(Octet *buf)
 {
@@ -994,7 +994,7 @@ packMMTraceabilityProperties(Octet *buf)
 	return TRUE;
 }
 
-/*Pack TimescaleProperties, table 60*/
+/**\brief Pack TimescaleProperties, table 60*/
 Boolean 
 packMMTimescaleProperties(Octet *buf)
 {
@@ -1038,7 +1038,7 @@ packMMTimescaleProperties(Octet *buf)
 	return TRUE;
 }
 
-/*Pack PortDataSet based on table 61, to GET members of portDS*/
+/**\brief Pack PortDataSet based on table 61, to GET members of portDS*/
 Boolean 
 packMMPortDataSet(Octet *buf)
 {
@@ -1049,7 +1049,7 @@ packMMPortDataSet(Octet *buf)
 	return packGETOnly(buf,manage);
 }
 
-/* Pack TransparentClockDefaultDataSet based on table 68, 
+/**\brief Pack TransparentClockDefaultDataSet based on table 68, 
  * to GET members of defaultDS.
  */
 Boolean 
@@ -1062,7 +1062,7 @@ packMMTransparentClockDefaultDataSet(Octet *buf)
 	return packGETOnly(buf,manage);
 }
 
-/* Pack TransparentClockPortDataSet based on table 70, 
+/**\brief Pack TransparentClockPortDataSet based on table 70, 
  * to GET members of portDS
  */
 Boolean 
@@ -1075,7 +1075,7 @@ packMMTransparentClockPortDataSet(Octet *buf)
 	return packGETOnly(buf,manage);
 }
 
-/* Pack Primary Domain, table 69*/
+/**\brief Pack Primary Domain, table 69*/
 Boolean
 packMMPrimaryDomain(Octet *buf)
 {
@@ -1112,7 +1112,7 @@ packMMPrimaryDomain(Octet *buf)
 	return TRUE;
 }
 
-/* Pack LogAnnounceInterval, table 62*/
+/**\brief Pack LogAnnounceInterval, table 62*/
 Boolean
 packMMLogAnnounceInterval(Octet *buf)
 {
@@ -1149,7 +1149,7 @@ packMMLogAnnounceInterval(Octet *buf)
 	return TRUE;
 }
 
-/*Pack AnnounceReceiptTimeout, table 63*/
+/**\brief Pack AnnounceReceiptTimeout, table 63*/
 Boolean
 packMMAnnounceReceiptTimeout(Octet *buf)
 {
@@ -1186,7 +1186,7 @@ packMMAnnounceReceiptTimeout(Octet *buf)
 	return TRUE;
 }
 
-/*Pack LogSyncInterval, table 64*/
+/**\brief Pack LogSyncInterval, table 64*/
 Boolean
 packMMLogSyncInterval(Octet *buf)
 {
@@ -1223,7 +1223,7 @@ packMMLogSyncInterval(Octet *buf)
 	return TRUE;
 }
 
-/*Pack delayMechanism, table 65*/
+/**\brief Pack delayMechanism, table 65*/
 Boolean
 packMMDelayMechanism(Octet *buf)
 {
@@ -1260,7 +1260,7 @@ packMMDelayMechanism(Octet *buf)
 	return TRUE;
 }
 
-/* Pack LogMinPdelayReqInterval, table 66*/
+/**\brief Pack LogMinPdelayReqInterval, table 66*/
 Boolean
 packMMLogMinPdelayReqInterval(Octet *buf)
 {
@@ -1297,7 +1297,7 @@ packMMLogMinPdelayReqInterval(Octet *buf)
 	return TRUE;
 }
 
-/*Pack Version number, table 68*/
+/**\brief Pack Version number, table 68*/
 Boolean
 packMMVersionNumber(Octet *buf)
 {

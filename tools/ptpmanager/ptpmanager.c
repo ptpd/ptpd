@@ -50,7 +50,7 @@
 
 #include "ptpmanager.h"
 
-/*Function to parse the command and return a command id*/
+/**\brief Function to parse the command and return a command id*/
 int 
 getCommandId(char *command)
 {
@@ -77,7 +77,7 @@ getCommandId(char *command)
 	return (0); /* for wrong command */
 }
 
-/* Sends the outmessage buffer and waits for response/ack/error*/
+/**\brief Sends the outmessage buffer and waits for response/ack/error*/
 void 
 sendMessage(char *dest)
 {
@@ -106,7 +106,7 @@ sendMessage(char *dest)
 	}
 }
 
-/* 
+/**\brief  
  * The code implements ptpmanager responsible for sending and 
  * receiving management messages. Main function receives user commands and 
  * executes it. 
