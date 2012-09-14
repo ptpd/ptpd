@@ -107,8 +107,6 @@ main(int argc, char **argv)
 	// rtOpts.ethernet_mode = FALSE;
 	// rtOpts.offset_first_updated = FALSE;
 	// rtOpts.file[0] = 0;
-	rtOpts.maxDelayAutoTune = FALSE;
-	rtOpts.discardedPacketThreshold = 60;
 	rtOpts.logFd = -1;
 	rtOpts.recordFP = NULL;
 	rtOpts.do_log_to_file = FALSE;

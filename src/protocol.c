@@ -587,12 +587,13 @@ void
 handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	int ret;
-	ssize_t length;
+	ssize_t length = -1;
 	Boolean isFromSelf;
 	TimeInternal time = { 0, 0 };
+	fd_set readfds;
 
 	if (!ptpClock->message_activity) {
-		ret = netSelect(0, &ptpClock->netPath);
+		ret = netSelect(0, &ptpClock->netPath, &readfds);
 		if (ret < 0) {
 			PERROR("failed to poll sockets");
 			ptpClock->counters.messageRecvErrors++;
@@ -607,38 +608,66 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	DBGV("handle: something\n");
 
-	/* TODO: this should be based on the select actual FDs (if(FD_ISSET(...)) */
-	length = netRecvEvent(ptpClock->msgIbuf, &time, &ptpClock->netPath);
+	if (rtOpts->pcap == TRUE) {
+		if (FD_ISSET(ptpClock->netPath.pcapEventSock, &readfds)) {
+			length = netRecvEvent(ptpClock->msgIbuf, &time, 
+					      &ptpClock->netPath);
+			if (length < 0) {
+				PERROR("failed to receive event on pcap");
+				toState(PTP_FAULTY, rtOpts, ptpClock);
+				ptpClock->counters.messageRecvErrors++;
+				return;
+			}
+			goto process;
+		}
+		if (FD_ISSET(ptpClock->netPath.pcapGeneralSock, &readfds)) {
+			length = netRecvGeneral(ptpClock->msgIbuf, &time,
+						&ptpClock->netPath);
 
-
-	if (length < 0) {
-		PERROR("failed to receive on the event socket");
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-		ptpClock->counters.messageRecvErrors++;
-		return;
-	} else if (!length) {
-		length = netRecvGeneral(ptpClock->msgIbuf, &time,
-					&ptpClock->netPath);
-		if (length < 0) {
-			PERROR("failed to receive on the general socket");
-			toState(PTP_FAULTY, rtOpts, ptpClock);
-			ptpClock->counters.messageRecvErrors++;
-			return;
-		} else if (!length) {
-			return;
+			if (length < 0) {
+				PERROR("failed to receive general on pcap");
+				toState(PTP_FAULTY, rtOpts, ptpClock);
+				ptpClock->counters.messageRecvErrors++;
+				return;
+			}
+		}
+	} else {
+		if (FD_ISSET(ptpClock->netPath.eventSock, &readfds)) {
+			length = netRecvEvent(ptpClock->msgIbuf, &time, 
+					      &ptpClock->netPath);
+			if (length < 0) {
+				PERROR("failed to receive on the event socket");
+				toState(PTP_FAULTY, rtOpts, ptpClock);
+				ptpClock->counters.messageRecvErrors++;
+				return;
+			}
+			goto process;
+		}
+		if (FD_ISSET(ptpClock->netPath.generalSock, &readfds)) {
+			length = netRecvGeneral(ptpClock->msgIbuf, &time,
+						&ptpClock->netPath);
+			if (length < 0) {
+				PERROR("failed to receive on the general socket");
+				toState(PTP_FAULTY, rtOpts, ptpClock);
+				ptpClock->counters.messageRecvErrors++;
+				return;
+			}
 		}
 	}
-
 	/*
-	 * make sure we use the TAI to UTC offset specified, if the master is sending the UTC_VALID bit
+	 * make sure we use the TAI to UTC offset specified, if the
+	 * master is sending the UTC_VALID bit
 	 *
+	 * On the slave, all timestamps that we handle here have been
+	 * collected by our local clock (loopback+kernel-level
+	 * timestamp) This includes delayReq just send, and delayResp,
+	 * when it arrives.
 	 *
-	 * On the slave, all timestamps that we handle here have been collected by our local clock (loopback+kernel-level timestamp)
-	 * This includes delayReq just send, and delayResp, when it arrives.
-	 *
-	 * these are then adjusted to the same timebase of the Master (+35 leap seconds, as of July 2012)
+	 * these are then adjusted to the same timebase of the Master
+	 * (+35 leap seconds, as of July 2012)
 	 *
 	 */
+process:
 	DBGV("__UTC_offset: %d %d \n", ptpClock->currentUtcOffsetValid, ptpClock->currentUtcOffset);
 	if (ptpClock->currentUtcOffsetValid) {
 		time.seconds += ptpClock->currentUtcOffset;

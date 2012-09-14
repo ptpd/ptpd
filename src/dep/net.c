@@ -52,12 +52,16 @@
 
 #include "../ptpd.h"
 
+#include <pcap/pcap.h>
+
 #if defined PTPD_SNMP
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #endif
 
+
+#define PKT_BEGIN (ETHER_HDR_LEN + sizeof(struct ip) + sizeof(struct udphdr))
 
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
 #if !defined(SO_TIMESTAMPNS) && !defined(SO_TIMESTAMP) && !defined(SO_BINTIME)
@@ -126,6 +130,15 @@ netShutdown(NetPath * netPath)
 	if (netPath->generalSock > 0)
 		close(netPath->generalSock);
 	netPath->generalSock = -1;
+
+	if (netPath->pcapEvent != NULL) {
+		pcap_close(netPath->pcapEvent);
+		netPath->pcapEventSock = -1;
+	}
+	if (netPath->pcapGeneral != NULL) {
+		pcap_close(netPath->pcapGeneral);
+		netPath->pcapGeneralSock = -1;
+	}
 
 	return TRUE;
 }
@@ -493,16 +506,16 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	int temp;
 	struct in_addr interfaceAddr, netAddr;
 	struct sockaddr_in addr;
-
+	struct bpf_program program;
+	char errbuf[PCAP_ERRBUF_SIZE];
+       
 	DBG("netInit\n");
 
-	/* open sockets */
-	if ((netPath->eventSock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0
-	    || (netPath->generalSock = socket(PF_INET, SOCK_DGRAM, 
-					      IPPROTO_UDP)) < 0) {
-		PERROR("failed to initalize sockets");
-		return FALSE;
-	}
+	netPath->pcapEvent = NULL;
+	netPath->pcapGeneral = NULL;
+	netPath->pcapEventSock = -1;
+	netPath->pcapGeneralSock = -1;
+
 	/* find a network interface */
 	if (!(interfaceAddr.s_addr = 
 	      findIface(rtOpts->ifaceName, 
@@ -510,6 +523,62 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			ptpClock->port_uuid_field, netPath)))
 		return FALSE;
 
+	/* open sockets */
+	if ((netPath->eventSock = socket(PF_INET, SOCK_DGRAM, 
+					 IPPROTO_UDP)) < 0
+	    || (netPath->generalSock = socket(PF_INET, SOCK_DGRAM, 
+					      IPPROTO_UDP)) < 0) {
+		PERROR("failed to initialize sockets");
+		return FALSE;
+	}
+	if (rtOpts->pcap == TRUE) {
+		if ((netPath->pcapEvent = pcap_open_live(rtOpts->ifaceName,
+							 -1, 0, 1,
+							 errbuf)) == NULL) {
+			PERROR("failed to open event pcap");
+			return FALSE;
+		}
+		if (pcap_compile(netPath->pcapEvent, &program, 
+				 "multicast and host 224.0.1.129 and udp port 319",
+				 1, 0) < 0) {
+			PERROR("failed to compile pcap event filter");
+			pcap_perror(netPath->pcapEvent, "ptpd2");
+			return FALSE;
+		}
+		if (pcap_setfilter(netPath->pcapEvent, &program) < 0) {
+			PERROR("failed to set pcap event filter");
+			return FALSE;
+		}
+		pcap_freecode(&program);
+		if ((netPath->pcapEventSock = 
+		     pcap_get_selectable_fd(netPath->pcapEvent)) < 0) {
+			PERROR("failed to get pcap event fd");
+			return FALSE;
+		}		
+		if ((netPath->pcapGeneral = pcap_open_live(rtOpts->ifaceName,
+							 -1, 0, 1,
+							 errbuf)) == NULL) {
+			PERROR("failed to open general pcap");
+			return FALSE;
+		}
+		if (pcap_compile(netPath->pcapGeneral, &program, 
+				 "multicast and host 224.0.1.129 and udp port 320",
+				 1, 0) < 0) {
+			PERROR("failed to compile pcap general filter");
+			pcap_perror(netPath->pcapGeneral, "ptpd2");
+			return FALSE;
+		}
+		if (pcap_setfilter(netPath->pcapGeneral, &program) < 0) {
+			PERROR("failed to set pcap general filter");
+			return FALSE;
+		}
+		pcap_freecode(&program);
+		if ((netPath->pcapGeneralSock = 
+		     pcap_get_selectable_fd(netPath->pcapGeneral)) < 0) {
+			PERROR("failed to get pcap general fd");
+			return FALSE;
+		}		
+	}
 	/* save interface address for IGMP refresh */
 	netPath->interfaceAddr = interfaceAddr;
 	
@@ -543,13 +612,14 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 
-
 #ifdef USE_BINDTODEVICE
 #ifdef linux
 	/*
-	 * The following code makes sure that the data is only received on the specified interface.
-	 * Without this option, it's possible to receive PTP from another interface, and confuse the protocol.
-	 * Calling bind() with the IP address of the device instead of INADDR_ANY does not work.
+	 * The following code makes sure that the data is only
+	 * received on the specified interface.  Without this option,
+	 * it's possible to receive PTP from another interface, and
+	 * confuse the protocol.  Calling bind() with the IP address
+	 * of the device instead of INADDR_ANY does not work.
 	 *
 	 * More info:
 	 *   http://developerweb.net/viewtopic.php?id=6471
@@ -567,7 +637,6 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 #endif
 #endif
-
 
 	/* send a uni-cast address if specified (useful for testing) */
 	if (rtOpts->unicastAddress[0]) {
@@ -595,10 +664,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
                 netPath->unicastAddr = 0;
 	}
 
-	/* init UDP Multicast on both Default and Pear addresses */
-	if (!netInitMulticast(netPath, rtOpts)) {
+	/* init UDP Multicast on both Default and Peer addresses */
+	if (!netInitMulticast(netPath, rtOpts))
 		return FALSE;
-	}
 
 	/* set socket time-to-live to 1 */
 
@@ -634,10 +702,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 /*Check if data have been received*/
 int 
-netSelect(TimeInternal * timeout, NetPath * netPath)
+netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 {
 	int ret, nfds;
-	fd_set readfds;
 	struct timeval tv, *tv_ptr;
 
 	extern RunTimeOpts rtOpts;
@@ -650,9 +717,13 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 	if (timeout < 0)
 		return FALSE;
 
-	FD_ZERO(&readfds);
-	FD_SET(netPath->eventSock, &readfds);
-	FD_SET(netPath->generalSock, &readfds);
+	FD_ZERO(readfds);
+	FD_SET(netPath->eventSock, readfds);
+	FD_SET(netPath->generalSock, readfds);
+	if (netPath->pcapEvent != NULL)
+		FD_SET(netPath->pcapEventSock, readfds);
+	if (netPath->pcapGeneral != NULL)
+		FD_SET(netPath->pcapGeneralSock, readfds);
 
 	if (timeout) {
 		tv.tv_sec = timeout->seconds;
@@ -661,10 +732,13 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 	} else
 		tv_ptr = 0;
 
-	if (netPath->eventSock > netPath->generalSock)
-		nfds = netPath->eventSock;
-	else
-		nfds = netPath->generalSock;
+	if (netPath->pcapGeneralSock > 0)
+		nfds = netPath->pcapGeneralSock;
+	else 
+		if (netPath->eventSock > netPath->generalSock)
+			nfds = netPath->eventSock;
+		else
+			nfds = netPath->generalSock;
 	nfds++;
 
 #if defined PTPD_SNMP
@@ -674,13 +748,13 @@ if (rtOpts.snmp_enabled) {
 		snmpblock = 0;
 		memcpy(&snmp_timer_wait, tv_ptr, sizeof(struct timeval));
 	}
-	snmp_select_info(&nfds, &readfds, &snmp_timer_wait, &snmpblock);
+	snmp_select_info(&nfds, readfds, &snmp_timer_wait, &snmpblock);
 	if (snmpblock == 0)
 		tv_ptr = &snmp_timer_wait;
 }
 #endif
 
-	ret = select(nfds, &readfds, 0, 0, tv_ptr);
+	ret = select(nfds, readfds, 0, 0, tv_ptr);
 
 	if (ret < 0) {
 		if (errno == EAGAIN || errno == EINTR)
@@ -690,7 +764,7 @@ if (rtOpts.snmp_enabled) {
 if (rtOpts.snmp_enabled) {
 	/* Maybe we have received SNMP related data */
 	if (ret > 0) {
-		snmp_read(&readfds);
+		snmp_read(readfds);
 	} else if (ret == 0) {
 		snmp_timeout();
 		run_alarms();
@@ -709,8 +783,9 @@ if (rtOpts.snmp_enabled) {
  * SO_TIMESTAMP value in "time" for an event message
  *
  * @note Should this function be merged with netRecvGeneral(), below?
- * Jan Breuer: I think that netRecvGeneral should be simplified. Timestamp returned by this
- * function is never used. According to this, netInitTimestamping can be also simplified
+ * Jan Breuer: I think that netRecvGeneral should be
+ * simplified. Timestamp returned by this function is never
+ * used. According to this, netInitTimestamping can be also simplified
  * to initialize timestamping only on eventSock.
  *
  * @param buf 
@@ -723,10 +798,13 @@ if (rtOpts.snmp_enabled) {
 ssize_t 
 netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 {
-	ssize_t ret;
+	ssize_t ret = 0;
 	struct msghdr msg;
 	struct iovec vec[1];
 	struct sockaddr_in from_addr;
+
+	struct pcap_pkthdr *pkt_header;
+	const u_char *pkt_data;
 
 	union {
 		struct cmsghdr cm;
@@ -747,107 +825,121 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 #endif
 	Boolean timestampValid = FALSE;
 
+	if (netPath->pcapEvent == NULL) { /* Using sockets */
+		vec[0].iov_base = buf;
+		vec[0].iov_len = PACKET_SIZE;
 
-	vec[0].iov_base = buf;
-	vec[0].iov_len = PACKET_SIZE;
+		memset(&msg, 0, sizeof(msg));
+		memset(&from_addr, 0, sizeof(from_addr));
+		memset(buf, 0, PACKET_SIZE);
+		memset(&cmsg_un, 0, sizeof(cmsg_un));
 
-	memset(&msg, 0, sizeof(msg));
-	memset(&from_addr, 0, sizeof(from_addr));
-	memset(buf, 0, PACKET_SIZE);
-	memset(&cmsg_un, 0, sizeof(cmsg_un));
+		msg.msg_name = (caddr_t)&from_addr;
+		msg.msg_namelen = sizeof(from_addr);
+		msg.msg_iov = vec;
+		msg.msg_iovlen = 1;
+		msg.msg_control = cmsg_un.control;
+		msg.msg_controllen = sizeof(cmsg_un.control);
+		msg.msg_flags = 0;
 
-	msg.msg_name = (caddr_t)&from_addr;
-	msg.msg_namelen = sizeof(from_addr);
-	msg.msg_iov = vec;
-	msg.msg_iovlen = 1;
-	msg.msg_control = cmsg_un.control;
-	msg.msg_controllen = sizeof(cmsg_un.control);
-	msg.msg_flags = 0;
+		ret = recvmsg(netPath->eventSock, &msg, MSG_DONTWAIT);
+		if (ret <= 0) {
+			if (errno == EAGAIN || errno == EINTR)
+				return 0;
 
-	ret = recvmsg(netPath->eventSock, &msg, MSG_DONTWAIT);
-	if (ret <= 0) {
-		if (errno == EAGAIN || errno == EINTR)
+			return ret;
+		}
+		if (msg.msg_flags & MSG_TRUNC) {
+			ERROR("received truncated message\n");
 			return 0;
-
-		return ret;
-	}
-	if (msg.msg_flags & MSG_TRUNC) {
-		ERROR("received truncated message\n");
-		return 0;
-	}
-	/* get time stamp of packet */
-	if (!time) {
-		ERROR("null receive time stamp argument\n");
-		return 0;
-	}
-	if (msg.msg_flags & MSG_CTRUNC) {
-		ERROR("received truncated ancillary data\n");
-		return 0;
-	}
+		}
+		/* get time stamp of packet */
+		if (!time) {
+			ERROR("null receive time stamp argument\n");
+			return 0;
+		}
+		if (msg.msg_flags & MSG_CTRUNC) {
+			ERROR("received truncated ancillary data\n");
+			return 0;
+		}
 #ifdef PTPD_EXPERIMENTAL
-	netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
+		netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 #endif
-	netPath->receivedPackets++;
+		netPath->receivedPackets++;
 
+		if (msg.msg_controllen <= 0) {
+			ERROR("received short ancillary data (%ld/%ld)\n",
+			      (long)msg.msg_controllen, (long)sizeof(cmsg_un.control));
 
+			return 0;
+		}
 
-	if (msg.msg_controllen <= 0) {
-		ERROR("received short ancillary data (%ld/%ld)\n",
-		    (long)msg.msg_controllen, (long)sizeof(cmsg_un.control));
-
-		return 0;
-	}
-
-	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
-	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_level == SOL_SOCKET) {
+		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
+		     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+			if (cmsg->cmsg_level == SOL_SOCKET) {
 #if defined(SO_TIMESTAMPNS)
-			if(cmsg->cmsg_type == SCM_TIMESTAMPNS) {
-				ts = (struct timespec *)CMSG_DATA(cmsg);
-				time->seconds = ts->tv_sec;
-				time->nanoseconds = ts->tv_nsec;
-				timestampValid = TRUE;
-				DBGV("kernel NANO recv time stamp %us %dns\n", 
-				     time->seconds, time->nanoseconds);
-				break;
-			}
+				if(cmsg->cmsg_type == SCM_TIMESTAMPNS) {
+					ts = (struct timespec *)CMSG_DATA(cmsg);
+					time->seconds = ts->tv_sec;
+					time->nanoseconds = ts->tv_nsec;
+					timestampValid = TRUE;
+					DBGV("kernel NANO recv time stamp %us %dns\n", 
+					     time->seconds, time->nanoseconds);
+					break;
+				}
 #elif defined(SO_BINTIME)
-			if(cmsg->cmsg_type == SCM_BINTIME) {
-				bt = (struct bintime *)CMSG_DATA(cmsg);
-				bintime2timespec(bt, &ts);
-				time->seconds = ts.tv_sec;
-				time->nanoseconds = ts.tv_nsec;
-				timestampValid = TRUE;
-				DBGV("kernel NANO recv time stamp %us %dns\n",
-				     time->seconds, time->nanoseconds);
-				break;
-			}
+				if(cmsg->cmsg_type == SCM_BINTIME) {
+					bt = (struct bintime *)CMSG_DATA(cmsg);
+					bintime2timespec(bt, &ts);
+					time->seconds = ts.tv_sec;
+					time->nanoseconds = ts.tv_nsec;
+					timestampValid = TRUE;
+					DBGV("kernel NANO recv time stamp %us %dns\n",
+					     time->seconds, time->nanoseconds);
+					break;
+				}
 #endif
 			
 #if defined(SO_TIMESTAMP)
-			if(cmsg->cmsg_type == SCM_TIMESTAMP) {
-				tv = (struct timeval *)CMSG_DATA(cmsg);
-				time->seconds = tv->tv_sec;
-				time->nanoseconds = tv->tv_usec * 1000;
-				timestampValid = TRUE;
-				DBGV("kernel MICRO recv time stamp %us %dns\n",
-				     time->seconds, time->nanoseconds);
-			}
+				if(cmsg->cmsg_type == SCM_TIMESTAMP) {
+					tv = (struct timeval *)CMSG_DATA(cmsg);
+					time->seconds = tv->tv_sec;
+					time->nanoseconds = tv->tv_usec * 1000;
+					timestampValid = TRUE;
+					DBGV("kernel MICRO recv time stamp %us %dns\n",
+					     time->seconds, time->nanoseconds);
+				}
 #endif
+			}
 		}
-	}
 
-	if (!timestampValid) {
-		/*
-		 * do not try to get by with recording the time here, better
-		 * to fail because the time recorded could be well after the
-		 * message receive, which would put a big spike in the
-		 * offset signal sent to the clock servo
-		 */
-		DBG("netRecvEvent: no receive time stamp\n");
-		return 0;
+		if (!timestampValid) {
+			/*
+			 * do not try to get by with recording the time here, better
+			 * to fail because the time recorded could be well after the
+			 * message receive, which would put a big spike in the
+			 * offset signal sent to the clock servo
+			 */
+			DBG("netRecvEvent: no receive time stamp\n");
+			return 0;
+		}
+	} else { /* Using PCAP */
+		if (pcap_next_ex(netPath->pcapEvent, &pkt_header, 
+				 &pkt_data) < 1) {
+			DBG("netRecvEvent: pcap_next_ex failed\n");
+			return 0;
+		}
+		netPath->receivedPackets++;
+		/* XXX Total cheat */
+		memcpy(buf, pkt_data + PKT_BEGIN, 
+		       pkt_header->caplen - PKT_BEGIN);
+		time->seconds = pkt_header->ts.tv_sec;
+		time->nanoseconds = pkt_header->ts.tv_usec * 1000;
+		timestampValid = TRUE;
+		DBGV("kernel PCAP recv time stamp %us %dns\n",
+		     time->seconds, time->nanoseconds);
+		ret = pkt_header->caplen - PKT_BEGIN;
 	}
-
 	return ret;
 }
 
@@ -873,6 +965,9 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 	struct iovec vec[1];
 	struct sockaddr_in from_addr;
 	
+	struct pcap_pkthdr *pkt_header;
+	const u_char *pkt_data;
+
 	union {
 		struct cmsghdr cm;
 		char	control[CMSG_SPACE(sizeof(struct timeval))];
@@ -892,95 +987,110 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 #endif
 	Boolean timestampValid = FALSE;
 	
+	if (netPath->pcapEvent == NULL) {
+		vec[0].iov_base = buf;
+		vec[0].iov_len = PACKET_SIZE;
 	
+		memset(&msg, 0, sizeof(msg));
+		memset(&from_addr, 0, sizeof(from_addr));
+		memset(buf, 0, PACKET_SIZE);
+		memset(&cmsg_un, 0, sizeof(cmsg_un));
 	
-	vec[0].iov_base = buf;
-	vec[0].iov_len = PACKET_SIZE;
+		msg.msg_name = (caddr_t)&from_addr;
+		msg.msg_namelen = sizeof(from_addr);
+		msg.msg_iov = vec;
+		msg.msg_iovlen = 1;
+		msg.msg_control = cmsg_un.control;
+		msg.msg_controllen = sizeof(cmsg_un.control);
+		msg.msg_flags = 0;
 	
-	memset(&msg, 0, sizeof(msg));
-	memset(&from_addr, 0, sizeof(from_addr));
-	memset(buf, 0, PACKET_SIZE);
-	memset(&cmsg_un, 0, sizeof(cmsg_un));
-	
-	msg.msg_name = (caddr_t)&from_addr;
-	msg.msg_namelen = sizeof(from_addr);
-	msg.msg_iov = vec;
-	msg.msg_iovlen = 1;
-	msg.msg_control = cmsg_un.control;
-	msg.msg_controllen = sizeof(cmsg_un.control);
-	msg.msg_flags = 0;
-	
-	ret = recvmsg(netPath->generalSock, &msg, MSG_DONTWAIT);
-	if (ret <= 0) {
-		if (errno == EAGAIN || errno == EINTR)
+		ret = recvmsg(netPath->generalSock, &msg, MSG_DONTWAIT);
+		if (ret <= 0) {
+			if (errno == EAGAIN || errno == EINTR)
+				return 0;
+
+			return ret;
+		}
+		if (msg.msg_flags & MSG_TRUNC) {
+			ERROR("received truncated message\n");
 			return 0;
-		
-		return ret;
-	}
-	if (msg.msg_flags & MSG_TRUNC) {
-		ERROR("received truncated message\n");
-		return 0;
-	}
-	/* get time stamp of packet */
-	if (!time) {
-		ERROR("null receive time stamp argument\n");
-		return 0;
-	}
-	if (msg.msg_flags & MSG_CTRUNC) {
-		ERROR("received truncated ancillary data\n");
-		return 0;
-	}
+		}
+		/* get time stamp of packet */
+		if (!time) {
+			ERROR("null receive time stamp argument\n");
+			return 0;
+		}
+		if (msg.msg_flags & MSG_CTRUNC) {
+			ERROR("received truncated ancillary data\n");
+			return 0;
+		}
 
 #ifdef PTPD_EXPERIMENTAL
-	netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
+		netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 #endif
-	netPath->receivedPackets++;
+		netPath->receivedPackets++;
 	
-	
-	if (msg.msg_controllen <= 0) {
-		ERROR("received short ancillary data (%ld/%ld)\n",
-		      (long)msg.msg_controllen, (long)sizeof(cmsg_un.control));
+		if (msg.msg_controllen <= 0) {
+			ERROR("received short ancillary data (%ld/%ld)\n",
+			      (long)msg.msg_controllen, (long)sizeof(cmsg_un.control));
 		
-		return 0;
-	}
+			return 0;
+		}
 	
-	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
-	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_level == SOL_SOCKET) {
+		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
+		     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+			if (cmsg->cmsg_level == SOL_SOCKET) {
 #if defined(SO_TIMESTAMPNS)
-			if(cmsg->cmsg_type == SCM_TIMESTAMPNS) {
-				ts = (struct timespec *)CMSG_DATA(cmsg);
-				time->seconds = ts->tv_sec;
-				time->nanoseconds = ts->tv_nsec;
-				timestampValid = TRUE;
-				DBGV("kernel NANO recv time stamp %us %dns\n", 
-				     time->seconds, time->nanoseconds);
-				break;
-			}
+				if(cmsg->cmsg_type == SCM_TIMESTAMPNS) {
+					ts = (struct timespec *)CMSG_DATA(cmsg);
+					time->seconds = ts->tv_sec;
+					time->nanoseconds = ts->tv_nsec;
+					timestampValid = TRUE;
+					DBGV("kernel NANO recv time stamp %us %dns\n", 
+					     time->seconds, time->nanoseconds);
+					break;
+				}
 #elif defined(SO_BINTIME)
-			if(cmsg->cmsg_type == SCM_BINTIME) {
-				bt = (struct bintime *)CMSG_DATA(cmsg);
-				bintime2timespec(bt, &ts);
-				time->seconds = ts.tv_sec;
-				time->nanoseconds = ts.tv_nsec;
-				timestampValid = TRUE;
-				DBGV("kernel NANO recv time stamp %us %dns\n",
-				     time->seconds, time->nanoseconds);
-				break;
-			}
+				if(cmsg->cmsg_type == SCM_BINTIME) {
+					bt = (struct bintime *)CMSG_DATA(cmsg);
+					bintime2timespec(bt, &ts);
+					time->seconds = ts.tv_sec;
+					time->nanoseconds = ts.tv_nsec;
+					timestampValid = TRUE;
+					DBGV("kernel NANO recv time stamp %us %dns\n",
+					     time->seconds, time->nanoseconds);
+					break;
+				}
 #endif
 			
 #if defined(SO_TIMESTAMP)
-			if(cmsg->cmsg_type == SCM_TIMESTAMP) {
-				tv = (struct timeval *)CMSG_DATA(cmsg);
-				time->seconds = tv->tv_sec;
-				time->nanoseconds = tv->tv_usec * 1000;
-				timestampValid = TRUE;
-				DBGV("kernel MICRO recv time stamp %us %dns\n",
-				     time->seconds, time->nanoseconds);
-			}
+				if(cmsg->cmsg_type == SCM_TIMESTAMP) {
+					tv = (struct timeval *)CMSG_DATA(cmsg);
+					time->seconds = tv->tv_sec;
+					time->nanoseconds = tv->tv_usec * 1000;
+					timestampValid = TRUE;
+					DBGV("kernel MICRO recv time stamp %us %dns\n",
+					     time->seconds, time->nanoseconds);
+				}
 #endif
+			}
 		}
+	} else { /* Using PCAP */
+		if (pcap_next_ex(netPath->pcapGeneral, &pkt_header, 
+				 &pkt_data) < 1) {
+			DBG("netRecvEvent: pcap_next_ex failed\n");
+			return 0;
+		}
+		netPath->receivedPackets++;
+		/* XXX Total cheat */
+		memcpy(buf, pkt_data + PKT_BEGIN, 
+		       pkt_header->caplen - PKT_BEGIN);
+		time->seconds = pkt_header->ts.tv_sec;
+		time->nanoseconds = pkt_header->ts.tv_usec * 1000;
+		timestampValid = TRUE;
+		DBGV("kernel PCAP recv time stamp %us %dns\n",
+		     time->seconds, time->nanoseconds);
+		ret = pkt_header->caplen - PKT_BEGIN;
 	}
 
 	if (!timestampValid) {

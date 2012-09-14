@@ -297,7 +297,7 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
 
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
 Boolean netShutdown(NetPath*);
-int netSelect(TimeInternal*,NetPath*);
+int netSelect(TimeInternal*,NetPath*,fd_set*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*);
 ssize_t netRecvGeneral(Octet*,TimeInternal*,NetPath*);
 ssize_t netSendEvent(Octet*,UInteger16,NetPath*, Integer32 );

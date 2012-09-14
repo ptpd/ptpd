@@ -755,8 +755,6 @@ typedef struct {
 	Integer32 maxReset; /* Maximum number of nanoseconds to reset */
 	Integer32 maxDelay; /* Maximum number of nanoseconds of delay */
 	Integer32 origMaxDelay; /* Lower bound of nanoseconds of delay */
-	Boolean maxDelayAutoTune;
-	Integer32 discardedPacketThreshold;
 	Boolean	noAdjust;
 	Boolean	displayStats;
 	Boolean displayPackets;
@@ -790,10 +788,14 @@ typedef struct {
 
 	char lockFile[PATH_MAX]; /* lock file location */
 	char driftFile[PATH_MAX]; /* drift file location */
-	int drift_recovery_method; /* how the observed drift is managed between restarts */
+	int drift_recovery_method; /* how the observed drift is managed 
+				      between restarts */
 
-	Boolean snmp_enabled; /* SNMP subsystem enabled / disabled even if compiled in */
+	Boolean snmp_enabled; /* SNMP subsystem enabled / disabled even if 
+				 compiled in */
 
+	Boolean pcap; /* Receive and send packets using libpcap, bypassing the
+			 network stack. */
 #ifdef PTPD_EXPERIMENTAL
 	Boolean do_hybrid_mode;
 #endif
