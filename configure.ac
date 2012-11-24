@@ -23,6 +23,114 @@ AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_LIBTOOL
 
+AC_ARG_WITH(
+    [net-snmp-config],
+    [AS_HELP_STRING(
+	[--with-net-snmp-config],
+	[+ =net-snmp-config]
+    )],
+    [ans=$withval],
+    [ans=yes]
+)
+case "$ans" in
+ no)
+    ;;
+ yes)
+    ans=net-snmp-config
+    ;;
+ /*)
+    ;;
+ */*)
+    AC_MSG_ERROR([--with-net-snmp-config takes either a name or an absolute path])
+    ;;
+ *)
+    ;;
+esac
+PROG_NET_SNMP_CONFIG=$ans
+case "$PROG_NET_SNMP_CONFIG" in
+ no)
+    ;;
+ *)
+    AC_PATH_PROG([PATH_NET_SNMP_CONFIG], [$PROG_NET_SNMP_CONFIG])
+    AS_UNSET([ac_cv_path_PATH_NET_SNMP_CONFIG])
+    ;;
+esac
+
+AC_MSG_CHECKING([if we want to build SNMP support])
+AC_ARG_ENABLE(
+    [snmp],
+    [AS_HELP_STRING(
+	[--enable-snmp],
+	[disable support for SNMP]
+    )],
+    [ptpd_ok=$enableval],
+    [case "$PATH_NET_SNMP_CONFIG" in
+     /*)
+	ptpd_ok=yes
+	;;
+     *)
+	ptpd_ok=no
+	;;
+    esac]
+)
+
+AM_CONDITIONAL([SNMP], [test x$ptpd_snmp_enabled = x1])
+ptpd_snmp_enabled=0
+case "$ptpd_ok" in
+ yes) 
+    ptpd_snmp_enabled=1
+    ;;
+esac
+AC_MSG_RESULT([$ptpd_ok])
+
+case "$ptpd_ok" in
+ yes)
+    case "$PATH_NET_SNMP_CONFIG" in
+     /*)
+	SNMP_LIBS=`$PATH_NET_SNMP_CONFIG --agent-libs`
+	AC_SUBST([SNMP_LIBS])
+	# HMS: we really want to separate CPPFLAGS and CFLAGS
+	foo=`$PATH_NET_SNMP_CONFIG --base-cflags`
+	SNMP_CPPFLAGS=
+	SNMP_CFLAGS=
+	for i in $foo; do
+	    case "$i" in
+	     -D*|-U*|-I*)
+		SNMP_CPPFLAGS="$SNMP_CPPFLAGS $i"
+		;;
+	    *)	SNMP_CFLAGS="$SNMP_CFLAGS $i"
+		;;
+	    esac
+	done
+	AC_SUBST([SNMP_CPPFLAGS])
+	AC_SUBST([SNMP_CFLAGS])
+
+	save_CFLAGS=$CFLAGS
+	save_CPPFLAGS=$CPPFLAGS
+	save_LIBS=$LIBS
+	CFLAGS=$SNMP_CFLAGS
+	CPPFLAGS=$SNMP_CPPFLAGS
+
+	AC_CHECK_HEADER(
+	    [net-snmp/net-snmp-config.h],
+	    [],
+	    [AC_MSG_WARN([net-snmp-config present but net-snmp headers are not available!])]
+	)
+
+	CFLAGS=$save_CFLAGS
+	AS_UNSET([save_CFLAGS])
+	CPPFLAGS=$save_CPPFLAGS
+	AS_UNSET([save_CPPFLAGS])
+	LIBS=$save_LIBS
+	AS_UNSET([save_LIBS])
+	;;
+     *) 
+	AC_MSG_WARN([Cannot build with SNMP support - net-snmp-config cannot be found])
+	;;
+    esac
+    ;;
+esac
+
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-lm':
 AC_CHECK_LIB([m], [main])
