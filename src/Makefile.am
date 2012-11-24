@@ -3,6 +3,10 @@
 lib_LTLIBRARIES = $(LIBPTPD2_LIBS_LA)
 bin_PROGRAMS = ptpd2
 
+AM_CFLAGS	= ${SNMP_CFLAGS}
+AM_CPPFLAGS	= ${SNMP_CPPFLAGS}
+AM_LDFLAGS	= ${SNMP_LIBS}
+
 NULL=
 
 #VERSION = 2.3.0
@@ -29,13 +33,10 @@ ptpd2_SOURCES =			\
 	ptpd.h			\
 	$(NULL)
 
-## SNMP
-#ifeq ($(SNMP),yes)
-#LDFLAGS += `net-snmp-config --agent-libs`
-#CFLAGS  += `net-snmp-config --base-cflags`
-#CFLAGS  += -DPTPD_SNMP
-#SRCS    += dep/snmp.c
-#endif
+# SNMP
+if SNMP
+ptpd2_SOURCES += dep/snmp.c
+endif
 
 CSCOPE = cscope
 GTAGS = gtags
@@ -43,7 +44,7 @@ DOXYGEN = doxygen
 
 TAGFILES = GPATH GRTAGS GSYMS GTAGS cscope.in.out cscope.out cscope.po.out
 
-tags:
-	$(CSCOPE) -R -q -b
-	$(GTAGS)
-	$(DOXYGEN) Doxyfile
+#tags:
+#	$(CSCOPE) -R -q -b
+#	$(GTAGS)
+#	$(DOXYGEN) Doxyfile

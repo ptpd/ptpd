@@ -74,13 +74,14 @@ AC_ARG_ENABLE(
     esac]
 )
 
-AM_CONDITIONAL([SNMP], [test x$ptpd_snmp_enabled = x1])
 ptpd_snmp_enabled=0
 case "$ptpd_ok" in
  yes) 
     ptpd_snmp_enabled=1
+    PTP_SNMP="-DPTPD_SNMP"
     ;;
 esac
+AM_CONDITIONAL([SNMP], [test x$ptpd_snmp_enabled = x1])
 AC_MSG_RESULT([$ptpd_ok])
 
 case "$ptpd_ok" in
@@ -132,10 +133,8 @@ case "$ptpd_ok" in
 esac
 
 # Checks for libraries.
-# FIXME: Replace `main' with a function in `-lm':
-AC_CHECK_LIB([m], [main])
-# FIXME: Replace `main' with a function in `-lrt':
-AC_CHECK_LIB([rt], [main])
+AC_CHECK_LIB([m], [pow])
+AC_CHECK_LIB([rt], [clock_gettime])
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -240,23 +239,6 @@ case "$ptp_exp" in
     ;;
 esac
 
-AC_MSG_CHECKING([for SNMP agent support])
-AC_ARG_ENABLE(
-    [snmp],
-    [AS_HELP_STRING(
-	[--enable-snmp],
-	[Enable SNMP agent support (disabled by default)]
-    )],
-    [ptp_snmp=$enableval],
-    [ptp_snmp=no]
-)
-AC_MSG_RESULT([$ptp_snmp])
-case "$ptp_snmp" in
- yes)
-    PTP_SNMP="-DPTPD_SNMP"
-    ;;
-esac
-
 AC_MSG_CHECKING([for SIGUSR2 support])
 AC_ARG_ENABLE(
     [sigusr2],
@@ -278,6 +260,7 @@ case "$ptp_sigusr2" in
     ;;
 esac
 
+# HMS: I think we want to AC_SUBST the PTP_* variables instead...
 AM_CPPFLAGS="$PTP_DBL $PTP_DAEMON $PTP_EXP $PTP_SNMP $PTP_SIGUSR2"
 AC_SUBST(AM_CPPFLAGS)
 
