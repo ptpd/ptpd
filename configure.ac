@@ -204,6 +204,7 @@ case "$ptp_runtime" in
     esac
     ;;
 esac
+AC_SUBST(PTP_DBL)
 
 AC_MSG_CHECKING([for daemon mode])
 AC_ARG_ENABLE(
@@ -221,6 +222,7 @@ case "$ptp_daemon" in
     PTP_DAEMON="-DPTPD_NO_DAEMON"
     ;;
 esac
+AC_SUBST(PTP_DAEMON)
 
 AC_MSG_CHECKING([for experimental options])
 AC_ARG_ENABLE(
@@ -238,6 +240,7 @@ case "$ptp_exp" in
     PTP_EXP="-DPTPD_EXPERIMENTAL"
     ;;
 esac
+AC_SUBST(PTP_EXP)
 
 AC_MSG_CHECKING([for SIGUSR2 support])
 AC_ARG_ENABLE(
@@ -259,10 +262,7 @@ case "$ptp_sigusr2" in
     PTP_SIGUSR2="-DDBG_SIGUSR2_CHANGE_DEBUG"
     ;;
 esac
-
-# HMS: I think we want to AC_SUBST the PTP_* variables instead...
-AM_CPPFLAGS="$PTP_DBL $PTP_DAEMON $PTP_EXP $PTP_SNMP $PTP_SIGUSR2"
-AC_SUBST(AM_CPPFLAGS)
+AC_SUBST(PTP_SIGUSR2)
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile])
