@@ -96,7 +96,7 @@ case "$ptpd_ok" in
 	SNMP_CFLAGS=
 	for i in $foo; do
 	    case "$i" in
-	     -D*|-U*|-I*)
+	     -D*|-F*|-U*|-I*)
 		SNMP_CPPFLAGS="$SNMP_CPPFLAGS $i"
 		;;
 	    *)	SNMP_CFLAGS="$SNMP_CFLAGS $i"
