@@ -13,10 +13,10 @@ PTPd can coordinate the clocks of a group of LAN connected computers with each
 other. It has been shown to achieve microsecond level coordination, even on
 limited platforms.
 
-The 'ptpd' program can be built from the included source code; see the release
-notes about platform compatibility. To use the program, run 'ptpd' on a group of
-LAN connected computers. Compile with 'PTPD_DBG' defined and run with the '-c'
-argument to watch what's going on.
+The 'ptpd' program can be built from the included source code.  To use
+the program, run 'ptpd' on a group of LAN connected computers. Compile
+with 'PTPD_DBG' defined and run with the '-c' argument to watch what's
+going on.
 
 If you are just looking for software to update the time on your desktop, you
 probably want something that implements the Network Time Protocol. It can

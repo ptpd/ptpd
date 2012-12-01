@@ -14,8 +14,7 @@ rc:
 	ln -s ../COPYRIGHT .; \
 	ln -s ../ChangeLog .; \
 	ln -s ../Makefile .; \
-	ln -s ../README .; \
-	ln -s ../RELEASE_NOTES .)
+	ln -s ../README .)
 	tar cvzf $(RC).tar.gz -L --exclude .o --exclude Doxygen --exclude .svn --exclude .dep --exclude core $(RC)
 
 release:
@@ -28,6 +27,5 @@ release:
 	ln -s ../COPYRIGHT .; \
 	ln -s ../ChangeLog .; \
 	ln -s ../Makefile .; \
-	ln -s ../README .; \
-	ln -s ../RELEASE_NOTES .)
+	ln -s ../README .)
 	tar cvzf $(VERSION).tar.gz -L --exclude .o --exclude Doxygen --exclude .svn --exclude .dep --exclude core $(VERSION)
