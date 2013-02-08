@@ -85,15 +85,15 @@ void internalTime_to_integer64(TimeInternal, Integer64*);
 /**
  * \brief Convert TimeInternal into Timestamp structure (defined by the spec)
  */
-void fromInternalTime(TimeInternal*,Timestamp*);
+void fromInternalTime(const TimeInternal*,Timestamp*);
 
 /**
  * \brief Convert Timestamp to TimeInternal structure (defined by the spec)
  */
-void toInternalTime(TimeInternal*,Timestamp*);
+void toInternalTime(TimeInternal*, const Timestamp*);
 
-void ts_to_InternalTime(struct timespec *, TimeInternal *);
-void tv_to_InternalTime(struct timeval  *, TimeInternal *);
+void ts_to_InternalTime(const struct timespec *, TimeInternal *);
+void tv_to_InternalTime(const struct timeval  *, TimeInternal *);
 
 
 
@@ -300,15 +300,15 @@ int snprint_TimeInternal(char *s, int max_len, const TimeInternal * p);
 
 
 void nano_to_Time(TimeInternal *time, int nano);
-int gtTime(TimeInternal *x, TimeInternal *b);
+int gtTime(const TimeInternal *x, const TimeInternal *b);
 void absTime(TimeInternal *time);
-int is_Time_close(TimeInternal *x, TimeInternal *b, int nanos);
+int is_Time_close(const TimeInternal *x, const TimeInternal *b, int nanos);
 int isTimeInternalNegative(const TimeInternal * p);
 
 
 
-int check_timestamp_is_fresh2(TimeInternal * timeA, TimeInternal * timeB);
-int check_timestamp_is_fresh(TimeInternal * timeA);
+int check_timestamp_is_fresh2(const TimeInternal * timeA, const TimeInternal * timeB);
+int check_timestamp_is_fresh(const TimeInternal * timeA);
 
 
 void toState(UInteger8,RunTimeOpts*,PtpClock*);
