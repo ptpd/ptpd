@@ -56,32 +56,32 @@ Boolean doInit(RunTimeOpts*,PtpClock*);
 void doState(RunTimeOpts*,PtpClock*);
 void toState(UInteger8,RunTimeOpts*,PtpClock*);
 
-Boolean isFromCurrentParent(PtpClock*, MsgHeader*);
-
 void handle(RunTimeOpts*,PtpClock*);
-void handleAnnounce(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-void handleSync(MsgHeader*,Octet*,ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
-void handleFollowUp(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-void handlePDelayReq(MsgHeader*,Octet*,ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
-void handleDelayReq(MsgHeader*,Octet*,ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
-void handlePDelayResp(MsgHeader*,Octet*,TimeInternal* ,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-void handleDelayResp(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-void handlePDelayRespFollowUp(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-void handleManagement(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-void handleSignaling(MsgHeader*,Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+static void handleAnnounce(MsgHeader*, const Octet*,ssize_t,Boolean, const RunTimeOpts*,PtpClock*);
+static void handleSync(const MsgHeader*, const Octet*,ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+static void handleFollowUp(const MsgHeader*, const Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+static void handlePDelayReq(MsgHeader*, const Octet*,ssize_t,const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+static void handleDelayReq(const MsgHeader*, const Octet*,ssize_t, const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+static void handlePDelayResp(const MsgHeader*, const Octet*,TimeInternal* ,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+static void handleDelayResp(const MsgHeader*, const Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+static void handlePDelayRespFollowUp(const MsgHeader*, const Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+static void handleManagement(MsgHeader*, const Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+static void handleSignaling(const MsgHeader*,const Octet*,ssize_t,Boolean, const RunTimeOpts*,PtpClock*);
 
 
-void issueAnnounce(RunTimeOpts*,PtpClock*);
-void issueSync(RunTimeOpts*,PtpClock*);
-void issueFollowup(TimeInternal*,RunTimeOpts*,PtpClock*);
-void issuePDelayReq(RunTimeOpts*,PtpClock*);
-void issueDelayReq(RunTimeOpts*,PtpClock*);
-void issuePDelayResp(TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
-void issueDelayResp(TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
-void issuePDelayRespFollowUp(TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
-void issueManagement(MsgHeader*,MsgManagement*,RunTimeOpts*,PtpClock*);
-void issueManagementRespOrAck(MsgManagement*,RunTimeOpts*,PtpClock*);
-void issueManagementErrorStatus(MsgManagement*,RunTimeOpts*,PtpClock*);
+static void issueAnnounce(RunTimeOpts*,PtpClock*);
+static void issueSync(RunTimeOpts*,PtpClock*);
+static void issueFollowup(const TimeInternal*,RunTimeOpts*,PtpClock*);
+static void issuePDelayReq(RunTimeOpts*,PtpClock*);
+static void issueDelayReq(RunTimeOpts*,PtpClock*);
+static void issuePDelayResp(const TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
+static void issueDelayResp(const TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
+static void issuePDelayRespFollowUp(const TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
+#if 0
+static void issueManagement(MsgHeader*,MsgManagement*,RunTimeOpts*,PtpClock*);
+#endif
+static void issueManagementRespOrAck(MsgManagement*,RunTimeOpts*,PtpClock*);
+static void issueManagementErrorStatus(MsgManagement*,RunTimeOpts*,PtpClock*);
 
 void addForeign(Octet*,MsgHeader*,PtpClock*);
 
@@ -569,8 +569,8 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	}
 }
 
-Boolean
-isFromCurrentParent(PtpClock *ptpClock, MsgHeader* header)
+static Boolean
+isFromCurrentParent(const PtpClock *ptpClock, const MsgHeader* header)
 {
 
 	return(!memcmp(
@@ -773,9 +773,9 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 }
 
 /*spec 9.5.3*/
-void 
-handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
-	       Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+static void 
+handleAnnounce(MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
+	       Boolean isFromSelf, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
 	DBGV("HandleAnnounce : Announce message received : \n");
@@ -943,8 +943,8 @@ handleAnnounce(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 }
 
 
-void 
-handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+static void 
+handleSync(const MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
 	   TimeInternal *time, Boolean isFromSelf, 
 	   RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
@@ -1060,8 +1060,8 @@ handleSync(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 }
 
 
-void 
-handleFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+static void 
+handleFollowUp(const MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
 	       Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBGV("Handlefollowup : Follow up message received \n");
@@ -1097,8 +1097,8 @@ handleFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 		if (isFromCurrentParent(ptpClock, header)) {
 			ptpClock->counters.followUpMessagesReceived++;
 			if (ptpClock->waitingForFollow)	{
-				if ((ptpClock->recvSyncSequenceId == 
-				     header->sequenceId)) {
+				if (ptpClock->recvSyncSequenceId == 
+				     header->sequenceId) {
 					msgUnpackFollowUp(ptpClock->msgIbuf,
 							  &ptpClock->msgTmp.follow);
 					ptpClock->waitingForFollow = FALSE;
@@ -1152,9 +1152,9 @@ handleFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 }
 
 
-void
-handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
-	       TimeInternal *time, Boolean isFromSelf,
+static void
+handleDelayReq(const MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
+	       const TimeInternal *time, Boolean isFromSelf,
 	       RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
@@ -1248,8 +1248,8 @@ handleDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 	}
 }
 
-void
-handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
+static void
+handleDelayResp(const MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 		Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	if (ptpClock->delayMechanism == E2E) {
@@ -1368,9 +1368,9 @@ handleDelayResp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 }
 
 
-void
-handlePDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
-		TimeInternal *time, Boolean isFromSelf, 
+static void
+handlePDelayReq(MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
+		const TimeInternal *time, Boolean isFromSelf, 
 		RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	if (ptpClock->delayMechanism == P2P) {
@@ -1432,8 +1432,8 @@ handlePDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 		}
 }
 
-void
-handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
+static void
+handlePDelayResp(const MsgHeader *header, const Octet *msgIbuf, TimeInternal *time,
 		 ssize_t length, Boolean isFromSelf, 
 		 RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
@@ -1540,10 +1540,11 @@ handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
 	}
 }
 
-void 
-handlePDelayRespFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+static void 
+handlePDelayRespFollowUp(const MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
 			 Boolean isFromSelf, RunTimeOpts *rtOpts, 
-			 PtpClock *ptpClock){
+			 PtpClock *ptpClock)
+{
 
 	if (ptpClock->delayMechanism == P2P) {
 		TimeInternal responseOriginTimestamp;
@@ -1611,8 +1612,8 @@ handlePDelayRespFollowUp(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 	}
 }
 
-void 
-handleManagement(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
+static void 
+handleManagement(MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
 		 Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBGV("Management message received : \n");
@@ -1865,10 +1866,10 @@ handleManagement(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 
 }
 
-void 
-handleSignaling(MsgHeader *header, Octet *msgIbuf, ssize_t length, 
-		     Boolean isFromSelf, RunTimeOpts *rtOpts, 
-		     PtpClock *ptpClock)
+static void 
+handleSignaling(const MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
+		Boolean isFromSelf, const RunTimeOpts *rtOpts, 
+		PtpClock *ptpClock)
 {
 
 	ptpClock->counters.signalingMessagesReceived++;
@@ -1877,7 +1878,7 @@ handleSignaling(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 
 
 /*Pack and send on general multicast ip adress an Announce message*/
-void 
+static void 
 issueAnnounce(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 	msgPackAnnounce(ptpClock->msgObuf,ptpClock);
@@ -1897,7 +1898,7 @@ issueAnnounce(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 
 /*Pack and send on event multicast ip adress a Sync message*/
-void
+static void
 issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 	Timestamp originTimestamp;
@@ -1920,8 +1921,8 @@ issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 
 /*Pack and send on general multicast ip adress a FollowUp message*/
-void
-issueFollowup(TimeInternal *time,RunTimeOpts *rtOpts,PtpClock *ptpClock)
+static void
+issueFollowup(const TimeInternal *time,RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 	Timestamp preciseOriginTimestamp;
 	fromInternalTime(time,&preciseOriginTimestamp);
@@ -1941,7 +1942,7 @@ issueFollowup(TimeInternal *time,RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 
 /*Pack and send on event multicast ip adress a DelayReq message*/
-void
+static void
 issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 	Timestamp originTimestamp;
@@ -1983,7 +1984,7 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 }
 
 /*Pack and send on event multicast ip adress a PDelayReq message*/
-void
+static void
 issuePDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 	Timestamp originTimestamp;
@@ -2005,8 +2006,8 @@ issuePDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 }
 
 /*Pack and send on event multicast ip adress a PDelayResp message*/
-void
-issuePDelayResp(TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts,
+static void
+issuePDelayResp(const TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
 	Timestamp requestReceiptTimestamp;
@@ -2027,8 +2028,8 @@ issuePDelayResp(TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts,
 
 
 /*Pack and send on event multicast ip adress a DelayResp message*/
-void
-issueDelayResp(TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts, PtpClock *ptpClock)
+static void
+issueDelayResp(const TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	Timestamp requestReceiptTimestamp;
 	fromInternalTime(time,&requestReceiptTimestamp);
@@ -2054,8 +2055,8 @@ issueDelayResp(TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts, PtpCloc
 }
 
 
-void
-issuePDelayRespFollowUp(TimeInternal *time, MsgHeader *header,
+static void
+issuePDelayRespFollowUp(const TimeInternal *time, MsgHeader *header,
 			     RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	Timestamp responseOriginTimestamp;
@@ -2075,7 +2076,8 @@ issuePDelayRespFollowUp(TimeInternal *time, MsgHeader *header,
 	}
 }
 
-void 
+#if 0
+static void 
 issueManagement(MsgHeader *header,MsgManagement *manage,RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
@@ -2083,8 +2085,9 @@ issueManagement(MsgHeader *header,MsgManagement *manage,RunTimeOpts *rtOpts,
 	ptpClock->counters.managementMessagesSent++;
 
 }
+#endif
 
-void 
+static void 
 issueManagementRespOrAck(MsgManagement *outgoing, RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
@@ -2109,7 +2112,7 @@ issueManagementRespOrAck(MsgManagement *outgoing, RunTimeOpts *rtOpts,
 	}
 }
 
-void
+static void
 issueManagementErrorStatus(MsgManagement *outgoing, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	/* pack ManagementErrorStatusTLV */

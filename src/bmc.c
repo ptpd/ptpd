@@ -129,7 +129,7 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 
 /*Local clock is becoming Master. Table 13 (9.3.5) of the spec.*/
-void m1(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	/*Current data set update*/
 	ptpClock->stepsRemoved = 0;
@@ -166,7 +166,7 @@ void m1(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 
 /* first cut on a passive mode specific BMC actions */
-void p1(PtpClock *ptpClock, RunTimeOpts *rtOpts)
+void p1(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 {
 	/* make sure we revert to ARB timescale in Passive mode*/
 	if(ptpClock->portState == PTP_PASSIVE){
@@ -178,7 +178,7 @@ void p1(PtpClock *ptpClock, RunTimeOpts *rtOpts)
 
 
 /*Local clock is synchronized to Ebest Table 16 (9.3.5) of the spec*/
-void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts *rtOpts)
+void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 {
 
 	Boolean previousLeap59 = FALSE, previousLeap61 = FALSE;
@@ -306,7 +306,8 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, RunTimeOpts 
 
 
 /*Copy local data set into header and announce message. 9.3.4 table 12*/
-void copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
+static void
+copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
 {
 	announce->grandmasterPriority1 = ptpClock->priority1;
 	copyClockIdentity(announce->grandmasterIdentity,
@@ -327,10 +328,10 @@ void copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
 /*Data set comparison bewteen two foreign masters (9.3.4 fig 27)
  * return similar to memcmp() */
 
-Integer8 
-bmcDataSetComparison(MsgHeader *headerA, MsgAnnounce *announceA,
-		     MsgHeader *headerB,MsgAnnounce *announceB,
-		     PtpClock *ptpClock)
+static Integer8 
+bmcDataSetComparison(const MsgHeader *headerA, const MsgAnnounce *announceA,
+		     const MsgHeader *headerB, const MsgAnnounce *announceB,
+		     const PtpClock *ptpClock)
 {
 	DBGV("Data set comparison \n");
 	short comp = 0;
@@ -440,9 +441,9 @@ bmcDataSetComparison(MsgHeader *headerA, MsgAnnounce *announceA,
 }
 
 /*State decision algorithm 9.3.3 Fig 26*/
-UInteger8 
+static UInteger8 
 bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
-		 RunTimeOpts *rtOpts, PtpClock *ptpClock)
+		 const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	Integer8 comp;
 	Boolean newBM;
@@ -518,7 +519,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 
 UInteger8 
 bmc(ForeignMasterRecord *foreignMaster,
-    RunTimeOpts *rtOpts, PtpClock *ptpClock)
+    const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	Integer16 i,best;
 

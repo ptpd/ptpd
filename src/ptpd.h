@@ -130,20 +130,20 @@ void div2Time(TimeInternal *);
  * \brief Compare data set of foreign masters and local data set
  * \return The recommended state for the port
  */
-UInteger8 bmc(ForeignMasterRecord*,RunTimeOpts*,PtpClock*);
+UInteger8 bmc(ForeignMasterRecord*, const RunTimeOpts*,PtpClock*);
 
 /**
  * \brief When recommended state is Master, copy local data into parent and grandmaster dataset
  */
-void m1(RunTimeOpts *, PtpClock*);
+void m1(const RunTimeOpts *, PtpClock*);
 
 /**
  * \brief When recommended state is Slave, copy dataset of master into parent and grandmaster dataset
  */
-void s1(MsgHeader*,MsgAnnounce*,PtpClock*, RunTimeOpts *);
+void s1(MsgHeader*,MsgAnnounce*,PtpClock*, const RunTimeOpts *);
 
 
-void p1(PtpClock *ptpClock, RunTimeOpts *rtOpts);
+void p1(PtpClock *ptpClock, const RunTimeOpts *rtOpts);
 
 /**
  * \brief Initialize datas

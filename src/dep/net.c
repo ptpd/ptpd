@@ -644,9 +644,9 @@ netSelect(TimeInternal * timeout, NetPath * netPath)
 	fd_set readfds;
 	struct timeval tv, *tv_ptr;
 
-	extern RunTimeOpts rtOpts;
 
 #if defined PTPD_SNMP
+	extern RunTimeOpts rtOpts;
 	struct timeval snmp_timer_wait = { 0, 0}; // initialise to avoid unused warnings when SNMP disabled
 	int snmpblock = 0;
 #endif

@@ -1257,6 +1257,7 @@ void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* out
 /**\brief Handle incoming ERROR_STATUS management message type*/
 void handleMMErrorStatus(MsgManagement *incoming)
 {
+	(void)incoming;
 	DBGV("received MANAGEMENT_ERROR_STATUS message \n");
 	/* implementation specific */
 }
