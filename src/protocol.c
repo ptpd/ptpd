@@ -482,7 +482,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
                         DBGV("seconds to midnight: %.3f\n",secondsToMidnight());
 
                 /* leap second period is over */
-                 if(timerExpired(LEAP_SECOND_PAUSE_TIMER,ptpClock->itimer) &&
+                if(timerExpired(LEAP_SECOND_PAUSE_TIMER,ptpClock->itimer) &&
                     ptpClock->leapSecondInProgress) {
                             /* 
                              * do not unpause offset calculation just
@@ -1412,7 +1412,7 @@ handlePDelayReq(MsgHeader *header, Octet *msgIbuf, ssize_t length,
 					&rtOpts->outboundLatency);
 				break;
 			} else {
-			ptpClock->counters.pdelayReqMessagesReceived++;
+				ptpClock->counters.pdelayReqMessagesReceived++;
 				msgUnpackHeader(ptpClock->msgIbuf,
 						&ptpClock->PdelayReqHeader);
 				issuePDelayResp(time, header, rtOpts, 
@@ -1492,7 +1492,7 @@ handlePDelayResp(MsgHeader *header, Octet *msgIbuf, TimeInternal *time,
 				    ptpClock->counters.sequenceMismatchErrors++;
 				    break;
 			}
-			      if ((!memcmp(ptpClock->portIdentity.clockIdentity,ptpClock->msgTmp.presp.requestingPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH))
+			if ((!memcmp(ptpClock->portIdentity.clockIdentity,ptpClock->msgTmp.presp.requestingPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH))
 				 && ( ptpClock->portIdentity.portNumber == ptpClock->msgTmp.presp.requestingPortIdentity.portNumber))	{
 				ptpClock->counters.pdelayRespMessagesReceived++;
                                 /* Two Step Clock */
