@@ -227,11 +227,11 @@ clearTime(TimeInternal *r)
 
 /* sets a time value to a certain nanoseconds */
 void
-nano_to_Time(TimeInternal *time, int nano)
+nano_to_Time(TimeInternal *x, int nano)
 {
-	time->seconds     = 0;
-	time->nanoseconds = nano;
-	normalizeTime(time);
+	x->seconds     = 0;
+	x->nanoseconds = nano;
+	normalizeTime(x);
 }
 
 /* greater than operation */

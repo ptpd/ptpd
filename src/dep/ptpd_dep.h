@@ -260,8 +260,6 @@ void unpackMMDelayMechanism( Octet* buf, MsgManagement*, PtpClock* );
 UInteger16 packMMDelayMechanism( MsgManagement*, Octet*);
 void unpackMMLogMinPdelayReqInterval( Octet* buf, MsgManagement*, PtpClock* );
 UInteger16 packMMLogMinPdelayReqInterval( MsgManagement*, Octet*);
-void unpackMMErrorStatus( Octet* buf, MsgManagement*, PtpClock* );
-UInteger16 packMMErrorStatus( MsgManagement*, Octet*);
 
 
 void unpackPortAddress( Octet* buf, PortAddress*, PtpClock*);

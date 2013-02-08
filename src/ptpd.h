@@ -289,7 +289,6 @@ void mMLogMinPdelayReqInterval_display(const MMLogMinPdelayReqInterval*, const P
 void mMErrorStatus_display(const MMErrorStatus*, const PtpClock*);
 
 void clearTime(TimeInternal *time);
-int isTimeInternalNegative(const TimeInternal * p);
 
 char *dump_TimeInternal(const TimeInternal * p);
 char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *st2, const TimeInternal * p2);

@@ -53,20 +53,19 @@
 #include "ptpd.h"
 
 Boolean doInit(RunTimeOpts*,PtpClock*);
-void doState(RunTimeOpts*,PtpClock*);
-void toState(UInteger8,RunTimeOpts*,PtpClock*);
+static void doState(RunTimeOpts*,PtpClock*);
 
 void handle(RunTimeOpts*,PtpClock*);
-static void handleAnnounce(MsgHeader*, const Octet*,ssize_t,Boolean, const RunTimeOpts*,PtpClock*);
-static void handleSync(const MsgHeader*, const Octet*,ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
-static void handleFollowUp(const MsgHeader*, const Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-static void handlePDelayReq(MsgHeader*, const Octet*,ssize_t,const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
-static void handleDelayReq(const MsgHeader*, const Octet*,ssize_t, const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
-static void handlePDelayResp(const MsgHeader*, const Octet*,TimeInternal* ,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-static void handleDelayResp(const MsgHeader*, const Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-static void handlePDelayRespFollowUp(const MsgHeader*, const Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-static void handleManagement(MsgHeader*, const Octet*,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
-static void handleSignaling(const MsgHeader*,const Octet*,ssize_t,Boolean, const RunTimeOpts*,PtpClock*);
+static void handleAnnounce(MsgHeader*, ssize_t,Boolean, const RunTimeOpts*,PtpClock*);
+static void handleSync(const MsgHeader*, ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+static void handleFollowUp(const MsgHeader*, ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+static void handlePDelayReq(MsgHeader*, ssize_t,const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+static void handleDelayReq(const MsgHeader*, ssize_t, const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+static void handlePDelayResp(const MsgHeader*, TimeInternal* ,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
+static void handleDelayResp(const MsgHeader*, ssize_t, RunTimeOpts*,PtpClock*);
+static void handlePDelayRespFollowUp(const MsgHeader*, ssize_t, RunTimeOpts*,PtpClock*);
+static void handleManagement(MsgHeader*, Boolean,RunTimeOpts*,PtpClock*);
+static void handleSignaling(PtpClock*);
 
 
 static void issueAnnounce(RunTimeOpts*,PtpClock*);
@@ -359,7 +358,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 }
 
 /* handle actions and events for 'port_state' */
-void 
+static void 
 doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	UInteger8 state;
@@ -589,7 +588,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	int ret;
 	ssize_t length;
 	Boolean isFromSelf;
-	TimeInternal time = { 0, 0 };
+	TimeInternal tint = { 0, 0 };
 
 	if (!ptpClock->message_activity) {
 		ret = netSelect(0, &ptpClock->netPath);
@@ -608,7 +607,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	DBGV("handle: something\n");
 
 	/* TODO: this should be based on the select actual FDs (if(FD_ISSET(...)) */
-	length = netRecvEvent(ptpClock->msgIbuf, &time, &ptpClock->netPath);
+	length = netRecvEvent(ptpClock->msgIbuf, &tint, &ptpClock->netPath);
 
 
 	if (length < 0) {
@@ -617,7 +616,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->counters.messageRecvErrors++;
 		return;
 	} else if (!length) {
-		length = netRecvGeneral(ptpClock->msgIbuf, &time,
+		length = netRecvGeneral(ptpClock->msgIbuf, &tint,
 					&ptpClock->netPath);
 		if (length < 0) {
 			PERROR("failed to receive on the general socket");
@@ -641,7 +640,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 */
 	DBGV("__UTC_offset: %d %d \n", ptpClock->currentUtcOffsetValid, ptpClock->currentUtcOffset);
 	if (ptpClock->currentUtcOffsetValid) {
-		time.seconds += ptpClock->currentUtcOffset;
+		tint.seconds += ptpClock->currentUtcOffset;
 	}
 
 	ptpClock->message_activity = TRUE;
@@ -676,8 +675,8 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 * subtract the inbound latency adjustment if it is not a loop
 	 *  back and the time stamp seems reasonable 
 	 */
-	if (!isFromSelf && time.seconds > 0)
-		subTime(&time, &time, &rtOpts->inboundLatency);
+	if (!isFromSelf && tint.seconds > 0)
+		subTime(&tint, &tint, &rtOpts->inboundLatency);
 
 
 #ifdef PTPD_DBG
@@ -720,45 +719,43 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	switch(ptpClock->msgTmpHeader.messageType)
 	{
 	case ANNOUNCE:
-		handleAnnounce(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
+		handleAnnounce(&ptpClock->msgTmpHeader,
 			       length, isFromSelf, rtOpts, ptpClock);
 		break;
 	case SYNC:
-		handleSync(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
-			   length, &time, isFromSelf, rtOpts, ptpClock);
+		handleSync(&ptpClock->msgTmpHeader, 
+			   length, &tint, isFromSelf, rtOpts, ptpClock);
 		break;
 	case FOLLOW_UP:
-		handleFollowUp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
+		handleFollowUp(&ptpClock->msgTmpHeader,
 			       length, isFromSelf, rtOpts, ptpClock);
 		break;
 	case DELAY_REQ:
-		handleDelayReq(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
-			       length, &time, isFromSelf, rtOpts, ptpClock);
+		handleDelayReq(&ptpClock->msgTmpHeader,
+			       length, &tint, isFromSelf, rtOpts, ptpClock);
 		break;
 	case PDELAY_REQ:
-		handlePDelayReq(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
-				length, &time, isFromSelf, rtOpts, ptpClock);
+		handlePDelayReq(&ptpClock->msgTmpHeader,
+				length, &tint, isFromSelf, rtOpts, ptpClock);
 		break;  
 	case DELAY_RESP:
-		handleDelayResp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
-				length, isFromSelf, rtOpts, ptpClock);
+		handleDelayResp(&ptpClock->msgTmpHeader,
+				length, rtOpts, ptpClock);
 		break;
 	case PDELAY_RESP:
-		handlePDelayResp(&ptpClock->msgTmpHeader, ptpClock->msgIbuf,
-				 &time, length, isFromSelf, rtOpts, ptpClock);
+		handlePDelayResp(&ptpClock->msgTmpHeader,
+				 &tint, length, isFromSelf, rtOpts, ptpClock);
 		break;
 	case PDELAY_RESP_FOLLOW_UP:
 		handlePDelayRespFollowUp(&ptpClock->msgTmpHeader, 
-					 ptpClock->msgIbuf, length, 
-					 isFromSelf, rtOpts, ptpClock);
+					 length, rtOpts, ptpClock);
 		break;
 	case MANAGEMENT:
-		handleManagement(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
-				 length, isFromSelf, rtOpts, ptpClock);
+		handleManagement(&ptpClock->msgTmpHeader,
+				 isFromSelf, rtOpts, ptpClock);
 		break;
 	case SIGNALING:
-		handleSignaling(&ptpClock->msgTmpHeader, ptpClock->msgIbuf, 
-				length, isFromSelf, rtOpts, ptpClock);
+		handleSignaling(ptpClock);
 		break;
 	default:
 		DBG("handle: unrecognized message\n");
@@ -774,7 +771,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 /*spec 9.5.3*/
 static void 
-handleAnnounce(MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
+handleAnnounce(MsgHeader *header, ssize_t length, 
 	       Boolean isFromSelf, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
@@ -944,8 +941,8 @@ handleAnnounce(MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 
 
 static void 
-handleSync(const MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
-	   TimeInternal *time, Boolean isFromSelf, 
+handleSync(const MsgHeader *header, ssize_t length, 
+	   TimeInternal *tint, Boolean isFromSelf, 
 	   RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	TimeInternal OriginTimestamp;
@@ -994,10 +991,10 @@ handleSync(const MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 						   ptpClock->itimer);
 			}
 
-			ptpClock->sync_receive_time.seconds = time->seconds;
-			ptpClock->sync_receive_time.nanoseconds = time->nanoseconds;
+			ptpClock->sync_receive_time.seconds = tint->seconds;
+			ptpClock->sync_receive_time.nanoseconds = tint->nanoseconds;
 
-			recordSync(rtOpts, header->sequenceId, time);
+			recordSync(rtOpts, header->sequenceId, tint);
 
 			if ((header->flagField0 & PTP_TWO_STEP) == PTP_TWO_STEP) {
 				DBG2("HandleSync: waiting for follow-up \n");
@@ -1050,8 +1047,8 @@ handleSync(const MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 			DBGV("HandleSync: going to send followup message\n ");
 
 			/*Add latency*/
-			addTime(time,time,&rtOpts->outboundLatency);
-			issueFollowup(time,rtOpts,ptpClock);
+			addTime(tint,tint,&rtOpts->outboundLatency);
+			issueFollowup(tint,rtOpts,ptpClock);
 			break;
 		} else {
 			DBGV("HandleSync: Sync message received from self\n ");
@@ -1061,7 +1058,7 @@ handleSync(const MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 
 
 static void 
-handleFollowUp(const MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
+handleFollowUp(const MsgHeader *header, ssize_t length, 
 	       Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBGV("Handlefollowup : Follow up message received \n");
@@ -1153,8 +1150,8 @@ handleFollowUp(const MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 
 
 static void
-handleDelayReq(const MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
-	       const TimeInternal *time, Boolean isFromSelf,
+handleDelayReq(const MsgHeader *header, ssize_t length, 
+	       const TimeInternal *tint, Boolean isFromSelf,
 	       RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
@@ -1208,9 +1205,9 @@ handleDelayReq(const MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 				ptpClock->waitingForDelayResp = TRUE;
 
 				ptpClock->delay_req_send_time.seconds = 
-					time->seconds;
+					tint->seconds;
 				ptpClock->delay_req_send_time.nanoseconds = 
-					time->nanoseconds;
+					tint->nanoseconds;
 
 				/*Add latency*/
 				addTime(&ptpClock->delay_req_send_time,
@@ -1232,7 +1229,7 @@ handleDelayReq(const MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 			ptpClock->LastSlaveAddr = ptpClock->netPath.lastRecvAddr;
 #endif
 					
-			issueDelayResp(time,&ptpClock->delayReqHeader,
+			issueDelayResp(tint,&ptpClock->delayReqHeader,
 				       rtOpts,ptpClock);
 			break;
 
@@ -1249,8 +1246,8 @@ handleDelayReq(const MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 }
 
 static void
-handleDelayResp(const MsgHeader *header, const Octet *msgIbuf, ssize_t length,
-		Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+handleDelayResp(const MsgHeader *header, ssize_t length,
+		RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	if (ptpClock->delayMechanism == E2E) {
 		TimeInternal requestReceiptTimestamp;
@@ -1369,8 +1366,8 @@ handleDelayResp(const MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 
 
 static void
-handlePDelayReq(MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
-		const TimeInternal *time, Boolean isFromSelf, 
+handlePDelayReq(MsgHeader *header, ssize_t length, 
+		const TimeInternal *tint, Boolean isFromSelf, 
 		RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	if (ptpClock->delayMechanism == P2P) {
@@ -1402,9 +1399,9 @@ handlePDelayReq(MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 				 * with SO_TIMESTAMP
 				 */
 				ptpClock->pdelay_req_send_time.seconds = 
-					time->seconds;
+					tint->seconds;
 				ptpClock->pdelay_req_send_time.nanoseconds = 
-					time->nanoseconds;
+					tint->nanoseconds;
 			
 				/*Add latency*/
 				addTime(&ptpClock->pdelay_req_send_time,
@@ -1415,7 +1412,7 @@ handlePDelayReq(MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 				ptpClock->counters.pdelayReqMessagesReceived++;
 				msgUnpackHeader(ptpClock->msgIbuf,
 						&ptpClock->PdelayReqHeader);
-				issuePDelayResp(time, header, rtOpts, 
+				issuePDelayResp(tint, header, rtOpts, 
 						ptpClock);	
 				break;
 			}
@@ -1433,7 +1430,7 @@ handlePDelayReq(MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 }
 
 static void
-handlePDelayResp(const MsgHeader *header, const Octet *msgIbuf, TimeInternal *time,
+handlePDelayResp(const MsgHeader *header, TimeInternal *tint,
 		 ssize_t length, Boolean isFromSelf, 
 		 RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
@@ -1463,8 +1460,8 @@ handlePDelayResp(const MsgHeader *header, const Octet *msgIbuf, TimeInternal *ti
 		case PTP_SLAVE:
 		case PTP_MASTER:
 			if (ptpClock->twoStepFlag && isFromSelf) {
-				addTime(time,time,&rtOpts->outboundLatency);
-				issuePDelayRespFollowUp(time,
+				addTime(tint,tint,&rtOpts->outboundLatency);
+				issuePDelayRespFollowUp(tint,
 							&ptpClock->PdelayReqHeader,
 							rtOpts,ptpClock);
 				break;
@@ -1498,8 +1495,8 @@ handlePDelayResp(const MsgHeader *header, const Octet *msgIbuf, TimeInternal *ti
                                 /* Two Step Clock */
 				if ((header->flagField0 & PTP_TWO_STEP) == PTP_TWO_STEP) {
 					/*Store t4 (Fig 35)*/
-					ptpClock->pdelay_resp_receive_time.seconds = time->seconds;
-					ptpClock->pdelay_resp_receive_time.nanoseconds = time->nanoseconds;
+					ptpClock->pdelay_resp_receive_time.seconds = tint->seconds;
+					ptpClock->pdelay_resp_receive_time.nanoseconds = tint->nanoseconds;
 					/*store t2 (Fig 35)*/
 					toInternalTime(&requestReceiptTimestamp,
 						       &ptpClock->msgTmp.presp.requestReceiptTimestamp);
@@ -1512,8 +1509,8 @@ handlePDelayResp(const MsgHeader *header, const Octet *msgIbuf, TimeInternal *ti
 				} else {
 				/* One step Clock */
 					/*Store t4 (Fig 35)*/
-					ptpClock->pdelay_resp_receive_time.seconds = time->seconds;
-					ptpClock->pdelay_resp_receive_time.nanoseconds = time->nanoseconds;
+					ptpClock->pdelay_resp_receive_time.seconds = tint->seconds;
+					ptpClock->pdelay_resp_receive_time.nanoseconds = tint->nanoseconds;
 					
 					integer64_to_internalTime(header->correctionField,&correctionField);
 					updatePeerDelay (&ptpClock->owd_filt,rtOpts,ptpClock,&correctionField,FALSE);
@@ -1541,8 +1538,8 @@ handlePDelayResp(const MsgHeader *header, const Octet *msgIbuf, TimeInternal *ti
 }
 
 static void 
-handlePDelayRespFollowUp(const MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
-			 Boolean isFromSelf, RunTimeOpts *rtOpts, 
+handlePDelayRespFollowUp(const MsgHeader *header, ssize_t length, 
+			 RunTimeOpts *rtOpts, 
 			 PtpClock *ptpClock)
 {
 
@@ -1613,7 +1610,7 @@ handlePDelayRespFollowUp(const MsgHeader *header, const Octet *msgIbuf, ssize_t 
 }
 
 static void 
-handleManagement(MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
+handleManagement(MsgHeader *header,
 		 Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBGV("Management message received : \n");
@@ -1867,9 +1864,7 @@ handleManagement(MsgHeader *header, const Octet *msgIbuf, ssize_t length,
 }
 
 static void 
-handleSignaling(const MsgHeader *header, const Octet *msgIbuf, ssize_t length, 
-		Boolean isFromSelf, const RunTimeOpts *rtOpts, 
-		PtpClock *ptpClock)
+handleSignaling(PtpClock *ptpClock)
 {
 
 	ptpClock->counters.signalingMessagesReceived++;
@@ -1922,10 +1917,10 @@ issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 /*Pack and send on general multicast ip adress a FollowUp message*/
 static void
-issueFollowup(const TimeInternal *time,RunTimeOpts *rtOpts,PtpClock *ptpClock)
+issueFollowup(const TimeInternal *tint,RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 	Timestamp preciseOriginTimestamp;
-	fromInternalTime(time,&preciseOriginTimestamp);
+	fromInternalTime(tint,&preciseOriginTimestamp);
 	
 	msgPackFollowUp(ptpClock->msgObuf,&preciseOriginTimestamp,ptpClock);
 	
@@ -2007,11 +2002,11 @@ issuePDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 /*Pack and send on event multicast ip adress a PDelayResp message*/
 static void
-issuePDelayResp(const TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts,
+issuePDelayResp(const TimeInternal *tint,MsgHeader *header,RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
 	Timestamp requestReceiptTimestamp;
-	fromInternalTime(time,&requestReceiptTimestamp);
+	fromInternalTime(tint,&requestReceiptTimestamp);
 	msgPackPDelayResp(ptpClock->msgObuf,header,
 			  &requestReceiptTimestamp,ptpClock);
 
@@ -2029,10 +2024,10 @@ issuePDelayResp(const TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts,
 
 /*Pack and send on event multicast ip adress a DelayResp message*/
 static void
-issueDelayResp(const TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts, PtpClock *ptpClock)
+issueDelayResp(const TimeInternal *tint,MsgHeader *header,RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	Timestamp requestReceiptTimestamp;
-	fromInternalTime(time,&requestReceiptTimestamp);
+	fromInternalTime(tint,&requestReceiptTimestamp);
 	msgPackDelayResp(ptpClock->msgObuf,header,&requestReceiptTimestamp,
 			 ptpClock);
 
@@ -2056,11 +2051,11 @@ issueDelayResp(const TimeInternal *time,MsgHeader *header,RunTimeOpts *rtOpts, P
 
 
 static void
-issuePDelayRespFollowUp(const TimeInternal *time, MsgHeader *header,
+issuePDelayRespFollowUp(const TimeInternal *tint, MsgHeader *header,
 			     RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	Timestamp responseOriginTimestamp;
-	fromInternalTime(time,&responseOriginTimestamp);
+	fromInternalTime(tint,&responseOriginTimestamp);
 
 	msgPackPDelayRespFollowUp(ptpClock->msgObuf,header,
 				  &responseOriginTimestamp,ptpClock);
