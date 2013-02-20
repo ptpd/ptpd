@@ -54,7 +54,7 @@
 
 /**\brief Display an Integer64 type*/
 void
-integer64_display(Integer64 * bigint)
+integer64_display(const Integer64 * bigint)
 {
 	DBGV("Integer 64 : \n");
 	DBGV("LSB : %u\n", bigint->lsb);
@@ -63,7 +63,7 @@ integer64_display(Integer64 * bigint)
 
 /**\brief Display an UInteger48 type*/
 void
-uInteger48_display(UInteger48 * bigint)
+uInteger48_display(const UInteger48 * bigint)
 {
 	DBGV("Integer 48 : \n");
 	DBGV("LSB : %u\n", bigint->lsb);
@@ -72,7 +72,7 @@ uInteger48_display(UInteger48 * bigint)
 
 /** \brief Display a TimeInternal Structure*/
 void
-timeInternal_display(TimeInternal * timeInternal)
+timeInternal_display(const TimeInternal * timeInternal)
 {
 	DBGV("seconds : %d \n", timeInternal->seconds);
 	DBGV("nanoseconds %d \n", timeInternal->nanoseconds);
@@ -80,7 +80,7 @@ timeInternal_display(TimeInternal * timeInternal)
 
 /** \brief Display a Timestamp Structure*/
 void
-timestamp_display(Timestamp * timestamp)
+timestamp_display(const Timestamp * timestamp)
 {
 	uInteger48_display(&timestamp->secondsField);
 	DBGV("nanoseconds %u \n", timestamp->nanosecondsField);
@@ -88,7 +88,7 @@ timestamp_display(Timestamp * timestamp)
 
 /**\brief Display a Clockidentity Structure*/
 void
-clockIdentity_display(ClockIdentity clockIdentity)
+clockIdentity_display(const ClockIdentity clockIdentity)
 {
 	DBGV(
 	    "ClockIdentity : %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
@@ -100,7 +100,7 @@ clockIdentity_display(ClockIdentity clockIdentity)
 
 /**\brief Display MAC address*/
 void
-clockUUID_display(Octet * sourceUuid)
+clockUUID_display(const Octet * sourceUuid)
 {
 	DBGV(
 	    "sourceUuid %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
@@ -111,7 +111,7 @@ clockUUID_display(Octet * sourceUuid)
 
 /**\brief Display Network info*/
 void
-netPath_display(NetPath * net)
+netPath_display(const NetPath * net)
 {
 	struct in_addr addr;
 
@@ -127,7 +127,7 @@ netPath_display(NetPath * net)
 
 /**\brief Display a IntervalTimer Structure*/
 void
-intervalTimer_display(IntervalTimer * ptimer)
+intervalTimer_display(const IntervalTimer * ptimer)
 {
 	DBGV("interval : %d \n", ptimer->interval);
 	DBGV("left : %d \n", ptimer->left);
@@ -136,14 +136,14 @@ intervalTimer_display(IntervalTimer * ptimer)
 
 /**\brief Display a TimeInterval Structure*/
 void
-timeInterval_display(TimeInterval * timeInterval)
+timeInterval_display(const TimeInterval * timeInterval)
 {
 	integer64_display(&timeInterval->scaledNanoseconds);
 }
 
 /**\brief Display a Portidentity Structure*/
 void
-portIdentity_display(PortIdentity * portIdentity)
+portIdentity_display(const PortIdentity * portIdentity)
 {
 	clockIdentity_display(portIdentity->clockIdentity);
 	DBGV("port number : %d \n", portIdentity->portNumber);
@@ -151,7 +151,7 @@ portIdentity_display(PortIdentity * portIdentity)
 
 /**\brief Display a Clockquality Structure*/
 void
-clockQuality_display(ClockQuality * clockQuality)
+clockQuality_display(const ClockQuality * clockQuality)
 {
 	DBGV("clockClass : %d \n", clockQuality->clockClass);
 	DBGV("clockAccuracy : %d \n", clockQuality->clockAccuracy);
@@ -160,23 +160,15 @@ clockQuality_display(ClockQuality * clockQuality)
 
 /**\brief Display PTPText Structure*/
 void
-PTPText_display(PTPText *p, PtpClock *ptpClock)
+PTPText_display(const PTPText *p, const PtpClock *ptpClock)
 {
-	/* Allocate new memory to append null-terminator to the text field.
-	 * This allows printing the textField as a string
-	 */
-	Octet *str;
-	XMALLOC(str, p->lengthField + 1);
-	memcpy(str, p->textField, p->lengthField);
-	str[p->lengthField] = '\0';
 	DBGV("    lengthField : %d \n", p->lengthField);
-	DBGV("    textField : %s \n", str);
-	free(str);
+	DBGV("    textField : %.*s \n", (int)p->lengthField,  p->textField);
 }
 
 /**\brief Display the Network Interface Name*/
 void
-iFaceName_display(Octet * iFaceName)
+iFaceName_display(const Octet * iFaceName)
 {
 
 	int i;
@@ -192,7 +184,7 @@ iFaceName_display(Octet * iFaceName)
 
 /**\brief Display an Unicast Adress*/
 void
-unicast_display(Octet * unicast)
+unicast_display(const Octet * unicast)
 {
 
 	int i;
@@ -209,7 +201,7 @@ unicast_display(Octet * unicast)
 
 /**\brief Display Sync message*/
 void
-msgSync_display(MsgSync * sync)
+msgSync_display(const MsgSync * sync)
 {
 	DBGV("Message Sync : \n");
 	timestamp_display(&sync->originTimestamp);
@@ -218,7 +210,7 @@ msgSync_display(MsgSync * sync)
 
 /**\brief Display Header message*/
 void
-msgHeader_display(MsgHeader * header)
+msgHeader_display(const MsgHeader * header)
 {
 	DBGV("Message header : \n");
 	DBGV("\n");
@@ -240,7 +232,7 @@ msgHeader_display(MsgHeader * header)
 
 /**\brief Display Announce message*/
 void
-msgAnnounce_display(MsgAnnounce * announce)
+msgAnnounce_display(const MsgAnnounce * announce)
 {
 	DBGV("Announce Message : \n");
 	DBGV("\n");
@@ -261,21 +253,21 @@ msgAnnounce_display(MsgAnnounce * announce)
 
 /**\brief Display Follow_UP message*/
 void
-msgFollowUp_display(MsgFollowUp * follow)
+msgFollowUp_display(const MsgFollowUp * follow)
 {
 	timestamp_display(&follow->preciseOriginTimestamp);
 }
 
 /**\brief Display DelayReq message*/
 void
-msgDelayReq_display(MsgDelayReq * req)
+msgDelayReq_display(const MsgDelayReq * req)
 {
 	timestamp_display(&req->originTimestamp);
 }
 
 /**\brief Display DelayResp message*/
 void
-msgDelayResp_display(MsgDelayResp * resp)
+msgDelayResp_display(const MsgDelayResp * resp)
 {
 	timestamp_display(&resp->receiveTimestamp);
 	portIdentity_display(&resp->requestingPortIdentity);
@@ -283,14 +275,14 @@ msgDelayResp_display(MsgDelayResp * resp)
 
 /**\brief Display Pdelay_Req message*/
 void
-msgPDelayReq_display(MsgPDelayReq * preq)
+msgPDelayReq_display(const MsgPDelayReq * preq)
 {
 	timestamp_display(&preq->originTimestamp);
 }
 
 /**\brief Display Pdelay_Resp message*/
 void
-msgPDelayResp_display(MsgPDelayResp * presp)
+msgPDelayResp_display(const MsgPDelayResp * presp)
 {
 
 	timestamp_display(&presp->requestReceiptTimestamp);
@@ -299,7 +291,7 @@ msgPDelayResp_display(MsgPDelayResp * presp)
 
 /**\brief Display Pdelay_Resp Follow Up message*/
 void
-msgPDelayRespFollowUp_display(MsgPDelayRespFollowUp * prespfollow)
+msgPDelayRespFollowUp_display(const MsgPDelayRespFollowUp * prespfollow)
 {
 
 	timestamp_display(&prespfollow->responseOriginTimestamp);
@@ -308,7 +300,7 @@ msgPDelayRespFollowUp_display(MsgPDelayRespFollowUp * prespfollow)
 
 /**\brief Display Management message*/
 void
-msgManagement_display(MsgManagement * manage)
+msgManagement_display(const MsgManagement * manage)
 {
         DBGV("Management Message : \n");
         DBGV("\n");
@@ -321,7 +313,7 @@ msgManagement_display(MsgManagement * manage)
 
 /**\brief Display ManagementTLV Slave Only message*/
 void
-mMSlaveOnly_display(MMSlaveOnly *slaveOnly, PtpClock *ptpClock)
+mMSlaveOnly_display(const MMSlaveOnly *slaveOnly, const PtpClock *ptpClock)
 {
 	DBGV("Slave Only ManagementTLV message \n");
 	DBGV("SO : %d \n", slaveOnly->so);
@@ -329,7 +321,7 @@ mMSlaveOnly_display(MMSlaveOnly *slaveOnly, PtpClock *ptpClock)
 
 /**\brief Display ManagementTLV Clock Description message*/
 void
-mMClockDescription_display(MMClockDescription *clockDescription, PtpClock *ptpClock)
+mMClockDescription_display(const MMClockDescription *clockDescription, const PtpClock *ptpClock)
 {
 	DBGV("Clock Description ManagementTLV message \n");
 	DBGV("clockType0 : %d \n", clockDescription->clockType0);
@@ -368,134 +360,134 @@ mMClockDescription_display(MMClockDescription *clockDescription, PtpClock *ptpCl
 }
 
 void
-mMUserDescription_display(MMUserDescription* userDescription, PtpClock *ptpClock)
+mMUserDescription_display(const MMUserDescription* userDescription, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMInitialize_display(MMInitialize* initialize, PtpClock *ptpClock)
+mMInitialize_display(const MMInitialize* initialize, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMDefaultDataSet_display(MMDefaultDataSet* defaultDataSet, PtpClock *ptpClock)
+mMDefaultDataSet_display(const MMDefaultDataSet* defaultDataSet, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMCurrentDataSet_display(MMCurrentDataSet* currentDataSet, PtpClock *ptpClock)
+mMCurrentDataSet_display(const MMCurrentDataSet* currentDataSet, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMParentDataSet_display(MMParentDataSet* parentDataSet, PtpClock *ptpClock)
+mMParentDataSet_display(const MMParentDataSet* parentDataSet, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMTimePropertiesDataSet_display(MMTimePropertiesDataSet* timePropertiesDataSet, PtpClock *ptpClock)
+mMTimePropertiesDataSet_display(const MMTimePropertiesDataSet* timePropertiesDataSet, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMPortDataSet_display(MMPortDataSet* portDataSet, PtpClock *ptpClock)
+mMPortDataSet_display(const MMPortDataSet* portDataSet, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMPriority1_display(MMPriority1* priority1, PtpClock *ptpClock)
+mMPriority1_display(const MMPriority1* priority1, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMPriority2_display(MMPriority2* priority2, PtpClock *ptpClock)
+mMPriority2_display(const MMPriority2* priority2, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMDomain_display(MMDomain* domain, PtpClock *ptpClock)
+mMDomain_display(const MMDomain* domain, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMLogAnnounceInterval_display(MMLogAnnounceInterval* logAnnounceInterval, PtpClock *ptpClock)
+mMLogAnnounceInterval_display(const MMLogAnnounceInterval* logAnnounceInterval, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMAnnounceReceiptTimeout_display(MMAnnounceReceiptTimeout* announceReceiptTimeout, PtpClock *ptpClock)
+mMAnnounceReceiptTimeout_display(const MMAnnounceReceiptTimeout* announceReceiptTimeout, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMLogSyncInterval_display(MMLogSyncInterval* logSyncInterval, PtpClock *ptpClock)
+mMLogSyncInterval_display(const MMLogSyncInterval* logSyncInterval, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMVersionNumber_display(MMVersionNumber* versionNumber, PtpClock *ptpClock)
+mMVersionNumber_display(const MMVersionNumber* versionNumber, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMTime_display(MMTime* time, PtpClock *ptpClock)
+mMTime_display(const MMTime* time, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMClockAccuracy_display(MMClockAccuracy* clockAccuracy, PtpClock *ptpClock)
+mMClockAccuracy_display(const MMClockAccuracy* clockAccuracy, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMUtcProperties_display(MMUtcProperties* utcProperties, PtpClock *ptpClock)
+mMUtcProperties_display(const MMUtcProperties* utcProperties, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMTraceabilityProperties_display(MMTraceabilityProperties* traceabilityProperties, PtpClock *ptpClock)
+mMTraceabilityProperties_display(const MMTraceabilityProperties* traceabilityProperties, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMDelayMechanism_display(MMDelayMechanism* delayMechanism, PtpClock *ptpClock)
+mMDelayMechanism_display(const MMDelayMechanism* delayMechanism, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMLogMinPdelayReqInterval_display(MMLogMinPdelayReqInterval* logMinPdelayReqInterval, PtpClock *ptpClock)
+mMLogMinPdelayReqInterval_display(const MMLogMinPdelayReqInterval* logMinPdelayReqInterval, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 void
-mMErrorStatus_display(MMErrorStatus* errorStatus, PtpClock *ptpClock)
+mMErrorStatus_display(const MMErrorStatus* errorStatus, const PtpClock *ptpClock)
 {
 	/* TODO: implement me */
 }
 
 /**\brief Display runTimeOptions structure*/
 void
-displayRunTimeOpts(RunTimeOpts * rtOpts)
+displayRunTimeOpts(const RunTimeOpts * rtOpts)
 {
 
 	DBGV("---Run time Options Display-- \n");
@@ -527,7 +519,7 @@ displayRunTimeOpts(RunTimeOpts * rtOpts)
 
 /**\brief Display Default data set of a PtpClock*/
 void
-displayDefault(PtpClock * ptpClock)
+displayDefault(const PtpClock * ptpClock)
 {
 	DBGV("---Ptp Clock Default Data Set-- \n");
 	DBGV("\n");
@@ -545,7 +537,7 @@ displayDefault(PtpClock * ptpClock)
 
 /**\brief Display Current data set of a PtpClock*/
 void
-displayCurrent(PtpClock * ptpClock)
+displayCurrent(const PtpClock * ptpClock)
 {
 	DBGV("---Ptp Clock Current Data Set-- \n");
 	DBGV("\n");
@@ -562,7 +554,7 @@ displayCurrent(PtpClock * ptpClock)
 
 /**\brief Display Parent data set of a PtpClock*/
 void
-displayParent(PtpClock * ptpClock)
+displayParent(const PtpClock * ptpClock)
 {
 	DBGV("---Ptp Clock Parent Data Set-- \n");
 	DBGV("\n");
@@ -580,7 +572,7 @@ displayParent(PtpClock * ptpClock)
 
 /**\brief Display Global data set of a PtpClock*/
 void
-displayGlobal(PtpClock * ptpClock)
+displayGlobal(const PtpClock * ptpClock)
 {
 	DBGV("---Ptp Clock Global Time Data Set-- \n");
 	DBGV("\n");
@@ -598,7 +590,7 @@ displayGlobal(PtpClock * ptpClock)
 
 /**\brief Display Port data set of a PtpClock*/
 void
-displayPort(PtpClock * ptpClock)
+displayPort(const PtpClock * ptpClock)
 {
 	DBGV("---Ptp Clock Port Data Set-- \n");
 	DBGV("\n");
@@ -619,7 +611,7 @@ displayPort(PtpClock * ptpClock)
 
 /**\brief Display ForeignMaster data set of a PtpClock*/
 void
-displayForeignMaster(PtpClock * ptpClock)
+displayForeignMaster(const PtpClock * ptpClock)
 {
 
 	ForeignMasterRecord *foreign;
@@ -654,7 +646,7 @@ displayForeignMaster(PtpClock * ptpClock)
 /**\brief Display other data set of a PtpClock*/
 
 void
-displayOthers(PtpClock * ptpClock)
+displayOthers(const PtpClock * ptpClock)
 {
 
 	int i;
@@ -727,7 +719,7 @@ displayOthers(PtpClock * ptpClock)
 
 /**\brief Display Buffer in & out of a PtpClock*/
 void
-displayBuffer(PtpClock * ptpClock)
+displayBuffer(const PtpClock * ptpClock)
 {
 
 	int i;
@@ -804,7 +796,7 @@ const char
 
 /**\brief Display all PTP clock (port) counters*/
 void
-displayCounters(PtpClock * ptpClock)
+displayCounters(const PtpClock * ptpClock)
 {
 
 	/* TODO: print port identity */
@@ -900,7 +892,7 @@ displayCounters(PtpClock * ptpClock)
 
 /**\brief Display all PTP clock (port) statistics*/
 void
-displayStatistics(PtpClock* ptpClock)
+displayStatistics(const PtpClock* ptpClock)
 {
 
 	INFO("Clock stats: ofm mean: %d, ofm median: %d,"
@@ -912,7 +904,7 @@ displayStatistics(PtpClock* ptpClock)
 
 /**\brief Display All data sets and counters of a PtpClock*/
 void
-displayPtpClock(PtpClock * ptpClock)
+displayPtpClock(const PtpClock * ptpClock)
 {
 
 	displayDefault(ptpClock);

@@ -92,15 +92,15 @@ void internalTime_to_integer64(TimeInternal, Integer64*);
 /**
  * \brief Convert TimeInternal into Timestamp structure (defined by the spec)
  */
-void fromInternalTime(TimeInternal*,Timestamp*);
+void fromInternalTime(const TimeInternal*,Timestamp*);
 
 /**
  * \brief Convert Timestamp to TimeInternal structure (defined by the spec)
  */
-void toInternalTime(TimeInternal*,Timestamp*);
+void toInternalTime(TimeInternal*, const Timestamp*);
 
-void ts_to_InternalTime(struct timespec *, TimeInternal *);
-void tv_to_InternalTime(struct timeval  *, TimeInternal *);
+void ts_to_InternalTime(const struct timespec *, TimeInternal *);
+void tv_to_InternalTime(const struct timeval  *, TimeInternal *);
 
 
 
@@ -137,20 +137,20 @@ void div2Time(TimeInternal *);
  * \brief Compare data set of foreign masters and local data set
  * \return The recommended state for the port
  */
-UInteger8 bmc(ForeignMasterRecord*,RunTimeOpts*,PtpClock*);
+UInteger8 bmc(ForeignMasterRecord*, const RunTimeOpts*,PtpClock*);
 
 /**
  * \brief When recommended state is Master, copy local data into parent and grandmaster dataset
  */
-void m1(RunTimeOpts *, PtpClock*);
+void m1(const RunTimeOpts *, PtpClock*);
 
 /**
  * \brief When recommended state is Slave, copy dataset of master into parent and grandmaster dataset
  */
-void s1(MsgHeader*,MsgAnnounce*,PtpClock*, RunTimeOpts *);
+void s1(MsgHeader*,MsgAnnounce*,PtpClock*, const RunTimeOpts *);
 
 
-void p1(PtpClock *ptpClock, RunTimeOpts *rtOpts);
+void p1(PtpClock *ptpClock, const RunTimeOpts *rtOpts);
 
 /**
  * \brief Initialize datas
@@ -233,70 +233,69 @@ DECLARE_UNPACK( UInteger48 )
 DECLARE_UNPACK( Integer64 )
 
 //Diplay functions usefull to debug
-void displayRunTimeOpts(RunTimeOpts*);
-void displayDefault (PtpClock*);
-void displayCurrent (PtpClock*);
-void displayParent (PtpClock*);
-void displayGlobal (PtpClock*);
-void displayPort (PtpClock*);
-void displayForeignMaster (PtpClock*);
-void displayOthers (PtpClock*);
-void displayBuffer (PtpClock*);
-void displayPtpClock (PtpClock*);
-void timeInternal_display(TimeInternal*);
-void clockIdentity_display(ClockIdentity);
-void netPath_display(NetPath*);
-void intervalTimer_display(IntervalTimer*);
-void integer64_display (Integer64*);
-void timeInterval_display(TimeInterval*);
-void portIdentity_display(PortIdentity*);
-void clockQuality_display (ClockQuality*);
-void PTPText_display(PTPText*, PtpClock*);
-void iFaceName_display(Octet*);
-void unicast_display(Octet*);
+void displayRunTimeOpts(const RunTimeOpts*);
+void displayDefault (const PtpClock*);
+void displayCurrent (const PtpClock*);
+void displayParent (const PtpClock*);
+void displayGlobal (const PtpClock*);
+void displayPort (const PtpClock*);
+void displayForeignMaster (const PtpClock*);
+void displayOthers (const PtpClock*);
+void displayBuffer (const PtpClock*);
+void displayPtpClock (const PtpClock*);
+void timeInternal_display(const TimeInternal*);
+void clockIdentity_display(const ClockIdentity);
+void netPath_display(const NetPath*);
+void intervalTimer_display(const IntervalTimer*);
+void integer64_display (const Integer64*);
+void timeInterval_display(const TimeInterval*);
+void portIdentity_display(const PortIdentity*);
+void clockQuality_display (const ClockQuality*);
+void PTPText_display(const PTPText*, const PtpClock*);
+void iFaceName_display(const Octet*);
+void unicast_display(const Octet*);
 const char *portState_getName(Enumeration8 portState);
 
-void displayCounters(PtpClock*);
-void displayStatistics(PtpClock*);
+void displayCounters(const PtpClock*);
+void displayStatistics(const PtpClock*);
 
-void msgHeader_display(MsgHeader*);
-void msgAnnounce_display(MsgAnnounce*);
-void msgSync_display(MsgSync *sync);
-void msgFollowUp_display(MsgFollowUp*);
-void msgPDelayReq_display(MsgPDelayReq*);
-void msgDelayReq_display(MsgDelayReq * req);
-void msgDelayResp_display(MsgDelayResp * resp);
-void msgPDelayResp_display(MsgPDelayResp * presp);
-void msgPDelayRespFollowUp_display(MsgPDelayRespFollowUp * prespfollow);
-void msgManagement_display(MsgManagement * manage);
+void msgHeader_display(const MsgHeader*);
+void msgAnnounce_display(const MsgAnnounce*);
+void msgSync_display(const MsgSync *sync);
+void msgFollowUp_display(const MsgFollowUp*);
+void msgPDelayReq_display(const MsgPDelayReq*);
+void msgDelayReq_display(const MsgDelayReq * req);
+void msgDelayResp_display(const MsgDelayResp * resp);
+void msgPDelayResp_display(const MsgPDelayResp * presp);
+void msgPDelayRespFollowUp_display(const MsgPDelayRespFollowUp * prespfollow);
+void msgManagement_display(const MsgManagement * manage);
 
 
-void mMSlaveOnly_display(MMSlaveOnly*, PtpClock*);
-void mMClockDescription_display(MMClockDescription*, PtpClock*);
-void mMUserDescription_display(MMUserDescription*, PtpClock*);
-void mMInitialize_display(MMInitialize*, PtpClock*);
-void mMDefaultDataSet_display(MMDefaultDataSet*, PtpClock*);
-void mMCurrentDataSet_display(MMCurrentDataSet*, PtpClock*);
-void mMParentDataSet_display(MMParentDataSet*, PtpClock*);
-void mMTimePropertiesDataSet_display(MMTimePropertiesDataSet*, PtpClock*);
-void mMPortDataSet_display(MMPortDataSet*, PtpClock*);
-void mMPriority1_display(MMPriority1*, PtpClock*);
-void mMPriority2_display(MMPriority2*, PtpClock*);
-void mMDomain_display(MMDomain*, PtpClock*);
-void mMLogAnnounceInterval_display(MMLogAnnounceInterval*, PtpClock*);
-void mMAnnounceReceiptTimeout_display(MMAnnounceReceiptTimeout*, PtpClock*);
-void mMLogSyncInterval_display(MMLogSyncInterval*, PtpClock*);
-void mMVersionNumber_display(MMVersionNumber*, PtpClock*);
-void mMTime_display(MMTime*, PtpClock*);
-void mMClockAccuracy_display(MMClockAccuracy*, PtpClock*);
-void mMUtcProperties_display(MMUtcProperties*, PtpClock*);
-void mMTraceabilityProperties_display(MMTraceabilityProperties*, PtpClock*);
-void mMDelayMechanism_display(MMDelayMechanism*, PtpClock*);
-void mMLogMinPdelayReqInterval_display(MMLogMinPdelayReqInterval*, PtpClock*);
-void mMErrorStatus_display(MMErrorStatus*, PtpClock*);
+void mMSlaveOnly_display(const MMSlaveOnly*, const PtpClock*);
+void mMClockDescription_display(const MMClockDescription*, const PtpClock*);
+void mMUserDescription_display(const MMUserDescription*, const PtpClock*);
+void mMInitialize_display(const MMInitialize*, const PtpClock*);
+void mMDefaultDataSet_display(const MMDefaultDataSet*, const PtpClock*);
+void mMCurrentDataSet_display(const MMCurrentDataSet*, const PtpClock*);
+void mMParentDataSet_display(const MMParentDataSet*, const PtpClock*);
+void mMTimePropertiesDataSet_display(const MMTimePropertiesDataSet*, const PtpClock*);
+void mMPortDataSet_display(const MMPortDataSet*, const PtpClock*);
+void mMPriority1_display(const MMPriority1*, const PtpClock*);
+void mMPriority2_display(const MMPriority2*, const PtpClock*);
+void mMDomain_display(const MMDomain*, const PtpClock*);
+void mMLogAnnounceInterval_display(const MMLogAnnounceInterval*, const PtpClock*);
+void mMAnnounceReceiptTimeout_display(const MMAnnounceReceiptTimeout*, const PtpClock*);
+void mMLogSyncInterval_display(const MMLogSyncInterval*, const PtpClock*);
+void mMVersionNumber_display(const MMVersionNumber*, const PtpClock*);
+void mMTime_display(const MMTime*, const PtpClock*);
+void mMClockAccuracy_display(const MMClockAccuracy*, const PtpClock*);
+void mMUtcProperties_display(const MMUtcProperties*, const PtpClock*);
+void mMTraceabilityProperties_display(const MMTraceabilityProperties*, const PtpClock*);
+void mMDelayMechanism_display(const MMDelayMechanism*, const PtpClock*);
+void mMLogMinPdelayReqInterval_display(const MMLogMinPdelayReqInterval*, const PtpClock*);
+void mMErrorStatus_display(const MMErrorStatus*, const PtpClock*);
 
 void clearTime(TimeInternal *time);
-int isTimeInternalNegative(const TimeInternal * p);
 
 char *dump_TimeInternal(const TimeInternal * p);
 char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *st2, const TimeInternal * p2);
@@ -307,15 +306,15 @@ int snprint_TimeInternal(char *s, int max_len, const TimeInternal * p);
 
 
 void nano_to_Time(TimeInternal *time, int nano);
-int gtTime(TimeInternal *x, TimeInternal *b);
+int gtTime(const TimeInternal *x, const TimeInternal *b);
 void absTime(TimeInternal *time);
-int is_Time_close(TimeInternal *x, TimeInternal *b, int nanos);
+int is_Time_close(const TimeInternal *x, const TimeInternal *b, int nanos);
 int isTimeInternalNegative(const TimeInternal * p);
 
 
 
-int check_timestamp_is_fresh2(TimeInternal * timeA, TimeInternal * timeB);
-int check_timestamp_is_fresh(TimeInternal * timeA);
+int check_timestamp_is_fresh2(const TimeInternal * timeA, const TimeInternal * timeB);
+int check_timestamp_is_fresh(const TimeInternal * timeA);
 
 
 void toState(UInteger8,RunTimeOpts*,PtpClock*);

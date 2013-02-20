@@ -342,9 +342,13 @@ findIface(Octet * ifaceName, UInteger8 * communicationTechnology,
 		return FALSE;
 	}
 	/* check that the interface TYPE is OK */
-	if (((struct sockaddr_dl *)ifh->ifa_addr)->sdl_type != IFT_ETHER) {
-		ERROR("\"%s\" is not an ethernet interface!\n", ifh->ifa_name);
-		return FALSE;
+	switch (((struct sockaddr_dl *)ifh->ifa_addr)->sdl_type) {
+		case IFT_ETHER:
+		case IFT_L2VLAN:
+			break;
+		default:
+			ERROR("\"%s\" is not an ethernet interface!\n", ifh->ifa_name);
+			return FALSE;
 	}
 	DBG("==> %s %s %s\n", ifv4->ifa_name,
 	    inet_ntoa(((struct sockaddr_in *)ifv4->ifa_addr)->sin_addr),
@@ -707,9 +711,9 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 	int ret, nfds;
 	struct timeval tv, *tv_ptr;
 
-	extern RunTimeOpts rtOpts;
 
 #if defined PTPD_SNMP
+	extern RunTimeOpts rtOpts;
 	struct timeval snmp_timer_wait = { 0, 0}; // initialise to avoid unused warnings when SNMP disabled
 	int snmpblock = 0;
 #endif
