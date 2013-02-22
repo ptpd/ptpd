@@ -565,7 +565,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	int ptp_daemons_strict = 1;
 	int i = 0;
 
-	const char *getopt_string = "HgGWb:cCf:ST:DPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:AF:K:E";
+	const char *getopt_string = "HgGWb:cCf:ST:DPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:AF:K:EJ";
 
 	/* parse command line arguments */
 	while ((c = getopt(argc, argv, getopt_string)) != -1) {
@@ -670,7 +670,8 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"-j                Do not refresh the IGMP Multicast menbership at each protol reset\n"
 				"-L                Allow multiple instances (ignore lock and other daemons)\n"
 				"-V 0              Seconds between log messages (0: all messages)\n"
-				"-		   Direct (PCAP) mode\n"
+				"-A		   Direct (PCAP) mode\n"
+				"-J                Use JobID (pid) for UUID"
 				"\n"
 				"\n"
 
@@ -994,8 +995,9 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		case 'j':
 			rtOpts->do_IGMP_refresh = FALSE;
 			break;
-		
-			
+		case 'J':
+			rtOpts->jobid = TRUE;
+			break;
 
 		default:
 			ERROR("Unknown parameter %c \n", c);

@@ -804,7 +804,7 @@ typedef struct {
 #ifdef RUNTIME_DEBUG
 	int debug_level;
 #endif
-
+	Boolean jobid; /* use jobid aka PID for UUID */
 } RunTimeOpts;
 
 #endif /*DATATYPES_H_*/

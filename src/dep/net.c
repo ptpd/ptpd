@@ -512,6 +512,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	struct sockaddr_in addr;
 	struct bpf_program program;
 	char errbuf[PCAP_ERRBUF_SIZE];
+	pid_t job = htonl(getpid());
        
 	DBG("netInit\n");
 
@@ -527,6 +528,12 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			ptpClock->port_uuid_field, netPath)))
 		return FALSE;
 
+	if (rtOpts->jobid) {
+		memset(ptpClock->port_uuid_field, 0, PTP_UUID_LENGTH);
+		memcpy(ptpClock->port_uuid_field + (PTP_UUID_LENGTH - sizeof(job)),
+		    (pid_t *)&job, sizeof(job));
+	}
+
 	/* open sockets */
 	if ((netPath->eventSock = socket(PF_INET, SOCK_DGRAM, 
 					 IPPROTO_UDP)) < 0
@@ -537,7 +544,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 	if (rtOpts->pcap == TRUE) {
 		if ((netPath->pcapEvent = pcap_open_live(rtOpts->ifaceName,
-							 -1, 0, 1,
+							 -1, 0, 1000,
 							 errbuf)) == NULL) {
 			PERROR("failed to open event pcap");
 			return FALSE;
@@ -560,7 +567,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}		
 		if ((netPath->pcapGeneral = pcap_open_live(rtOpts->ifaceName,
-							 -1, 0, 1,
+							 -1, 0, 1000,
 							 errbuf)) == NULL) {
 			PERROR("failed to open general pcap");
 			return FALSE;
@@ -600,8 +607,15 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 * need INADDR_ANY to allow receipt of multi-cast and uni-cast
 	 * messages
 	 */
+	if (rtOpts->jobid) {
+		if (inet_pton(AF_INET, DEFAULT_PTP_DOMAIN_ADDRESS, &addr.sin_addr) < 0) {
+			PERROR("failed to convert address");
+			return FALSE;
+		}
+	} else
+		addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	
 	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(PTP_EVENT_PORT);
 	if (bind(netPath->eventSock, (struct sockaddr *)&addr, 
 		 sizeof(struct sockaddr_in)) < 0) {
