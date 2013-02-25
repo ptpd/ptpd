@@ -607,28 +607,29 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 * need INADDR_ANY to allow receipt of multi-cast and uni-cast
 	 * messages
 	 */
-	if (rtOpts->jobid) {
-		if (inet_pton(AF_INET, DEFAULT_PTP_DOMAIN_ADDRESS, &addr.sin_addr) < 0) {
-			PERROR("failed to convert address");
+	if (rtOpts->pcap != TRUE) {
+		if (rtOpts->jobid) {
+			if (inet_pton(AF_INET, DEFAULT_PTP_DOMAIN_ADDRESS, &addr.sin_addr) < 0) {
+				PERROR("failed to convert address");
+				return FALSE;
+			}
+		} else
+			addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(PTP_EVENT_PORT);
+		if (bind(netPath->eventSock, (struct sockaddr *)&addr, 
+			sizeof(struct sockaddr_in)) < 0) {
+			PERROR("failed to bind event socket");
 			return FALSE;
 		}
-	} else
-		addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(PTP_EVENT_PORT);
-	if (bind(netPath->eventSock, (struct sockaddr *)&addr, 
-		 sizeof(struct sockaddr_in)) < 0) {
-		PERROR("failed to bind event socket");
-		return FALSE;
+		addr.sin_port = htons(PTP_GENERAL_PORT);
+		if (bind(netPath->generalSock, (struct sockaddr *)&addr, 
+			sizeof(struct sockaddr_in)) < 0) {
+			PERROR("failed to bind general socket");
+			return FALSE;
+		}
 	}
-	addr.sin_port = htons(PTP_GENERAL_PORT);
-	if (bind(netPath->generalSock, (struct sockaddr *)&addr, 
-		 sizeof(struct sockaddr_in)) < 0) {
-		PERROR("failed to bind general socket");
-		return FALSE;
-	}
-
 
 #ifdef USE_BINDTODEVICE
 #ifdef linux
