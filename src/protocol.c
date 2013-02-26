@@ -836,7 +836,9 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 					ptpClock->leapSecondInProgress=FALSE;
 					ptpClock->leap59 = FALSE;
 					ptpClock->leap61 = FALSE;
+#if !defined(__APPLE__)
 					unsetTimexFlags(STA_INS | STA_DEL, TRUE);
+#endif /* apple */
 				}
 			}
 			DBG2("___ Announce: received Announce from current Master, so reset the Announce timer\n");
