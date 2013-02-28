@@ -262,7 +262,8 @@ is_Time_close(const TimeInternal *x, const TimeInternal *y, int nanos)
 	TimeInternal r1;
 	TimeInternal r2;
 
-	// first, subtract the 2 values. then call abs(), then call gtTime for requested the number of nanoseconds
+	// first, subtract the 2 values. then call abs(),
+	// then call gtTime for requested the number of nanoseconds
 	subTime(&r1, x, y);
 	absTime(&r1);
 
@@ -277,7 +278,8 @@ check_timestamp_is_fresh2(const TimeInternal * timeA, const TimeInternal * timeB
 {
 	int ret;
 
-	ret = is_Time_close(timeA, timeB, 1000000);		// maximum 1 millisecond offset
+	// maximum 1 millisecond offset	
+	ret = is_Time_close(timeA, timeB, 1000000);
 	DBG2("check_timestamp_is_fresh: %d\n ", ret);
 	return ret;
 }
