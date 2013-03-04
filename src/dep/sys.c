@@ -744,8 +744,13 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	if (ptpClock->drift_saved && rtOpts->drift_recovery_method > 0 ) {
 		ptpClock->observed_drift = ptpClock->last_saved_drift;
-		if (!rtOpts->noAdjust)
-			adjFreq(-ptpClock->last_saved_drift);
+		if (!rtOpts->noAdjust) {
+#if defined(__APPLE__)
+			adjTime(-ptpClock->last_saved_drift);
+#else
+			adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->last_saved_drift);
+#endif /* __APPLE__ */
+		}
 		DBG("loaded cached drift");
 		return;
 	}
@@ -799,7 +804,9 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	if (reset_offset) {
 		if (!rtOpts->noAdjust)
-		adjFreq(0);
+#if !defined(__APPLE__)
+		  adjFreq_wrapper(rtOpts, ptpClock, 0);
+#endif /* __APPLE__ */
 		ptpClock->observed_drift = 0;
 		return;
 	}
@@ -813,8 +820,9 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 //	ptpClock->drift_saved = TRUE;
 	ptpClock->last_saved_drift = recovered_drift;
 	if (!rtOpts->noAdjust)
+#if !defined(__APPLE__)
 		adjFreq(-recovered_drift);
-
+#endif /* __APPLE__ */
 }
 
 void
