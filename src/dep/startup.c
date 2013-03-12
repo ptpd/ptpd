@@ -539,7 +539,11 @@ display_short_help(char *error)
 			"   -b <dev>      Interface to use\n"
 			"\n"
 			"   -cC  -DVfS    Console / verbose console;     Dump stats / Interval / Output file / no Syslog\n"
+#ifdef PTPD_EXPERIMENTAL
 			"   -uU           Unicast/Hybrid mode\n"
+#else
+			"   -u            Unicast mode\n"
+#endif
 			"\n"
 			"\n"
 			"   -hHB           Summary / Complete help file / run-time debug level\n"

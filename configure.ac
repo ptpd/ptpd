@@ -61,7 +61,7 @@ AC_ARG_ENABLE(
     [snmp],
     [AS_HELP_STRING(
 	[--enable-snmp],
-	[disable support for SNMP]
+	[enable support for SNMP (disabled by default)]
     )],
     [ptpd_ok=$enableval],
     [case "$PATH_NET_SNMP_CONFIG" in
