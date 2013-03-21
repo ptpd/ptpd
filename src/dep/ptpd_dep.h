@@ -381,6 +381,7 @@ void adjTime(Integer32);
 
 #if !defined(__APPLE__)
 
+void adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj);
 Boolean adjFreq(Integer32);
 Integer32 getAdjFreq(void);
 

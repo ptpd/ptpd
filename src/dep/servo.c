@@ -445,7 +445,7 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	WARNING("     Performing hard frequency reset, by setting frequency to zero\n");
 #if !defined(__APPLE__)
-	adjFreq_wrapper(0);
+	adjFreq_wrapper(rtOpts, ptpClock, 0);
 #endif /* __APPLE__ */
 	ptpClock->observed_drift = 0;
 
