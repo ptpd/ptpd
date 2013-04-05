@@ -856,8 +856,13 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			break;
 
 		case FALSE:
-			/*addForeign takes care of AnnounceUnpacking*/
-			/* the actual decision to change masters is only done in  doState() / record_update == TRUE / bmc() */
+			/* addForeign takes care of AnnounceUnpacking */
+
+			/* the actual decision to change masters is
+			 * only done in doState() / record_update ==
+			 * TRUE / bmc()
+			 */
+
 			/*
 			 * wowczarek: do not restart timer here:
 			 * the slave will  sit idle if current parent
