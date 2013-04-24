@@ -197,8 +197,9 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 		}
 
 		if(ptpClock->meanPathDelay.nanoseconds < 0){
-			DBG(" updatedelay: found negative value for OWD, "
-				"so ignoring this value\n");
+			DBGV("update delay: found negative value for OWD, "
+			    "so ignoring this value %d\n",
+				ptpClock->meanPathDelay.nanoseconds);
 			/* revert back to previous value */
 			ptpClock->meanPathDelay = prev_meanPathDelay;
 

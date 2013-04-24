@@ -53,6 +53,7 @@
 #include "../ptpd.h"
 
 #include <pcap/pcap.h>
+#define PCAP_TIMEOUT 1 /* expressed in milliseconds */
 
 #if defined PTPD_SNMP
 #include <net-snmp/net-snmp-config.h>
@@ -544,7 +545,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 	if (rtOpts->pcap == TRUE) {
 		if ((netPath->pcapEvent = pcap_open_live(rtOpts->ifaceName,
-							 -1, 0, 1000,
+							 PACKET_SIZE, 0,
+							 PCAP_TIMEOUT,
 							 errbuf)) == NULL) {
 			PERROR("failed to open event pcap");
 			return FALSE;
@@ -567,7 +569,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}		
 		if ((netPath->pcapGeneral = pcap_open_live(rtOpts->ifaceName,
-							 -1, 0, 1000,
+							   PACKET_SIZE, 0,
+							   PCAP_TIMEOUT,
 							 errbuf)) == NULL) {
 			PERROR("failed to open general pcap");
 			return FALSE;
@@ -943,9 +946,11 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 			return 0;
 		}
 	} else { /* Using PCAP */
-		if (pcap_next_ex(netPath->pcapEvent, &pkt_header, 
-				 &pkt_data) < 1) {
-			DBG("netRecvEvent: pcap_next_ex failed\n");
+		if ((ret = pcap_next_ex(netPath->pcapEvent, &pkt_header, 
+					&pkt_data)) < 1) {
+			if (ret < 0)
+				DBGV("netRecvEvent: pcap_next_ex failed %s\n",
+				     pcap_geterr(netPath->pcapEvent));
 			return 0;
 		}
 		netPath->receivedPackets++;
@@ -955,8 +960,9 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		time->seconds = pkt_header->ts.tv_sec;
 		time->nanoseconds = pkt_header->ts.tv_usec * 1000;
 		timestampValid = TRUE;
-		DBGV("kernel PCAP recv time stamp %us %dns\n",
+		DBGV("netRecvEvent: kernel PCAP recv time stamp %us %dns\n",
 		     time->seconds, time->nanoseconds);
+		fflush(NULL);
 		ret = pkt_header->caplen - PKT_BEGIN;
 	}
 	return ret;
@@ -1095,9 +1101,11 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 			}
 		}
 	} else { /* Using PCAP */
-		if (pcap_next_ex(netPath->pcapGeneral, &pkt_header, 
-				 &pkt_data) < 1) {
-			DBG("netRecvEvent: pcap_next_ex failed\n");
+		if (( ret = pcap_next_ex(netPath->pcapGeneral, &pkt_header, 
+					 &pkt_data)) < 1) {
+			if (ret < 0) 
+				DBGV("netRecvGeneral: pcap_next_ex failed %d %s\n",
+				     ret, pcap_geterr(netPath->pcapEvent));
 			return 0;
 		}
 		netPath->receivedPackets++;
@@ -1107,8 +1115,9 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 		time->seconds = pkt_header->ts.tv_sec;
 		time->nanoseconds = pkt_header->ts.tv_usec * 1000;
 		timestampValid = TRUE;
-		DBGV("kernel PCAP recv time stamp %us %dns\n",
+		DBGV("netRecvGeneral: kernel PCAP recv time stamp %us %dns\n",
 		     time->seconds, time->nanoseconds);
+		fflush(NULL);
 		ret = pkt_header->caplen - PKT_BEGIN;
 	}
 

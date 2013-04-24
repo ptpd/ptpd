@@ -60,7 +60,7 @@ static void handleAnnounce(MsgHeader*, ssize_t,Boolean, const RunTimeOpts*,PtpCl
 static void handleSync(const MsgHeader*, ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
 static void handleFollowUp(const MsgHeader*, ssize_t,Boolean,RunTimeOpts*,PtpClock*);
 static void handlePDelayReq(MsgHeader*, ssize_t,const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
-static void handleDelayReq(const MsgHeader*, ssize_t, const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+void handleDelayReq(const MsgHeader*, ssize_t, const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
 static void handlePDelayResp(const MsgHeader*, TimeInternal* ,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
 static void handleDelayResp(const MsgHeader*, ssize_t, RunTimeOpts*,PtpClock*);
 static void handlePDelayRespFollowUp(const MsgHeader*, ssize_t, RunTimeOpts*,PtpClock*);
@@ -72,7 +72,7 @@ static void issueAnnounce(RunTimeOpts*,PtpClock*);
 static void issueSync(RunTimeOpts*,PtpClock*);
 static void issueFollowup(const TimeInternal*,RunTimeOpts*,PtpClock*);
 static void issuePDelayReq(RunTimeOpts*,PtpClock*);
-static void issueDelayReq(RunTimeOpts*,PtpClock*);
+void issueDelayReq(RunTimeOpts*,PtpClock*);
 static void issuePDelayResp(const TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
 static void issueDelayResp(const TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
 static void issuePDelayRespFollowUp(const TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
@@ -611,6 +611,8 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if (FD_ISSET(ptpClock->netPath.pcapEventSock, &readfds)) {
 			length = netRecvEvent(ptpClock->msgIbuf, &tint, 
 					      &ptpClock->netPath);
+			if (length == 0) /* timeout, return for now */
+				return;
 			if (length < 0) {
 				PERROR("failed to receive event on pcap");
 				toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -622,6 +624,8 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if (FD_ISSET(ptpClock->netPath.pcapGeneralSock, &readfds)) {
 			length = netRecvGeneral(ptpClock->msgIbuf, &tint,
 						&ptpClock->netPath);
+			if (length == 0) /* timeout, return for now */
+				return;
 			if (length < 0) {
 				PERROR("failed to receive general on pcap");
 				toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -1177,7 +1181,7 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 }
 
 
-static void
+void
 handleDelayReq(const MsgHeader *header, ssize_t length, 
 	       const TimeInternal *tint, Boolean isFromSelf,
 	       RunTimeOpts *rtOpts, PtpClock *ptpClock)
@@ -1226,9 +1230,12 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 				 */
 
 				/*
-				 *  Make sure we process the REQ _before_ the RESP. While we could do this by any order,
-				 *  (because it's implicitly indexed by (ptpClock->sentDelayReqSequenceId - 1), this is
-				 *  now made explicit
+				 *  Make sure we process the REQ
+				 *  _before_ the RESP. While we could
+				 *  do this by any order, (because
+				 *  it's implicitly indexed by
+				 *  (ptpClock->sentDelayReqSequenceId
+				 *  - 1), this is now made explicit
 				 */
 				ptpClock->waitingForDelayResp = TRUE;
 
@@ -1241,6 +1248,10 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 				addTime(&ptpClock->delay_req_send_time,
 					&ptpClock->delay_req_send_time,
 					&rtOpts->outboundLatency);
+				DBGV("HandleDelayReq: %s %d\n",
+				    dump_TimeInternal(&ptpClock->delay_req_send_time),
+				    &rtOpts->outboundLatency);
+				    
 				break;
 			} else {
 				DBG2("HandledelayReq : disregard delayreq from other client\n");
@@ -1970,10 +1981,14 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 	Timestamp originTimestamp;
 	TimeInternal internalTime;
+	MsgHeader ourDelayReq;
 
 	DBG("==> Issue DelayReq (%d)\n", ptpClock->sentDelayReqSequenceId );
 
-	/* call GTOD. This time is later replaced on handle_delayreq, to get the actual send timestamp from the OS */
+	/*
+	 * call GTOD. This time is later replaced in handleDelayReq,
+	 * to get the actual send timestamp from the OS
+	 */
 	getTime(&internalTime);
 	fromInternalTime(&internalTime,&originTimestamp);
 
@@ -1997,12 +2012,18 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		ptpClock->sentDelayReqSequenceId++;
 		ptpClock->counters.delayReqMessagesSent++;
 
-		/* From now on, we will only accept delayreq and delayresp of (sentDelayReqSequenceId - 1) */
+		/* From now on, we will only accept delayreq and
+		 * delayresp of (sentDelayReqSequenceId - 1) */
 
 		/* Explicitelly re-arm timer for sending the next delayReq */
 		timerStart_random(DELAYREQ_INTERVAL_TIMER,
 		   pow(2,ptpClock->logMinDelayReqInterval),
 		   ptpClock->itimer);
+#if 0 /* PCAP ONLY */
+		msgUnpackHeader(ptpClock->msgObuf, &ourDelayReq);
+		handleDelayReq(&ourDelayReq, DELAY_REQ_LENGTH, &internalTime,
+			       TRUE, rtOpts, ptpClock);
+#endif 
 	}
 }
 
