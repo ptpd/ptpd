@@ -72,7 +72,7 @@ static void issueAnnounce(RunTimeOpts*,PtpClock*);
 static void issueSync(RunTimeOpts*,PtpClock*);
 static void issueFollowup(const TimeInternal*,RunTimeOpts*,PtpClock*);
 static void issuePDelayReq(RunTimeOpts*,PtpClock*);
-void issueDelayReq(RunTimeOpts*,PtpClock*);
+static void issueDelayReq(RunTimeOpts*,PtpClock*);
 static void issuePDelayResp(const TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
 static void issueDelayResp(const TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);
 static void issuePDelayRespFollowUp(const TimeInternal*,MsgHeader*,RunTimeOpts*,PtpClock*);

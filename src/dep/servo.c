@@ -125,7 +125,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			if ((slave_to_master_delay.nanoseconds < 0) &&
 			    (abs(slave_to_master_delay.nanoseconds) > rtOpts->maxDelay)) {
 				INFO("updateDelay aborted, "
-                	"delay (sec: %d ns: %d) is negative\n",
+				     "delay (sec: %d ns: %d) is negative\n",
 				     slave_to_master_delay.seconds,
 				     slave_to_master_delay.nanoseconds);
 				INFO("send (sec: %d ns: %d)\n",
@@ -134,12 +134,16 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				INFO("recv (sec: %d n	s: %d)\n",
 				     ptpClock->delay_req_receive_time.seconds,
 				     ptpClock->delay_req_receive_time.nanoseconds);
+				goto display;
 			}
 
 			if (slave_to_master_delay.seconds && rtOpts->maxDelay) {
-				INFO("updateDelay aborted, delay greater than 1 second\n");
+				INFO("updateDelay aborted, delay %d.%d greater than 1 second\n",
+				     slave_to_master_delay.seconds,
+				     slave_to_master_delay.nanoseconds);
 				if (rtOpts->displayPackets)
 					msgDump(ptpClock);
+				goto display;
 			}
 
 			if (slave_to_master_delay.nanoseconds > rtOpts->maxDelay) {
@@ -149,6 +153,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				     rtOpts->maxDelay);
 				if (rtOpts->displayPackets)
 					msgDump(ptpClock);
+				goto display;
 			}
 		}
 	}
