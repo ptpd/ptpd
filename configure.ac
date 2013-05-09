@@ -135,6 +135,7 @@ esac
 # Checks for libraries.
 AC_CHECK_LIB([m], [pow])
 AC_CHECK_LIB([rt], [clock_gettime])
+AC_CHECK_LIB([pcap], [pcap_inject])
 
 # Checks for header files.
 AC_HEADER_STDC
