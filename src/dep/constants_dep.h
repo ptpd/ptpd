@@ -29,6 +29,7 @@
 
 #define IFCONF_LENGTH 10
 
+#define octet ether_addr_octet
 #include<endian.h>
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define PTPD_LSBF
