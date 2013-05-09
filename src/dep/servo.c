@@ -418,7 +418,9 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	subTime(&timeTmp, &timeTmp, &ptpClock->offsetFromMaster);
 
 	WARNING("     Performing hard frequency reset, by setting frequency to zero\n");
-	adjFreq(0);
+#if !defined(__APPLE__)
+	adjFreq_wrapper(rtOpts, ptpClock, 0);
+#endif /* __APPLE__ */
 	ptpClock->observed_drift = 0;
 
 	setTime(&timeTmp);
@@ -461,6 +463,7 @@ warn_operator_slow_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock )
 /*
  * this is a wrapper around adjFreq to abstract extra operations
  */
+#if !defined(__APPLE__)
 void
 adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
 {
@@ -475,6 +478,7 @@ adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
 
 	warn_operator_fast_slewing(rtOpts, ptpClock, adj);
 }
+#endif /* __APPLE__ */
 
 void
 updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
