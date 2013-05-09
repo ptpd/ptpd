@@ -684,7 +684,6 @@ typedef struct {
 
 	/*Usefull to init network stuff*/
 	UInteger8 port_communication_technology;
-	Octet port_uuid_field[PTP_UUID_LENGTH];
 
 	int reset_count;
 	int current_init_clock;

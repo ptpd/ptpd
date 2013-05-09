@@ -62,8 +62,6 @@
 #endif
 
 
-#define PKT_BEGIN (ETHER_HDR_LEN + sizeof(struct ip) + sizeof(struct udphdr))
-
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
 #if !defined(SO_TIMESTAMPNS) && !defined(SO_TIMESTAMP) && !defined(SO_BINTIME)
 #error kernel-level timestamps not detected
@@ -526,12 +524,18 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if (!(interfaceAddr.s_addr = 
 	      findIface(rtOpts->ifaceName, 
 			&ptpClock->port_communication_technology,
-			ptpClock->port_uuid_field, netPath)))
+			netPath->port_uuid_field, netPath)))
 		return FALSE;
 
+	if (rtOpts->ethernet_mode == TRUE) {
+		netPath->headerOffset = PACKET_BEGIN_ETHER;
+		netPath->etherDest = ether_aton(PTP_ETHER_DST);
+	} else
+		netPath->headerOffset = PACKET_BEGIN_UDP;
+
 	if (rtOpts->jobid) {
-		memset(ptpClock->port_uuid_field, 0, PTP_UUID_LENGTH);
-		memcpy(ptpClock->port_uuid_field + (PTP_UUID_LENGTH - sizeof(job)),
+		memset(netPath->port_uuid_field, 0, PTP_UUID_LENGTH);
+		memcpy(netPath->port_uuid_field + (PTP_UUID_LENGTH - sizeof(job)),
 		    (pid_t *)&job, sizeof(job));
 	}
 
@@ -552,7 +556,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 		if (pcap_compile(netPath->pcapEvent, &program, 
-				 "multicast and host 224.0.1.129 and udp port 319",
+				 rtOpts->ethernet_mode ? "ether proto 0x88f7":
+				 "multicast and host 224.0.1.129 and udp port 319" ,
 				 1, 0) < 0) {
 			PERROR("failed to compile pcap event filter");
 			pcap_perror(netPath->pcapEvent, "ptpd2");
@@ -576,6 +581,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 		if (pcap_compile(netPath->pcapGeneral, &program, 
+				 rtOpts->ethernet_mode ? "ether proto 0x88f7" :
 				 "multicast and host 224.0.1.129 and udp port 320",
 				 1, 0) < 0) {
 			PERROR("failed to compile pcap general filter");
@@ -955,15 +961,15 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		}
 		netPath->receivedPackets++;
 		/* XXX Total cheat */
-		memcpy(buf, pkt_data + PKT_BEGIN, 
-		       pkt_header->caplen - PKT_BEGIN);
+		memcpy(buf, pkt_data + netPath->headerOffset, 
+		       pkt_header->caplen - netPath->headerOffset);
 		time->seconds = pkt_header->ts.tv_sec;
 		time->nanoseconds = pkt_header->ts.tv_usec * 1000;
 		timestampValid = TRUE;
 		DBGV("netRecvEvent: kernel PCAP recv time stamp %us %dns\n",
 		     time->seconds, time->nanoseconds);
 		fflush(NULL);
-		ret = pkt_header->caplen - PKT_BEGIN;
+		ret = pkt_header->caplen - netPath->headerOffset;
 	}
 	return ret;
 }
@@ -1110,15 +1116,15 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 		}
 		netPath->receivedPackets++;
 		/* XXX Total cheat */
-		memcpy(buf, pkt_data + PKT_BEGIN, 
-		       pkt_header->caplen - PKT_BEGIN);
+		memcpy(buf, pkt_data + netPath->headerOffset, 
+		       pkt_header->caplen - netPath->headerOffset);
 		time->seconds = pkt_header->ts.tv_sec;
 		time->nanoseconds = pkt_header->ts.tv_usec * 1000;
 		timestampValid = TRUE;
 		DBGV("netRecvGeneral: kernel PCAP recv time stamp %us %dns\n",
 		     time->seconds, time->nanoseconds);
 		fflush(NULL);
-		ret = pkt_header->caplen - PKT_BEGIN;
+		ret = pkt_header->caplen - netPath->headerOffset;
 	}
 
 	if (!timestampValid) {
@@ -1148,7 +1154,8 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 /// TODO: merge these 2 functions into one
 ///
 ssize_t 
-netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_dst)
+netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
+	     RunTimeOpts *rtOpts, Integer32 alt_dst)
 {
 	ssize_t ret;
 	struct sockaddr_in addr;
@@ -1156,49 +1163,65 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_ds
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
-	if (netPath->unicastAddr || alt_dst ) {
-		if (netPath->unicastAddr) {
-			addr.sin_addr.s_addr = netPath->unicastAddr;
-		} else {
-			addr.sin_addr.s_addr = alt_dst;
-		}
-
-		ret = sendto(netPath->eventSock, buf, length, 0, 
-			     (struct sockaddr *)&addr, 
-			     sizeof(struct sockaddr_in));
-		if (ret <= 0)
-			DBG("error sending uni-cast event message\n");
+	if ((netPath->pcapEvent != NULL) && (rtOpts->ethernet_mode == TRUE)) {
+		Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
+		memcpy(ether, netPath->etherDest->octet, ETHER_ADDR_LEN);
+		memcpy(ether + ETHER_ADDR_LEN,
+		       netPath->port_uuid_field, ETHER_ADDR_LEN);
+		*((short *)&ether[2 * ETHER_ADDR_LEN]) = htons(PTP_ETHER_TYPE);
+		memcpy(ether + ETHER_HDR_LEN, buf, length);
+		ret = pcap_inject(netPath->pcapEvent, ether,
+					 ETHER_HDR_LEN + length);
+		if (ret <= 0) 
+			DBG("error sending ether multi-cast event message\n");
 		else
 			netPath->sentPackets++;
-		/* 
-		 * Need to forcibly loop back the packet since
-		 * we are not using multicast. 
-		 */
-		addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-		ret = sendto(netPath->eventSock, buf, length, 0, 
-			     (struct sockaddr *)&addr, 
-			     sizeof(struct sockaddr_in));
-		if (ret <= 0)
-			DBG("error looping back uni-cast event message\n");
-		
 	} else {
-		addr.sin_addr.s_addr = netPath->multicastAddr;
+		if (netPath->unicastAddr || alt_dst ) {
+			if (netPath->unicastAddr) {
+				addr.sin_addr.s_addr = netPath->unicastAddr;
+			} else {
+				addr.sin_addr.s_addr = alt_dst;
+			}
 
-		ret = sendto(netPath->eventSock, buf, length, 0, 
-			     (struct sockaddr *)&addr, 
-			     sizeof(struct sockaddr_in));
-		if (ret <= 0)
-			DBG("error sending multi-cast event message\n");
-		else
-			netPath->sentPackets++;
+			ret = sendto(netPath->eventSock, buf, length, 0, 
+				     (struct sockaddr *)&addr, 
+				     sizeof(struct sockaddr_in));
+			if (ret <= 0)
+				DBG("error sending uni-cast event message\n");
+			else
+				netPath->sentPackets++;
+			/* 
+			 * Need to forcibly loop back the packet since
+			 * we are not using multicast. 
+			 */
+			addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+			ret = sendto(netPath->eventSock, buf, length, 0, 
+				     (struct sockaddr *)&addr, 
+				     sizeof(struct sockaddr_in));
+			if (ret <= 0)
+				DBG("error looping back uni-cast event message\n");
+		
+		} else {
+			addr.sin_addr.s_addr = netPath->multicastAddr;
+
+			ret = sendto(netPath->eventSock, buf, length, 0, 
+				     (struct sockaddr *)&addr, 
+				     sizeof(struct sockaddr_in));
+			if (ret <= 0)
+				DBG("error sending multi-cast event message\n");
+			else
+				netPath->sentPackets++;
+		}
 	}
-
 	return ret;
 }
 
 ssize_t 
-netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_dst)
+netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
+	       RunTimeOpts *rtOpts, Integer32 alt_dst)
 {
 	ssize_t ret;
 	struct sockaddr_in addr;
@@ -1206,31 +1229,47 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath, Integer32 alt_
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
-	if(netPath->unicastAddr || alt_dst ){
-	if (netPath->unicastAddr) {
-		addr.sin_addr.s_addr = netPath->unicastAddr;
-		} else {
-			addr.sin_addr.s_addr = alt_dst;
-		}
-
-
-		ret = sendto(netPath->generalSock, buf, length, 0, 
-			     (struct sockaddr *)&addr, 
-			     sizeof(struct sockaddr_in));
-		if (ret <= 0)
-			DBG("error sending uni-cast general message\n");
+	if ((netPath->pcapGeneral != NULL) && (rtOpts->ethernet_mode == TRUE)) {
+		Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
+		memcpy(ether, netPath->etherDest->octet, ETHER_ADDR_LEN);
+		memcpy(ether + ETHER_ADDR_LEN,
+		       netPath->port_uuid_field, ETHER_ADDR_LEN);
+		*((short *)&ether[2 * ETHER_ADDR_LEN]) = htons(PTP_ETHER_TYPE);
+		memcpy(ether + ETHER_HDR_LEN, buf, length);
+		ret = pcap_inject(netPath->pcapGeneral, ether,
+					 ETHER_HDR_LEN + length);
+		if (ret <= 0) 
+			DBG("error sending ether multi-cast general message\n");
 		else
 			netPath->sentPackets++;
+
 	} else {
-		addr.sin_addr.s_addr = netPath->multicastAddr;
+		if(netPath->unicastAddr || alt_dst ){
+			if (netPath->unicastAddr) {
+				addr.sin_addr.s_addr = netPath->unicastAddr;
+			} else {
+				addr.sin_addr.s_addr = alt_dst;
+			}
 
-		ret = sendto(netPath->generalSock, buf, length, 0, 
-			     (struct sockaddr *)&addr, 
-			     sizeof(struct sockaddr_in));
-		if (ret <= 0)
-			DBG("error sending multi-cast general message\n");
-		else
-			netPath->sentPackets++;
+
+			ret = sendto(netPath->generalSock, buf, length, 0, 
+				     (struct sockaddr *)&addr, 
+				     sizeof(struct sockaddr_in));
+			if (ret <= 0)
+				DBG("error sending uni-cast general message\n");
+			else
+				netPath->sentPackets++;
+		} else {
+			addr.sin_addr.s_addr = netPath->multicastAddr;
+
+			ret = sendto(netPath->generalSock, buf, length, 0, 
+				     (struct sockaddr *)&addr, 
+				     sizeof(struct sockaddr_in));
+			if (ret <= 0)
+				DBG("error sending multi-cast general message\n");
+			else
+				netPath->sentPackets++;
+		}
 	}
 	return ret;
 }

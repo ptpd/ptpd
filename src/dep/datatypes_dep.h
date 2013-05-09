@@ -71,11 +71,12 @@ typedef struct {
 	Integer32 eventSock, generalSock;
 	Integer32 multicastAddr, peerMulticastAddr,unicastAddr;
 	
-	/* u	sed by IGMP refresh */
+	/* used by IGMP refresh */
 	struct in_addr interfaceAddr;
+	Octet port_uuid_field[PTP_UUID_LENGTH];
 	
 #ifdef PTPD_EXPERIMENTAL
-	/* u	sed for Hybrid mode */
+	/* used for Hybrid mode */
 	Integer32 lastRecvAddr;
 #endif
 	
@@ -86,7 +87,8 @@ typedef struct {
 	Integer32 pcapEventSock;
 	pcap_t *pcapGeneral;
 	Integer32 pcapGeneralSock;
-
+	Integer32 headerOffset;
+	struct ether_addr *etherDest;
 } NetPath;
 
 #endif /*DATATYPES_DEP_H_*/

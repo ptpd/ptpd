@@ -125,7 +125,7 @@ main(int argc, char **argv)
 #ifdef RUNTIME_DEBUG
 	rtOpts.debug_level = LOG_INFO;			/* by default debug messages as disabled, but INFO messages and below are printed */
 #endif
-
+	rtOpts.ethernet_mode = FALSE;
 	rtOpts.ttl = 1;
 	rtOpts.delayMechanism   = DEFAULT_DELAY_MECHANISM;
 	rtOpts.noResetClock     = DEFAULT_NO_RESET_CLOCK;

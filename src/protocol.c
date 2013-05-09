@@ -1918,7 +1918,7 @@ issueAnnounce(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	msgPackAnnounce(ptpClock->msgObuf,ptpClock);
 
 	if (!netSendGeneral(ptpClock->msgObuf,ANNOUNCE_LENGTH,
-			    &ptpClock->netPath, 0)) {
+			    &ptpClock->netPath, rtOpts, 0)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("Announce message can't be sent -> FAULTY state \n");
@@ -1942,7 +1942,8 @@ issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	msgPackSync(ptpClock->msgObuf,&originTimestamp,ptpClock);
 
-	if (!netSendEvent(ptpClock->msgObuf,SYNC_LENGTH,&ptpClock->netPath, 0)) {
+	if (!netSendEvent(ptpClock->msgObuf,SYNC_LENGTH,&ptpClock->netPath,
+		rtOpts, 0)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("Sync message can't be sent -> FAULTY state \n");
@@ -1964,7 +1965,7 @@ issueFollowup(const TimeInternal *tint,RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	msgPackFollowUp(ptpClock->msgObuf,&preciseOriginTimestamp,ptpClock);
 	
 	if (!netSendGeneral(ptpClock->msgObuf,FOLLOW_UP_LENGTH,
-			    &ptpClock->netPath, 0)) {
+			    &ptpClock->netPath, rtOpts, 0)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("FollowUp message can't be sent -> FAULTY state \n");
@@ -2003,7 +2004,7 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 #endif
 
 	if (!netSendEvent(ptpClock->msgObuf,DELAY_REQ_LENGTH,
-			  &ptpClock->netPath, dst)) {
+			  &ptpClock->netPath, rtOpts, dst)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("delayReq message can't be sent -> FAULTY state \n");
@@ -2088,7 +2089,7 @@ issueDelayResp(const TimeInternal *tint,MsgHeader *header,RunTimeOpts *rtOpts, P
 #endif
 
 	if (!netSendGeneral(ptpClock->msgObuf,PDELAY_RESP_LENGTH,
-			    &ptpClock->netPath, dst)) {
+			    &ptpClock->netPath, rtOpts, dst)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("delayResp message can't be sent -> FAULTY state \n");
@@ -2146,7 +2147,7 @@ issueManagementRespOrAck(MsgManagement *outgoing, RunTimeOpts *rtOpts,
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
 
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-				&ptpClock->netPath, 0)) {
+			   &ptpClock->netPath, rtOpts, 0)) {
 		DBGV("Management response/acknowledge can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -2170,7 +2171,7 @@ issueManagementErrorStatus(MsgManagement *outgoing, RunTimeOpts *rtOpts, PtpCloc
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
 
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-				&ptpClock->netPath, 0)) {
+			   &ptpClock->netPath, rtOpts, 0)) {
 		DBGV("Management error status can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);

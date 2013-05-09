@@ -298,8 +298,8 @@ Boolean netShutdown(NetPath*);
 int netSelect(TimeInternal*,NetPath*,fd_set*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*);
 ssize_t netRecvGeneral(Octet*,TimeInternal*,NetPath*);
-ssize_t netSendEvent(Octet*,UInteger16,NetPath*, Integer32 );
-ssize_t netSendGeneral(Octet*,UInteger16,NetPath*, Integer32 );
+ssize_t netSendEvent(Octet*,UInteger16,NetPath*,RunTimeOpts*,Integer32 );
+ssize_t netSendGeneral(Octet*,UInteger16,NetPath*,RunTimeOpts*,Integer32 );
 ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*);
 ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*);
 

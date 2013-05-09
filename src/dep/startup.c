@@ -895,8 +895,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 		case 'e':
 			rtOpts->ethernet_mode = TRUE;
-			ERROR("Not implemented yet !");
-			return 0;
 			break;
 		case 'h':
 			rtOpts->delayMechanism = E2E;
