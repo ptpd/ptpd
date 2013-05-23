@@ -5,6 +5,7 @@ ptpd2 \- Precision Time Protocol daemon (1588-2008)
 .SH SYNOPSIS
 .B ptpd2
 [?]
+[-A]
 [-B]
 [-c]
 [-C]
@@ -64,6 +65,9 @@ For more information, see http://ptpd.sourceforge.net/
 .B \-?
 display a short help text
 .TP
+.B \-A
+use pcap and bpf to get packets from the device
+.TP
 .B \-B
 enable debugging if it has been previously compiled in
 .TP
@@ -122,7 +126,7 @@ multicast group for PTPD_EXPERIMENTAL mode
 enable hybrid mode which uses both unicast and multicast, requires PTPD_EXPERIMENTAL
 .TP
 .B \-e
-run in ethernet mode (currently unimplemented)
+run in ethernet mode (client mode only and requires pcap/bpf -A above)
 .TP
 .B \-h
 run in End to End mode
