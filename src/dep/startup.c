@@ -569,7 +569,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	int ptp_daemons_strict = 1;
 	int i = 0;
 
-	const char *getopt_string = "HgGWb:cCf:ST:DPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:A:F:K:E";
+	const char *getopt_string = "HgGWb:cCf:ST:DPR:xO:tM:a:w:u:Uehzl:o:i:I:n:N:y:m:v:r:s:p:q:Y:BjLV:AF:K:EJ";
 
 	/* parse command line arguments */
 	while ((c = getopt(argc, argv, getopt_string)) != -1) {
@@ -618,7 +618,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"                    2: read last observed drift from "DEFAULT_DRIFTFILE"\n"
 				"                       (or specify drift file with -K)\n"
 				"-K FILE           save / load drift to FILE (use with -F 2)\n"
-				"-A NUMBER         enable autotune with discarded packet threshold of NUMBER\n"
+				"-A                use PCAP and BPF to send and receive packets\n"
 				"-M NUMBER         do not accept delay values of more than NUMBER nanoseconds\n"
 				"-a 10,1000        specify clock servo Proportional and Integral attenuations\n"
 				"-w NUMBER         specify one way delay filter stiffness\n"
@@ -674,6 +674,8 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 				"-j                Do not refresh the IGMP Multicast menbership at each protol reset\n"
 				"-L                Allow multiple instances (ignore lock and other daemons)\n"
 				"-V 0              Seconds between log messages (0: all messages)\n"
+				"-A		   Direct (PCAP) mode\n"
+				"-J                Use JobID (pid) for UUID"
 				"\n"
 				"\n"
 
@@ -783,8 +785,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			}
 			break;
 		case 'A':
-			rtOpts->maxDelayAutoTune = TRUE;
-			rtOpts->discardedPacketThreshold = atoi(optarg);
+			rtOpts->pcap = TRUE;
 			break;
 		case 'M':
 			rtOpts->maxDelay = rtOpts->origMaxDelay = atoi(optarg);
@@ -898,8 +899,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 		case 'e':
 			rtOpts->ethernet_mode = TRUE;
-			ERROR("Not implemented yet !");
-			return 0;
 			break;
 		case 'h':
 			rtOpts->delayMechanism = E2E;
@@ -942,9 +941,11 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 
 		/*
-		 *  master without NTP (Original Master behaviour):
-		 *    it falls back to slave mode when its inactive master;
-		 *    once it starts being active, it will drift for itself, so in actual terms it always requires NTP to work properly
+		 *  master without NTP (Original Master behaviour): it
+		 *    falls back to slave mode when its inactive
+		 *    master; once it starts being active, it will
+		 *    drift for itself, so in actual terms it always
+		 *    requires NTP to work properly.
 		 */
 		case 'W':
 			mode_selected = 3;
@@ -998,8 +999,9 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		case 'j':
 			rtOpts->do_IGMP_refresh = FALSE;
 			break;
-		
-			
+		case 'J':
+			rtOpts->jobid = TRUE;
+			break;
 
 		default:
 			ERROR("Unknown parameter %c \n", c);
@@ -1054,6 +1056,12 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		return 0;
 	}
 
+	if(rtOpts->ethernet_mode && !rtOpts->pcap) {
+		ERROR("Error: Ethernet mode (-e) requires pcap (-A).\n");
+		*ret = 3;
+		return 0;
+	}
+	
 	ptpClock = (PtpClock *) calloc(1, sizeof(PtpClock));
 	if (!ptpClock) {
 		PERROR("Error: Failed to allocate memory for protocol engine data");

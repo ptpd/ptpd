@@ -29,6 +29,7 @@
 
 #define IFCONF_LENGTH 10
 
+#define octet ether_addr_octet
 #include<endian.h>
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define PTPD_LSBF
@@ -82,6 +83,9 @@
 #define FLAG_FIELD_LENGTH         2
 
 #define PACKET_SIZE  300 //ptpdv1 value kept because of use of TLV...
+#define PACKET_BEGIN_UDP (ETHER_HDR_LEN + sizeof(struct ip) + \
+	    sizeof(struct udphdr))
+#define PACKET_BEGIN_ETHER (ETHER_HDR_LEN)
 
 #define PTP_EVENT_PORT    319
 #define PTP_GENERAL_PORT  320
@@ -93,6 +97,12 @@
 #define ALTERNATE_PTP_DOMAIN1_ADDRESS  "224.0.1.130"
 #define ALTERNATE_PTP_DOMAIN2_ADDRESS  "224.0.1.131"
 #define ALTERNATE_PTP_DOMAIN3_ADDRESS  "224.0.1.132"
+
+/* 802.3 Support */
+
+#define PTP_ETHER_DST "01:1b:19:00:00:00"
+#define PTP_ETHER_TYPE 0x88f7
+#define PTP_ETHER_PEER "01:80:c2:00:00:0E"
 
 /* default lock file location and mode */
 #define DEFAULT_LOCKFILE "/var/run/kernel_clock"

@@ -60,7 +60,7 @@ static void handleAnnounce(MsgHeader*, ssize_t,Boolean, const RunTimeOpts*,PtpCl
 static void handleSync(const MsgHeader*, ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
 static void handleFollowUp(const MsgHeader*, ssize_t,Boolean,RunTimeOpts*,PtpClock*);
 static void handlePDelayReq(MsgHeader*, ssize_t,const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
-static void handleDelayReq(const MsgHeader*, ssize_t, const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
+void handleDelayReq(const MsgHeader*, ssize_t, const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
 static void handlePDelayResp(const MsgHeader*, TimeInternal* ,ssize_t,Boolean,RunTimeOpts*,PtpClock*);
 static void handleDelayResp(const MsgHeader*, ssize_t, RunTimeOpts*,PtpClock*);
 static void handlePDelayRespFollowUp(const MsgHeader*, ssize_t, RunTimeOpts*,PtpClock*);
@@ -374,7 +374,9 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	case PTP_MASTER:
 		/*State decision Event*/
 
-		/* If we received a valid Announce message, and can use it (record_update), then run the BMC algorithm */
+		/* If we received a valid Announce message, and can
+		 * use it (record_update), then run the BMC
+		 * algorithm */
 		if(ptpClock->record_update)
 		{
 			DBG2("event STATE_DECISION_EVENT\n");
@@ -586,12 +588,13 @@ void
 handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	int ret;
-	ssize_t length;
+	ssize_t length = -1;
 	Boolean isFromSelf;
 	TimeInternal tint = { 0, 0 };
+	fd_set readfds;
 
 	if (!ptpClock->message_activity) {
-		ret = netSelect(0, &ptpClock->netPath);
+		ret = netSelect(0, &ptpClock->netPath, &readfds);
 		if (ret < 0) {
 			PERROR("failed to poll sockets");
 			ptpClock->counters.messageRecvErrors++;
@@ -606,38 +609,69 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	DBGV("handle: something\n");
 
-	/* TODO: this should be based on the select actual FDs (if(FD_ISSET(...)) */
-	length = netRecvEvent(ptpClock->msgIbuf, &tint, &ptpClock->netPath);
-
-
-	if (length < 0) {
-		PERROR("failed to receive on the event socket");
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-		ptpClock->counters.messageRecvErrors++;
-		return;
-	} else if (!length) {
-		length = netRecvGeneral(ptpClock->msgIbuf, &tint,
-					&ptpClock->netPath);
-		if (length < 0) {
-			PERROR("failed to receive on the general socket");
-			toState(PTP_FAULTY, rtOpts, ptpClock);
-			ptpClock->counters.messageRecvErrors++;
-			return;
-		} else if (!length) {
-			return;
+	if (rtOpts->pcap == TRUE) {
+		if (FD_ISSET(ptpClock->netPath.pcapEventSock, &readfds)) {
+			length = netRecvEvent(ptpClock->msgIbuf, &tint, 
+					      &ptpClock->netPath);
+			if (length == 0) /* timeout, return for now */
+				return;
+			if (length < 0) {
+				PERROR("failed to receive event on pcap");
+				toState(PTP_FAULTY, rtOpts, ptpClock);
+				ptpClock->counters.messageRecvErrors++;
+				return;
+			}
+			goto process;
+		}
+		if (FD_ISSET(ptpClock->netPath.pcapGeneralSock, &readfds)) {
+			length = netRecvGeneral(ptpClock->msgIbuf, &tint,
+						&ptpClock->netPath);
+			if (length == 0) /* timeout, return for now */
+				return;
+			if (length < 0) {
+				PERROR("failed to receive general on pcap");
+				toState(PTP_FAULTY, rtOpts, ptpClock);
+				ptpClock->counters.messageRecvErrors++;
+				return;
+			}
+		}
+	} else {
+		if (FD_ISSET(ptpClock->netPath.eventSock, &readfds)) {
+			length = netRecvEvent(ptpClock->msgIbuf, &tint, 
+					      &ptpClock->netPath);
+			if (length < 0) {
+				PERROR("failed to receive on the event socket");
+				toState(PTP_FAULTY, rtOpts, ptpClock);
+				ptpClock->counters.messageRecvErrors++;
+				return;
+			}
+			goto process;
+		}
+		if (FD_ISSET(ptpClock->netPath.generalSock, &readfds)) {
+			length = netRecvGeneral(ptpClock->msgIbuf, &tint,
+						&ptpClock->netPath);
+			if (length < 0) {
+				PERROR("failed to receive on the general socket");
+				toState(PTP_FAULTY, rtOpts, ptpClock);
+				ptpClock->counters.messageRecvErrors++;
+				return;
+			}
 		}
 	}
-
 	/*
-	 * make sure we use the TAI to UTC offset specified, if the master is sending the UTC_VALID bit
+	 * make sure we use the TAI to UTC offset specified, if the
+	 * master is sending the UTC_VALID bit
 	 *
+	 * On the slave, all timestamps that we handle here have been
+	 * collected by our local clock (loopback+kernel-level
+	 * timestamp) This includes delayReq just send, and delayResp,
+	 * when it arrives.
 	 *
-	 * On the slave, all timestamps that we handle here have been collected by our local clock (loopback+kernel-level timestamp)
-	 * This includes delayReq just send, and delayResp, when it arrives.
-	 *
-	 * these are then adjusted to the same timebase of the Master (+35 leap seconds, as of July 2012)
+	 * these are then adjusted to the same timebase of the Master
+	 * (+35 leap seconds, as of July 2012)
 	 *
 	 */
+process:
 	DBGV("__UTC_offset: %d %d \n", ptpClock->currentUtcOffsetValid, ptpClock->currentUtcOffset);
 	if (ptpClock->currentUtcOffsetValid) {
 		tint.seconds += ptpClock->currentUtcOffset;
@@ -1156,7 +1190,7 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 }
 
 
-static void
+void
 handleDelayReq(const MsgHeader *header, ssize_t length, 
 	       const TimeInternal *tint, Boolean isFromSelf,
 	       RunTimeOpts *rtOpts, PtpClock *ptpClock)
@@ -1205,9 +1239,12 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 				 */
 
 				/*
-				 *  Make sure we process the REQ _before_ the RESP. While we could do this by any order,
-				 *  (because it's implicitly indexed by (ptpClock->sentDelayReqSequenceId - 1), this is
-				 *  now made explicit
+				 *  Make sure we process the REQ
+				 *  _before_ the RESP. While we could
+				 *  do this by any order, (because
+				 *  it's implicitly indexed by
+				 *  (ptpClock->sentDelayReqSequenceId
+				 *  - 1), this is now made explicit
 				 */
 				ptpClock->waitingForDelayResp = TRUE;
 
@@ -1220,6 +1257,10 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 				addTime(&ptpClock->delay_req_send_time,
 					&ptpClock->delay_req_send_time,
 					&rtOpts->outboundLatency);
+				DBGV("HandleDelayReq: %s %d\n",
+				    dump_TimeInternal(&ptpClock->delay_req_send_time),
+				    &rtOpts->outboundLatency);
+				    
 				break;
 			} else {
 				DBG2("HandledelayReq : disregard delayreq from other client\n");
@@ -1886,7 +1927,7 @@ issueAnnounce(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	msgPackAnnounce(ptpClock->msgObuf,ptpClock);
 
 	if (!netSendGeneral(ptpClock->msgObuf,ANNOUNCE_LENGTH,
-			    &ptpClock->netPath, 0)) {
+			    &ptpClock->netPath, rtOpts, 0)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("Announce message can't be sent -> FAULTY state \n");
@@ -1910,7 +1951,8 @@ issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	msgPackSync(ptpClock->msgObuf,&originTimestamp,ptpClock);
 
-	if (!netSendEvent(ptpClock->msgObuf,SYNC_LENGTH,&ptpClock->netPath, 0)) {
+	if (!netSendEvent(ptpClock->msgObuf,SYNC_LENGTH,&ptpClock->netPath,
+		rtOpts, 0)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("Sync message can't be sent -> FAULTY state \n");
@@ -1932,7 +1974,7 @@ issueFollowup(const TimeInternal *tint,RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	msgPackFollowUp(ptpClock->msgObuf,&preciseOriginTimestamp,ptpClock);
 	
 	if (!netSendGeneral(ptpClock->msgObuf,FOLLOW_UP_LENGTH,
-			    &ptpClock->netPath, 0)) {
+			    &ptpClock->netPath, rtOpts, 0)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("FollowUp message can't be sent -> FAULTY state \n");
@@ -1949,10 +1991,14 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 	Timestamp originTimestamp;
 	TimeInternal internalTime;
+	MsgHeader ourDelayReq;
 
 	DBG("==> Issue DelayReq (%d)\n", ptpClock->sentDelayReqSequenceId );
 
-	/* call GTOD. This time is later replaced on handle_delayreq, to get the actual send timestamp from the OS */
+	/*
+	 * call GTOD. This time is later replaced in handleDelayReq,
+	 * to get the actual send timestamp from the OS
+	 */
 	getTime(&internalTime);
 	fromInternalTime(&internalTime,&originTimestamp);
 
@@ -1967,7 +2013,7 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 #endif
 
 	if (!netSendEvent(ptpClock->msgObuf,DELAY_REQ_LENGTH,
-			  &ptpClock->netPath, dst)) {
+			  &ptpClock->netPath, rtOpts, dst)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("delayReq message can't be sent -> FAULTY state \n");
@@ -1976,12 +2022,18 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		ptpClock->sentDelayReqSequenceId++;
 		ptpClock->counters.delayReqMessagesSent++;
 
-		/* From now on, we will only accept delayreq and delayresp of (sentDelayReqSequenceId - 1) */
+		/* From now on, we will only accept delayreq and
+		 * delayresp of (sentDelayReqSequenceId - 1) */
 
 		/* Explicitelly re-arm timer for sending the next delayReq */
 		timerStart_random(DELAYREQ_INTERVAL_TIMER,
 		   pow(2,ptpClock->logMinDelayReqInterval),
 		   ptpClock->itimer);
+#if 0 /* PCAP ONLY */
+		msgUnpackHeader(ptpClock->msgObuf, &ourDelayReq);
+		handleDelayReq(&ourDelayReq, DELAY_REQ_LENGTH, &internalTime,
+			       TRUE, rtOpts, ptpClock);
+#endif 
 	}
 }
 
@@ -2046,7 +2098,7 @@ issueDelayResp(const TimeInternal *tint,MsgHeader *header,RunTimeOpts *rtOpts, P
 #endif
 
 	if (!netSendGeneral(ptpClock->msgObuf,PDELAY_RESP_LENGTH,
-			    &ptpClock->netPath, dst)) {
+			    &ptpClock->netPath, rtOpts, dst)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("delayResp message can't be sent -> FAULTY state \n");
@@ -2104,7 +2156,7 @@ issueManagementRespOrAck(MsgManagement *outgoing, RunTimeOpts *rtOpts,
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
 
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-				&ptpClock->netPath, 0)) {
+			   &ptpClock->netPath, rtOpts, 0)) {
 		DBGV("Management response/acknowledge can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -2128,7 +2180,7 @@ issueManagementErrorStatus(MsgManagement *outgoing, RunTimeOpts *rtOpts, PtpCloc
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
 
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-				&ptpClock->netPath, 0)) {
+			   &ptpClock->netPath, rtOpts, 0)) {
 		DBGV("Management error status can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);

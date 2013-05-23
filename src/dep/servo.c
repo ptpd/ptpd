@@ -125,7 +125,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			if ((slave_to_master_delay.nanoseconds < 0) &&
 			    (abs(slave_to_master_delay.nanoseconds) > rtOpts->maxDelay)) {
 				INFO("updateDelay aborted, "
-                	"delay (sec: %d ns: %d) is negative\n",
+				     "delay (sec: %d ns: %d) is negative\n",
 				     slave_to_master_delay.seconds,
 				     slave_to_master_delay.nanoseconds);
 				INFO("send (sec: %d ns: %d)\n",
@@ -134,20 +134,16 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				INFO("recv (sec: %d n	s: %d)\n",
 				     ptpClock->delay_req_receive_time.seconds,
 				     ptpClock->delay_req_receive_time.nanoseconds);
-				if (rtOpts->maxDelayAutoTune) {
-				    ptpClock->discardedPacketCount++;
-				    goto autotune;
-				}
+				goto display;
 			}
 
 			if (slave_to_master_delay.seconds && rtOpts->maxDelay) {
-				INFO("updateDelay aborted, delay greater than 1 second\n");
+				INFO("updateDelay aborted, delay %d.%d greater than 1 second\n",
+				     slave_to_master_delay.seconds,
+				     slave_to_master_delay.nanoseconds);
 				if (rtOpts->displayPackets)
 					msgDump(ptpClock);
-				if (rtOpts->maxDelayAutoTune) {
-					ptpClock->discardedPacketCount++;
-					goto autotune;
-				}
+				goto display;
 			}
 
 			if (slave_to_master_delay.nanoseconds > rtOpts->maxDelay) {
@@ -157,10 +153,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				     rtOpts->maxDelay);
 				if (rtOpts->displayPackets)
 					msgDump(ptpClock);
-				if (rtOpts->maxDelayAutoTune) {
-					ptpClock->discardedPacketCount++;
-					goto autotune;
-				}
+				goto display;
 			}
 		}
 	}
@@ -173,8 +166,6 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	if (rtOpts->offset_first_updated) {
 		Integer16 s;
 
-		if (rtOpts->maxDelayAutoTune)
-			ptpClock->discardedPacketCount--;
 		/*
 		 * calc 'slave_to_master_delay' (Master to Slave delay is
 		 * already computed in updateOffset )
@@ -211,8 +202,9 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 		}
 
 		if(ptpClock->meanPathDelay.nanoseconds < 0){
-			DBG(" updatedelay: found negative value for OWD, "
-				"so ignoring this value\n");
+			DBGV("update delay: found negative value for OWD, "
+			    "so ignoring this value %d\n",
+				ptpClock->meanPathDelay.nanoseconds);
 			/* revert back to previous value */
 			ptpClock->meanPathDelay = prev_meanPathDelay;
 
@@ -244,24 +236,6 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 		DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
 	} else {
 		INFO("Ignoring delayResp because we didn't receive any sync yet\n");
-	}
-
-autotune:
-
-	if (rtOpts->maxDelayAutoTune) {
-
-		if (ptpClock->discardedPacketCount >=
-		    rtOpts->discardedPacketThreshold) {
-			ptpClock->discardedPacketCount = 0;
-			increaseMaxDelayThreshold();
-			goto display;
-		}
-
-		if (ptpClock->discardedPacketCount <
-		    (rtOpts->discardedPacketThreshold * -1)) {
-			ptpClock->discardedPacketCount = 0;
-			decreaseMaxDelayThreshold();
-		}
 	}
 
 display:

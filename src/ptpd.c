@@ -107,8 +107,6 @@ main(int argc, char **argv)
 	// rtOpts.ethernet_mode = FALSE;
 	// rtOpts.offset_first_updated = FALSE;
 	// rtOpts.file[0] = 0;
-	rtOpts.maxDelayAutoTune = FALSE;
-	rtOpts.discardedPacketThreshold = 60;
 	rtOpts.logFd = -1;
 	rtOpts.recordFP = NULL;
 	rtOpts.do_log_to_file = FALSE;
@@ -127,7 +125,7 @@ main(int argc, char **argv)
 #ifdef RUNTIME_DEBUG
 	rtOpts.debug_level = LOG_INFO;			/* by default debug messages as disabled, but INFO messages and below are printed */
 #endif
-
+	rtOpts.ethernet_mode = FALSE;
 	rtOpts.ttl = 1;
 	rtOpts.delayMechanism   = DEFAULT_DELAY_MECHANISM;
 	rtOpts.noResetClock     = DEFAULT_NO_RESET_CLOCK;

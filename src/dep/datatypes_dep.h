@@ -68,19 +68,27 @@ typedef struct {
 * \brief Struct used to store network datas
  */
 typedef struct {
-    Integer32 eventSock, generalSock, multicastAddr, peerMulticastAddr,unicastAddr;
-
-    /* used by IGMP refresh */
-    struct in_addr interfaceAddr;
-
+	Integer32 eventSock, generalSock;
+	Integer32 multicastAddr, peerMulticastAddr,unicastAddr;
+	
+	/* used by IGMP refresh */
+	struct in_addr interfaceAddr;
+	Octet port_uuid_field[PTP_UUID_LENGTH];
+	
 #ifdef PTPD_EXPERIMENTAL
-    /* used for Hybrid mode */
-    Integer32 lastRecvAddr;
+	/* used for Hybrid mode */
+	Integer32 lastRecvAddr;
 #endif
-
-    uint64_t sentPackets;
-    uint64_t receivedPackets;
-
+	
+	uint64_t sentPackets;
+	uint64_t receivedPackets;
+	
+	pcap_t *pcapEvent;
+	Integer32 pcapEventSock;
+	pcap_t *pcapGeneral;
+	Integer32 pcapGeneralSock;
+	Integer32 headerOffset;
+	struct ether_addr *etherDest;
 } NetPath;
 
 #endif /*DATATYPES_DEP_H_*/

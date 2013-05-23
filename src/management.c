@@ -145,7 +145,7 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
                 data->physicalAddress.addressLength = PTP_UUID_LENGTH;
                 XMALLOC(data->physicalAddress.addressField, PTP_UUID_LENGTH);
                 memcpy(data->physicalAddress.addressField,
-                        ptpClock->port_uuid_field,
+                        ptpClock->netPath.port_uuid_field,
                         PTP_UUID_LENGTH);
 		/* protocol address */
                 data->protocolAddress.addressLength = 4;

@@ -44,6 +44,13 @@
 #include <syslog.h>
 #include <limits.h>
 
+#include <net/ethernet.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/udp.h>
+
+#include <pcap/pcap.h>
+
 #include "constants.h"
 #include "limits.h"
 #include "dep/constants_dep.h"
