@@ -529,7 +529,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if (rtOpts->ethernet_mode == TRUE) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
-		netPath->etherDest = ether_aton(PTP_ETHER_DST);
+		netPath->etherDest = (struct ether_addr *)ether_aton(PTP_ETHER_DST);
 	} else
 		netPath->headerOffset = PACKET_BEGIN_UDP;
 

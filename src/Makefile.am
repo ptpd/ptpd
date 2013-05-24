@@ -14,25 +14,29 @@ NULL=
 #VERSION = 2.3.0
 #SHAREDLIBVER = $(SHAREDLIB).$(VERSION)
 
-ptpd2_SOURCES =			\
-	arith.c			\
-	bmc.c			\
-	constants.h		\
-	datatypes.h		\
-	dep/constants_dep.h	\
-	dep/datatypes_dep.h	\
-	dep/msg.c		\
-	dep/net.c		\
-	dep/ptpd_dep.h		\
-	dep/servo.c		\
-	dep/startup.c		\
-	dep/sys.c		\
-	dep/timer.c		\
-	display.c		\
-	management.c		\
-	protocol.c		\
-	ptpd.c			\
-	ptpd.h			\
+ptpd2_SOURCES =				\
+	arith.c				\
+	bmc.c				\
+	constants.h			\
+	datatypes.h			\
+	dep/constants_dep.h		\
+	dep/datatypes_dep.h		\
+	dep/msg.c			\
+	dep/net.c			\
+	dep/ptpd_dep.h			\
+	dep/servo.c			\
+	dep/iniparser/dictionary.h	\
+	dep/iniparser/iniparser.h	\
+	dep/iniparser/dictionary.c	\
+	dep/iniparser/iniparser.c	\
+	dep/startup.c			\
+	dep/sys.c			\
+	dep/timer.c			\
+	display.c			\
+	management.c			\
+	protocol.c			\
+	ptpd.c				\
+	ptpd.h				\
 	$(NULL)
 
 # SNMP

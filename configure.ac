@@ -135,7 +135,12 @@ esac
 # Checks for libraries.
 AC_CHECK_LIB([m], [pow])
 AC_CHECK_LIB([rt], [clock_gettime])
-AC_CHECK_LIB([pcap], [pcap_inject])
+AC_CHECK_LIB(
+    [pcap],
+    [pcap_inject],
+    [],
+    [AC_MSG_ERROR([Cannot build with libpcap - required for pcap / BPF timestamping!])]
+)
 
 # Checks for header files.
 AC_HEADER_STDC
