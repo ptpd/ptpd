@@ -60,6 +60,7 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #endif
+#include <netinet/ether.h>
 
 
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
@@ -520,12 +521,6 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	netPath->pcapEventSock = -1;
 	netPath->pcapGeneralSock = -1;
 
-	/* find a network interface */
-	if (!(interfaceAddr.s_addr = 
-	      findIface(rtOpts->ifaceName, 
-			&ptpClock->port_communication_technology,
-			netPath->port_uuid_field, netPath)))
-		return FALSE;
 
 	if (rtOpts->ethernet_mode == TRUE) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
@@ -547,6 +542,15 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		PERROR("failed to initialize sockets");
 		return FALSE;
 	}
+
+	/* find a network interface */
+	if (!(interfaceAddr.s_addr = 
+	      findIface(rtOpts->ifaceName, 
+			&ptpClock->port_communication_technology,
+			netPath->port_uuid_field, netPath)))
+		return FALSE;
+
+
 	if (rtOpts->pcap == TRUE) {
 		if ((netPath->pcapEvent = pcap_open_live(rtOpts->ifaceName,
 							 PACKET_SIZE, 0,
@@ -557,6 +561,13 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		}
 		if (pcap_compile(netPath->pcapEvent, &program, 
 				 rtOpts->ethernet_mode ? "ether proto 0x88f7":
+#ifdef PTPD_EXPERIMENTAL
+				 ( rtOpts->do_hybrid_mode || rtOpts->do_unicast_mode ) ?
+					 "udp port 319" :
+#else
+				 rtOpts->do_unicast_mode ?
+					 "udp port 319" :
+#endif
 				 "multicast and host 224.0.1.129 and udp port 319" ,
 				 1, 0) < 0) {
 			PERROR("failed to compile pcap event filter");
@@ -581,8 +592,15 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 		if (pcap_compile(netPath->pcapGeneral, &program, 
-				 rtOpts->ethernet_mode ? "ether proto 0x88f7" :
-				 "multicast and host 224.0.1.129 and udp port 320",
+				 rtOpts->ethernet_mode ? "ether proto 0x88f7":
+#ifdef PTPD_EXPERIMENTAL
+				 ( rtOpts->do_hybrid_mode || rtOpts->do_unicast_mode ) ?
+					 "udp port 320" :
+#else
+				 rtOpts->do_unicast_mode ?
+					 "udp port 320" :
+#endif
+				 "multicast and host 224.0.1.129 and udp port 320" ,
 				 1, 0) < 0) {
 			PERROR("failed to compile pcap general filter");
 			pcap_perror(netPath->pcapGeneral, "ptpd2");
@@ -762,6 +780,9 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 
 	if (netPath->pcapGeneralSock > 0)
 		nfds = netPath->pcapGeneralSock;
+	else 
+		if (netPath->pcapEventSock > netPath->pcapGeneralSock)
+			nfds = netPath->pcapEventSock;
 	else 
 		if (netPath->eventSock > netPath->generalSock)
 			nfds = netPath->eventSock;
@@ -959,6 +980,16 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 				     pcap_geterr(netPath->pcapEvent));
 			return 0;
 		}
+
+#ifdef PTPD_EXPERIMENTAL
+/* Make sure this is IP (could dot1q get here?) */
+if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP)
+	DBGV("PCAP payload received is not Ethernet: 0x%04x\n",
+	    ntohs(*(u_short *)(pkt_data + 12)));
+/* Retrieve source IP from the payload - 14 eth + 12 IP */
+netPath->lastRecvAddr = *(Integer32 *)(pkt_data + 26);
+#endif
+
 		netPath->receivedPackets++;
 		/* XXX Total cheat */
 		memcpy(buf, pkt_data + netPath->headerOffset, 
@@ -1018,7 +1049,7 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 #endif
 	Boolean timestampValid = FALSE;
 	
-	if (netPath->pcapEvent == NULL) {
+	if (netPath->pcapGeneral == NULL) {
 		vec[0].iov_base = buf;
 		vec[0].iov_len = PACKET_SIZE;
 	
@@ -1111,9 +1142,19 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 					 &pkt_data)) < 1) {
 			if (ret < 0) 
 				DBGV("netRecvGeneral: pcap_next_ex failed %d %s\n",
-				     ret, pcap_geterr(netPath->pcapEvent));
+				     ret, pcap_geterr(netPath->pcapGeneral));
 			return 0;
 		}
+
+#ifdef PTPD_EXPERIMENTAL
+/* Make sure this is IP (could dot1q get here?) */
+if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP)
+	DBGV("PCAP payload received is not Ethernet: 0x%04x\n",
+	    ntohs(*(u_short *)(pkt_data + 12)));
+/* Retrieve source IP from the payload - 14 eth + 12 IP src*/
+netPath->lastRecvAddr = *(Integer32 *)(pkt_data + 26);
+#endif
+
 		netPath->receivedPackets++;
 		/* XXX Total cheat */
 		memcpy(buf, pkt_data + netPath->headerOffset, 
