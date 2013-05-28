@@ -1516,7 +1516,7 @@ msgPackDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_REQ_LENGTH);
 
 #ifdef PTPD_EXPERIMENTAL
-	if(rtOpts.do_hybrid_mode)
+	if(rtOpts.ip_mode == IPMODE_HYBRID)
 		*(char *)(buf + 6) |= PTP_UNICAST;
 #endif
 
@@ -1548,7 +1548,7 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 	*(UInteger8 *) (buf + 4) = header->domainNumber;
 
 #ifdef PTPD_EXPERIMENTAL
-	if(rtOpts.do_hybrid_mode)    
+	if(rtOpts.ip_mode == IPMODE_HYBRID)
 		*(char *)(buf + 6) |= PTP_UNICAST;
 #endif
 

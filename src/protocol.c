@@ -1991,7 +1991,9 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 	Timestamp originTimestamp;
 	TimeInternal internalTime;
+#if 0 /* PCAP ONLY */
 	MsgHeader ourDelayReq;
+#endif
 
 	DBG("==> Issue DelayReq (%d)\n", ptpClock->sentDelayReqSequenceId );
 
@@ -2007,7 +2009,7 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	Integer32 dst = 0;
 #ifdef PTPD_EXPERIMENTAL
-	if (rtOpts->do_hybrid_mode) {
+	if (rtOpts->ip_mode == IPMODE_HYBRID) {
 		dst = ptpClock->MasterAddr;
 	}
 #endif
@@ -2092,7 +2094,7 @@ issueDelayResp(const TimeInternal *tint,MsgHeader *header,RunTimeOpts *rtOpts, P
 
 	Integer32 dst = 0;
 #ifdef PTPD_EXPERIMENTAL
-	if (rtOpts->do_hybrid_mode) {
+	if (rtOpts->ip_mode == IPMODE_HYBRID) {
 		dst = ptpClock->LastSlaveAddr;
 	}
 #endif

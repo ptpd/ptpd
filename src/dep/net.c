@@ -1,4 +1,6 @@
 /*-
+ * Copyright (c) 2012-2013 George V. Neville-Neil,
+ *                         Wojciech Owczarek.
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer, 
  *                         Martin Burnicki, 
@@ -522,7 +524,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	netPath->pcapGeneralSock = -1;
 
 
-	if (rtOpts->ethernet_mode == TRUE) {
+	if (rtOpts->transport == TRANSPORT_ETHERNET) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
 		netPath->etherDest = (struct ether_addr *)ether_aton(PTP_ETHER_DST);
 	} else
@@ -560,14 +562,10 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 		if (pcap_compile(netPath->pcapEvent, &program, 
-				 rtOpts->ethernet_mode ? "ether proto 0x88f7":
-#ifdef PTPD_EXPERIMENTAL
-				 ( rtOpts->do_hybrid_mode || rtOpts->do_unicast_mode ) ?
+				 ( rtOpts->transport == TRANSPORT_ETHERNET ) ?
+				    "ether proto 0x88f7":
+				 ( rtOpts->ip_mode != IPMODE_MULTICAST ) ?
 					 "udp port 319" :
-#else
-				 rtOpts->do_unicast_mode ?
-					 "udp port 319" :
-#endif
 				 "multicast and host 224.0.1.129 and udp port 319" ,
 				 1, 0) < 0) {
 			PERROR("failed to compile pcap event filter");
@@ -591,15 +589,11 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			PERROR("failed to open general pcap");
 			return FALSE;
 		}
-		if (pcap_compile(netPath->pcapGeneral, &program, 
-				 rtOpts->ethernet_mode ? "ether proto 0x88f7":
-#ifdef PTPD_EXPERIMENTAL
-				 ( rtOpts->do_hybrid_mode || rtOpts->do_unicast_mode ) ?
+		if (pcap_compile(netPath->pcapGeneral, &program,
+				 (rtOpts->transport == TRANSPORT_ETHERNET ) ?
+				    "ether proto 0x88f7" :
+				 ( rtOpts->ip_mode != IPMODE_MULTICAST ) ?
 					 "udp port 320" :
-#else
-				 rtOpts->do_unicast_mode ?
-					 "udp port 320" :
-#endif
 				 "multicast and host 224.0.1.129 and udp port 320" ,
 				 1, 0) < 0) {
 			PERROR("failed to compile pcap general filter");
@@ -672,7 +666,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
 	 */
 #ifdef PTPD_EXPERIMENTAL
-	if ( !rtOpts->do_hybrid_mode )
+	if ( rtOpts->ip_mode != IPMODE_HYBRID )
 #endif
 	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
 			rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0
@@ -1204,7 +1198,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
-	if ((netPath->pcapEvent != NULL) && (rtOpts->ethernet_mode == TRUE)) {
+	if ((netPath->pcapEvent != NULL) && (rtOpts->transport == TRANSPORT_ETHERNET )) {
 		Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
 		memcpy(ether, netPath->etherDest->octet, ETHER_ADDR_LEN);
 		memcpy(ether + ETHER_ADDR_LEN,
@@ -1270,7 +1264,7 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
-	if ((netPath->pcapGeneral != NULL) && (rtOpts->ethernet_mode == TRUE)) {
+	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == TRANSPORT_ETHERNET)) {
 		Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
 		memcpy(ether, netPath->etherDest->octet, ETHER_ADDR_LEN);
 		memcpy(ether + ETHER_ADDR_LEN,

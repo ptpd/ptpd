@@ -83,16 +83,15 @@ main(int argc, char **argv)
 	rtOpts.priority1 = DEFAULT_PRIORITY1;
 	rtOpts.priority2 = DEFAULT_PRIORITY2;
 	rtOpts.domainNumber = DEFAULT_DOMAIN_NUMBER;
+	rtOpts.transport = TRANSPORT_IP;
 #ifdef PTPD_EXPERIMENTAL
 	rtOpts.mcast_group_Number = 0;
-	rtOpts.do_hybrid_mode = FALSE;
 #endif
+	rtOpts.ip_mode = IPMODE_MULTICAST;
 	
 	// rtOpts.slaveOnly = FALSE;
 	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
 	rtOpts.ifaceName[0] = '\0';
-	rtOpts.do_unicast_mode = FALSE;
-
 	rtOpts.noAdjust = NO_ADJUST;  // false
 	// rtOpts.displayStats = FALSE;
 	/* Deep display of all packets seen by the daemon */
@@ -104,7 +103,6 @@ main(int argc, char **argv)
 	rtOpts.inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
 	rtOpts.outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
 	rtOpts.max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
-	// rtOpts.ethernet_mode = FALSE;
 	// rtOpts.offset_first_updated = FALSE;
 	// rtOpts.file[0] = 0;
 	rtOpts.logFd = -1;
@@ -125,7 +123,6 @@ main(int argc, char **argv)
 #ifdef RUNTIME_DEBUG
 	rtOpts.debug_level = LOG_INFO;			/* by default debug messages as disabled, but INFO messages and below are printed */
 #endif
-	rtOpts.ethernet_mode = FALSE;
 	rtOpts.ttl = 64;
 	rtOpts.delayMechanism   = DEFAULT_DELAY_MECHANISM;
 	rtOpts.noResetClock     = DEFAULT_NO_RESET_CLOCK;

@@ -117,6 +117,21 @@ enum {
 	DRIFT_KERNEL,
 	DRIFT_FILE
 };
+/* IP transmission mode */
+enum {
+	IPMODE_MULTICAST = 0,
+	IPMODE_UNICAST,
+#ifdef PTPD_EXPERIMENTAL
+	IPMODE_HYBRID,
+#endif
+	IPMODE_UNICAST_SIGNALING
+};
+/* Transport type */
+enum {
+	TRANSPORT_IP = 0,
+	TRANSPORT_ETHERNET
+};
+
 
 
 #define MM_STARTING_BOUNDARY_HOPS  0x7fff

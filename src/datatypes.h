@@ -762,9 +762,9 @@ typedef struct {
 	Integer16 s;
 	TimeInternal inboundLatency, outboundLatency;
 	Integer16 max_foreign_records;
-	Boolean ethernet_mode;
 	Enumeration8 delayMechanism;
 	Boolean	offset_first_updated;
+	char configFile[PATH_MAX];
 	char file[PATH_MAX];
 	int logFd;
 	Boolean useSysLog;
@@ -795,11 +795,8 @@ typedef struct {
 
 	Boolean pcap; /* Receive and send packets using libpcap, bypassing the
 			 network stack. */
-#ifdef PTPD_EXPERIMENTAL
-	Boolean do_hybrid_mode;
-#endif
-	Boolean do_unicast_mode;
-
+	int transport;
+	int ip_mode;
 #ifdef RUNTIME_DEBUG
 	int debug_level;
 #endif

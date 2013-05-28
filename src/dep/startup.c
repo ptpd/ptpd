@@ -813,7 +813,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			break;
 
 		case 'u':
-			rtOpts->do_unicast_mode = TRUE;
+			rtOpts->ip_mode = IPMODE_UNICAST;
 			strncpy(rtOpts->unicastAddress, optarg, 
 				MAXHOSTNAMELEN);
 
@@ -827,7 +827,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			 
 		case 'U':
 #ifdef PTPD_EXPERIMENTAL
-			rtOpts->do_hybrid_mode = TRUE;
+			rtOpts->ip_mode = IPMODE_HYBRID;
 #else
 			INFO("Hybrid mode not enabled. Please compile with PTPD_EXPERIMENTAL\n");
 #endif
@@ -898,7 +898,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 			rtOpts->priority2 = strtol(optarg, 0, 0);
 			break;
 		case 'e':
-			rtOpts->ethernet_mode = TRUE;
+			rtOpts->transport = TRANSPORT_ETHERNET;
 			break;
 		case 'h':
 			rtOpts->delayMechanism = E2E;
@@ -1036,12 +1036,14 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	}
 
 #ifdef PTPD_EXPERIMENTAL
+/*
 	if(rtOpts->do_unicast_mode && rtOpts->do_hybrid_mode){
 		ERROR("Error: Cant specify both -u and -U\n");
 		*ret = 3;
 		return 0;
 	}
-	if(rtOpts->do_hybrid_mode && !rtOpts->ignore_delayreq_interval_master) {
+*/
+	if(rtOpts->ip_mode == IPMODE_HYBRID && !rtOpts->ignore_delayreq_interval_master) {
 		ERROR("Error: Delay Request interval override (-Y n,n) must be "
 		      "specified in Hybrid mode\n");
 		*ret = 3;
@@ -1049,14 +1051,14 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	}
 #endif
 
-	if(rtOpts->do_unicast_mode && !rtOpts->ignore_delayreq_interval_master) {
+	if(rtOpts->ip_mode == IPMODE_UNICAST && !rtOpts->ignore_delayreq_interval_master) {
 		ERROR("Error: Delay Request interval override (-Y n,n) must be "
 		      "specified in Unicast mode\n");
 		*ret = 3;
 		return 0;
 	}
 
-	if(rtOpts->ethernet_mode && !rtOpts->pcap) {
+	if(rtOpts->transport == TRANSPORT_ETHERNET && !rtOpts->pcap) {
 		ERROR("Error: Ethernet mode (-e) requires pcap (-A).\n");
 		*ret = 3;
 		return 0;
