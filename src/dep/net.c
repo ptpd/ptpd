@@ -62,8 +62,11 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #endif
+#if defined(linux)
 #include <netinet/ether.h>
-
+#else /* FreeBSD */
+#include <net/ethernet.h>
+#endif /* linux */
 
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
 #if !defined(SO_TIMESTAMPNS) && !defined(SO_TIMESTAMP) && !defined(SO_BINTIME)
