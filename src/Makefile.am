@@ -14,6 +14,8 @@ NULL=
 #VERSION = 2.3.0
 #SHAREDLIBVER = $(SHAREDLIB).$(VERSION)
 
+EXTRA_DIST = def
+
 ptpd2_SOURCES =				\
 	arith.c				\
 	bmc.c				\
