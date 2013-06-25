@@ -1,5 +1,6 @@
-If you are getting this code from a tarball distribution, this
-file does not apply to you.
+If you are getting this code from a tarball distribution, the
+information in this file does not apply to you.  If you do the
+following anyway, it won't cause any problems.
 
 If you are getting this code from a repo checkout, you will need to
 have autoconf, automake, and libtool installed.
