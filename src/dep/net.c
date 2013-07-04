@@ -68,6 +68,7 @@
 #include <net/ethernet.h>
 #endif /* HAVE_NETINET_ETHER_H */
 
+
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
 #if !defined(SO_TIMESTAMPNS) && !defined(SO_TIMESTAMP) && !defined(SO_BINTIME)
 #error kernel-level timestamps not detected
@@ -207,9 +208,27 @@ lookupCommunicationTechnology(UInteger8 communicationTechnology)
 	return PTP_DEFAULT;
 }
 
+Boolean
+testInterface(char * ifaceName)
+{
+	UInteger8 ct;
+	NetPath np;
+        /* open a test socket */
+	if ((np.eventSock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+		DBG("testInterface: error opening test socket\n");
+		return FALSE;
+	/* Attempt getting an IP address */
+        } else if (!findIface(ifaceName,
+		&ct,np.port_uuid_field, &np)) {
+				DBG("testInterface: findIface returned FALSE");
+		return FALSE;
+	}
+	close(np.eventSock);
+	return TRUE;
+}
 
  /* Find the local network interface */
-UInteger32 
+UInteger32
 findIface(Octet * ifaceName, UInteger8 * communicationTechnology,
     Octet * uuid, NetPath * netPath)
 {
@@ -527,7 +546,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	netPath->pcapGeneralSock = -1;
 
 
-	if (rtOpts->transport == TRANSPORT_ETHERNET) {
+	if (rtOpts->transport == IEEE_802_3) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
 		netPath->etherDest = (struct ether_addr *)ether_aton(PTP_ETHER_DST);
 	} else
@@ -555,6 +574,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			netPath->port_uuid_field, netPath)))
 		return FALSE;
 
+	DBG("Listening on IP: %s\n",inet_ntoa(interfaceAddr));
 
 	if (rtOpts->pcap == TRUE) {
 		if ((netPath->pcapEvent = pcap_open_live(rtOpts->ifaceName,
@@ -565,7 +585,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 		if (pcap_compile(netPath->pcapEvent, &program, 
-				 ( rtOpts->transport == TRANSPORT_ETHERNET ) ?
+				 ( rtOpts->transport == IEEE_802_3 ) ?
 				    "ether proto 0x88f7":
 				 ( rtOpts->ip_mode != IPMODE_MULTICAST ) ?
 					 "udp port 319" :
@@ -593,7 +613,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 		if (pcap_compile(netPath->pcapGeneral, &program,
-				 (rtOpts->transport == TRANSPORT_ETHERNET ) ?
+				 (rtOpts->transport == IEEE_802_3 ) ?
 				    "ether proto 0x88f7" :
 				 ( rtOpts->ip_mode != IPMODE_MULTICAST ) ?
 					 "udp port 320" :
@@ -668,9 +688,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 *   http://developerweb.net/viewtopic.php?id=6471
 	 *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
 	 */
-#ifdef PTPD_EXPERIMENTAL
+
 	if ( rtOpts->ip_mode != IPMODE_HYBRID )
-#endif
 	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
 			rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0
 		|| setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINDTODEVICE,
@@ -711,7 +730,10 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if (!netInitMulticast(netPath, rtOpts))
 		return FALSE;
 
-	/* set socket time-to-live to 1 */
+
+	/* TODO: set socket dscp */
+
+	/* set socket time-to-live  */
 
 	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL, 
 		       &rtOpts->ttl, sizeof(int)) < 0
@@ -908,9 +930,8 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 			ERROR("received truncated ancillary data\n");
 			return 0;
 		}
-#ifdef PTPD_EXPERIMENTAL
+
 		netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
-#endif
 		netPath->receivedPackets++;
 
 		if (msg.msg_controllen <= 0) {
@@ -978,14 +999,12 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 			return 0;
 		}
 
-#ifdef PTPD_EXPERIMENTAL
-/* Make sure this is IP (could dot1q get here?) */
-if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP)
-	DBGV("PCAP payload received is not Ethernet: 0x%04x\n",
-	    ntohs(*(u_short *)(pkt_data + 12)));
-/* Retrieve source IP from the payload - 14 eth + 12 IP */
-netPath->lastRecvAddr = *(Integer32 *)(pkt_data + 26);
-#endif
+	/* Make sure this is IP (could dot1q get here?) */
+	if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP)
+		DBGV("PCAP payload received is not Ethernet: 0x%04x\n",
+		    ntohs(*(u_short *)(pkt_data + 12)));
+	/* Retrieve source IP from the payload - 14 eth + 12 IP */
+	netPath->lastRecvAddr = *(Integer32 *)(pkt_data + 26);
 
 		netPath->receivedPackets++;
 		/* XXX Total cheat */
@@ -1084,9 +1103,8 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 			return 0;
 		}
 
-#ifdef PTPD_EXPERIMENTAL
 		netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
-#endif
+
 		netPath->receivedPackets++;
 	
 		if (msg.msg_controllen <= 0) {
@@ -1143,14 +1161,13 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 			return 0;
 		}
 
-#ifdef PTPD_EXPERIMENTAL
-/* Make sure this is IP (could dot1q get here?) */
-if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP)
-	DBGV("PCAP payload received is not Ethernet: 0x%04x\n",
-	    ntohs(*(u_short *)(pkt_data + 12)));
-/* Retrieve source IP from the payload - 14 eth + 12 IP src*/
-netPath->lastRecvAddr = *(Integer32 *)(pkt_data + 26);
-#endif
+
+	/* Make sure this is IP (could dot1q get here?) */
+	if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP)
+		DBGV("PCAP payload received is not Ethernet: 0x%04x\n",
+			ntohs(*(u_short *)(pkt_data + 12)));
+	/* Retrieve source IP from the payload - 14 eth + 12 IP src*/
+	netPath->lastRecvAddr = *(Integer32 *)(pkt_data + 26);
 
 		netPath->receivedPackets++;
 		/* XXX Total cheat */
@@ -1201,7 +1218,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
-	if ((netPath->pcapEvent != NULL) && (rtOpts->transport == TRANSPORT_ETHERNET )) {
+	if ((netPath->pcapEvent != NULL) && (rtOpts->transport == IEEE_802_3 )) {
 		Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
 		memcpy(ether, netPath->etherDest->octet, ETHER_ADDR_LEN);
 		memcpy(ether + ETHER_ADDR_LEN,
@@ -1267,7 +1284,7 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
-	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == TRANSPORT_ETHERNET)) {
+	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == IEEE_802_3)) {
 		Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
 		memcpy(ether, netPath->etherDest->octet, ETHER_ADDR_LEN);
 		memcpy(ether + ETHER_ADDR_LEN,
@@ -1410,7 +1427,5 @@ netRefreshIGMP(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if (!netInitMulticast(netPath, rtOpts)) {
 		return FALSE;
 	}
-	
-	INFO("Refreshed IGMP multicast memberships\n");
 	return TRUE;
 }

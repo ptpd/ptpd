@@ -1,0 +1,13 @@
+/* Spec 8.2.4 timePropertiesDS */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( currentUtcOffset, 2, UInteger16 )
+OPERATE( currentUtcOffsetValid, 1, Boolean )
+OPERATE( leap59, 2, Boolean )
+OPERATE( leap61, 1, Boolean )
+OPERATE( timeTraceable, 1, Boolean )
+OPERATE( frequencyTraceable, 1, Boolean )
+OPERATE( ptpTimescale, 1, Boolean )
+OPERATE( timeSource, 1, Enumeration8 )
+
+#undef OPERATE

@@ -40,15 +40,15 @@
 #define LOG_DEBUGV   9
 
 
-#define EMERGENCY(x, ...) message(LOG_EMERG, x, ##__VA_ARGS__)
-#define ALERT(x, ...)     message(LOG_ALERT, x, ##__VA_ARGS__)
-#define CRITICAL(x, ...)  message(LOG_CRIT, x, ##__VA_ARGS__)
-#define ERROR(x, ...)  message(LOG_ERR, x, ##__VA_ARGS__)
-#define PERROR(x, ...)    message(LOG_ERR, x "      (strerror: %m)\n", ##__VA_ARGS__)
-#define WARNING(x, ...)   message(LOG_WARNING, x, ##__VA_ARGS__)
-#define NOTIFY(x, ...) message(LOG_NOTICE, x, ##__VA_ARGS__)
-#define NOTICE(x, ...)    message(LOG_NOTICE, x, ##__VA_ARGS__)
-#define INFO(x, ...)   message(LOG_INFO, x, ##__VA_ARGS__)
+#define EMERGENCY(x, ...) logMessage(LOG_EMERG, x, ##__VA_ARGS__)
+#define ALERT(x, ...)     logMessage(LOG_ALERT, x, ##__VA_ARGS__)
+#define CRITICAL(x, ...)  logMessage(LOG_CRIT, x, ##__VA_ARGS__)
+#define ERROR(x, ...)  logMessage(LOG_ERR, x, ##__VA_ARGS__)
+#define PERROR(x, ...)    logMessage(LOG_ERR, x "      (strerror: %m)\n", ##__VA_ARGS__)
+#define WARNING(x, ...)   logMessage(LOG_WARNING, x, ##__VA_ARGS__)
+#define NOTIFY(x, ...) logMessage(LOG_NOTICE, x, ##__VA_ARGS__)
+#define NOTICE(x, ...)    logMessage(LOG_NOTICE, x, ##__VA_ARGS__)
+#define INFO(x, ...)   logMessage(LOG_INFO, x, ##__VA_ARGS__)
 
 
 
@@ -91,7 +91,7 @@
 #define PTPD_DBG
 #define PTPD_DBG2
 
-#define DBGV(x, ...) message(LOG_DEBUGV, x, ##__VA_ARGS__)
+#define DBGV(x, ...) logMessage(LOG_DEBUGV, x, ##__VA_ARGS__)
 #else
 #define DBGV(x, ...)
 #endif
@@ -105,13 +105,13 @@
 #ifdef PTPD_DBG2
 #undef PTPD_DBG
 #define PTPD_DBG
-#define DBG2(x, ...) message(LOG_DEBUG2, x, ##__VA_ARGS__)
+#define DBG2(x, ...) logMessage(LOG_DEBUG2, x, ##__VA_ARGS__)
 #else
 #define DBG2(x, ...)
 #endif
 
 #ifdef PTPD_DBG
-#define DBG(x, ...) message(LOG_DEBUG, x, ##__VA_ARGS__)
+#define DBG(x, ...) logMessage(LOG_DEBUG, x, ##__VA_ARGS__)
 #else
 #define DBG(x, ...)
 #endif
@@ -293,7 +293,9 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
  * -Init network stuff, send and receive datas*/
  /**\{*/
 
+Boolean testInterface(char* ifaceName);
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
+UInteger32 findIface(Octet * ifaceName, UInteger8 * communicationTechnology, Octet * uuid, NetPath * netPath);
 Boolean netShutdown(NetPath*);
 int netSelect(TimeInternal*,NetPath*,fd_set*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*);
@@ -341,7 +343,7 @@ int recordToFile(RunTimeOpts * rtOpts);
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
 void ptpdShutdown(PtpClock * ptpClock);
 
-void check_signals(RunTimeOpts * rtOpts, PtpClock * ptpClock);
+void checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
 void enable_runtime_debug(void );
 void disable_runtime_debug(void );
@@ -361,17 +363,19 @@ char *time2st(const TimeInternal * p);
 void DBG_time(const char *name, const TimeInternal  p);
 
 
-void message(int priority, const char *format, ...);
-void displayStats(RunTimeOpts *rtOpts, PtpClock *ptpClock);
+void logMessage(int priority, const char *format, ...);
+int restartLog(FILE** logFP, const Boolean condition, const char * logPath, const char * description);
+void logStatistics(RunTimeOpts *rtOpts, PtpClock *ptpClock);
 void displayStatus(PtpClock *ptpClock, const char *prefixMessage);
 void displayPortIdentity(PortIdentity *port, const char *prefixMessage);
-void increaseMaxDelayThreshold();
-void decreaseMaxDelayThreshold();
 Boolean nanoSleep(TimeInternal*);
 void getTime(TimeInternal*);
 void setTime(TimeInternal*);
 double getRand(void);
-
+int lockFile(int fd);
+int checkLockStatus(int fd, short lockType, int *lockPid);
+int checkFileLockable(const char *fileName, int *lockPid);
+Boolean checkOtherLocks(RunTimeOpts *rtOpts);
 
 void recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time);
 
@@ -384,6 +388,7 @@ void adjTime(Integer32);
 void adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj);
 Boolean adjFreq(Integer32);
 Integer32 getAdjFreq(void);
+void informClockSource(PtpClock* ptpClock);
 
 /* Observed drift save / recovery functions */
 void restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet);

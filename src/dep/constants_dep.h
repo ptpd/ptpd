@@ -104,12 +104,20 @@
 #define PTP_ETHER_TYPE 0x88f7
 #define PTP_ETHER_PEER "01:80:c2:00:00:0E"
 
+/* dummy clock driver designation in preparation for generic clock driver API */
+#define DEFAULT_CLOCKDRIVER "kernelclock"
 /* default lock file location and mode */
-#define DEFAULT_LOCKFILE "/var/run/kernel_clock"
-#define LOCKMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
+#define DEFAULT_LOCKMODE F_WRLCK
+#define DEFAULT_LOCKDIR "/var/run"
+#define DEFAULT_LOCKFILE_NAME PTPD_PROGNAME".lock"
+//define DEFAULT_LOCKFILE_PATH  DEFAULT_LOCKDIR"/"DEFAULT_LOCKFILE_NAME
+#define DEFAULT_UMASK (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 
 /* default drift file location */
-#define DEFAULT_DRIFTFILE "/etc/ptpd_osclock.drift"
+#define DEFAULT_DRIFTFILE "/etc/"PTPD_PROGNAME"_"DEFAULT_CLOCKDRIVER".drift"
+
+/* Highest log level (default) catches all */
+#define LOG_ALL LOG_DEBUGV
 
 /* drift recovery metod for use with -F */
 enum {
@@ -121,19 +129,11 @@ enum {
 enum {
 	IPMODE_MULTICAST = 0,
 	IPMODE_UNICAST,
-#ifdef PTPD_EXPERIMENTAL
 	IPMODE_HYBRID,
-#endif
+#if 0
 	IPMODE_UNICAST_SIGNALING
+#endif
 };
-/* Transport type */
-enum {
-	TRANSPORT_IP = 0,
-	TRANSPORT_ETHERNET
-};
-
-
-
 #define MM_STARTING_BOUNDARY_HOPS  0x7fff
 
 /* others */

@@ -11,7 +11,7 @@ AC_INIT(
     [PTPD_URL]dnl
 )
 AC_CONFIG_SRCDIR([src/arith.c])
-AC_CONFIG_HEADER([src/config.h])
+AC_CONFIG_HEADER([config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -144,7 +144,7 @@ AC_CHECK_LIB(
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/ether.h netinet/in.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h netinet/ether.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -252,8 +252,8 @@ AC_MSG_CHECKING([for SIGUSR2 support])
 AC_ARG_ENABLE(
     [sigusr2],
     [AS_HELP_STRING(
-	[--enable-sigusr2={domain,debug}],
-	[Enable SIGUSR2 support, cycle PTP domain #, or debug level (disabled by default)]
+	[--enable-sigusr2={domain,debug,counters}],
+	[Enable SIGUSR2 support to: cycle PTP domain #, debug level or dump PTP engine counters (disabled by default)]
     )],
     [ptp_sigusr2=$enableval],
     [ptp_sigusr2=no]
@@ -266,6 +266,9 @@ case "$ptp_sigusr2" in
  debug)
     # We could/should check to be sure that RUNTIME_DEBUG is set...
     PTP_SIGUSR2="-DDBG_SIGUSR2_CHANGE_DEBUG"
+    ;;
+ counters)
+    PTP_SIGUSR2="-DDBG_SIGUSR2_DUMP_COUNTERS"
     ;;
 esac
 AC_SUBST(PTP_SIGUSR2)

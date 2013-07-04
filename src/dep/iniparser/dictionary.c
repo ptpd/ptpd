@@ -24,7 +24,7 @@
 #define MAXVALSZ    1024
 
 /** Minimal allocated number of entries in a dictionary */
-#define DICTMINSZ   128
+#define DICTMINSZ   64
 
 /** Invalid key token */
 #define DICT_INVALID_KEY    ((char*)-1)
@@ -271,7 +271,9 @@ int dictionary_set(dictionary * d, const char * key, const char * val)
     d->val[i]  = val ? xstrdup(val) : NULL ;
     d->hash[i] = hash;
     d->n ++ ;
+
     return 0 ;
+
 }
 
 /*-------------------------------------------------------------------------*/
@@ -351,6 +353,27 @@ void dictionary_dump(dictionary * d, FILE * out)
         }
     }
     return ;
+}
+
+int dictionary_merge(dictionary* source, dictionary* dest)
+{
+
+    int i = 0;
+
+    if( source == NULL || dest == NULL) return -1;
+
+    for(i = 0; i < source->n; i++) {
+
+        if(source->key[i] == NULL)
+            continue;
+	/* do not overwrite with an empty key */
+	if(strlen(source->val[i])==0)
+	    continue;
+        if ( dictionary_set( dest, source->key[i], source->val[i]) != 0)
+	    return -1;
+    }
+
+    return 0;
 }
 
 

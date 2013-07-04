@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2012-2013 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer, 
  *                         Martin Burnicki, 
@@ -50,7 +51,8 @@
  * This file contains very little code, as should be obvious,
  * and only serves to tie together the rest of the daemon.
  * All of the default options are set here, but command line
- * arguments are processed in the ptpdStartup() routine called
+ * arguments and configuration file is processed in the 
+ * ptpdStartup() routine called
  * below.
  */
 
@@ -58,6 +60,8 @@
 
 RunTimeOpts rtOpts;			/* statically allocated run-time
 					 * configuration data */
+
+Boolean startupInProgress;
 
 /*
  * Global variable with the main PTP port. This is used to show the current state in DBG()/message()
@@ -74,73 +78,16 @@ main(int argc, char **argv)
 	PtpClock *ptpClock;
 	Integer16 ret;
 
-	/* initialize run-time options to default values */
-	rtOpts.announceInterval = DEFAULT_ANNOUNCE_INTERVAL;
-	rtOpts.syncInterval = DEFAULT_SYNC_INTERVAL;
-	rtOpts.clockQuality.clockAccuracy = DEFAULT_CLOCK_ACCURACY;
-	rtOpts.clockQuality.clockClass = DEFAULT_CLOCK_CLASS;
-	rtOpts.clockQuality.offsetScaledLogVariance = DEFAULT_CLOCK_VARIANCE;
-	rtOpts.priority1 = DEFAULT_PRIORITY1;
-	rtOpts.priority2 = DEFAULT_PRIORITY2;
-	rtOpts.domainNumber = DEFAULT_DOMAIN_NUMBER;
-	rtOpts.transport = TRANSPORT_IP;
-#ifdef PTPD_EXPERIMENTAL
-	rtOpts.mcast_group_Number = 0;
-#endif
-	rtOpts.ip_mode = IPMODE_MULTICAST;
-	
-	// rtOpts.slaveOnly = FALSE;
-	rtOpts.currentUtcOffset = DEFAULT_UTC_OFFSET;
-	rtOpts.ifaceName[0] = '\0';
-	rtOpts.noAdjust = NO_ADJUST;  // false
-	// rtOpts.displayStats = FALSE;
-	/* Deep display of all packets seen by the daemon */
-	rtOpts.displayPackets = FALSE;
-	// rtOpts.unicastAddress
-	rtOpts.ap = DEFAULT_AP;
-	rtOpts.ai = DEFAULT_AI;
-	rtOpts.s = DEFAULT_DELAY_S;
-	rtOpts.inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
-	rtOpts.outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
-	rtOpts.max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
-	// rtOpts.offset_first_updated = FALSE;
-	// rtOpts.file[0] = 0;
-	rtOpts.logFd = -1;
-	rtOpts.recordFP = NULL;
-	rtOpts.do_log_to_file = FALSE;
-	rtOpts.do_record_quality_file = FALSE;
-	rtOpts.nonDaemon = FALSE;
-
-	/*
-	 * defaults for new options
-	 */
-	rtOpts.slaveOnly = TRUE;
-	rtOpts.ignore_delayreq_interval_master = FALSE;
-	rtOpts.do_IGMP_refresh = TRUE;
-	rtOpts.useSysLog       = TRUE;
-	rtOpts.syslog_startup_messages_also_to_stdout = TRUE;		/* used to print inital messages both to syslog and screen */
-	rtOpts.announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
-#ifdef RUNTIME_DEBUG
-	rtOpts.debug_level = LOG_INFO;			/* by default debug messages as disabled, but INFO messages and below are printed */
-#endif
-	rtOpts.ttl = 64;
-	rtOpts.delayMechanism   = DEFAULT_DELAY_MECHANISM;
-	rtOpts.noResetClock     = DEFAULT_NO_RESET_CLOCK;
-	rtOpts.log_seconds_between_message = 0;
-
-	rtOpts.initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
-	rtOpts.subsequent_delayreq = DEFAULT_DELAYREQ_INTERVAL;      // this will be updated if -g is given
-
-	rtOpts.drift_recovery_method = DRIFT_RESET;
-	strncpy(rtOpts.driftFile, DEFAULT_DRIFTFILE, PATH_MAX);
-	/* placeholder for a configurable lock file */
-	strncpy(rtOpts.lockFile, DEFAULT_LOCKFILE, PATH_MAX);
-
-	rtOpts.snmp_enabled = FALSE;
+	startupInProgress = TRUE;
 
 	/* Initialize run time options with command line arguments */
-	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts)))
+	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts))) {
+		if (ret != 0 && !rtOpts.checkConfigOnly)
+			ERROR(USER_DESCRIPTION" startup failed\n");
 		return ret;
+	}
+
+	startupInProgress = FALSE;
 
 	/* global variable for message(), please see comment on top of this file */
 	G_ptpClock = ptpClock;
@@ -151,7 +98,7 @@ main(int argc, char **argv)
 
 	ptpdShutdown(ptpClock);
 
-	NOTIFY(INFO_PREFIX "Self shutdown, probably due to an error\n");
+	NOTIFY("Self shutdown, probably due to an error\n");
 
 	return 1;
 }

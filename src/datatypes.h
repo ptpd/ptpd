@@ -2,6 +2,7 @@
 #define DATATYPES_H_
 
 #include <stdio.h> 
+#include <dep/iniparser/dictionary.h>
 
 /*Struct defined in spec*/
 
@@ -60,6 +61,14 @@ typedef struct {
 	#define OPERATE( name, size, type ) type name;
 	#include "def/derivedData/clockQuality.def"
 } ClockQuality;
+
+/**
+* \brief The TimePropertiesDS type represent time source and traceability properties of a clock
+ */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/derivedData/timePropertiesDS.def"
+} TimePropertiesDS;
 
 /**
 * \brief The TLV type represents TLV extension fields
@@ -557,7 +566,6 @@ typedef struct {
 	TimeInternal offsetFromMaster;
 	TimeInternal meanPathDelay;
 
-
 	/* Parent data set */
 
 	/*Dynamic members*/
@@ -571,18 +579,11 @@ typedef struct {
 	UInteger8 grandmasterPriority2;
 
 	/* Global time properties data set */
+	TimePropertiesDS timePropertiesDS;
 
-	/*Dynamic members*/
-	Integer16 currentUtcOffset;
-	Boolean currentUtcOffsetValid;
-	Boolean leap59;
-	Boolean leap61;
-	Boolean timeTraceable;
-	Boolean frequencyTraceable;
-	Boolean ptpTimescale;
+	/* Leap second related flags */
         Boolean leapSecondInProgress;
         Boolean leapSecondPending;
-	Enumeration8 timeSource;
 
 	/* Port configuration data set */
 
@@ -685,7 +686,11 @@ typedef struct {
 	/*Usefull to init network stuff*/
 	UInteger8 port_communication_technology;
 
+	/*Stats header will be re-printed when set to true*/
+	Boolean resetStatisticsLog;
+
 	int reset_count;
+	int announceTimeouts; 
 	int current_init_clock;
 	int can_step_clock;
 	int warned_operator_slow_slewing;
@@ -706,11 +711,9 @@ typedef struct {
 	/* user description is max size + 1 to leave space for a null terminator */
 	Octet user_description[USER_DESCRIPTION_MAX + 1];
 
-#ifdef PTPD_EXPERIMENTAL
+
 	Integer32 MasterAddr;                           // used for hybrid mode, when receiving announces
 	Integer32 LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
-#endif
-	Integer32 discardedPacketCount;                 // used for autotuning the maxDelay threshold
 
 	/*
 	 * counters - useful for debugging and monitoring,
@@ -737,25 +740,37 @@ typedef struct {
 typedef struct {
 	Integer8 announceInterval;
 	Integer8 announceReceiptTimeout;
-	
+	Boolean slaveOnly;
 	Integer8 syncInterval;
+	Integer8 logMinPdelayReqInterval;
 	ClockQuality clockQuality;
+	TimePropertiesDS timeProperties;
 	UInteger8 priority1;
 	UInteger8 priority2;
 	UInteger8 domainNumber;
+//	UInteger8 timeSource;
 #ifdef PTPD_EXPERIMENTAL
 	UInteger8 mcast_group_Number;
 #endif
 
-	Boolean	slaveOnly;
-	Integer16 currentUtcOffset;
+	/*
+	 * For slave state, grace period of n * announceReceiptTimeout
+	 * before going into LISTENING again - we disqualify the best GM
+	 * and keep waiting for BMC to act - if a new GM picks up,
+	 * we don't lose the calculated offsets etc. Allows seamless GM
+	 * failover with little time variation
+	 */
+
+	int announceTimeoutGracePeriod;
+//	Integer16 currentUtcOffset;
+
 	Octet ifaceName[IFACE_NAME_LENGTH];
 	Boolean	noResetClock;
 	Integer32 maxReset; /* Maximum number of nanoseconds to reset */
 	Integer32 maxDelay; /* Maximum number of nanoseconds of delay */
 	Integer32 origMaxDelay; /* Lower bound of nanoseconds of delay */
 	Boolean	noAdjust;
-	Boolean	displayStats;
+
 	Boolean displayPackets;
 	Octet unicastAddress[MAXHOSTNAMELEN];
 	Integer32 ap, ai;
@@ -764,27 +779,42 @@ typedef struct {
 	Integer16 max_foreign_records;
 	Enumeration8 delayMechanism;
 	Boolean	offset_first_updated;
-	char configFile[PATH_MAX];
-	char file[PATH_MAX];
-	int logFd;
-	Boolean useSysLog;
 	int ttl;
+	Boolean alwaysRespectUtcOffset;
+	Boolean useSysLog;
+	Boolean checkConfigOnly;
+	Boolean printLockFile;
+
+	char configFile[PATH_MAX];
+
+	char logFile[PATH_MAX];
+	FILE *logFP;
+	Boolean useLogFile;
+	int logLevel;
+
+	char statisticsFile[PATH_MAX];
+	FILE *statisticsFP;
+	Boolean	useStatisticsFile;
+	Boolean logStatistics;
+
 	char recordFile[PATH_MAX];
 	FILE *recordFP;
+	Boolean useRecordFile;
 
-	int log_seconds_between_message;
+	int statisticsInterval;
 
 	Boolean ignore_daemon_lock;
 	Boolean do_IGMP_refresh;
-	int nonDaemon;
-	Boolean do_log_to_file;
-	Boolean do_record_quality_file;
-	
+	Boolean  nonDaemon;
+
 	int initial_delayreq;
 	int subsequent_delayreq;
 	Boolean ignore_delayreq_interval_master;
-	Boolean syslog_startup_messages_also_to_stdout;
 
+	Boolean autoLockFile; /* mode and interface specific lock files are used
+				    * when set to TRUE */
+	char lockDirectory[PATH_MAX]; /* Directory to store lock files 
+				       * When automatic lock files used */
 	char lockFile[PATH_MAX]; /* lock file location */
 	char driftFile[PATH_MAX]; /* drift file location */
 	int drift_recovery_method; /* how the observed drift is managed 
@@ -801,6 +831,21 @@ typedef struct {
 	int debug_level;
 #endif
 	Boolean jobid; /* use jobid aka PID for UUID */
+
+	/**
+	 * This field holds the flags denoting which subsystems
+	 * have to be re-initialised as a result of config reload.
+	 * Flags are defined in daemonconfig.h
+	 * 0 = no change
+	 */
+	int restartSubsystems;
+	/* config dictionary containers - current and candidate */
+	dictionary *currentConfig, *candidateConfig;
+
+	int selectedPreset;
+
+	int servoMaxPpb;
+
 } RunTimeOpts;
 
 #endif /*DATATYPES_H_*/

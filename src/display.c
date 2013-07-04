@@ -1,4 +1,6 @@
 /*-
+ * Copyright (c) 2012-2013 George V. Neville-Neil,
+ *                         Wojciech Owczarek
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer, 
  *                         Martin Burnicki, 
@@ -502,7 +504,7 @@ displayRunTimeOpts(const RunTimeOpts * rtOpts)
 	DBGV("currentUtcOffset : %d \n", rtOpts->currentUtcOffset);
 	unicast_display(rtOpts->unicastAddress);
 	DBGV("noAdjust : %d \n", rtOpts->noAdjust);
-	DBGV("displayStats : %d \n", rtOpts->displayStats);
+	DBGV("logStatistics : %d \n", rtOpts->logStatistics);
 	iFaceName_display(rtOpts->ifaceName);
 	DBGV("ap : %d \n", rtOpts->ap);
 	DBGV("aI : %d \n", rtOpts->ai);
@@ -577,14 +579,14 @@ displayGlobal(const PtpClock * ptpClock)
 	DBGV("---Ptp Clock Global Time Data Set-- \n");
 	DBGV("\n");
 
-	DBGV("currentUtcOffset : %d \n", ptpClock->currentUtcOffset);
-	DBGV("currentUtcOffsetValid : %d \n", ptpClock->currentUtcOffsetValid);
-	DBGV("leap59 : %d \n", ptpClock->leap59);
-	DBGV("leap61 : %d \n", ptpClock->leap61);
-	DBGV("timeTraceable : %d \n", ptpClock->timeTraceable);
-	DBGV("frequencyTraceable : %d \n", ptpClock->frequencyTraceable);
-	DBGV("ptpTimescale : %d \n", ptpClock->ptpTimescale);
-	DBGV("timeSource : %d \n", ptpClock->timeSource);
+	DBGV("currentUtcOffset : %d \n", ptpClock->timePropertiesDS.currentUtcOffset);
+	DBGV("currentUtcOffsetValid : %d \n", ptpClock->timePropertiesDS.currentUtcOffsetValid);
+	DBGV("leap59 : %d \n", ptpClock->timePropertiesDS.leap59);
+	DBGV("leap61 : %d \n", ptpClock->timePropertiesDS.leap61);
+	DBGV("timeTraceable : %d \n", ptpClock->timePropertiesDS.timeTraceable);
+	DBGV("frequencyTraceable : %d \n", ptpClock->timePropertiesDS.frequencyTraceable);
+	DBGV("ptpTimescale : %d \n", ptpClock->timePropertiesDS.ptpTimescale);
+	DBGV("timeSource : %d \n", ptpClock->timePropertiesDS.timeSource);
 	DBGV("\n");
 }
 

@@ -75,11 +75,10 @@ typedef struct {
 	struct in_addr interfaceAddr;
 	Octet port_uuid_field[PTP_UUID_LENGTH];
 	
-#ifdef PTPD_EXPERIMENTAL
+
 	/* used for Hybrid mode */
 	Integer32 lastRecvAddr;
-#endif
-	
+
 	uint64_t sentPackets;
 	uint64_t receivedPackets;
 	
@@ -90,5 +89,46 @@ typedef struct {
 	Integer32 headerOffset;
 	struct ether_addr *etherDest;
 } NetPath;
+
+typedef struct{
+
+    UInteger8 minValue;
+    UInteger8 maxValue;
+    UInteger8 defaultValue;
+
+} UInteger8_option;
+
+typedef struct{
+
+    Integer32  minValue;
+    Integer32  maxValue;
+    Integer32  defaultValue;
+
+} Integer32_option;
+
+typedef struct{
+
+    UInteger32  minValue;
+    UInteger32  maxValue;
+    UInteger32  defaultValue;
+
+} UInteger32_option;
+
+typedef struct{
+
+    Integer16  minValue;
+    Integer16  maxValue;
+    Integer16  defaultValue;
+
+} Integer16_option;
+
+typedef struct{
+
+    UInteger16  minValue;
+    UInteger16  maxValue;
+    UInteger16  defaultValue;
+
+} UInteger16_option;
+
 
 #endif /*DATATYPES_DEP_H_*/

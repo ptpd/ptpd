@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2012-2013 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer, 
  *                         Martin Burnicki, 
@@ -245,7 +246,7 @@ int ether_ntohost_cache(char *hostname, struct ether_addr *addr)
 
 	if (!valid) {
 		if(ether_ntohost(buf, addr)){
-			sprintf(buf, "%s", "unknown");
+			snprintf(buf, BUF_SIZE,"%s", "unknown");
 		}
 
 		/* clean possible commas from the string */
@@ -309,27 +310,102 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 	return len;
 }
 
+/* Write a formatted string to file pointer */
+int writeMessage(FILE* destination, int priority, const char * format, va_list ap) {
+
+	extern RunTimeOpts rtOpts;
+	extern Boolean startupInProgress;
+
+	int written;
+	char time_str[MAXTIMESTR];
+	struct timeval now;
+
+	extern char *translatePortState(PtpClock *ptpClock);
+	extern PtpClock *G_ptpClock;
+
+	if(destination == NULL)
+		return -1;
+
+	/* If we're starting up as daemon, only print <= WARN */
+	if ((destination == stderr) && 
+		!rtOpts.nonDaemon && startupInProgress &&
+		(priority > LOG_WARNING)){
+		    return 1;
+		}
+	/* Print timestamps and prefixes only if we're running in foreground or logging to file*/
+	if( rtOpts.nonDaemon || destination != stderr) {
+
+		/*
+		 * select debug tagged with timestamps. This will slow down PTP itself if you send a lot of messages!
+		 * it also can cause problems in nested debug statements (which are solved by turning the signal
+		 *  handling synchronous, and not calling this function inside asycnhronous signal processing)
+		 */
+		gettimeofday(&now, 0);
+		strftime(time_str, MAXTIMESTR, "%F %X", localtime(&now.tv_sec));
+		fprintf(destination, "%s.%06d ", time_str, (int)now.tv_usec  );
+		fprintf(destination,PTPD_PROGNAME"[%d].%s (%-9s ",
+		getpid(), startupInProgress ? "startup" : rtOpts.ifaceName,
+		priority == LOG_EMERG   ? "emergency)" :
+		priority == LOG_ALERT   ? "alert)" :
+		priority == LOG_CRIT    ? "critical)" :
+		priority == LOG_ERR     ? "error)" :
+		priority == LOG_WARNING ? "warning)" :
+		priority == LOG_NOTICE  ? "notice)" :
+		priority == LOG_INFO    ? "info)" :
+		priority == LOG_DEBUG   ? "debug1)" :
+		priority == LOG_DEBUG2  ? "debug2)" :
+		priority == LOG_DEBUGV  ? "debug3)" :
+		"unk)");
+
+
+		fprintf(destination, " (%s) ", G_ptpClock ?
+		       translatePortState(G_ptpClock) : "___");
+	}
+	written = vfprintf(destination, format, ap);
+	return written;
+
+}
 
 /*
  * Prints a message, randing from critical to debug.
  * This either prints the message to syslog, or with timestamp+state to stderr
- * (which has possibly been redirected to a file, using logtofile()/dup2().
  */
 void
-message(int priority, const char * format, ...)
+logMessage(int priority, const char * format, ...)
 {
 	extern RunTimeOpts rtOpts;
+	extern Boolean startupInProgress;
 	va_list ap;
 	va_start(ap, format);
 
 #ifdef RUNTIME_DEBUG
 	if ((priority >= LOG_DEBUG) && (priority > rtOpts.debug_level)) {
-		return;
+		goto end;
 	}
 #endif
 
-	if (rtOpts.useSysLog) {
-		static Boolean logOpened;
+	/* log level filter */
+	if(priority > rtOpts.logLevel)
+	    goto end;
+
+	/* If we're using a log file and the message has been written OK, we're done*/
+	if(rtOpts.useLogFile && rtOpts.logFP != NULL) {
+	    if(writeMessage(rtOpts.logFP, priority, format, ap) > 0) {
+		if(!startupInProgress)
+		    goto end;
+		else
+		    goto stderr;
+	    }
+	}
+
+	/*
+	 * Otherwise we try syslog - if we're here, we didn't write to log file.
+	 * If we're running in background and we're starting up, also log first
+	 * messages to syslog to at least leave a trace.
+	 */
+	if (rtOpts.useSysLog ||
+	    (!rtOpts.nonDaemon && startupInProgress)) {
+		static Boolean syslogOpened;
 #ifdef RUNTIME_DEBUG
 		/*
 		 *  Syslog only has 8 message levels (3 bits)
@@ -340,97 +416,84 @@ message(int priority, const char * format, ...)
 		}
 #endif
 
-		if (!logOpened) {
-			openlog(PTPD_PROGNAME, 0, LOG_DAEMON);
-			logOpened = TRUE;
+		if (!syslogOpened) {
+			openlog(PTPD_PROGNAME, LOG_PID, LOG_DAEMON);
+			syslogOpened = TRUE;
 		}
 		vsyslog(priority, format, ap);
-
-		/* Also warn operator during startup only */
-		if (rtOpts.syslog_startup_messages_also_to_stdout &&
-			(priority <= LOG_WARNING)
-			){
-			va_start(ap, format);
-			vfprintf(stderr, format, ap);
-		}
-	} else {
-		char time_str[MAXTIMESTR];
-		struct timeval now;
-
-		extern char *translatePortState(PtpClock *ptpClock);
-		extern PtpClock *G_ptpClock;
-
-		fprintf(stderr, "   (ptpd %-9s ",
-			priority == LOG_EMERG   ? "emergency)" :
-			priority == LOG_ALERT   ? "alert)" :
-			priority == LOG_CRIT    ? "critical)" :
-			priority == LOG_ERR     ? "error)" :
-			priority == LOG_WARNING ? "warning)" :
-			priority == LOG_NOTICE  ? "notice)" :
-			priority == LOG_INFO    ? "info)" :
-			priority == LOG_DEBUG   ? "debug1)" :
-			priority == LOG_DEBUG2  ? "debug2)" :
-			priority == LOG_DEBUGV  ? "debug3)" :
-			"unk)");
-
-		/*
-		 * select debug tagged with timestamps. This will slow down PTP itself if you send a lot of messages!
-		 * it also can cause problems in nested debug statements (which are solved by turning the signal
-		 *  handling synchronous, and not calling this function inside assycnhonous signal processing)
-		 */
-		gettimeofday(&now, 0);
-		strftime(time_str, MAXTIMESTR, "%X", localtime(&now.tv_sec));
-		fprintf(stderr, "%s.%06d ", time_str, (int)now.tv_usec  );
-		fprintf(stderr, " (%s)  ", G_ptpClock ?
-		       translatePortState(G_ptpClock) : "___");
-
-		vfprintf(stderr, format, ap);
+		if (!startupInProgress)
+			goto end;
+		else
+			goto stderr;
 	}
+stderr:
+	va_start(ap, format);
+	/* Either all else failed or we're running in foreground - or we also log to stderr */
+	writeMessage(stderr, priority, format, ap);
+
+end:
 	va_end(ap);
+	return;
 }
 
-void
-increaseMaxDelayThreshold()
+/* Reopen file pointer if condition is true, close if open and condition is false. */
+int
+restartLog(FILE** logFP, const Boolean condition, const char * logPath, const char * description)
 {
-	extern RunTimeOpts rtOpts;
-	NOTIFY("Increasing maxDelay threshold from %i to %i\n", rtOpts.maxDelay, 
-	       rtOpts.maxDelay << 1);
 
-	rtOpts.maxDelay <<= 1;
-}
+        /* The FP is open - close it */
+        if(*logFP != NULL) {
+                fclose(*logFP);
+		/*
+		 * fclose doesn't do this at least on Linux - changes the underlying FD to -1,
+		 * but not the FP to NULL - with this we can tell if the FP is closed
+		 */
+		*logFP=NULL;
+                /* If we're not logging to file (any more), call it quits */
+                if (!condition) {
+                    INFO("Logging to %s file disabled. Closing file.\n", description);
+                    return 1;
+                }
+        }
+        /* FP is not open and we're not logging */
+        if (!condition)
+                return 1;
 
-void
-decreaseMaxDelayThreshold()
-{
-	extern RunTimeOpts rtOpts;
-	if ((rtOpts.maxDelay >> 1) < rtOpts.origMaxDelay)
-		return;
-	NOTIFY("Decreasing maxDelay threshold from %i to %i\n", 
-	       rtOpts.maxDelay, rtOpts.maxDelay >> 1);
-	rtOpts.maxDelay >>= 1;
+	/* Open the file */
+        if ((*logFP = fopen(logPath, "a+")) == NULL)
+                PERROR("Could not open %s file", description);
+        else
+		/* \n flushes output for us, no need for fflush() */
+                setlinebuf(*logFP);
+
+        return (*logFP != NULL);
 }
 
 void 
-displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
-	static int start = 1;
 	static char sbuf[SCREEN_BUFSZ];
 	int len = 0;
 	TimeInternal now;
 	time_t time_s;
+	FILE* destination;
 	static TimeInternal prev_now;
 	char time_str[MAXTIMESTR];
 
-	if (!rtOpts->displayStats) {
+	if (!rtOpts->logStatistics) {
 		return;
 	}
 
-	if (start) {
-		start = 0;
-		printf("# Timestamp, State, Clock ID, One Way Delay, "
+	if(rtOpts->useStatisticsFile && rtOpts->statisticsFP != NULL)
+	    destination = rtOpts->statisticsFP;
+	else
+	    destination = stdout;
+
+	if (ptpClock->resetStatisticsLog) {
+		ptpClock->resetStatisticsLog = FALSE;
+		fprintf(destination,"# Timestamp, State, Clock ID, One Way Delay, "
 		       "Offset From Master, Slave to Master, "
-		       "Master to Slave, Drift, Last packet Received\n");
-		fflush(stdout);
+		       "Master to Slave, Observed Drift, Last packet Received\n");
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
 
@@ -442,10 +505,10 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 * All other lines are printed, including delayreqs.
 	 */
 
-	if ((ptpClock->portState == PTP_SLAVE) && (rtOpts->log_seconds_between_message)) {
+	if ((ptpClock->portState == PTP_SLAVE) && (rtOpts->statisticsInterval)) {
 		if(ptpClock->last_packet_was_sync){
 			ptpClock->last_packet_was_sync = FALSE;
-			if((now.seconds - prev_now.seconds) < rtOpts->log_seconds_between_message){
+			if((now.seconds - prev_now.seconds) < rtOpts->statisticsInterval){
 				//leave early and do not print the log message to save disk space
 				DBGV("Skipped printing of Sync message because of option -V\n");
 				return;
@@ -503,7 +566,7 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 				&(ptpClock->delayMS));
 
-		len += sprintf(sbuf + len, ", %d, %c",
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %d, %c",
 			       ptpClock->observed_drift,
 			       ptpClock->char_last_msg);
 
@@ -533,20 +596,21 @@ displayStats(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
 	}
 #endif
-	if (write(1, sbuf, len) == -1) {
-		PERROR("couldn't log statistics: %s", strerror(errno));
+
+	if (fprintf(destination,sbuf) < len) {
+		PERROR("Error while writing statistics");
 	}
 }
 
 void 
-displayStatus(PtpClock *ptpClock, const char *prefixMessage) 
+displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 {
 
 	static char sbuf[SCREEN_BUFSZ];
 	int len = 0;
 
 	memset(sbuf, ' ', sizeof(sbuf));
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, INFO_PREFIX "%s", prefixMessage);
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", prefixMessage);
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", 
 			portState_getName(ptpClock->portState));
 
@@ -559,7 +623,7 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
         }
 
         len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
-        INFO("%s",sbuf);
+        NOTICE("%s",sbuf);
 }
 
 void 
@@ -569,7 +633,7 @@ displayPortIdentity(PortIdentity *port, const char *prefixMessage)
 	int len = 0;
 
 	memset(sbuf, ' ', sizeof(sbuf));
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, INFO_PREFIX "%s ", prefixMessage);
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s ", prefixMessage);
 	len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len, port);
         len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
         INFO("%s",sbuf);
@@ -579,7 +643,7 @@ displayPortIdentity(PortIdentity *port, const char *prefixMessage)
 void
 recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time)
 {
-	if (rtOpts->recordFP) 
+	if (rtOpts->recordFP)
 		fprintf(rtOpts->recordFP, "%d %llu\n", sequenceId, 
 		  ((time->seconds * 1000000000ULL) + time->nanoseconds)
 		);
@@ -642,14 +706,11 @@ setTime(TimeInternal * time)
 
 #endif /* _POSIX_TIMERS */
 
-
-	WARNING("Going to step the system clock to %ds %dns\n",
-	       time->seconds, time->nanoseconds);
-
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 
 	if (clock_settime(CLOCK_REALTIME, &tp) < 0) {
-		PERROR("clock_settime() failed");
+		PERROR("Could not set system time");
+		return;
 	}
 
 #else
@@ -658,8 +719,12 @@ setTime(TimeInternal * time)
 
 #endif /* _POSIX_TIMERS */
 
-	WARNING("Finished stepping the system clock to %ds %dns\n",
-	       time->seconds, time->nanoseconds);
+	struct timespec tmpTs = { time->seconds,0 };
+
+	char timeStr[MAXTIMESTR];
+	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
+	WARNING("Stepped the system clock to: %s.%d\n",
+	       timeStr, time->nanoseconds);
 
 }
 
@@ -671,30 +736,260 @@ getRand(void)
 	return ((rand() * 1.0) / RAND_MAX);
 }
 
+/* Attempt setting advisory write lock on a file descriptor*/
+int
+lockFile(int fd)
+{
+        struct flock fl;
+
+        fl.l_type = DEFAULT_LOCKMODE;
+        fl.l_start = 0;
+        fl.l_whence = SEEK_SET;
+        fl.l_len = 0;
+        return(fcntl(fd, F_SETLK, &fl));
+}
+
+/* 
+ * Check if a file descriptor's lock flags match specified flags,
+ * do not acquire lock - just query. If the flags match, populate
+ * lockPid with the PID of the process already holding the lock(s)
+ * Return values: -1 = error, 0 = locked, 1 = not locked
+ */
+int checkLockStatus(int fd, short lockType, int *lockPid) {
+
+    struct flock fl;
+
+    memset(&fl, 0, sizeof(fl));
+
+    if(fcntl(fd, F_GETLK, &fl) == -1)
+	{
+	return -1;
+	}
+    /* Return 0 if file is already locked, but not by us */
+    if((lockType & fl.l_type) && fl.l_pid != getpid()) {
+	*lockPid = fl.l_pid;
+	return 0;
+    }
+
+    return 1;
+
+}
+
+/* 
+ * Check if it's possible to acquire lock on a file - if already locked,
+ * populate lockPid with the PID currently holding the write lock.
+ */
+int
+checkFileLockable(const char *fileName, int *lockPid) {
+
+    FILE* fileHandle;
+    int ret;
+
+    if((fileHandle = fopen(fileName,"w+")) == NULL) {
+	PERROR("Could not open %s for writing\n");
+	return -1;
+    }
+
+    ret = checkLockStatus(fileno(fileHandle), DEFAULT_LOCKMODE, lockPid);
+    if (ret == -1) {
+	PERROR("Could not check lock status of %s",fileName);
+    }
+
+    fclose(fileHandle);
+    return ret;
+}
+
+/*
+ * If automatic lock files are used, check for potential conflicts
+ * based on already existing lock files containing our interface name
+ * or clock driver name
+ */
+Boolean
+checkOtherLocks(RunTimeOpts* rtOpts)
+{
 
 
+char searchPattern[PATH_MAX];
+char * lockPath = 0;
+int lockPid = 0;
+glob_t matchedFiles;
+Boolean ret = TRUE;
+int matches = 0, counter = 0;
+
+	/* no need to check locks */
+	if(rtOpts->ignore_daemon_lock ||
+		!rtOpts->autoLockFile)
+			return TRUE;
+
+    /* 
+     * Try to discover if we can run in desired mode
+     * based on the presence of other lock files
+     * and them being lockable
+     */
+
+	/* Check for other ptpd running on the same interface - same for all modes */
+	snprintf(searchPattern, PATH_MAX,"%s/%s_*_%s.lock",
+	    rtOpts->lockDirectory, PTPD_PROGNAME,rtOpts->ifaceName);
+
+	DBGV("SearchPattern: %s\n",searchPattern);
+	switch(glob(searchPattern, 0, NULL, &matchedFiles)) {
+
+	    case GLOB_NOSPACE:
+	    case GLOB_ABORTED:
+		    PERROR("Could not scan %s directory\n", rtOpts->lockDirectory);;
+		    ret = FALSE;
+		    goto end;
+	    default:
+		    break;
+	}
+
+	counter = matchedFiles.gl_pathc;
+	matches = counter;
+	while (matches--) {
+		lockPath=matchedFiles.gl_pathv[matches];
+		DBG("matched: %s\n",lockPath);
+	/* check if there is a lock file with our NIC in the name */
+	    switch(checkFileLockable(lockPath, &lockPid)) {
+		/* Could not check lock status */
+		case -1:
+		    ERROR("Looks like "USER_DESCRIPTION" may be already running on %s: %s found, but could not check lock\n",
+		    rtOpts->ifaceName, lockPath);
+		    ret = FALSE;
+		    goto end;
+		/* It was possible to acquire lock - file looks abandoned */
+		case 1:
+		    DBG("Lock file %s found, but is not locked for writing.\n", lockPath);
+		    ret = TRUE;
+		    break;
+		/* file is locked */
+		case 0:
+		    ERROR("Looks like "USER_DESCRIPTION" is already running on %s: %s found and is locked by pid %d\n",
+		    rtOpts->ifaceName, lockPath, lockPid);
+		    ret = FALSE;
+		    goto end;
+	    }
+	}
+
+	if(matches > 0)
+		globfree(&matchedFiles);
+	/* Any mode that can control the clock - also check the clock driver */
+	if(rtOpts->clockQuality.clockClass > 127 ) {
+	    snprintf(searchPattern, PATH_MAX,"%s/%s_%s_*.lock",
+	    rtOpts->lockDirectory,PTPD_PROGNAME,DEFAULT_CLOCKDRIVER);
+	DBGV("SearchPattern: %s\n",searchPattern);
+
+	switch(glob(searchPattern, 0, NULL, &matchedFiles)) {
+
+	    case GLOB_NOSPACE:
+	    case GLOB_ABORTED:
+		    PERROR("Could not scan %s directory\n", rtOpts->lockDirectory);;
+		    ret = FALSE;
+		    goto end;
+	    default:
+		    break;
+	}
+	    counter = matchedFiles.gl_pathc;
+	    matches = counter;
+	    while (counter--) {
+		lockPath=matchedFiles.gl_pathv[counter];
+		DBG("matched: %s\n",lockPath);
+	    /* Check if there is a lock file with our clock driver in the name */
+		    switch(checkFileLockable(lockPath, &lockPid)) {
+			/* could not check lock status */
+			case -1:
+			    ERROR("Looks like "USER_DESCRIPTION" may already be controlling the \""DEFAULT_CLOCKDRIVER
+				    "\" clock: %s found, but could not check lock status.\n", lockPath);
+			    ret = FALSE;
+			    goto end;
+			/* it was possible to acquire lock - looks abandoned */
+			case 1:
+			    DBG("Lock file %s found, but is not locked for writing.\n", lockPath);
+			    ret = TRUE;
+			    break;
+			/* file is locked */
+			case 0:
+			    ERROR("Looks like "USER_DESCRIPTION" is already controlling the \""DEFAULT_CLOCKDRIVER
+				    "\" clock: %s found and is locked by pid %d\n", lockPath, lockPid);
+			default:
+			    ret = FALSE;
+			    goto end;
+	    }
+	}
+	}
+
+    ret = TRUE;
+
+end:
+    if(matches>0)
+	globfree(&matchedFiles);
+    return ret;
+
+}
 
 
 /*
- * TODO: this function should have been coded in a way to manipulate both the frequency and the tick,
- * to avoid having to call setTime() when the clock is very far away.
- * This would result in situations we would force the kernel clock to run the clock twice as slow,
- * in order to avoid stepping time backwards
+ * Apply a tick / frequency shift to the kernel clock
  */
 #if !defined(__APPLE__)
 Boolean
 adjFreq(Integer32 adj)
 {
+	extern RunTimeOpts rtOpts;
 	struct timex t;
+	Integer32 tickAdj = 0;
+
+#ifdef RUNTIME_DEBUG
+	Integer32 oldAdj = adj;
+#endif
 
 	memset(&t, 0, sizeof(t));
-	if (adj > ADJ_FREQ_MAX){
-		adj = ADJ_FREQ_MAX;
-	} else if (adj < -ADJ_FREQ_MAX){
-		adj = -ADJ_FREQ_MAX;
+
+	/* Get the USER_HZ value */
+	Integer32 userHZ = sysconf(_SC_CLK_TCK);
+
+	/*
+	 * Get the tick resolution (ppb) - offset caused by changing the tick value by 1.
+	 * The ticks value is the duration of one tick in us. So with userHz = 100  ticks per second,
+	 * change of ticks by 1 (us) means a 100 us frequency shift = 100 ppm = 100000 ppb.
+	 * For userHZ = 1000, change by 1 is a 1ms offset (10 times more ticks per second)
+	 */
+	Integer32 tickRes = userHZ * 1000;
+
+	/* Clamp to max PPM */
+	if (adj > rtOpts.servoMaxPpb){
+		adj = rtOpts.servoMaxPpb;
+	} else if (adj < -rtOpts.servoMaxPpb){
+		adj = -rtOpts.servoMaxPpb;
 	}
 
-	t.modes = MOD_FREQUENCY;
+	/*
+	 * If we are outside the standard +/-512ppm, switch to a tick + freq combination:
+	 * See how many ticks we are above 512ppm, turn that into ticks and add / subtract
+	 * those ticks (converted to ppb) from the freq adjustments. This is ceil'd so we will
+	 * only adjust if it's enough for a tick. The offset change will not be smooth as we flip
+	 * between tick and frequency, but this in general should only be happening under extreme
+	 * conditions when dragging the offset down from very large values. When maxPPM is left at
+	 * the default value, behaviour is the same as previously, clamped to 512ppm, but we keep
+	 * tick at the base value, preventing long stabilisation times say when  we had a non-default
+	 * tick value left over from a previous NTP run.
+	 *
+	 * With this in place, if our adj is say between 512 and 612 ppm, adj will be stuck at
+	 * 512 with no tick adjustment. This is intentional - if we used residuals, we would
+	 * keep flapping between tick and freq which we don't want.
+	 */
+	if (adj > ADJ_FREQ_MAX){
+		tickAdj = -  ((long)ceil(( (adj + 0.0)  - ADJ_FREQ_MAX) / (tickRes + 0.0)) );
+		adj += tickAdj * tickRes;
+	} else if (adj < -ADJ_FREQ_MAX){
+		tickAdj = (long)ceil(( abs(adj + 0.0)  - ADJ_FREQ_MAX) / (tickRes + 0.0)) ;
+		adj += tickAdj * tickRes;
+        }
+	/* Base tick duration - 10000 when userHZ = 100 */
+	t.tick = 1E6 / userHZ;
+	/* Tick adjustment if necessary */
+        t.tick += tickAdj;
+
+	t.modes = MOD_FREQUENCY | ADJ_TICK;
 	t.freq = adj * ((1 << 16) / 1000);
 
 	/* do calculation in double precision, instead of Integer32 */
@@ -705,7 +1000,7 @@ adjFreq(Integer32 adj)
 	t2 = t1;  // just to avoid compiler warning
 	t2 = (int)round(f);
 	t.freq = t2;
-
+	DBG2("adjFreq: oldadj: %d, newadj: %d, tick: %d, tickadj: %d\n", oldAdj, adj,t.tick,tickAdj);
 	DBG2("        adj is %d;  t freq is %d       (float: %f Integer32: %d)\n", adj, t.freq,  f, t1);
 	
 	return !adjtimex(&t);
@@ -757,6 +1052,29 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	switch (rtOpts->drift_recovery_method) {
 
+		case DRIFT_FILE:
+
+			if( (driftFP = fopen(rtOpts->driftFile,"r")) == NULL) {
+				PERROR("Could not open drift file: %s - using current kernel frequency offset",
+					rtOpts->driftFile);
+			} else
+
+			if (fscanf(driftFP, "%d", &recovered_drift) != 1) {
+				PERROR("Could not load saved offset from drift file - using current kernel frequency offset");
+			} else {
+
+			fclose(driftFP);
+			if(quiet)
+				DBGV("Observed drift loaded from %s: %d\n",
+					rtOpts->driftFile,
+					recovered_drift);
+			else
+				INFO("Observed drift loaded from %s: %d\n",
+					rtOpts->driftFile,
+					recovered_drift);
+				break;
+			}
+
 		case DRIFT_KERNEL:
 
 			recovered_drift = -getAdjFreq();
@@ -769,32 +1087,6 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 		break;
 
-		case DRIFT_FILE:
-
-			if( (driftFP = fopen(rtOpts->driftFile,"r")) == NULL) {
-				PERROR("Could not open drift file %s: %s\n",
-					rtOpts->driftFile, strerror(errno));
-				reset_offset = TRUE;
-				break;
-			}
-
-			if (fscanf(driftFP, "%d", &recovered_drift) != 1) {
-				PERROR("Could not load saved offset from drift file\n");
-				reset_offset = TRUE;
-				fclose(driftFP);
-				break;
-			}
-
-			fclose(driftFP);
-			if(quiet)
-				DBGV("Observed drift loaded from %s: %d\n",
-					rtOpts->driftFile,
-					recovered_drift);
-			else
-				INFO("Observed drift loaded from %s: %d\n",
-					rtOpts->driftFile,
-					recovered_drift);
-		break;
 
 		default:
 
@@ -848,9 +1140,9 @@ saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 	fprintf(driftFP, "%d\n", ptpClock->observed_drift);
 
 	if (quiet) {
-		DBGV("Wrote observed drift to %s", rtOpts->driftFile);
+		DBGV("Wrote observed drift to %s\n", rtOpts->driftFile);
 	} else {
-		INFO("Wrote observed drift to %s", rtOpts->driftFile);
+		INFO("Wrote observed drift to %s\n", rtOpts->driftFile);
 	}
 	fclose(driftFP);
 }
@@ -896,6 +1188,25 @@ setTimexFlags(int flags, Boolean quiet)
 		}
 	}
 }
+
+/* First cut on informing the clock */
+void
+informClockSource(PtpClock* ptpClock)
+{
+	struct timex tmx;
+
+	memset(&tmx, 0, sizeof(tmx));
+
+	tmx.modes = MOD_MAXERROR | MOD_ESTERROR;
+
+	tmx.maxerror = (ptpClock->offsetFromMaster.seconds * 1E9 +
+			ptpClock->offsetFromMaster.nanoseconds) / 1000;
+	tmx.esterror = tmx.maxerror;
+
+	if (adjtimex(&tmx) < 0)
+		DBG("informClockSource: could not set adjtimex flags: %s", strerror(errno));
+}
+
 
 void
 unsetTimexFlags(int flags, Boolean quiet) 
@@ -1015,18 +1326,3 @@ adjTime(Integer32 nanoseconds)
 #endif /* __APPLE__ */
 
 
-#if 0 && defined (linux)  /* NOTE: This is actually not used */
-
-long
-get_current_tickrate(void)
-{
-	struct timex t;
-
-	t.modes = 0;
-	adjtimex(&t);
-	DBG2(" (Current tick rate is %d)\n", t.tick );
-
-	return (t.tick);
-}
-
-#endif  /* defined(linux) */

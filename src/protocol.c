@@ -66,7 +66,7 @@ static void handleDelayResp(const MsgHeader*, ssize_t, RunTimeOpts*,PtpClock*);
 static void handlePDelayRespFollowUp(const MsgHeader*, ssize_t, RunTimeOpts*,PtpClock*);
 static void handleManagement(MsgHeader*, Boolean,RunTimeOpts*,PtpClock*);
 static void handleSignaling(PtpClock*);
-
+static void updateDatasets(PtpClock* ptpClock, RunTimeOpts* rtOpts);
 
 static void issueAnnounce(RunTimeOpts*,PtpClock*);
 static void issueSync(RunTimeOpts*,PtpClock*);
@@ -115,8 +115,41 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if (ptpClock->message_activity)
 			DBGV("activity\n");
 
+		/* Configuration has changed */
+		if(rtOpts->restartSubsystems > 0) {
+			DBG("RestartSubsystems: %d\n",rtOpts->restartSubsystems);
+		    /* So far, PTP_INITIALIZING is required for both network and protocol restart */
+		    if((rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) ||
+			(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK)) {
+			    if(rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) {
+				INFO("Applying protocol configuration: going into PTP_INITIALIZING\n");
+			    }
+
+			    if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
+				NOTIFY("Applying network configuration: going into PTPD_INITIALIZING\n");
+			    }
+			    toState(PTP_INITIALIZING, rtOpts, ptpClock);
+		    } else {
+		    /* Nothing happens here for now - SIGHUP handler does this anyway */
+		    if(rtOpts->restartSubsystems & PTPD_UPDATE_DATASETS) {
+				NOTIFY("Applying PTP engine configuration: updating datasets\n");
+				updateDatasets(ptpClock, rtOpts);
+		    }}
+		    /* Nothing happens here for now - SIGHUP handler does this anyway */
+		    if(rtOpts->restartSubsystems & PTPD_RESTART_LOGGING) {
+				NOTIFY("Applying logging configuration: restarting logging\n");
+		    }
+
+		    /* Config changes don't require subsystem restarts - acknowledge it */
+		    if(rtOpts->restartSubsystems == PTPD_RESTART_NONE) {
+				NOTIFY("Applying configuration\n");
+		    }
+
+		    rtOpts->restartSubsystems = 0;
+		}
+
 		/* Perform the heavy signal processing synchronously */
-		check_signals(rtOpts, ptpClock);
+		checkSignals(rtOpts, ptpClock);
 	}
 }
 
@@ -217,6 +250,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   (pow(2,ptpClock->logAnnounceInterval)), 
 			   ptpClock->itimer);
 		ptpClock->portState = PTP_LISTENING;
+		ptpClock->announceTimeouts = 0;
 		displayStatus(ptpClock, "Now in state: ");
 		break;
 
@@ -292,7 +326,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		 */
 		ptpClock->waiting_for_first_sync = TRUE;
 		ptpClock->waiting_for_first_delayresp = TRUE;
-
+		ptpClock->announceTimeouts = 0;
 		ptpClock->portState = PTP_SLAVE;
 		displayStatus(ptpClock, "Now in state: ");
 
@@ -305,10 +339,10 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		 * leap second event, do nothing - kernel flags 
 		 * will be unset in handleAnnounce()
 		 */
-		if((!ptpClock->leap59 && !ptpClock->leap61) &&
+		if((!ptpClock->timePropertiesDS.leap59 && !ptpClock->timePropertiesDS.leap61) &&
 		    !ptpClock->leapSecondInProgress &&
 		   (checkTimexFlags(STA_INS) || checkTimexFlags(STA_DEL))) {
-			WARNING(INFO_PREFIX "Leap second pending in kernel but not on "
+			WARNING("Leap second pending in kernel but not on "
 				"GM: aborting kernel leap second\n");
 			unsetTimexFlags(STA_INS | STA_DEL, TRUE);
 		}
@@ -319,8 +353,8 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 	}
 
-	if (rtOpts->displayStats)
-		displayStats(rtOpts, ptpClock);
+	if (rtOpts->logStatistics)
+		logStatistics(rtOpts, ptpClock);
 }
 
 
@@ -346,7 +380,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	initClock(rtOpts, ptpClock);
 #if !defined(__APPLE__)
 	/* restore observed drift and inform user */
-	if(ptpClock->slaveOnly)
+	if(ptpClock->clockQuality.clockClass > 127)
 		restoreDrift(ptpClock, rtOpts, FALSE);
 #endif /* apple */
 	m1(rtOpts, ptpClock );
@@ -425,6 +459,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 			} else if(ptpClock->portState != PTP_LISTENING) {
 
+				if(ptpClock->announceTimeouts < rtOpts->announceTimeoutGracePeriod) {
 				/*
 				* Don't reset yet - just disqualify current GM.
 				* If another live master exists, it will be selected,
@@ -440,11 +475,21 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterPriority1=255;
 					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterPriority2=255;
 					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterClockQuality.clockClass=255;
-					INFO(INFO_PREFIX "GM announce timeout, disqualified current best GM");
+					NOTICE("GM announce timeout, disqualified current best GM\n");
 					ptpClock->counters.announceTimeouts++;
-					netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+				}
+				netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+/*
+				timerStart(ANNOUNCE_RECEIPT_TIMER,
+					(ptpClock->announceReceiptTimeout) *
+					(pow(2,ptpClock->logAnnounceInterval)),
+					ptpClock->itimer);
+*/
+				if (rtOpts->announceTimeoutGracePeriod > 0) ptpClock->announceTimeouts++;
+
+					INFO("Waiting for new master, %d of %d attempts\n",ptpClock->announceTimeouts,rtOpts->announceTimeoutGracePeriod);
 				} else {
-					INFO(INFO_PREFIX "No active masters present\n");
+					NOTICE("No active masters present. Resetting port.\n");
 					ptpClock->number_foreign_records = 0;
 					ptpClock->foreign_record_i = 0;
 					toState(PTP_LISTENING, rtOpts, ptpClock);
@@ -479,7 +524,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			/* FIXME: Path delay should also rearm its timer with the value received from the Master */
 		}
 
-                if (ptpClock->leap59 || ptpClock->leap61) 
+                if (ptpClock->timePropertiesDS.leap59 || ptpClock->timePropertiesDS.leap61) 
                         DBGV("seconds to midnight: %.3f\n",secondsToMidnight());
 
                 /* leap second period is over */
@@ -498,16 +543,16 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    !ptpClock->leapSecondInProgress &&
 		    (secondsToMidnight() <= 
 		    getPauseAfterMidnight(ptpClock->logAnnounceInterval))) {
-                            WARNING(INFO_PREFIX "Leap second event imminent - pausing "
+                            WARNING("Leap second event imminent - pausing "
 				    "clock and offset updates\n");
                             ptpClock->leapSecondInProgress = TRUE;
 #if !defined(__APPLE__)
-                            if(!checkTimexFlags(ptpClock->leap61 ? 
+                            if(!checkTimexFlags(ptpClock->timePropertiesDS.leap61 ? 
 						STA_INS : STA_DEL)) {
-                                    WARNING(INFO_PREFIX "Kernel leap second flags have "
+                                    WARNING("Kernel leap second flags have "
 					    "been unset - attempting to set "
 					    "again");
-                                    setTimexFlags(ptpClock->leap61 ? 
+                                    setTimexFlags(ptpClock->timePropertiesDS.leap61 ? 
 						  STA_INS : STA_DEL, FALSE);
                             }
 #endif /* apple */
@@ -518,7 +563,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			     */
 			    timerStart(LEAP_SECOND_PAUSE_TIMER,
 				       secondsToMidnight() + 
-				       (int)ptpClock->leap61 + 
+				       (int)ptpClock->timePropertiesDS.leap61 + 
 				       getPauseAfterMidnight(ptpClock->logAnnounceInterval),
 				       ptpClock->itimer);
 		}
@@ -670,11 +715,13 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 * these are then adjusted to the same timebase of the Master
 	 * (+35 leap seconds, as of July 2012)
 	 *
+	 * wowczarek: added compatibility flag to always respect the
+	 * announced UTC offset, preventing clock jumps with some GMs
 	 */
 process:
-	DBGV("__UTC_offset: %d %d \n", ptpClock->currentUtcOffsetValid, ptpClock->currentUtcOffset);
-	if (ptpClock->currentUtcOffsetValid) {
-		tint.seconds += ptpClock->currentUtcOffset;
+	DBGV("__UTC_offset: %d %d \n", ptpClock->timePropertiesDS.currentUtcOffsetValid, ptpClock->timePropertiesDS.currentUtcOffset);
+	if (ptpClock->timePropertiesDS.currentUtcOffsetValid || rtOpts->alwaysRespectUtcOffset) {
+		tint.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
 
 	ptpClock->message_activity = TRUE;
@@ -865,11 +912,11 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 				 * second)
 				*/
 				if (!ptpClock->leapSecondPending) {
-					WARNING(INFO_PREFIX "Leap second event over - "
+					WARNING("Leap second event over - "
 						"resuming clock and offset updates\n");
 					ptpClock->leapSecondInProgress=FALSE;
-					ptpClock->leap59 = FALSE;
-					ptpClock->leap61 = FALSE;
+					ptpClock->timePropertiesDS.leap59 = FALSE;
+					ptpClock->timePropertiesDS.leap61 = FALSE;
 #if !defined(__APPLE__)
 					unsetTimexFlags(STA_INS | STA_DEL, TRUE);
 #endif /* apple */
@@ -882,11 +929,16 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 				   (pow(2,ptpClock->logAnnounceInterval)), 
 				   ptpClock->itimer);
 
-#ifdef PTPD_EXPERIMENTAL
-			// remember IP address of our master for -U option
+			if (rtOpts->announceTimeoutGracePeriod &&
+				ptpClock->announceTimeouts > 0) {
+					NOTICE("Received Announce message from master - cancelling timeout\n");
+					ptpClock->announceTimeouts = 0;
+			}
+
+			// remember IP address of our master for hybrid mode
 			// todo: add this to bmc(), to cover the very first packet
 			ptpClock->MasterAddr = ptpClock->netPath.lastRecvAddr;
-#endif
+
 			break;
 
 		case FALSE:
@@ -1018,9 +1070,6 @@ handleSync(const MsgHeader *header, ssize_t length,
 			if (ptpClock->waiting_for_first_sync) {
 				ptpClock->waiting_for_first_sync = FALSE;
 				NOTICE("Received first Sync from Master\n");
-				NOTICE("   going to arm DelayReq timer for the first time, with initial rate: %d\n",
-					ptpClock->logMinDelayReqInterval
-				);
 
 				if (ptpClock->delayMechanism == E2E)
 					timerStart(DELAYREQ_INTERVAL_TIMER,
@@ -1272,10 +1321,10 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 			msgUnpackHeader(ptpClock->msgIbuf,
 					&ptpClock->delayReqHeader);
 			ptpClock->counters.delayReqMessagesReceived++;
-#ifdef PTPD_EXPERIMENTAL
-			// remember IP address of this client for -U option
+
+			// remember IP address of this client for hybrid mode
 			ptpClock->LastSlaveAddr = ptpClock->netPath.lastRecvAddr;
-#endif
+
 					
 			issueDelayResp(tint,&ptpClock->delayReqHeader,
 				       rtOpts,ptpClock);
@@ -1286,10 +1335,14 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 			ptpClock->counters.discardedMessages++;
 			break;
 		}
-	} else {/* (Peer to Peer mode) */
+	} else if (ptpClock->delayMechanism == P2P) {/* (Peer to Peer mode) */
 		DBG("Delay messages are ignored in Peer to Peer mode\n");
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.delayModeMismatchErrors++;
+	/* no delay mechanism */
+	} else {
+		DBG("DelayReq ignored - we are in DELAY_DISABLED mode");
+		ptpClock->counters.discardedMessages++;
 	}
 }
 
@@ -1373,7 +1426,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 
 				if (ptpClock->waiting_for_first_delayresp) {
 					ptpClock->waiting_for_first_delayresp = FALSE;
-					NOTICE("  received first DelayResp from Master\n");
+					NOTICE("Received first Delay Response from Master\n");
 				}
 
 				if (rtOpts->ignore_delayreq_interval_master == 0) {
@@ -1383,7 +1436,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 
 					/* Accept new DelayReq value from the Master */
 					if (ptpClock->logMinDelayReqInterval != header->logMessageInterval) {
-						NOTICE("  received new DelayReq frequency %d from Master (was: %d)\n",
+						NOTICE("Received new Delay Request interval %d from Master (was: %d)\n",
 							 header->logMessageInterval, ptpClock->logMinDelayReqInterval );
 					}
 
@@ -1393,7 +1446,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 					/* FIXME: the actual rearming of this timer with the new value only happens later in doState()/issueDelayReq() */
 				} else {
 					if (ptpClock->logMinDelayReqInterval != rtOpts->subsequent_delayreq) {
-						NOTICE("  received new DelayReq frequency %d from command line (was: %d)\n",
+						INFO("New Delay Request interval applied: %d (was: %d)\n",
 							rtOpts->subsequent_delayreq, ptpClock->logMinDelayReqInterval);
 					}
 					ptpClock->logMinDelayReqInterval = rtOpts->subsequent_delayreq;
@@ -1404,10 +1457,14 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 				break;
 			}
 		}
-	} else { /* (Peer to Peer mode) */
+	} else if (ptpClock->delayMechanism == P2P) { /* (Peer to Peer mode) */
 		DBG("Delay messages are disregarded in Peer to Peer mode \n");
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.delayModeMismatchErrors++;
+	/* no delay mechanism */
+	} else {
+		DBG("DelayResp ignored - we are in DELAY_DISABLED mode");
+		ptpClock->counters.discardedMessages++;
 	}
 
 }
@@ -1469,12 +1526,16 @@ handlePDelayReq(MsgHeader *header, ssize_t length,
 			ptpClock->counters.discardedMessages++;
 			break;
 		}
-	} else {/* (End to End mode..) */
+	} else if (ptpClock->delayMechanism == E2E){/* (End to End mode..) */
 		DBG("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.delayModeMismatchErrors++;
-		}
+	/* no delay mechanism */
+	} else {
+		DBG("PDelayReq ignored - we are in DELAY_DISABLED mode");
+		ptpClock->counters.discardedMessages++;
+	}
 }
 
 static void
@@ -1577,11 +1638,15 @@ handlePDelayResp(const MsgHeader *header, TimeInternal *tint,
 			ptpClock->counters.discardedMessages++;
 			break;
 		}
-	} else { /* (End to End mode..) */
+	} else if (ptpClock->delayMechanism == E2E) { /* (End to End mode..) */
 		DBG("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.delayModeMismatchErrors++;
+	/* no delay mechanism */
+	} else {
+		DBG("PDelayResp ignored - we are in DELAY_DISABLED mode");
+		ptpClock->counters.discardedMessages++;
 	}
 }
 
@@ -1649,11 +1714,15 @@ handlePDelayRespFollowUp(const MsgHeader *header, ssize_t length,
 			DBGV("Disregard PdelayRespFollowUp message  \n");
 			ptpClock->counters.discardedMessages++;
 		}
-	} else { /* (End to End mode..) */
+	} else if (ptpClock->delayMechanism == E2E) { /* (End to End mode..) */
 		DBG("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.delayModeMismatchErrors++;
+	/* no delay mechanism */
+	} else {
+		DBG("PDelayRespFollowUp ignored - we are in DELAY_DISABLED mode");
+		ptpClock->counters.discardedMessages++;
 	}
 }
 
@@ -1919,7 +1988,6 @@ handleSignaling(PtpClock *ptpClock)
 
 }
 
-
 /*Pack and send on general multicast ip adress an Announce message*/
 static void 
 issueAnnounce(RunTimeOpts *rtOpts,PtpClock *ptpClock)
@@ -2008,11 +2076,10 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	msgPackDelayReq(ptpClock->msgObuf,&originTimestamp,ptpClock);
 
 	Integer32 dst = 0;
-#ifdef PTPD_EXPERIMENTAL
+
 	if (rtOpts->ip_mode == IPMODE_HYBRID) {
 		dst = ptpClock->MasterAddr;
 	}
-#endif
 
 	if (!netSendEvent(ptpClock->msgObuf,DELAY_REQ_LENGTH,
 			  &ptpClock->netPath, rtOpts, dst)) {
@@ -2093,11 +2160,10 @@ issueDelayResp(const TimeInternal *tint,MsgHeader *header,RunTimeOpts *rtOpts, P
 			 ptpClock);
 
 	Integer32 dst = 0;
-#ifdef PTPD_EXPERIMENTAL
+
 	if (rtOpts->ip_mode == IPMODE_HYBRID) {
 		dst = ptpClock->LastSlaveAddr;
 	}
-#endif
 
 	if (!netSendGeneral(ptpClock->msgObuf,PDELAY_RESP_LENGTH,
 			    &ptpClock->netPath, rtOpts, dst)) {
@@ -2248,6 +2314,73 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 			(ptpClock->foreign_record_i+1) % 
 			ptpClock->max_foreign_records;	
 	}
+}
+
+/* Update dataset fields which are safe to change without going into INITIALIZING */
+static void
+updateDatasets(PtpClock* ptpClock, RunTimeOpts* rtOpts)
+{
+
+	switch(ptpClock->portState) {
+
+		/* We are master so update both the port and the parent dataset */
+		case PTP_MASTER:
+
+			ptpClock->numberPorts = NUMBER_PORTS;
+			ptpClock->delayMechanism = rtOpts->delayMechanism;
+			ptpClock->versionNumber = VERSION_PTP;
+
+			ptpClock->clockQuality.clockAccuracy = 
+				rtOpts->clockQuality.clockAccuracy;
+			ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
+			ptpClock->clockQuality.offsetScaledLogVariance = 
+				rtOpts->clockQuality.offsetScaledLogVariance;
+			ptpClock->priority1 = rtOpts->priority1;
+			ptpClock->priority2 = rtOpts->priority2;
+
+			ptpClock->grandmasterClockQuality.clockAccuracy = 
+				ptpClock->clockQuality.clockAccuracy;
+			ptpClock->grandmasterClockQuality.clockClass = 
+				ptpClock->clockQuality.clockClass;
+			ptpClock->grandmasterClockQuality.offsetScaledLogVariance = 
+				ptpClock->clockQuality.offsetScaledLogVariance;
+			ptpClock->clockQuality.clockAccuracy = 
+			ptpClock->grandmasterPriority1 = ptpClock->priority1;
+			ptpClock->grandmasterPriority2 = ptpClock->priority2;
+			ptpClock->timePropertiesDS.currentUtcOffsetValid = rtOpts->timeProperties.currentUtcOffsetValid;
+			ptpClock->timePropertiesDS.currentUtcOffset = rtOpts->timeProperties.currentUtcOffset;
+			ptpClock->timePropertiesDS.timeTraceable = rtOpts->timeProperties.timeTraceable;
+			ptpClock->timePropertiesDS.frequencyTraceable = rtOpts->timeProperties.frequencyTraceable;
+			ptpClock->timePropertiesDS.ptpTimescale = rtOpts->timeProperties.ptpTimescale;
+			ptpClock->timePropertiesDS.timeSource = rtOpts->timeProperties.timeSource;
+			ptpClock->logAnnounceInterval = rtOpts->announceInterval;
+			ptpClock->announceReceiptTimeout = rtOpts->announceReceiptTimeout;
+			ptpClock->logSyncInterval = rtOpts->syncInterval;
+			ptpClock->logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
+			ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
+			break;
+		/*
+		 * we are not master so update the port dataset only - parent will be updated
+		 * by m1() if we go master - basically update the fields affecting BMC only
+		 */
+		case PTP_SLAVE:
+		case PTP_PASSIVE:
+			ptpClock->numberPorts = NUMBER_PORTS;
+			ptpClock->delayMechanism = rtOpts->delayMechanism;
+			ptpClock->versionNumber = VERSION_PTP;
+			ptpClock->clockQuality.clockAccuracy = 
+				rtOpts->clockQuality.clockAccuracy;
+			ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
+			ptpClock->clockQuality.offsetScaledLogVariance = 
+				rtOpts->clockQuality.offsetScaledLogVariance;
+			ptpClock->priority1 = rtOpts->priority1;
+			ptpClock->priority2 = rtOpts->priority2;
+			break;
+		/* In all other states the datasets will be updated when going into an operational state */
+		default:
+		    break;
+	}
+
 }
 
 void

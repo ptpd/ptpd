@@ -524,6 +524,11 @@ int iniparser_find_entry(
 /*--------------------------------------------------------------------------*/
 int iniparser_set(dictionary * ini, const char * entry, const char * val)
 {
+    char section[ASCIILINESZ+1];
+    if(sscanf(entry,":%[^:]:",section)>0);
+	dictionary_set(ini,section,NULL);
+    if(sscanf(entry,"%[^:]:",section)>0);
+	dictionary_set(ini,section,NULL);
     return dictionary_set(ini, strlwc(entry), val) ;
 }
 
@@ -668,7 +673,7 @@ dictionary * iniparser_load(const char * ininame)
         /* Safety check against buffer overflows */
         if (line[len]!='\n') {
             fprintf(stderr,
-                    "iniparser: input line too long in %s (%d)\n",
+                    "iniparser: input line too long or no newline in the end in %s (%d)\n",
                     ininame,
                     lineno);
             dictionary_del(dict);
@@ -699,7 +704,7 @@ dictionary * iniparser_load(const char * ininame)
             break ;
 
             case LINE_VALUE:
-            sprintf(tmp, "%s:%s", section, key);
+            sprintf(tmp, "%s%s%s", section,strlen(section)==0?"":":", key);
             errs = dictionary_set(dict, tmp, val) ;
             break ;
 

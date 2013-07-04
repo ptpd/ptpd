@@ -90,9 +90,10 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->priority2 = rtOpts->priority2;
 
 	ptpClock->domainNumber = rtOpts->domainNumber;
-	ptpClock->slaveOnly = rtOpts->slaveOnly;
-	if(rtOpts->slaveOnly)
+	if(rtOpts->slaveOnly) {
+		ptpClock->slaveOnly = TRUE;
 		rtOpts->clockQuality.clockClass = SLAVE_ONLY_CLOCK_CLASS;
+	}
 
 /* Port configuration data set */
 
@@ -113,7 +114,7 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->announceReceiptTimeout = rtOpts->announceReceiptTimeout;
 	ptpClock->logSyncInterval = rtOpts->syncInterval;
 	ptpClock->delayMechanism = rtOpts->delayMechanism;
-	ptpClock->logMinPdelayReqInterval = DEFAULT_PDELAYREQ_INTERVAL;
+	ptpClock->logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
 	ptpClock->versionNumber = VERSION_PTP;
 
  	/*
@@ -157,12 +158,12 @@ void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->grandmasterPriority2 = ptpClock->priority2;
 
 	/*Time Properties data set*/
-	ptpClock->timeSource = INTERNAL_OSCILLATOR;
-
-	/* UTC vs TAI timescales */
-	ptpClock->currentUtcOffsetValid = DEFAULT_UTC_VALID;
-	ptpClock->currentUtcOffset = rtOpts->currentUtcOffset;
-	
+	ptpClock->timePropertiesDS.currentUtcOffsetValid = rtOpts->timeProperties.currentUtcOffsetValid;
+	ptpClock->timePropertiesDS.currentUtcOffset = rtOpts->timeProperties.currentUtcOffset;
+	ptpClock->timePropertiesDS.timeTraceable = rtOpts->timeProperties.timeTraceable;
+	ptpClock->timePropertiesDS.frequencyTraceable = rtOpts->timeProperties.frequencyTraceable;
+	ptpClock->timePropertiesDS.ptpTimescale = rtOpts->timeProperties.ptpTimescale;
+	ptpClock->timePropertiesDS.timeSource = rtOpts->timeProperties.timeSource;
 }
 
 
@@ -171,8 +172,8 @@ void p1(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 {
 	/* make sure we revert to ARB timescale in Passive mode*/
 	if(ptpClock->portState == PTP_PASSIVE){
-		ptpClock->currentUtcOffsetValid = DEFAULT_UTC_VALID;
-		ptpClock->currentUtcOffset = rtOpts->currentUtcOffset;
+		ptpClock->timePropertiesDS.currentUtcOffsetValid = rtOpts->timeProperties.currentUtcOffsetValid;
+		ptpClock->timePropertiesDS.currentUtcOffset = rtOpts->timeProperties.currentUtcOffset;
 	}
 	
 }
@@ -186,9 +187,9 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	Integer16 previousUtcOffset = 0;
 
 	if (ptpClock->portState == PTP_SLAVE) {
-		previousLeap59 = ptpClock->leap59;
-		previousLeap61 = ptpClock->leap61;
-		previousUtcOffset = ptpClock->currentUtcOffset;
+		previousLeap59 = ptpClock->timePropertiesDS.leap59;
+		previousLeap61 = ptpClock->timePropertiesDS.leap61;
+		previousUtcOffset = ptpClock->timePropertiesDS.currentUtcOffset;
 	}
 
 	/* Current DS */
@@ -211,40 +212,44 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	ptpClock->grandmasterPriority2 = announce->grandmasterPriority2;
 
 	/* Timeproperties DS */
-	ptpClock->currentUtcOffset = announce->currentUtcOffset;
+	ptpClock->timePropertiesDS.currentUtcOffset = announce->currentUtcOffset;
+
+	if (ptpClock->timePropertiesDS.currentUtcOffsetValid && !IS_SET(header->flagField1, UTCV)) {
+		WARNING("UTC Offset no longer valid. Clock may jump unless ptpengine:always_respect_utc_offset is set\n");
+	}
 
         /* "Valid" is bit 2 in second octet of flagfield */
-        ptpClock->currentUtcOffsetValid = IS_SET(header->flagField1, UTCV);
+        ptpClock->timePropertiesDS.currentUtcOffsetValid = IS_SET(header->flagField1, UTCV);
 
 	/* set PTP_PASSIVE-specific state */
 	p1(ptpClock, rtOpts);
 
 	/* only set leap state in slave mode */
 	if (ptpClock->portState == PTP_SLAVE) {
-		ptpClock->leap59 = IS_SET(header->flagField1, LI59);
-		ptpClock->leap61 = IS_SET(header->flagField1, LI61);
+		ptpClock->timePropertiesDS.leap59 = IS_SET(header->flagField1, LI59);
+		ptpClock->timePropertiesDS.leap61 = IS_SET(header->flagField1, LI61);
 	}
 
-        ptpClock->timeTraceable = IS_SET(header->flagField1, TTRA);
-        ptpClock->frequencyTraceable = IS_SET(header->flagField1, FTRA);
-        ptpClock->ptpTimescale = IS_SET(header->flagField1, PTPT);
-        ptpClock->timeSource = announce->timeSource;
+        ptpClock->timePropertiesDS.timeTraceable = IS_SET(header->flagField1, TTRA);
+        ptpClock->timePropertiesDS.frequencyTraceable = IS_SET(header->flagField1, FTRA);
+        ptpClock->timePropertiesDS.ptpTimescale = IS_SET(header->flagField1, PTPT);
+        ptpClock->timePropertiesDS.timeSource = announce->timeSource;
 
 #if defined(MOD_TAI) &&  NTP_API == 4
 	/*
 	 * update kernel TAI offset, but only if timescale is
 	 * PTP not ARB - spec section 7.2
 	 */
-        if (ptpClock->ptpTimescale &&
-            (ptpClock->currentUtcOffset != previousUtcOffset)) {
-		setKernelUtcOffset(ptpClock->currentUtcOffset);
+        if (ptpClock->timePropertiesDS.ptpTimescale &&
+            (ptpClock->timePropertiesDS.currentUtcOffset != previousUtcOffset)) {
+		setKernelUtcOffset(ptpClock->timePropertiesDS.currentUtcOffset);
         }
 #endif /* MOD_TAI */
 
 	/* Leap second handling */
 
         if (ptpClock->portState == PTP_SLAVE) {
-		if(ptpClock->leap59 && ptpClock->leap61) {
+		if(ptpClock->timePropertiesDS.leap59 && ptpClock->timePropertiesDS.leap61) {
 			DBG("Both Leap59 and Leap61 flags set!\n");
 			ptpClock->counters.protocolErrors++;
 			return;
@@ -253,9 +258,9 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 		/* one of the leap second flags has suddenly been unset */
 		if(ptpClock->leapSecondPending && 
 		    !ptpClock->leapSecondInProgress &&
-		    ((previousLeap59 != ptpClock->leap59) || 
-		     (previousLeap61 != ptpClock->leap61))) {
-			WARNING(INFO_PREFIX "Leap second event aborted by GM!");
+		    ((previousLeap59 != ptpClock->timePropertiesDS.leap59) || 
+		     (previousLeap61 != ptpClock->timePropertiesDS.leap61))) {
+			WARNING("Leap second event aborted by GM!");
 			ptpClock->leapSecondPending = FALSE;
 			ptpClock->leapSecondInProgress = FALSE;
 			timerStop(LEAP_SECOND_PAUSE_TIMER, ptpClock->itimer);
@@ -268,23 +273,23 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 		 * one of the leap second flags has been set
 		 * or flags are lit but we have no event pending
 		 */
-		if( (ptpClock->leap59 || ptpClock->leap61) && (
+		if( (ptpClock->timePropertiesDS.leap59 || ptpClock->timePropertiesDS.leap61) && (
 		    (!ptpClock->leapSecondPending && 
 		    !ptpClock->leapSecondInProgress ) ||
-		    ((!previousLeap59 && ptpClock->leap59) ||
-		    (!previousLeap61 && ptpClock->leap61)))) {
+		    ((!previousLeap59 && ptpClock->timePropertiesDS.leap59) ||
+		    (!previousLeap61 && ptpClock->timePropertiesDS.leap61)))) {
 #if !defined(__APPLE__)
-			WARNING(INFO_PREFIX "Leap second pending! Setting kernel to %s "
+			WARNING("Leap second pending! Setting kernel to %s "
 				"one second at midnight\n",
-				ptpClock->leap61 ? "add" : "delete");
-		    if (!checkTimexFlags(ptpClock->leap61 ? STA_INS : STA_DEL)) {
-			    unsetTimexFlags(ptpClock->leap61 ? STA_DEL : STA_INS,
+				ptpClock->timePropertiesDS.leap61 ? "add" : "delete");
+		    if (!checkTimexFlags(ptpClock->timePropertiesDS.leap61 ? STA_INS : STA_DEL)) {
+			    unsetTimexFlags(ptpClock->timePropertiesDS.leap61 ? STA_DEL : STA_INS,
 					    TRUE);
-			    setTimexFlags(ptpClock->leap61 ? STA_INS : STA_DEL,
+			    setTimexFlags(ptpClock->timePropertiesDS.leap61 ? STA_INS : STA_DEL,
 					  FALSE);
 		    }
 #else
-			WARNING(INFO_PREFIX "Leap second pending! No kernel leap second "
+			WARNING("Leap second pending! No kernel leap second "
 				"API support - expect a clock jump at "
 				"midnight!\n");
 #endif /* apple */
@@ -292,15 +297,15 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 			ptpClock->leapSecondPending = TRUE;
 		}
 
-		if((previousUtcOffset != ptpClock->currentUtcOffset) && 
+		if((previousUtcOffset != ptpClock->timePropertiesDS.currentUtcOffset) && 
 		   !ptpClock->leapSecondPending && 
 		   !ptpClock->leapSecondInProgress ) {
-			WARNING(INFO_PREFIX "UTC offset changed from %d to %d with "
+			WARNING("UTC offset changed from %d to %d with "
 				"no leap second pending!\n",
-				previousUtcOffset, ptpClock->currentUtcOffset);
-		} else if( previousUtcOffset != ptpClock->currentUtcOffset) {
-			WARNING(INFO_PREFIX "UTC offset changed from %d to %d\n",
-				previousUtcOffset,ptpClock->currentUtcOffset);
+				previousUtcOffset, ptpClock->timePropertiesDS.currentUtcOffset);
+		} else if( previousUtcOffset != ptpClock->timePropertiesDS.currentUtcOffset) {
+			WARNING("UTC offset changed from %d to %d\n",
+				previousUtcOffset,ptpClock->timePropertiesDS.currentUtcOffset);
 		}
 	}
 }
@@ -453,7 +458,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 			    ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH)) ||
 		(header->sourcePortIdentity.portNumber != ptpClock->parentPortIdentity.portNumber));
 	
-	if (rtOpts->slaveOnly)	{
+	if (ptpClock->slaveOnly)	{
 		s1(header,announce,ptpClock, rtOpts);
 		if (newBM) {
 			displayPortIdentity(&header->sourcePortIdentity,

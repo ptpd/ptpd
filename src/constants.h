@@ -140,7 +140,7 @@ enum {
 /**
  * \brief Network Protocol  (Table 3 in the spec)*/
 enum {
-	UDP_IPV4=1,UDP_IPV6,IEE_802_3,DeviceNet,ControlNet,PROFINET
+	UDP_IPV4=1,UDP_IPV6,IEEE_802_3,DeviceNet,ControlNet,PROFINET
 };
 
 /**

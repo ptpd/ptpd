@@ -561,15 +561,15 @@ void handleMMTimePropertiesDataSet(MsgManagement* incoming, MsgManagement* outgo
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMTimePropertiesDataSet));
 		data = (MMTimePropertiesDataSet*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->currentUtcOffset = ptpClock->currentUtcOffset;
-		Octet ftra = SET_FIELD(ptpClock->frequencyTraceable, FTRA);
-		Octet ttra = SET_FIELD(ptpClock->timeTraceable, TTRA);
-		Octet ptp = SET_FIELD(ptpClock->ptpTimescale, PTPT);
-		Octet utcv = SET_FIELD(ptpClock->currentUtcOffsetValid, UTCV);
-		Octet li59 = SET_FIELD(ptpClock->leap59, LI59);
-		Octet li61 = SET_FIELD(ptpClock->leap61, LI61);
+		data->currentUtcOffset = ptpClock->timePropertiesDS.currentUtcOffset;
+		Octet ftra = SET_FIELD(ptpClock->timePropertiesDS.frequencyTraceable, FTRA);
+		Octet ttra = SET_FIELD(ptpClock->timePropertiesDS.timeTraceable, TTRA);
+		Octet ptp = SET_FIELD(ptpClock->timePropertiesDS.ptpTimescale, PTPT);
+		Octet utcv = SET_FIELD(ptpClock->timePropertiesDS.currentUtcOffsetValid, UTCV);
+		Octet li59 = SET_FIELD(ptpClock->timePropertiesDS.leap59, LI59);
+		Octet li61 = SET_FIELD(ptpClock->timePropertiesDS.leap61, LI61);
 		data->ftra_ttra_ptp_utcv_li59_li61 = ftra | ttra | ptp | utcv | li59 | li61;
-		data->timeSource = ptpClock->timeSource;
+		data->timeSource = ptpClock->timePropertiesDS.timeSource;
 		break;
 	case RESPONSE:
 		DBGV(" RESPONSE action\n");
@@ -1092,11 +1092,11 @@ void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		DBGV(" SET action\n");
 		data = (MMUtcProperties*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->currentUtcOffset = data->currentUtcOffset;
+		ptpClock->timePropertiesDS.currentUtcOffset = data->currentUtcOffset;
 		/* set bit */
-		ptpClock->currentUtcOffsetValid = IS_SET(data->utcv_li59_li61, UTCV);
-		ptpClock->leap59 = IS_SET(data->utcv_li59_li61, LI59);
-		ptpClock->leap61 = IS_SET(data->utcv_li59_li61, LI61);
+		ptpClock->timePropertiesDS.currentUtcOffsetValid = IS_SET(data->utcv_li59_li61, UTCV);
+		ptpClock->timePropertiesDS.leap59 = IS_SET(data->utcv_li59_li61, LI59);
+		ptpClock->timePropertiesDS.leap61 = IS_SET(data->utcv_li59_li61, LI61);
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -1104,10 +1104,10 @@ void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMUtcProperties));
 		data = (MMUtcProperties*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->currentUtcOffset = ptpClock->currentUtcOffset;
-		Octet utcv = SET_FIELD(ptpClock->currentUtcOffsetValid, UTCV);
-		Octet li59 = SET_FIELD(ptpClock->leap59, LI59);
-		Octet li61 = SET_FIELD(ptpClock->leap61, LI61);
+		data->currentUtcOffset = ptpClock->timePropertiesDS.currentUtcOffset;
+		Octet utcv = SET_FIELD(ptpClock->timePropertiesDS.currentUtcOffsetValid, UTCV);
+		Octet li59 = SET_FIELD(ptpClock->timePropertiesDS.leap59, LI59);
+		Octet li61 = SET_FIELD(ptpClock->timePropertiesDS.leap61, LI61);
 		data->utcv_li59_li61 = utcv | li59 | li61;
 		data->reserved = 0x0;
 		break;
@@ -1142,8 +1142,8 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 		DBGV(" SET action\n");
 		data = (MMTraceabilityProperties*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->frequencyTraceable = IS_SET(data->ftra_ttra, FTRA);
-		ptpClock->timeTraceable = IS_SET(data->ftra_ttra, TTRA);
+		ptpClock->timePropertiesDS.frequencyTraceable = IS_SET(data->ftra_ttra, FTRA);
+		ptpClock->timePropertiesDS.timeTraceable = IS_SET(data->ftra_ttra, TTRA);
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -1151,8 +1151,8 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMTraceabilityProperties));
 		data = (MMTraceabilityProperties*)outgoing->tlv->dataField;
 		/* GET actions */
-		Octet ftra = SET_FIELD(ptpClock->frequencyTraceable, FTRA);
-		Octet ttra = SET_FIELD(ptpClock->timeTraceable, TTRA);
+		Octet ftra = SET_FIELD(ptpClock->timePropertiesDS.frequencyTraceable, FTRA);
+		Octet ttra = SET_FIELD(ptpClock->timePropertiesDS.timeTraceable, TTRA);
 		data->ftra_ttra = ftra | ttra;
 		data->reserved = 0x0;
 		break;

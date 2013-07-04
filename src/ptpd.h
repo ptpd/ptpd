@@ -47,12 +47,14 @@
 #include <stdarg.h>
 #include <syslog.h>
 #include <limits.h>
+#include <getopt.h>
+#include <ctype.h>
+#include <glob.h>
 
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
-
 #include <pcap/pcap.h>
 
 #include "constants.h"
@@ -61,6 +63,10 @@
 #include "dep/datatypes_dep.h"
 #include "datatypes.h"
 #include "dep/ptpd_dep.h"
+#include "dep/iniparser/dictionary.h"
+#include "dep/iniparser/iniparser.h"
+#include "dep/daemonconfig.h"
+
 
 /* NOTE: this macro can be refactored into a function */
 #define XMALLOC(ptr,size) \

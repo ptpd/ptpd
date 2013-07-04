@@ -1390,7 +1390,7 @@ msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
 
 	/* Announce message */
 	memset((buf + 34), 0, 10);
-	*(Integer16 *) (buf + 44) = flip16(ptpClock->currentUtcOffset);
+	*(Integer16 *) (buf + 44) = flip16(ptpClock->timePropertiesDS.currentUtcOffset);
 	*(UInteger8 *) (buf + 47) = ptpClock->grandmasterPriority1;
 	*(UInteger8 *) (buf + 48) = ptpClock->clockQuality.clockClass;
 	*(Enumeration8 *) (buf + 49) = ptpClock->clockQuality.clockAccuracy;
@@ -1399,7 +1399,7 @@ msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
 	*(UInteger8 *) (buf + 52) = ptpClock->grandmasterPriority2;
 	copyClockIdentity((buf + 53), ptpClock->grandmasterIdentity);
 	*(UInteger16 *) (buf + 61) = flip16(ptpClock->stepsRemoved);
-	*(Enumeration8 *) (buf + 63) = ptpClock->timeSource;
+	*(Enumeration8 *) (buf + 63) = ptpClock->timePropertiesDS.timeSource;
 }
 
 /*Unpack Announce message from IN buffer of ptpClock to msgtmp.Announce*/
@@ -1515,10 +1515,10 @@ msgPackDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_REQ_LENGTH);
 
-#ifdef PTPD_EXPERIMENTAL
+
 	if(rtOpts.ip_mode == IPMODE_HYBRID)
 		*(char *)(buf + 6) |= PTP_UNICAST;
-#endif
+
 
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentDelayReqSequenceId);
 	*(UInteger8 *) (buf + 32) = 0x01;
@@ -1547,10 +1547,9 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_RESP_LENGTH);
 	*(UInteger8 *) (buf + 4) = header->domainNumber;
 
-#ifdef PTPD_EXPERIMENTAL
+
 	if(rtOpts.ip_mode == IPMODE_HYBRID)
 		*(char *)(buf + 6) |= PTP_UNICAST;
-#endif
 
 	memset((buf + 8), 0, 8);
 

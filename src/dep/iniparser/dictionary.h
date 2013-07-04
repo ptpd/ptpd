@@ -162,4 +162,6 @@ void dictionary_unset(dictionary * d, const char * key);
 /*--------------------------------------------------------------------------*/
 void dictionary_dump(dictionary * d, FILE * out);
 
+int dictionary_merge(dictionary * source, dictionary * dest);
+
 #endif

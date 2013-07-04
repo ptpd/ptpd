@@ -91,10 +91,10 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	ptpClock->char_last_msg='I';
 
 	reset_operator_messages(rtOpts, ptpClock);
-#ifdef PTPD_EXPERIMENTAL
+
 	/* For Hybrid mode */
 	ptpClock->MasterAddr = 0;
-#endif
+
 
 }
 
@@ -105,6 +105,8 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	/* updates paused, leap second pending - do nothing */
 	if(ptpClock->leapSecondInProgress)
 		return;
+
+	DBGV("updateDelay\n");
 
 	/* todo: do all intermediate calculations on temp vars */
 	TimeInternal prev_meanPathDelay = ptpClock->meanPathDelay;
@@ -239,7 +241,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	}
 
 display:
-	displayStats(rtOpts, ptpClock);
+	logStatistics(rtOpts, ptpClock);
 
 }
 
@@ -248,7 +250,11 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 {
 	Integer16 s;
 
-	DBGV("updateDelay\n");
+	/* updates paused, leap second pending - do nothing */
+	if(ptpClock->leapSecondInProgress)
+		return;
+
+	DBGV("updatePeerDelay\n");
 
 	if (twoStep) {
 		/* calc 'slave_to_master_delay' */
@@ -322,7 +328,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 
 
 	DBGV("UTCOffset: %d | leap 59: %d |  leap61: %d\n", 
-	     ptpClock->currentUtcOffset,ptpClock->leap59,ptpClock->leap61);
+	     ptpClock->timePropertiesDS.currentUtcOffset,ptpClock->timePropertiesDS.leap59,ptpClock->timePropertiesDS.leap61);
         /* updates paused, leap second pending - do nothing */
         if(ptpClock->leapSecondInProgress)
 		return;
@@ -375,8 +381,10 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 		subTime(&ptpClock->offsetFromMaster, 
 			&ptpClock->delayMS, 
 			&ptpClock->peerMeanPathDelay);
-	} else if (ptpClock->delayMechanism == E2E) {
-		/* (End to End mode) */
+	/* (End to End mode or disabled - if disabled, meanpath delay is zero) */
+	} else if (ptpClock->delayMechanism == E2E ||
+	    ptpClock->delayMechanism == DELAY_DISABLED ) {
+
 		subTime(&ptpClock->offsetFromMaster, 
 			&ptpClock->delayMS, 
 			&ptpClock->meanPathDelay);
@@ -408,31 +416,27 @@ void
 servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	if(rtOpts->noAdjust){
-		WARNING("     Clock step blocked because of option -t\n");
+		WARNING("Could not step clock - clock adjustment disabled\n");
 		return;
 	}
 
 	TimeInternal timeTmp;
-	
+	/*No need to reset the frequency offset: if we're far off, it will quickly get back to a high value */
 	getTime(&timeTmp);
 	subTime(&timeTmp, &timeTmp, &ptpClock->offsetFromMaster);
-
-	WARNING("     Performing hard frequency reset, by setting frequency to zero\n");
-#if !defined(__APPLE__)
-	adjFreq_wrapper(rtOpts, ptpClock, 0);
-#endif /* __APPLE__ */
-	ptpClock->observed_drift = 0;
-
 	setTime(&timeTmp);
 	initClock(rtOpts, ptpClock);
+	if(ptpClock->clockQuality.clockClass > 127)
+		restoreDrift(ptpClock, rtOpts, TRUE);
 	toState(PTP_FAULTY, rtOpts, ptpClock);		/* make a full protocol reset */
+
 }
 
 void
 warn_operator_fast_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
 {
 	if(ptpClock->warned_operator_fast_slewing == 0){
-		if ((adj >= ADJ_FREQ_MAX) || ((adj <= -ADJ_FREQ_MAX))){
+		if ((adj >= rtOpts->servoMaxPpb) || ((adj <= -rtOpts->servoMaxPpb))){
 			ptpClock->warned_operator_fast_slewing = 1;
 
 			NOTICE("Servo: Going to slew the clock with the maximum frequency adjustment\n");
@@ -539,7 +543,7 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				 */
 #if !defined(__APPLE__)
 				adj = ptpClock->offsetFromMaster.nanoseconds
-					> 0 ? ADJ_FREQ_MAX : -ADJ_FREQ_MAX;
+					> 0 ? rtOpts->servoMaxPpb : -rtOpts->servoMaxPpb;
 
 				// does this hurt when the clock gets close to zero again?
 				ptpClock->observed_drift = adj;
@@ -580,13 +584,11 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		ptpClock->observed_drift += 
 			ptpClock->offsetFromMaster.nanoseconds / ai;
 
-		// ADJ_FREQ_MAX: 512 000
-
 		/* clamp the accumulator to ADJ_FREQ_MAX for sanity */
-		if (ptpClock->observed_drift > ADJ_FREQ_MAX)
-			ptpClock->observed_drift = ADJ_FREQ_MAX;
-		else if (ptpClock->observed_drift < -ADJ_FREQ_MAX)
-			ptpClock->observed_drift = -ADJ_FREQ_MAX;
+		if (ptpClock->observed_drift > rtOpts->servoMaxPpb)
+			ptpClock->observed_drift = rtOpts->servoMaxPpb;
+		else if (ptpClock->observed_drift < -rtOpts->servoMaxPpb)
+			ptpClock->observed_drift = -rtOpts->servoMaxPpb;
 
 		adj = ptpClock->offsetFromMaster.nanoseconds / ap +
 			ptpClock->observed_drift;
@@ -607,14 +609,19 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #if defined(__APPLE__)
 			adjTime(ptpClock->offsetFromMaster.nanoseconds);
 #else
+		/* Adjust the clock first */
 		adjFreq_wrapper(rtOpts, ptpClock, -adj);
+		/* Unset STA_UNSYNC */
+		unsetTimexFlags(STA_UNSYNC, FALSE);
+		/* "Tell" the clock about maxerror, esterror etc. */
+		informClockSource(ptpClock);
 #endif /* __APPLE__ */
 	}
 
 
 
 display:
-		displayStats(rtOpts, ptpClock);
+		logStatistics(rtOpts, ptpClock);
 
 
 	DBGV("\n--Offset Correction-- \n");

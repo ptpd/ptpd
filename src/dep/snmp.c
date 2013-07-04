@@ -403,21 +403,21 @@ snmpClockDSTable(SNMP_SIGNATURE) {
 		return SNMP_INTEGER(snmpPtpClock->clockQuality.offsetScaledLogVariance);
 	/* ptpbaseClockTimePropertiesDSTable */
 	case PTPBASE_CLOCK_TIME_PROPERTIES_DS_CURRENT_UTC_OFFSET_VALID:
-		return SNMP_BOOLEAN(snmpPtpClock->currentUtcOffsetValid);
+		return SNMP_BOOLEAN(snmpPtpClock->timePropertiesDS.currentUtcOffsetValid);
 	case PTPBASE_CLOCK_TIME_PROPERTIES_DS_CURRENT_UTC_OFFSET:
-		return SNMP_INTEGER(snmpPtpClock->currentUtcOffset);
+		return SNMP_INTEGER(snmpPtpClock->timePropertiesDS.currentUtcOffset);
 	case PTPBASE_CLOCK_TIME_PROPERTIES_DS_LEAP59:
-		return SNMP_BOOLEAN(snmpPtpClock->leap59);
+		return SNMP_BOOLEAN(snmpPtpClock->timePropertiesDS.leap59);
 	case PTPBASE_CLOCK_TIME_PROPERTIES_DS_LEAP61:
-		return SNMP_BOOLEAN(snmpPtpClock->leap61);
+		return SNMP_BOOLEAN(snmpPtpClock->timePropertiesDS.leap61);
 	case PTPBASE_CLOCK_TIME_PROPERTIES_DS_TIME_TRACEABLE:
-		return SNMP_BOOLEAN(snmpPtpClock->timeTraceable);
+		return SNMP_BOOLEAN(snmpPtpClock->timePropertiesDS.timeTraceable);
 	case PTPBASE_CLOCK_TIME_PROPERTIES_DS_FREQ_TRACEABLE:
-		return SNMP_BOOLEAN(snmpPtpClock->frequencyTraceable);
+		return SNMP_BOOLEAN(snmpPtpClock->timePropertiesDS.frequencyTraceable);
 	case PTPBASE_CLOCK_TIME_PROPERTIES_DS_PTP_TIMESCALE:
-		return SNMP_BOOLEAN(snmpPtpClock->ptpTimescale);
+		return SNMP_BOOLEAN(snmpPtpClock->timePropertiesDS.ptpTimescale);
 	case PTPBASE_CLOCK_TIME_PROPERTIES_DS_SOURCE:
-		return SNMP_INTEGER(snmpPtpClock->timeSource);
+		return SNMP_INTEGER(snmpPtpClock->timePropertiesDS.timeSource);
 	}
 
 	return NULL;
