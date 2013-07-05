@@ -200,11 +200,44 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		}
 
 	}
-		if(rtOpts->restartSubsystems == -1) {
-				ERROR("New configuration cannot be applied - aborting reload\n");
-				rtOpts->restartSubsystems = 0;
-				goto cleanup;
-		}
+
+#ifdef linux
+#ifdef HAVE_SCHED_H
+                    /* Changing the CPU affinity mask */
+                    if(rtOpts->restartSubsystems & PTPD_CHANGE_CPUAFFINITY) {
+                        NOTIFY("Applying CPU binding configuration: changing selected CPU core\n");
+                        cpu_set_t mask;
+                        CPU_ZERO(&mask);
+                        if(tmpOpts.cpuNumber > -1) {
+                                CPU_SET(tmpOpts.cpuNumber,&mask);
+                        } else {
+				int i;
+				for(i = 0;  i < CPU_SETSIZE; i++) {
+				    CPU_SET(i, &mask);
+				}
+			}
+                        if(sched_setaffinity(0, sizeof(mask), &mask) < 0) {
+                                if(tmpOpts.cpuNumber == -1) {
+                                        PERROR("Could not unbind from CPU core %d", rtOpts->cpuNumber);
+                                } else {
+                                        PERROR("Could bind to CPU core %d", tmpOpts.cpuNumber);
+                                }
+                                rtOpts->restartSubsystems = -1;
+                        } else {
+                                if(tmpOpts.cpuNumber > -1)
+                                        INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n", tmpOpts.cpuNumber);
+                                else
+                                        INFO("Successfully unbound "PTPD_PROGNAME" from cpu core CPU core %d\n", rtOpts->cpuNumber);
+                        }
+                    }
+#endif /* HAVE_SCHED_H */
+#endif /* linux */
+
+	if(rtOpts->restartSubsystems == -1) {
+		ERROR("New configuration cannot be applied - aborting reload\n");
+		rtOpts->restartSubsystems = 0;
+		goto cleanup;
+	}
 
 
 		/* Tell parseConfig to shut up - it's had its chance already */
@@ -651,7 +684,26 @@ configcheck:
 			return 0;
 		}
 	}
-	
+
+#ifdef linux
+#ifdef HAVE_SCHED_H
+
+	/* Try binding to a single CPU core if configured to do so */
+
+	if(rtOpts->cpuNumber > -1) {
+
+		cpu_set_t mask;
+    		CPU_ZERO(&mask);
+    		CPU_SET(rtOpts->cpuNumber,&mask);
+    		if(sched_setaffinity(0, sizeof(mask), &mask) < 0) {
+		    PERROR("Could not bind to CPU core %d", rtOpts->cpuNumber);
+		} else {
+		    INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n", rtOpts->cpuNumber);
+		}
+	}
+#endif /* HAVE_SCHED_H */
+#endif /* linux */
+
 	/* use new synchronous signal handlers */
 	signal(SIGINT,  catchSignals);
 	signal(SIGTERM, catchSignals);

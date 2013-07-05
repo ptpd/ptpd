@@ -781,6 +781,9 @@ typedef struct {
 	Boolean	offset_first_updated;
 	int ttl;
 	int dscpValue;
+#ifdef linux
+	int cpuNumber;
+#endif /* linux */
 	Boolean alwaysRespectUtcOffset;
 	Boolean useSysLog;
 	Boolean checkConfigOnly;

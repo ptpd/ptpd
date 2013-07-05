@@ -144,7 +144,7 @@ AC_CHECK_LIB(
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h netinet/ether.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h netinet/ether.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

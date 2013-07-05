@@ -844,6 +844,13 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* Try 46 for expedited forwarding */
 	rtOpts->dscpValue = 0;
 
+#ifdef linux
+#ifdef HAVE_SCHED_H
+	/* Linux only (for now) - CPU core number */
+	rtOpts-> cpuNumber = -1;
+#endif /* HAVE_SCHED_H */
+#endif /* linux */
+
 }
 
 /* The PtpEnginePreset structure:
@@ -1235,7 +1242,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"         reset: set to zero (not recommended)\n"
 	"         preserve: use kernel value,\n"
 	"         file: load and save to drift file on startup/shutdown, use kernel value inbetween.\n"
-	"         To specify drift file, use the global:drift_file setting."
+	"         To specify drift file, use the clock:drift_file setting."
 	,
 				"reset", 	DRIFT_RESET,
 				"preserve", 	DRIFT_KERNEL,
@@ -1391,6 +1398,15 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	/* If this is processed after verbose_foreground, we can still control logStatistics */
 	CONFIG_MAP_BOOLEAN("global:log_statistics",rtOpts->logStatistics,rtOpts->logStatistics,
 	"Log timing statistics for every PTP packet received");
+
+#ifdef linux
+#ifdef HAVE_SCHED_H
+	CONFIG_MAP_INT_RANGE("global:cpuaffinity_cpucore",rtOpts->cpuNumber,rtOpts->cpuNumber,
+		"Linux only: bind "PTPD_PROGNAME" process to a selected CPU core number.\n"
+	"        0 = first CPU core, etc. -1 = do not bind to a single core.",
+	0,255);
+#endif /* HAVE_SCHED_H */
+#endif /* linux */
 
 /* ============== END CONFIG MAPPINGS, TRIGGERS AND DEPENDENCIES =========== */
 
@@ -2117,8 +2133,13 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("global:foreground", 		PTPD_RESTART_DAEMON );
         COMPONENT_RESTART_REQUIRED("global:verbose_foreground",		PTPD_RESTART_DAEMON );
 
+#ifdef linux
+#ifdef HAVE_SCHED_H
+        COMPONENT_RESTART_REQUIRED("global:cpuaffinity_cpucore",	PTPD_CHANGE_CPUAFFINITY );
+#endif /* HAVE_SCHED_H */
+#endif /* linux */
 
-/* ========= Any additiona logic goes here =========== */
+/* ========= Any additional logic goes here =========== */
 
 	/* Set of possible PTP port states has changed */
 	if(SETTING_CHANGED("ptpengine:slave_only") ||

@@ -53,9 +53,7 @@
 
 #include "../ptpd.h"
 
-#ifdef PTPD_EXPERIMENTAL
-extern RunTimeOpts rtOpts; 
-#endif
+extern RunTimeOpts rtOpts;
 
 #define PACK_SIMPLE( type ) \
 void pack##type( void* from, void* to ) \
@@ -1526,10 +1524,8 @@ msgPackDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_REQ_LENGTH);
 
-
 	if(rtOpts.ip_mode == IPMODE_HYBRID)
 		*(char *)(buf + 6) |= PTP_UNICAST;
-
 
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentDelayReqSequenceId);
 	*(UInteger8 *) (buf + 32) = 0x01;

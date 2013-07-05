@@ -57,6 +57,12 @@
 #include <netinet/udp.h>
 #include <pcap/pcap.h>
 
+#ifdef linux
+#ifdef HAVE_SCHED_H
+#include <sched.h>
+#endif /* HAVE_SCHED_H */
+#endif /* linux */
+
 #include "constants.h"
 #include "limits.h"
 #include "dep/constants_dep.h"

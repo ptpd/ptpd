@@ -139,13 +139,13 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    if(rtOpts->restartSubsystems & PTPD_RESTART_LOGGING) {
 				NOTIFY("Applying logging configuration: restarting logging\n");
 		    }
-
 		    /* Config changes don't require subsystem restarts - acknowledge it */
 		    if(rtOpts->restartSubsystems == PTPD_RESTART_NONE) {
 				NOTIFY("Applying configuration\n");
 		    }
 
-		    rtOpts->restartSubsystems = 0;
+		    if(rtOpts->restartSubsystems != -1)
+			    rtOpts->restartSubsystems = 0;
 		}
 
 		/* Perform the heavy signal processing synchronously */

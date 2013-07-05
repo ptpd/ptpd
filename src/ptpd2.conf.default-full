@@ -141,10 +141,6 @@ ptpengine:multicast_ttl = 64
 ; 46 = Expedited Forwarding (0x2e)
 ptpengine:ip_dscp = 0
 
-; Use PTP alternative multicast group like PTPv1 (if compiled with PTPD_EXPERIMENTAL):
-; 0 = 224.0.1.129, 1 = 224.0.1.130, 2 = 224.0.1.131, 3 = 224.0.1.132
-ptpengine:alt_mcast_group = 0
-
 ; Use JobID (PID) for UUID
 ptpengine:pid_as_clock_idendity = N
 
@@ -158,7 +154,7 @@ clock:no_reset = N
 ; reset: set to zero (not recommended)
 ; preserve: use kernel value,
 ; file: load and save to drift file on startup/shutdown, use kernel value inbetween.
-; To specify drift file, use the global:drift_file setting.
+; To specify drift file, use the clock:drift_file setting.
 ; Options: reset preserve file 
 clock:drift_handling = preserve
 
@@ -241,6 +237,10 @@ global:foreground = N
 
 ; Log timing statistics for every PTP packet received
 global:log_statistics = N
+
+; Linux only: bind ptpd2 process to a selected CPU core number.
+; 0 = first CPU core, etc. -1 = do not bind to a single core.
+global:cpuaffinity_cpucore = -1
 
 ; ========= newline required in the end ==========
 

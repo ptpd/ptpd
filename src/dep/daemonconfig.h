@@ -25,8 +25,10 @@
 #define PTPD_RESTART_LOGGING	16
 /* Configuration changes need checking lock files */
 #define PTPD_CHECK_LOCKS	32
+/* CPU core has changed */
+#define PTPD_CHANGE_CPUAFFINITY 64
 /* Configuration changes require daemon restart */
-#define PTPD_RESTART_DAEMON	64
+#define PTPD_RESTART_DAEMON	128
 
 #define LOG2_HELP "(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)"
 
