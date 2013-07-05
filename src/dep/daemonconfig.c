@@ -841,6 +841,9 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->announceTimeoutGracePeriod = 0;
 	rtOpts->alwaysRespectUtcOffset=FALSE;
 
+	/* Try 46 for expedited forwarding */
+	rtOpts->dscpValue = 0;
+
 }
 
 /* The PtpEnginePreset structure:
@@ -1198,11 +1201,13 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_BOOLEAN("ptpengine:igmp_refresh",rtOpts->do_IGMP_refresh,rtOpts->do_IGMP_refresh,
 	"Send explicit IGMP joins between servo resets");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:ip_ttl",rtOpts->ttl,rtOpts->ttl,
-	"Multicast time to live for PTP packets (ignored and set to 1 in peer to peer delay detection mode)",1,64);
+	CONFIG_MAP_INT_RANGE("ptpengine:multicast_ttl",rtOpts->ttl,rtOpts->ttl,
+	"Multicast time to live for multicast PTP packets (ignored and set to 1 for peer to peer messages)",1,64);
 
-	/* P2P mode, set TTL to 1 */
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->delayMechanism==P2P,rtOpts->ttl, 1, rtOpts->ttl);
+	CONFIG_MAP_INT_RANGE("ptpengine:ip_dscp",rtOpts->dscpValue,rtOpts->dscpValue,
+	"DiffServ CodepPoint for packet prioritisation (decimal). When set to zero, this option is not used.\n"
+	"	 46 = Expedited Forwarding (0x2e)",0,63);
+
 
 #ifdef PTPD_EXPERIMENTAL
 	CONFIG_MAP_INT_RANGE("ptpengine:alt_mcast_group",rtOpts->mcast_group_Number,rtOpts->mcast_group_Number,
@@ -1393,6 +1398,9 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	/* Scale the maxPPM to PPB */
 	rtOpts->servoMaxPpb *= 1000;
+
+	/* Shift DSCP to accept the 6-bit value */
+	rtOpts->dscpValue = rtOpts->dscpValue << 2;
 
 	/*
 	 * We're in hybrid mode and we haven't specified the delay request interval:
@@ -2077,7 +2085,9 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:announce_timeout_grace_period", PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:unicast_address",   	PTPD_RESTART_NETWORK );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:igmp_refresh",         	PTPD_RESTART_NONE );
-//        COMPONENT_RESTART_REQUIRED("ptpengine:ip_ttl",        		PTPD_RESTART_NONE );
+        COMPONENT_RESTART_REQUIRED("ptpengine:multicast_ttl",        		PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:ip_dscp",        		PTPD_RESTART_NETWORK );
+
         COMPONENT_RESTART_REQUIRED("ptpengine:alt_mcast_group",       	PTPD_RESTART_NETWORK );
 //        COMPONENT_RESTART_REQUIRED("clock:no_adjust",    		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:no_reset",     		PTPD_RESTART_NONE );

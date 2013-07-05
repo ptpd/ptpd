@@ -780,6 +780,7 @@ typedef struct {
 	Enumeration8 delayMechanism;
 	Boolean	offset_first_updated;
 	int ttl;
+	int dscpValue;
 	Boolean alwaysRespectUtcOffset;
 	Boolean useSysLog;
 	Boolean checkConfigOnly;

@@ -134,8 +134,12 @@ ptpengine:unicast_address =
 ; Send explicit IGMP joins between servo resets
 ptpengine:igmp_refresh = Y
 
-; Multicast time to live for PTP packets (ignored and set to 1 in peer to peer delay detection mode)
-ptpengine:ip_ttl = 64
+; Multicast time to live for multicast PTP packets (ignored and set to 1 for peer to peer messages)
+ptpengine:multicast_ttl = 64
+
+; DiffServ CodepPoint for packet prioritisation (decimal). When set to zero, this option is not used.
+; 46 = Expedited Forwarding (0x2e)
+ptpengine:ip_dscp = 0
 
 ; Use PTP alternative multicast group like PTPv1 (if compiled with PTPD_EXPERIMENTAL):
 ; 0 = 224.0.1.129, 1 = 224.0.1.130, 2 = 224.0.1.131, 3 = 224.0.1.132

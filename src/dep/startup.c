@@ -672,6 +672,6 @@ configcheck:
 			    rtOpts->ifaceName,
 			    (getPtpPreset(rtOpts->selectedPreset,rtOpts)).presetName,
 			    getpid());
-
+	ptpClock->resetStatisticsLog = TRUE;
 	return ptpClock;
 }

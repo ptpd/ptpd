@@ -700,6 +700,19 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif
 #endif
 
+	/* Set socket dscp */
+	if(rtOpts->dscpValue) {
+
+		if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_TOS,
+			 &rtOpts->dscpValue, sizeof(int)) < 0
+		    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_TOS,
+			&rtOpts->dscpValue, sizeof(int)) < 0) {
+			    PERROR("Dailed to set socket DSCP bits");
+			    return FALSE;
+			}
+	}
+
+
 	/* send a uni-cast address if specified (useful for testing) */
 	if (rtOpts->unicastAddress[0]) {
 		/* Attempt a DNS lookup first. */
@@ -730,16 +743,13 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if (!netInitMulticast(netPath, rtOpts))
 		return FALSE;
 
-
-	/* TODO: set socket dscp */
-
 	/* set socket time-to-live  */
 
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL, 
+	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
 		       &rtOpts->ttl, sizeof(int)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL, 
+	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
 			  &rtOpts->ttl, sizeof(int)) < 0) {
-		PERROR("failed to set the multi-cast time-to-live");
+		PERROR("Failed to set socket multicast time-to-live");
 		return FALSE;
 	}
 
@@ -752,7 +762,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		       &temp, sizeof(int)) < 0
 	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
 			  &temp, sizeof(int)) < 0) {
-		PERROR("failed to enable multi-cast loopback");
+		PERROR("Failed to enable multicast loopback");
 		return FALSE;
 	}
 
@@ -1228,7 +1238,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 		ret = pcap_inject(netPath->pcapEvent, ether,
 					 ETHER_HDR_LEN + length);
 		if (ret <= 0) 
-			DBG("error sending ether multi-cast event message\n");
+			DBG("Error sending ether multicast event message\n");
 		else
 			netPath->sentPackets++;
 
@@ -1244,7 +1254,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
-				DBG("error sending uni-cast event message\n");
+				DBG("Error sending unicast event message\n");
 			else
 				netPath->sentPackets++;
 			/* 
@@ -1257,7 +1267,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
-				DBG("error looping back uni-cast event message\n");
+				DBG("Error looping back unicast event message\n");
 		
 		} else {
 			addr.sin_addr.s_addr = netPath->multicastAddr;
@@ -1266,7 +1276,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
-				DBG("error sending multi-cast event message\n");
+				DBG("Error sending multicast event message\n");
 			else
 				netPath->sentPackets++;
 		}
@@ -1294,7 +1304,7 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 		ret = pcap_inject(netPath->pcapGeneral, ether,
 					 ETHER_HDR_LEN + length);
 		if (ret <= 0) 
-			DBG("error sending ether multi-cast general message\n");
+			DBG("Error sending ether multicast general message\n");
 		else
 			netPath->sentPackets++;
 
@@ -1311,7 +1321,7 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
-				DBG("error sending uni-cast general message\n");
+				DBG("Error sending unicast general message\n");
 			else
 				netPath->sentPackets++;
 		} else {
@@ -1321,7 +1331,7 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
-				DBG("error sending multi-cast general message\n");
+				DBG("Error sending multicast general message\n");
 			else
 				netPath->sentPackets++;
 		}
@@ -1346,16 +1356,21 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 			     (struct sockaddr *)&addr, 
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
-			DBG("error sending uni-cast general message\n");
+			DBG("Error sending unicast peer general message\n");
 
 	} else {
 		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
+		int ttl = 1;
+
+		/* Try setting TTL to 1 */
+		setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
+			&ttl, sizeof(int));
 
 		ret = sendto(netPath->generalSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
-			DBG("error sending multi-cast general message\n");
+			DBG("Error sending multicast peer general message\n");
 	}
 	return ret;
 
@@ -1377,7 +1392,7 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 			     (struct sockaddr *)&addr, 
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
-			DBG("error sending uni-cast event message\n");
+			DBG("Error sending unicast peer event message\n");
 		else
 			netPath->sentPackets++;
 
@@ -1391,15 +1406,20 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 			     (struct sockaddr *)&addr, 
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
-			DBG("error looping back uni-cast event message\n");			
+			DBG("Error looping back unicast peer event message\n");
 	} else {
 		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
+		int ttl = 1;
+
+		/* Try setting TTL to 1 */
+		setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
+			&ttl, sizeof(int));
 
 		ret = sendto(netPath->eventSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
-			DBG("error sending multi-cast event message\n");
+			DBG("Error sending multicast peer event message\n");
 		else
 			netPath->sentPackets++;
 	}

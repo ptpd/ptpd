@@ -1400,6 +1400,17 @@ msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
 	copyClockIdentity((buf + 53), ptpClock->grandmasterIdentity);
 	*(UInteger16 *) (buf + 61) = flip16(ptpClock->stepsRemoved);
 	*(Enumeration8 *) (buf + 63) = ptpClock->timePropertiesDS.timeSource;
+
+	/*
+	 * TimePropertiesDS in FlagField, 2nd octet - spec 13.3.2.6 table 20
+	 * Could / should have used constants here PTP_LI_61 etc, but this is clean
+	 */
+	*(UInteger8*) (buf + 7) |= ptpClock->timePropertiesDS.leap61			<< 0;
+	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.leap59)			<< 1;
+	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.currentUtcOffsetValid)	<< 2;
+	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.ptpTimescale)		<< 3;
+	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.timeTraceable)		<< 4;
+	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.frequencyTraceable)	<< 5;
 }
 
 /*Unpack Announce message from IN buffer of ptpClock to msgtmp.Announce*/

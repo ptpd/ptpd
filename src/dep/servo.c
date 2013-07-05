@@ -612,7 +612,7 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		/* Adjust the clock first */
 		adjFreq_wrapper(rtOpts, ptpClock, -adj);
 		/* Unset STA_UNSYNC */
-		unsetTimexFlags(STA_UNSYNC, FALSE);
+		unsetTimexFlags(STA_UNSYNC, TRUE);
 		/* "Tell" the clock about maxerror, esterror etc. */
 		informClockSource(ptpClock);
 #endif /* __APPLE__ */
