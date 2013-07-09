@@ -985,12 +985,16 @@ adjFreq(Integer32 adj)
 		    adj += tickRes;
 		}
         }
+#ifdef HAVE_STRUCT_TIMEX_TICK
 	/* Base tick duration - 10000 when userHZ = 100 */
 	t.tick = 1E6 / userHZ;
 	/* Tick adjustment if necessary */
         t.tick += tickAdj;
 
 	t.modes = MOD_FREQUENCY | ADJ_TICK;
+#else
+	t.modes = MOD_FREQUENCY;
+#endif /* HAVE_STRUCT_TIMEX_TICK */
 	t.freq = adj * ((1 << 16) / 1000);
 
 	/* do calculation in double precision, instead of Integer32 */

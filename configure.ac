@@ -158,6 +158,9 @@ AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 AC_C_VOLATILE
 
+# Check for tick in the timex structure
+AC_CHECK_MEMBERS([struct timex.tick], [], [], [[#include <sys/timex.h>]])
+
 # Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MALLOC
