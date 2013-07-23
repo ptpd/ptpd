@@ -750,7 +750,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 #endif
 
-	if (fprintf(destination,sbuf) < len) {
+	if (fprintf(destination, "%s", sbuf) < len) {
 		PERROR("Error while writing statistics");
 	}
 
