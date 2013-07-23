@@ -245,9 +245,25 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		/**
 		 * Commit changes to rtOpts and currentConfig
-		 * (this will never fail as the config has already been checked if we're here)
+		 * (this should never fail as the config has already been checked if we're here)
+		 * However if this DOES fail, some default has been specified out of range -
+		 * this is the only situation where parse will succeed but commit not:
+		 * disable quiet mode to show what went wrong, then die.
 		 */
-		rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts);
+		if ( (rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL) {
+			CRITICAL("************ "PTPD_PROGNAME": parseConfig returned NULL during config commit"
+				 "  - this is a BUG - report the following: \n");
+
+			dictionary_unset(rtOpts->candidateConfig,"%quiet%:%quiet%");
+
+			if ((rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL)
+			    CRITICAL("*****************" PTPD_PROGNAME" shutting down **********************\n");
+			/*
+			 * Could be assert(), but this should be done any time this happens regardless of
+			 * compile options. Anyhow, if we're here, the daemon will no doubt segfault soon anyway
+			 */
+			abort();
+		}
 
 	/* clean up */
 	cleanup:
@@ -257,25 +273,16 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	end:
 
-	if(rtOpts->useRecordFile ||
-	    rtOpts->useLogFile ||
-	    rtOpts->useStatisticsFile)
-		NOTIFY("Reopening log files\n");
+	if(rtOpts->recordLog.logEnabled ||
+	    rtOpts->eventLog.logEnabled ||
+	    (rtOpts->statisticsLog.logEnabled))
+		INFO("Reopening log files\n");
 
-	if(!restartLog(&rtOpts->logFP, rtOpts->useLogFile, rtOpts->logFile, "log"))
-	    NOTIFY("Failed logging to log file\n");
+	restartLogging(rtOpts);
 
-	if(!restartLog(&rtOpts->statisticsFP, rtOpts->logStatistics && rtOpts->useStatisticsFile,
-		rtOpts->statisticsFile, "statistics"))
-	    NOTIFY("Failed logging to statistics file\n");
-
-	/* re-print headers in the stats file */
-	if(rtOpts->useStatisticsFile) {
+	if(rtOpts->statisticsLog.logEnabled)
 		ptpClock->resetStatisticsLog = TRUE;
-	}
 
-	if(!restartLog(&rtOpts->recordFP, rtOpts->useRecordFile, rtOpts->recordFile, "record"))
-	    NOTIFY("Failed logging to record file\n");
 
 }
 
@@ -301,7 +308,7 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 	if(sigusr1_received){
-		WARNING("SIGUSR1 received, manually stepping clock to current known OFM\n");
+		WARNING("SIGUSR1 received, stepping clock to current known OFM\n");
 		servo_perform_clock_step(rtOpts, ptpClock);
 	sigusr1_received = 0;
 	}
@@ -424,6 +431,9 @@ ptpdShutdown(PtpClock * ptpClock)
 	extern RunTimeOpts rtOpts;
 
 	netShutdown(&ptpClock->netPath);
+#ifdef PTPD_NTPDC
+	ntpShutdown(&rtOpts.ntpOptions, &ptpClock->ntpControl);
+#endif /* PTPD_NTPDC */
 	free(ptpClock->foreign);
 
 	/* free management messages, they can have dynamic memory allocated */
@@ -432,9 +442,15 @@ ptpdShutdown(PtpClock * ptpClock)
 	freeManagementTLV(&ptpClock->outgoingManageTmp);
 
 #if !defined(__APPLE__)
-	/* write observed drift to driftfile if enabled, inform user */
-	if(ptpClock->slaveOnly)
+#ifndef PTPD_STATISTICS
+	/* Not running statistics code - write observed drift to driftfile if enabled, inform user */
+	if(ptpClock->slaveOnly && !ptpClock->servo.runningMaxOutput)
 		saveDrift(ptpClock, &rtOpts, FALSE);
+#else
+	/* We are running statistics code - save drift on exit only if we're nor monitoring servo stability */
+	if(!rtOpts.servoStabilityDetection && !ptpClock->servo.runningMaxOutput)
+		saveDrift(ptpClock, &rtOpts, FALSE);
+#endif /* PTPD_STATISTICS */
 #endif /* apple */
 
 	free(ptpClock);
@@ -446,6 +462,13 @@ ptpdShutdown(PtpClock * ptpClock)
 	/* properly clean lockfile (eventough new deaemons can acquire the lock after we die) */
 	fclose(G_lockFilePointer);
 	unlink(rtOpts.lockFile);
+
+	if(rtOpts.statusLog.logEnabled) {
+		/* close and remove the status file */
+		if(rtOpts.statusLog.logFP != NULL)
+			fclose(rtOpts.statusLog.logFP);
+		unlink(rtOpts.statusLog.logPath);
+	}
 
 }
 
@@ -482,7 +505,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * and allows to use FILE* vs. fds everywhere
 	 */
 	umask(DEFAULT_UMASK);
-
 	/** 
 	 * If a required setting, such as interface name, or a setting
 	 * requiring a range check is to be set via getopts_long,
@@ -598,13 +620,8 @@ configcheck:
 		}
 	}
 
-	/* Manage log files: stats, log and quality file */
-       if(!restartLog(&rtOpts->logFP, rtOpts->useLogFile, rtOpts->logFile, "log"))
-            NOTIFY("Failed logging to log file\n");
-        if(!restartLog(&rtOpts->statisticsFP, rtOpts->logStatistics && rtOpts->useStatisticsFile, rtOpts->statisticsFile, "statistics"))
-            NOTIFY("Failed logging to statistics file\n");
-        if(!restartLog(&rtOpts->recordFP, rtOpts->useRecordFile, rtOpts->recordFile, "record"))
-            NOTIFY("Failed logging to record file\n");
+	/* Manage log files: stats, log, status and quality file */
+	restartLogging(rtOpts);
 
 	/* Allocate memory after we're done with other checks but before going into daemon */
 	ptpClock = (PtpClock *) calloc(1, sizeof(PtpClock));
@@ -630,6 +647,9 @@ configcheck:
 				  sizeof(ForeignMasterRecord)));
 		}
 	}
+
+	if(rtOpts->statisticsLog.logEnabled)
+		ptpClock->resetStatisticsLog = TRUE;
 
 	/* Init to 0 net buffer */
 	memset(ptpClock->msgIbuf, 0, PACKET_SIZE);
@@ -718,12 +738,34 @@ configcheck:
 		snmpInit(ptpClock);
 #endif
 
-	*ret = 0;
+
 
 	NOTICE(USER_DESCRIPTION" started successfully on %s using \"%s\" preset (PID %d)\n",
 			    rtOpts->ifaceName,
 			    (getPtpPreset(rtOpts->selectedPreset,rtOpts)).presetName,
 			    getpid());
 	ptpClock->resetStatisticsLog = TRUE;
+
+#ifdef PTPD_STATISTICS
+	if (rtOpts->delayMSOutlierFilterEnabled) {
+		ptpClock->delayMSRawStats = createDoubleMovingStdDev(rtOpts->delayMSOutlierFilterCapacity);
+		strncpy(ptpClock->delayMSRawStats->identifier, "delayMS", 10);
+		ptpClock->delayMSFiltered = createDoubleMovingMean(rtOpts->delayMSOutlierFilterCapacity);
+	} else {
+		ptpClock->delayMSRawStats = NULL;
+		ptpClock->delayMSFiltered = NULL;
+	}
+
+	if (rtOpts->delaySMOutlierFilterEnabled) {
+		ptpClock->delaySMRawStats = createDoubleMovingStdDev(rtOpts->delaySMOutlierFilterCapacity);
+		strncpy(ptpClock->delaySMRawStats->identifier, "delaySM", 10);
+		ptpClock->delaySMFiltered = createDoubleMovingMean(rtOpts->delaySMOutlierFilterCapacity);
+	} else {
+		ptpClock->delaySMRawStats = NULL;
+		ptpClock->delaySMFiltered = NULL;
+	}
+#endif
+
+	*ret = 0;
 	return ptpClock;
 }

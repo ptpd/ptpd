@@ -32,10 +32,6 @@
   "PTPDv2"
 #define USER_DESCRIPTION_MAX 128
 
-/* Indentation string used in logs */
-#define INFO_PREFIX \
-  "=== "
-
 /* implementation specific constants */
 #define DEFAULT_INBOUND_LATENCY      	0       /* in nsec */
 #define DEFAULT_OUTBOUND_LATENCY     	0       /* in nsec */
@@ -170,6 +166,15 @@ enum {
   /* non-spec timers */
   OPERATOR_MESSAGES_TIMER,  /* used to limit the operator messages */
   LEAP_SECOND_PAUSE_TIMER, /* timer used for pausing updates when leap second is imminent */
+  STATUSFILE_UPDATE_TIMER, /* timer used for refreshing status file */
+  PANIC_MODE_TIMER,	   /* timer used for the duration of "panic mode" */
+#ifdef PTPD_STATISTICS
+  STATISTICS_UPDATE_TIMER, /* online mean / std dev updare interval (non-moving statistics) */
+#endif /* PTPD_STATISTICS */
+#ifdef PTPD_NTPDC
+  NTPD_CHECK_TIMER,
+  NTPD_FAILOVER_TIMER,
+#endif
   TIMER_ARRAY_SIZE
 };
 

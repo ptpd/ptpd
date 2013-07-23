@@ -69,7 +69,7 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 /* do not reset frequency here - restoreDrift will do it if necessary */
 #if !defined(__APPLE__)
-	ptpClock->observed_drift = 0;
+	ptpClock->servo.observedDrift = 0;
 #endif /* apple */
 
 	/* clear vars */
@@ -93,7 +93,7 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	reset_operator_messages(rtOpts, ptpClock);
 
 	/* For Hybrid mode */
-	ptpClock->MasterAddr = 0;
+	ptpClock->masterAddr = 0;
 
 
 }
@@ -107,6 +107,8 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 		return;
 
 	DBGV("updateDelay\n");
+
+
 
 	/* todo: do all intermediate calculations on temp vars */
 	TimeInternal prev_meanPathDelay = ptpClock->meanPathDelay;
@@ -177,9 +179,30 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			dump_TimeInternal2("Req_RECV:", &ptpClock->delay_req_receive_time,
 			"Req_SENT:", &ptpClock->delay_req_send_time));
 		
+#ifdef PTPD_STATISTICS
+	if (rtOpts->delaySMOutlierFilterEnabled) {
+		subTime(&ptpClock->rawDelaySM, &ptpClock->delay_req_receive_time, 
+			&ptpClock->delay_req_send_time);
+		if(!isDoublePeircesOutlier(ptpClock->delaySMRawStats, timeInternalToDouble(&ptpClock->rawDelaySM), rtOpts->delaySMOutlierFilterThreshold)) {
+			ptpClock->delaySM = ptpClock->rawDelaySM;
+			ptpClock->delaySMoutlier = FALSE;
+		} else {
+			ptpClock->delaySMoutlier = TRUE;
+			ptpClock->counters.delaySMOutliersFound++;
+			if (!rtOpts->delaySMOutlierFilterDiscard)  {
+				ptpClock->delaySM = doubleToTimeInternal(ptpClock->delaySMFiltered->mean);
+			} else {
+				    goto statistics;
+			}
+		}
+	} else {
 		subTime(&ptpClock->delaySM, &ptpClock->delay_req_receive_time, 
 			&ptpClock->delay_req_send_time);
-
+	}
+#else
+		subTime(&ptpClock->delaySM, &ptpClock->delay_req_receive_time, 
+			&ptpClock->delay_req_send_time);
+#endif
 		/* update 'one_way_delay' */
 		addTime(&ptpClock->meanPathDelay, &ptpClock->delaySM, 
 			&ptpClock->delayMS);
@@ -203,16 +226,20 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			goto display;
 		}
 
+
 		if(ptpClock->meanPathDelay.nanoseconds < 0){
-			DBGV("update delay: found negative value for OWD, "
-			    "so ignoring this value %d\n",
+			DBG("update delay: found negative value for OWD, "
+			    "so ignoring this value: %d\n",
 				ptpClock->meanPathDelay.nanoseconds);
 			/* revert back to previous value */
 			ptpClock->meanPathDelay = prev_meanPathDelay;
-
+#ifdef PTPD_STATISTICE
+			goto statistics;
+#else
 			goto display;
+#endif /* PTPD_STATISTICS */
 		}
-		
+
 		/* avoid overflowing filter */
 		s = rtOpts->s;
 		while (abs(owd_filt->y) >> (31 - s))
@@ -227,18 +254,42 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			owd_filt->s_exp = 1 << s;
 
 		/* filter 'meanPathDelay' */
-		owd_filt->y = (owd_filt->s_exp - 1) *
-			owd_filt->y / owd_filt->s_exp +
-			(ptpClock->meanPathDelay.nanoseconds / 2 + 
-			 owd_filt->nsec_prev / 2) / owd_filt->s_exp;
+		float fy =
+			(double)((owd_filt->s_exp - 1.0) *
+			owd_filt->y / (owd_filt->s_exp + 0.0) +
+			(ptpClock->meanPathDelay.nanoseconds / 2.0 + 
+			 owd_filt->nsec_prev / 2.0) / (owd_filt->s_exp + 0.0));
 
 		owd_filt->nsec_prev = ptpClock->meanPathDelay.nanoseconds;
+
+		owd_filt->y = round(fy);
+
 		ptpClock->meanPathDelay.nanoseconds = owd_filt->y;
+
+/* Update relevant statistics containers, feed outlier filter thresholds etc. */
+#ifdef PTPD_STATISTICS
+statistics:
+                        if (rtOpts->delaySMOutlierFilterEnabled) {
+                            double dDelaySM = timeInternalToDouble(&ptpClock->rawDelaySM);
+                            /* If this is an outlier, bring it by a factor closer to mean before allowing to influence stdDev */
+                            if(ptpClock->delaySMoutlier) {
+				/* Allow [weight] * [deviation from mean] to influence std dev in the next outlier checks */
+                            DBG("DelaySM outlier: %.09f\n", dDelaySM);
+			    if((rtOpts->calibrationDelay<1) || ptpClock->isCalibrated)
+                            dDelaySM = ptpClock->delaySMRawStats->meanContainer->mean + rtOpts->delaySMOutlierWeight * ( dDelaySM - ptpClock->delaySMRawStats->meanContainer->mean);
+                            } 
+                                        feedDoubleMovingStdDev(ptpClock->delaySMRawStats, dDelaySM);
+                                        feedDoubleMovingMean(ptpClock->delaySMFiltered, timeInternalToDouble(&ptpClock->delaySM));
+                                }
+                        feedDoublePermanentStdDev(&ptpClock->slaveStats.owdStats, timeInternalToDouble(&ptpClock->meanPathDelay));
+#endif
+
 
 		DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
 	} else {
 		INFO("Ignoring delayResp because we didn't receive any sync yet\n");
 	}
+
 
 display:
 	logStatistics(rtOpts, ptpClock);
@@ -253,6 +304,7 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 	/* updates paused, leap second pending - do nothing */
 	if(ptpClock->leapSecondInProgress)
 		return;
+
 
 	DBGV("updatePeerDelay\n");
 
@@ -326,7 +378,6 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
     offset_from_master_filter * ofm_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
-
 	DBGV("UTCOffset: %d | leap 59: %d |  leap61: %d\n", 
 	     ptpClock->timePropertiesDS.currentUtcOffset,ptpClock->timePropertiesDS.leap59,ptpClock->timePropertiesDS.leap61);
         /* updates paused, leap second pending - do nothing */
@@ -335,6 +386,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 
 	DBGV("==> updateOffset\n");
 
+	{
 	//perform basic checks, using only local variables
 	TimeInternal master_to_slave_delay;
 
@@ -358,23 +410,42 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 			return;
 		}
 	}
+	}
 
 	// used for stats feedback 
 	ptpClock->char_last_msg='S';
-	ptpClock->last_packet_was_sync = TRUE;
 
 	/*
 	 * The packet has passed basic checks, so we'll:
 	 *   - update the global delayMS variable
 	 *   - calculate a new filtered OFM
 	 */
-	subTime(&ptpClock->delayMS, recv_time, send_time);
+#ifdef PTPD_STATISTICS
+	if (rtOpts->delayMSOutlierFilterEnabled) {
+		subTime(&ptpClock->rawDelayMS, recv_time, send_time);
+		if(!isDoublePeircesOutlier(ptpClock->delayMSRawStats, timeInternalToDouble(&ptpClock->rawDelayMS), rtOpts->delayMSOutlierFilterThreshold)) {
+			ptpClock->delayMSoutlier = FALSE;
+			ptpClock->delayMS = ptpClock->rawDelayMS;
+		} else {
+			ptpClock->delayMSoutlier = TRUE;
+			ptpClock->counters.delayMSOutliersFound++;
+			if(!rtOpts->delayMSOutlierFilterDiscard)
+			ptpClock->delayMS = doubleToTimeInternal(ptpClock->delayMSFiltered->mean);
+		}
+	} else {
+		subTime(&ptpClock->delayMS, recv_time, send_time);
+	}
+#else
 	/* Used just for End to End mode. */
+	subTime(&ptpClock->delayMS, recv_time, send_time);
+#endif
 
 	/* Take care about correctionField */
 	subTime(&ptpClock->delayMS,
 		&ptpClock->delayMS, correctionField);
 
+#ifdef PTPD_STATISTICS
+#endif
 
 	/* update 'offsetFromMaster' */
 	if (ptpClock->delayMechanism == P2P) {
@@ -410,7 +481,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	 * computing end to end delay
 	 */
 		rtOpts->offset_first_updated = TRUE;
-	}
+}
 
 void
 servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
@@ -420,20 +491,153 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		return;
 	}
 
-	TimeInternal timeTmp;
+	TimeInternal oldTime, newTime;
 	/*No need to reset the frequency offset: if we're far off, it will quickly get back to a high value */
-	getTime(&timeTmp);
-	subTime(&timeTmp, &timeTmp, &ptpClock->offsetFromMaster);
-	setTime(&timeTmp);
+	getTime(&oldTime);
+	subTime(&newTime, &oldTime, &ptpClock->offsetFromMaster);
+
+	setTime(&newTime);
 	initClock(rtOpts, ptpClock);
 	if(ptpClock->clockQuality.clockClass > 127)
 		restoreDrift(ptpClock, rtOpts, TRUE);
+	ptpClock->servo.runningMaxOutput = FALSE;
 	toState(PTP_FAULTY, rtOpts, ptpClock);		/* make a full protocol reset */
+
+	/* Major time change - need to inform utmp / wtmp */
+	if(oldTime.seconds != newTime.seconds) {
+
+/* Add the old time entry to utmp/wtmp */
+
+/* About as long as the ntpd implementation, but not any less ugly */
+
+#ifdef HAVE_UTMPX_H
+		struct utmpx utx;
+	memset(&utx, 0, sizeof(utx));
+		strncpy(utx.ut_user, "date", sizeof(utx.ut_user));
+#ifndef OTIME_MSG
+		strncpy(utx.ut_line, "|", sizeof(utx.ut_line));
+#else
+		strncpy(utx.ut_line, OTIME_MSG, sizeof(utx_ut.line));
+#endif /* OTIME_MSG */
+#ifdef OLD_TIME
+		utx.ut_tv.tv_sec = oldTime.seconds;
+		utx.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
+		utx.ut_type = OLD_TIME;
+#else /* no ut_type */
+		utx.ut_time = oldTime.seconds;
+#endif /* OLD_TIME */
+
+/* ======== BEGIN  OLD TIME EVENT - UTMPX / WTMPX =========== */
+		utmpxname(UTMPX_FILE);
+		setutxent();
+		pututxline(&utx);
+		endutxent();
+		updwtmpx(WTMPX_FILE, &utx);
+/* ======== END    OLD TIME EVENT - UTMPX / WTMPX =========== */
+
+#else /* NO UTMPX_H */
+
+#ifdef HAVE_UTMP_H
+		struct utmp ut;
+		memset(&ut, 0, sizeof(ut));
+		strncpy(ut.ut_name, "date", sizeof(ut.ut_name));
+#ifndef OTIME_MSG
+		strncpy(ut.ut_line, "|", sizeof(ut.ut_line));
+#else
+		strncpy(ut.ut_line, OTIME_MSG, sizeof(ut.ut_line));
+#endif /* OTIME_MSG */
+
+#ifdef OLD_TIME
+		ut.ut_tv.tv_sec = oldTime.seconds;
+		ut.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
+		ut.ut_type = OLD_TIME;
+#else /* no ut_type */
+		ut.ut_time = oldTime.seconds;
+#endif /* OLD_TIME */
+
+/* ======== BEGIN  OLD TIME EVENT - UTMP / WTMP =========== */
+		utmpname(UTMP_FILE);
+		setutent();
+		pututline(&ut);
+		endutent();
+		utmpname(WTMP_FILE);
+		setutent();
+		pututline(&ut);
+		endutent();
+/* ======== END    OLD TIME EVENT - UTMP / WTMP =========== */
+
+#endif /* HAVE_UTMP_H */
+#endif /* HAVE_UTMPX_H */
+
+/* Add the new time entry to utmp/wtmp */
+
+#ifdef HAVE_UTMPX_H
+		memset(&utx, 0, sizeof(utx));
+		strncpy(utx.ut_user, "date", sizeof(utx.ut_user));
+#ifndef NTIME_MSG
+		strncpy(utx.ut_line, "}", sizeof(utx.ut_line));
+#else
+		strncpy(utx.ut_line, NTIME_MSG, sizeof(utx_ut.line));
+#endif /* NTIME_MSG */
+#ifdef NEW_TIME
+		utx.ut_tv.tv_sec = newTime.seconds;
+		utx.ut_tv.tv_usec = newTime.nanoseconds / 1000;
+		utx.ut_type = NEW_TIME;
+#else /* no ut_type */
+		utx.ut_time = newTime.seconds;
+#endif /* NEW_TIME */
+
+/* ======== BEGIN  NEW TIME EVENT - UTMPX / WTMPX =========== */
+		utmpxname(UTMPX_FILE);
+		setutxent();
+		pututxline(&utx);
+		endutxent();
+		updwtmpx(WTMPX_FILE, &utx);
+/* ======== END    NEW TIME EVENT - UTMPX / WTMPX =========== */
+
+#else /* NO UTMPX_H */
+
+#ifdef HAVE_UTMP_H
+		memset(&ut, 0, sizeof(ut));
+		strncpy(ut.ut_name, "date", sizeof(ut.ut_name));
+#ifndef NTIME_MSG
+		strncpy(ut.ut_line, "}", sizeof(ut.ut_line));
+#else
+		strncpy(ut.ut_line, NTIME_MSG, sizeof(ut.ut_line));
+#endif /* NTIME_MSG */
+#ifdef NEW_TIME
+		ut.ut_tv.tv_sec = newTime.seconds;
+		ut.ut_tv.tv_usec = newTime.nanoseconds / 1000;
+		ut.ut_type = NEW_TIME;
+#else /* no ut_type */
+		ut.ut_time = newTime.seconds;
+#endif /* NEW_TIME */
+
+/* ======== BEGIN  NEW TIME EVENT - UTMP / WTMP =========== */
+		utmpname(UTMP_FILE);
+		setutent();
+		pututline(&ut);
+		endutent();
+		utmpname(WTMP_FILE);
+		setutent();
+		pututline(&ut);
+		endutent();
+/* ======== END    NEW TIME EVENT - UTMP / WTMP =========== */
+
+#endif /* HAVE_UTMP_H */
+#endif /* HAVE_UTMPX_H */
+	}
+
 
 }
 
+#ifndef PTPD_DOUBLE_SERVO
 void
 warn_operator_fast_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
+#else
+void
+warn_operator_fast_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
+#endif /* PTPD_DOUBLE_SERVO */
 {
 	if(ptpClock->warned_operator_fast_slewing == 0){
 		if ((adj >= rtOpts->servoMaxPpb) || ((adj <= -rtOpts->servoMaxPpb))){
@@ -468,6 +672,9 @@ warn_operator_slow_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock )
  * this is a wrapper around adjFreq to abstract extra operations
  */
 #if !defined(__APPLE__)
+
+#ifndef PTPD_DOUBLE_SERVO
+
 void
 adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
 {
@@ -482,20 +689,48 @@ adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
 
 	warn_operator_fast_slewing(rtOpts, ptpClock, adj);
 }
+
+#else
+
+void
+adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
+{
+    if (rtOpts->noAdjust){
+		DBGV("adjFreq2: noAdjust on, returning\n");
+		return;
+	}
+
+	// call original adjtime
+	DBG2("     adjFreq2: call adjfreq to %.09f us \n", adj / DBG_UNIT);
+	adjFreq(adj);
+
+	warn_operator_fast_slewing(rtOpts, ptpClock, adj);
+}
+
+
+#endif /* PTPD_DOUBLE_SERVO */
+
 #endif /* __APPLE__ */
 
 void
 updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
-	Integer32 adj;
-	//TimeInternal timeTmp;
 
 	/* updates paused, leap second pending - do nothing */
         if(ptpClock->leapSecondInProgress)
             return;
-
 	DBGV("==> updateClock\n");
 
+	if(ptpClock->panicMode) {
+	    DBG("Panic mode - skipping updateClock");
+	}
+
+
+
+/*
+if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard && ptpClock->delayMSoutlier)
+	    goto display;
+*/
 	if (rtOpts->maxReset) { /* If maxReset is 0 then it's OFF */
 		if (ptpClock->offsetFromMaster.seconds && rtOpts->maxReset) {
 			INFO("updateClock aborted, offset greater than 1"
@@ -518,8 +753,6 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if (ptpClock->offsetFromMaster.seconds) {
 		/* if secs, reset clock or set freq adjustment to max */
-
-
 		
 		/* 
 		  if offset from master seconds is non-zero, then this is a "big jump:
@@ -532,85 +765,123 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		 * noResetClock = if can change the clock, can we also step it?
 		 */
 		if (!rtOpts->noAdjust) {
-			/* */
-			if (!rtOpts->noResetClock) {
 
+
+	if(rtOpts->enablePanicMode && !ptpClock->panicOver) {
+
+		if(ptpClock->panicMode)
+		    goto display;
+
+		if(ptpClock->panicOver) {
+		    ptpClock->panicMode = FALSE;
+		    ptpClock->panicOver = FALSE;
+#ifdef PTPD_STATISTICS
+		    ptpClock->isCalibrated = FALSE;
+#endif /* PTPD_STATISTICS */
+		    goto display;
+		}
+
+		CRITICAL("Offset above 1 second - entering panic mode\n");
+
+		ptpClock->panicMode = TRUE;
+		ptpClock->panicModeTimeLeft = 2 * rtOpts->panicModeDuration;
+		timerStart(PANIC_MODE_TIMER, 30, ptpClock->itimer);
+
+#ifdef PTPD_NTPDC
+
+/* Trigger NTP failover as part of panic mode */
+
+if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
+
+                                /* We have a timeout defined */
+                                if(rtOpts->ntpOptions.failoverTimeout) {
+                                        DBG("NTP failover timer started - panic mode\n");
+                                        timerStart(NTPD_FAILOVER_TIMER,
+                                                    rtOpts->ntpOptions.failoverTimeout,
+                                                    ptpClock->itimer);
+                                /* Fail over to NTP straight away */
+                                } else {
+                                        DBG("Initiating NTP failover\n");
+                                        ptpClock->ntpControl.isRequired = TRUE;
+                                        ptpClock->ntpControl.isFailOver = TRUE;
+                                        if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE))
+                                                DBG("PANIC MODE instant NTP failover - could not fail over\n");
+                                }
+
+}
+
+#endif
+		goto display;
+
+	}
+
+			if(rtOpts->enablePanicMode) {
+				if(ptpClock->panicOver)
+					CRITICAL("Panic mode timeout - accepting current offset. Clock will jump\n");
+				ptpClock->panicOver = FALSE;
+				timerStop(PANIC_MODE_TIMER, ptpClock->itimer);
+
+#ifdef PTPD_NTPDC
+/* Exiting ntp failover - getting out of panic mode */
+	if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
+                            timerStop(NTPD_FAILOVER_TIMER, ptpClock->itimer);
+			    ptpClock->ntpControl.isRequired = FALSE;
+			    ptpClock->ntpControl.isFailOver = FALSE;
+                            if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE))
+                                DBG("NTPdcontrol - could not return from NTP panic mode\n");
+	}
+#endif /* PTPD_NTPDC */
+
+			}
+			if (!rtOpts->noResetClock) {
 				servo_perform_clock_step(rtOpts, ptpClock);
 			} else {
-				/*
-				 * potential problem:    "-1.1" is   a) -1:0.1 or b) -1:-0.1?
-				 * if this code is right it implies the second case
-				 */
 #if !defined(__APPLE__)
-				adj = ptpClock->offsetFromMaster.nanoseconds
-					> 0 ? rtOpts->servoMaxPpb : -rtOpts->servoMaxPpb;
-
-				// does this hurt when the clock gets close to zero again?
-				ptpClock->observed_drift = adj;
-
+				if(ptpClock->offsetFromMaster.nanoseconds > 0)
+				    ptpClock->servo.observedDrift = rtOpts->servoMaxPpb;
+				else
+				    ptpClock->servo.observedDrift = -rtOpts->servoMaxPpb;
 				warn_operator_slow_slewing(rtOpts, ptpClock);
-				adjFreq_wrapper(rtOpts, ptpClock, -adj);
-
+				adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->servo.observedDrift);
 				/* its not clear how the APPLE case works for large jumps */
 #endif /* __APPLE__ */
-
 			}
 		}
 	} else {
-		/* these variables contain the actual ai and ap to be used below */
-		Integer32 ap = rtOpts->ap;
-		Integer32 ai = rtOpts->ai;
 
+	    if(rtOpts->enablePanicMode && (ptpClock->panicMode || ptpClock->panicOver)) {
+		    ptpClock->panicMode = FALSE;
+		    ptpClock->panicOver = FALSE;
+		    timerStop(PANIC_MODE_TIMER, ptpClock->itimer);
+		    NOTICE("Offset below 1 second again: exiting panic mode\n");
+#ifdef PTPD_NTPDC
+/* exiting ntp failover - panic mode over */
+	if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
+                            timerStop(NTPD_FAILOVER_TIMER, ptpClock->itimer);
+			    ptpClock->ntpControl.isRequired = FALSE;
+			    ptpClock->ntpControl.isFailOver = FALSE;
+                            if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE))
+                                DBG("NTPdcontrol - could not return from NTP panic mode\n");
+	}
+#endif /* PTPD_NTPDC */
 
-		
-
-		
-		/* the PI controller */
-		/* Offset from master is less than one second.  Use the the PI controller
-		 * to adjust the time
-		 */
-
-		/* no negative or zero attenuation */
-		if (ap < 1)
-			ap = 1;
-		if (ai < 1)
-			ai = 1;
-
-
-
-		
-		/* the accumulator for the I component */
-		// original PI servo
-		ptpClock->observed_drift += 
-			ptpClock->offsetFromMaster.nanoseconds / ai;
-
-		/* clamp the accumulator to ADJ_FREQ_MAX for sanity */
-		if (ptpClock->observed_drift > rtOpts->servoMaxPpb)
-			ptpClock->observed_drift = rtOpts->servoMaxPpb;
-		else if (ptpClock->observed_drift < -rtOpts->servoMaxPpb)
-			ptpClock->observed_drift = -rtOpts->servoMaxPpb;
-
-		adj = ptpClock->offsetFromMaster.nanoseconds / ap +
-			ptpClock->observed_drift;
-
-		DBG("     Observed_drift with AI component: %d\n",
-			ptpClock->observed_drift  );
-
-		DBG("     After PI: Adj: %d   Drift: %d   OFM %d\n",
-			adj, ptpClock->observed_drift , ptpClock->offsetFromMaster.nanoseconds);
-
-
-		DBG2("     Observed_drift with AI component: %d\n",
-			ptpClock->observed_drift / DBG_UNIT );
-
-		DBG2("     After PI: Adj: %d   Drift: %d   OFM %d\n",
-			adj, ptpClock->observed_drift / DBG_UNIT, ptpClock->offsetFromMaster.nanoseconds / DBG_UNIT);
+	    }
+/* If the last delayMS was an outlier and filter action is discard, skip servo run */
+#ifdef PTPD_STATISTICS
+if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard && ptpClock->delayMSoutlier)
+	    goto statistics;
+#endif /* PTPD_STATISTICS */
 
 #if defined(__APPLE__)
 			adjTime(ptpClock->offsetFromMaster.nanoseconds);
 #else
-		/* Adjust the clock first */
-		adjFreq_wrapper(rtOpts, ptpClock, -adj);
+
+#ifdef PTPD_STATISTICS
+	/* if statistics are enabled, only run the servo if we are calibrted - if calibration delay configured */
+	if(!rtOpts->calibrationDelay || ptpClock->isCalibrated)
+#endif /*PTPD_STATISTICS */
+		/* Adjust the clock first -> the PI controller runs here */
+		adjFreq_wrapper(rtOpts, ptpClock, runPIservo(&ptpClock->servo, ptpClock->offsetFromMaster.nanoseconds));
 		/* Unset STA_UNSYNC */
 		unsetTimexFlags(STA_UNSYNC, TRUE);
 		/* "Tell" the clock about maxerror, esterror etc. */
@@ -618,11 +889,31 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif /* __APPLE__ */
 	}
 
+/* Update relevant statistics containers, feed outlier filter thresholds etc. */
+#ifdef PTPD_STATISTICS
+statistics:
+                        if (rtOpts->delayMSOutlierFilterEnabled) {
+                        	double dDelayMS = timeInternalToDouble(&ptpClock->rawDelayMS);
+                        	if(ptpClock->delayMSoutlier) {
+				/* Allow [weight] * [deviation from mean] to influence std dev in the next outlier checks */
+                        		DBG("DelayMS Outlier: %.09f\n", dDelayMS);
+                        		dDelayMS = ptpClock->delayMSRawStats->meanContainer->mean + 
+						    rtOpts->delayMSOutlierWeight * ( dDelayMS - ptpClock->delayMSRawStats->meanContainer->mean);
+                        	}
+                                feedDoubleMovingStdDev(ptpClock->delayMSRawStats, dDelayMS);
+                                feedDoubleMovingMean(ptpClock->delayMSFiltered, timeInternalToDouble(&ptpClock->delayMS));
+                        }
+                        feedDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats, timeInternalToDouble(&ptpClock->offsetFromMaster));
+#ifdef PTPD_DOUBLE_SERVO
+                        feedDoublePermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
+#else
+                        feedIntPermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
+#endif /* PTPD_DOUBLE_SERVO */
 
+#endif /* PTPD_STATISTICS */
 
 display:
 		logStatistics(rtOpts, ptpClock);
-
 
 	DBGV("\n--Offset Correction-- \n");
 	DBGV("Raw offset from master:  %10ds %11dns\n",
@@ -644,6 +935,256 @@ display:
 	DBGV("offset from master:      %10ds %11dns\n",
 	    ptpClock->offsetFromMaster.seconds, 
 	    ptpClock->offsetFromMaster.nanoseconds);
-	DBGV("observed drift:          %10d\n", ptpClock->observed_drift);
+	DBGV("observed drift:          %10d\n", ptpClock->servo.observedDrift);
 }
 
+void
+setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts)
+{
+    servo->maxOutput = rtOpts->servoMaxPpb;
+    servo->kP = rtOpts->servoKP;
+    servo->kI = rtOpts->servoKI;
+#ifdef PTPD_STATISTICS
+    servo->stabilityThreshold = rtOpts->servoStabilityThreshold;
+    servo->stabilityPeriod = rtOpts->servoStabilityPeriod;
+    servo->stabilityTimeout = (60 / rtOpts->statsUpdateInterval) * rtOpts->servoStabilityTimeout;
+#endif
+}
+
+void
+resetPIservo(PIservo* servo)
+{
+/* not needed: restoreDrift handles this */
+/*   servo->observedDrift = 0; */
+    servo->input = 0;
+    servo->output = 0;
+    servo->lastUpdate.seconds = 0;
+    servo->lastUpdate.nanoseconds = 0;
+}
+
+
+#ifndef PTPD_DOUBLE_SERVO
+
+Integer32
+runPIservo(PIservo* servo, const Integer32 input)
+{
+
+#if 0
+	double dt;
+	TimeInternal now, delta;
+	getTime(&now);
+	if(servo->lastUpdate.seconds == 0 &&
+	    servo->lastUpdate.nanoseconds == 0) {
+	    dt = 1.0;
+	} else {
+	    subTime(&delta, &now, &servo->lastUpdate);
+	    dt = delta.nanoseconds / 1E9;
+	}
+
+#endif
+
+	servo->input = input;
+
+	if (servo->kP < 1)
+		servo->kP = 1;
+	if (servo->kI < 1)
+		servo->kI = 1;
+
+	/*
+	 * kP and kI are scaled to 10000 - but we divide by 10000 first
+	 * so that we don't lose precision
+	 */
+
+#if 0
+	/* 
+	 * Inactive along with the dt calculation above:
+	 * this allows for a reliable delta measurement,
+	 * and decoupling kP and kI from sync interval,
+	 * but sync becomes as slow as with 1 sync/sec.
+	 * To be tested: employ this and work out new
+	 * kP and kI defaults.
+	 */
+	servo->observedDrift +=
+		dt * (input * servo->kI) / 10000;
+#else
+	servo->observedDrift +=
+		(input * servo->kI) / 10000;
+#endif
+	if(servo->observedDrift >= servo->maxOutput) {
+		servo->observedDrift = servo->maxOutput;
+		servo->runningMaxOutput = TRUE;
+	}
+	else if(servo->observedDrift <= -servo->maxOutput) {
+		servo->observedDrift = -servo->maxOutput;
+		servo->runningMaxOutput = TRUE;
+	} else {
+		servo->runningMaxOutput = FALSE;
+	}
+	/*
+	 * kP and kI are scaled to 10000 - but we divide by 10000 first
+	 * so that we don't lose precision
+	 */
+	servo->output = (servo->kP * input) / 10000 + servo->observedDrift;
+
+#if 0
+	servo->lastUpdate = now;
+	DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %d, accumulator (observed drift): %d\n", dt, input, servo->output, servo->observedDrift);
+#else
+	DBGV("Servo input (ofm): %d, output(adj): %d, accumulator (observed drift): %d\n", input, servo->output, servo->observedDrift);
+#endif
+	return -servo->output;
+
+}
+
+#else
+
+double
+runPIservo(PIservo* servo, const Integer32 input)
+{
+
+#if 0
+	double dt;
+	TimeInternal now, delta;
+	getTime(&now);
+	if(servo->lastUpdate.seconds == 0 &&
+	    servo->lastUpdate.nanoseconds == 0) {
+	    dt = 1.0;
+	} else {
+	    subTime(&delta, &now, &servo->lastUpdate);
+	    dt = delta.nanoseconds / 1E9;
+	}
+
+#endif
+
+	servo->input = input;
+
+	if (servo->kP < 1)
+		servo->kP = 1;
+	if (servo->kI < 1)
+		servo->kI = 1;
+
+	/*
+	 * kP and kI are scaled to 10000 - but we divide by 10000 first
+	 * so that we don't lose precision
+	 */
+
+#if 0
+	/* 
+	 * Inactive along with the dt calculation above:
+	 * this allows for a reliable delta measurement,
+	 * and decoupling kP and kI from sync interval,
+	 * but sync becomes as slow as with 1 sync/sec.
+	 * To be tested: employ this and work out new
+	 * kP and kI defaults.
+	 */
+	servo->observedDrift +=
+		dt * ((input + 0.0) * servo->kI) / 10000;
+#else
+	servo->observedDrift +=
+		((input + 0.0 ) * servo->kI) / 10000;
+#endif
+	if(servo->observedDrift >= servo->maxOutput) {
+		servo->observedDrift = servo->maxOutput;
+		servo->runningMaxOutput = TRUE;
+	}
+	else if(servo->observedDrift <= -servo->maxOutput) {
+		servo->observedDrift = -servo->maxOutput;
+		servo->runningMaxOutput = TRUE;
+	} else {
+		servo->runningMaxOutput = FALSE;
+	}
+
+
+	/*
+	 * kP and kI are scaled to 10000 - but we divide by 10000 first
+	 * so that we don't lose precision
+	 */
+	servo->output = (servo->kP * (input + 0.0) ) / 10000 + servo->observedDrift;
+
+#if 0
+	servo->lastUpdate = now;
+	DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %.09f, accumulator (observed drift): %.09f\n", dt, input, servo->output, servo->observedDrift);
+#else
+	DBGV("Servo input (ofm): %d, output(adj): %d, accumulator (observed drift): %d\n", input, servo->output, servo->observedDrift);
+#endif
+	return -servo->output;
+
+}
+
+
+
+#endif /* PTPD_DOUBLE_SERVO */
+
+#ifdef PTPD_STATISTICS
+void
+updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts)
+{
+
+                        DBG("Refreshing slave engine stats counters\n");
+                        ptpClock->slaveStats.owdMean = ptpClock->slaveStats.owdStats.meanContainer.mean;
+                        ptpClock->slaveStats.owdStdDev = ptpClock->slaveStats.owdStats.stdDev;
+                        ptpClock->slaveStats.ofmMean = ptpClock->slaveStats.ofmStats.meanContainer.mean;
+                        ptpClock->slaveStats.ofmStdDev = ptpClock->slaveStats.ofmStats.stdDev;
+                        ptpClock->slaveStats.statsCalculated = TRUE;
+                        ptpClock->servo.driftMean = ptpClock->servo.driftStats.meanContainer.mean;
+                        ptpClock->servo.driftStdDev = ptpClock->servo.driftStats.stdDev;
+                        ptpClock->servo.statsCalculated = TRUE;
+			/* Handle the calibration delay - x periods of stats updates until servo starts */
+			if(rtOpts->calibrationDelay) {
+				++ptpClock->statsUpdates;
+				if(!ptpClock->isCalibrated && ptpClock->statsUpdates >= rtOpts->calibrationDelay) {
+				    NOTICE("PTP engine now calibrated - enabling clock control\n");
+				    ptpClock->isCalibrated = TRUE;
+				    ptpClock->statsUpdates = 0;
+				}
+			}
+	if( (rtOpts->calibrationDelay == 0) || ptpClock->isCalibrated )
+	if(rtOpts->servoStabilityDetection) {
+                ++ptpClock->servo.updateCount;
+                        if ( !ptpClock->servo.runningMaxOutput && (ptpClock->servo.driftStdDev <= ptpClock->servo.stabilityThreshold))
+                            ++ptpClock->servo.stableCount;
+                        else
+                            ptpClock->servo.stableCount = 0;
+
+                        /* Servo considered stable - drift std dev below threshold for n measurements - saving drift*/
+                        if(ptpClock->servo.stableCount >= ptpClock->servo.stabilityPeriod) {
+                                if(!ptpClock->servo.isStable) {
+                                        NOTICE("Clock servo now stable - took %d seconds\n",
+                                                rtOpts->statsUpdateInterval * ptpClock->servo.updateCount);
+                                        saveDrift(ptpClock, rtOpts, FALSE);
+                                } else {
+                                       saveDrift(ptpClock, rtOpts, TRUE);
+                                }
+                                ptpClock->servo.isStable = TRUE;
+                                ptpClock->servo.stableCount = 0;
+                                ptpClock->servo.updateCount = 0;
+                        } else if(ptpClock->servo.updateCount >= ptpClock->servo.stabilityTimeout) {
+                                ptpClock->servo.stableCount = 0;
+                                ptpClock->servo.updateCount = 0;
+                                if(!ptpClock->servo.isStable) {
+                                        if(ptpClock->servo.runningMaxOutput) {
+                                        WARNING("Clock servo not stable after %d seconds - running at maximum rate.\n", rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
+                                        } else {
+                                        WARNING("Clock servo not stable after %d seconds. Saving current observed drift.\n", rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
+                                        saveDrift(ptpClock, rtOpts, FALSE);
+                                        }
+                                } else {
+                                        WARNING("Clock servo no longer stable\n");
+                                        ptpClock->servo.isStable = FALSE;
+                                }
+                        }
+			}
+
+                        DBG("servo stablecount: %d\n",ptpClock->servo.stableCount);
+
+                        resetDoublePermanentStdDev(&ptpClock->slaveStats.owdStats);
+                        resetDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats);
+#ifdef PTPD_DOUBLE_SERVO
+                        resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
+#else
+                        resetIntPermanentStdDev(&ptpClock->servo.driftStats);
+#endif /* PTPD_DOUBLE_SERVO */
+
+}
+
+#endif /* PTPD_STATISTICS */

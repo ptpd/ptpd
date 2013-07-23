@@ -50,13 +50,23 @@
 #include <getopt.h>
 #include <ctype.h>
 #include <glob.h>
-
+#include <stddef.h>
+#ifdef HAVE_UTMPX_H
+#include <utmpx.h>
+#else
+#ifdef HAVE_UTMP_H
+#include <utmp.h>
+#endif /* HAVE_UTMP_H */
+#endif /* HAVE_UTMPX_H */
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
+#ifdef HAVE_PCAP_PCAP_H
 #include <pcap/pcap.h>
-
+#else
+#include <pcap.h>
+#endif
 #ifdef linux
 #ifdef HAVE_SCHED_H
 #include <sched.h>
@@ -65,14 +75,31 @@
 
 #include "constants.h"
 #include "limits.h"
+
 #include "dep/constants_dep.h"
 #include "dep/datatypes_dep.h"
+
+#ifdef PTPD_NTPDC
+#include "dep/ntpengine/ntpdcontrol.h"
+#include "dep/ntpengine/ntp_isc_md5.h"
+#endif /* PTPDC_NTPDC */
+
 #include "datatypes.h"
+
+#ifdef PTPD_STATISTICS
+#include "dep/statistics.h"
+#endif
+
 #include "dep/ptpd_dep.h"
 #include "dep/iniparser/dictionary.h"
 #include "dep/iniparser/iniparser.h"
 #include "dep/daemonconfig.h"
 
+/* No support for double precision servo for Apple */
+
+#ifdef __APPLE__
+#undef PTPD_DOUBLE_SERVO
+#endif /* APPLE */
 
 /* NOTE: this macro can be refactored into a function */
 #define XMALLOC(ptr,size) \
@@ -326,8 +353,8 @@ int gtTime(const TimeInternal *x, const TimeInternal *b);
 void absTime(TimeInternal *time);
 int is_Time_close(const TimeInternal *x, const TimeInternal *b, int nanos);
 int isTimeInternalNegative(const TimeInternal * p);
-
-
+double timeInternalToDouble(const TimeInternal * p);
+TimeInternal doubleToTimeInternal(const double d);
 
 int check_timestamp_is_fresh2(const TimeInternal * timeA, const TimeInternal * timeB);
 int check_timestamp_is_fresh(const TimeInternal * timeA);

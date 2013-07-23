@@ -9,12 +9,10 @@ ptpengine:interface=
 ; PTP domain
 ptpengine:domain=0
 
-; available presets are slaveonly, masteronly and masterslave (full
-; IEEE 1588 implementation)
+; available presets are slaveonly, masteronly and masterslave (full IEEE 1588 implementation)
 ptpengine:preset=slaveonly
 
-; multicast for both sync and delay requests - use hybrid for unicast
-; delay requests
+; multicast for both sync and delay requests - use hybrid for unicast delay requests
 ptpengine:ip_mode=multicast
 
 ; when enabled, sniffing is used instead of sockets to send and receive packets
@@ -22,6 +20,9 @@ ptpengine:use_libpcap=n
 
 ; log file, event log only. if timing statistics are needed, see statistics_file
 global:log_file=/var/log/ptpd2.log
+
+; status file providing an overview of ptpd's operation and statistics
+global:log_status=y
 
 ; required if ip_mode is set to hybrid
 ;ptpengine:log_delayreq_interval=0

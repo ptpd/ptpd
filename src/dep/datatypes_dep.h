@@ -75,7 +75,6 @@ typedef struct {
 	struct in_addr interfaceAddr;
 	Octet port_uuid_field[PTP_UUID_LENGTH];
 	
-
 	/* used for Hybrid mode */
 	Integer32 lastRecvAddr;
 
@@ -89,6 +88,24 @@ typedef struct {
 	Integer32 headerOffset;
 	struct ether_addr *etherDest;
 } NetPath;
+
+typedef struct {
+
+	char* logID;
+	char* openMode;
+	char logPath[PATH_MAX];
+	FILE* logFP;
+
+	Boolean logEnabled;
+	Boolean truncateOnReopen;
+	Boolean unlinkOnClose;
+
+	UInteger32 maxSize;
+	UInteger32 fileSize;
+	int maxFiles;
+
+} LogFileHandler;
+
 
 typedef struct{
 
@@ -129,6 +146,5 @@ typedef struct{
     UInteger16  defaultValue;
 
 } UInteger16_option;
-
 
 #endif /*DATATYPES_DEP_H_*/

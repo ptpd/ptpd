@@ -304,9 +304,8 @@ ssize_t netSendEvent(Octet*,UInteger16,NetPath*,RunTimeOpts*,Integer32 );
 ssize_t netSendGeneral(Octet*,UInteger16,NetPath*,RunTimeOpts*,Integer32 );
 ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*);
 ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*);
-
 Boolean netRefreshIGMP(NetPath *, RunTimeOpts *, PtpClock *);
-
+Boolean hostLookup(const char* hostname, Integer32* addr);
 
 /** \}*/
 
@@ -364,7 +363,10 @@ void DBG_time(const char *name, const TimeInternal  p);
 
 
 void logMessage(int priority, const char *format, ...);
-int restartLog(FILE** logFP, const Boolean condition, const char * logPath, const char * description);
+void updateLogSize(LogFileHandler* handler);
+Boolean maintainLogSize(LogFileHandler* handler);
+int restartLog(LogFileHandler* handler, Boolean quiet);
+void restartLogging(RunTimeOpts* rtOpts);
 void logStatistics(RunTimeOpts *rtOpts, PtpClock *ptpClock);
 void displayStatus(PtpClock *ptpClock, const char *prefixMessage);
 void displayPortIdentity(PortIdentity *port, const char *prefixMessage);
@@ -385,10 +387,21 @@ void adjTime(Integer32);
 
 #if !defined(__APPLE__)
 
+#ifndef PTPD_DOUBLE_SERVO
+
 void adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj);
 Boolean adjFreq(Integer32);
 Integer32 getAdjFreq(void);
 void informClockSource(PtpClock* ptpClock);
+
+#else
+
+void adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj);
+Boolean adjFreq(double);
+double getAdjFreq(void);
+void informClockSource(PtpClock* ptpClock);
+
+#endif /* PTPD_DOUBLE_SERVO */
 
 /* Observed drift save / recovery functions */
 void restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet);
@@ -414,6 +427,7 @@ void setKernelUtcOffset(int utc_offset);
 void initTimer(void);
 void timerUpdate(IntervalTimer*);
 void timerStop(UInteger16,IntervalTimer*);
+
 //void timerStart(UInteger16,UInteger16,IntervalTimer*);
 
 /* R135 patch: we went back to floating point periods (for less than 1s )*/
@@ -423,13 +437,30 @@ void timerStart(UInteger16 index, float interval, IntervalTimer * itimer);
 void timerStart_random(UInteger16 index, float interval, IntervalTimer * itimer);
 
 Boolean timerExpired(UInteger16,IntervalTimer*);
+Boolean timerStopped(UInteger16,IntervalTimer*);
+Boolean timerRunning(UInteger16,IntervalTimer*);
 /** \}*/
 
-
-/*Test functions*/
 void
 reset_operator_messages(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
+void setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts);
+void resetPIservo(PIservo* servo);
 
+#ifdef PTPD_DOUBLE_SERVO
+
+double runPIservo(PIservo* servo, const Integer32 input);
+
+#else
+
+Integer32 runPIservo(PIservo* servo, const Integer32 input);
+
+#endif /* PTPD_DOUBLE_SERVO */
+
+#ifdef PTPD_STATISTICS
+void updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts);
+#endif /* PTPD_STATISTICS */
+
+void writeStatusFile(PtpClock *ptpClock, RunTimeOpts *rtOpts, Boolean quiet);
 
 #endif /*PTPD_DEP_H_*/

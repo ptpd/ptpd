@@ -139,10 +139,10 @@ void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	clearTime(&ptpClock->offsetFromMaster);
 	clearTime(&ptpClock->meanPathDelay);
 
-	/*Parent data set*/
 	copyClockIdentity(ptpClock->parentPortIdentity.clockIdentity,
 	       ptpClock->clockIdentity);
-	ptpClock->parentPortIdentity.portNumber = 0;
+
+	ptpClock->parentPortIdentity.portNumber = ptpClock->numberPorts;
 	ptpClock->parentStats = DEFAULT_PARENTS_STATS;
 	ptpClock->observedParentClockPhaseChangeRate = 0;
 	ptpClock->observedParentOffsetScaledLogVariance = 0;
@@ -215,7 +215,10 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	ptpClock->timePropertiesDS.currentUtcOffset = announce->currentUtcOffset;
 
 	if (ptpClock->timePropertiesDS.currentUtcOffsetValid && !IS_SET(header->flagField1, UTCV)) {
-		WARNING("UTC Offset no longer valid. Clock may jump unless ptpengine:always_respect_utc_offset is set\n");
+		if(rtOpts->alwaysRespectUtcOffset)
+			WARNING("UTC Offset no longer valid and ptpengine:always_respect_utc_offset is set: continuing as normal\n");
+		else
+			WARNING("UTC Offset no longer valid - clock jump expected\n");
 	}
 
         /* "Valid" is bit 2 in second octet of flagfield */
@@ -466,6 +469,12 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 			ptpClock->counters.masterChanges++;
 			if (ptpClock->portState == PTP_SLAVE)
 				displayStatus(ptpClock, "State: ");
+#ifdef PTPD_STATISTICS
+				if(rtOpts->calibrationDelay) {
+					ptpClock->isCalibrated = FALSE;
+					ptpClock->statsUpdates = 0;
+				}
+#endif /* PTPD_STATISTICS */
 		}
 		return PTP_SLAVE;
 	}
@@ -507,6 +516,12 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 				ptpClock->counters.masterChanges++;
 				if(ptpClock->portState == PTP_SLAVE)
 					displayStatus(ptpClock, "State: ");
+#ifdef PTPD_STATISTICS
+				if(rtOpts->calibrationDelay) {
+					ptpClock->isCalibrated = FALSE;
+					ptpClock->statsUpdates = 0;
+				}
+#endif /* PTPD_STATISTICS */
 			}
 			return PTP_SLAVE;
 		} else {

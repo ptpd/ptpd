@@ -158,7 +158,7 @@ translatePortState(PtpClock *ptpClock)
 	    case PTP_FAULTY:        s = "flt";   break;
 	    case PTP_LISTENING:
 		    /* seperate init-reset from real resets */
-		    if(ptpClock->reset_count == 1){
+		    if(ptpClock->resetCount == 1){
 		    	s = "lstn_init";
 		    } else {
 		    	s = "lstn_reset";
@@ -366,6 +366,23 @@ int writeMessage(FILE* destination, int priority, const char * format, va_list a
 
 }
 
+void
+updateLogSize(LogFileHandler* handler)
+{
+
+	struct stat st;
+	if(handler->logFP == NULL)
+		return;
+	if (fstat(fileno(handler->logFP), &st)!=-1) {
+		handler->fileSize = st.st_size;
+		DBG("%s file size is %d\n", handler->logID, handler->fileSize);
+	} else {
+		DBG("fstat on %s file failed!\n", handler->logID);
+	}
+
+}
+
+
 /*
  * Prints a message, randing from critical to debug.
  * This either prints the message to syslog, or with timestamp+state to stderr
@@ -389,8 +406,9 @@ logMessage(int priority, const char * format, ...)
 	    goto end;
 
 	/* If we're using a log file and the message has been written OK, we're done*/
-	if(rtOpts.useLogFile && rtOpts.logFP != NULL) {
-	    if(writeMessage(rtOpts.logFP, priority, format, ap) > 0) {
+	if(rtOpts.eventLog.logEnabled && rtOpts.eventLog.logFP != NULL) {
+	    if(writeMessage(rtOpts.eventLog.logFP, priority, format, ap) > 0) {
+		maintainLogSize(&rtOpts.eventLog);
 		if(!startupInProgress)
 		    goto end;
 		else
@@ -436,37 +454,133 @@ end:
 	return;
 }
 
-/* Reopen file pointer if condition is true, close if open and condition is false. */
+
+/* Restart a file log target based on its settings  */
 int
-restartLog(FILE** logFP, const Boolean condition, const char * logPath, const char * description)
+restartLog(LogFileHandler* handler, Boolean quiet)
 {
 
         /* The FP is open - close it */
-        if(*logFP != NULL) {
-                fclose(*logFP);
+        if(handler->logFP != NULL) {
+                fclose(handler->logFP);
 		/*
 		 * fclose doesn't do this at least on Linux - changes the underlying FD to -1,
 		 * but not the FP to NULL - with this we can tell if the FP is closed
 		 */
-		*logFP=NULL;
+		handler->logFP=NULL;
                 /* If we're not logging to file (any more), call it quits */
-                if (!condition) {
-                    INFO("Logging to %s file disabled. Closing file.\n", description);
+                if (!handler->logEnabled) {
+                    if(!quiet) INFO("Logging to %s file disabled. Closing file.\n", handler->logID);
+		    if(handler->unlinkOnClose)
+			unlink(handler->logPath);
                     return 1;
                 }
         }
         /* FP is not open and we're not logging */
-        if (!condition)
+        if (!handler->logEnabled)
                 return 1;
 
 	/* Open the file */
-        if ((*logFP = fopen(logPath, "a+")) == NULL)
-                PERROR("Could not open %s file", description);
-        else
-		/* \n flushes output for us, no need for fflush() */
-                setlinebuf(*logFP);
+        if ( (handler->logFP = fopen(handler->logPath, handler->openMode)) == NULL) {
+                if(!quiet) PERROR("Could not open %s file", handler->logID);
+        } else {
+		if(handler->truncateOnReopen) {
+			if(!ftruncate(fileno(handler->logFP), 0)) {
+				if(!quiet) INFO("Truncated %s file\n", handler->logID);
+			} else
+				DBG("Could not truncate % file: %s\n", handler->logID, handler->logPath);
+		}
+		/* \n flushes output for us, no need for fflush() - if you want something different, set it later */
+                setlinebuf(handler->logFP);
 
-        return (*logFP != NULL);
+	}
+        return (handler->logFP != NULL);
+}
+
+
+/* Return TRUE only if the log file had to be rotated / truncated - FALSE does not mean error */
+/* Mini-logrotate: truncate file if exceeds preset size, also rotate up to n number of files if configured */
+Boolean
+maintainLogSize(LogFileHandler* handler)
+{
+
+	if(handler->maxSize) {
+		if(handler->logFP == NULL)
+		    return FALSE;
+		updateLogSize(handler);
+		DBG("%s logsize: %d\n", handler->logID, handler->fileSize);
+		if(handler->fileSize > (handler->maxSize * 1024)) {
+
+		    /* Rotate the log file */
+		    if (handler->maxFiles) {
+			int i = 0;
+			int logFileNumber = 0;
+			time_t maxMtime = 0;
+			struct stat st;
+			char fname[PATH_MAX];
+			/* Find the last modified file of the series */
+			while(++i <= handler->maxFiles) {
+				memset(fname, 0, PATH_MAX);
+				snprintf(fname, PATH_MAX,"%s.%d", handler->logPath, i);
+				if((stat(fname,&st) != -1) && S_ISREG(st.st_mode)) {
+					if(st.st_mtime > maxMtime) {
+						maxMtime = st.st_mtime;
+						logFileNumber = i;
+					}
+				}
+			}
+			/* Use next file in line or first one if rolled over */
+			if(++logFileNumber > handler->maxFiles)
+				logFileNumber = 1;
+			memset(fname, 0, PATH_MAX);
+			snprintf(fname, PATH_MAX,"%s.%d", handler->logPath, logFileNumber);
+			/* Move current file to new location */
+			rename(handler->logPath, fname);
+			/* Reopen to reactivate the original path */
+			if(restartLog(handler,TRUE)) {
+				INFO("Rotating %s file - size above %dkB\n",
+					handler->logID, handler->maxSize);
+			} else {
+				DBG("Could not rotate %s file\n",);
+			}
+			return TRUE;
+		    /* Just truncate - maxSize given but no maxFiles */
+		    } else {
+
+			if(!ftruncate(fileno(handler->logFP),0)) {
+			INFO("Truncating %s file - size above %dkB\n",
+				handler->logID, handler->maxSize);
+			} else {
+				DBG("Could not truncate %s file\n",);
+			}
+			return TRUE;
+		    }
+		}
+	}
+
+	return FALSE;
+
+}
+
+
+
+
+void
+restartLogging(RunTimeOpts* rtOpts)
+{
+
+	if(!restartLog(&rtOpts->statisticsLog, TRUE))
+		NOTIFY("Failed logging to %s file\n", rtOpts->statisticsLog.logID);
+
+	if(!restartLog(&rtOpts->recordLog, TRUE))
+		NOTIFY("Failed logging to %s file\n", rtOpts->recordLog.logID);
+
+	if(!restartLog(&rtOpts->eventLog, TRUE))
+		NOTIFY("Failed logging to %s file\n", rtOpts->eventLog.logID);
+
+	if(!restartLog(&rtOpts->statusLog, TRUE))
+		NOTIFY("Failed logging to %s file\n", rtOpts->statusLog.logID);
+
 }
 
 void 
@@ -477,15 +591,15 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	TimeInternal now;
 	time_t time_s;
 	FILE* destination;
-	static TimeInternal prev_now;
+	static TimeInternal prev_now_sync, prev_now_delay;
 	char time_str[MAXTIMESTR];
 
 	if (!rtOpts->logStatistics) {
 		return;
 	}
 
-	if(rtOpts->useStatisticsFile && rtOpts->statisticsFP != NULL)
-	    destination = rtOpts->statisticsFP;
+	if(rtOpts->statisticsLog.logEnabled && rtOpts->statisticsLog.logFP != NULL)
+	    destination = rtOpts->statisticsLog.logFP;
 	else
 	    destination = stdout;
 
@@ -493,30 +607,41 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		ptpClock->resetStatisticsLog = FALSE;
 		fprintf(destination,"# Timestamp, State, Clock ID, One Way Delay, "
 		       "Offset From Master, Slave to Master, "
-		       "Master to Slave, Observed Drift, Last packet Received\n");
+		       "Master to Slave, Observed Drift, Last packet Received"
+#ifdef PTPD_STATISTICS
+			", One Way Delay Mean, One Way Delay Std Dev, Offset From Master Mean, Offset From Master Std Dev, Observed Drift Mean, Observed Drift Std Dev"
+#endif
+			"\n");
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
 
 	getTime(&now);
 
 	/*
-	 * print one log entry per X seconds, to reduce disk usage.
-	 * This only happens to SLAVE SYNC statistics lines, which are the bulk of the log.
-	 * All other lines are printed, including delayreqs.
+	 * print one log entry per X seconds for Sync and DelayResp messages, to reduce disk usage.
 	 */
 
-	if ((ptpClock->portState == PTP_SLAVE) && (rtOpts->statisticsInterval)) {
-		if(ptpClock->last_packet_was_sync){
-			ptpClock->last_packet_was_sync = FALSE;
-			if((now.seconds - prev_now.seconds) < rtOpts->statisticsInterval){
-				//leave early and do not print the log message to save disk space
-				DBGV("Skipped printing of Sync message because of option -V\n");
+	if ((ptpClock->portState == PTP_SLAVE) && (rtOpts->statisticsLogInterval)) {
+			
+		switch(ptpClock->char_last_msg) {
+			case 'S':
+			if((now.seconds - prev_now_sync.seconds) < rtOpts->statisticsLogInterval){
+				DBGV("Suppressed Sync statistics log entry - statisticsLogInterval configured\n");
 				return;
 			}
-			prev_now = now;
+			prev_now_sync = now;
+			    break;
+			case 'D':
+			if((now.seconds - prev_now_delay.seconds) < rtOpts->statisticsLogInterval){
+				DBGV("Suppressed Sync statistics log entry - statisticsLogInterval configured\n");
+				return;
+			}
+			prev_now_delay = now;
+			default:
+			    break;
 		}
 	}
-	ptpClock->last_packet_was_sync = FALSE;
+
 
 	time_s = now.seconds;
 	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&time_s));
@@ -566,9 +691,37 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 				&(ptpClock->delayMS));
 
+#ifndef PTPD_DOUBLE_SERVO
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %d, %c",
-			       ptpClock->observed_drift,
+			       ptpClock->servo.observedDrift,
 			       ptpClock->char_last_msg);
+#else
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %c",
+			       ptpClock->servo.observedDrift,
+			       ptpClock->char_last_msg);
+
+#endif /* PTPD_DOUBLE_SERVO */
+
+#ifdef PTPD_STATISTICS
+
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %.00f, %.09f, %.00f",
+			       ptpClock->slaveStats.owdMean,
+			       ptpClock->slaveStats.owdStdDev * 1E9,
+			       ptpClock->slaveStats.ofmMean,
+			       ptpClock->slaveStats.ofmStdDev * 1E9);
+
+#ifdef PTPD_DOUBLE_SERVO
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.0f, %.0f",
+#else
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %d, %d",
+#endif /* PTPD_DOUBLE_SERVO */
+			       ptpClock->servo.driftMean,
+			       ptpClock->servo.driftStdDev
+);
+
+
+
+#endif /* PTPD_STATISTICS */
 
 	} else {
 		if ((ptpClock->portState == PTP_MASTER) || (ptpClock->portState == PTP_PASSIVE)) {
@@ -583,7 +736,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		if (ptpClock->portState == PTP_LISTENING) {
 			len += snprintf(sbuf + len,
 						     sizeof(sbuf) - len,
-						     " %d ", ptpClock->reset_count);
+						     " %d ", ptpClock->resetCount);
 		}
 	}
 	
@@ -600,6 +753,12 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if (fprintf(destination,sbuf) < len) {
 		PERROR("Error while writing statistics");
 	}
+
+	if(destination == rtOpts->statisticsLog.logFP) {
+		if (maintainLogSize(&rtOpts->statisticsLog))
+			ptpClock->resetStatisticsLog = TRUE;
+	}
+
 }
 
 void 
@@ -614,16 +773,247 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", 
 			portState_getName(ptpClock->portState));
 
-	if (ptpClock->portState == PTP_SLAVE ||
-	    ptpClock->portState == PTP_MASTER ||
-	    ptpClock->portState == PTP_PASSIVE) {
+	if (ptpClock->portState >= PTP_MASTER) {
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", Best master: ");
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-			&ptpClock->foreign[ptpClock->foreign_record_best].header.sourcePortIdentity);
+			&ptpClock->parentPortIdentity);
         }
-
+	if(ptpClock->portState == PTP_MASTER)
+    		len += snprintf(sbuf + len, sizeof(sbuf) - len, " (self)");
         len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
         NOTICE("%s",sbuf);
+}
+
+#define STATUSPREFIX "%-19s:"
+void
+writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
+{
+
+	if(rtOpts->statusLog.logFP == NULL)
+	    return;
+
+	char outBuf[4096];
+	char tmpBuf[200];
+	FILE* out = rtOpts->statusLog.logFP;
+	memset(outBuf, 0, sizeof(outBuf));
+
+	setbuf(out, outBuf);
+	if(ftruncate(fileno(out), 0) < 0) {
+	    DBG("writeStatusFile: ftruncate() failed\n");
+	}
+	rewind(out);
+
+	fprintf(out, 		STATUSPREFIX"  %s\n","Interface", dictionary_get(rtOpts->currentConfig, "ptpengine:interface", ""));
+	fprintf(out, 		STATUSPREFIX"  %s\n","Preset", dictionary_get(rtOpts->currentConfig, "ptpengine:preset", ""));
+	fprintf(out, 		STATUSPREFIX"  %s\n","Transport", dictionary_get(rtOpts->currentConfig, "ptpengine:transport", ""));
+	if(rtOpts->transport != IEEE_802_3)
+	fprintf(out, 		STATUSPREFIX"  %s\n","IP mode", dictionary_get(rtOpts->currentConfig, "ptpengine:ip_mode", ""));
+	fprintf(out, 		STATUSPREFIX"  %s\n","Delay mechanism", dictionary_get(rtOpts->currentConfig, "ptpengine:delay_mechanism", ""));
+	if(ptpClock->portState >= PTP_MASTER) {
+	fprintf(out, 		STATUSPREFIX"  %s\n","Sync mode", ptpClock->twoStepFlag ? "TWO_STEP" : "ONE_STEP");
+	}
+	fprintf(out, 		STATUSPREFIX"  %d\n","PTP domain", rtOpts->domainNumber);
+	fprintf(out, 		STATUSPREFIX"  %s\n","Port state", portState_getName(ptpClock->portState));
+
+	    memset(tmpBuf, 0, sizeof(tmpBuf));
+	    snprint_PortIdentity(tmpBuf, sizeof(tmpBuf),
+	    &ptpClock->portIdentity);
+	fprintf(out, 		STATUSPREFIX"  %s\n","Local port ID", tmpBuf);
+
+
+	if(ptpClock->portState >= PTP_MASTER) {
+	    memset(tmpBuf, 0, sizeof(tmpBuf));
+	    snprint_PortIdentity(tmpBuf, sizeof(tmpBuf),
+	    &ptpClock->parentPortIdentity);
+	fprintf(out, 		STATUSPREFIX"  %s","Best master ID", tmpBuf);
+	if(ptpClock->portState == PTP_MASTER)
+	    fprintf(out," (self)");
+	    fprintf(out,"\n");
+	}
+	if(rtOpts->transport == UDP_IPV4 &&
+	    ptpClock->portState > PTP_MASTER &&
+	    ptpClock->masterAddr) {
+	    {
+	    struct in_addr tmpAddr;
+	    tmpAddr.s_addr = ptpClock->masterAddr;
+	fprintf(out, 		STATUSPREFIX"  %s\n","Best master IP", inet_ntoa(tmpAddr));
+	    }
+
+	}
+
+	if(ptpClock->portState == PTP_SLAVE) {
+	    memset(tmpBuf, 0, sizeof(tmpBuf));
+	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
+		&ptpClock->offsetFromMaster);
+	fprintf(out, 		STATUSPREFIX" %s s","Offset from Master", tmpBuf);
+#ifdef PTPD_STATISTICS
+	if(ptpClock->slaveStats.statsCalculated)
+	fprintf(out, ", mean % .09f s, dev % .09f s",
+		ptpClock->slaveStats.ofmMean,
+		ptpClock->slaveStats.ofmStdDev
+	);
+#endif /* PTPD_STATISTICS */
+	    fprintf(out,"\n");
+
+	    memset(tmpBuf, 0, sizeof(tmpBuf));
+	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
+		&ptpClock->meanPathDelay);
+	fprintf(out, 		STATUSPREFIX" %s s","One-way delay", tmpBuf);
+#ifdef PTPD_STATISTICS
+	if(ptpClock->slaveStats.statsCalculated)
+	fprintf(out, ", mean % .09f s, dev % .09f s",
+		ptpClock->slaveStats.owdMean,
+		ptpClock->slaveStats.owdStdDev
+	);
+#endif /* PTPD_STATISTICS */
+	fprintf(out,"\n");
+#ifndef PTPD_STATISTICS
+if(rtOpts->enablePanicMode || rtOpts->calibrationDelay)
+	fprintf(out, 		STATUSPREFIX"  ","Clock status");
+		if(rtOpts->enablePanicMode) {
+	    if(ptpClock->panicMode) {
+		fprintf(out,"panic mode");
+		if (rtOpts->calibrationDelay)
+		fprintf(out, ", ");
+	    }
+	}
+	if(rtOpts->calibrationDelay) {
+	    fprintf(out, "%s",
+		ptpClock->isCalibrated ? "calibrated" : "not calibrated");
+	}
+#else
+if(rtOpts->enablePanicMode || rtOpts->calibrationDelay || rtOpts->servoStabilityDetection) {
+	fprintf(out, 		STATUSPREFIX"  ","Clock status");
+		if(rtOpts->enablePanicMode) {
+	    if(ptpClock->panicMode) {
+		fprintf(out,"panic mode");
+		if (rtOpts->servoStabilityDetection || rtOpts->calibrationDelay)
+		fprintf(out, ", ");
+	    }
+	}
+	if(rtOpts->calibrationDelay) {
+	    fprintf(out, "%s",
+		ptpClock->isCalibrated ? "calibrated" : "not calibrated");
+	    if (rtOpts->servoStabilityDetection)
+		fprintf(out, ", ");
+	}
+	if (rtOpts->servoStabilityDetection)
+	    fprintf(out, "%s",
+		ptpClock->servo.isStable ? "stabilised" : "not stabilised");
+	fprintf(out,"\n");
+}
+#endif /* PTPD_STATISTICS */
+
+#ifdef PTPD_NTPDC
+	
+	if(rtOpts->ntpOptions.enableEngine) {
+		fprintf(out, 		STATUSPREFIX"  ","NTP control status ");
+
+		    fprintf(out, "%s", (ptpClock->ntpControl.operational) ?
+			    "operational" : "not operational");
+
+		    fprintf(out, "%s", (rtOpts->ntpOptions.ntpInControl) ?
+			    ", preferring NTP" : "");
+
+		    fprintf(out, "%s", (ptpClock->ntpControl.inControl) ?
+			    ", NTP in control" : ptpClock->portState == PTP_SLAVE ? ", PTP in control" : "");
+
+		    fprintf(out, "%s", (ptpClock->ntpControl.isFailOver) ?
+			    ", Failover requested" : "");
+
+		    fprintf(out, "%s", (ptpClock->ntpControl.checkFailed) ?
+			    ", Check failed" : "");
+
+		    fprintf(out, "%s", (ptpClock->ntpControl.requestFailed) ?
+			    ", Request failed" : "");
+
+		    fprintf(out, "\n");
+
+	}
+#endif /* PTPD_NTPDC */
+
+	fprintf(out, 		STATUSPREFIX" % .03f ppm","Drift correction",
+			    ptpClock->servo.observedDrift / 1000);
+if(ptpClock->servo.runningMaxOutput)
+	fprintf(out, " (slewing at maximum rate)");
+else {
+#ifdef PTPD_STATISTICS
+	if(ptpClock->slaveStats.statsCalculated)
+	fprintf(out, ", mean % .03f ppm, dev % .03f ppm",
+		ptpClock->servo.driftMean / 1000,
+		ptpClock->servo.driftStdDev / 1000
+	);
+#endif /* PTPD_STATISTICS */
+}
+	    fprintf(out,"\n");
+
+	fprintf(out,		STATUSPREFIX"  ","Message rates");
+
+	if (ptpClock->logSyncInterval <= 0)
+	    fprintf(out,"%.0f/s",pow(2,-ptpClock->logSyncInterval));
+	else
+	    fprintf(out,"1/%.0fs",pow(2,ptpClock->logSyncInterval));
+	fprintf(out, " sync");
+
+	if(ptpClock->delayMechanism == E2E) {
+		if (ptpClock->logMinDelayReqInterval <= 0)
+		    fprintf(out,", %.0f/s",pow(2,-ptpClock->logMinDelayReqInterval));
+		else
+		    fprintf(out,", 1/%.0fs",pow(2,ptpClock->logMinDelayReqInterval));
+		fprintf(out, " delay");
+	}
+
+	if(ptpClock->delayMechanism == P2P) {
+		if (ptpClock->logMinPdelayReqInterval <= 0)
+		    fprintf(out,", %.0f/s",pow(2,-ptpClock->logMinPdelayReqInterval));
+		else
+		    fprintf(out,", 1/%.0fs",pow(2,ptpClock->logMinPdelayReqInterval));
+		fprintf(out, " pdelay");
+	}
+
+	    fprintf(out,"\n");
+
+	}
+	if(ptpClock->portState == PTP_MASTER || ptpClock->portState == PTP_PASSIVE) {
+
+	fprintf(out, 		STATUSPREFIX"  %d","Priority1 ", ptpClock->priority1);
+	if(ptpClock->portState > PTP_MASTER)
+		fprintf(out, " (master: %d)\n", ptpClock->grandmasterPriority1);
+	fprintf(out, 		STATUSPREFIX"  %d","Priority2 ", ptpClock->priority2);
+	if(ptpClock->portState > PTP_MASTER)
+		fprintf(out, " (master: %d)\n", ptpClock->grandmasterPriority2);
+	fprintf(out, 		STATUSPREFIX"  %d","ClockClass ", ptpClock->clockQuality.clockClass);
+	if(ptpClock->portState > PTP_MASTER)
+		fprintf(out, " (master: %d)\n", ptpClock->grandmasterClockQuality.clockClass);
+	}
+
+
+	fprintf(out, "\n");
+
+	if (ptpClock->clockQuality.clockClass > 127) {
+	fprintf(out, 		STATUSPREFIX"  %d\n","Announce received",
+	    ptpClock->counters.announceMessagesReceived);
+	fprintf(out, 		STATUSPREFIX"  %d\n","Sync received",
+	    ptpClock->counters.syncMessagesReceived);
+	if(ptpClock->twoStepFlag)
+	fprintf(out, 		STATUSPREFIX"  %d\n","Follow-up received",
+	    ptpClock->counters.followUpMessagesReceived);
+	fprintf(out, 		STATUSPREFIX"  %d\n","DelayReq sent",
+	    ptpClock->counters.delayReqMessagesSent);
+	fprintf(out, 		STATUSPREFIX"  %d\n","DelayResp received",
+	    ptpClock->counters.delayRespMessagesReceived);
+	if(ptpClock->counters.domainMismatchErrors)
+	fprintf(out, 		STATUSPREFIX"  %d\n","Domain Mismatches",
+		    ptpClock->counters.domainMismatchErrors);
+	}
+
+	fprintf(out, 		STATUSPREFIX"  %d\n","State transitions",
+		    ptpClock->counters.stateTransitions);
+	fprintf(out, 		STATUSPREFIX"  %d\n","PTP Engine resets",
+		    ptpClock->resetCount);
+
+
+	fflush(out);
 }
 
 void 
@@ -643,10 +1033,12 @@ displayPortIdentity(PortIdentity *port, const char *prefixMessage)
 void
 recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time)
 {
-	if (rtOpts->recordFP)
-		fprintf(rtOpts->recordFP, "%d %llu\n", sequenceId, 
+	if (rtOpts->recordLog.logEnabled && rtOpts->recordLog.logFP != NULL) {
+		fprintf(rtOpts->recordLog.logFP, "%d %llu\n", sequenceId, 
 		  ((time->seconds * 1000000000ULL) + time->nanoseconds)
 		);
+		maintainLogSize(&rtOpts->recordLog);
+	}
 }
 
 Boolean
@@ -927,23 +1319,41 @@ end:
 }
 
 
+/* Whole block of adjtimex() functions starts here - not for Apple */
+#if !defined(__APPLE__)
+
 /*
  * Apply a tick / frequency shift to the kernel clock
  */
-#if !defined(__APPLE__)
+
+/* Integer32 version */
+#ifndef PTPD_DOUBLE_SERVO
+
 Boolean
 adjFreq(Integer32 adj)
 {
 
 	extern RunTimeOpts rtOpts;
 	struct timex t;
+#ifdef HAVE_STRUCT_TIMEX_TICK
 	Integer32 tickAdj = 0;
-
 #ifdef RUNTIME_DEBUG
 	Integer32 oldAdj = adj;
 #endif
 
+#endif /* HAVE_STRUCT_TIMEX_TICK */
+
 	memset(&t, 0, sizeof(t));
+
+	/* Clamp to max PPM */
+	if (adj > rtOpts.servoMaxPpb){
+		adj = rtOpts.servoMaxPpb;
+	} else if (adj < -rtOpts.servoMaxPpb){
+		adj = -rtOpts.servoMaxPpb;
+	}
+
+/* Y U NO HAVE TICK? */
+#ifdef HAVE_STRUCT_TIMEX_TICK
 
 	/* Get the USER_HZ value */
 	Integer32 userHZ = sysconf(_SC_CLK_TCK);
@@ -955,13 +1365,6 @@ adjFreq(Integer32 adj)
 	 * For userHZ = 1000, change by 1 is a 1ms offset (10 times more ticks per second)
 	 */
 	Integer32 tickRes = userHZ * 1000;
-
-	/* Clamp to max PPM */
-	if (adj > rtOpts.servoMaxPpb){
-		adj = rtOpts.servoMaxPpb;
-	} else if (adj < -rtOpts.servoMaxPpb){
-		adj = -rtOpts.servoMaxPpb;
-	}
 
 	/*
 	 * If we are outside the standard +/-512ppm, switch to a tick + freq combination:
@@ -985,16 +1388,17 @@ adjFreq(Integer32 adj)
 		    adj += tickRes;
 		}
         }
-#ifdef HAVE_STRUCT_TIMEX_TICK
 	/* Base tick duration - 10000 when userHZ = 100 */
 	t.tick = 1E6 / userHZ;
 	/* Tick adjustment if necessary */
         t.tick += tickAdj;
 
-	t.modes = MOD_FREQUENCY | ADJ_TICK;
-#else
-	t.modes = MOD_FREQUENCY;
+	t.modes = ADJ_TICK;
+
 #endif /* HAVE_STRUCT_TIMEX_TICK */
+
+	t.modes |= MOD_FREQUENCY;
+
 	t.freq = adj * ((1 << 16) / 1000);
 
 	/* do calculation in double precision, instead of Integer32 */
@@ -1005,18 +1409,116 @@ adjFreq(Integer32 adj)
 	t2 = t1;  // just to avoid compiler warning
 	t2 = (int)round(f);
 	t.freq = t2;
+
+#ifdef HAVE_STRUCT_TIMEX_TICK
 	DBG2("adjFreq: oldadj: %d, newadj: %d, tick: %d, tickadj: %d\n", oldAdj, adj,t.tick,tickAdj);
+#endif /* HAVE_STRUCT_TIMEX_TICK */
+
 	DBG2("        adj is %d;  t freq is %d       (float: %f Integer32: %d)\n", adj, t.freq,  f, t1);
+
+	return !adjtimex(&t);
+
+}
+
+/* Version for double precision servo */
+#else
+
+Boolean
+adjFreq(double adj)
+{
+
+	extern RunTimeOpts rtOpts;
+	struct timex t;
+
+#ifdef HAVE_STRUCT_TIMEX_TICK
+	Integer32 tickAdj = 0;
+
+#ifdef RUNTIME_DEBUG
+	double oldAdj = adj;
+#endif
+
+#endif /* HAVE_STRUCT_TIMEX_TICK */
+
+	memset(&t, 0, sizeof(t));
+
+	/* Clamp to max PPM */
+	if (adj > rtOpts.servoMaxPpb){
+		adj = rtOpts.servoMaxPpb;
+	} else if (adj < -rtOpts.servoMaxPpb){
+		adj = -rtOpts.servoMaxPpb;
+	}
+
+/* Y U NO HAVE TICK? */
+#ifdef HAVE_STRUCT_TIMEX_TICK
+
+	/* Get the USER_HZ value */
+	Integer32 userHZ = sysconf(_SC_CLK_TCK);
+
+	/*
+	 * Get the tick resolution (ppb) - offset caused by changing the tick value by 1.
+	 * The ticks value is the duration of one tick in us. So with userHz = 100  ticks per second,
+	 * change of ticks by 1 (us) means a 100 us frequency shift = 100 ppm = 100000 ppb.
+	 * For userHZ = 1000, change by 1 is a 1ms offset (10 times more ticks per second)
+	 */
+	Integer32 tickRes = userHZ * 1000;
+
+	/*
+	 * If we are outside the standard +/-512ppm, switch to a tick + freq combination:
+	 * Keep moving ticks from adj to tickAdj until we get back to the normal range.
+	 * The offset change will not be super smooth as we flip between tick and frequency,
+	 * but this in general should only be happening under extreme conditions when dragging the
+	 * offset down from very large values. When maxPPM is left at the default value, behaviour
+	 * is the same as previously, clamped to 512ppm, but we keep tick at the base value,
+	 * preventing long stabilisation times say when  we had a non-default tick value left over
+	 * from a previous NTP run.
+	 */
+	if (adj > ADJ_FREQ_MAX){
+		while (adj > ADJ_FREQ_MAX) {
+		    tickAdj++;
+		    adj -= tickRes;
+		}
+
+	} else if (adj < -ADJ_FREQ_MAX){
+		while (adj < -ADJ_FREQ_MAX) {
+		    tickAdj--;
+		    adj += tickRes;
+		}
+        }
+	/* Base tick duration - 10000 when userHZ = 100 */
+	t.tick = 1E6 / userHZ;
+	/* Tick adjustment if necessary */
+        t.tick += tickAdj;
+
+
+	t.modes = ADJ_TICK;
+
+#endif /* HAVE_STRUCT_TIMEX_TICK */
+
+	t.modes |= MOD_FREQUENCY;
+
+	double dFreq = adj * ((1 << 16) / 1000.0);
+	t.freq = (int) round(dFreq);
+#ifdef HAVE_STRUCT_TIMEX_TICK
+	DBG2("adjFreq: oldadj: %.09f, newadj: %.09f, tick: %d, tickadj: %d\n", oldAdj, adj,t.tick,tickAdj);
+#endif /* HAVE_STRUCT_TIMEX_TICK */
+	DBG2("        adj is %.09f;  t freq is %d       (float: %.09f)\n", adj, t.freq,  dFreq);
 	
 	return !adjtimex(&t);
 }
 
+#endif /* PTPD_DOUBLE_SERVO */
+
+#ifndef PTPD_DOUBLE_SERVO
 Integer32
 getAdjFreq(void)
+#else
+double
+getAdjFreq(void)
+#endif /* PTPD_DOUBLE_SERVO */
 {
 	struct timex t;
 	Integer32 freq;
-	float float_freq;
+	double dFreq;
 
 	DBGV("getAdjFreq called\n");
 
@@ -1024,13 +1526,25 @@ getAdjFreq(void)
 	t.modes = 0;
 	adjtimex(&t);
 
-	float_freq = (t.freq + 0.0) / ((1<<16) / 1000.0);
-	freq = (Integer32)round(float_freq);
-	DBGV("          kernel adj is: float %f, Integer32 %d, kernel freq is: %d",
-		float_freq, freq, t.freq);
+	dFreq = (t.freq + 0.0) / ((1<<16) / 1000.0);
 
+	freq = (Integer32)round(dFreq);
+
+	DBGV("          kernel adj is: float %f, Integer32 %d, kernel freq is: %d",
+		dFreq, freq, t.freq);
+
+#ifdef PTPD_DOUBLE_SERVO
+	return(dFreq);
+#else
 	return(freq);
+#endif /* PTPD_DOUBLE_SERVO */
 }
+
+#ifdef PTPD_DOUBLE_SERVO
+#define DRIFTFORMAT "%.0f"
+#else
+#define DRITFTFORMAT "%d"
+#endif /* PTPD_DOUBLE_SERVO */
 
 void
 restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
@@ -1038,12 +1552,16 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	FILE *driftFP;
 	Boolean reset_offset = FALSE;
+#ifndef PTPD_DOUBLE_SERVO
 	Integer32 recovered_drift;
+#else
+	double recovered_drift;
+#endif /* PTPD_DOUBLE_SERVO */
 
 	DBGV("restoreDrift called\n");
 
 	if (ptpClock->drift_saved && rtOpts->drift_recovery_method > 0 ) {
-		ptpClock->observed_drift = ptpClock->last_saved_drift;
+		ptpClock->servo.observedDrift = ptpClock->last_saved_drift;
 		if (!rtOpts->noAdjust) {
 #if defined(__APPLE__)
 			adjTime(-ptpClock->last_saved_drift);
@@ -1064,17 +1582,22 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 					rtOpts->driftFile);
 			} else
 
+#ifndef PTPD_DOUBLE_SERVO
 			if (fscanf(driftFP, "%d", &recovered_drift) != 1) {
+#else
+			if (fscanf(driftFP, "%lf", &recovered_drift) != 1) {
+#endif /* PTPD_DOUBLE_SERVO */
 				PERROR("Could not load saved offset from drift file - using current kernel frequency offset");
 			} else {
 
+
 			fclose(driftFP);
 			if(quiet)
-				DBGV("Observed drift loaded from %s: %d\n",
+				DBGV("Observed drift loaded from %s: "DRIFTFORMAT"\n",
 					rtOpts->driftFile,
 					recovered_drift);
 			else
-				INFO("Observed drift loaded from %s: %d\n",
+				INFO("Observed drift loaded from %s: "DRIFTFORMAT"\n",
 					rtOpts->driftFile,
 					recovered_drift);
 				break;
@@ -1084,10 +1607,10 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 			recovered_drift = -getAdjFreq();
 			if (quiet)
-				DBGV("Observed_drift loaded from kernel: %d\n",
+				DBGV("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
 					recovered_drift);
 			else
-				INFO("Observed_drift loaded from kernel: %d\n",
+				INFO("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
 					recovered_drift);
 
 		break;
@@ -1104,23 +1627,21 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 #if !defined(__APPLE__)
 		  adjFreq_wrapper(rtOpts, ptpClock, 0);
 #endif /* __APPLE__ */
-		ptpClock->observed_drift = 0;
+		ptpClock->servo.observedDrift = 0;
 		return;
 	}
 
-	ptpClock->observed_drift = recovered_drift;
+	ptpClock->servo.observedDrift = recovered_drift;
 
-/*
- * temporary: will be used when clock stabilisation
- * estimation is implemented
- */
-//	ptpClock->drift_saved = TRUE;
+	ptpClock->drift_saved = TRUE;
 	ptpClock->last_saved_drift = recovered_drift;
 	if (!rtOpts->noAdjust)
 #if !defined(__APPLE__)
 		adjFreq(-recovered_drift);
 #endif /* __APPLE__ */
 }
+
+#undef DRIFTFORMAT
 
 void
 saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
@@ -1130,7 +1651,7 @@ saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 	DBGV("saveDrift called\n");
 
 	if (rtOpts->drift_recovery_method > 0) {
-		ptpClock->last_saved_drift = ptpClock->observed_drift;
+		ptpClock->last_saved_drift = ptpClock->servo.observedDrift;
 		ptpClock->drift_saved = TRUE;
 	}
 
@@ -1142,7 +1663,12 @@ saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 		return;
 	}
 
-	fprintf(driftFP, "%d\n", ptpClock->observed_drift);
+#ifndef PTPD_DOUBLE_SERVO
+	fprintf(driftFP, "%d\n", ptpClock->servo.observedDrift);
+#else
+	/* The fractional part really won't make a difference here */
+	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.observedDrift));
+#endif /* PTPD_DOUBLE_SERVO */
 
 	if (quiet) {
 		DBGV("Wrote observed drift to %s\n", rtOpts->driftFile);

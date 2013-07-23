@@ -69,7 +69,7 @@
 #endif
 
 #define CLOCK_IDENTITY_LENGTH 8
-#define ADJ_FREQ_MAX  512000
+#define ADJ_FREQ_MAX 512000
 
 /* UDP/IPv4 dependent */
 #ifndef INADDR_LOOPBACK
@@ -115,6 +115,9 @@
 
 /* default drift file location */
 #define DEFAULT_DRIFTFILE "/etc/"PTPD_PROGNAME"_"DEFAULT_CLOCKDRIVER".drift"
+
+/* default status file location */
+#define DEFAULT_STATUSFILE DEFAULT_LOCKDIR"/"PTPD_PROGNAME".status"
 
 /* Highest log level (default) catches all */
 #define LOG_ALL LOG_DEBUGV

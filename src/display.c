@@ -487,6 +487,7 @@ mMErrorStatus_display(const MMErrorStatus* errorStatus, const PtpClock *ptpClock
 	/* TODO: implement me */
 }
 
+
 /**\brief Display runTimeOptions structure*/
 void
 displayRunTimeOpts(const RunTimeOpts * rtOpts)
@@ -802,7 +803,7 @@ displayCounters(const PtpClock * ptpClock)
 {
 
 	/* TODO: print port identity */
-	INFO("============= PTP port counters =============\n");
+	INFO("\n============= PTP port counters =============\n");
 
 	INFO("Message counters:\n");
 	INFO("              announceMessagesSent : %d\n",
@@ -890,6 +891,15 @@ displayCounters(const PtpClock * ptpClock)
 		ptpClock->counters.sequenceMismatchErrors);
 	INFO("           delayModeMismatchErrors : %d\n",
 		ptpClock->counters.delayModeMismatchErrors);
+
+#ifdef PTPD_STATISTICS
+	INFO("Outlier filter hits:\n");
+	INFO("              delayMSOutliersFound : %d\n",
+		ptpClock->counters.delayMSOutliersFound);
+	INFO("              delaySMOutliersFound : %d\n",
+		ptpClock->counters.delaySMOutliersFound);
+#endif /* PTPD_STATISTICS */
+
 }
 
 /**\brief Display all PTP clock (port) statistics*/
@@ -897,10 +907,12 @@ void
 displayStatistics(const PtpClock* ptpClock)
 {
 
+/*
 	INFO("Clock stats: ofm mean: %d, ofm median: %d,"
 	     "ofm std dev: %d, observed drift std dev: %d\n",
 	     ptpClock->stats.ofmMean, ptpClock->stats.ofmMedian,
 	     ptpClock->stats.ofmStdDev, ptpClock->stats.driftStdDev);
+*/
 
 }
 

@@ -56,7 +56,7 @@ Boolean doInit(RunTimeOpts*,PtpClock*);
 static void doState(RunTimeOpts*,PtpClock*);
 
 void handle(RunTimeOpts*,PtpClock*);
-static void handleAnnounce(MsgHeader*, ssize_t,Boolean, const RunTimeOpts*,PtpClock*);
+static void handleAnnounce(MsgHeader*, ssize_t,Boolean, RunTimeOpts*,PtpClock*);
 static void handleSync(const MsgHeader*, ssize_t,TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
 static void handleFollowUp(const MsgHeader*, ssize_t,Boolean,RunTimeOpts*,PtpClock*);
 static void handlePDelayReq(MsgHeader*, ssize_t,const TimeInternal*,Boolean,RunTimeOpts*,PtpClock*);
@@ -85,7 +85,6 @@ static void issueManagementErrorStatus(MsgManagement*,RunTimeOpts*,PtpClock*);
 void addForeign(Octet*,MsgHeader*,PtpClock*);
 
 void clearCounters(PtpClock *);
-void clearStats(PtpClock *);
 
 /* loop forever. doState() has a switch for the actions and events to be
    checked for 'port_state'. the actions and events may or may not change
@@ -97,8 +96,47 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	DBG("event POWERUP\n");
 
 	toState(PTP_INITIALIZING, rtOpts, ptpClock);
+	if(rtOpts->statusLog.logEnabled)
+		writeStatusFile(ptpClock, rtOpts, TRUE);
+
+#ifdef PTPD_NTPDC
+	/* 
+	 * The deamon is just starting - if NTP failover enabled, start the timers now,
+	 * so that if we haven't found a master, we will fail over.
+	 */
+	if(rtOpts->ntpOptions.enableEngine) {
+	    timerStart(NTPD_CHECK_TIMER,rtOpts->ntpOptions.checkInterval,ptpClock->itimer);
+
+			  /* NTP is the desired clock controller - don't wait or failover, flip now */
+                        if(rtOpts->ntpOptions.ntpInControl) {
+                                ptpClock->ntpControl.isRequired = rtOpts->ntpOptions.ntpInControl;
+                                        if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE))
+                                                DBG("STARTUP - NTP preferred - could not fail over\n");
+                        } else if(rtOpts->ntpOptions.enableFailover) {
+                                /* We have a timeout defined */
+                                if(rtOpts->ntpOptions.failoverTimeout) {
+                                        DBG("NTP failover timer started\n");
+                                        timerStart(NTPD_FAILOVER_TIMER,
+                                                    rtOpts->ntpOptions.failoverTimeout,
+                                                    ptpClock->itimer);
+                                /* Fail over to NTP straight away */
+                                } else {
+                                        DBG("Initiating NTP failover\n");
+                                        ptpClock->ntpControl.isRequired = TRUE;
+                                        ptpClock->ntpControl.isFailOver = TRUE;
+                                        if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE))
+                                                DBG("STARTUP instant NTP failover - could not fail over\n");
+                                }
+                        }
+	}
+#endif /* PTPD_NTPDC */
+
+	timerStart(STATUSFILE_UPDATE_TIMER,rtOpts->statusFileUpdateInterval,ptpClock->itimer);
 
 	DBG("Debug Initializing...\n");
+
+	if(rtOpts->statusLog.logEnabled)
+		writeStatusFile(ptpClock, rtOpts, TRUE);
 
 	for (;;)
 	{
@@ -139,6 +177,46 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    if(rtOpts->restartSubsystems & PTPD_RESTART_LOGGING) {
 				NOTIFY("Applying logging configuration: restarting logging\n");
 		    }
+
+#ifdef PTPD_STATISTICS
+                    /* Reinitialising the outlier filter containers */
+                    if(rtOpts->restartSubsystems & PTPD_RESTART_PEIRCE) {
+                                NOTIFY("Applying outlier filter configuration: re-initialising filters\n");
+
+                                if(ptpClock->delayMSRawStats != NULL )
+                                        freeDoubleMovingStdDev(&ptpClock->delayMSRawStats);
+                                if(ptpClock->delayMSFiltered != NULL )
+                                        freeDoubleMovingMean(&ptpClock->delayMSFiltered);
+
+                                if(ptpClock->delaySMRawStats != NULL )
+                                        freeDoubleMovingStdDev(&ptpClock->delaySMRawStats);
+                                if(ptpClock->delaySMFiltered != NULL )
+                                        freeDoubleMovingMean(&ptpClock->delaySMFiltered);
+
+                                if (rtOpts->delayMSOutlierFilterEnabled) {
+                                        ptpClock->delayMSRawStats = createDoubleMovingStdDev(rtOpts->delayMSOutlierFilterCapacity);
+                                        strncpy(ptpClock->delayMSRawStats->identifier, "delayMS", 10);
+                                        ptpClock->delayMSFiltered = createDoubleMovingMean(rtOpts->delayMSOutlierFilterCapacity);
+                                }
+
+                                if (rtOpts->delaySMOutlierFilterEnabled) {
+                                        ptpClock->delaySMRawStats = createDoubleMovingStdDev(rtOpts->delaySMOutlierFilterCapacity);
+                                        strncpy(ptpClock->delaySMRawStats->identifier, "delaySM", 10);
+                                        ptpClock->delaySMFiltered = createDoubleMovingMean(rtOpts->delaySMOutlierFilterCapacity);
+                                }
+
+
+                }
+#endif /* PTPD_STATISTICS */
+
+#ifdef PTPD_NTPDC
+                    if(rtOpts->restartSubsystems & PTPD_RESTART_NTPENGINE) {
+                                NOTIFY("Applying NTP engine configuration\n");
+		    }
+#endif /* PTPD_NTPDC */
+
+		    /* Update PI servo parameters */
+		    setupPIservo(&ptpClock->servo, rtOpts);
 		    /* Config changes don't require subsystem restarts - acknowledge it */
 		    if(rtOpts->restartSubsystems == PTPD_RESTART_NONE) {
 				NOTIFY("Applying configuration\n");
@@ -146,8 +224,8 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		    if(rtOpts->restartSubsystems != -1)
 			    rtOpts->restartSubsystems = 0;
-		}
 
+		}
 		/* Perform the heavy signal processing synchronously */
 		checkSignals(rtOpts, ptpClock);
 	}
@@ -176,10 +254,21 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			timerStop(DELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
 		else if (ptpClock->delayMechanism == P2P)
 			timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
+/* If statistics are enabled, drift should have been saved already - otherwise save it*/
+#ifndef PTPD_STATISTICS
 #if !defined(__APPLE__)
 		/* save observed drift value, don't inform user */
 		saveDrift(ptpClock, rtOpts, TRUE);
 #endif /* apple */
+#endif /* PTPD_STATISTICS */
+
+#ifdef PTPD_STATISTICS
+		resetPtpEngineSlaveStats(&ptpClock->slaveStats);
+		timerStop(STATISTICS_UPDATE_TIMER, ptpClock->itimer);
+#endif /* PTPD_STATISTICS */
+		ptpClock->panicMode = FALSE;
+		ptpClock->panicOver = FALSE;
+		timerStop(PANIC_MODE_TIMER, ptpClock->itimer);
 		initClock(rtOpts, ptpClock); 
 		break;
 		
@@ -201,6 +290,21 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->counters.stateTransitions++;
 
 	DBG("state %s\n",portState_getName(state));
+
+#ifdef PTPD_NTPDC
+	/* 
+	 * Keep the NTP control container informed. Depending on config,
+	 * we may be going between SLAVE when NTP should not be running
+	 * and MASTER when it should
+	 */
+	if(rtOpts->ntpOptions.enableEngine && !ptpClock->ntpControl.isFailOver) {
+		ptpClock->ntpControl.isRequired = 
+		rtOpts->ntpOptions.ntpInControl;
+		if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, TRUE)) {
+			DBG("NTPdControl() fail during state change\n");
+		}
+	}
+#endif /* PTPD_NTPDC */
 
 	/*
 	 * No need of PRE_MASTER state because of only ordinary clock
@@ -233,7 +337,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		 *  If we were already in Listen mode, then do not count this as a seperate reset, but stil do a new IGMP refresh
 		 */
 		if (ptpClock->portState != PTP_LISTENING) {
-			ptpClock->reset_count++;
+			ptpClock->resetCount++;
 		}
 
 		/* Revert to the original DelayReq interval, and ignore the one for the last master */
@@ -249,9 +353,45 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   (ptpClock->announceReceiptTimeout) * 
 			   (pow(2,ptpClock->logAnnounceInterval)), 
 			   ptpClock->itimer);
-		ptpClock->portState = PTP_LISTENING;
 		ptpClock->announceTimeouts = 0;
-		displayStatus(ptpClock, "Now in state: ");
+/* We've entered LISTENING state from SLAVE - start NTP failover actions */
+#ifdef PTPD_NTPDC
+		if(ptpClock->portState == PTP_SLAVE) {
+			/* NTP is the desired clock controller - don't wait or failover, flip now */
+			if(rtOpts->ntpOptions.ntpInControl) {
+				ptpClock->ntpControl.isRequired = rtOpts->ntpOptions.ntpInControl;
+					if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE))
+						DBG("LISTENING - NTP preferred - could not fail over\n");
+			} else if(rtOpts->ntpOptions.enableFailover) {
+				/* We have a timeout defined */
+				if(rtOpts->ntpOptions.failoverTimeout) {
+					INFO("NTP failover timer started\n");
+					timerStart(NTPD_FAILOVER_TIMER, 
+						    rtOpts->ntpOptions.failoverTimeout, 
+						    ptpClock->itimer);
+				/* Fail over to NTP straight away */
+				} else {
+					DBG("Initiating NTP failover\n");
+					ptpClock->ntpControl.isRequired = TRUE;
+					ptpClock->ntpControl.isFailOver = TRUE;
+					if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE))
+						DBG("LISTENING instant NTP failover - could not fail over\n");
+				}
+			}
+		}
+#endif /* PTPD_NTPDC */
+
+		/* 
+		 * Log status update only once - condition must be checked before we write the new state,
+		 * but the new state must be eritten before the log message...
+		 */
+		if (ptpClock->portState != state) {
+			ptpClock->portState = PTP_LISTENING;
+			displayStatus(ptpClock, "Now in state: ");
+		} else {
+			ptpClock->portState = PTP_LISTENING;
+		}
+
 		break;
 
 	case PTP_MASTER:
@@ -278,8 +418,8 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   (pow(2,ptpClock->logAnnounceInterval)), 
 			   ptpClock->itimer);
 		ptpClock->portState = PTP_PASSIVE;
-		displayStatus(ptpClock, "Now in state: ");
 		p1(ptpClock, rtOpts);
+		displayStatus(ptpClock, "Now in state: ");
 		break;
 
 	case PTP_UNCALIBRATED:
@@ -287,6 +427,29 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 
 	case PTP_SLAVE:
+
+#ifdef PTPD_NTPDC
+		/* about to go into SLAVE state from another state - make sure we check NTPd clock control (quietly)*/
+		if (ptpClock->portState != PTP_SLAVE && rtOpts->ntpOptions.enableEngine) {
+/* This does not get us out of panic mode */
+if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
+ {
+			INFO("About to enter SLAVE state - checking local NTPd\n");
+			/*
+			 * In case if we were in failover mode - disable it,
+			 * but if we're controlling the clock, always disable NTPd
+			 */
+			if(!rtOpts->noAdjust) {
+				ptpClock->ntpControl.isRequired = FALSE;
+				ptpClock->ntpControl.isFailOver = FALSE;
+			}
+			ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, TRUE);
+			timerStop(NTPD_FAILOVER_TIMER, ptpClock->itimer);
+		}
+
+		}
+#endif /* PTPD_NTPDC */
+
 		initClock(rtOpts, ptpClock);
 #if !defined(__APPLE__)
 		/*
@@ -298,7 +461,10 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		ptpClock->waitingForFollow = FALSE;
 		ptpClock->waitingForDelayResp = FALSE;
-
+#ifdef PTPD_STATISTICS
+		ptpClock->statsUpdates = 0;
+		ptpClock->isCalibrated = FALSE;
+#endif /* PTPD_STATISTICS */
 		// FIXME: clear these vars inside initclock
 		clearTime(&ptpClock->delay_req_send_time);
 		clearTime(&ptpClock->delay_req_receive_time);
@@ -329,6 +495,26 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->announceTimeouts = 0;
 		ptpClock->portState = PTP_SLAVE;
 		displayStatus(ptpClock, "Now in state: ");
+
+#ifdef PTPD_STATISTICS
+		resetDoubleMovingStdDev(ptpClock->delayMSRawStats);
+		resetDoubleMovingMean(ptpClock->delayMSFiltered);
+		resetDoubleMovingStdDev(ptpClock->delaySMRawStats);
+		resetDoubleMovingMean(ptpClock->delaySMFiltered);
+		clearPtpEngineSlaveStats(&ptpClock->slaveStats);
+		ptpClock->delayMSoutlier = FALSE;
+		ptpClock->delaySMoutlier = FALSE;
+		ptpClock->servo.driftMean = 0;
+		ptpClock->servo.driftStdDev = 0;
+		ptpClock->servo.isStable = FALSE;
+		ptpClock->servo.statsCalculated = FALSE;
+#ifdef PTPD_DOUBLE_SERVO
+		resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
+#else
+		resetIntPermanentStdDev(&ptpClock->servo.driftStats);
+#endif /* PTPD_DOUBLE_SERVO */
+		timerStart(STATISTICS_UPDATE_TIMER, rtOpts->statsUpdateInterval, ptpClock->itimer);
+#endif /* PTPD_STATISTICS */
 
 #if !defined(__APPLE__)
 
@@ -374,10 +560,28 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		return FALSE;
 	}
 	
+
+#ifdef PTPD_NTPDC
+
+	ntpShutdown(&rtOpts->ntpOptions, &ptpClock->ntpControl);
+	if(rtOpts->ntpOptions.enableEngine) {
+		if(!(ptpClock->ntpControl.operational = 
+			ntpInit(&rtOpts->ntpOptions, &ptpClock->ntpControl))) {
+			NOTICE("Could not start NTP control subsystem");
+		}
+	}
+
+	if(rtOpts->ntpOptions.enableEngine) {
+	    ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, TRUE);
+	}
+
+#endif /* PTPD_NTPDC */
+
 	/* initialize other stuff */
 	initData(rtOpts, ptpClock);
 	initTimer();
 	initClock(rtOpts, ptpClock);
+	setupPIservo(&ptpClock->servo, rtOpts);
 #if !defined(__APPLE__)
 	/* restore observed drift and inform user */
 	if(ptpClock->clockQuality.clockClass > 127)
@@ -387,7 +591,11 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	msgPackHeader(ptpClock->msgObuf, ptpClock);
 	
 	toState(PTP_LISTENING, rtOpts, ptpClock);
-	
+
+	if(rtOpts->statusLog.logEnabled)
+		writeStatusFile(ptpClock, rtOpts, TRUE);
+
+
 	return TRUE;
 }
 
@@ -458,6 +666,10 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				toState(PTP_MASTER, rtOpts, ptpClock);
 
 			} else if(ptpClock->portState != PTP_LISTENING) {
+#ifdef PTPD_STATISTICS
+				/* stop statistics updates */
+				timerStop(STATISTICS_UPDATE_TIMER, ptpClock->itimer);
+#endif /* PTPD_STATISTICS */
 
 				if(ptpClock->announceTimeouts < rtOpts->announceTimeoutGracePeriod) {
 				/*
@@ -475,7 +687,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterPriority1=255;
 					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterPriority2=255;
 					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterClockQuality.clockClass=255;
-					NOTICE("GM announce timeout, disqualified current best GM\n");
+					WARNING("GM announce timeout, disqualified current best GM\n");
 					ptpClock->counters.announceTimeouts++;
 				}
 				netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
@@ -489,7 +701,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 					INFO("Waiting for new master, %d of %d attempts\n",ptpClock->announceTimeouts,rtOpts->announceTimeoutGracePeriod);
 				} else {
-					NOTICE("No active masters present. Resetting port.\n");
+					WARNING("No active masters present. Resetting port.\n");
 					ptpClock->number_foreign_records = 0;
 					ptpClock->foreign_record_i = 0;
 					toState(PTP_LISTENING, rtOpts, ptpClock);
@@ -502,6 +714,25 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				    toState(PTP_LISTENING, rtOpts, ptpClock);
                                 }
                 }
+
+#ifdef PTPD_NTPDC
+		if(rtOpts->ntpOptions.enableEngine) {
+			if( (rtOpts->ntpOptions.enableFailover || (rtOpts->panicModeNtp && ptpClock->panicMode ))&& 
+				timerExpired(NTPD_FAILOVER_TIMER, ptpClock->itimer)) {
+				NOTICE("NTP failover triggered\n");
+				ptpClock->ntpControl.isRequired = TRUE;
+				ptpClock->ntpControl.isFailOver = TRUE;
+				if(ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE)) {
+					/* successfully failed over to NTP - stop failover timer */
+					timerStop(NTPD_FAILOVER_TIMER, ptpClock->itimer);
+				} else {
+					DBG("Could not check / request NTP failover\n");
+				}
+				/* (re)start the NTP check timer, so that you don't check just after a failover attempt */
+				timerStart(NTPD_CHECK_TIMER,rtOpts->ntpOptions.checkInterval,ptpClock->itimer);
+			}
+		}
+#endif /* PTPD_NTPDC */
 
 		if (timerExpired(OPERATOR_MESSAGES_TIMER, ptpClock->itimer)) {
 			reset_operator_messages(rtOpts, ptpClock);
@@ -568,6 +799,16 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				       ptpClock->itimer);
 		}
 
+/* Update PTP slave statistics from online statistics containers */
+#ifdef PTPD_STATISTICS
+		if (timerExpired(STATISTICS_UPDATE_TIMER,ptpClock->itimer)) {
+			if(!rtOpts->enablePanicMode || !ptpClock->panicMode)
+				updatePtpEngineStats(ptpClock, rtOpts);
+		}
+#endif /* PTPD_STATISTICS */
+
+
+
 		break;
 
 	case PTP_MASTER:
@@ -613,6 +854,36 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		DBG("(doState) do unrecognized state\n");
 		break;
 	}
+
+#ifdef PTPD_NTPDC
+/* Periodic NTP check */
+		if(timerExpired(NTPD_CHECK_TIMER,ptpClock->itimer)) {
+			/* check NTP status, make sure it is enabled / disabled based on NTPcontrol->required*/
+			if (!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl,TRUE)) {
+				DBG("Could not perform NTP check\n");
+			}
+			/* Explicitly restart NTP check timer with the current interval value */
+			timerStart(NTPD_CHECK_TIMER,rtOpts->ntpOptions.checkInterval,ptpClock->itimer);
+		}
+#endif /* PTPD_NTPDC */
+
+        if(rtOpts->statusLog.logEnabled && timerExpired(STATUSFILE_UPDATE_TIMER,ptpClock->itimer)) {
+                writeStatusFile(ptpClock,rtOpts,TRUE);
+		/* ensures that the current updare interval is used */
+		timerStart(STATUSFILE_UPDATE_TIMER,rtOpts->statusFileUpdateInterval,ptpClock->itimer);
+        }
+
+	if(rtOpts->enablePanicMode && timerExpired(PANIC_MODE_TIMER, ptpClock->itimer)) {
+
+		DBG("Panic check\n");
+
+		if(--ptpClock->panicModeTimeLeft <= 0) {
+			ptpClock->panicMode = FALSE;
+			ptpClock->panicOver = TRUE;
+			DBG("panic over!\n");
+		}
+	}
+
 }
 
 static Boolean
@@ -853,7 +1124,7 @@ process:
 /*spec 9.5.3*/
 static void 
 handleAnnounce(MsgHeader *header, ssize_t length, 
-	       Boolean isFromSelf, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+	       Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
 	DBGV("HandleAnnounce : Announce message received : \n");
@@ -865,6 +1136,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 	}
 
 	//DBGV("  >> HandleAnnounce : %d  \n", ptpClock->portState);
+
 
 
 	switch (ptpClock->portState) {
@@ -929,15 +1201,34 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 				   (pow(2,ptpClock->logAnnounceInterval)), 
 				   ptpClock->itimer);
 
+#ifdef PTPD_STATISTICS
+		if(timerStopped(STATISTICS_UPDATE_TIMER, ptpClock->itimer)) {
+			timerStart(STATISTICS_UPDATE_TIMER, rtOpts->statsUpdateInterval, ptpClock->itimer);
+		}
+#endif /* PTPD_STATISTICS */
+
 			if (rtOpts->announceTimeoutGracePeriod &&
 				ptpClock->announceTimeouts > 0) {
 					NOTICE("Received Announce message from master - cancelling timeout\n");
 					ptpClock->announceTimeouts = 0;
+#ifdef PTPD_NTPDC
+			/* Cancel NTP failover if in place */
+			if (rtOpts->ntpOptions.enableEngine) {
+				INFO("About to enter SLAVE state - checking local NTPd\n");
+				/* In case if we were in failover mode - disable it */
+				ptpClock->ntpControl.isRequired = FALSE;
+				if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, TRUE)) {
+					DBG("NTPDcontrol() failed during toState(SLAVE)\n");
+				}
+				timerStop(NTPD_FAILOVER_TIMER, ptpClock->itimer);
+			}
+#endif /* PTPD_NTPDC */
+
 			}
 
 			// remember IP address of our master for hybrid mode
 			// todo: add this to bmc(), to cover the very first packet
-			ptpClock->MasterAddr = ptpClock->netPath.lastRecvAddr;
+			ptpClock->masterAddr = ptpClock->netPath.lastRecvAddr;
 
 			break;
 
@@ -996,6 +1287,8 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			 */
 			/* update datasets (file bmc.c) */
 			s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
+
+			ptpClock->masterAddr = ptpClock->netPath.lastRecvAddr;
 
 			DBG("___ Announce: received Announce from current Master, so reset the Announce timer\n\n");
 			/*Reset Timer handling Announce receipt timeout*/
@@ -1081,6 +1374,8 @@ handleSync(const MsgHeader *header, ssize_t length,
 						   ptpClock->itimer);
 			}
 
+			ptpClock->logSyncInterval = header->logMessageInterval;
+
 			ptpClock->sync_receive_time.seconds = tint->seconds;
 			ptpClock->sync_receive_time.nanoseconds = tint->nanoseconds;
 
@@ -1088,7 +1383,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 
 			if ((header->flagField0 & PTP_TWO_STEP) == PTP_TWO_STEP) {
 				DBG2("HandleSync: waiting for follow-up \n");
-
+				ptpClock->twoStepFlag=TRUE;
 				ptpClock->waitingForFollow = TRUE;
 				ptpClock->recvSyncSequenceId = 
 					header->sequenceId;
@@ -1116,6 +1411,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 					     &ptpClock->ofm_filt,rtOpts,
 					     ptpClock,&correctionField);
 				updateClock(rtOpts,ptpClock);
+				ptpClock->twoStepFlag=FALSE;
 				break;
 			}
 		} else {
@@ -1183,6 +1479,7 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 	case PTP_SLAVE:
 		if (isFromCurrentParent(ptpClock, header)) {
 			ptpClock->counters.followUpMessagesReceived++;
+			ptpClock->logSyncInterval = header->logMessageInterval;
 			if (ptpClock->waitingForFollow)	{
 				if (ptpClock->recvSyncSequenceId == 
 				     header->sequenceId) {
@@ -1423,7 +1720,6 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 
 				updateDelay(&ptpClock->owd_filt,
 					    rtOpts,ptpClock, &correctionField);
-
 				if (ptpClock->waiting_for_first_delayresp) {
 					ptpClock->waiting_for_first_delayresp = FALSE;
 					NOTICE("Received first Delay Response from Master\n");
@@ -2078,7 +2374,7 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	Integer32 dst = 0;
 
 	if (rtOpts->ip_mode == IPMODE_HYBRID) {
-		dst = ptpClock->MasterAddr;
+		dst = ptpClock->masterAddr;
 	}
 
 	if (!netSendEvent(ptpClock->msgObuf,DELAY_REQ_LENGTH,
@@ -2393,11 +2689,3 @@ clearCounters(PtpClock * ptpClock)
 
 }
 
-void
-clearStats(PtpClock * ptpClock)
-{
-	/* TODO: print port info */
-	DBG("Port statistics cleared\n");
-	memset(&ptpClock->stats, 0, sizeof(ptpClock->stats));
-
-}

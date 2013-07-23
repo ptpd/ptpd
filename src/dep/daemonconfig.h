@@ -14,21 +14,30 @@
 /* Config reload - component restart status flags */
 
 /* No restart required - can continue with new config */
-#define PTPD_RESTART_NONE	1
+#define PTPD_RESTART_NONE	1 << 0
 /* PTP port datasetw can be updated without restarting FSM */
-#define PTPD_UPDATE_DATASETS	2
+#define PTPD_UPDATE_DATASETS	1 << 1
 /* PTP FSM port re-initialisation required (PTP_INITIALIZING) */
-#define PTPD_RESTART_PROTOCOL	4
+#define PTPD_RESTART_PROTOCOL	1 << 2
 /* Network config changed: PTP_INITIALIZING handles this so far */
-#define PTPD_RESTART_NETWORK	8
+#define PTPD_RESTART_NETWORK	1 << 3
 /* Logging config changes: log files need closed / reopened */
-#define PTPD_RESTART_LOGGING	16
+#define PTPD_RESTART_LOGGING	1 << 4
 /* Configuration changes need checking lock files */
-#define PTPD_CHECK_LOCKS	32
+#define PTPD_CHECK_LOCKS	1 << 5
 /* CPU core has changed */
-#define PTPD_CHANGE_CPUAFFINITY 64
+#define PTPD_CHANGE_CPUAFFINITY 1 << 6
 /* Configuration changes require daemon restart */
-#define PTPD_RESTART_DAEMON	128
+#define PTPD_RESTART_DAEMON	1 << 7
+
+#ifdef PTPD_STATISTICS
+/* Configuration changes require outlier filter restart */
+#define PTPD_RESTART_PEIRCE	1 << 8
+#endif
+
+#ifdef PTPD_NTPDC
+#define PTPD_RESTART_NTPENGINE	1 << 9
+#endif /* PTPD_NTPDC */
 
 #define LOG2_HELP "(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)"
 

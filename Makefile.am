@@ -8,11 +8,13 @@ SUBDIRS =		\
 
 EXTRA_DIST =			\
 	ChangeLog		\
-	NEWS			\
 	README			\
 	\
 	doc			\
 	tools			\
+	src/ptpd2.conf.minimal\
+	src/ptpd2.8\
+	src/ptpd2.conf.8\
 	\
 	$(NULL)
 

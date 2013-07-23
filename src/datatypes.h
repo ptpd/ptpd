@@ -3,7 +3,7 @@
 
 #include <stdio.h> 
 #include <dep/iniparser/dictionary.h>
-
+#include <dep/statistics.h>
 /*Struct defined in spec*/
 
 
@@ -517,23 +517,66 @@ typedef struct
 	uint32_t sequenceMismatchErrors;  /* mismatched sequence IDs - also increments discarded */
 	uint32_t delayModeMismatchErrors; /* P2P received, E2E expected or vice versa - incremets discarded */
 
+#ifdef PTPD_STATISTICS
+	uint32_t delayMSOutliersFound;	  /* Number of outliers found by the delayMS filter */
+	uint32_t delaySMOutliersFound;	  /* Number of outliers found by the delaySM filter */
+#endif /* PTPD_STATISTICS */
+
 } PtpdCounters;
 
 /**
- * \struct PtpdStats
- * \brief Ptpd clock statistics per port
+ * \struct PIservo
+ * \brief PI controller model structure
  */
-typedef struct
-{
 
-    Integer32 ofmMean; /* mean offset from master - accuracy*/
-    Integer32 ofmStdDev; /* offset from master standard deviation - precision */
-    /* TODO: investigate MAD - Mean Absolute Deviation */
-    Integer32 ofmMedian; /* offset from master median - effective accuracy*/
-    /* TODO: investigate velocity/acceleration as statistical measures */
-    Integer32 driftStdDev; /* observed drift standard deviation */
+#ifndef PTPD_DOUBLE_SERVO
+typedef struct{
 
-} PtpdStats;
+    int maxOutput;
+    Integer32 input;
+    Integer32 output;
+    Integer32 observedDrift;
+    Integer32 kP, kI;
+    TimeInternal lastUpdate;
+    Boolean runningMaxOutput;
+#ifdef PTPD_STATISTICS
+    int updateCount;
+    int stableCount;
+    Boolean statsCalculated;
+    Boolean isStable;
+    Integer32 stabilityThreshold;
+    int stabilityPeriod;
+    int stabilityTimeout;
+    Integer32 driftMean;
+    Integer32 driftStdDev;
+    IntPermanentStdDev driftStats;
+#endif /* PTPD_STATISTICS */
+} PIservo;
+#else
+typedef struct{
+
+    int maxOutput;
+    Integer32 input;
+    double output;
+    double observedDrift;
+    double kP, kI;
+    TimeInternal lastUpdate;
+    Boolean runningMaxOutput;
+#ifdef PTPD_STATISTICS
+    int updateCount;
+    int stableCount;
+    Boolean statsCalculated;
+    Boolean isStable;
+    double stabilityThreshold;
+    int stabilityPeriod;
+    int stabilityTimeout;
+    double driftMean;
+    double driftStdDev;
+    DoublePermanentStdDev driftStats;
+#endif /* PTPD_STATISTICS */
+
+} PIservo;
+#endif /* PTPD_DOUBLE_SERVO */
 
 
 /**
@@ -643,7 +686,6 @@ typedef struct {
 	TimeInternal  slave_to_master_delay;
 
 	*/
-	Integer32 	observed_drift;
 
 	TimeInternal  pdelay_req_receive_time;
 	TimeInternal  pdelay_req_send_time;
@@ -656,12 +698,10 @@ typedef struct {
 	MsgHeader		delayReqHeader;
 	TimeInternal	pdelayMS;
 	TimeInternal	pdelaySM;
-	TimeInternal  delayMS;
+	TimeInternal	delayMS;
 	TimeInternal	delaySM;
 	TimeInternal  lastSyncCorrectionField;
 	TimeInternal  lastPdelayRespCorrectionField;
-
-
 
 	Boolean  sentPDelayReq;
 	UInteger16  sentPDelayReqSequenceId;
@@ -689,7 +729,7 @@ typedef struct {
 	/*Stats header will be re-printed when set to true*/
 	Boolean resetStatisticsLog;
 
-	int reset_count;
+	int resetCount;
 	int announceTimeouts; 
 	int current_init_clock;
 	int can_step_clock;
@@ -697,22 +737,25 @@ typedef struct {
 	int warned_operator_fast_slewing;
 
 	char char_last_msg;                             /* representation of last message processed by servo */
-	Boolean last_packet_was_sync;                   /* used to limit logging of Sync messages */
-	
+
 	int waiting_for_first_sync;                     /* we'll only start the delayReq timer after the first sync */
 	int waiting_for_first_delayresp;                /* Just for information purposes */
 	Boolean startup_in_progress;
 
 	uint32_t init_timestamp;                        /* When the clock was last initialised */
 	Integer32 stabilisation_time;                   /* How long (seconds) it took to stabilise the clock */
+#ifndef PTPD_DOUBLE_SERVO
 	Integer32 last_saved_drift;                     /* Last observed drift value written to file */
+#else
+	double last_saved_drift;                     /* Last observed drift value written to file */
+#endif /* PTPD_DOUBLE_SERVO */
 	Boolean drift_saved;                            /* Did we save a drift value already? */
 
 	/* user description is max size + 1 to leave space for a null terminator */
 	Octet user_description[USER_DESCRIPTION_MAX + 1];
 
 
-	Integer32 MasterAddr;                           // used for hybrid mode, when receiving announces
+	Integer32 masterAddr;                           // used for hybrid mode, when receiving announces
 	Integer32 LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
 
 	/*
@@ -722,13 +765,42 @@ typedef struct {
 	 */
 	PtpdCounters counters;
 
+	/* PI servo model */
+	PIservo servo;
+
+	/* "panic mode" support */
+	Boolean panicMode; /* in panic mode - do not update clock or calculate offsets */
+	Boolean panicOver; /* panic mode is over, we can reset the clock */
+	int panicModeTimeLeft; /* How many 30-second periods left in panic mode */
+
+#ifdef	PTPD_STATISTICS
 	/*
 	 * basic clock statistics information, useful
 	 * for monitoring servo performance and estimating
 	 * clock stability - should be exposed through
 	 * management messages and SNMP eventually
 	*/
-	PtpdStats stats;
+	PtpEngineSlaveStats slaveStats;
+
+	TimeInternal	rawDelayMS;
+	TimeInternal	rawDelaySM;
+	TimeInternal	rawPdelayMS;
+	TimeInternal	rawPdelaySM;
+	DoubleMovingStdDev* delayMSRawStats;
+	DoubleMovingStdDev* delaySMRawStats;
+	DoubleMovingMean* delaySMFiltered;
+	DoubleMovingMean* delayMSFiltered;
+	Boolean delayMSoutlier;
+	Boolean delaySMoutlier;
+
+	int statsUpdates;
+	Boolean isCalibrated;
+
+#endif
+
+#ifdef PTPD_NTPDC
+	NTPcontrol ntpControl;
+#endif
 
 } PtpClock;
 
@@ -773,7 +845,6 @@ typedef struct {
 
 	Boolean displayPackets;
 	Octet unicastAddress[MAXHOSTNAMELEN];
-	Integer32 ap, ai;
 	Integer16 s;
 	TimeInternal inboundLatency, outboundLatency;
 	Integer16 max_foreign_records;
@@ -782,8 +853,11 @@ typedef struct {
 	int ttl;
 	int dscpValue;
 #ifdef linux
+#ifdef HAVE_SCHED_H
 	int cpuNumber;
+#endif /* HAVE_SCHED_H */
 #endif /* linux */
+
 	Boolean alwaysRespectUtcOffset;
 	Boolean useSysLog;
 	Boolean checkConfigOnly;
@@ -791,21 +865,17 @@ typedef struct {
 
 	char configFile[PATH_MAX];
 
-	char logFile[PATH_MAX];
-	FILE *logFP;
-	Boolean useLogFile;
-	int logLevel;
+	LogFileHandler statisticsLog;
+	LogFileHandler recordLog;
+	LogFileHandler eventLog;
+	LogFileHandler statusLog;
 
-	char statisticsFile[PATH_MAX];
-	FILE *statisticsFP;
-	Boolean	useStatisticsFile;
 	Boolean logStatistics;
 
-	char recordFile[PATH_MAX];
-	FILE *recordFP;
-	Boolean useRecordFile;
+	int logLevel;
+	int statisticsLogInterval;
 
-	int statisticsInterval;
+	int statusFileUpdateInterval;
 
 	Boolean ignore_daemon_lock;
 	Boolean do_IGMP_refresh;
@@ -849,7 +919,54 @@ typedef struct {
 	int selectedPreset;
 
 	int servoMaxPpb;
+#ifndef PTPD_DOUBLE_SERVO
+	int servoKP;
+	int servoKI;
+#else
+	double servoKP;
+	double servoKI;
+#endif /* PTPD_DOUBLE_SERVO */
+
+#ifdef	PTPD_STATISTICS
+
+	Boolean delayMSOutlierFilterEnabled;
+	int delayMSOutlierFilterCapacity;
+	double delayMSOutlierFilterThreshold;
+	Boolean delayMSOutlierFilterDiscard;
+	double delayMSOutlierWeight;
+
+	Boolean delaySMOutlierFilterEnabled;
+	int delaySMOutlierFilterCapacity;
+	double delaySMOutlierFilterThreshold;
+	Boolean delaySMOutlierFilterDiscard;
+	double delaySMOutlierWeight;
+
+	int calibrationDelay;
+
+	int statsUpdateInterval;
+	Boolean servoStabilityDetection;
+#ifdef PTPD_DOUBLE_SERVO
+	double servoStabilityThreshold;
+#else
+	Integer32 servoStabilityThreshold;
+#endif /* PTPD_DOUBLE_SERVO */
+	int servoStabilityTimeout;
+	int servoStabilityPeriod;
+
+#endif
+
+	Boolean enablePanicMode;
+	int panicModeDuration;
+
+
+#ifdef PTPD_NTPDC
+	Boolean panicModeNtp;
+	NTPoptions ntpOptions;
+#endif
+
 
 } RunTimeOpts;
+
+
 
 #endif /*DATATYPES_H_*/

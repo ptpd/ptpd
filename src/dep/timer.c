@@ -219,3 +219,39 @@ timerExpired(UInteger16 index, IntervalTimer * itimer)
 
 	return TRUE;
 }
+
+Boolean 
+timerStopped(UInteger16 index, IntervalTimer * itimer)
+{
+	timerUpdate(itimer);
+
+	if (index >= TIMER_ARRAY_SIZE)
+		return FALSE;
+
+	if (itimer[index].interval == 0) {
+		return TRUE;
+	DBG2("timerStopped:   Timer %d is stopped\n", index);
+	}
+
+	return FALSE;
+
+}
+
+Boolean 
+timerRunning(UInteger16 index, IntervalTimer * itimer)
+{
+	timerUpdate(itimer);
+
+	if (index >= TIMER_ARRAY_SIZE)
+		return FALSE;
+
+	if ((itimer[index].interval != 0) &&
+	    (itimer[index].expire == FALSE)) {
+		return TRUE;
+	DBG2("timerRunning:   Timer %d is running\n", index);
+	}
+
+	return FALSE;
+
+}
+

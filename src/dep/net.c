@@ -516,6 +516,40 @@ netInitTimestamping(NetPath * netPath)
 	return result;
 }
 
+Boolean
+hostLookup(const char* hostname, Integer32* addr)
+{
+	if (hostname[0]) {
+		/* Attempt a DNS lookup first. */
+		struct hostent *host;
+		host = gethostbyname2(hostname, AF_INET);
+                if (host != NULL) {
+			if (host->h_length != 4) {
+				PERROR("unicast host resolved to non ipv4"
+				       "address");
+				return FALSE;
+			}
+			*addr = 
+				*(uint32_t *)host->h_addr_list[0];
+			return TRUE;
+		} else {
+			struct in_addr netAddr;
+			/* Maybe it's a dotted quad. */
+			if (!inet_aton(hostname, &netAddr)) {
+				ERROR("failed to encode unicast address: %s\n",
+				      hostname);
+				return FALSE;
+				*addr = netAddr.s_addr;
+				return TRUE;
+			}
+                }
+	}
+
+return FALSE;
+
+}
+
+
 /**
  * start all of the UDP stuff 
  * must specify 'subdomainName', and optionally 'ifaceName', 
@@ -532,7 +566,7 @@ Boolean
 netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	int temp;
-	struct in_addr interfaceAddr, netAddr;
+	struct in_addr interfaceAddr;
 	struct sockaddr_in addr;
 	struct bpf_program program;
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -544,7 +578,6 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	netPath->pcapGeneral = NULL;
 	netPath->pcapEventSock = -1;
 	netPath->pcapGeneralSock = -1;
-
 
 	if (rtOpts->transport == IEEE_802_3) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
@@ -712,30 +745,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			}
 	}
 
-
 	/* send a uni-cast address if specified (useful for testing) */
-	if (rtOpts->unicastAddress[0]) {
-		/* Attempt a DNS lookup first. */
-		struct hostent *host;
-		host = gethostbyname2(rtOpts->unicastAddress, AF_INET);
-                if (host != NULL) {
-			if (host->h_length != 4) {
-				PERROR("unicast host resolved to non ipv4"
-				       "address");
-				return FALSE;
-			}
-			netPath->unicastAddr = 
-				*(uint32_t *)host->h_addr_list[0];
-		} else {
-			/* Maybe it's a dotted quad. */
-			if (!inet_aton(rtOpts->unicastAddress, &netAddr)) {
-				ERROR("failed to encode uni-cast address: %s\n",
-				      rtOpts->unicastAddress);
-				return FALSE;
-				netPath->unicastAddr = netAddr.s_addr;
-			}
-                }
-	} else {
+	if(!hostLookup(rtOpts->unicastAddress, &netPath->unicastAddr)) {
                 netPath->unicastAddr = 0;
 	}
 

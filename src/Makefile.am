@@ -1,13 +1,14 @@
 # Makefile for ptpd2
 
 lib_LTLIBRARIES = $(LIBPTPD2_LIBS_LA)
-bin_PROGRAMS = ptpd2
+sbin_PROGRAMS = ptpd2
+man_MANS = ptpd2.8 ptpd2.conf.8
 
 AM_CFLAGS	= $(SNMP_CFLAGS)
 AM_CPPFLAGS	= $(SNMP_CPPFLAGS)
 AM_LDFLAGS	= $(SNMP_LIBS)
 
-AM_CPPFLAGS    += $(PTP_DBL) $(PTP_DAEMON) $(PTP_EXP) $(PTP_SNMP) $(PTP_SIGUSR2)
+AM_CPPFLAGS    += $(PTP_DBL) $(PTP_DAEMON) $(PTP_EXP) $(PTP_SNMP) $(PTP_SIGUSR2) $(PTP_STATISTICS) $(PTP_DOUBLE_SERVO) $(PTP_NTPDC)
 
 NULL=
 
@@ -46,6 +47,20 @@ ptpd2_SOURCES =				\
 # SNMP
 if SNMP
 ptpd2_SOURCES += dep/snmp.c
+endif
+
+# STATISTICS
+if STATISTICS
+ptpd2_SOURCES += dep/statistics.h
+ptpd2_SOURCES += dep/statistics.c
+endif
+
+# NTP control
+if NTPDC
+ptpd2_SOURCES += dep/ntpengine/ntp_isc_md5.c
+ptpd2_SOURCES += dep/ntpengine/ntp_isc_md5.h
+ptpd2_SOURCES += dep/ntpengine/ntpdcontrol.c
+ptpd2_SOURCES += dep/ntpengine/ntpdcontrol.h
 endif
 
 CSCOPE = cscope

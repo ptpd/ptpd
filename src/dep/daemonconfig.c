@@ -213,6 +213,22 @@
 	    variable = otherwise; \
 	 }
 
+#define CONFIG_KEY_CONDITIONAL_ASSERTION(key,condition,warningtext) \
+	if ( (condition) && \
+	    CONFIG_ISSET(key) ) \
+	 { \
+	    if(!IS_QUIET())\
+		ERROR("%s\n", warningtext); \
+	    parseResult = FALSE;\
+	 }
+
+#define CONFIG_CONDITIONAL_ASSERTION(condition,warningtext) \
+	if ( (condition) ) \
+	 { \
+	    if(!IS_QUIET())\
+		ERROR("%s\n", warningtext); \
+	    parseResult = FALSE;\
+	 }
 
 /* Range check macros */
 
@@ -787,18 +803,13 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* Deep display of all packets seen by the daemon */
 	rtOpts->displayPackets = FALSE;
 	// rtOpts->unicastAddress
-	rtOpts->ap = DEFAULT_AP;
-	rtOpts->ai = DEFAULT_AI;
+
 	rtOpts->s = DEFAULT_DELAY_S;
 	rtOpts->inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
 	rtOpts->outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
 	rtOpts->max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
 	// rtOpts->offset_first_updated = FALSE;
-	rtOpts->logFP = NULL;
-	rtOpts->recordFP = NULL;
-	rtOpts->statisticsFP = NULL;
-	rtOpts->useLogFile = FALSE;
-	rtOpts->useRecordFile = FALSE;
+
 	rtOpts->nonDaemon = FALSE;
 
 	/*
@@ -814,7 +825,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->ttl = 64;
 	rtOpts->delayMechanism   = DEFAULT_DELAY_MECHANISM;
 	rtOpts->noResetClock     = DEFAULT_NO_RESET_CLOCK;
-	rtOpts->statisticsInterval = 0;
+	rtOpts->statisticsLogInterval = 0;
 
 	rtOpts->initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
 	rtOpts->subsequent_delayreq = DEFAULT_DELAYREQ_INTERVAL;      // this will be updated if -g is given
@@ -836,6 +847,9 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	/* ADJ_FREQ_MAX by default */
 	rtOpts->servoMaxPpb = ADJ_FREQ_MAX / 1000;
+	/* kP and kI are scaled to 10000 and are gains now - values same as originally */
+	rtOpts->servoKP = 1000;
+	rtOpts->servoKI = 10;
 
 	/* disabled by default */
 	rtOpts->announceTimeoutGracePeriod = 0;
@@ -851,9 +865,88 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 #endif /* HAVE_SCHED_H */
 #endif /* linux */
 
+#ifdef PTPD_STATISTICS
+
+	rtOpts->delayMSOutlierFilterEnabled = FALSE;
+	rtOpts->delayMSOutlierFilterDiscard = FALSE;
+	rtOpts->delayMSOutlierFilterCapacity = 20;
+	rtOpts->delayMSOutlierFilterThreshold = 1.0;
+	rtOpts->delayMSOutlierWeight = 1;
+	rtOpts->delaySMOutlierFilterEnabled = FALSE;
+	rtOpts->delaySMOutlierFilterDiscard = FALSE;
+	rtOpts->delaySMOutlierFilterCapacity = 20;
+	rtOpts->delaySMOutlierFilterThreshold = 1.0;
+	rtOpts->delaySMOutlierWeight = 1;
+
+	/* How often refresh statistics (seconds) */
+	rtOpts->statsUpdateInterval = 5;
+	/* Servo stability detection settings follow */
+	rtOpts->servoStabilityDetection = FALSE;
+	/* Stability threshold (ppb) - observed drift std dev value considered stable */
+	rtOpts->servoStabilityThreshold = 5;
+	/* How many consecutive statsUpdateInterval periods of observed drift std dev within threshold  means stable servo */
+	rtOpts->servoStabilityPeriod = 3;
+	/* How many minutes without servo stabilisation means servo has not stabilised */
+	rtOpts->servoStabilityTimeout = 10;
+	/* How many statsUpdateInterval periods to wait for one-way delay prefiltering */
+	rtOpts->calibrationDelay = 0;
+
+#endif
+
+	/* status file options */
+	rtOpts->statusFileUpdateInterval = 1;
+
+	/* panic mode options */
+	rtOpts->enablePanicMode = FALSE;
+	rtOpts->panicModeDuration = 2;
+
+
+
+#ifdef PTPD_NTPDC
+	rtOpts->panicModeNtp = FALSE;
+	rtOpts->ntpOptions.enableEngine = FALSE;
+	rtOpts->ntpOptions.enableControl = FALSE;
+	rtOpts->ntpOptions.enableFailover = FALSE;
+	rtOpts->ntpOptions.ntpInControl = FALSE;
+	rtOpts->ntpOptions.failoverTimeout = 60;
+	rtOpts->ntpOptions.checkInterval = 15;
+	rtOpts->ntpOptions.keyId = 0;
+	strncpy(rtOpts->ntpOptions.hostAddress,"localhost",MAXHOSTNAMELEN); 	/* not configurable */
+#endif
+
+/* Log file settings */
+
+	rtOpts->statisticsLog.logID = "statistics";
+	rtOpts->statisticsLog.openMode = "a+";
+	rtOpts->statisticsLog.logFP = NULL;
+	rtOpts->statisticsLog.truncateOnReopen = FALSE;
+	rtOpts->statisticsLog.unlinkOnClose = FALSE;
+	rtOpts->statisticsLog.maxSize = 0;
+
+	rtOpts->recordLog.logID = "record";
+	rtOpts->recordLog.openMode = "a+";
+	rtOpts->recordLog.logFP = NULL;
+	rtOpts->recordLog.truncateOnReopen = FALSE;
+	rtOpts->recordLog.unlinkOnClose = FALSE;
+	rtOpts->recordLog.maxSize = 0;
+
+	rtOpts->eventLog.logID = "log";
+	rtOpts->eventLog.openMode = "a+";
+	rtOpts->eventLog.logFP = NULL;
+	rtOpts->eventLog.truncateOnReopen = FALSE;
+	rtOpts->eventLog.unlinkOnClose = FALSE;
+	rtOpts->eventLog.maxSize = 0;
+
+	rtOpts->statusLog.logID = "status";
+	rtOpts->statusLog.openMode = "w";
+	strncpy(rtOpts->statusLog.logPath, DEFAULT_STATUSFILE, PATH_MAX);
+	rtOpts->statusLog.logFP = NULL;
+	rtOpts->statusLog.truncateOnReopen = FALSE;
+	rtOpts->statusLog.unlinkOnClose = TRUE;
+
 }
 
-/* The PtpEnginePreset structure:
+/* The PtpEnginePreset structure for reference: 
 
 typedef struct {
 
@@ -1226,8 +1319,92 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		    "to use ptpengine:v1style_mcast_group\n");
 #endif /* PTPD_EXPERIMENTAL */
 
+#ifdef PTPD_STATISTICS
+
+	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_enable",rtOpts->delaySMOutlierFilterEnabled,rtOpts->delaySMOutlierFilterEnabled,
+	"Enable outlier filter for the Delay Response component in slave state");
+
+	CONFIG_MAP_SELECTVALUE("ptpengine:delay_outlier_filter_action",rtOpts->delaySMOutlierFilterDiscard,rtOpts->delaySMOutlierFilterDiscard,
+	"Delay Response outlier filter action. If set to 'filter', outliers are replaced with moving average",
+	"discard", TRUE,
+	"filter", FALSE);
+
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_capacity",rtOpts->delaySMOutlierFilterCapacity,rtOpts->delaySMOutlierFilterCapacity,
+	"Number of samples in the Delay Response outlier filter buffer",4,STATCONTAINER_MAX_SAMPLES);
+
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_threshold",rtOpts->delaySMOutlierFilterThreshold,rtOpts->delaySMOutlierFilterThreshold,
+	"Delay Response outlier filter threshold: multiplier for the Peirce's maximum standard deviation. When set below 1.0,\n"
+	"	 filter is tighter, when set above 1.0, filter is looser than standard Peirce's test.", 0.001, 1000.0);
+
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_weight",rtOpts->delaySMOutlierWeight,rtOpts->delaySMOutlierWeight,
+	"Delay Response outlier weight: if an outlier is detected, this value determines the amount of its deviation\n"
+	"	 from mean that is used to build the standard deviation statistics and influence further outlier detection.\n"
+	"	 When set to 1.0, the outlier is used as is.\n", 0.01, 2.0);
+
+        CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_enable",rtOpts->delayMSOutlierFilterEnabled,rtOpts->delayMSOutlierFilterEnabled,
+        "Enable outlier filter for the Sync component in slave state");
+
+        CONFIG_MAP_SELECTVALUE("ptpengine:sync_outlier_filter_action",rtOpts->delayMSOutlierFilterDiscard,rtOpts->delayMSOutlierFilterDiscard,
+        "Sync outlier filter action. If set to 'filter', outliers are replaced with moving average",
+        "discard", TRUE,
+        "filter", FALSE);
+
+        CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_capacity",rtOpts->delayMSOutlierFilterCapacity,rtOpts->delayMSOutlierFilterCapacity,
+        "Number of samples in the Sync outlier filter buffer",4,STATCONTAINER_MAX_SAMPLES);
+
+        CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_threshold",rtOpts->delayMSOutlierFilterThreshold,rtOpts->delayMSOutlierFilterThreshold,
+        "Sync outlier filter threshold: multiplier for the Peirce's maximum standard deviation. When set below 1.0,\n"
+        "        filter is tighter, when set above 1.0, filter is looser than standard Peirce's test.", 0.001, 1000.0);
+
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_weight",rtOpts->delaySMOutlierWeight,rtOpts->delaySMOutlierWeight,
+	"Sync outlier weight: if an outlier is detected, this value determines the amount of its deviation\n"
+	"	 from mean that is used to build the standard deviation statistics and influence further outlier detection.\n"
+	"	 When set to 1.0, the outlier is used as is.", 0.01, 2.0);
+
+        CONFIG_MAP_INT_RANGE("ptpengine:calibration_delay",rtOpts->calibrationDelay,rtOpts->calibrationDelay,
+        "Delay between moving to slave state and enabling clock updates expressed as number of statistics update periods\n"
+	"	 (see global:statistics_update_interval). This allows one-way delay to stabilise before starting\n"
+	"	 clock updates. Activated when going into slave state and during GM failover in slave state.\n"
+	"	 0 - not used.",0,100);
+
+#endif /* PTPD_STATISTICS */
+
+	CONFIG_MAP_BOOLEAN("ptpengine:panic_mode",rtOpts->enablePanicMode,rtOpts->enablePanicMode,
+	"Enable panic mode: when offset from master is above 1 second, stop updating the clock for a period of\n"
+	"	 time and then step the clock if offset remains above 1 second.");
+
+        CONFIG_MAP_INT_RANGE("ptpengine:panic_mode_duration",rtOpts->panicModeDuration,rtOpts->panicModeDuration,
+        "Duration of the panic mode period (no clock updates) when offset above 1 second detected\n",1,60);
+
 	CONFIG_MAP_BOOLEAN("ptpengine:pid_as_clock_idendity",rtOpts->jobid,rtOpts->jobid,
 	"Use JobID (PID) for UUID");
+
+#ifdef PTPD_NTPDC
+
+	CONFIG_MAP_BOOLEAN("ptpengine:ntp_failover",rtOpts->ntpOptions.enableFailover,rtOpts->ntpOptions.enableFailover,
+	"Fail over to NTP when PTP time sync not available - requires ntpengine:enabled but does not require\n"
+	"	 the rest of NTP configuration - will warn instead of failing over if cannot control ntpd.");
+
+	CONFIG_KEY_DEPENDENCY("ptpengine:ntp_failover", "ntpengine:enabled");
+
+	CONFIG_MAP_INT_RANGE("ptpengine:ntp_failover_timeout",rtOpts->ntpOptions.failoverTimeout,
+								rtOpts->ntpOptions.failoverTimeout,
+		"NTP failover timeout in seconds: time between PTP slave going into LISTENING state,\n"
+		"	 and failing over to NTP. 0 = fail over immediately.\n", 0, 1800);
+
+	CONFIG_MAP_BOOLEAN("ptpengine:prefer_ntp",rtOpts->ntpOptions.ntpInControl,rtOpts->ntpOptions.ntpInControl,
+	"Prefer NTP time synchronisation when not controlling the clock (all states, including slave when\n"
+	"	 clock:no_adjust set)");
+
+	CONFIG_MAP_BOOLEAN("ptpengine:panic_mode_ntp",rtOpts->panicModeNtp,rtOpts->panicModeNtp,
+	"When entering panic mode, fail over to NTP (after the NTP failover timeout period) - \n"
+	"	 requires ntpengine:enabled but does not require the rest of NTP configuration -\n"
+	"	 will warn instead of failing over if it cannot control ntpd.");
+
+	CONFIG_KEY_DEPENDENCY("ptpengine:panic_mode_ntp", "ntpengine:enabled");
+
+
+#endif /* PTPD_NTPDC */
 
 /* ===== clock section ===== */
 
@@ -1252,6 +1429,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_CHARARRAY("clock:drift_file",rtOpts->driftFile,rtOpts->driftFile,
 	"Specify drift file");
 
+#ifdef HAVE_STRUCT_TIMEX_TICK
 	/* This really is clock specific - different clocks may allow different ranges */
 	CONFIG_MAP_INT_RANGE("clock:max_offset_ppm",rtOpts->servoMaxPpb,rtOpts->servoMaxPpb,
 		"Maximum absolute frequency shift which can be applied to the clock servo\n"
@@ -1259,6 +1437,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 1 us per second. Values above 512 will use the tick duration correction\n"
 	"	 to allow even faster slewing. Default maximum is 512 without using tick.",
 	512,1024);
+#endif /* HAVE_STRUCT_TIMEX_TICK */
 
 	/*
 	 * TimeProperties DS - in future when clock driver API is implemented,
@@ -1273,16 +1452,60 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT( "servo:delayfilter_stiffness",rtOpts->s,rtOpts->s,
 	"One-way delay filter stiffness");
 
-	CONFIG_MAP_INT_MIN("servo:ap",rtOpts->ap,rtOpts->ap,
-	"Clock servo PI controller proportional component attenuation",1);
-
-	CONFIG_MAP_INT_MIN("servo:ai",rtOpts->ai,rtOpts->ai,
-	"Clock servo PI controller integral component attenuation",1);
-
+#ifndef PTPD_DOUBLE_SERVO
+	CONFIG_MAP_INT_MIN("servo:kp",rtOpts->servoKP,rtOpts->servoKP,
+	"Clock servo PI controller proportional component gain (kP)",1);
+	CONFIG_MAP_INT_MIN("servo:ki",rtOpts->servoKI,rtOpts->servoKI,
+	"Clock servo PI controller integral component gain (kI)",1);
+#else
+	CONFIG_MAP_DOUBLE_MIN("servo:kp",rtOpts->servoKP,rtOpts->servoKP,
+	"Clock servo PI controller proportional component gain (kP)",0.01);
+	CONFIG_MAP_DOUBLE_MIN("servo:ki",rtOpts->servoKI,rtOpts->servoKI,
+	"Clock servo PI controller integral component gain (kI)",0.01);
+#endif /* PTPD_DOUBLE_SERVO */
 	CONFIG_MAP_INT_RANGE("servo:max_delay",rtOpts->maxDelay,rtOpts->maxDelay,
 		"Maximum accepted delayMS value in nanoseconds (Sync).\n"
 	"        0 =  not checked."
 	,0,NANOSECONDS_MAX);
+
+#ifdef PTPD_STATISTICS
+	CONFIG_MAP_BOOLEAN("servo:stability_detection",rtOpts->servoStabilityDetection,
+							rtOpts->servoStabilityDetection,
+	"Enable clock synchronisation servo stability detection\n"
+	"	 (based on standard deviation of the observed drift value)\n"
+	"	 - drift will be saved to drift file / cached when considered stable,\n"
+	"	 also clock stability status will be logged\n");
+
+#ifdef PTPD_DOUBLE_SERVO
+	CONFIG_MAP_DOUBLE_RANGE("servo:stability_threshold",rtOpts->servoStabilityThreshold,
+							rtOpts->servoStabilityThreshold,
+	"Specify the observed drift standard deviation threshold in parts per billion\n"
+	"	(ppb) - if stanard deviation is within the threshold, servo is considered\n"
+	"	stable.",
+	1.0,10000.0);
+#else
+	CONFIG_MAP_INT_RANGE("servo:stability_threshold",rtOpts->servoStabilityThreshold,
+							rtOpts->servoStabilityThreshold,
+	"Specify the observed drift standard deviation threshold in parts per billion\n"
+	"	(ppb) - if stanard deviation is within the threshold, servo is considered\n"
+	"	stable.",
+	1,10000);
+#endif /* PTPD_DOUBLE_SERVO */
+
+	CONFIG_MAP_INT_RANGE("servo:stability_period",rtOpts->servoStabilityPeriod,
+							rtOpts->servoStabilityPeriod,
+	"Specify for how many statistics update intervals the observed drift standard\n"
+	"        deviation has to stay within threshold to be considered stable\n",
+	1,100);
+
+	CONFIG_MAP_INT_RANGE("servo:stability_timeout",rtOpts->servoStabilityTimeout,
+							rtOpts->servoStabilityTimeout,
+	"Specify after how many minutes without stabilisation servo is considered\n"
+	"	 unstable. Assists with logging servo stability information and\n"
+	"	 allows to preserve observed drift if servo cannot stabilise.\n",
+	1,60);
+
+#endif
 
 	/**
 	 * Initialise the origMaxDelay to the maxDelay value if max_delay not set.
@@ -1328,9 +1551,31 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"Skip lock file checking and locking");
 
 	/* if quality file specified, enable quality recording  */
-	CONFIG_KEY_TRIGGER("global:quality_file",rtOpts->useRecordFile,TRUE,FALSE);
-	CONFIG_MAP_CHARARRAY("global:quality_file",rtOpts->recordFile,rtOpts->recordFile,
+	CONFIG_KEY_TRIGGER("global:quality_file",rtOpts->recordLog.logEnabled,TRUE,FALSE);
+	CONFIG_MAP_CHARARRAY("global:quality_file",rtOpts->recordLog.logPath,rtOpts->recordLog.logPath,
 	"File used to record data about sync packets. Setting this enables recording.");
+
+	CONFIG_MAP_INT_MIN("global:quality_file_max_size",rtOpts->recordLog.maxSize,rtOpts->recordLog.maxSize,
+	"Maximum sync packet record file size (in kB) - file will be truncated if size exceeds the limit.\n"
+	"	 0 - no limit.", 0);
+
+	CONFIG_MAP_INT_RANGE("global:quality_file_max_files",rtOpts->recordLog.maxFiles,rtOpts->recordLog.maxFiles,
+	"Enable log rotation of the sync packet record file up to n files. 0 - do not rotate.\n", 0, 100);
+
+	CONFIG_MAP_BOOLEAN("global:quality_file_truncate",rtOpts->recordLog.truncateOnReopen,rtOpts->recordLog.truncateOnReopen,
+	"Truncate the sync packet record file every time it is (re) opened - on startup and SIGHUP");
+
+	/* if status file specified, enable status logging*/
+	CONFIG_KEY_TRIGGER("global:status_file",rtOpts->statusLog.logEnabled,TRUE,FALSE);
+	CONFIG_MAP_CHARARRAY("global:status_file",rtOpts->statusLog.logPath,rtOpts->statusLog.logPath,
+	"File used to log "PTPD_PROGNAME" status information");
+	/* status file can be disabled even if specified */
+	CONFIG_MAP_BOOLEAN("global:log_status",rtOpts->statusLog.logEnabled, rtOpts->statusLog.logEnabled,
+	"Enable / disable writing status information to file");
+
+	CONFIG_MAP_INT_RANGE("global:status_update_interval",rtOpts->statusFileUpdateInterval,rtOpts->statusFileUpdateInterval,
+		"Status file update interval in seconds\n",
+	1,30);
 
 #ifdef RUNTIME_DEBUG
 	CONFIG_MAP_SELECTVALUE("global:debug_level",rtOpts->debug_level,rtOpts->debug_level,
@@ -1347,9 +1592,19 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 #endif /* RUNTIME_DEBUG */
 
 	/* if log file specified, enable file logging - otherwise disable */
-	CONFIG_KEY_TRIGGER("global:log_file",rtOpts->useLogFile,TRUE,FALSE);
-	CONFIG_MAP_CHARARRAY("global:log_file",rtOpts->logFile,rtOpts->logFile,
-	"Specify log file path. Setting this enables logging to file.");
+	CONFIG_KEY_TRIGGER("global:log_file",rtOpts->eventLog.logEnabled,TRUE,FALSE);
+	CONFIG_MAP_CHARARRAY("global:log_file",rtOpts->eventLog.logPath, rtOpts->eventLog.logPath,
+	"Specify log file path (event log). Setting this enables logging to file.");
+
+	CONFIG_MAP_INT_MIN("global:log_file_max_size",rtOpts->eventLog.maxSize,rtOpts->eventLog.maxSize,
+	"Maximum log file size (in kB) - log file will be truncated if size exceeds the limit.\n"
+	"	 0 - no limit.", 0);
+
+	CONFIG_MAP_INT_RANGE("global:log_file_max_files",rtOpts->eventLog.maxFiles,rtOpts->eventLog.maxFiles,
+	"Enable log rotation of the sync packet record file up to n files. 0 - do not rotate\n", 0, 100);
+
+	CONFIG_MAP_BOOLEAN("global:log_file_truncate",rtOpts->eventLog.truncateOnReopen,rtOpts->eventLog.truncateOnReopen,
+	"Truncate the log file every time it is (re) opened - on startup and SIGHUP");
 
 	CONFIG_MAP_SELECTVALUE("global:log_level",rtOpts->logLevel,rtOpts->logLevel,
 	"Specify log level (only messages of the specified priority or higer will be logged).\n"
@@ -1363,13 +1618,23 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				);
 
 	/* if statistics file specified, enable statistics logging - otherwise disable  - log_statistics also controlled further below*/
-	CONFIG_KEY_TRIGGER("global:statistics_file",rtOpts->useStatisticsFile,TRUE,FALSE);
+	CONFIG_KEY_TRIGGER("global:statistics_file",rtOpts->statisticsLog.logEnabled,TRUE,FALSE);
 	CONFIG_KEY_TRIGGER("global:statistics_file",rtOpts->logStatistics,TRUE,FALSE);
-	CONFIG_MAP_CHARARRAY("global:statistics_file",rtOpts->statisticsFile,rtOpts->statisticsFile,
-	"Specify statistics file path. Setting this enables logging of statistics but can be overriden with global:log_statistics");
+	CONFIG_MAP_CHARARRAY("global:statistics_file",rtOpts->statisticsLog.logPath,rtOpts->statisticsLog.logPath,
+	"Specify statistics log file path. Setting this enables logging of statistics but can be overriden with global:log_statistics");
 
-	CONFIG_MAP_INT_MIN("global:statistics_interval",rtOpts->statisticsInterval,rtOpts->statisticsInterval,
-	"Log timing statistics every n seconds (0 - log all)",0);
+	CONFIG_MAP_INT_MIN("global:statistics_log_interval",rtOpts->statisticsLogInterval,rtOpts->statisticsLogInterval,
+	"Log timing statistics every n seconds for Sync and Delay Response messages (0 - log all)",0);
+
+	CONFIG_MAP_INT_MIN("global:statistics_file_max_size",rtOpts->statisticsLog.maxSize,rtOpts->statisticsLog.maxSize,
+	"Maximum statistics log file size (in kB) - log file will be truncated if size exceeds the limit.\n"
+	"	 0 - no limit.", 0);
+
+	CONFIG_MAP_INT_RANGE("global:statistics_file_max_files",rtOpts->statisticsLog.maxFiles,rtOpts->statisticsLog.maxFiles,
+	"Enable log rotation of the statistics file up to n files. 0 - do not rotate\n", 0, 100);
+
+	CONFIG_MAP_BOOLEAN("global:statistics_file_truncate",rtOpts->statisticsLog.truncateOnReopen,rtOpts->statisticsLog.truncateOnReopen,
+	"Truncate the statistics file every time it is (re) opened - on startup and SIGHUP");
 
 	CONFIG_MAP_BOOLEAN("global:dump_packets",rtOpts->displayPackets,rtOpts->displayPackets,
 	"Dump the contents of every PTP packet");
@@ -1382,9 +1647,9 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	if(CONFIG_ISTRUE("global:verbose_foreground")) {
 		rtOpts->useSysLog    = FALSE;
 		rtOpts->logStatistics = TRUE;
-		rtOpts->statisticsInterval = 0;
-		rtOpts->useLogFile = FALSE;
-		rtOpts->useStatisticsFile = FALSE;
+		rtOpts->statisticsLogInterval = 0;
+		rtOpts->eventLog.logEnabled = FALSE;
+		rtOpts->statisticsLog.logEnabled = FALSE;
 	}
 
 	/* 
@@ -1399,6 +1664,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_BOOLEAN("global:log_statistics",rtOpts->logStatistics,rtOpts->logStatistics,
 	"Log timing statistics for every PTP packet received");
 
+	/* If statistics file is enabled but logStatistics isn't, disable logging to file */
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->statisticsLog.logEnabled && !rtOpts->logStatistics,
+					rtOpts->statisticsLog.logEnabled, FALSE, rtOpts->statisticsLog.logEnabled);
+
 #ifdef linux
 #ifdef HAVE_SCHED_H
 	CONFIG_MAP_INT_RANGE("global:cpuaffinity_cpucore",rtOpts->cpuNumber,rtOpts->cpuNumber,
@@ -1407,6 +1676,51 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	0,255);
 #endif /* HAVE_SCHED_H */
 #endif /* linux */
+
+#ifdef PTPD_STATISTICS
+	CONFIG_MAP_INT_RANGE("global:statistics_update_interval",rtOpts->statsUpdateInterval,
+								rtOpts->statsUpdateInterval,
+		"Clock synchronisation statistics update interval in seconds\n", 1, 60);
+
+	CONFIG_CONDITIONAL_ASSERTION( rtOpts->servoStabilityDetection && (
+				    (rtOpts->statsUpdateInterval * rtOpts->servoStabilityPeriod) / 60 >=
+				    rtOpts->servoStabilityTimeout),
+		"The configured servo stabilisation timeout has to be longer than\n"
+		"	 servo stabilisation period");
+
+#endif /* PTPD_STATISTICS */
+
+
+#ifdef PTPD_NTPDC
+
+/* ===== ntpengine section ===== */
+
+	CONFIG_MAP_BOOLEAN("ntpengine:enabled",rtOpts->ntpOptions.enableEngine,rtOpts->ntpOptions.enableEngine,
+	"Enable NTPd integration");
+
+	CONFIG_MAP_BOOLEAN("ntpengine:control_enabled",rtOpts->ntpOptions.enableControl,rtOpts->ntpOptions.enableControl,
+	"Enable control over local NTPd daemon");
+
+	CONFIG_KEY_DEPENDENCY("ntpengine:control_enabled", "ntpengine:enabled");
+
+	CONFIG_MAP_INT_RANGE("ntpengine:check_interval",rtOpts->ntpOptions.checkInterval,
+								rtOpts->ntpOptions.checkInterval,
+		"NTP control check interval in seconds\n", 5, 600);
+
+	CONFIG_MAP_INT_RANGE("ntpengine:key_id",rtOpts->ntpOptions.keyId, rtOpts->ntpOptions.keyId,
+	"NTP key number - must be configured as a trusted control key in ntp.conf,\n"
+	"	  and must be non-zero for the ntpengine:control_enabled setting to take effect.\n", 0, 65535);
+
+	CONFIG_MAP_CHARARRAY("ntpengine:key",rtOpts->ntpOptions.key, rtOpts->ntpOptions.key,
+	"NTP key (plain text, max. 20 characters) - must match the key configured in ntpd's keys file, and must\n"
+	"	 be non-zero for the ntpengine:control_enabled setting to take effect.\n");
+
+	CONFIG_KEY_DEPENDENCY("ntpengine:control:enabled", "ntpengine:key_id");
+	CONFIG_KEY_DEPENDENCY("ntpengine:control:enabled", "ntpengine:key");
+
+#endif /* PTPD_NTPDC */
+
+
 
 /* ============== END CONFIG MAPPINGS, TRIGGERS AND DEPENDENCIES =========== */
 
@@ -1906,7 +2220,7 @@ printShortHelp()
 			"Basic options: \n"
 			"\n"
 			"-c --config-file [path] 	Configuration file\n"
-			"-C --check-config		Check configuration and exit\n"
+			"-k --check-config		Check configuration and exit\n"
 			"-v --version			Print version string\n"
 			"-h --help			Show this help screen\n"
 			"-H --long-help			Show detailed help for all settings and behaviours\n"
@@ -2105,31 +2419,74 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:ip_dscp",        		PTPD_RESTART_NETWORK );
 
         COMPONENT_RESTART_REQUIRED("ptpengine:alt_mcast_group",       	PTPD_RESTART_NETWORK );
+
+#ifdef PTPD_STATISTICS
+        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_enable",     PTPD_RESTART_PEIRCE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_action",    	PTPD_RESTART_NONE );
+        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_capacity",  	PTPD_RESTART_PEIRCE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_threshold",  PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_weight",  PTPD_RESTART_NONE );
+
+
+        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_enable",      PTPD_RESTART_PEIRCE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_action",    	PTPD_RESTART_NONE );
+        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_capacity",  	PTPD_RESTART_PEIRCE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_threshold",  	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_weight",  	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:calibration_delay",  	PTPD_RESTART_NONE );
+
+#endif /* PTPD_STATISTICS */
+
+//        COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode",  	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode_duration",  	PTPD_RESTART_NONE );
+
 //        COMPONENT_RESTART_REQUIRED("clock:no_adjust",    		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:no_reset",     		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:drift_file",   		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:drift_handling",       	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:max_offset_ppm",       	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:owdfilter_stiffness",         PTPD_RESTART_NONE );
-//        COMPONENT_RESTART_REQUIRED("servo:ap",   			PTPD_RESTART_NONE );
-//        COMPONENT_RESTART_REQUIRED("servo:ai",   			PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("servo:kp",   			PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("servo:ki",   			PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:max_delay",    		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:max_delay",    		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:max_offset",   		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("global:use_syslog", 		PTPD_RESTART_LOGGING );
+
+#ifdef PTPD_STATISTICS
+//		COMPONENT_RESTART_REQUIRED("servo:stability_detection", PTPD_RESTART_NONE );
+//		COMPONENT_RESTART_REQUIRED("servo:stability_threshold", PTPD_RESTART_NONE );
+//		COMPONENT_RESTART_REQUIRED("servo:stability_period", PTPD_RESTART_NONE );
+//		COMPONENT_RESTART_REQUIRED("servo:stability_timeout", PTPD_RESTART_NONE );
+#endif
+
+
         COMPONENT_RESTART_REQUIRED("global:lock_file",   		PTPD_RESTART_DAEMON );
         COMPONENT_RESTART_REQUIRED("global:auto_lockfile",   		PTPD_RESTART_DAEMON );
         COMPONENT_RESTART_REQUIRED("global:lock_directory",   		PTPD_RESTART_DAEMON );
         COMPONENT_RESTART_REQUIRED("global:ignore_lock", 		PTPD_RESTART_DAEMON );
 //        COMPONENT_RESTART_REQUIRED("global:quality_file",		PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:quality_file_max_size",			PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:quality_file_truncate",			PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:quality_file_max_files",		PTPD_RESTART_LOGGING );
         COMPONENT_RESTART_REQUIRED("global:log_file",			PTPD_RESTART_LOGGING );
-        COMPONENT_RESTART_REQUIRED("global:log_file",			PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:log_file_max_size",			PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:log_file_truncate",			PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:log_file_file_max_files",		PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:status_update_interval",			PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:status_file",			PTPD_RESTART_LOGGING );
 //        COMPONENT_RESTART_REQUIRED("global:log_level",		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("global:debug_level",		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("global:statistics_file",		PTPD_RESTART_LOGGING );
-//        COMPONENT_RESTART_REQUIRED("global:statistics_interval",		PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("global:statistics_file_max_size",		PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:statistics_file_truncate",		PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:statistics_file_max_files",		PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:statistics_log_interval",		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("global:log_stats",			PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("global:dump_packets",		PTPD_RESTART_NONE );
+#ifdef PTPD_STATISTICS
+//		COMPONENT_RESTART_REQUIRED("global:statistics_update_interval", PTPD_RESTART_NONE );
+#endif
         COMPONENT_RESTART_REQUIRED("global:foreground", 		PTPD_RESTART_DAEMON );
         COMPONENT_RESTART_REQUIRED("global:verbose_foreground",		PTPD_RESTART_DAEMON );
 

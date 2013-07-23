@@ -323,3 +323,25 @@ getPauseAfterMidnight(Integer8 announceInterval)
 	else
 		return (2.0f * ai);
 }
+
+double
+timeInternalToDouble(const TimeInternal * p)
+{
+
+	double sign = (p->seconds < 0 || p->nanoseconds < 0 ) ? -1.0 : 1.0;
+	return (sign * ( abs(p->seconds) + abs(p->nanoseconds) / 1E9 ));
+
+}
+
+TimeInternal
+doubleToTimeInternal(const double d)
+{
+
+	TimeInternal t = {0, 0};
+
+	t.seconds = trunc(d);
+	t.nanoseconds = (d - (t.seconds + 0.0)) * 1E9;
+
+	return t;
+
+}

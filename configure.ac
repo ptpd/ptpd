@@ -144,7 +144,7 @@ AC_CHECK_LIB(
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h netinet/ether.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h netinet/ether.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h pcap/pcap.h pcap.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -169,7 +169,7 @@ AC_FUNC_SELECT_ARGTYPES
 AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol])
+AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob])
 
 AC_MSG_CHECKING([for RUNTIME_DEBUG])
 AC_ARG_ENABLE(
@@ -250,6 +250,63 @@ case "$ptp_exp" in
     ;;
 esac
 AC_SUBST(PTP_EXP)
+
+AC_MSG_CHECKING([for realtime statistics support])
+AC_ARG_ENABLE(
+    [statistics],
+    [AS_HELP_STRING(
+	[--enable-statistics],
+	[Enable support for realtime statistics and statistics based filtering]
+    )],
+    [ptp_statistics=$enableval],
+    [ptp_statistics=no]
+)
+AC_MSG_RESULT([$ptp_statistics])
+case "$ptp_statistics" in
+ yes)
+    PTP_STATISTICS="-DPTPD_STATISTICS"
+    ;;
+esac
+AC_SUBST(PTP_STATISTICS)
+AM_CONDITIONAL([STATISTICS], [test x$ptp_statistics = xyes])
+
+AC_MSG_CHECKING([ntpd control / failover support])
+AC_ARG_ENABLE(
+    [ntpdc],
+    [AS_HELP_STRING(
+	[--enable-ntpdc],
+	[Enable control of local NTP daemon and failover to local NTP]
+    )],
+    [ptp_ntpdc=$enableval],
+    [ptp_ntpdc=no]
+)
+AC_MSG_RESULT([$ptp_ntpdc])
+case "$ptp_ntpdc" in
+ yes)
+    PTP_NTPDC="-DPTPD_NTPDC"
+    ;;
+esac
+AC_SUBST(PTP_NTPDC)
+AM_CONDITIONAL([NTPDC], [test x$ptp_ntpdc = xyes])
+
+AC_MSG_CHECKING([for double precision PI servo support])
+AC_ARG_ENABLE(
+    [double-servo],
+    [AS_HELP_STRING(
+	[--enable-double-servo],
+	[Enable support for double precision PI servo]
+    )],
+    [ptp_double_servo=$enableval],
+    [ptp_double_servo=no]
+)
+AC_MSG_RESULT([$ptp_double_servo])
+case "$ptp_double_servo" in
+ yes)
+    PTP_DOUBLE_SERVO="-DPTPD_DOUBLE_SERVO"
+    ;;
+esac
+AC_SUBST(PTP_DOUBLE_SERVO)
+AM_CONDITIONAL([DOUBLE_SERVO], [test x$ptp_double_servo = xyes])
 
 AC_MSG_CHECKING([for SIGUSR2 support])
 AC_ARG_ENABLE(
