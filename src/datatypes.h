@@ -3,7 +3,10 @@
 
 #include <stdio.h> 
 #include <dep/iniparser/dictionary.h>
+#ifdef PTPD_STATISTICS
 #include <dep/statistics.h>
+#endif /* PTPD_STATISTICS */
+
 /*Struct defined in spec*/
 
 
