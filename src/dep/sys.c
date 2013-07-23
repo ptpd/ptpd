@@ -1543,7 +1543,7 @@ getAdjFreq(void)
 #ifdef PTPD_DOUBLE_SERVO
 #define DRIFTFORMAT "%.0f"
 #else
-#define DRITFTFORMAT "%d"
+#define DRIFTFORMAT "%d"
 #endif /* PTPD_DOUBLE_SERVO */
 
 void
