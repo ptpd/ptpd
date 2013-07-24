@@ -528,11 +528,15 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif /* OLD_TIME */
 
 /* ======== BEGIN  OLD TIME EVENT - UTMPX / WTMPX =========== */
-		utmpxname(UTMPX_FILE);
+#ifdef HAVE_UTMPXNAME
+		utmpxname("/var/log/utmp");
+#endif /* HAVE_UTMPXNAME */
 		setutxent();
 		pututxline(&utx);
 		endutxent();
-		updwtmpx(WTMPX_FILE, &utx);
+#ifdef HAVE_UPDWTMPX
+		updwtmpx("/var/log/wtmp", &utx);
+#endif /* HAVE_IPDWTMPX */
 /* ======== END    OLD TIME EVENT - UTMPX / WTMPX =========== */
 
 #else /* NO UTMPX_H */
@@ -588,11 +592,15 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif /* NEW_TIME */
 
 /* ======== BEGIN  NEW TIME EVENT - UTMPX / WTMPX =========== */
-		utmpxname(UTMPX_FILE);
+#ifdef HAVE_UTMPXNAME
+		utmpxname("/var/log/utmp");
+#endif /* HAVE_UTMPXNAME */
 		setutxent();
 		pututxline(&utx);
 		endutxent();
-		updwtmpx(WTMPX_FILE, &utx);
+#ifdef HAVE_UPDWTMPX
+		updwtmpx("/var/log/wtmp", &utx);
+#endif /* HAVE_UPDWTMPX */
 /* ======== END    NEW TIME EVENT - UTMPX / WTMPX =========== */
 
 #else /* NO UTMPX_H */

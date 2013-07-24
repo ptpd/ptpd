@@ -868,18 +868,12 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 #endif /* PTPD_STATISTICS */
 	fprintf(out,"\n");
 #ifndef PTPD_STATISTICS
-if(rtOpts->enablePanicMode || rtOpts->calibrationDelay)
+if(rtOpts->enablePanicMode)
 	fprintf(out, 		STATUSPREFIX"  ","Clock status");
 		if(rtOpts->enablePanicMode) {
 	    if(ptpClock->panicMode) {
 		fprintf(out,"panic mode");
-		if (rtOpts->calibrationDelay)
-		fprintf(out, ", ");
 	    }
-	}
-	if(rtOpts->calibrationDelay) {
-	    fprintf(out, "%s",
-		ptpClock->isCalibrated ? "calibrated" : "not calibrated");
 	}
 #else
 if(rtOpts->enablePanicMode || rtOpts->calibrationDelay || rtOpts->servoStabilityDetection) {
