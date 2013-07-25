@@ -1,3 +1,90 @@
+2013-07-25  George Neville-Neil  <gnn@neville-neil.com>
+
+	* 2.3.0 release
+
+	* New Features
+	
+	- IEEE 802.3 Support
+	- Support for reading from the Berkeley Packet Filter, resulting in lower jitter
+	- Configuration file support, multiple previously unsupported options
+	- Rewritten command line parameter handling, new parameters
+	- Command line options to print default configuration, print lock file,	check configuration and more,
+	- Full help (-H) for all configuration options,
+	- Configuration reload support with SIGHUP,
+	- Rewritten logging subsystem, 
+	- Separate log file and statistics file, SIGHUP reprints the headers
+  	- Support for mode and interface specific lock files
+	- Network interface checks before startup and during config reload
+	- Added ./configure --sigusr2=counters - will dump PTP engine countersto current log target when SIGUSR2 received
+	- Support for presets - groups of PTP protocol options defining	ptpd behaviour
+		presets available: slaveonly, masteronly, masterslave
+	- Support for tick adjustment as well as frequency
+		maximum frequency offset is now configurable and can be above 512 ppm - tick is used above 512 ppm,
+	- Added a compatibility option to always honour the UTC offset announced by a GM when in slave state
+	- Added an announce receipt timeout "grace period" for slave state
+	  	slave can wait n times timeout without fully resetting
+	  	allows a seamless failover without resetting delay values etc.,
+	- Added support for DELAY_DISABLED delay mode - syntonisation only
+	- Initial support for informing the clock subsystem about the sync status
+		STA_UNSYNC is unset when adjusting the clock (allows syncing hardware RTC clocks with the system clock)
+		also maxerror and esterror are set,
+	- Support for legacy command line switches from previous versions
+	- Configurable log level for normal logs, not only debug logs.
+	- Generic log file handler mechanism with a simple built-in logrotate implementation
+		for each log file container you can specify max size and max number of files
+	- Extensive support for realtime statistics
+	  	online long term statistics and moving statistics 
+	  	mean and std dev. 
+	  		Some new features included depend on statistics support, enabled with the --enable-statistics
+	  		configure switch. Statistics rely on double precision so may be disabled for simple embedded systems
+	- Outlier filters based on Peirce's criterion 
+	  blocks / filters spikes from delayMS and delaySM 
+	- Generic PI controler model
+	- P and I components changed from attenuations to gains (scaled to 1/1000)
+	- Optional double precision servo allows for tighter clock control
+			configure --enable-double-servo
+	- Clock stabilisation detection based on the standard dev of observed drift
+	- Clock "calibration delay" 
+		allows a configurable delay between seeing a GM for the first time and enabling clock control
+	- Realtime statistics - mean and std dev of one-way delay, ofm and observed drift
+	- Status file: one-screen dump of information about the current state of ptpd, updated in configurable intervals.
+	- Support for "panic mode"
+		if ptpd sees offset from master above 1 second, it will pause clock updates for a given amount of time
+	- NTPd integration and failover
+		ptpd can now connect to local ntpd using mode 7 packets (code derived from ntpdc)
+	  	and using authenticated requests can enable/disable ntpd clock control.
+	  		Enable with configure --enable-ntpdc
+	- Dump counters using a SIGUSR2 handler to dump all counters to the log file
+	  	configure --enable-sigusr2=counters
+	  		  
+	Bug fixes:
+	
+	- TTL no longer defaults to 64 in P2P mode - in P2P it's set to 1,
+	- Fixed an issue whereby observed drift would be reset to 0 if it
+	  could not be read from the drift file (empty or nonexistent drift file),
+	  now the kernel value is used if read from file fails.
+	 - Support for updating utmp/wtmp when stepping the clock (FR #38)
+	 - Mean Path Delay filtering now done in float (patch #49)
+	
+	Cleanups and other changes:
+	
+	- Major startup.c cleanup, removed the parallel daemon checks,
+	  in favour of better lock handling and the automatic lock file
+	  name support,
+	- Some minor refactoring,
+	- Added a TimePropertiesDS structure and removed its fields
+	  from PtpClock
+	- Improved log file format with full date and interface name,
+	  removed the "===" indents
+	- Delay Request interval no longer mandatory in hybrid mode,
+	  but a warning will be issued if it's not explicitly defined -
+	  default of 0 is used,
+	- Removed the experimental status of hybrid mode,
+	- Manual stepping of the clock no longer just resets the observed
+	  drift: resets it or restores it based on the drift handling setting,
+	  and sets the time immediately before writing any logs - this allows
+	  to re-sync and stabilise time almost instantly
+	  
 2012-06-20  George Neville-Neil  <gnn@neville-neil.com>
 
 	* 2.2.2 release
