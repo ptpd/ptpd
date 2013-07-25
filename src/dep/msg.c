@@ -1524,7 +1524,7 @@ msgPackDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_REQ_LENGTH);
 
-	if(rtOpts.ip_mode == IPMODE_HYBRID)
+	if((rtOpts.ip_mode == IPMODE_HYBRID) || (rtOpts.ip_mode == IPMODE_UNICAST))
 		*(char *)(buf + 6) |= PTP_UNICAST;
 
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentDelayReqSequenceId);
