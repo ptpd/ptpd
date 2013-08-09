@@ -122,6 +122,7 @@ section 7.6.2.5, page 56:
 #define PDELAY_RESP_FOLLOW_UP_LENGTH  			54
 #define MANAGEMENT_LENGTH				48
 #define TLV_LENGTH					6
+#define TL_LENGTH					4
 /** \}*/
 
 /*Enumeration defined in tables of the spec*/

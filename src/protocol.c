@@ -2535,7 +2535,7 @@ issueManagementRespOrAck(MsgManagement *outgoing, RunTimeOpts *rtOpts,
 
 	/* set header messageLength, the outgoing->tlv->lengthField is now valid */
 	outgoing->header.messageLength = MANAGEMENT_LENGTH +
-					TLV_LENGTH +
+					TL_LENGTH +
 					outgoing->tlv->lengthField;
 
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
@@ -2559,7 +2559,7 @@ issueManagementErrorStatus(MsgManagement *outgoing, RunTimeOpts *rtOpts, PtpCloc
 
 	/* set header messageLength, the outgoing->tlv->lengthField is now valid */
 	outgoing->header.messageLength = MANAGEMENT_LENGTH +
-					TLV_LENGTH +
+					TL_LENGTH +
 					outgoing->tlv->lengthField;
 
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);

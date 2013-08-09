@@ -79,6 +79,7 @@ void initOutgoingMsgManagement(MsgManagement* incoming, MsgManagement* outgoing,
 	/* init managementTLV */
 	XMALLOC(outgoing->tlv, sizeof(ManagementTLV));
 	outgoing->tlv->dataField = NULL;
+	outgoing->tlv->lengthField = 0;
 }
 
 /**\brief Handle incoming NULL_MANAGEMENT message*/
@@ -88,7 +89,6 @@ void handleMMNullManagement(MsgManagement* incoming, MsgManagement* outgoing, Pt
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_NULL_MANAGEMENT;
 
 	switch(incoming->actionField)
@@ -117,7 +117,6 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_CLOCK_DESCRIPTION;
 
 	MMClockDescription *data = NULL;
@@ -210,7 +209,6 @@ void handleMMSlaveOnly(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_SLAVE_ONLY;
 
 	MMSlaveOnly* data = NULL;
@@ -247,7 +245,6 @@ void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, P
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_USER_DESCRIPTION;
 
 	MMUserDescription* data = NULL;
@@ -298,7 +295,6 @@ void handleMMSaveInNonVolatileStorage(MsgManagement* incoming, MsgManagement* ou
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_SAVE_IN_NON_VOLATILE_STORAGE;
 
 	switch( incoming->actionField )
@@ -324,7 +320,6 @@ void handleMMResetNonVolatileStorage(MsgManagement* incoming, MsgManagement* out
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_RESET_NON_VOLATILE_STORAGE;
 
 	switch( incoming->actionField )
@@ -350,7 +345,6 @@ void handleMMInitialize(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_INITIALIZE;
 
 	MMInitialize* incomingData = NULL;
@@ -397,7 +391,6 @@ void handleMMDefaultDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_DEFAULT_DATA_SET;
 
 	MMDefaultDataSet* data = NULL;
@@ -448,7 +441,6 @@ void handleMMCurrentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_CURRENT_DATA_SET;
 
 	MMCurrentDataSet *data = NULL;
@@ -499,7 +491,6 @@ void handleMMParentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_PARENT_DATA_SET;
 
 	MMParentDataSet *data = NULL;
@@ -549,7 +540,6 @@ void handleMMTimePropertiesDataSet(MsgManagement* incoming, MsgManagement* outgo
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_TIME_PROPERTIES_DATA_SET;
 
 	MMTimePropertiesDataSet *data = NULL;
@@ -592,7 +582,6 @@ void handleMMPortDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_PORT_DATA_SET;
 
 	MMPortDataSet *data = NULL;
@@ -643,7 +632,6 @@ void handleMMPriority1(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_PRIORITY1;
 
 	MMPriority1* data = NULL;
@@ -685,7 +673,6 @@ void handleMMPriority2(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_PRIORITY2;
 
 	MMPriority2* data = NULL;
@@ -727,7 +714,6 @@ void handleMMDomain(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* 
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_DOMAIN;
 
 	MMDomain* data = NULL;
@@ -769,7 +755,6 @@ void handleMMLogAnnounceInterval(MsgManagement* incoming, MsgManagement* outgoin
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_LOG_ANNOUNCE_INTERVAL;
 
 	MMLogAnnounceInterval* data = NULL;
@@ -811,7 +796,6 @@ void handleMMAnnounceReceiptTimeout(MsgManagement* incoming, MsgManagement* outg
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_ANNOUNCE_RECEIPT_TIMEOUT;
 
 	MMAnnounceReceiptTimeout* data = NULL;
@@ -853,7 +837,6 @@ void handleMMLogSyncInterval(MsgManagement* incoming, MsgManagement* outgoing, P
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_LOG_SYNC_INTERVAL;
 
 	MMLogSyncInterval* data = NULL;
@@ -895,7 +878,6 @@ void handleMMVersionNumber(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_VERSION_NUMBER;
 
 	MMVersionNumber* data = NULL;
@@ -938,7 +920,6 @@ void handleMMEnablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_ENABLE_PORT;
 
 	switch( incoming->actionField )
@@ -971,7 +952,6 @@ void handleMMDisablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_DISABLE_PORT;
 
 	switch( incoming->actionField )
@@ -1002,7 +982,6 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_TIME;
 /* commented out to suppress unused variable compiler warning */
 //	MMTime* data = NULL;
@@ -1040,7 +1019,6 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_CLOCK_ACCURACY;
 
 	MMClockAccuracy* data = NULL;
@@ -1082,7 +1060,6 @@ void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_UTC_PROPERTIES;
 
 	MMUtcProperties* data = NULL;
@@ -1132,7 +1109,6 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_TRACEABILITY_PROPERTIES;
 
 	MMTraceabilityProperties* data = NULL;
@@ -1177,7 +1153,6 @@ void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, Pt
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_DELAY_MECHANISM;
 
 	MMDelayMechanism *data = NULL;
@@ -1219,7 +1194,6 @@ void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* out
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
-	outgoing->tlv->lengthField = 2;
 	outgoing->tlv->managementId = MM_LOG_MIN_PDELAY_REQ_INTERVAL;
 
 	MMLogMinPdelayReqInterval* data = NULL;
@@ -1269,7 +1243,6 @@ void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement *outgoi
         initOutgoingMsgManagement(incoming, outgoing, ptpClock);
         /* init management error status tlv fields */
         outgoing->tlv->tlvType = TLV_MANAGEMENT_ERROR_STATUS;
-	outgoing->tlv->lengthField = 2;
 	/* management error status managementId field is the errorId */
 	outgoing->tlv->managementId = errorId;
 	switch(incoming->actionField)
