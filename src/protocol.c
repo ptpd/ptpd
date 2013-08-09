@@ -2022,6 +2022,21 @@ handlePDelayRespFollowUp(const MsgHeader *header, ssize_t length,
 	}
 }
 
+/* Only accept the management message if it satisfies 15.3.1 Table 36 */ 
+int
+acceptManagementMessage(PortIdentity thisPort, PortIdentity targetPort)
+{
+        ClockIdentity allOnesClkIdentity;
+        UInteger16    allOnesPortNumber = 0xFFFF;
+        memset(allOnesClkIdentity, 0xFF, sizeof(allOnesClkIdentity));
+
+        return ((memcmp(targetPort.clockIdentity, thisPort.clockIdentity, CLOCK_IDENTITY_LENGTH) == 0) ||
+                (memcmp(targetPort.clockIdentity, allOnesClkIdentity, CLOCK_IDENTITY_LENGTH) == 0))
+                &&
+                ((targetPort.portNumber == thisPort.portNumber) ||
+                (targetPort.portNumber == allOnesPortNumber));
+}
+
 static void 
 handleManagement(MsgHeader *header,
 		 Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
@@ -2040,6 +2055,12 @@ handleManagement(MsgHeader *header,
 		ptpClock->counters.messageFormatErrors++;
 		return;
 	}
+
+        if(!acceptManagementMessage(ptpClock->portIdentity, ptpClock->msgTmp.manage.targetPortIdentity))
+        {
+                DBGV("handleManagement: The management message was not accepted");
+                return;
+        }
 
 	/* is this an error status management TLV? */
 	if(ptpClock->msgTmp.manage.tlv->tlvType == TLV_MANAGEMENT_ERROR_STATUS) {
