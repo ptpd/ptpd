@@ -616,9 +616,12 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	case PTP_MASTER:
 		/*State decision Event*/
 
-		/* If we received a valid Announce message, and can
-		 * use it (record_update), then run the BMC
-		 * algorithm */
+		/* If we received a valid Announce message
+ 		 * and can use it (record_update),
+		 * or we received a SET management message that
+		 * changed an attribute in ptpClock,
+		 * then run the BMC algorithm
+		 */ 
 		if(ptpClock->record_update)
 		{
 			DBG2("event STATE_DECISION_EVENT\n");

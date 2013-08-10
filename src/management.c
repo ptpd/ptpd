@@ -219,6 +219,7 @@ void handleMMSlaveOnly(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		data = (MMSlaveOnly*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->slaveOnly = data->so;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action \n");
@@ -642,6 +643,7 @@ void handleMMPriority1(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		data = (MMPriority1*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->priority1 = data->priority1;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -683,6 +685,7 @@ void handleMMPriority2(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		data = (MMPriority2*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->priority2 = data->priority2;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -724,6 +727,7 @@ void handleMMDomain(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* 
 		data = (MMDomain*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->domainNumber = data->domainNumber;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -765,6 +769,7 @@ void handleMMLogAnnounceInterval(MsgManagement* incoming, MsgManagement* outgoin
 		data = (MMLogAnnounceInterval*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->logAnnounceInterval = data->logAnnounceInterval;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -806,6 +811,7 @@ void handleMMAnnounceReceiptTimeout(MsgManagement* incoming, MsgManagement* outg
 		data = (MMAnnounceReceiptTimeout*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->announceReceiptTimeout = data->announceReceiptTimeout;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -847,6 +853,7 @@ void handleMMLogSyncInterval(MsgManagement* incoming, MsgManagement* outgoing, P
 		data = (MMLogSyncInterval*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->logSyncInterval = data->logSyncInterval;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -888,6 +895,7 @@ void handleMMVersionNumber(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		data = (MMVersionNumber*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->versionNumber = data->versionNumber;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -1029,6 +1037,7 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		data = (MMClockAccuracy*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->clockQuality.clockAccuracy = data->clockAccuracy;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -1074,6 +1083,7 @@ void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		ptpClock->timePropertiesDS.currentUtcOffsetValid = IS_SET(data->utcv_li59_li61, UTCV);
 		ptpClock->timePropertiesDS.leap59 = IS_SET(data->utcv_li59_li61, LI59);
 		ptpClock->timePropertiesDS.leap61 = IS_SET(data->utcv_li59_li61, LI61);
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -1120,6 +1130,7 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 		/* SET actions */
 		ptpClock->timePropertiesDS.frequencyTraceable = IS_SET(data->ftra_ttra, FTRA);
 		ptpClock->timePropertiesDS.timeTraceable = IS_SET(data->ftra_ttra, TTRA);
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -1163,6 +1174,7 @@ void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, Pt
 		data = (MMDelayMechanism*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->delayMechanism = data->delayMechanism;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
@@ -1204,6 +1216,7 @@ void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* out
 		data = (MMLogMinPdelayReqInterval*)incoming->tlv->dataField;
 		/* SET actions */
 		ptpClock->logMinPdelayReqInterval = data->logMinPdelayReqInterval;
+		ptpClock->record_update = TRUE;
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action\n");
