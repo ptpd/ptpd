@@ -1,0 +1,571 @@
+.\" -*- nroff -*"
+.TH ptpd2.conf 5 "Aughst, 2013" "version 2.3.0" "PTPd config file"
+.SH NAME
+ptpd2.conf \- Precision Time Protocol daemon config file
+.SH CONFIGURATION VARIABLES
+.\"; NOTE: the following settings are affected by ptpengine:preset selection:
+\" ;           ptpengine:slave_only
+\" ;           clock:no_adjust
+\" ;           ptpengine:clock_class - allowed range and default value
+\" ; To see all preset settings, run ptpd2 -H (--long-help)
+
+.TP 
+.BR ptpengine:interface
+Network interface to use e.g. eth0, igb0, etc.
+.BR (required)
+.TP
+.BR ptpengine:preset
+.BR none ,
+.BR slaveonly ,
+.BR masteronly ,
+.BR masterslave :
+Defaults, no clock class restrictions.  Slave only (clock class 255
+only), Master, passive when not best master (clock class 0..127) Full
+IEEE 1588 implementation:
+.TP
+.BR ptpengine:ip_mode
+.BR multicast ,
+.BR unicast ,
+.BR hybrid
+.LP
+IP transmission mode (requires IP transport) - hybrid mode uses
+multicast for sync and announce, and unicast for delay request /
+response.
+.TP
+.BR ptpengine:transport
+.BR ipv4
+.BR ethernet
+.TP
+.BR ptpengine:use_libpcap (Y/N)
+Use libpcap for sending and receiving traffic (automatically enabled
+in Ethernet mode)
+.TP
+.BR ptpengine:delay_mechanism
+.BR E2E
+.BR (default) ,
+.BR P2P ,
+.BR DELAY_DISABLED 
+Delay detection mode used - use DELAY_DISABLED for syntonisation only
+(no synchronisation).
+.TP
+.BR ptpengine:domain
+The domain that this daemon uses to talk to other clocks in the
+network. (0..128)
+.TP
+.BR ptpengine:slave_only
+.BR (Y/N)
+Slave only mode (if set, overrides preset setting and sets clock class
+to 255) 
+.TP
+.BR ptpengine:inbound_latency
+Specify latency correction for incoming packets
+.TP
+.BR ptpengine:outbound_latency
+Specify latency correction for outgoing packets
+.TP
+.BR ptpengine:always_respect_utc_offset = N
+Compatibility option: In slave state, always respect UTC offset
+announced by best master, even if the the currrentUtcOffsetValid flag
+is announced as FALSE.
+.TP
+.BR ptpengine:log_announce_interval
+PTP announce message interval in master state (expressed as log 2
+i.e. -1=0.5s, 0=1s, 1=2s etc.)
+.B (default = 1)
+.TP
+.BR ptpengine:announce_timeout
+PTP announce receipt timeout announced in master state.
+.B (default = 6)
+.TP
+.BR ptpengine:announce_timeout_grace_period
+PTP announce receipt timeout grace period in slave state: when
+announce receipt timeout occurs, disqualify current best GM, then wait
+n times announce receipt timeout before resetting.  Allows for a
+seamless GM failover when standby GMs are slow to react.  When set to
+0, this option is not used.
+.B (default = 0)
+.TP
+.BR ptpengine:log_sync_interval
+PTP sync message interval in master state (expressed as log 2
+i.e. -1=0.5s, 0=1s, 1=2s etc.)
+.B (default = 0)
+.TP
+.BR ptpengine:log_delayreq_interval_initial
+Initial delay request message interval for slave mode, before first
+delay response is received (expressed as log 2 i.e. -1=0.5s, 0=1s,
+1=2s etc.)
+.B (default = 0)
+.TP
+.BR ptpengine:log_delayreq_interval
+Minimum delay request message interval in master state, in slave mode
+overrides the master interval, required in hybrid mode (expressed as
+log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+.B (default = 0)
+.TP
+.BR ptpengine:log_peer_delayreq_interval
+Minimum peer delay request message interval in master state.
+(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+.B (default = 1)
+.TP
+.BR ptpengine:foreignrecord_capacity 
+Maximum number of foreign masters (foreign master record size
+allocated at startup)
+.B (default = 5)
+.TP
+.BR ptpengine:ptp_allan_variance 
+Specify Allan variance announced in master state
+.B (default = 28768)
+.TP
+.BR ptpengine:ptp_clock_accuracy 
+.B (default = ACC_UNKNOWN)
+.BR ACC_25NS
+.BR ACC_100NS
+.BR ACC_250NS
+.BR ACC_1US
+.BR ACC_2.5US
+.BR ACC_10US 
+.BR ACC_25US
+.BR ACC_100US
+.BR ACC_250US
+.BR ACC_1MS
+.BR ACC_2.5MS
+.BR ACC_10MS 
+.BR ACC_25MS 
+.BR ACC_100MS 
+.BR ACC_250MS
+.BR ACC_1S
+.BR ACC_10S
+.BR ACC_10SPLUS
+.BR ACC_UNKNOWN
+Clock accuracy range announced in master state.
+.TP
+.BR ptpengine:utc_offset 
+Underlying time source UTC offset announced in master state
+.B (default = 0)
+.TP
+Underlying time source UTC offset validity announced in master state
+.BR ptpengine:utc_offset_valid 
+.B (default = N)
+.TP
+.BR ptpengine:time_traceable 
+Underlying time source time traceability announced in master state
+.B (default = N)
+.TP
+.BR ptpengine:frequency_traceable 
+Underlying time source frequency traceability announced in master state
+.B (default = N)
+.TP
+.BR ptpengine:ptp_timescale 
+Time scale announced in master state (with ARB timescale, UTC
+properties are ignored by slaves), when clock class 13 (application
+specific), this value is ignored and ARB is used.
+.B (default = PTP_ARB)
+.TP
+.BR ptpengine:ptp_timesource 
+Time source announced in master state
+.BR ATOMIC_CLOCK GPS 
+.BR TERRESTRIAL_RADIO
+.BR PTP
+.BR NTP
+.BR HAND_SET
+.BR OTHER
+.BR INTERNAL_OSCILLATOR 
+.B (default = INTERNAL_OSCILLATOR)
+.TP
+.BR ptpengine:clock_class 
+Clock class - announced in master state. Always 255 for slave-only
+mode.  Minimum, maximum and default values are controlled by presets.
+If set to 13 (application specific time source), announced time scale
+is always set to ARB. This setting controls the states a PTP port can
+be in. If below 128, port will only be in MASTER or PASSIVE states
+(master only). If above 127, port will be in MASTER or SLAVE states.
+.B (default = 255)
+.TP
+.BR ptpengine:priority1 
+Priority 1 value announced in master state and used for Best Master
+Clock selection.
+.B (default = 128)
+.TP
+.BR ptpengine:priority2 
+Priority 2 value announced in master state and used for Best Master
+Clock selection.
+.B (default = 128)
+.TP
+.BR ptpengine:unicast_address 
+Specify unicast destination for unicast master mode (in unicast slave
+mode overrides delay request destination)
+.B (default = None)
+.TP
+.BR ptpengine:igmp_refresh 
+Send explicit IGMP joins between servo resets
+.B (default = Y)
+.TP
+.BR ptpengine:multicast_ttl 
+Multicast time to live for multicast PTP packets (ignored and set to 1
+for peer to peer messages)
+.B (default = 64)
+.TP
+.BR ptpengine:ip_dscp 
+DiffServ CodepPoint for packet prioritisation (decimal). When set to
+zero, this option is not used.  46 = Expedited Forwarding (0x2e)
+.B (default = 0)
+.TP
+.BR ptpengine:alt_mcast_group 
+.B 0 = 224.0.1.129
+.B 1 = 224.0.1.130
+.B 2 = 224.0.1.131
+.B 3 = 224.0.1.132
+Use PTP alternative multicast group like PTPv1 (if compiled with
+PTPD_EXPERIMENTAL).
+.B (default = 0)
+.TP
+.BR ptpengine:delay_outlier_filter_enable 
+Enable outlier filter for the Delay Response component in slave state
+.B (default = N)
+.TP
+.BR ptpengine:delay_outlier_filter_action 
+.B discard
+.B filter 
+Delay Response outlier filter action. If set to 'filter', outliers are
+replaced with moving average.
+.B (default = filter)
+.TP
+.BR ptpengine:delay_outlier_filter_capacity 
+Number of samples in the Delay Response outlier filter buffer
+.B (default = 20)
+.TP
+.BR ptpengine:delay_outlier_filter_threshold 
+Delay Response outlier filter threshold: multiplier for the Peirce's
+maximum standard deviation. When set below 1.0, filter is tighter,
+when set above 1.0, filter is looser than standard Peirce's test.
+.B (default = 1.000000)
+.TP
+.BR ptpengine:delay_outlier_weight 
+Delay Response outlier weight: if an outlier is detected, this value
+determines the amount of its deviation from mean that is used to build
+the standard deviation statistics and influence further outlier
+detection.  When set to 1.0, the outlier is used as is.
+.B (default = 1.000000)
+.TP
+.BR ptpengine:sync_outlier_filter_enable 
+Enable outlier filter for the Sync component in slave state
+.B (default = N)
+.TP
+.BR ptpengine:sync_outlier_filter_action 
+.B discard
+.B filter 
+Sync outlier filter action. If set to 'filter', outliers are replaced
+with moving average.
+.B (default = filter)
+.TP
+.BR ptpengine:sync_outlier_filter_capacity 
+Number of samples in the Sync outlier filter buffer
+.B (default = 20)
+.TP
+.BR ptpengine:sync_outlier_filter_threshold 
+Sync outlier filter threshold: multiplier for the Peirce's maximum
+standard deviation. When set below 1.0, filter is tighter, when set
+above 1.0, filter is looser than standard Peirce's test.
+.B (default = 1.000000)
+.TP
+.BR ptpengine:sync_outlier_weight 
+Sync outlier weight: if an outlier is detected, this value determines
+the amount of its deviation from mean that is used to build the
+standard deviation statistics and influence further outlier detection.
+When set to 1.0, the outlier is used as is.
+.B (default = 1.000000)
+.TP
+.BR ptpengine:calibration_delay 
+.B 0 = not used
+Delay between moving to slave state and enabling clock updates
+expressed as number of statistics update periods (see
+global:statistics_update_interval). This allows one-way delay to
+stabilise before starting clock updates. Activated when going into
+slave state and during GM failover in slave state.
+.B (default = 0)
+.TP
+.BR ptpengine:panic_mode 
+Enable panic mode: when offset from master is above 1 second, stop
+updating the clock for a period of time and then step the clock if
+offset remains above 1 second.
+.B (default = N)
+.TP
+.BR ptpengine:panic_mode_duration 
+Duration of the panic mode period (no clock updates) when offset above
+1 second detected.
+.B (default = 2)
+.TP
+.BR ptpengine:pid_as_clock_idendity 
+Use JobID (PID) for UUID.  Meant for running multiple clients on a
+single host for testing Grand Masters and other equipment.
+.B (default = N)
+.TP
+.BR ptpengine:ntp_failover 
+Fail over to NTP when PTP time sync not available - requires
+ntpengine:enabled but does not require the rest of NTP configuration -
+will warn instead of failing over if cannot control ntpd.
+.B (default = N)
+.TP
+.BR ptpengine:ntp_failover_timeout 
+NTP failover timeout in seconds: time between PTP slave going into
+LISTENING state, and failing over to NTP. 0 = fail over immediately.
+.B (default = 60)
+.TP
+.BR ptpengine:prefer_ntp 
+Prefer NTP time synchronisation when not controlling the clock (all
+states, including slave when clock:no_adjust set)
+.B (default = N)
+.TP
+.BR ptpengine:panic_mode_ntp 
+When entering panic mode, fail over to NTP (after the NTP failover
+timeout period) - requires ntpengine:enabled but does not require the
+rest of NTP configuration - will warn instead of failing over if it
+cannot control ntpd.
+.B (default = N)
+.TP
+.BR clock:no_adjust 
+Do not adjust the clock.
+.B (default = N)
+.TP
+.BR clock:no_reset 
+Do not reset the clock - only slew
+.B (default = N)
+.TP
+.BR clock:drift_handling 
+.B reset
+.B preserve
+.B file
+Observed drift handling method between servo restarts: reset: set to
+zero (not recommended) preserve: use kernel value, file: load and save
+to drift file on startup/shutdown, use kernel value inbetween.  To
+specify drift file, use the clock:drift_file setting.
+.B (default = preserve)
+.TP
+.BR clock:drift_file 
+Specify drift file
+.B (default = /etc/ptpd2_kernelclock.drift)
+.TP
+.BR clock:max_offset_ppm 
+Maximum absolute frequency shift which can be applied to the clock
+servo when slewing the clock. Expressed in parts per million (1 ppm 1
+us per second. Values above 512 will use the tick duration correction
+to allow even faster slewing. Default maximum is 512 without using
+tick.
+.B (default = 512)
+.TP
+.BR servo:delayfilter_stiffness 
+One-way delay filter stiffness
+.B (default = 6)
+.TP
+.BR servo:kp 
+Clock servo PI controller proportional component gain (kP)
+.B (default = 1000.000000)
+.TP
+.BR servo:ki 
+; Clock servo PI controller integral component gain (kI)
+.B (default = 10.000000)
+.TP
+.BR servo:max_delay 
+Maximum accepted delayMS value in nanoseconds (Sync).  0 = not
+checked.
+.B (default = 0)
+.TP
+.BR servo:stability_detection 
+Enable clock synchronisation servo stability detection (based on
+standard deviation of the observed drift value) - drift will be saved
+to drift file / cached when considered stable, also clock stability
+status will be logged.
+.B (default = N)
+.TP
+.BR servo:stability_threshold 
+Specify the observed drift standard deviation threshold in parts per
+billion (ppb) - if stanard deviation is within the threshold, servo is
+considered stable.
+.B (default = 5.000000)
+.TP
+.BR servo:stability_period 
+Specify for how many statistics update intervals the observed drift standard
+deviation has to stay within threshold to be considered stable.
+.B (default = 3)
+.TP
+.BR servo:stability_timeout 
+Specify after how many minutes without stabilisation servo is considered
+unstable. Assists with logging servo stability information and
+allows to preserve observed drift if servo cannot stabilise.
+.B (default = 10)
+.TP
+.BR servo:max_delay 
+Do not update one-way delay if slave to master delay (from Delay
+Response) is greater than this value (nanoseconds). 0 = not used.
+.B (default = 0)
+.TP
+.BR servo:max_offset 
+Do not reset the clock if offset from master is greater
+than this value (nanoseconds). 0 = not used.
+.B (default = 0)
+.TP
+.BR global:use_syslog 
+Send log messages to syslog. Disabling this sends all messages to
+stdout (or speficied log file)
+.B (default = N)
+.TP
+.BR global:lock_file
+Lock file location
+.TP
+.BR global:auto_lockfile 
+Use mode specific and interface specific lock files (overrides
+global:lock_file)
+.B (default = N)
+.TP
+.BR global:lock_directory 
+Lock file directory: used with automatic mode-specific lock files,
+also used when no lock file is specified. When lock file is specified,
+it's expected to be an absolute path.
+.B (default = /var/run)
+.TP
+.BR global:ignore_lock 
+Skip lock file checking and locking
+.B (default = N)
+.TP
+.BR global:quality_file = 
+File used to record data about sync packets. Setting this enables recording.
+.TP
+.BR global:quality_file_max_size 
+Maximum sync packet record file size (in kB) - file will be truncated
+if size exceeds the limit.  0 - no limit.
+.B (default = 0)
+.TP
+.BR global:quality_file_max_files 
+Enable log rotation of the sync packet record file up to n files. 0 -
+do not rotate.
+.B (default = 0)
+.TP
+.BR global:quality_file_truncate 
+Truncate the sync packet record file every time it is (re) opened - on
+startup and SIGHUP.
+.B (default = N)
+.TP
+.BR global:status_file 
+File used to log ptpd2 status information
+.B (default = /var/run/ptpd2.status)
+.TP
+.BR global:log_status 
+Enable / disable writing status information to file.
+.B (default = N)
+.TP
+.BR global:status_update_interval 
+Status file update interval in seconds.
+.B (default = 1)
+.TP
+.BR global:log_file 
+Specify log file path (event log). Setting this enables logging to file.
+.B (default = )
+.TP
+.BR global:log_file_max_size 
+Maximum log file size (in kB) - log file will be truncated if size
+exceeds the limit. 0 - no limit.
+.B (default = 0)
+.TP
+.BR global:log_file_max_files 
+Enable log rotation of the sync packet record file up to n files. 0 -
+do not rotate.
+.B (default = 0)
+.TP
+.BR global:log_file_truncate 
+Truncate the log file every time it is (re) opened - on startup and SIGHUP.
+.B (default = N)
+.TP
+.BR global:log_level 
+.B LOG_ERR
+.B LOG_WARNING
+.B LOG_NOTICE
+.B LOG_INFO
+.B LOG_ALL 
+Specify log level (only messages of the specified priority or higer
+will be logged).  The minimal level is LOG_ERR. LOG_ALL enables debug
+output if compiled with RUNTIME_DEBUG.
+.B (default = LOG_ALL)
+.TP
+.BR global:statistics_file 
+Specify statistics log file path. Setting this enables logging of
+statistics but can be overriden with global:log_statistics
+.B (default = None)
+.TP
+.BR global:statistics_log_interval 
+Log timing statistics every n seconds for Sync and Delay Response
+messages (0 - log all)
+.B (default = 0)
+.TP
+.BR global:statistics_file_max_size 
+Maximum statistics log file size (in kB) - log file will be truncated
+if size exceeds the limit.  0 - no limit.
+.B (default = 0)
+.TP
+.BR global:statistics_file_max_files 
+Enable log rotation of the statistics file up to n files. 0 - do not
+rotate
+.B (default = 0)
+.TP
+.BR global:statistics_file_truncate 
+Truncate the statistics file every time it is (re) opened - on startup
+and SIGHUP.
+.B (default = N)
+; Dump the contents of every PTP packet
+.TP
+.BR global:dump_packets 
+.B (default = N)
+.TP
+.BR global:verbose_foreground 
+Run in foreground with statistics and all messages logged to stdout.
+Overrides log file and statistics file settings and disables syslog.
+.B (default = N)
+.TP
+.BR global:foreground 
+Run in foreground
+.B (default = N)
+.TP
+.BR global:log_statistics 
+Log timing statistics for every PTP packet received
+.B (default = N)
+.TP
+.BR global:cpuaffinity_cpucore 
+Linux only: bind ptpd2 process to a selected CPU core number.  0 =
+first CPU core, etc. -1 = do not bind to a single core.
+.B (default = -1)
+.TP
+.BR global:statistics_update_interval 
+Clock synchronisation statistics update interval in seconds.
+.B (default = 5)
+.TP
+.BR ntpengine:enabled .
+Enable NTPd integration
+.B (default = N)
+.TP
+.BR ntpengine:control_enabled 
+Enable control over local NTPd daemon.
+.B (default = N)
+.TP
+.BR ntpengine:check_interval 
+NTP control check interval in seconds.
+.B (default = 15)
+.TP
+.BR ntpengine:key_id 
+NTP key number - must be configured as a trusted control key in ntp.conf,
+and must be non-zero for the ntpengine:control_enabled setting to take effect.
+.B (default = 0)
+.TP
+.BR ntpengine:key = 
+NTP key (plain text, max. 20 characters) - must match the key
+configured in ntpd's keys file, and must be non-zero for the
+ntpengine:control_enabled setting to take effect.
+.SH AUTHORS
+.PP
+Steven Kreuzer <skreuzer@freebsd.org> 
+.PP
+Gael Mace <gael_mace@users.sourceforge.net>
+.PP
+George Neville-Neil <gnn@freebsd.org>
+.PP
+Wojciech Owczarek <wojciech@owczarek.co.uk>
+.PP
+Alexandre Van Kempen
