@@ -1,5 +1,5 @@
 .\" -*- nroff -*"
-.TH ptpd2.conf 5 "Aughst, 2013" "version 2.3.0" "PTPd config file"
+.TH ptpd2.conf 5 "@RELEASE_DATE@" "version @VERSION_NUMBER@" "PTPd config file"
 .SH NAME
 ptpd2.conf \- Precision Time Protocol daemon config file
 .SH CONFIGURATION VARIABLES

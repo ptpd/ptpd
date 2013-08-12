@@ -17,6 +17,11 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE([1.10 foreign -Wall])
 
+[RELEASE_DATE]="RELEASE_DATE"
+AC_SUBST([RELEASE_DATE])
+[VERSION_NUMBER]="VERSION_NUMBER"
+AC_SUBST([VERSION_NUMBER])
+
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_AWK
@@ -333,6 +338,10 @@ case "$ptp_sigusr2" in
 esac
 AC_SUBST(PTP_SIGUSR2)
 
-AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([src/Makefile])
+AC_CONFIG_FILES([src/ptpd2.8])
+AC_CONFIG_FILES([src/ptpd2.conf.5])
+AC_CONFIG_FILES([src/ptpd2.conf.8])
+
 AC_OUTPUT
