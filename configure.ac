@@ -144,7 +144,7 @@ AC_CHECK_LIB(
     [pcap],
     [pcap_inject],
     [],
-    [AC_MSG_ERROR([Cannot build with libpcap - required for pcap / BPF timestamping!])]
+    [AC_MSG_ERROR([Cannot find libpcap - required for pcap / BPF timestamping!])]
 )
 
 # Checks for header files.
