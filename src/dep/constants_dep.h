@@ -69,7 +69,7 @@
 #endif
 
 #define CLOCK_IDENTITY_LENGTH 8
-#define ADJ_FREQ_MAX 512000
+#define ADJ_FREQ_MAX 500000
 
 /* UDP/IPv4 dependent */
 #ifndef INADDR_LOOPBACK
