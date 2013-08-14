@@ -22,6 +22,10 @@
 # include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#ifdef linux
+#define _GNU_SOURCE
+#endif /* linux */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
