@@ -541,7 +541,7 @@ maintainLogSize(LogFileHandler* handler)
 				INFO("Rotating %s file - size above %dkB\n",
 					handler->logID, handler->maxSize);
 			} else {
-				DBG("Could not rotate %s file\n",);
+				DBG("Could not rotate %s file\n", handler->logPath);
 			}
 			return TRUE;
 		    /* Just truncate - maxSize given but no maxFiles */
@@ -551,7 +551,7 @@ maintainLogSize(LogFileHandler* handler)
 			INFO("Truncating %s file - size above %dkB\n",
 				handler->logID, handler->maxSize);
 			} else {
-				DBG("Could not truncate %s file\n",);
+				DBG("Could not truncate %s file\n", handler->logPath);
 			}
 			return TRUE;
 		    }

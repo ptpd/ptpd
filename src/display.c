@@ -487,6 +487,11 @@ mMErrorStatus_display(const MMErrorStatus* errorStatus, const PtpClock *ptpClock
 	/* TODO: implement me */
 }
 
+#ifdef PTPD_DOUBLE_SERVO
+#define FORMAT_SERVO	"%f"
+#else
+#define FORMAT_SERVO	"%d"
+#endif
 
 /**\brief Display runTimeOptions structure*/
 void
@@ -502,20 +507,20 @@ displayRunTimeOpts(const RunTimeOpts * rtOpts)
 	DBGV("priority2 : %d \n", rtOpts->priority2);
 	DBGV("domainNumber : %d \n", rtOpts->domainNumber);
 	DBGV("slaveOnly : %d \n", rtOpts->slaveOnly);
-	DBGV("currentUtcOffset : %d \n", rtOpts->currentUtcOffset);
+	DBGV("currentUtcOffset : %d \n", rtOpts->timeProperties.currentUtcOffset);
 	unicast_display(rtOpts->unicastAddress);
 	DBGV("noAdjust : %d \n", rtOpts->noAdjust);
 	DBGV("logStatistics : %d \n", rtOpts->logStatistics);
 	iFaceName_display(rtOpts->ifaceName);
-	DBGV("ap : %d \n", rtOpts->ap);
-	DBGV("aI : %d \n", rtOpts->ai);
+	DBGV("kP : %d \n", rtOpts->servoKP);
+	DBGV("kI : %d \n", rtOpts->servoKI);
 	DBGV("s : %d \n", rtOpts->s);
 	DBGV("inbound latency : \n");
 	timeInternal_display(&(rtOpts->inboundLatency));
 	DBGV("outbound latency : \n");
 	timeInternal_display(&(rtOpts->outboundLatency));
 	DBGV("max_foreign_records : %d \n", rtOpts->max_foreign_records);
-	DBGV("ethernet mode : %d \n", rtOpts->ethernet_mode);
+	DBGV("transport : %d \n", rtOpts->transport);
 	DBGV("\n");
 }
 
@@ -703,7 +708,7 @@ displayOthers(const PtpClock * ptpClock)
 	DBGV("y : %d \n", ptpClock->owd_filt.y);
 	DBGV("s_exp : %d \n", ptpClock->owd_filt.s_exp);
 	DBGV("\n");
-	DBGV("observed_drift : %d \n", ptpClock->observed_drift);
+	DBGV("observed drift : "FORMAT_SERVO" \n", ptpClock->servo.observedDrift);
 	DBGV("message activity %d \n", ptpClock->message_activity);
 	DBGV("\n");
 

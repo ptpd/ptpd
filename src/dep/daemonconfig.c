@@ -1584,7 +1584,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"LOG_DEBUG1", 	LOG_DEBUG1,
 				"LOG_DEBUG2", 	LOG_DEBUG2,
 				"LOG_DEBUG3", 	LOG_DEBUG3,
-				"LOG_DEBUGV", 	LOG_DEBUGV,
+				"LOG_DEBUGV", 	LOG_DEBUGV
 				);
 #else
 	if (!IS_QUIET() && CONFIG_ISSET("global:debug_level"))

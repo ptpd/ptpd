@@ -679,7 +679,7 @@ again:
 			break;
 		}
 		if (impl_ver == IMPL_XNTPD) {
-			DBGV(,
+			DBGV(
 			    "NTPDC ***Warning changing to older implementation\n");
 			return INFO_ERR_IMPL;
 		}
