@@ -54,7 +54,15 @@
 
 #include "../ptpd.h"
 
+#ifdef HAVE_PCAP_PCAP_H
 #include <pcap/pcap.h>
+#else /* !HAVE_PCAP_PCAP_H */
+/* Cases like RHEL5 and others where only pcap.h exists */
+#ifdef HAVE_PCAP_H
+#include <pcap.h>
+#endif /* HAVE_PCAP_H */
+#endif
+
 #define PCAP_TIMEOUT 1 /* expressed in milliseconds */
 
 #if defined PTPD_SNMP

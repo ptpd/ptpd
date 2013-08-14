@@ -23,7 +23,9 @@
 #endif /* HAVE_CONFIG_H */
 
 #ifdef linux
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif /* _GNU_SOURCE */
 #endif /* linux */
 
 #include <stdlib.h>
