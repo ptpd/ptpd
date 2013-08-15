@@ -86,6 +86,7 @@ case "$ptpd_ok" in
     PTP_SNMP="-DPTPD_SNMP"
     ;;
 esac
+AC_SUBST(PTP_SNMP)
 AM_CONDITIONAL([SNMP], [test x$ptpd_snmp_enabled = x1])
 AC_MSG_RESULT([$ptpd_ok])
 
