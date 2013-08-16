@@ -977,6 +977,8 @@ Integer32
 runPIservo(PIservo* servo, const Integer32 input)
 {
 
+	Integer32 aP;
+	Integer32 aI;
 #if 0
 	double dt;
 	TimeInternal now, delta;
@@ -999,10 +1001,19 @@ runPIservo(PIservo* servo, const Integer32 input)
 		servo->kI = 1;
 
 	/*
-	 * kP and kI are scaled to 10000 - but we divide by 10000 first
-	 * so that we don't lose precision
+	 * kP and kI are scaled to 10000
+	 * because of integer overflow we convert them to attenuations
 	 */
 
+	aP = 10000 / servo->kP;
+	aI = 10000 / servo->kI;
+    
+	if (aP <1)
+		aP = 1;
+	if (aI < 1)
+		aI = 1;
+    
+    
 #if 0
 	/* 
 	 * Inactive along with the dt calculation above:
@@ -1013,10 +1024,10 @@ runPIservo(PIservo* servo, const Integer32 input)
 	 * kP and kI defaults.
 	 */
 	servo->observedDrift +=
-		dt * (input * servo->kI) / 10000;
+		dt * input / aI;
 #else
 	servo->observedDrift +=
-		(input * servo->kI) / 10000;
+		input / aI;
 #endif
 	if(servo->observedDrift >= servo->maxOutput) {
 		servo->observedDrift = servo->maxOutput;
@@ -1028,11 +1039,7 @@ runPIservo(PIservo* servo, const Integer32 input)
 	} else {
 		servo->runningMaxOutput = FALSE;
 	}
-	/*
-	 * kP and kI are scaled to 10000 - but we divide by 10000 first
-	 * so that we don't lose precision
-	 */
-	servo->output = (servo->kP * input) / 10000 + servo->observedDrift;
+	servo->output = input / aP + servo->observedDrift;
 
 #if 0
 	servo->lastUpdate = now;
