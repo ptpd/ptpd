@@ -361,6 +361,7 @@
 		    }\
 		} else if(iniparser_getboolean(dict,key,-1) == -1) {\
 		    ERROR("Configuration error: option \"%s=%s\" has unknown boolean value:  must start with 0/1/t/T/f/F/y/Y/n/N\n",key,iniparser_getstring(dict,key,""));\
+		    dictionary_set(target,key,""); /* suppress the "unknown entry" warning for malformed boolean values */ \
 		    parseResult = FALSE;\
 		} else {\
 		    variable=iniparser_getboolean(dict,key,default);\
