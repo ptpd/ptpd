@@ -359,7 +359,7 @@
 			    printComment(helptext);\
 			    printf("%s = %s\n", key,(variable)?"Y":"N");\
 		    }\
-		} else if(iniparser_getboolean(dict,key,default) == -1) {\
+		} else if(iniparser_getboolean(dict,key,-1) == -1) {\
 		    ERROR("Configuration error: option \"%s=%s\" has unknown boolean value:  must start with 0/1/t/T/f/F/y/Y/n/N\n",key,iniparser_getstring(dict,key,""));\
 		    parseResult = FALSE;\
 		} else {\
