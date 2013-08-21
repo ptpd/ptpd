@@ -84,6 +84,9 @@
 #define CONFIG_ISSET(key) \
 	(strcmp(iniparser_getstring(dict, key, ""),"") != 0)
 
+#define CONFIG_ISPRESENT(key) \
+	(iniparser_find_entry(dict, key) != 0)
+
 #define CONFIG_ISTRUE(key) \
 	(iniparser_getboolean(dict,key,FALSE)==TRUE)
 
@@ -352,14 +355,14 @@
 		printf("\n");\
 		HELP_ITEM_COMPLETE(); \
 	} else {\
-		if (!CONFIG_ISSET(key)) {\
+		if (!CONFIG_ISPRESENT(key)) {\
 		    variable = default;\
 		    dictionary_set(target,key,(variable)?"Y":"N");\
 		    if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
 			    printComment(helptext);\
 			    printf("%s = %s\n", key,(variable)?"Y":"N");\
 		    }\
-		} else if(iniparser_getboolean(dict,key,-1) == -1) {\
+		} else if(!CONFIG_ISSET(key) || iniparser_getboolean(dict,key,-1) == -1) {\
 		    ERROR("Configuration error: option \"%s=%s\" has unknown boolean value:  must start with 0/1/t/T/f/F/y/Y/n/N\n",key,iniparser_getstring(dict,key,""));\
 		    dictionary_set(target,key,""); /* suppress the "unknown entry" warning for malformed boolean values */ \
 		    parseResult = FALSE;\
@@ -562,13 +565,16 @@
 		printf("\n");\
 		HELP_ITEM_COMPLETE(); \
 	} else {\
-		if ( (variable = selectKeyValue(\
+		int res;\
+		if ( (res = selectKeyValue(\
 			dict, key, default,NUMARGS(__VA_ARGS__),\
 			    __VA_ARGS__\
 			 )) == -1) {\
 				    variable = default;\
 				    parseResult = FALSE;\
-				    }\
+					} else {\
+						variable=res;\
+					}\
 			    {\
 				dictionary_set(target, key, selectOptionName(\
 				    variable,NUMARGS(__VA_ARGS__), __VA_ARGS__));\
@@ -661,7 +667,7 @@ selectKeyValue( dictionary* dict, const char* keyname, int default_option, int c
 
     count/=2;
 
-    if ( !CONFIG_ISSET(keyname) ) {
+    if ( !CONFIG_ISPRESENT(keyname) ) {
 	ret = default_option;
 	goto end;
     }
@@ -1856,7 +1862,15 @@ loadCommandLineKeys(dictionary* dict, int argc,char** argv)
 		}
 
 	    }
-	if(strlen(val) > 0) {
+	/*
+	 * there is no argument --sec:key=val
+	 */
+	else {
+		val[0] = '\0';
+		key[0] = '\0';
+	}
+	
+	if(strlen(key) > 0) {
 		DBGV("setting loaded from command line: %s = %s\n",key,val);
 		dictionary_set(dict, key, val);
 	}
