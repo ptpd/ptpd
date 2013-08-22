@@ -66,7 +66,7 @@ AC_ARG_ENABLE(
     [snmp],
     [AS_HELP_STRING(
 	[--enable-snmp],
-	[enable support for SNMP (disabled by default)]
+	[enable support for SNMP (enabled if we find net-snmp-config)]
     )],
     [ptpd_ok=$enableval],
     [case "$PATH_NET_SNMP_CONFIG" in
@@ -132,6 +132,8 @@ case "$ptpd_ok" in
 	AS_UNSET([save_LIBS])
 	;;
      *) 
+	# This case can't be triggered - we won't get here unless we
+	# have an absolute path to net-snmp-config.
 	AC_MSG_WARN([Cannot build with SNMP support - net-snmp-config cannot be found])
 	;;
     esac
