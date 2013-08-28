@@ -61,36 +61,27 @@ case "$PROG_NET_SNMP_CONFIG" in
     ;;
 esac
 
-AC_MSG_CHECKING([if we want to build SNMP support])
+AC_MSG_CHECKING([if we want to try building SNMP support])
 AC_ARG_ENABLE(
     [snmp],
     [AS_HELP_STRING(
 	[--enable-snmp],
 	[enable support for SNMP (enabled if we find net-snmp-config)]
     )],
-    [ptpd_ok=$enableval],
+    [try_snmp=$enableval],
     [case "$PATH_NET_SNMP_CONFIG" in
      /*)
-	ptpd_ok=yes
+	try_snmp=yes
 	;;
      *)
-	ptpd_ok=no
+	try_snmp=no
 	;;
     esac]
 )
+AC_MSG_RESULT([$try_snmp])
 
 ptpd_snmp_enabled=0
-case "$ptpd_ok" in
- yes) 
-    ptpd_snmp_enabled=1
-    PTP_SNMP="-DPTPD_SNMP"
-    ;;
-esac
-AC_SUBST(PTP_SNMP)
-AM_CONDITIONAL([SNMP], [test x$ptpd_snmp_enabled = x1])
-AC_MSG_RESULT([$ptpd_ok])
-
-case "$ptpd_ok" in
+case "$try_snmp" in
  yes)
     case "$PATH_NET_SNMP_CONFIG" in
      /*)
@@ -118,11 +109,7 @@ case "$ptpd_ok" in
 	CFLAGS=$SNMP_CFLAGS
 	CPPFLAGS=$SNMP_CPPFLAGS
 
-	AC_CHECK_HEADER(
-	    [net-snmp/net-snmp-config.h],
-	    [],
-	    [AC_MSG_WARN([net-snmp-config present but net-snmp headers are not available!])]
-	)
+	AC_CHECK_HEADER([net-snmp/net-snmp-config.h])
 
 	CFLAGS=$save_CFLAGS
 	AS_UNSET([save_CFLAGS])
@@ -130,6 +117,22 @@ case "$ptpd_ok" in
 	AS_UNSET([save_CPPFLAGS])
 	LIBS=$save_LIBS
 	AS_UNSET([save_LIBS])
+
+	AC_MSG_CHECKING([if we are building SNMP support])
+	case "$ac_cv_header_net_snmp_net_snmp_config_h" in
+	 yes)
+		ptpd_snmp_enabled=1
+		PTP_SNMP="-DPTPD_SNMP"
+		AC_MSG_RESULT([yes])
+		;;
+	 no)
+		PTP_SNMP=""
+		SNMP_LIBS=""
+		SNMP_CPPFLAGS=""
+		SNMP_CFLAGS=""
+		AC_MSG_RESULT([no])
+		;;
+	esac
 	;;
      *) 
 	# This case can't be triggered - we won't get here unless we
@@ -139,6 +142,9 @@ case "$ptpd_ok" in
     esac
     ;;
 esac
+
+AC_SUBST(PTP_SNMP)
+AM_CONDITIONAL([SNMP], [test x$ptpd_snmp_enabled = x1])
 
 # Checks for libraries.
 AC_CHECK_LIB([m], [pow])
