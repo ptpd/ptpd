@@ -1131,7 +1131,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"Use libpcap for sending and receiving traffic (automatically enabled in Ethernet mode)");
 
 	/* in ethernet mode, activate pcap and overwrite previous setting */
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport==IEEE_802_3,rtOpts->pcap,TRUE,FALSE);
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport==IEEE_802_3,rtOpts->pcap,TRUE,rtOpts->pcap);
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:delay_mechanism",rtOpts->delayMechanism,rtOpts->delayMechanism,
 	"Delay detection mode used - use DELAY_DISABLED for syntonisation only (no synchronisation)",
@@ -1680,7 +1680,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT_RANGE("global:cpuaffinity_cpucore",rtOpts->cpuNumber,rtOpts->cpuNumber,
 		"Linux only: bind "PTPD_PROGNAME" process to a selected CPU core number.\n"
 	"        0 = first CPU core, etc. -1 = do not bind to a single core.",
-	0,255);
+	-1,255);
 #endif /* HAVE_SCHED_H */
 #endif /* linux */
 
