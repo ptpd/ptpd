@@ -65,8 +65,8 @@ AC_MSG_CHECKING([if we want to try building SNMP support])
 AC_ARG_ENABLE(
     [snmp],
     [AS_HELP_STRING(
-	[--enable-snmp],
-	[enable support for SNMP (enabled if we find net-snmp-config)]
+	[--disable-snmp],
+	[disable support for SNMP (enabled if we find net-snmp-config)]
     )],
     [try_snmp=$enableval],
     [case "$PATH_NET_SNMP_CONFIG" in
