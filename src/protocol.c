@@ -85,6 +85,7 @@ static void issueManagementErrorStatus(MsgManagement*,RunTimeOpts*,PtpClock*);
 void addForeign(Octet*,MsgHeader*,PtpClock*);
 
 void clearCounters(PtpClock *);
+static Boolean respectUtcOffset(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
 /* loop forever. doState() has a switch for the actions and events to be
    checked for 'port_state'. the actions and events may or may not change
@@ -994,7 +995,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 */
 process:
 	DBGV("__UTC_offset: %d %d \n", ptpClock->timePropertiesDS.currentUtcOffsetValid, ptpClock->timePropertiesDS.currentUtcOffset);
-	if (ptpClock->timePropertiesDS.currentUtcOffsetValid || rtOpts->alwaysRespectUtcOffset) {
+	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		tint.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
 
@@ -2335,6 +2336,9 @@ issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	Timestamp originTimestamp;
 	TimeInternal internalTime;
 	getTime(&internalTime);
+	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
+		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
+	}
 	fromInternalTime(&internalTime,&originTimestamp);
 
 	msgPackSync(ptpClock->msgObuf,&originTimestamp,ptpClock);
@@ -2390,6 +2394,9 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	 * to get the actual send timestamp from the OS
 	 */
 	getTime(&internalTime);
+	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
+		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
+	}
 	fromInternalTime(&internalTime,&originTimestamp);
 
 	// uses current sentDelayReqSequenceId
@@ -2433,6 +2440,9 @@ issuePDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	Timestamp originTimestamp;
 	TimeInternal internalTime;
 	getTime(&internalTime);
+	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
+		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
+	}
 	fromInternalTime(&internalTime,&originTimestamp);
 	
 	msgPackPDelayReq(ptpClock->msgObuf,&originTimestamp,ptpClock);
@@ -2713,3 +2723,10 @@ clearCounters(PtpClock * ptpClock)
 
 }
 
+Boolean
+respectUtcOffset(RunTimeOpts * rtOpts, PtpClock * ptpClock) {
+	if (ptpClock->timePropertiesDS.currentUtcOffsetValid || rtOpts->alwaysRespectUtcOffset) {
+		return TRUE;
+	}
+	return FALSE;
+}
