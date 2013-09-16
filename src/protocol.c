@@ -913,7 +913,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	fd_set readfds;
 
 	if (!ptpClock->message_activity) {
-		ret = netSelect(0, &ptpClock->netPath, &readfds);
+		ret = netSelect(NULL, &ptpClock->netPath, &readfds);
 		if (ret < 0) {
 			PERROR("failed to poll sockets");
 			ptpClock->counters.messageRecvErrors++;

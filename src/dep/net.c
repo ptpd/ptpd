@@ -808,8 +808,17 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 	int snmpblock = 0;
 #endif
 
-	if (timeout < 0)
-		return FALSE;
+	if (timeout) {
+		if(isTimeInternalNegative(timeout)) {
+			ERROR("Failed to call select with negative timeout\n");
+			return -1;
+		}
+		tv.tv_sec = timeout->seconds;
+		tv.tv_usec = timeout->nanoseconds / 1000;
+		tv_ptr = &tv;
+	} else {
+		tv_ptr = NULL;
+	}
 
 	FD_ZERO(readfds);
 	FD_SET(netPath->eventSock, readfds);
@@ -818,13 +827,6 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 		FD_SET(netPath->pcapEventSock, readfds);
 	if (netPath->pcapGeneral != NULL)
 		FD_SET(netPath->pcapGeneralSock, readfds);
-
-	if (timeout) {
-		tv.tv_sec = timeout->seconds;
-		tv.tv_usec = timeout->nanoseconds / 1000;
-		tv_ptr = &tv;
-	} else
-		tv_ptr = 0;
 
 	if (netPath->pcapGeneralSock > 0)
 		nfds = netPath->pcapGeneralSock;
