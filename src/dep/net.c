@@ -692,28 +692,26 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 * need INADDR_ANY to allow receipt of multi-cast and uni-cast
 	 * messages
 	 */
-	if (rtOpts->pcap != TRUE) {
-		if (rtOpts->jobid) {
-			if (inet_pton(AF_INET, DEFAULT_PTP_DOMAIN_ADDRESS, &addr.sin_addr) < 0) {
-				PERROR("failed to convert address");
-				return FALSE;
-			}
-		} else
-			addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	
-		addr.sin_family = AF_INET;
-		addr.sin_port = htons(PTP_EVENT_PORT);
-		if (bind(netPath->eventSock, (struct sockaddr *)&addr, 
-			sizeof(struct sockaddr_in)) < 0) {
-			PERROR("failed to bind event socket");
+	if (rtOpts->jobid) {
+		if (inet_pton(AF_INET, DEFAULT_PTP_DOMAIN_ADDRESS, &addr.sin_addr) < 0) {
+			PERROR("failed to convert address");
 			return FALSE;
 		}
-		addr.sin_port = htons(PTP_GENERAL_PORT);
-		if (bind(netPath->generalSock, (struct sockaddr *)&addr, 
-			sizeof(struct sockaddr_in)) < 0) {
-			PERROR("failed to bind general socket");
-			return FALSE;
-		}
+	} else
+		addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(PTP_EVENT_PORT);
+	if (bind(netPath->eventSock, (struct sockaddr *)&addr, 
+		sizeof(struct sockaddr_in)) < 0) {
+		PERROR("failed to bind event socket");
+		return FALSE;
+	}
+	addr.sin_port = htons(PTP_GENERAL_PORT);
+	if (bind(netPath->generalSock, (struct sockaddr *)&addr, 
+		sizeof(struct sockaddr_in)) < 0) {
+		PERROR("failed to bind general socket");
+		return FALSE;
 	}
 
 #ifdef USE_BINDTODEVICE
@@ -1022,6 +1020,9 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 			return 0;
 		}
 	} else { /* Using PCAP */
+		/* Discard packet on socket */
+		recv(netPath->eventSock, buf, PACKET_SIZE, MSG_DONTWAIT);
+		
 		if ((ret = pcap_next_ex(netPath->pcapEvent, &pkt_header, 
 					&pkt_data)) < 1) {
 			if (ret < 0)
@@ -1184,6 +1185,9 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 			}
 		}
 	} else { /* Using PCAP */
+		/* Discard packet on socket */
+		recv(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT);
+		
 		if (( ret = pcap_next_ex(netPath->pcapGeneral, &pkt_header, 
 					 &pkt_data)) < 1) {
 			if (ret < 0) 
