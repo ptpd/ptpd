@@ -186,7 +186,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	Boolean previousLeap59 = FALSE, previousLeap61 = FALSE;
 	Integer16 previousUtcOffset = 0;
 
-	if (ptpClock->portState == PTP_SLAVE) {
+	if (ptpClock->portState == PTP_SLAVE || ptpClock->portState==PTP_PASSIVE) {
 		previousLeap59 = ptpClock->timePropertiesDS.leap59;
 		previousLeap61 = ptpClock->timePropertiesDS.leap61;
 		previousUtcOffset = ptpClock->timePropertiesDS.currentUtcOffset;
