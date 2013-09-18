@@ -387,7 +387,7 @@ void adjTime(Integer32);
 
 #if !defined(__APPLE__)
 
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 
 void adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj);
 Boolean adjFreq(Integer32);
@@ -401,7 +401,7 @@ Boolean adjFreq(double);
 double getAdjFreq(void);
 void informClockSource(PtpClock* ptpClock);
 
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 
 /* Observed drift save / recovery functions */
 void restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet);
@@ -447,15 +447,11 @@ reset_operator_messages(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 void setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts);
 void resetPIservo(PIservo* servo);
 
-#ifdef PTPD_DOUBLE_SERVO
-
-double runPIservo(PIservo* servo, const Integer32 input);
-
-#else
-
+#ifdef PTPD_INTEGER_SERVO
 Integer32 runPIservo(PIservo* servo, const Integer32 input);
-
-#endif /* PTPD_DOUBLE_SERVO */
+#else
+double runPIservo(PIservo* servo, const Integer32 input);
+#endif /* PTPD_INTEGER_SERVO */
 
 #ifdef PTPD_STATISTICS
 void updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts);

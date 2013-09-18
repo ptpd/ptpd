@@ -532,7 +532,7 @@ typedef struct
  * \brief PI controller model structure
  */
 
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 typedef struct{
 
     int maxOutput;
@@ -579,7 +579,7 @@ typedef struct{
 #endif /* PTPD_STATISTICS */
 
 } PIservo;
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 
 
 /**
@@ -747,11 +747,11 @@ typedef struct {
 
 	uint32_t init_timestamp;                        /* When the clock was last initialised */
 	Integer32 stabilisation_time;                   /* How long (seconds) it took to stabilise the clock */
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 	Integer32 last_saved_drift;                     /* Last observed drift value written to file */
 #else
 	double last_saved_drift;                     /* Last observed drift value written to file */
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 	Boolean drift_saved;                            /* Did we save a drift value already? */
 
 	/* user description is max size + 1 to leave space for a null terminator */
@@ -922,13 +922,13 @@ typedef struct {
 	int selectedPreset;
 
 	int servoMaxPpb;
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 	int servoKP;
 	int servoKI;
 #else
 	double servoKP;
 	double servoKI;
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 
 #ifdef	PTPD_STATISTICS
 
@@ -948,11 +948,11 @@ typedef struct {
 
 	int statsUpdateInterval;
 	Boolean servoStabilityDetection;
-#ifdef PTPD_DOUBLE_SERVO
-	double servoStabilityThreshold;
-#else
+#ifdef PTPD_INTEGER_SERVO
 	Integer32 servoStabilityThreshold;
-#endif /* PTPD_DOUBLE_SERVO */
+#else
+	double servoStabilityThreshold;
+#endif /* PTPD_INTEGER_SERVO */
 	int servoStabilityTimeout;
 	int servoStabilityPeriod;
 
@@ -967,6 +967,8 @@ typedef struct {
 	NTPoptions ntpOptions;
 #endif
 
+	Boolean managementEnabled;
+	Boolean managementReadWrite;
 
 } RunTimeOpts;
 

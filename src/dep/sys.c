@@ -691,7 +691,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 				&(ptpClock->delayMS));
 
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %d, %c",
 			       ptpClock->servo.observedDrift,
 			       ptpClock->char_last_msg);
@@ -700,7 +700,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			       ptpClock->servo.observedDrift,
 			       ptpClock->char_last_msg);
 
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 
 #ifdef PTPD_STATISTICS
 
@@ -710,11 +710,11 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			       ptpClock->slaveStats.ofmMean,
 			       ptpClock->slaveStats.ofmStdDev * 1E9);
 
-#ifdef PTPD_DOUBLE_SERVO
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.0f, %.0f",
-#else
+#ifdef PTPD_INTEGER_SERVO
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %d, %d",
-#endif /* PTPD_DOUBLE_SERVO */
+#else
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.0f, %.0f",
+#endif /* PTPD_INTEGER_SERVO */
 			       ptpClock->servo.driftMean,
 			       ptpClock->servo.driftStdDev
 );
@@ -971,14 +971,17 @@ else {
 	if(ptpClock->portState == PTP_MASTER || ptpClock->portState == PTP_PASSIVE) {
 
 	fprintf(out, 		STATUSPREFIX"  %d","Priority1 ", ptpClock->priority1);
-	if(ptpClock->portState > PTP_MASTER)
-		fprintf(out, " (master: %d)\n", ptpClock->grandmasterPriority1);
+	if(ptpClock->portState == PTP_PASSIVE)
+		fprintf(out, " (best master: %d)", ptpClock->grandmasterPriority1);
+	fprintf(out,"\n");
 	fprintf(out, 		STATUSPREFIX"  %d","Priority2 ", ptpClock->priority2);
-	if(ptpClock->portState > PTP_MASTER)
-		fprintf(out, " (master: %d)\n", ptpClock->grandmasterPriority2);
+	if(ptpClock->portState == PTP_PASSIVE)
+		fprintf(out, " (best master: %d)", ptpClock->grandmasterPriority2);
+	fprintf(out,"\n");
 	fprintf(out, 		STATUSPREFIX"  %d","ClockClass ", ptpClock->clockQuality.clockClass);
-	if(ptpClock->portState > PTP_MASTER)
-		fprintf(out, " (master: %d)\n", ptpClock->grandmasterClockQuality.clockClass);
+	if(ptpClock->portState == PTP_PASSIVE)
+		fprintf(out, " (best master: %d)", ptpClock->grandmasterClockQuality.clockClass);
+	fprintf(out,"\n");
 	}
 
 
@@ -1321,7 +1324,7 @@ end:
  */
 
 /* Integer32 version */
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 
 Boolean
 adjFreq(Integer32 adj)
@@ -1500,15 +1503,15 @@ adjFreq(double adj)
 	return !adjtimex(&t);
 }
 
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 Integer32
 getAdjFreq(void)
 #else
 double
 getAdjFreq(void)
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 {
 	struct timex t;
 	Integer32 freq;
@@ -1527,18 +1530,18 @@ getAdjFreq(void)
 	DBGV("          kernel adj is: float %f, Integer32 %d, kernel freq is: %d",
 		dFreq, freq, t.freq);
 
-#ifdef PTPD_DOUBLE_SERVO
-	return(dFreq);
-#else
+#ifdef PTPD_INTEGER_SERVO
 	return(freq);
-#endif /* PTPD_DOUBLE_SERVO */
+#else
+	return(dFreq);
+#endif /* PTPD_INTEGER_SERVO */
 }
 
-#ifdef PTPD_DOUBLE_SERVO
-#define DRIFTFORMAT "%.0f"
-#else
+#ifdef PTPD_INTEGER_SERVO
 #define DRIFTFORMAT "%d"
-#endif /* PTPD_DOUBLE_SERVO */
+#else
+#define DRIFTFORMAT "%.0f"
+#endif /* PTPD_INTEGER_SERVO */
 
 void
 restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
@@ -1546,11 +1549,11 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	FILE *driftFP;
 	Boolean reset_offset = FALSE;
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 	Integer32 recovered_drift;
 #else
 	double recovered_drift;
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 
 	DBGV("restoreDrift called\n");
 
@@ -1576,11 +1579,11 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 					rtOpts->driftFile);
 			} else
 
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 			if (fscanf(driftFP, "%d", &recovered_drift) != 1) {
 #else
 			if (fscanf(driftFP, "%lf", &recovered_drift) != 1) {
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 				PERROR("Could not load saved offset from drift file - using current kernel frequency offset");
 			} else {
 
@@ -1657,12 +1660,12 @@ saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 		return;
 	}
 
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 	fprintf(driftFP, "%d\n", ptpClock->servo.observedDrift);
 #else
 	/* The fractional part really won't make a difference here */
 	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.observedDrift));
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 
 	if (quiet) {
 		DBGV("Wrote observed drift to %s\n", rtOpts->driftFile);

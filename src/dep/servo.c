@@ -639,13 +639,13 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 }
 
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 void
 warn_operator_fast_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
 #else
 void
 warn_operator_fast_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 {
 	if(ptpClock->warned_operator_fast_slewing == 0){
 		if ((adj >= rtOpts->servoMaxPpb) || ((adj <= -rtOpts->servoMaxPpb))){
@@ -681,7 +681,7 @@ warn_operator_slow_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock )
  */
 #if !defined(__APPLE__)
 
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 
 void
 adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
@@ -716,7 +716,7 @@ adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
 }
 
 
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 
 #endif /* __APPLE__ */
 
@@ -912,11 +912,11 @@ statistics:
                                 feedDoubleMovingMean(ptpClock->delayMSFiltered, timeInternalToDouble(&ptpClock->delayMS));
                         }
                         feedDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats, timeInternalToDouble(&ptpClock->offsetFromMaster));
-#ifdef PTPD_DOUBLE_SERVO
-                        feedDoublePermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
-#else
+#ifdef PTPD_INTEGER_SERVO
                         feedIntPermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
-#endif /* PTPD_DOUBLE_SERVO */
+#else
+                        feedDoublePermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
+#endif /* PTPD_INTEGER_SERVO */
 
 #endif /* PTPD_STATISTICS */
 
@@ -971,7 +971,7 @@ resetPIservo(PIservo* servo)
 }
 
 
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 
 Integer32
 runPIservo(PIservo* servo, const Integer32 input)
@@ -1128,7 +1128,7 @@ runPIservo(PIservo* servo, const Integer32 input)
 
 
 
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 
 #ifdef PTPD_STATISTICS
 void
@@ -1194,11 +1194,11 @@ updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts)
 
                         resetDoublePermanentStdDev(&ptpClock->slaveStats.owdStats);
                         resetDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats);
-#ifdef PTPD_DOUBLE_SERVO
-                        resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
-#else
+#ifdef PTPD_INTEGER_SERVO
                         resetIntPermanentStdDev(&ptpClock->servo.driftStats);
-#endif /* PTPD_DOUBLE_SERVO */
+#else
+                        resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
+#endif /* PTPD_INTEGER_SERVO */
 
 }
 

@@ -509,11 +509,11 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 		ptpClock->servo.driftStdDev = 0;
 		ptpClock->servo.isStable = FALSE;
 		ptpClock->servo.statsCalculated = FALSE;
-#ifdef PTPD_DOUBLE_SERVO
-		resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
-#else
+#ifdef PTPD_INTEGER_SERVO
 		resetIntPermanentStdDev(&ptpClock->servo.driftStats);
-#endif /* PTPD_DOUBLE_SERVO */
+#else
+		resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
+#endif /* PTPD_INTEGER_SERVO */
 		timerStart(STATISTICS_UPDATE_TIMER, rtOpts->statsUpdateInterval, ptpClock->itimer);
 #endif /* PTPD_STATISTICS */
 
@@ -2041,11 +2041,18 @@ acceptManagementMessage(PortIdentity thisPort, PortIdentity targetPort)
                 (targetPort.portNumber == allOnesPortNumber));
 }
 
-static void 
+
+static void
 handleManagement(MsgHeader *header,
 		 Boolean isFromSelf, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBGV("Management message received : \n");
+
+	if(!rtOpts->managementEnabled) {
+		DBGV("Dropping management message - management message support disabled");
+		ptpClock->counters.discardedMessages++;
+		return;
+	}
 
 	if (isFromSelf) {
 		DBGV("handleManagement: Ignore message from self \n");
@@ -2063,8 +2070,17 @@ handleManagement(MsgHeader *header,
         if(!acceptManagementMessage(ptpClock->portIdentity, ptpClock->msgTmp.manage.targetPortIdentity))
         {
                 DBGV("handleManagement: The management message was not accepted");
+		ptpClock->counters.discardedMessages++;
                 return;
         }
+
+	if(!rtOpts->managementReadWrite &&
+	    (ptpClock->msgTmp.manage.actionField == SET ||
+	    ptpClock->msgTmp.manage.actionField == COMMAND)) {
+		DBGV("Dropping SET/COMMAND management message - read-only mode enabled");
+		ptpClock->counters.discardedMessages++;
+		return;
+	}
 
 	/* is this an error status management TLV? */
 	if(ptpClock->msgTmp.manage.tlv->tlvType == TLV_MANAGEMENT_ERROR_STATUS) {

@@ -487,11 +487,11 @@ mMErrorStatus_display(const MMErrorStatus* errorStatus, const PtpClock *ptpClock
 	/* TODO: implement me */
 }
 
-#ifdef PTPD_DOUBLE_SERVO
-#define FORMAT_SERVO	"%f"
-#else
+#ifdef PTPD_INTEGER_SERVO
 #define FORMAT_SERVO	"%d"
-#endif
+#else
+#define FORMAT_SERVO	"%f"
+#endif /* PTPD_INTEGER_SERVO */
 
 /**\brief Display runTimeOptions structure*/
 void

@@ -363,7 +363,7 @@
 			    printf("%s = %s\n", key,(variable)?"Y":"N");\
 		    }\
 		} else if(!CONFIG_ISSET(key) || iniparser_getboolean(dict,key,-1) == -1) {\
-		    ERROR("Configuration error: option \"%s=%s\" has unknown boolean value:  must start with 0/1/t/T/f/F/y/Y/n/N\n",key,iniparser_getstring(dict,key,""));\
+		    ERROR("Configuration error: option \"%s='%s'\" has unknown boolean value:  must start with 0/1/t/T/f/F/y/Y/n/N\n",key,iniparser_getstring(dict,key,""));\
 		    dictionary_set(target,key,""); /* suppress the "unknown entry" warning for malformed boolean values */ \
 		    parseResult = FALSE;\
 		} else {\
@@ -951,6 +951,10 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->statusLog.truncateOnReopen = FALSE;
 	rtOpts->statusLog.unlinkOnClose = TRUE;
 
+/* Management message support settings */
+	rtOpts->managementEnabled = TRUE;
+	rtOpts->managementReadWrite = FALSE;
+
 }
 
 /* The PtpEnginePreset structure for reference: 
@@ -1305,6 +1309,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_CHARARRAY("ptpengine:unicast_address",rtOpts->unicastAddress,rtOpts->unicastAddress,
 	"Specify unicast destination for unicast master mode (in unicast slave mode overrides delay request destination)");
 
+	CONFIG_MAP_BOOLEAN("ptpengine:management_enable",rtOpts->managementEnabled,rtOpts->managementEnabled,
+	"Enable handling of PTP management messages");
+
+	CONFIG_MAP_BOOLEAN("ptpengine:management_readwrite",rtOpts->managementReadWrite,rtOpts->managementReadWrite,
+	"Accept SET and COMMAND management messages");
+
 	CONFIG_MAP_BOOLEAN("ptpengine:igmp_refresh",rtOpts->do_IGMP_refresh,rtOpts->do_IGMP_refresh,
 	"Send explicit IGMP joins between servo resets");
 
@@ -1443,7 +1453,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 when slewing the clock. Expressed in parts per million (1 ppm = shift of\n"
 	"	 1 us per second. Values above 512 will use the tick duration correction\n"
 	"	 to allow even faster slewing. Default maximum is 512 without using tick.",
-	512,1024);
+	ADJ_FREQ_MAX/1000,ADJ_FREQ_MAX/500);
 #endif /* HAVE_STRUCT_TIMEX_TICK */
 
 	/*
@@ -1459,7 +1469,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT( "servo:delayfilter_stiffness",rtOpts->s,rtOpts->s,
 	"One-way delay filter stiffness");
 
-#ifndef PTPD_DOUBLE_SERVO
+#ifdef PTPD_INTEGER_SERVO
 	CONFIG_MAP_INT_MIN("servo:kp",rtOpts->servoKP,rtOpts->servoKP,
 	"Clock servo PI controller proportional component gain (kP)",1);
 	CONFIG_MAP_INT_MIN("servo:ki",rtOpts->servoKI,rtOpts->servoKI,
@@ -1469,7 +1479,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"Clock servo PI controller proportional component gain (kP)",0.01);
 	CONFIG_MAP_DOUBLE_MIN("servo:ki",rtOpts->servoKI,rtOpts->servoKI,
 	"Clock servo PI controller integral component gain (kI)",0.01);
-#endif /* PTPD_DOUBLE_SERVO */
+#endif /* PTPD_INTEGER_SERVO */
 	CONFIG_MAP_INT_RANGE("servo:max_delay",rtOpts->maxDelay,rtOpts->maxDelay,
 		"Maximum accepted delayMS value in nanoseconds (Sync).\n"
 	"        0 =  not checked."
@@ -1483,21 +1493,21 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 - drift will be saved to drift file / cached when considered stable,\n"
 	"	 also clock stability status will be logged\n");
 
-#ifdef PTPD_DOUBLE_SERVO
-	CONFIG_MAP_DOUBLE_RANGE("servo:stability_threshold",rtOpts->servoStabilityThreshold,
-							rtOpts->servoStabilityThreshold,
-	"Specify the observed drift standard deviation threshold in parts per billion\n"
-	"	(ppb) - if stanard deviation is within the threshold, servo is considered\n"
-	"	stable.",
-	1.0,10000.0);
-#else
+#ifdef PTPD_INTEGER_SERVO
 	CONFIG_MAP_INT_RANGE("servo:stability_threshold",rtOpts->servoStabilityThreshold,
 							rtOpts->servoStabilityThreshold,
 	"Specify the observed drift standard deviation threshold in parts per billion\n"
 	"	(ppb) - if stanard deviation is within the threshold, servo is considered\n"
 	"	stable.",
 	1,10000);
-#endif /* PTPD_DOUBLE_SERVO */
+#else
+	CONFIG_MAP_DOUBLE_RANGE("servo:stability_threshold",rtOpts->servoStabilityThreshold,
+							rtOpts->servoStabilityThreshold,
+	"Specify the observed drift standard deviation threshold in parts per billion\n"
+	"	(ppb) - if stanard deviation is within the threshold, servo is considered\n"
+	"	stable.",
+	1.0,10000.0);
+#endif /* PTPD_INTEGER_SERVO */
 
 	CONFIG_MAP_INT_RANGE("servo:stability_period",rtOpts->servoStabilityPeriod,
 							rtOpts->servoStabilityPeriod,
@@ -2253,20 +2263,20 @@ printShortHelp()
 			"Command-line option		Config key			Description\n"
 			"------------------------------------------------------------------------------------\n"
 
-			"-i --interface [dev]		ptpengine:interface=<dev>		Interface to use (required)\n"
+			"-i --interface [dev]		ptpengine:interface=<dev>	Interface to use (required)\n"
 			"-d --domain [n] 		ptpengine:domain=<n>		PTP domain number\n"
-			"-s --slaveonly	 	 	ptpengine:preset=slaveonly		Slave only mode\n"
-			"-m --masterslave 		ptpengine:preset=masterslave		Master, slave when not best GM\n"
-			"-M --masteronly 		ptpengine:preset=masteronly		Master, passive when not best GM\n"
-			"-y --hybrid			ptpengine:ip_mode=hybrid		Hybrid mode"
+			"-s --slaveonly	 	 	ptpengine:preset=slaveonly	Slave only mode\n"
+			"-m --masterslave 		ptpengine:preset=masterslave	Master, slave when not best GM\n"
+			"-M --masteronly 		ptpengine:preset=masteronly	Master, passive when not best GM\n"
+			"-y --hybrid			ptpengine:ip_mode=hybrid	Hybrid mode"
 			"\n"
-			"-u --unicast [IP]		ptpengine:ip_mode=unicast		Unicast mode for delay and response packets\n"
-			"-E --e2e			ptpengine:delay_mechanism=E2E		End to end delay detection\n"
-			"-P --p2p			ptpengine:delay_mechanism=P2P		Peer to peer delay detection\n"
-			"				ptpengine:unicast_address=<IP>\n"
+			"-u --unicast [IP]		ptpengine:ip_mode=unicast	Unicast mode for delay and response packets\n"
+			"				ptpengine:unicast_address=<IP>\n\n"
+			"-E --e2e			ptpengine:delay_mechanism=E2E	End to end delay detection\n"
+			"-P --p2p			ptpengine:delay_mechanism=P2P	Peer to peer delay detection\n"
 			"\n"
 			"-r --delay-interval [n] 	ptpengine:log_delayreq_interval=<n>	Delay request interval\n"
-			"								(log 2, overrides master)\n"
+			"									(log 2, overrides master)\n"
 			"\n"
 			"-n --noadjust			clock:no_adjust			Do not adjust the clock\n"
 			"-D<DD...> --debug		global:debug_level=<level>	Debug level\n"
@@ -2297,9 +2307,9 @@ printShortHelp()
 			"\n"
 			"-b [dev]			Network interface to use\n"
 			"-i [n]				PTP domain number\n"
-			"-g				Slave only mode\n"
-			"-G				'Master mode with NTP'    = Master / Passive only\n"
-			"-W				'Master mode without NTP' = Master / Slave only\n"
+			"-g				Slave only mode (ptpengine:preset=slaveonly)\n"
+			"-G				'Master mode with NTP' (ptpengine:preset=masteronly)\n"
+			"-W				'Master mode without NTP' (ptpengine:preset=masterslave) \n"
 			"-U				Hybrid mode\n"
 			"-Y [n]				Delay request interval (log 2)\n"
 			"-t 				Do not adjust the clock\n"
@@ -2430,6 +2440,8 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:always_respect_utc_offset", PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:announce_timeout_grace_period", PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:unicast_address",   	PTPD_RESTART_NETWORK );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:management_enable",         	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:management_readwrite",         	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:igmp_refresh",         	PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:multicast_ttl",        		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:ip_dscp",        		PTPD_RESTART_NETWORK );

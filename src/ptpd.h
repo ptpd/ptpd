@@ -104,7 +104,9 @@
 /* No support for double precision servo for Apple */
 
 #ifdef __APPLE__
-#undef PTPD_DOUBLE_SERVO
+#ifndef PTPD_INTEGER_SERVO
+#define PTPD_INTEGER_SERVO
+#endif /* PTPD_INTEGER_SERVO */
 #endif /* APPLE */
 
 /* NOTE: this macro can be refactored into a function */
