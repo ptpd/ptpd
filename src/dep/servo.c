@@ -560,13 +560,21 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif /* OLD_TIME */
 
 /* ======== BEGIN  OLD TIME EVENT - UTMP / WTMP =========== */
+#ifdef HAVE_UTMPNAME
 		utmpname(UTMP_FILE);
+#endif /* HAVE_UTMPNAME */
 		setutent();
+#ifdef HAVE_PUTUTLINE
 		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
 		endutent();
+#ifdef HAVE_UTMPNAME
 		utmpname(WTMP_FILE);
+#endif /* HAVE_UTMPNAME */
 		setutent();
+#ifdef HAVE_PUTUTLINE
 		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
 		endutent();
 /* ======== END    OLD TIME EVENT - UTMP / WTMP =========== */
 
@@ -622,13 +630,21 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif /* NEW_TIME */
 
 /* ======== BEGIN  NEW TIME EVENT - UTMP / WTMP =========== */
+#ifdef HAVE_UTMPNAME
 		utmpname(UTMP_FILE);
+#endif /* HAVE_UTMPNAME */
 		setutent();
+#ifdef HAVE_PUTUTLINE
 		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
 		endutent();
+#ifdef HAVE_UTMPNAME
 		utmpname(WTMP_FILE);
+#endif /* HAVE_UTMPNAME */
 		setutent();
+#ifdef HAVE_PUTUTLINE
 		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
 		endutent();
 /* ======== END    NEW TIME EVENT - UTMP / WTMP =========== */
 
