@@ -746,7 +746,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			 &rtOpts->dscpValue, sizeof(int)) < 0
 		    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_TOS,
 			&rtOpts->dscpValue, sizeof(int)) < 0) {
-			    PERROR("Dailed to set socket DSCP bits");
+			    PERROR("Failed to set socket DSCP bits");
 			    return FALSE;
 			}
 	}
@@ -769,6 +769,10 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		PERROR("Failed to set socket multicast time-to-live");
 		return FALSE;
 	}
+
+	/* start tracking TTL */
+	netPath->ttlEvent = rtOpts->ttl;
+	netPath->ttlGeneral = rtOpts->ttl;
 
 	/* enable loopback */
 	temp = 1;
@@ -1297,6 +1301,18 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 		} else {
 			addr.sin_addr.s_addr = netPath->multicastAddr;
 
+                        /* Is TTL OK? */
+			if(netPath->ttlEvent != rtOpts->ttl) {
+				/* Try restoring TTL */
+				if(setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
+					&rtOpts->ttl, sizeof(int)) >= 0) {
+
+				    netPath->ttlEvent = rtOpts->ttl;
+
+				}
+
+            		}
+
 			ret = sendto(netPath->eventSock, buf, length, 0, 
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
@@ -1352,6 +1368,17 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 		} else {
 			addr.sin_addr.s_addr = netPath->multicastAddr;
 
+                        /* Is TTL OK? */
+			if(netPath->ttlGeneral != rtOpts->ttl) {
+				/* Try restoring TTL */
+				if(setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
+					&rtOpts->ttl, sizeof(int)) >= 0) {
+
+				    netPath->ttlGeneral = rtOpts->ttl;
+
+				}
+            		}
+
 			ret = sendto(netPath->generalSock, buf, length, 0, 
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
@@ -1371,6 +1398,7 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 	ssize_t ret;
 	struct sockaddr_in addr;
 
+
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
@@ -1385,12 +1413,18 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 
 	} else {
 		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
-		int ttl = 1;
+		
+		/* is TTL already 1 ? */
+		if(netPath->ttlGeneral != 1) {
+			int ttl = 1;
+			/* Try setting TTL to 1 */
+			if(setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
+				&ttl, sizeof(int)) >= 0) {
+				
+				netPath->ttlGeneral = 1;
 
-		/* Try setting TTL to 1 */
-		setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
-			&ttl, sizeof(int));
-
+			}
+                }
 		ret = sendto(netPath->generalSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 
 			     sizeof(struct sockaddr_in));
@@ -1434,12 +1468,18 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 			DBG("Error looping back unicast peer event message\n");
 	} else {
 		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
-		int ttl = 1;
 
-		/* Try setting TTL to 1 */
-		setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
-			&ttl, sizeof(int));
+		/* is TTL already 1 ? */
+		if(netPath->ttlEvent != 1) {
+			int ttl = 1;
+			/* Try setting TTL to 1 */
+			if(setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
+				&ttl, sizeof(int)) >= 0) {
 
+			    netPath->ttlEvent = 1;
+
+			}
+                }
 		ret = sendto(netPath->eventSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 
 			     sizeof(struct sockaddr_in));

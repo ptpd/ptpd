@@ -86,6 +86,10 @@ typedef struct {
 	pcap_t *pcapGeneral;
 	Integer32 pcapGeneralSock;
 	Integer32 headerOffset;
+
+	/* used for tracking the last TTL set */
+	int ttlGeneral;
+	int ttlEvent;
 	struct ether_addr *etherDest;
 } NetPath;
 
