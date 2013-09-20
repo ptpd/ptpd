@@ -812,7 +812,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 
 	if (timeout) {
 		if(isTimeInternalNegative(timeout)) {
-			ERROR("Failed to call select with negative timeout\n");
+			ERROR("Negative timeout attempted for select()\n");
 			return -1;
 		}
 		tv.tv_sec = timeout->seconds;
