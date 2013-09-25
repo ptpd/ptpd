@@ -1866,7 +1866,7 @@ loadCommandLineKeys(dictionary* dict, int argc,char** argv)
 		    if( (argv[i+1][0]!='-') &&
 			( (strlen(argv[i+i]) > 1) && argv[i+1][1] !='-' )) {
 			strncpy(val,argv[i+1],PATH_MAX);
-			argv[i+1]="--";
+			argv[i+1]="";
 		    }
 		
 		}

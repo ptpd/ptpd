@@ -482,7 +482,7 @@ void dump_command_line_parameters(int argc, char **argv)
 	
 	*st = '\0';
 	for(i=0; i < argc; i++){
-		if(strcmp(argv[i],"--") == 0)
+		if(strcmp(argv[i],"") == 0)
 		    continue;
 		len += snprintf(sbuf + len,
 					     sizeof(sbuf) - len,
