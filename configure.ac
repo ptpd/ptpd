@@ -175,6 +175,28 @@ AC_C_VOLATILE
 # Check for tick in the timex structure
 AC_CHECK_MEMBERS([struct timex.tick], [], [], [[#include <sys/timex.h>]])
 
+# Check for ether address octent member in struct ether_addr
+AC_CHECK_MEMBERS([struct ether_addr.ether_addr_octet], [], [], [[
+#include <net/ethernet.h>
+#if defined(linux)
+#  include <netinet/ether.h>
+#elif defined( __FreeBSD__ )
+#  include <net/ethernet.h>
+#elif defined( __NetBSD__ )
+#  include <net/if_ether.h>
+#endif
+]])
+AC_CHECK_MEMBERS([struct ether_addr.octet], [], [], [[
+#include <net/ethernet.h>
+#if defined(linux)
+#  include <netinet/ether.h>
+#elif defined( __FreeBSD__ )
+#  include <net/ethernet.h>
+#elif defined( __NetBSD__ )
+#  include <net/if_ether.h>
+#endif
+]])
+
 # Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MALLOC
