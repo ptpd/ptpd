@@ -101,14 +101,6 @@
 #include "dep/iniparser/iniparser.h"
 #include "dep/daemonconfig.h"
 
-/* No support for double precision servo for Apple */
-
-#ifdef __APPLE__
-#ifndef PTPD_INTEGER_SERVO
-#define PTPD_INTEGER_SERVO
-#endif /* PTPD_INTEGER_SERVO */
-#endif /* APPLE */
-
 /* NOTE: this macro can be refactored into a function */
 #define XMALLOC(ptr,size) \
 	if(!((ptr)=malloc(size))) { \

@@ -9,6 +9,12 @@
 #ifndef PTPD_DEP_H_
 #define PTPD_DEP_H_
 
+/* No support for double precision servo for Apple */
+#ifdef __APPLE__
+#ifndef PTPD_INTEGER_SERVO
+#define PTPD_INTEGER_SERVO
+#endif /* PTPD_INTEGER_SERVO */
+#endif /* APPLE */
 
 
 #ifdef RUNTIME_DEBUG
