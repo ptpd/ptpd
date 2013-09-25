@@ -498,8 +498,11 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	setTime(&newTime);
 	initClock(rtOpts, ptpClock);
+/* restoreDrift is not defined for Apple */
+#ifdef __APPLE__
 	if(ptpClock->clockQuality.clockClass > 127)
 		restoreDrift(ptpClock, rtOpts, TRUE);
+#endif /* __APPLE__ */
 	ptpClock->servo.runningMaxOutput = FALSE;
 	toState(PTP_FAULTY, rtOpts, ptpClock);		/* make a full protocol reset */
 
