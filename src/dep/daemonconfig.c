@@ -2039,10 +2039,11 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	    {"long-help",	no_argument,	   0, 'H'},
 	    {"explain",		required_argument, 0, 'e'},
 	    {"default-config",  optional_argument, 0, 'O'},
+	    {"unicast",		required_argument, 0, 'u'},
 	    {0,			0		 , 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUunf:S:r:DvCVHhe:Y:tOLEPAR:l", long_options, &opt_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHhe:Y:tOLEPAR:l", long_options, &opt_index)) != -1) {
 	    switch(c) {
 /* non-config options first */
 
