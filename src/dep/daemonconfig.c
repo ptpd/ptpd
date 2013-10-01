@@ -338,7 +338,7 @@
 		HELP_ITEM_COMPLETE(); \
 	} else {{\
 		char *tmpstring = iniparser_getstring(dict,key,default); \
-		strncpy(variable,tmpstring,sizeof(variable) / sizeof(char));\
+		if (variable!=tmpstring) strncpy(variable,tmpstring,sizeof(variable) / sizeof(char));\
 		dictionary_set(target, key, tmpstring);\
 		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
 			printComment(helptext);\

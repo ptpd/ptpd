@@ -367,7 +367,7 @@ int dictionary_merge(dictionary* source, dictionary* dest)
         if(source->key[i] == NULL)
             continue;
 	/* do not overwrite with an empty key */
-	if(strlen(source->val[i])==0)
+	if((source->val[i] == NULL) || (strlen(source->val[i])==0))
 	    continue;
         if ( dictionary_set( dest, source->key[i], source->val[i]) != 0)
 	    return -1;

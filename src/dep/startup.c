@@ -250,6 +250,9 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		 * this is the only situation where parse will succeed but commit not:
 		 * disable quiet mode to show what went wrong, then die.
 		 */
+		if (rtOpts->currentConfig) {
+			dictionary_del(rtOpts->currentConfig);
+		}
 		if ( (rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL) {
 			CRITICAL("************ "PTPD_PROGNAME": parseConfig returned NULL during config commit"
 				 "  - this is a BUG - report the following: \n");
@@ -453,6 +456,9 @@ ptpdShutdown(PtpClock * ptpClock)
 #endif /* PTPD_STATISTICS */
 #endif /* apple */
 
+	if (rtOpts.currentConfig != NULL)
+		dictionary_del(rtOpts.currentConfig);
+	
 	free(ptpClock);
 	ptpClock = NULL;
 
@@ -530,7 +536,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	loadCommandLineKeys(rtOpts->candidateConfig,argc,argv);
 	/* parse the normal short and long option, exit on error */
 	if (!loadCommandLineOptions(rtOpts, rtOpts->candidateConfig, argc, argv, ret)) {
-	    return 0;
+	    goto fail;
 	}
 
 	/* Display startup info and argv if not called with -? or -H */
@@ -545,7 +551,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	{
 		printf("Error: "PTPD_PROGNAME" daemon can only be run as root\n");
 			*ret = 1;
-			return 0;
+			goto fail;
 		}
 
 	/* Have we got a config file? */
@@ -567,6 +573,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 */
 	if( ( rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL ) {
 	    *ret = 1;
+	    dictionary_del(rtOpts->candidateConfig);
 	    goto configcheck;
 	}
 
@@ -574,7 +581,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	if(rtOpts->printLockFile) {
 	    printf("%s\n", rtOpts->lockFile);
 	    *ret = 0;
-	    return 0;
+	    goto fail;
 	}
 
 	/* we don't need the candidate config any more */
@@ -768,4 +775,8 @@ configcheck:
 
 	*ret = 0;
 	return ptpClock;
+	
+fail:
+	dictionary_del(rtOpts->candidateConfig);
+	return 0;
 }
