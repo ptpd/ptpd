@@ -1112,7 +1112,8 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:ip_mode", rtOpts->ip_mode, rtOpts->ip_mode,
 	"IP transmission mode (requires IP transport) - hybrid mode uses multicast for sync and announce,\n"
-	"	 and unicast for delay request / response",
+	"	 and unicast for delay request / response, unicast mode uses unicast for all transmission.\n"
+	"	 When unicast mode is selected, destination IP (ptpengine:unicast_address) must be configured.\n",
 				"multicast", 	IPMODE_MULTICAST,
 				"unicast", 	IPMODE_UNICAST,
 				"hybrid", 	IPMODE_HYBRID
@@ -2284,7 +2285,7 @@ printShortHelp()
 			"-M --masteronly 		ptpengine:preset=masteronly	Master, passive when not best GM\n"
 			"-y --hybrid			ptpengine:ip_mode=hybrid	Hybrid mode"
 			"\n"
-			"-u --unicast [IP]		ptpengine:ip_mode=unicast	Unicast mode for delay and response packets\n"
+			"-u --unicast [IP]		ptpengine:ip_mode=unicast	Unicast mode (send all messages to [IP])\n"
 			"				ptpengine:unicast_address=<IP>\n\n"
 			"-E --e2e			ptpengine:delay_mechanism=E2E	End to end delay detection\n"
 			"-P --p2p			ptpengine:delay_mechanism=P2P	Peer to peer delay detection\n"
