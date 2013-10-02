@@ -858,6 +858,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->servoKP = 1000;
 	rtOpts->servoKI = 10;
 
+	rtOpts->servoDtMethod = DT_CONSTANT;
+
 	/* disabled by default */
 	rtOpts->announceTimeoutGracePeriod = 0;
 	rtOpts->alwaysRespectUtcOffset=FALSE;
@@ -1480,6 +1482,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_DOUBLE_MIN("servo:ki",rtOpts->servoKI,rtOpts->servoKI,
 	"Clock servo PI controller integral component gain (kI)",0.01);
 #endif /* PTPD_INTEGER_SERVO */
+
+	CONFIG_MAP_SELECTVALUE("servo:dt_method",rtOpts->servoDtMethod,rtOpts->servoDtMethod,
+		"How servo update interval (delta t) is calculated:\n"
+		"         none:     servo not corrected for update interval (dt always 1),\n"
+		"         constant: constant value (target servo update rate - sync interval for PTP,\n"
+		"         measured: servo measures how often it's updated and uses this interval.",
+			"none", DT_NONE,
+			"constant", DT_CONSTANT,
+			"measured", DT_MEASURED
+	);
+
 	CONFIG_MAP_INT_RANGE("servo:max_delay",rtOpts->maxDelay,rtOpts->maxDelay,
 		"Maximum accepted delayMS value in nanoseconds (Sync).\n"
 	"        0 =  not checked."
@@ -2477,6 +2490,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("servo:owdfilter_stiffness",         PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:kp",   			PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:ki",   			PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("servo:dt_method",			PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:max_delay",    		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:max_delay",    		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:max_offset",   		PTPD_RESTART_NONE );

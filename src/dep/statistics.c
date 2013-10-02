@@ -467,6 +467,10 @@ Boolean isIntPeircesOutlier(IntMovingStdDev *container, int32_t sample, double t
 
 	double maxDev;
 
+	/* Sanity check - race condition was seen when enabling and disabling filters repeatedly */
+	if(container == NULL || container->meanContainer == NULL)
+		return FALSE;
+
 	maxDev = container->stdDev * getpeircesCriterion(container->meanContainer->count, 1) * threshold;
 
 	/*
@@ -492,6 +496,10 @@ Boolean isIntPeircesOutlier(IntMovingStdDev *container, int32_t sample, double t
 Boolean isDoublePeircesOutlier(DoubleMovingStdDev *container, double sample, double threshold) {
 
 	double maxDev;
+
+	/* Sanity check - race condition was seen when enabling and disabling filters repeatedly */
+	if(container == NULL || container->meanContainer == NULL)
+		return FALSE;
 
 	maxDev = container->stdDev * getpeircesCriterion(container->meanContainer->count, 1) * threshold;
 

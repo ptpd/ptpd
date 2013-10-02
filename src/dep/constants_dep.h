@@ -137,6 +137,14 @@ enum {
 	IPMODE_UNICAST_SIGNALING
 #endif
 };
+
+/* servo dT calculation mode */
+enum {
+	DT_NONE,
+	DT_CONSTANT,
+	DT_MEASURED
+};
+
 #define MM_STARTING_BOUNDARY_HOPS  0x7fff
 
 /* others */

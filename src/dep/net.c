@@ -756,37 +756,39 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
                 netPath->unicastAddr = 0;
 	}
 
-	/* init UDP Multicast on both Default and Peer addresses */
-	if (!netInitMulticast(netPath, rtOpts))
-		return FALSE;
 
-	/* set socket time-to-live  */
+	if(rtOpts->ip_mode != IPMODE_UNICAST) {
 
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
-		       &rtOpts->ttl, sizeof(int)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
-			  &rtOpts->ttl, sizeof(int)) < 0) {
-		PERROR("Failed to set socket multicast time-to-live");
-		return FALSE;
+		/* init UDP Multicast on both Default and Peer addresses */
+		if (!netInitMulticast(netPath, rtOpts))
+			return FALSE;
+
+		/* set socket time-to-live  */
+		if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
+			       &rtOpts->ttl, sizeof(int)) < 0
+		    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
+				  &rtOpts->ttl, sizeof(int)) < 0) {
+			PERROR("Failed to set socket multicast time-to-live");
+			return FALSE;
+		}
+
+		/* start tracking TTL */
+		netPath->ttlEvent = rtOpts->ttl;
+		netPath->ttlGeneral = rtOpts->ttl;
+
+		/* enable loopback */
+		temp = 1;
+
+		DBG("Going to set IP_MULTICAST_LOOP with %d \n", temp);
+
+		if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
+			       &temp, sizeof(int)) < 0
+		    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
+				  &temp, sizeof(int)) < 0) {
+			PERROR("Failed to enable multicast loopback");
+			return FALSE;
+		}
 	}
-
-	/* start tracking TTL */
-	netPath->ttlEvent = rtOpts->ttl;
-	netPath->ttlGeneral = rtOpts->ttl;
-
-	/* enable loopback */
-	temp = 1;
-
-	DBG("Going to set IP_MULTICAST_LOOP with %d \n", temp);
-
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
-		       &temp, sizeof(int)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
-			  &temp, sizeof(int)) < 0) {
-		PERROR("Failed to enable multicast loopback");
-		return FALSE;
-	}
-
 	/* make timestamps available through recvmsg() */
 	if (!netInitTimestamping(netPath)) {
 		ERROR("failed to enable receive time stamps");
@@ -1290,7 +1292,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 			 * Need to forcibly loop back the packet since
 			 * we are not using multicast. 
 			 */
-			addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+			addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
 
 			ret = sendto(netPath->eventSock, buf, length, 0, 
 				     (struct sockaddr *)&addr, 
@@ -1459,7 +1461,7 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 		 * Need to forcibly loop back the packet since
 		 * we are not using multicast. 
 		 */
-		addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
 		
 		ret = sendto(netPath->eventSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 

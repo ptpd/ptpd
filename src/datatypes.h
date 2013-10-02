@@ -542,6 +542,8 @@ typedef struct{
     Integer32 kP, kI;
     TimeInternal lastUpdate;
     Boolean runningMaxOutput;
+    int dTmethod;
+    int logdT;
 #ifdef PTPD_STATISTICS
     int updateCount;
     int stableCount;
@@ -565,6 +567,8 @@ typedef struct{
     double kP, kI;
     TimeInternal lastUpdate;
     Boolean runningMaxOutput;
+    int dTmethod;
+    int logdT;
 #ifdef PTPD_STATISTICS
     int updateCount;
     int stableCount;
@@ -796,6 +800,8 @@ typedef struct {
 	Boolean delayMSoutlier;
 	Boolean delaySMoutlier;
 
+	Integer32 lastSyncCounter;
+
 	int statsUpdates;
 	Boolean isCalibrated;
 
@@ -929,6 +935,8 @@ typedef struct {
 	double servoKP;
 	double servoKI;
 #endif /* PTPD_INTEGER_SERVO */
+
+	int servoDtMethod;
 
 #ifdef	PTPD_STATISTICS
 

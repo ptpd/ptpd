@@ -345,7 +345,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
 
 		/* force a IGMP refresh per reset */
-		if (rtOpts->do_IGMP_refresh) {
+		if (rtOpts->ip_mode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh) {
 			netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
 		}
 		
@@ -694,7 +694,11 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					WARNING("GM announce timeout, disqualified current best GM\n");
 					ptpClock->counters.announceTimeouts++;
 				}
-				netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+
+				if (rtOpts->ip_mode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh) {
+					netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+				}
+
 /*
 				timerStart(ANNOUNCE_RECEIPT_TIMER,
 					(ptpClock->announceReceiptTimeout) *

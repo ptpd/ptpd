@@ -893,10 +893,15 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 #endif /* PTPD_NTPDC */
 
 	    }
+
+	/* Servo dT is the log sync interval */
+	if(rtOpts->servoDtMethod == DT_CONSTANT);
+		ptpClock->servo.logdT = ptpClock->logSyncInterval;
+
 /* If the last delayMS was an outlier and filter action is discard, skip servo run */
 #ifdef PTPD_STATISTICS
-if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard && ptpClock->delayMSoutlier)
-	    goto statistics;
+	if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard && ptpClock->delayMSoutlier)
+		goto statistics;
 #endif /* PTPD_STATISTICS */
 
 #if defined(__APPLE__)
@@ -971,6 +976,7 @@ setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts)
     servo->maxOutput = rtOpts->servoMaxPpb;
     servo->kP = rtOpts->servoKP;
     servo->kI = rtOpts->servoKI;
+    servo->dTmethod = rtOpts->servoDtMethod;
 #ifdef PTPD_STATISTICS
     servo->stabilityThreshold = rtOpts->servoStabilityThreshold;
     servo->stabilityPeriod = rtOpts->servoStabilityPeriod;
@@ -998,19 +1004,37 @@ runPIservo(PIservo* servo, const Integer32 input)
 
 	Integer32 aP;
 	Integer32 aI;
-#if 0
 	double dt;
 	TimeInternal now, delta;
-	getTime(&now);
-	if(servo->lastUpdate.seconds == 0 &&
-	    servo->lastUpdate.nanoseconds == 0) {
-	    dt = 1.0;
-	} else {
-	    subTime(&delta, &now, &servo->lastUpdate);
-	    dt = delta.nanoseconds / 1E9;
-	}
 
-#endif
+        switch(servo->dTmethod) {
+
+        case DT_MEASURED:
+
+                getTime(&now);
+                if(servo->lastUpdate.seconds == 0 &&
+                servo->lastUpdate.nanoseconds == 0) {
+                        dt = 1.0;
+                } else {
+                        subTime(&delta, &now, &servo->lastUpdate);
+                        dt = delta.nanoseconds / 1E9;
+                }
+                /* Don't use dT > 2 * target update interval */
+                if(dt > 2 * pow(2, servo->logdT))
+                        dt = 2 * pow(2, servo->logdT);
+
+                break;
+
+        case DT_CONSTANT:
+                dt = pow(2, servo->logdT);
+        case DT_NONE:
+        default:
+                dt = 1.0;
+                break;
+        }
+
+        if(dt <= 0.0)
+            dt = 1.0;
 
 	servo->input = input;
 
@@ -1031,23 +1055,10 @@ runPIservo(PIservo* servo, const Integer32 input)
 		aP = 1;
 	if (aI < 1)
 		aI = 1;
-    
-    
-#if 0
-	/* 
-	 * Inactive along with the dt calculation above:
-	 * this allows for a reliable delta measurement,
-	 * and decoupling kP and kI from sync interval,
-	 * but sync becomes as slow as with 1 sync/sec.
-	 * To be tested: employ this and work out new
-	 * kP and kI defaults.
-	 */
+
 	servo->observedDrift +=
 		dt * input / aI;
-#else
-	servo->observedDrift +=
-		input / aI;
-#endif
+
 	if(servo->observedDrift >= servo->maxOutput) {
 		servo->observedDrift = servo->maxOutput;
 		servo->runningMaxOutput = TRUE;
@@ -1060,12 +1071,9 @@ runPIservo(PIservo* servo, const Integer32 input)
 	}
 	servo->output = input / aP + servo->observedDrift;
 
-#if 0
-	servo->lastUpdate = now;
+	if(servo->dTmethod == DT_MEASURED)
+	        servo->lastUpdate = now;
 	DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %d, accumulator (observed drift): %d\n", dt, input, servo->output, servo->observedDrift);
-#else
-	DBGV("Servo input (ofm): %d, output(adj): %d, accumulator (observed drift): %d\n", input, servo->output, servo->observedDrift);
-#endif
 	return -servo->output;
 
 }
@@ -1076,19 +1084,39 @@ double
 runPIservo(PIservo* servo, const Integer32 input)
 {
 
-#if 0
-	double dt;
-	TimeInternal now, delta;
-	getTime(&now);
-	if(servo->lastUpdate.seconds == 0 &&
-	    servo->lastUpdate.nanoseconds == 0) {
-	    dt = 1.0;
-	} else {
-	    subTime(&delta, &now, &servo->lastUpdate);
-	    dt = delta.nanoseconds / 1E9;
-	}
+        double dt;
 
-#endif
+        TimeInternal now, delta;
+
+        switch (servo->dTmethod) {
+
+        case DT_MEASURED:
+
+                getTime(&now);
+                if(servo->lastUpdate.seconds == 0 &&
+                servo->lastUpdate.nanoseconds == 0) {
+                        dt = 1.0;
+                } else {
+                        subTime(&delta, &now, &servo->lastUpdate);
+                        dt = delta.nanoseconds / 1E9;
+                }
+
+                /* Don't use dT > 2 * target update interval */
+                if(dt > 2 * pow(2, servo->logdT))
+                        dt = 2 * pow(2, servo->logdT);
+
+                break;
+
+        case DT_CONSTANT:
+                dt = pow(2, servo->logdT);
+        case DT_NONE:
+        default:
+                dt = 1.0;
+                break;
+        }
+
+        if(dt <= 0.0)
+            dt = 1.0;
 
 	servo->input = input;
 
@@ -1102,21 +1130,9 @@ runPIservo(PIservo* servo, const Integer32 input)
 	 * so that we don't lose precision
 	 */
 
-#if 0
-	/* 
-	 * Inactive along with the dt calculation above:
-	 * this allows for a reliable delta measurement,
-	 * and decoupling kP and kI from sync interval,
-	 * but sync becomes as slow as with 1 sync/sec.
-	 * To be tested: employ this and work out new
-	 * kP and kI defaults.
-	 */
 	servo->observedDrift +=
-		dt * ((input + 0.0) * servo->kI) / 10000;
-#else
-	servo->observedDrift +=
-		((input + 0.0 ) * servo->kI) / 10000;
-#endif
+		dt * ((input + 0.0 ) * servo->kI) / 10000;
+
 	if(servo->observedDrift >= servo->maxOutput) {
 		servo->observedDrift = servo->maxOutput;
 		servo->runningMaxOutput = TRUE;
@@ -1135,14 +1151,14 @@ runPIservo(PIservo* servo, const Integer32 input)
 	 */
 	servo->output = (servo->kP * (input + 0.0) ) / 10000 + servo->observedDrift;
 
-#if 0
-	servo->lastUpdate = now;
-	DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %.09f, accumulator (observed drift): %.09f\n", dt, input, servo->output, servo->observedDrift);
-#else
-	DBGV("Servo input (ofm): %d, output(adj): %d, accumulator (observed drift): %d\n", input, servo->output, servo->observedDrift);
-#endif
-	return -servo->output;
+        if(servo->dTmethod == DT_MEASURED)
+                servo->lastUpdate = now;
 
+        INFO("Servo dt: %.05f\n", dt);
+
+        DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %.09f, accumulator (observed drift): %.09f\n", dt, input, servo->output, servo->observedDrift);
+
+        return -servo->output;
 }
 
 
@@ -1175,9 +1191,18 @@ updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts)
 	if( (rtOpts->calibrationDelay == 0) || ptpClock->isCalibrated )
 	if(rtOpts->servoStabilityDetection) {
                 ++ptpClock->servo.updateCount;
-                        if ( !ptpClock->servo.runningMaxOutput && (ptpClock->servo.driftStdDev <= ptpClock->servo.stabilityThreshold))
+                        if ( !ptpClock->servo.runningMaxOutput && (ptpClock->servo.driftStdDev <= ptpClock->servo.stabilityThreshold))  {
+                            /* Only update the stable period counter if we received some Sync messages since last update */
+                            if(ptpClock->lastSyncCounter > 0) {
+
+                                if((ptpClock->counters.syncMessagesReceived - ptpClock->lastSyncCounter) == 0)
+                                    ptpClock->servo.stableCount = 0;
+                                else
+                                    ++ptpClock->servo.stableCount;
+                            } else
                             ++ptpClock->servo.stableCount;
-                        else
+                            ptpClock->lastSyncCounter = ptpClock->counters.syncMessagesReceived;
+                        } else
                             ptpClock->servo.stableCount = 0;
 
                         /* Servo considered stable - drift std dev below threshold for n measurements - saving drift*/
@@ -1199,7 +1224,7 @@ updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts)
                                         if(ptpClock->servo.runningMaxOutput) {
                                         WARNING("Clock servo not stable after %d seconds - running at maximum rate.\n", rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
                                         } else {
-                                        WARNING("Clock servo not stable after %d seconds. Saving current observed drift.\n", rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
+                                        WARNING("Clock servo not stable after %d seconds since last check. Saving current observed drift.\n", rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
                                         saveDrift(ptpClock, rtOpts, FALSE);
                                         }
                                 } else {

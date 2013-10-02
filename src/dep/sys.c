@@ -898,44 +898,16 @@ if(rtOpts->enablePanicMode || rtOpts->calibrationDelay || rtOpts->servoStability
 }
 #endif /* PTPD_STATISTICS */
 
-#ifdef PTPD_NTPDC
-	
-	if(rtOpts->ntpOptions.enableEngine) {
-		fprintf(out, 		STATUSPREFIX"  ","NTP control status ");
-
-		    fprintf(out, "%s", (ptpClock->ntpControl.operational) ?
-			    "operational" : "not operational");
-
-		    fprintf(out, "%s", (rtOpts->ntpOptions.ntpInControl) ?
-			    ", preferring NTP" : "");
-
-		    fprintf(out, "%s", (ptpClock->ntpControl.inControl) ?
-			    ", NTP in control" : ptpClock->portState == PTP_SLAVE ? ", PTP in control" : "");
-
-		    fprintf(out, "%s", (ptpClock->ntpControl.isFailOver) ?
-			    ", Failover requested" : "");
-
-		    fprintf(out, "%s", (ptpClock->ntpControl.checkFailed) ?
-			    ", Check failed" : "");
-
-		    fprintf(out, "%s", (ptpClock->ntpControl.requestFailed) ?
-			    ", Request failed" : "");
-
-		    fprintf(out, "\n");
-
-	}
-#endif /* PTPD_NTPDC */
-
 	fprintf(out, 		STATUSPREFIX" % .03f ppm","Drift correction",
-			    ptpClock->servo.observedDrift / 1000);
+			    ptpClock->servo.observedDrift / 1000.0);
 if(ptpClock->servo.runningMaxOutput)
 	fprintf(out, " (slewing at maximum rate)");
 else {
 #ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated)
 	fprintf(out, ", mean % .03f ppm, dev % .03f ppm",
-		ptpClock->servo.driftMean / 1000,
-		ptpClock->servo.driftStdDev / 1000
+		ptpClock->servo.driftMean / 1000.0,
+		ptpClock->servo.driftStdDev / 1000.0
 	);
 #endif /* PTPD_STATISTICS */
 }
@@ -982,10 +954,40 @@ else {
 	if(ptpClock->portState == PTP_PASSIVE)
 		fprintf(out, " (best master: %d)", ptpClock->grandmasterClockQuality.clockClass);
 	fprintf(out,"\n");
+
 	}
 
-
 	fprintf(out, "\n");
+
+#ifdef PTPD_NTPDC
+	
+	if(rtOpts->ntpOptions.enableEngine) {
+		fprintf(out, 		STATUSPREFIX"  ","NTP control status ");
+
+		    fprintf(out, "%s", (ptpClock->ntpControl.operational) ?
+			    "operational" : "not operational");
+
+		    fprintf(out, "%s", (rtOpts->ntpOptions.ntpInControl) ?
+			    ", preferring NTP" : "");
+
+		    fprintf(out, "%s", (ptpClock->ntpControl.inControl) ?
+			    ", NTP in control" : ptpClock->portState == PTP_SLAVE ? ", PTP in control" : "");
+
+		    fprintf(out, "%s", (ptpClock->ntpControl.isFailOver) ?
+			    ", Failover requested" : "");
+
+		    fprintf(out, "%s", (ptpClock->ntpControl.checkFailed) ?
+			    ", Check failed" : "");
+
+		    fprintf(out, "%s", (ptpClock->ntpControl.requestFailed) ?
+			    ", Request failed" : "");
+
+		    fprintf(out, "\n");
+
+	}
+#endif /* PTPD_NTPDC */
+
+
 
 	if (ptpClock->clockQuality.clockClass > 127) {
 	fprintf(out, 		STATUSPREFIX"  %d\n","Announce received",
