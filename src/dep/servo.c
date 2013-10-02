@@ -1027,6 +1027,9 @@ runPIservo(PIservo* servo, const Integer32 input)
 
         case DT_CONSTANT:
                 dt = pow(2, servo->logdT);
+
+		break;
+
         case DT_NONE:
         default:
                 dt = 1.0;
@@ -1109,6 +1112,9 @@ runPIservo(PIservo* servo, const Integer32 input)
 
         case DT_CONSTANT:
                 dt = pow(2, servo->logdT);
+
+		break;
+
         case DT_NONE:
         default:
                 dt = 1.0;
@@ -1153,8 +1159,6 @@ runPIservo(PIservo* servo, const Integer32 input)
 
         if(servo->dTmethod == DT_MEASURED)
                 servo->lastUpdate = now;
-
-        INFO("Servo dt: %.05f\n", dt);
 
         DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %.09f, accumulator (observed drift): %.09f\n", dt, input, servo->output, servo->observedDrift);
 

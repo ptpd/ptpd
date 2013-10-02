@@ -757,7 +757,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 
-	if(rtOpts->ip_mode != IPMODE_UNICAST) {
+	if(rtOpts->ip_mode != IPMODE_UNICAST)  {
 
 		/* init UDP Multicast on both Default and Peer addresses */
 		if (!netInitMulticast(netPath, rtOpts))
@@ -776,6 +776,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		netPath->ttlEvent = rtOpts->ttl;
 		netPath->ttlGeneral = rtOpts->ttl;
 
+	}
+
 		/* enable loopback */
 		temp = 1;
 
@@ -788,7 +790,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			PERROR("Failed to enable multicast loopback");
 			return FALSE;
 		}
-	}
+
 	/* make timestamps available through recvmsg() */
 	if (!netInitTimestamping(netPath)) {
 		ERROR("failed to enable receive time stamps");
@@ -1292,6 +1294,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 			 * Need to forcibly loop back the packet since
 			 * we are not using multicast. 
 			 */
+
 			addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
 
 			ret = sendto(netPath->eventSock, buf, length, 0, 
