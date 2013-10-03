@@ -207,7 +207,6 @@ lookupCommunicationTechnology(UInteger8 communicationTechnology)
 	case ARPHRD_EETHER:
 	case ARPHRD_IEEE802:
 		return PTP_ETHER;
-
 	default:
 		break;
 	}
@@ -322,6 +321,15 @@ findIface(Octet * ifaceName, UInteger8 * communicationTechnology,
 		PERROR("failed to get ip address");
 		return 0;
 	}
+
+	if (*communicationTechnology == PTP_DEFAULT) {
+		UInteger32 sourceIPaddr=((struct sockaddr_in *)&device[i].ifr_addr)->sin_addr.s_addr;
+		// replace first 4 bytes of 6 byte uuid with interface ip address to ensure unique uuid
+		// for non ethernet networks
+		memcpy(uuid, &sourceIPaddr, 4);
+		DBG("using ip address instead of mac address for uuid\n");
+	}
+
 	return ((struct sockaddr_in *)&device[i].ifr_addr)->sin_addr.s_addr;
 
 #else /* usually *BSD */

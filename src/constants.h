@@ -346,6 +346,7 @@ enum {
 	MANAGEMENT,
 };
 
+/* communication technology */
 enum {
 	PTP_ETHER, PTP_DEFAULT
 };
