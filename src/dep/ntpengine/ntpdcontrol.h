@@ -28,6 +28,8 @@ typedef struct {
 	Boolean isFailOver;
 	Boolean checkFailed;
 	Boolean requestFailed;
+	Boolean flagsCaptured;
+	int originalFlags;
 	Integer32 serverAddress;
 	Integer32 sockFD;
 } NTPcontrol;

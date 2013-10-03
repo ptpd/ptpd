@@ -86,12 +86,24 @@ ntpInit(NTPoptions* options, NTPcontrol* control)
                 return FALSE;
         }
 
+	/* This will attempt to read the ntpd control flags for the first time */
+	if (ntpdInControl(options, control)) {
+		DBGV("NTPd original flags: %d\n", control->originalFlags);
+	}
+
 	return TRUE;
 }
 
 Boolean
 ntpShutdown(NTPoptions* options, NTPcontrol* control)
 {
+	/* Attempt reverting ntpd flags to the original value */
+	if(control->flagsCaptured) {
+		DBGV("Attempting to revert NTPd flags to %d - result: %d\n", control->originalFlags,
+			ntpdSetFlags(options, control, control->originalFlags)
+		);
+	}
+
         if (control->sockFD > 0)
                 close(control->sockFD);
         control->sockFD = -1;
@@ -799,6 +811,13 @@ ntpdInControl(NTPoptions* options, NTPcontrol* control)
 	if (is->flags & INFO_FLAG_NTP) DBGV("NTP flag seen: ntp\n");
 	if (is->flags & INFO_FLAG_KERNEL) DBGV("NTP flag seen: kernel\n");
 
+	if(!control->flagsCaptured) {
+		control->originalFlags = is->flags;
+
+		control->flagsCaptured = TRUE;
+		res = INFO_YES;
+		goto end;
+	}
 
 	if ((is->flags & INFO_FLAG_NTP) || (is->flags & INFO_FLAG_KERNEL))
 	{
