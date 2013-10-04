@@ -732,17 +732,17 @@ ntpdControlFlags(NTPoptions* options, NTPcontrol* control, int req, int flags)
 	switch (res) {
 
 	case -1:
-		ERROR("Cannot connect to NTP daemon\n");
+		if(!control->requestFailed) ERROR("Cannot connect to NTP daemon\n");
 		break;
 
 	case INFO_ERR_AUTH:
 
-		ERROR("NTP permission denied: check key id, password and NTP configuration\n");
+		if(!control->requestFailed) ERROR("NTP permission denied: check key id, password and NTP configuration\n");
 		break;		
 
 	case ERR_TIMEOUT:
 
-		ERROR("Timeout while connecting to NTP daemon\n");
+		if(!control->requestFailed) ERROR("Timeout while connecting to NTP daemon\n");
 		break;
 
 	default:
@@ -902,7 +902,7 @@ Boolean ntpdControl(NTPoptions* options, NTPcontrol* control, Boolean quiet)
 	/* NTP is running as expected */
 
 	if(control->inControl == control->isRequired) {
-
+		control->requestFailed = FALSE;
 		if(!quiet) {
 			if(control->isRequired)
 				INFO("NTPd running and is already controlling the clock - OK\n");
@@ -911,7 +911,7 @@ Boolean ntpdControl(NTPoptions* options, NTPcontrol* control, Boolean quiet)
 		}
 		return TRUE;
 
-	/* NTP is nor running as expected - see if we can fail over or fail back */
+	/* NTP is not running as expected - see if we can fail over or fail back */
 
 	} else  {
 
@@ -935,8 +935,8 @@ Boolean ntpdControl(NTPoptions* options, NTPcontrol* control, Boolean quiet)
 		/* Attempt handing over clock control TO NTPD */
 
 		if(control->isRequired) {
-			INFO("Found NTPd running and not controlling the clock\n");
-			INFO("Attempting to fail over to local NTPd\n");
+			if(!control->requestFailed) INFO("Found NTPd running and not controlling the clock\n");
+			if(!control->requestFailed) INFO("Attempting to fail over to local NTPd\n");
 				switch(ntpdSetFlags(options, control, SYS_FLAG_KERNEL | SYS_FLAG_NTP)) {
 					case INFO_OKAY:
 						NOTICE("Succesfully failed over to NTP\n");
@@ -945,7 +945,7 @@ Boolean ntpdControl(NTPoptions* options, NTPcontrol* control, Boolean quiet)
 						return TRUE;
 						break;
 					default:
-						WARNING("Could not fail over to NTP  - Clock may drift! See previous errors\n");
+						if(!control->requestFailed) WARNING("Could not fail over to NTP  - Clock may drift! See previous errors\n");
 						control->requestFailed = TRUE;
 						return FALSE;
 						break;
@@ -954,8 +954,8 @@ Boolean ntpdControl(NTPoptions* options, NTPcontrol* control, Boolean quiet)
 		/* Attempt taking clock control back FROM NTPD */
 
 		} else {
-			INFO("Found NTPd running and controlling the clock\n");
-			INFO("Attempting to disable local NTPd\n");
+			if(!control->requestFailed) INFO("Found NTPd running and controlling the clock\n");
+			if(!control->requestFailed) INFO("Attempting to disable local NTPd\n");
 				switch(ntpdClearFlags(options, control, SYS_FLAG_KERNEL | SYS_FLAG_NTP)) {
 					case INFO_OKAY:
 						NOTICE("Succesfully disabled local NTPd\n");
@@ -964,7 +964,7 @@ Boolean ntpdControl(NTPoptions* options, NTPcontrol* control, Boolean quiet)
 						return TRUE;
 						break;
 					default:
-						WARNING("Could not disable local NTPd - Clock may be unstable! See previous errors\n");
+						if(!control->requestFailed) WARNING("Could not disable local NTPd - Clock may be unstable! See previous errors\n");
 						control->requestFailed = TRUE;
 						return FALSE;
 						break;

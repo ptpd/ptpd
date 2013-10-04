@@ -964,24 +964,26 @@ else {
 	if(rtOpts->ntpOptions.enableEngine) {
 		fprintf(out, 		STATUSPREFIX"  ","NTP control status ");
 
-		    fprintf(out, "%s", (ptpClock->ntpControl.operational) ?
-			    "operational" : "not operational");
+
+		    if(ptpClock->ntpControl.operational) {
 
 		    fprintf(out, "%s", (rtOpts->ntpOptions.ntpInControl) ?
-			    ", preferring NTP" : "");
+			    "Preferring NTP: Yes" : "Preferring NTP: No");
 
 		    fprintf(out, "%s", (ptpClock->ntpControl.inControl) ?
 			    ", NTP in control" : ptpClock->portState == PTP_SLAVE ? ", PTP in control" : "");
 
 		    fprintf(out, "%s", (ptpClock->ntpControl.isFailOver) ?
-			    ", Failover requested" : "");
+			    ", failover requested" : "");
 
 		    fprintf(out, "%s", (ptpClock->ntpControl.checkFailed) ?
-			    ", Check failed" : "");
+			    ", check failed" : "");
 
 		    fprintf(out, "%s", (ptpClock->ntpControl.requestFailed) ?
-			    ", Request failed" : "");
-
+			    ", request failed" : "");
+		    } else {
+		    fprintf(out, "not operational");
+		    }
 		    fprintf(out, "\n");
 
 	}
@@ -989,7 +991,10 @@ else {
 
 
 
-	if (ptpClock->clockQuality.clockClass > 127) {
+
+	if ( ptpClock->portState == PTP_SLAVE ||
+	    ptpClock->clockQuality.clockClass == 255 ) {
+
 	fprintf(out, 		STATUSPREFIX"  %d\n","Announce received",
 	    ptpClock->counters.announceMessagesReceived);
 	fprintf(out, 		STATUSPREFIX"  %d\n","Sync received",
@@ -997,14 +1002,55 @@ else {
 	if(ptpClock->twoStepFlag)
 	fprintf(out, 		STATUSPREFIX"  %d\n","Follow-up received",
 	    ptpClock->counters.followUpMessagesReceived);
-	fprintf(out, 		STATUSPREFIX"  %d\n","DelayReq sent",
-	    ptpClock->counters.delayReqMessagesSent);
-	fprintf(out, 		STATUSPREFIX"  %d\n","DelayResp received",
-	    ptpClock->counters.delayRespMessagesReceived);
+	if(ptpClock->delayMechanism == E2E) {
+		fprintf(out, 		STATUSPREFIX"  %d\n","DelayReq sent",
+		    ptpClock->counters.delayReqMessagesSent);
+		fprintf(out, 		STATUSPREFIX"  %d\n","DelayResp received",
+		    ptpClock->counters.delayRespMessagesReceived);
+	}
+	}
+
+	if( ptpClock->portState == PTP_MASTER ||
+	    ptpClock->clockQuality.clockClass < 128 ) {
+
+	fprintf(out, 		STATUSPREFIX"  %d\n","Announce received",
+	    ptpClock->counters.announceMessagesReceived);
+	fprintf(out, 		STATUSPREFIX"  %d\n","Announce sent",
+	    ptpClock->counters.announceMessagesSent);
+	fprintf(out, 		STATUSPREFIX"  %d\n","Sync sent",
+	    ptpClock->counters.syncMessagesSent);
+	if(ptpClock->twoStepFlag)
+	fprintf(out, 		STATUSPREFIX"  %d\n","Follow-up sent",
+	    ptpClock->counters.followUpMessagesSent);
+
+	if(ptpClock->delayMechanism == E2E) {
+		fprintf(out, 		STATUSPREFIX"  %d\n","DelayReq received",
+		    ptpClock->counters.delayReqMessagesReceived);
+		fprintf(out, 		STATUSPREFIX"  %d\n","DelayResp sent",
+		    ptpClock->counters.delayRespMessagesSent);
+	}
+
+	}
+
+	if(ptpClock->delayMechanism == P2P) {
+
+		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PDelayReq",
+		    ptpClock->counters.pdelayReqMessagesReceived,
+		    ptpClock->counters.pdelayReqMessagesSent);
+		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PDelayResp",
+		    ptpClock->counters.pdelayRespMessagesReceived,
+		    ptpClock->counters.pdelayRespMessagesSent);
+		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PDelayRespFollowUp",
+		    ptpClock->counters.pdelayRespFollowUpMessagesReceived,
+		    ptpClock->counters.pdelayRespFollowUpMessagesSent);
+
+	}
+
 	if(ptpClock->counters.domainMismatchErrors)
 	fprintf(out, 		STATUSPREFIX"  %d\n","Domain Mismatches",
 		    ptpClock->counters.domainMismatchErrors);
-	}
+
+
 
 	fprintf(out, 		STATUSPREFIX"  %d\n","State transitions",
 		    ptpClock->counters.stateTransitions);

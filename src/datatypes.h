@@ -539,7 +539,7 @@ typedef struct{
     Integer32 input;
     Integer32 output;
     Integer32 observedDrift;
-    Integer32 kP, kI;
+    Integer32 aP, aI;
     TimeInternal lastUpdate;
     Boolean runningMaxOutput;
     int dTmethod;
@@ -921,21 +921,15 @@ typedef struct {
 	 * Flags are defined in daemonconfig.h
 	 * 0 = no change
 	 */
-	int restartSubsystems;
+	UInteger32 restartSubsystems;
 	/* config dictionary containers - current and candidate */
 	dictionary *currentConfig, *candidateConfig;
 
 	int selectedPreset;
 
 	int servoMaxPpb;
-#ifdef PTPD_INTEGER_SERVO
-	int servoKP;
-	int servoKI;
-#else
 	double servoKP;
 	double servoKI;
-#endif /* PTPD_INTEGER_SERVO */
-
 	int servoDtMethod;
 
 #ifdef	PTPD_STATISTICS
@@ -968,7 +962,7 @@ typedef struct {
 
 	Boolean enablePanicMode;
 	int panicModeDuration;
-
+	UInteger32 panicModeExitThreshold;
 
 #ifdef PTPD_NTPDC
 	Boolean panicModeNtp;

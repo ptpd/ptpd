@@ -66,6 +66,11 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	DBG("initClock\n");
 
+#ifdef PTPD_NTPDC
+	/* If we've been suppressing ntpdc error messages, show them once again */
+	ptpClock->ntpControl.requestFailed = FALSE;
+#endif /* PTPD_NTPDC */
+
 
 /* do not reset frequency here - restoreDrift will do it if necessary */
 #if !defined(__APPLE__)
@@ -820,6 +825,8 @@ if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard &&
 
 if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 
+				/* Make sure we log ntp control errors now */
+				ptpClock->ntpControl.requestFailed = FALSE;
                                 /* We have a timeout defined */
                                 if(rtOpts->ntpOptions.failoverTimeout) {
                                         DBG("NTP failover timer started - panic mode\n");
@@ -837,7 +844,7 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 
 }
 
-#endif
+#endif /* PTPD_NTPDC */
 		goto display;
 
 	}
@@ -876,7 +883,8 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 		}
 	} else {
 
-	    if(rtOpts->enablePanicMode && (ptpClock->panicMode || ptpClock->panicOver)) {
+	    /* If we're in panic mode, either exit if no threshold configured, or exit if we're outside the exit threshold */
+	    if(rtOpts->enablePanicMode && (ptpClock->panicMode && ( rtOpts->panicModeExitThreshold == 0 || (rtOpts->panicModeExitThreshold > 0 &&  (ptpClock->offsetFromMaster.nanoseconds < rtOpts->panicModeExitThreshold)))   ) || ptpClock->panicOver) {
 		    ptpClock->panicMode = FALSE;
 		    ptpClock->panicOver = FALSE;
 		    timerStop(PANIC_MODE_TIMER, ptpClock->itimer);
@@ -974,8 +982,15 @@ void
 setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts)
 {
     servo->maxOutput = rtOpts->servoMaxPpb;
+#ifdef PTPD_INTEGER_SERVO
+    servo->aP = (Integer32)round(1.0 / rtOpts->servoKP);
+    servo->aI = (Integer32)round(1.0 / rtOpts->servoKI);
+    DBG("aP for int servo is: %d\n",servo->aP);
+    DBG("aI for int servo is: %d\n",servo->aI);
+#else
     servo->kP = rtOpts->servoKP;
     servo->kI = rtOpts->servoKI;
+#endif /* PTPD_INTEGER_SERVO */
     servo->dTmethod = rtOpts->servoDtMethod;
 #ifdef PTPD_STATISTICS
     servo->stabilityThreshold = rtOpts->servoStabilityThreshold;
@@ -1002,8 +1017,6 @@ Integer32
 runPIservo(PIservo* servo, const Integer32 input)
 {
 
-	Integer32 aP;
-	Integer32 aI;
 	double dt;
 	TimeInternal now, delta;
 
@@ -1041,26 +1054,13 @@ runPIservo(PIservo* servo, const Integer32 input)
 
 	servo->input = input;
 
-	if (servo->kP < 1)
-		servo->kP = 1;
-	if (servo->kI < 1)
-		servo->kI = 1;
-
-	/*
-	 * kP and kI are scaled to 10000
-	 * because of integer overflow we convert them to attenuations
-	 */
-
-	aP = 10000 / servo->kP;
-	aI = 10000 / servo->kI;
-    
-	if (aP <1)
+    	if (servo->aP <1)
 		aP = 1;
-	if (aI < 1)
+	if (servo->aI < 1)
 		aI = 1;
 
 	servo->observedDrift +=
-		dt * input / aI;
+		dt * input / servo->aI;
 
 	if(servo->observedDrift >= servo->maxOutput) {
 		servo->observedDrift = servo->maxOutput;
@@ -1072,7 +1072,7 @@ runPIservo(PIservo* servo, const Integer32 input)
 	} else {
 		servo->runningMaxOutput = FALSE;
 	}
-	servo->output = input / aP + servo->observedDrift;
+	servo->output = input / servo->aP + servo->observedDrift;
 
 	if(servo->dTmethod == DT_MEASURED)
 	        servo->lastUpdate = now;
@@ -1126,18 +1126,13 @@ runPIservo(PIservo* servo, const Integer32 input)
 
 	servo->input = input;
 
-	if (servo->kP < 1)
-		servo->kP = 1;
-	if (servo->kI < 1)
-		servo->kI = 1;
-
-	/*
-	 * kP and kI are scaled to 10000 - but we divide by 10000 first
-	 * so that we don't lose precision
-	 */
+	if (servo->kP < 0.000001)
+		servo->kP = 0.000001;
+	if (servo->kI < 0.000001)
+		servo->kI = 0.000001;
 
 	servo->observedDrift +=
-		dt * ((input + 0.0 ) * servo->kI) / 10000;
+		dt * ((input + 0.0 ) * servo->kI);
 
 	if(servo->observedDrift >= servo->maxOutput) {
 		servo->observedDrift = servo->maxOutput;
@@ -1150,12 +1145,7 @@ runPIservo(PIservo* servo, const Integer32 input)
 		servo->runningMaxOutput = FALSE;
 	}
 
-
-	/*
-	 * kP and kI are scaled to 10000 - but we divide by 10000 first
-	 * so that we don't lose precision
-	 */
-	servo->output = (servo->kP * (input + 0.0) ) / 10000 + servo->observedDrift;
+	servo->output = (servo->kP * (input + 0.0) ) + servo->observedDrift;
 
         if(servo->dTmethod == DT_MEASURED)
                 servo->lastUpdate = now;

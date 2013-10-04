@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2012-2013 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer, 
  *                         Martin Burnicki, 
@@ -211,9 +212,67 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 #endif /* PTPD_STATISTICS */
 
 #ifdef PTPD_NTPDC
-                    if(rtOpts->restartSubsystems & PTPD_RESTART_NTPENGINE) {
-                                NOTIFY("Applying NTP engine configuration\n");
-		    }
+
+            if(rtOpts->restartSubsystems & PTPD_RESTART_NTPENGINE) {
+
+		ntpShutdown(&rtOpts->ntpOptions, &ptpClock->ntpControl);
+		if(rtOpts->ntpOptions.enableEngine) {
+                        NOTIFY("Starting NTP control subsystem\n");
+		    if(!(ptpClock->ntpControl.operational = 
+		        ntpInit(&rtOpts->ntpOptions, &ptpClock->ntpControl))) {
+
+			NOTICE("Could not start NTP control subsystem");
+		        }
+		} else {
+                        NOTIFY("Shutting down NTP control subsystem\n");
+		}
+
+	    }
+
+	    if((rtOpts->restartSubsystems & PTPD_RESTART_NTPENGINE) ||
+		(rtOpts->restartSubsystems & PTPD_RESTART_NTPCONTROL) ) {
+			NOTIFY("Applying NTP control configuration\n");
+			/* This will display warnings once again if request keeps failing */
+			ptpClock->ntpControl.requestFailed = FALSE;
+			Boolean ntpFailover = FALSE;
+
+	    if(rtOpts->ntpOptions.enableEngine && rtOpts->ntpOptions.enableFailover)
+	        ntpFailover = timerRunning(NTPD_FAILOVER_TIMER,
+				    ptpClock->itimer) ||
+			     ptpClock->ntpControl.isFailOver;
+
+	    if(rtOpts->ntpOptions.enableEngine) {
+		timerStart(NTPD_CHECK_TIMER,rtOpts->ntpOptions.checkInterval,ptpClock->itimer);
+
+	      /* NTP is the desired clock controller - don't wait or failover, flip now */
+                        if(rtOpts->ntpOptions.ntpInControl) {
+                                ptpClock->ntpControl.isRequired = rtOpts->ntpOptions.ntpInControl;
+                                        if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE))
+                                                DBG("STARTUP - NTP preferred - could not fail over\n");
+                        } else if(rtOpts->ntpOptions.enableFailover && ntpFailover) {
+                                /* We have a timeout defined */
+                                if(rtOpts->ntpOptions.failoverTimeout) {
+                                        DBG("NTP failover timer started\n");
+                                        timerStart(NTPD_FAILOVER_TIMER,
+                                                    rtOpts->ntpOptions.failoverTimeout,
+                                                    ptpClock->itimer);
+                                /* Fail over to NTP straight away */
+                                } else {
+                                        DBG("Initiating NTP failover\n");
+                                        ptpClock->ntpControl.isRequired = TRUE;
+                                        ptpClock->ntpControl.isFailOver = TRUE;
+                                        if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE))
+                                                DBG("STARTUP instant NTP failover - could not fail over\n");
+                                }
+                        } else {
+                                ptpClock->ntpControl.isRequired = rtOpts->ntpOptions.ntpInControl;
+				ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, TRUE);
+			}
+	    }
+
+
+	    }
+
 #endif /* PTPD_NTPDC */
 
 		    /* Update PI servo parameters */
@@ -728,6 +787,8 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			if( (rtOpts->ntpOptions.enableFailover || (rtOpts->panicModeNtp && ptpClock->panicMode ))&& 
 				timerExpired(NTPD_FAILOVER_TIMER, ptpClock->itimer)) {
 				NOTICE("NTP failover triggered\n");
+				/* make sure we show errors if needed */
+				ptpClock->ntpControl.requestFailed = FALSE;
 				ptpClock->ntpControl.isRequired = TRUE;
 				ptpClock->ntpControl.isFailOver = TRUE;
 				if(ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, FALSE)) {

@@ -855,8 +855,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* ADJ_FREQ_MAX by default */
 	rtOpts->servoMaxPpb = ADJ_FREQ_MAX / 1000;
 	/* kP and kI are scaled to 10000 and are gains now - values same as originally */
-	rtOpts->servoKP = 1000;
-	rtOpts->servoKI = 10;
+	rtOpts->servoKP = 0.1;
+	rtOpts->servoKI = 0.001;
 
 	rtOpts->servoDtMethod = DT_CONSTANT;
 
@@ -908,7 +908,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* panic mode options */
 	rtOpts->enablePanicMode = FALSE;
 	rtOpts->panicModeDuration = 2;
-
+	rtOpts->panicModeExitThreshold = 0;
 
 
 #ifdef PTPD_NTPDC
@@ -1396,6 +1396,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
         CONFIG_MAP_INT_RANGE("ptpengine:panic_mode_duration",rtOpts->panicModeDuration,rtOpts->panicModeDuration,
         "Duration of the panic mode period (no clock updates) when offset above 1 second detected\n",1,60);
 
+        CONFIG_MAP_INT_RANGE("ptpengine:panic_mode_exit_threshold",rtOpts->panicModeExitThreshold,rtOpts->panicModeExitThreshold,
+        "Do not exit panic mode until offset drops below this value (nanoseconds). 0 = not used.\n",0,NANOSECONDS_MAX);
+
+
 	CONFIG_MAP_BOOLEAN("ptpengine:pid_as_clock_idendity",rtOpts->jobid,rtOpts->jobid,
 	"Use JobID (PID) for UUID");
 
@@ -1472,17 +1476,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT( "servo:delayfilter_stiffness",rtOpts->s,rtOpts->s,
 	"One-way delay filter stiffness");
 
-#ifdef PTPD_INTEGER_SERVO
-	CONFIG_MAP_INT_MIN("servo:kp",rtOpts->servoKP,rtOpts->servoKP,
-	"Clock servo PI controller proportional component gain (kP)",1);
-	CONFIG_MAP_INT_MIN("servo:ki",rtOpts->servoKI,rtOpts->servoKI,
-	"Clock servo PI controller integral component gain (kI)",1);
-#else
 	CONFIG_MAP_DOUBLE_MIN("servo:kp",rtOpts->servoKP,rtOpts->servoKP,
-	"Clock servo PI controller proportional component gain (kP)",0.01);
+	"Clock servo PI controller proportional component gain (kP)",0.000001);
 	CONFIG_MAP_DOUBLE_MIN("servo:ki",rtOpts->servoKI,rtOpts->servoKI,
-	"Clock servo PI controller integral component gain (kI)",0.01);
-#endif /* PTPD_INTEGER_SERVO */
+	"Clock servo PI controller integral component gain (kI)",0.000001);
 
 	CONFIG_MAP_SELECTVALUE("servo:dt_method",rtOpts->servoDtMethod,rtOpts->servoDtMethod,
 		"How servo update interval (delta t) is calculated:\n"
@@ -2412,7 +2409,7 @@ return TRUE;
 int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 {
 
-	int restartFlags = 0;
+	UInteger32 restartFlags = 0;
 
 
 
@@ -2483,6 +2480,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 
 //        COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode",  	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode_duration",  	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode_exit_threshold",  	PTPD_RESTART_NONE );
 
 //        COMPONENT_RESTART_REQUIRED("clock:no_adjust",    		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:no_reset",     		PTPD_RESTART_NONE );
@@ -2540,6 +2538,17 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("global:cpuaffinity_cpucore",	PTPD_CHANGE_CPUAFFINITY );
 #endif /* HAVE_SCHED_H */
 #endif /* linux */
+
+#ifdef PTPD_NTPDC
+	COMPONENT_RESTART_REQUIRED("ntpengine:enabled",			PTPD_RESTART_NTPENGINE);
+	COMPONENT_RESTART_REQUIRED("ptpengine:ntp_failover",		PTPD_RESTART_NTPCONTROL);
+	COMPONENT_RESTART_REQUIRED("ptpengine:ntp_failover_timeout",	PTPD_RESTART_NTPCONTROL);
+	COMPONENT_RESTART_REQUIRED("ptpengine:prefer_ntp",		PTPD_RESTART_NTPCONTROL);
+	COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode_ntp",		PTPD_RESTART_NTPCONTROL);
+	COMPONENT_RESTART_REQUIRED("ntpengine:control_enabled",		PTPD_RESTART_NTPCONTROL);
+	COMPONENT_RESTART_REQUIRED("ntpengine:check_interval",		PTPD_RESTART_NTPCONTROL);
+#endif /* PTPD_NTPDC */
+
 
 /* ========= Any additional logic goes here =========== */
 
