@@ -4,15 +4,18 @@
 ; ==============================================================================
 
 ; interface has to be specified
-ptpengine:interface=
+ptpengine:interface=igb1
 
 ; PTP domain
 ptpengine:domain=0
 
-; available presets are slaveonly, masteronly and masterslave (full IEEE 1588 implementation)
+; available presets are slaveonly, masteronly and masterslave (full
+; IEEE 1588 implementation)
 ptpengine:preset=slaveonly
 
-; multicast for both sync and delay requests - use hybrid for unicast delay requests
+; multicast for both sync and delay requests - use hybrid for unicast
+; delay requests
+
 ptpengine:ip_mode=multicast
 
 ; when enabled, sniffing is used instead of sockets to send and receive packets
@@ -30,5 +33,11 @@ global:log_status=y
 ; uncomment this to log a timing log like in previous ptpd versions
 ;global:statistics_file=/var/log/ptpd2.stats
 
+;global:cpuaffinity_cpucore = 2
+
+; Run in foreground with statistics and all messages logged to stdout.
+; Overrides log file and statistics file settings and disables syslog.
+; 
+global:verbose_foreground = N
 ; always keep a new line in the end
 
