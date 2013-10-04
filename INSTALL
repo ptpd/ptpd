@@ -1,22 +1,35 @@
 PTP Daemon Version 2 Build and Installation Instructions
 
-05 January 2012
+4 October 2013
 
 George V. Neville-Neil
 
 The PTP Daemon is known to work on FreeBSD, NetBSD, Mac OS X and Linux systems.
 
+*) Requirements
+
+You will need the following tools and libraries to build ptpd2
+
+1. GNU autotools (automake, autoconf etc.)
+2. SNMP libraries (optional)
+
 *) Building 
 
-1) cd into the src/ directory
-3) Run "make"
-4) Read the manual page.
-5) Test it in place: ./ptpd2 -your -arguments -here
-6) Run "make install"
+1. cd into the root of the tree (which is where the file you're
+   reading resides)
+2.  autoreconf -vi
+3. ./configure
+4. make
+5. Read the manual pages
+6. Update test/client-e2e-socket.conf so that its
+   "ptpengine:interface = " setting points to a network interface on
+   your test machine that can see PTP packets from a grandmaster.
+6. Test it in place: ./src/ptpd2 test/client-e2e-socket.conf
+7. Check the output of the daemon in /var/run/ptpd2.stats.log
+8. If the results look good make install
 
 The daemon may work on other Posix based systems but this is not
 guaranteed.  Patches and fixes are welcome on the source forge page
 
 http://ptpd.sf.net
 
-or via mail to gnn@freebsd.org
