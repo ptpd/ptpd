@@ -12,6 +12,10 @@ there is a relevant config file listed.
 | Socket | client-e2e-socket.conf |     |
 | PCAP   | client-e2e-pcap.conf   |     |
 
+Note that for each configuration file you MUST update the
+ptpengine:interface line at the beginning of the file.  No other
+changes should be necessary.
+
 * Server
 
 The server is tested with a series of its own clients.  Not optimal
