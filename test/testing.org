@@ -1,0 +1,18 @@
+Unified Test Plan for PTPd Versions
+
+NOTE: This file is in Emacs org mode, do not adjust the markup unless
+absolutely necessary.
+
+* Client
+
+The client needs to be tested in the following matrix.  For each test
+there is a relevant config file listed.
+
+|        | E2E                    | P2P |
+| Socket | client-e2e-socket.conf |     |
+| PCAP   | client-e2e-pcap.conf   |     |
+
+* Server
+
+The server is tested with a series of its own clients.  Not optimal
+
