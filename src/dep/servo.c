@@ -1055,9 +1055,9 @@ runPIservo(PIservo* servo, const Integer32 input)
 	servo->input = input;
 
     	if (servo->aP <1)
-		aP = 1;
+		servo->aP = 1;
 	if (servo->aI < 1)
-		aI = 1;
+		servo->aI = 1;
 
 	servo->observedDrift +=
 		dt * input / servo->aI;
