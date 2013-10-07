@@ -10,8 +10,9 @@ The PTP Daemon is known to work on FreeBSD, NetBSD, Mac OS X and Linux systems.
 
 You will need the following tools and libraries to build ptpd2
 
-1. GNU autotools (automake, autoconf etc.)
-2. SNMP libraries (optional)
+1. GNU autotools (automake, autoconf, libtool etc.)
+2. PCAP libraries
+3. SNMP libraries (optional)
 
 *) Building 
 
