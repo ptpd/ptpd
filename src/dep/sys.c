@@ -632,6 +632,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			prev_now_sync = now;
 			    break;
 			case 'D':
+			case 'P':
 			if((now.seconds - prev_now_delay.seconds) < rtOpts->statisticsLogInterval){
 				DBGV("Suppressed Sync statistics log entry - statisticsLogInterval configured\n");
 				return;
@@ -683,8 +684,13 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		/* print MS and SM with sign */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 			
-		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
-				&(ptpClock->delaySM));
+		if(rtOpts->delayMechanism == E2E) {
+			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+							&(ptpClock->delaySM));
+		} else {
+			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+							&(ptpClock->pdelaySM));
+		}
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 

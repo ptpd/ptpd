@@ -313,6 +313,8 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 
 	DBGV("updatePeerDelay\n");
 
+	ptpClock->char_last_msg = 'P';	
+
 	if (twoStep) {
 		/* calc 'slave_to_master_delay' */
 		subTime(&ptpClock->pdelayMS, 
@@ -376,6 +378,10 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 	ptpClock->peerMeanPathDelay.nanoseconds = owd_filt->y;
 
 	DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
+
+display:
+	if(ptpClock->portState == PTP_SLAVE)
+		logStatistics(rtOpts, ptpClock);	
 }
 
 void

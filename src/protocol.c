@@ -404,7 +404,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
 
 		/* force a IGMP refresh per reset */
-		if (rtOpts->ip_mode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh) {
+		if (rtOpts->ip_mode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
 			netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
 		}
 		
@@ -754,7 +754,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					ptpClock->counters.announceTimeouts++;
 				}
 
-				if (rtOpts->ip_mode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh) {
+				if (rtOpts->ip_mode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
 					netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
 				}
 
@@ -995,7 +995,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	DBGV("handle: something\n");
 
 	if (rtOpts->pcap == TRUE) {
-		if (FD_ISSET(ptpClock->netPath.pcapEventSock, &readfds)) {
+		if (ptpClock->netPath.pcapEventSock >=0 && FD_ISSET(ptpClock->netPath.pcapEventSock, &readfds)) {
 			length = netRecvEvent(ptpClock->msgIbuf, &tint, 
 					      &ptpClock->netPath);
 			if (length == 0) /* timeout, return for now */
@@ -1008,7 +1008,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			}
 			goto process;
 		}
-		if (FD_ISSET(ptpClock->netPath.pcapGeneralSock, &readfds)) {
+		if (ptpClock->netPath.pcapGeneralSock >=0 && FD_ISSET(ptpClock->netPath.pcapGeneralSock, &readfds)) {
 			length = netRecvGeneral(ptpClock->msgIbuf, &tint,
 						&ptpClock->netPath);
 			if (length == 0) /* timeout, return for now */
@@ -1120,6 +1120,15 @@ process:
 		break;
 	case DELAY_RESP:
 		st = "DelayResp";
+		break;
+	case PDELAY_REQ:
+		st = "PDelayReq";
+		break;
+	case PDELAY_RESP:
+		st = "PDelayResp";
+		break;
+	case PDELAY_RESP_FOLLOW_UP:
+		st = "PDelayRespFollowUp";
 		break;
 	case MANAGEMENT:
 		st = "Management";
@@ -1955,7 +1964,7 @@ handlePDelayResp(const MsgHeader *header, TimeInternal *tint,
 				 header->sourcePortIdentity.portNumber);
 #endif	
 			if (ptpClock->sentPDelayReqSequenceId != 
-			       header->sequenceId) {
+			       ((UInteger16)(header->sequenceId + 1))) {
 				    DBGV("PDelayResp: sequence mismatch - sent: %d, received: %d\n",
 					    ptpClock->sentPDelayReqSequenceId,
 					    header->sequenceId);
@@ -2528,7 +2537,7 @@ issuePDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	
 	msgPackPDelayReq(ptpClock->msgObuf,&originTimestamp,ptpClock);
 	if (!netSendPeerEvent(ptpClock->msgObuf,PDELAY_REQ_LENGTH,
-			      &ptpClock->netPath)) {
+			      &ptpClock->netPath, rtOpts)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("PdelayReq message can't be sent -> FAULTY state \n");
@@ -2550,7 +2559,7 @@ issuePDelayResp(const TimeInternal *tint,MsgHeader *header,RunTimeOpts *rtOpts,
 			  &requestReceiptTimestamp,ptpClock);
 
 	if (!netSendPeerEvent(ptpClock->msgObuf,PDELAY_RESP_LENGTH,
-			      &ptpClock->netPath)) {
+			      &ptpClock->netPath, rtOpts)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("PdelayResp message can't be sent -> FAULTY state \n");
@@ -2599,7 +2608,7 @@ issuePDelayRespFollowUp(const TimeInternal *tint, MsgHeader *header,
 				  &responseOriginTimestamp,ptpClock);
 	if (!netSendPeerGeneral(ptpClock->msgObuf,
 				PDELAY_RESP_FOLLOW_UP_LENGTH,
-				&ptpClock->netPath)) {
+				&ptpClock->netPath, rtOpts)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("PdelayRespFollowUp message can't be sent -> FAULTY state \n");

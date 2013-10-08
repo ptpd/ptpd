@@ -308,8 +308,8 @@ ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*);
 ssize_t netRecvGeneral(Octet*,TimeInternal*,NetPath*);
 ssize_t netSendEvent(Octet*,UInteger16,NetPath*,RunTimeOpts*,Integer32 );
 ssize_t netSendGeneral(Octet*,UInteger16,NetPath*,RunTimeOpts*,Integer32 );
-ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*);
-ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*);
+ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*,RunTimeOpts*);
+ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*,RunTimeOpts*);
 Boolean netRefreshIGMP(NetPath *, RunTimeOpts *, PtpClock *);
 Boolean hostLookup(const char* hostname, Integer32* addr);
 

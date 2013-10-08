@@ -2185,7 +2185,7 @@ short_help:
 			break;
 		/* Peer to peer delay detection mode */
 		case 'P':
-			dictionary_set(dict,"global:ptp_delay_mode", "P2P");
+			dictionary_set(dict,"ptpengine:delay_mechanism", "P2P");
 			break;
 		/* Auto-lock */
 		case 'A':

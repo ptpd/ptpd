@@ -597,7 +597,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if (rtOpts->transport == IEEE_802_3) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
-		netPath->etherDest = (struct ether_addr *)ether_aton(PTP_ETHER_DST);
+		memcpy(netPath->etherDest.octet, ether_aton(PTP_ETHER_DST), ETHER_ADDR_LEN);
+		memcpy(netPath->peerEtherDest.octet, ether_aton(PTP_ETHER_PEER), ETHER_ADDR_LEN);
 	} else
 		netPath->headerOffset = PACKET_BEGIN_UDP;
 
@@ -626,8 +627,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	DBG("Listening on IP: %s\n",inet_ntoa(interfaceAddr));
 
 	if (rtOpts->pcap == TRUE) {
+		int promisc = (rtOpts->transport == IEEE_802_3 ) ? 1 : 0;
 		if ((netPath->pcapEvent = pcap_open_live(rtOpts->ifaceName,
-							 PACKET_SIZE, 0,
+							 PACKET_SIZE, promisc,
 							 PCAP_TIMEOUT,
 							 errbuf)) == NULL) {
 			PERROR("failed to open event pcap");
@@ -655,156 +657,165 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}		
 		if ((netPath->pcapGeneral = pcap_open_live(rtOpts->ifaceName,
-							   PACKET_SIZE, 0,
+							   PACKET_SIZE, promisc,
 							   PCAP_TIMEOUT,
 							 errbuf)) == NULL) {
 			PERROR("failed to open general pcap");
 			return FALSE;
 		}
-		if (pcap_compile(netPath->pcapGeneral, &program,
-				 (rtOpts->transport == IEEE_802_3 ) ?
-				    "ether proto 0x88f7" :
-				 ( rtOpts->ip_mode != IPMODE_MULTICAST ) ?
-					 "udp port 320" :
-				 "multicast and host 224.0.1.129 and udp port 320" ,
-				 1, 0) < 0) {
-			PERROR("failed to compile pcap general filter");
-			pcap_perror(netPath->pcapGeneral, "ptpd2");
-			return FALSE;
+		if (rtOpts->transport != IEEE_802_3) {
+			if (pcap_compile(netPath->pcapGeneral, &program,
+					 ( rtOpts->ip_mode != IPMODE_MULTICAST ) ?
+						 "udp port 320" :
+					 "multicast and host 224.0.1.129 and udp port 320" ,
+					 1, 0) < 0) {
+				PERROR("failed to compile pcap general filter");
+				pcap_perror(netPath->pcapGeneral, "ptpd2");
+				return FALSE;
+			}
+			if (pcap_setfilter(netPath->pcapGeneral, &program) < 0) {
+				PERROR("failed to set pcap general filter");
+				return FALSE;
+			}
+			pcap_freecode(&program);
+			if ((netPath->pcapGeneralSock = 
+			     pcap_get_selectable_fd(netPath->pcapGeneral)) < 0) {
+				PERROR("failed to get pcap general fd");
+				return FALSE;
+			}
 		}
-		if (pcap_setfilter(netPath->pcapGeneral, &program) < 0) {
-			PERROR("failed to set pcap general filter");
-			return FALSE;
-		}
-		pcap_freecode(&program);
-		if ((netPath->pcapGeneralSock = 
-		     pcap_get_selectable_fd(netPath->pcapGeneral)) < 0) {
-			PERROR("failed to get pcap general fd");
-			return FALSE;
-		}		
 	}
-	/* save interface address for IGMP refresh */
-	netPath->interfaceAddr = interfaceAddr;
 	
-	DBG("Local IP address used : %s \n", inet_ntoa(interfaceAddr));
+	if(rtOpts->transport == IEEE_802_3) {
+		close(netPath->eventSock);
+		netPath->eventSock = -1;
+		close(netPath->generalSock);
+		netPath->generalSock = -1;
+	} else {
+		
+		/* save interface address for IGMP refresh */
+		netPath->interfaceAddr = interfaceAddr;
+		
+		DBG("Local IP address used : %s \n", inet_ntoa(interfaceAddr));
 
-	temp = 1;			/* allow address reuse */
-	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_REUSEADDR, 
-		       &temp, sizeof(int)) < 0
-	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_REUSEADDR, 
-			  &temp, sizeof(int)) < 0) {
-		DBG("failed to set socket reuse\n");
-	}
-	/* bind sockets */
-	/*
-	 * need INADDR_ANY to allow receipt of multi-cast and uni-cast
-	 * messages
-	 */
-	if (rtOpts->jobid) {
-		if (inet_pton(AF_INET, DEFAULT_PTP_DOMAIN_ADDRESS, &addr.sin_addr) < 0) {
-			PERROR("failed to convert address");
+		temp = 1;			/* allow address reuse */
+		if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_REUSEADDR, 
+			       &temp, sizeof(int)) < 0
+		    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_REUSEADDR, 
+				  &temp, sizeof(int)) < 0) {
+			DBG("failed to set socket reuse\n");
+		}
+		/* bind sockets */
+		/*
+		 * need INADDR_ANY to allow receipt of multi-cast and uni-cast
+		 * messages
+		 */
+		if (rtOpts->jobid) {
+			if (inet_pton(AF_INET, DEFAULT_PTP_DOMAIN_ADDRESS, &addr.sin_addr) < 0) {
+				PERROR("failed to convert address");
+				return FALSE;
+			}
+		} else
+			addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(PTP_EVENT_PORT);
+		if (bind(netPath->eventSock, (struct sockaddr *)&addr, 
+			sizeof(struct sockaddr_in)) < 0) {
+			PERROR("failed to bind event socket");
 			return FALSE;
 		}
-	} else
-		addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(PTP_EVENT_PORT);
-	if (bind(netPath->eventSock, (struct sockaddr *)&addr, 
-		sizeof(struct sockaddr_in)) < 0) {
-		PERROR("failed to bind event socket");
-		return FALSE;
-	}
-	addr.sin_port = htons(PTP_GENERAL_PORT);
-	if (bind(netPath->generalSock, (struct sockaddr *)&addr, 
-		sizeof(struct sockaddr_in)) < 0) {
-		PERROR("failed to bind general socket");
-		return FALSE;
-	}
+		addr.sin_port = htons(PTP_GENERAL_PORT);
+		if (bind(netPath->generalSock, (struct sockaddr *)&addr, 
+			sizeof(struct sockaddr_in)) < 0) {
+			PERROR("failed to bind general socket");
+			return FALSE;
+		}
 
 #ifdef USE_BINDTODEVICE
 #ifdef linux
-	/*
-	 * The following code makes sure that the data is only
-	 * received on the specified interface.  Without this option,
-	 * it's possible to receive PTP from another interface, and
-	 * confuse the protocol.  Calling bind() with the IP address
-	 * of the device instead of INADDR_ANY does not work.
-	 *
-	 * More info:
-	 *   http://developerweb.net/viewtopic.php?id=6471
-	 *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
-	 */
+		/*
+		 * The following code makes sure that the data is only
+		 * received on the specified interface.  Without this option,
+		 * it's possible to receive PTP from another interface, and
+		 * confuse the protocol.  Calling bind() with the IP address
+		 * of the device instead of INADDR_ANY does not work.
+		 *
+		 * More info:
+		 *   http://developerweb.net/viewtopic.php?id=6471
+		 *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
+		 */
 
-	if ( rtOpts->ip_mode != IPMODE_HYBRID )
-	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
-			rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0
-		|| setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINDTODEVICE,
-			rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0){
-		PERROR("failed to call SO_BINDTODEVICE on the interface");
-		return FALSE;
-	}
+		if ( rtOpts->ip_mode != IPMODE_HYBRID )
+		if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
+				rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0
+			|| setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINDTODEVICE,
+				rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0){
+			PERROR("failed to call SO_BINDTODEVICE on the interface");
+			return FALSE;
+		}
 #endif
 #endif
 
-	/* Set socket dscp */
-	if(rtOpts->dscpValue) {
+		/* Set socket dscp */
+		if(rtOpts->dscpValue) {
 
-		if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_TOS,
-			 &rtOpts->dscpValue, sizeof(int)) < 0
-		    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_TOS,
-			&rtOpts->dscpValue, sizeof(int)) < 0) {
-			    PERROR("Failed to set socket DSCP bits");
-			    return FALSE;
+			if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_TOS,
+				 &rtOpts->dscpValue, sizeof(int)) < 0
+			    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_TOS,
+				&rtOpts->dscpValue, sizeof(int)) < 0) {
+				    PERROR("Failed to set socket DSCP bits");
+				    return FALSE;
+				}
+		}
+
+		/* send a uni-cast address if specified (useful for testing) */
+		if(!hostLookup(rtOpts->unicastAddress, &netPath->unicastAddr)) {
+	                netPath->unicastAddr = 0;
+		}
+
+
+		if(rtOpts->ip_mode != IPMODE_UNICAST)  {
+
+			/* init UDP Multicast on both Default and Peer addresses */
+			if (!netInitMulticast(netPath, rtOpts))
+				return FALSE;
+
+			/* set socket time-to-live  */
+			if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
+				       &rtOpts->ttl, sizeof(int)) < 0
+			    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
+					  &rtOpts->ttl, sizeof(int)) < 0) {
+				PERROR("Failed to set socket multicast time-to-live");
+				return FALSE;
 			}
-	}
 
-	/* send a uni-cast address if specified (useful for testing) */
-	if(!hostLookup(rtOpts->unicastAddress, &netPath->unicastAddr)) {
-                netPath->unicastAddr = 0;
-	}
+			/* start tracking TTL */
+			netPath->ttlEvent = rtOpts->ttl;
+			netPath->ttlGeneral = rtOpts->ttl;
 
-
-	if(rtOpts->ip_mode != IPMODE_UNICAST)  {
-
-		/* init UDP Multicast on both Default and Peer addresses */
-		if (!netInitMulticast(netPath, rtOpts))
-			return FALSE;
-
-		/* set socket time-to-live  */
-		if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
-			       &rtOpts->ttl, sizeof(int)) < 0
-		    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
-				  &rtOpts->ttl, sizeof(int)) < 0) {
-			PERROR("Failed to set socket multicast time-to-live");
-			return FALSE;
 		}
 
-		/* start tracking TTL */
-		netPath->ttlEvent = rtOpts->ttl;
-		netPath->ttlGeneral = rtOpts->ttl;
+			/* enable loopback */
+			temp = 1;
 
-	}
+			DBG("Going to set IP_MULTICAST_LOOP with %d \n", temp);
 
-		/* enable loopback */
-		temp = 1;
+			if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
+				       &temp, sizeof(int)) < 0
+			    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
+					  &temp, sizeof(int)) < 0) {
+				PERROR("Failed to enable multicast loopback");
+				return FALSE;
+			}
 
-		DBG("Going to set IP_MULTICAST_LOOP with %d \n", temp);
-
-		if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
-			       &temp, sizeof(int)) < 0
-		    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
-				  &temp, sizeof(int)) < 0) {
-			PERROR("Failed to enable multicast loopback");
+		/* make timestamps available through recvmsg() */
+		if (!netInitTimestamping(netPath)) {
+			ERROR("failed to enable receive time stamps");
 			return FALSE;
 		}
-
-	/* make timestamps available through recvmsg() */
-	if (!netInitTimestamping(netPath)) {
-		ERROR("failed to enable receive time stamps");
-		return FALSE;
 	}
-
+	
 	return TRUE;
 }
 
@@ -835,11 +846,13 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 	}
 
 	FD_ZERO(readfds);
-	FD_SET(netPath->eventSock, readfds);
-	FD_SET(netPath->generalSock, readfds);
-	if (netPath->pcapEvent != NULL)
+	if (netPath->eventSock >=0) 
+		FD_SET(netPath->eventSock, readfds);
+	if (netPath->generalSock >=0)
+		FD_SET(netPath->generalSock, readfds);
+	if (netPath->pcapEventSock >= 0)
 		FD_SET(netPath->pcapEventSock, readfds);
-	if (netPath->pcapGeneral != NULL)
+	if (netPath->pcapGeneralSock >= 0)
 		FD_SET(netPath->pcapGeneralSock, readfds);
 
 	if (netPath->pcapGeneralSock > 0)
@@ -1037,7 +1050,9 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		}
 	} else { /* Using PCAP */
 		/* Discard packet on socket */
-		recv(netPath->eventSock, buf, PACKET_SIZE, MSG_DONTWAIT);
+		if (netPath->eventSock >= 0) {
+			recv(netPath->eventSock, buf, PACKET_SIZE, MSG_DONTWAIT);
+		}
 		
 		if ((ret = pcap_next_ex(netPath->pcapEvent, &pkt_header, 
 					&pkt_data)) < 1) {
@@ -1202,7 +1217,8 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 		}
 	} else { /* Using PCAP */
 		/* Discard packet on socket */
-		recv(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT);
+		if (netPath->generalSock >= 0)
+			recv(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT);
 		
 		if (( ret = pcap_next_ex(netPath->pcapGeneral, &pkt_header, 
 					 &pkt_data)) < 1) {
@@ -1248,7 +1264,18 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 }
 
 
+ssize_t
+netSendPcapEther(Octet * buf,  UInteger16 length,
+			struct ether_addr * dst, struct ether_addr * src,
+			pcap_t * pcap) {
+	Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
+	memcpy(ether, dst->octet, ETHER_ADDR_LEN);
+	memcpy(ether + ETHER_ADDR_LEN, src->octet, ETHER_ADDR_LEN);
+	*((short *)&ether[2 * ETHER_ADDR_LEN]) = htons(PTP_ETHER_TYPE);
+	memcpy(ether + ETHER_HDR_LEN, buf, length);
 
+	return pcap_inject(pcap, ether, ETHER_HDR_LEN + length);
+}
 
 
 //
@@ -1269,15 +1296,16 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
-	if ((netPath->pcapEvent != NULL) && (rtOpts->transport == IEEE_802_3 )) {
-		Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
-		memcpy(ether, netPath->etherDest->octet, ETHER_ADDR_LEN);
-		memcpy(ether + ETHER_ADDR_LEN,
-		       netPath->port_uuid_field, ETHER_ADDR_LEN);
-		*((short *)&ether[2 * ETHER_ADDR_LEN]) = htons(PTP_ETHER_TYPE);
-		memcpy(ether + ETHER_HDR_LEN, buf, length);
-		ret = pcap_inject(netPath->pcapEvent, ether,
-					 ETHER_HDR_LEN + length);
+	/* In PCAP Ethernet mode, we use pcapEvent for receiving all messages 
+	 * and pcapGeneral for sending all messages
+	 */
+	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == IEEE_802_3 )) {
+
+		ret = netSendPcapEther(buf, length,
+			&netPath->etherDest,
+			(struct ether_addr *)netPath->port_uuid_field,
+			netPath->pcapGeneral);
+		
 		if (ret <= 0) 
 			DBG("Error sending ether multicast event message\n");
 		else
@@ -1349,14 +1377,11 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
 	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == IEEE_802_3)) {
-		Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
-		memcpy(ether, netPath->etherDest->octet, ETHER_ADDR_LEN);
-		memcpy(ether + ETHER_ADDR_LEN,
-		       netPath->port_uuid_field, ETHER_ADDR_LEN);
-		*((short *)&ether[2 * ETHER_ADDR_LEN]) = htons(PTP_ETHER_TYPE);
-		memcpy(ether + ETHER_HDR_LEN, buf, length);
-		ret = pcap_inject(netPath->pcapGeneral, ether,
-					 ETHER_HDR_LEN + length);
+		ret = netSendPcapEther(buf, length,
+			&netPath->etherDest,
+			(struct ether_addr *)netPath->port_uuid_field,
+			netPath->pcapGeneral);
+
 		if (ret <= 0) 
 			DBG("Error sending ether multicast general message\n");
 		else
@@ -1405,7 +1430,7 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 }
 
 ssize_t 
-netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
+netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts *rtOpts)
 {
 
 	ssize_t ret;
@@ -1415,7 +1440,15 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
-	if (netPath->unicastAddr) {
+	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == IEEE_802_3)) {
+		ret = netSendPcapEther(buf, length,
+			&netPath->peerEtherDest,
+			(struct ether_addr *)netPath->port_uuid_field,
+			netPath->pcapGeneral);
+
+		if (ret <= 0) 
+			DBG("error sending ether multi-cast general message\n");
+	} else if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
 		ret = sendto(netPath->generalSock, buf, length, 0, 
@@ -1444,12 +1477,16 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath)
 		if (ret <= 0)
 			DBG("Error sending multicast peer general message\n");
 	}
+
+	if (ret > 0)
+		netPath->sentPackets++;
+	
 	return ret;
 
 }
 
 ssize_t 
-netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
+netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts *rtOpts)
 {
 	ssize_t ret;
 	struct sockaddr_in addr;
@@ -1457,7 +1494,15 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
-	if (netPath->unicastAddr) {
+	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == IEEE_802_3)) {
+		ret = netSendPcapEther(buf, length,
+			&netPath->peerEtherDest,
+			(struct ether_addr *)netPath->port_uuid_field,
+			netPath->pcapGeneral);
+
+		if (ret <= 0) 
+			DBG("error sending ether multi-cast general message\n");
+	} else if (netPath->unicastAddr) {
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
 		ret = sendto(netPath->eventSock, buf, length, 0, 
@@ -1501,6 +1546,10 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath)
 		else
 			netPath->sentPackets++;
 	}
+
+	if (ret > 0)
+		netPath->sentPackets++;
+
 	return ret;
 }
 

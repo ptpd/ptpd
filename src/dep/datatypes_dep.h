@@ -90,7 +90,8 @@ typedef struct {
 	/* used for tracking the last TTL set */
 	int ttlGeneral;
 	int ttlEvent;
-	struct ether_addr *etherDest;
+	struct ether_addr etherDest;
+	struct ether_addr peerEtherDest;	
 } NetPath;
 
 typedef struct {
