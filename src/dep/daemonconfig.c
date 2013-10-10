@@ -1837,7 +1837,7 @@ loadConfigFile(dictionary **target, RunTimeOpts *rtOpts)
 	/* make sure the %x% special keys are unset */
 	HELP_END();
 
-	dictionary_merge( dict, *target);
+	dictionary_merge( dict, *target, 0, NULL);
 	dictionary_del(dict);
 
 	return TRUE;
@@ -2257,6 +2257,8 @@ printShortHelp()
 			USER_DESCRIPTION" "USER_VERSION"\n"
 			"\n"
 			"usage: "PTPD_PROGNAME" <options> < --section:key=value...>\n"
+			"\n"
+			"WARNING: Any command-line options take priority over options from config file!\n"
 			"\n"
 			"Basic options: \n"
 			"\n"

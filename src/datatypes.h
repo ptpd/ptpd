@@ -891,8 +891,8 @@ typedef struct {
 	 * 0 = no change
 	 */
 	UInteger32 restartSubsystems;
-	/* config dictionary containers - current and candidate */
-	dictionary *currentConfig, *candidateConfig;
+	/* config dictionary containers - current, candidate and from CLI*/
+	dictionary *currentConfig, *candidateConfig, *cliConfig;
 
 	int selectedPreset;
 

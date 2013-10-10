@@ -158,7 +158,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		dictionary_del(tmpConfig);
 		goto end;
         }
-
+		dictionary_merge(rtOpts->cliConfig, tmpConfig, 1, "from command line");
 	/* Load default config to fill in the blanks in the config file */
 	RunTimeOpts tmpOpts;
 	loadDefaultSettings(&tmpOpts);
@@ -458,7 +458,9 @@ ptpdShutdown(PtpClock * ptpClock)
 
 	if (rtOpts.currentConfig != NULL)
 		dictionary_del(rtOpts.currentConfig);
-	
+	if(rtOpts.cliConfig != NULL)
+		dictionary_del(rtOpts.cliConfig);
+
 	free(ptpClock);
 	ptpClock = NULL;
 
@@ -518,9 +520,9 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * instead of just setting the rtOpts field.
 	 *
 	 * Config parameter evaluation priority order:
-	 * 	1. Config file (parsed last), merged with 2. and 3.
-	 * 	2. Any dictionary keys set in the getopt_long loop
-	 * 	3. CLI long section:key type options
+	 * 	1. Any dictionary keys set in the getopt_long loop
+	 * 	2. CLI long section:key type options
+	 * 	3. Config file (parsed last), merged with 2. and 3 - will be overwritten by CLO options
 	 * 	4. Defaults and any rtOpts fields set in the getopt_long loop
 	**/
 
@@ -532,10 +534,11 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	loadDefaultSettings(rtOpts);
 	/* initialise the config dictionary */
 	rtOpts->candidateConfig = dictionary_new(0);
+	rtOpts->cliConfig = dictionary_new(0);
 	/* parse all long section:key options and clean up argv for getopt */
-	loadCommandLineKeys(rtOpts->candidateConfig,argc,argv);
+	loadCommandLineKeys(rtOpts->cliConfig,argc,argv);
 	/* parse the normal short and long option, exit on error */
-	if (!loadCommandLineOptions(rtOpts, rtOpts->candidateConfig, argc, argv, ret)) {
+	if (!loadCommandLineOptions(rtOpts, rtOpts->cliConfig, argc, argv, ret)) {
 	    goto fail;
 	}
 
@@ -559,12 +562,15 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		/* config file settings overwrite all others, except for empty strings */
 		INFO("Loading configuration file: %s\n",rtOpts->configFile);
 		if(loadConfigFile(&rtOpts->candidateConfig, rtOpts)) {
+			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, "from command line");
 		} else {
 		    *ret = 1;
+			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, "from command line");
 		    goto configcheck;
 		}
+	} else {
+		dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, "from command line");
 	}
-
 	/**
 	 * This is where the final checking  of the candidate settings container happens.
 	 * A dictionary is returned with only the known options, explicitly set to defaults

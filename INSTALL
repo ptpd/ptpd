@@ -2,7 +2,7 @@ PTP Daemon Version 2 Build and Installation Instructions
 
 4 October 2013
 
-George V. Neville-Neil
+George V. Neville-Neil, Wojciech Owczarek
 
 The PTP Daemon is known to work on FreeBSD, NetBSD, Mac OS X and Linux systems.
 
@@ -18,16 +18,37 @@ You will need the following tools and libraries to build ptpd2
 
 1. cd into the root of the tree (which is where the file you're
    reading resides)
+
 2.  autoreconf -vi
+
 3. ./configure
+
+   To make use of all advanced functions it is recommended to
+   configure the build with the following options:
+
+   ./configure --enable-statistics --enable-ntpdc
+
+   To add support for printing all message counters on a SIGUSR2,
+   add --enable-sigusr2=counters to the configure parameters.
+
 4. make
-5. Read the manual pages
+
+5. Read the manual pages. ptpd2 itself also provides an extensive help:
+   run ptpd2 --help to see the short help
+   run ptpd2 --long-help to see the long help for all settings
+   run ptpd2 -e [key:setting] to display help for a single setting
+
 6. Update test/client-e2e-socket.conf so that its
    "ptpengine:interface = " setting points to a network interface on
    your test machine that can see PTP packets from a grandmaster.
-6. Test it in place: ./src/ptpd2 test/client-e2e-socket.conf
-7. Check the output of the daemon in /var/run/ptpd2.stats.log
-8. If the results look good make install
+
+6. Test it in place: ./src/ptpd2 -c test/client-e2e-socket.conf
+
+7. Check the log output of the daemon in /var/run/ptpd2.event.log
+   Check statistics output of the daemon in /var/run/ptpd2.stats.log
+   Check the status file /var/run/ptpd2.status.log
+
+8. If the results look good, make install
 
 The daemon may work on other Posix based systems but this is not
 guaranteed.  Patches and fixes are welcome on the source forge page

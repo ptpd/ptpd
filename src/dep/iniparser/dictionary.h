@@ -18,6 +18,12 @@
                                 Includes
  ---------------------------------------------------------------------------*/
 
+#include <syslog.h>
+
+#ifndef WARNING
+#define WARNING(x, ...)   logMessage(LOG_WARNING, x, ##__VA_ARGS__)
+#endif /* WARNING */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -162,6 +168,6 @@ void dictionary_unset(dictionary * d, const char * key);
 /*--------------------------------------------------------------------------*/
 void dictionary_dump(dictionary * d, FILE * out);
 
-int dictionary_merge(dictionary * source, dictionary * dest);
+int dictionary_merge(dictionary * source, dictionary * dest, int warn, const char* warnStr);
 
 #endif

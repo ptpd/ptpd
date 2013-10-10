@@ -355,7 +355,7 @@ void dictionary_dump(dictionary * d, FILE * out)
     return ;
 }
 
-int dictionary_merge(dictionary* source, dictionary* dest)
+int dictionary_merge(dictionary* source, dictionary* dest, int warn, const char* warnStr)
 {
 
     int i = 0;
@@ -369,6 +369,11 @@ int dictionary_merge(dictionary* source, dictionary* dest)
 	/* do not overwrite with an empty key */
 	if((source->val[i] == NULL) || (strlen(source->val[i])==0))
 	    continue;
+	if(warn && strcmp(dictionary_get(dest,source->key[i],""),"") != 0) {
+		WARNING("Warning: %s=\"%s\" setting will be overwritten with \"%s\" %s\n",
+				source->key[i], source->val[i],
+				dictionary_get(dest,source->key[i],""), warnStr);
+	}
         if ( dictionary_set( dest, source->key[i], source->val[i]) != 0)
 	    return -1;
     }
