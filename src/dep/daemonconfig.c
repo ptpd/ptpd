@@ -863,6 +863,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* disabled by default */
 	rtOpts->announceTimeoutGracePeriod = 0;
 	rtOpts->alwaysRespectUtcOffset=FALSE;
+	rtOpts->preferUtcValid=FALSE;
+	rtOpts->requireUtcValid=FALSE;
 
 	/* Try 46 for expedited forwarding */
 	rtOpts->dscpValue = 0;
@@ -1161,7 +1163,18 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_BOOLEAN("ptpengine:always_respect_utc_offset",rtOpts->alwaysRespectUtcOffset, rtOpts->alwaysRespectUtcOffset,
 	"Compatibility option: In slave state, always respect UTC offset\n"
 	"	 announced by best master, even if the the\n"
-	"	 currrentUtcOffsetValid flag is announced FALSE");
+	"	 currrentUtcOffsetValid flag is announced FALSE.\n"
+	"	 NOTE: this behaviour is not part of the standard.");
+
+	CONFIG_MAP_BOOLEAN("ptpengine:prefer_utc_offset_valid",rtOpts->preferUtcValid, rtOpts->preferUtcValid,
+	"Compatibility extension to BMC algorithm: when enabled, BMC for both master and slave clocks\n"
+	"	 will prefer those announcing currrentUtcOffsetValid flag as TRUE.\n"
+	"	 NOTE: this behaviour is not part of the standard.");
+
+	CONFIG_MAP_BOOLEAN("ptpengine:require_utc_offset_valid",rtOpts->requireUtcValid, rtOpts->requireUtcValid,
+	"Compatibility option: when enabled, ptpd2 will ignore Announce messages\n"
+	"	 from masters announcing currentUtcOffsetValid as FALSE.\n"
+	"	 NOTE: this behaviour is not part of the standard.");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:log_announce_interval",rtOpts->announceInterval,rtOpts->announceInterval,
 	"PTP announce message interval in master state "LOG2_HELP,-1,7);
@@ -1504,21 +1517,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 - drift will be saved to drift file / cached when considered stable,\n"
 	"	 also clock stability status will be logged\n");
 
-#ifdef PTPD_INTEGER_SERVO
-	CONFIG_MAP_INT_RANGE("servo:stability_threshold",rtOpts->servoStabilityThreshold,
-							rtOpts->servoStabilityThreshold,
-	"Specify the observed drift standard deviation threshold in parts per billion\n"
-	"	(ppb) - if stanard deviation is within the threshold, servo is considered\n"
-	"	stable.",
-	1,10000);
-#else
 	CONFIG_MAP_DOUBLE_RANGE("servo:stability_threshold",rtOpts->servoStabilityThreshold,
 							rtOpts->servoStabilityThreshold,
 	"Specify the observed drift standard deviation threshold in parts per billion\n"
 	"	(ppb) - if stanard deviation is within the threshold, servo is considered\n"
 	"	stable.",
 	1.0,10000.0);
-#endif /* PTPD_INTEGER_SERVO */
 
 	CONFIG_MAP_INT_RANGE("servo:stability_period",rtOpts->servoStabilityPeriod,
 							rtOpts->servoStabilityPeriod,
@@ -2451,6 +2455,8 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:priority2",         	PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:priority2",         	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:always_respect_utc_offset", PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:prefer_utc_offset_valid", PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:require_utc_offset_valid", PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:announce_timeout_grace_period", PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:unicast_address",   	PTPD_RESTART_NETWORK );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:management_enable",         	PTPD_RESTART_NONE );

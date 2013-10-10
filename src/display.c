@@ -487,11 +487,7 @@ mMErrorStatus_display(const MMErrorStatus* errorStatus, const PtpClock *ptpClock
 	/* TODO: implement me */
 }
 
-#ifdef PTPD_INTEGER_SERVO
-#define FORMAT_SERVO	"%d"
-#else
 #define FORMAT_SERVO	"%f"
-#endif /* PTPD_INTEGER_SERVO */
 
 /**\brief Display runTimeOptions structure*/
 void
@@ -878,6 +874,8 @@ displayCounters(const PtpClock * ptpClock)
 		ptpClock->counters.discardedMessages);
 	INFO("                   unknownMessages : %d\n",
 		ptpClock->counters.unknownMessages);
+	INFO("                   ignoredAnnounce : %d\n",
+		ptpClock->counters.ignoredAnnounce);
 
 	INFO("Error counters:\n");
 	INFO("                 messageSendErrors : %d\n",

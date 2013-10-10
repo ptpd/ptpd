@@ -697,16 +697,9 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 				&(ptpClock->delayMS));
 
-#ifdef PTPD_INTEGER_SERVO
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %d, %c",
-			       ptpClock->servo.observedDrift,
-			       ptpClock->char_last_msg);
-#else
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %c",
 			       ptpClock->servo.observedDrift,
 			       ptpClock->char_last_msg);
-
-#endif /* PTPD_INTEGER_SERVO */
 
 #ifdef PTPD_STATISTICS
 
@@ -716,17 +709,10 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			       ptpClock->slaveStats.ofmMean,
 			       ptpClock->slaveStats.ofmStdDev * 1E9);
 
-#ifdef PTPD_INTEGER_SERVO
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %d, %d",
-#else
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.0f, %.0f",
-#endif /* PTPD_INTEGER_SERVO */
 			       ptpClock->servo.driftMean,
 			       ptpClock->servo.driftStdDev
 );
-
-
-
 #endif /* PTPD_STATISTICS */
 
 	} else {
@@ -1377,103 +1363,6 @@ end:
  * Apply a tick / frequency shift to the kernel clock
  */
 
-/* Integer32 version */
-#ifdef PTPD_INTEGER_SERVO
-
-Boolean
-adjFreq(Integer32 adj)
-{
-
-	extern RunTimeOpts rtOpts;
-	struct timex t;
-#ifdef HAVE_STRUCT_TIMEX_TICK
-	Integer32 tickAdj = 0;
-#ifdef RUNTIME_DEBUG
-	Integer32 oldAdj = adj;
-#endif
-
-#endif /* HAVE_STRUCT_TIMEX_TICK */
-
-	memset(&t, 0, sizeof(t));
-
-	/* Clamp to max PPM */
-	if (adj > rtOpts.servoMaxPpb){
-		adj = rtOpts.servoMaxPpb;
-	} else if (adj < -rtOpts.servoMaxPpb){
-		adj = -rtOpts.servoMaxPpb;
-	}
-
-/* Y U NO HAVE TICK? */
-#ifdef HAVE_STRUCT_TIMEX_TICK
-
-	/* Get the USER_HZ value */
-	Integer32 userHZ = sysconf(_SC_CLK_TCK);
-
-	/*
-	 * Get the tick resolution (ppb) - offset caused by changing the tick value by 1.
-	 * The ticks value is the duration of one tick in us. So with userHz = 100  ticks per second,
-	 * change of ticks by 1 (us) means a 100 us frequency shift = 100 ppm = 100000 ppb.
-	 * For userHZ = 1000, change by 1 is a 1ms offset (10 times more ticks per second)
-	 */
-	Integer32 tickRes = userHZ * 1000;
-
-	/*
-	 * If we are outside the standard +/-512ppm, switch to a tick + freq combination:
-	 * Keep moving ticks from adj to tickAdj until we get back to the normal range.
-	 * The offset change will not be super smooth as we flip between tick and frequency,
-	 * but this in general should only be happening under extreme conditions when dragging the
-	 * offset down from very large values. When maxPPM is left at the default value, behaviour
-	 * is the same as previously, clamped to 512ppm, but we keep tick at the base value,
-	 * preventing long stabilisation times say when  we had a non-default tick value left over
-	 * from a previous NTP run.
-	 */
-	if (adj > ADJ_FREQ_MAX){
-		while (adj > ADJ_FREQ_MAX) {
-		    tickAdj++;
-		    adj -= tickRes;
-		}
-
-	} else if (adj < -ADJ_FREQ_MAX){
-		while (adj < -ADJ_FREQ_MAX) {
-		    tickAdj--;
-		    adj += tickRes;
-		}
-        }
-	/* Base tick duration - 10000 when userHZ = 100 */
-	t.tick = 1E6 / userHZ;
-	/* Tick adjustment if necessary */
-        t.tick += tickAdj;
-
-	t.modes = ADJ_TICK;
-
-#endif /* HAVE_STRUCT_TIMEX_TICK */
-
-	t.modes |= MOD_FREQUENCY;
-
-	t.freq = adj * ((1 << 16) / 1000);
-
-	/* do calculation in double precision, instead of Integer32 */
-	int t1 = t.freq;
-	int t2;
-	
-	float f = (adj + 0.0) * (((1 << 16) + 0.0) / 1000.0);  /* could be float f = adj * 65.536 */
-	t2 = t1;  // just to avoid compiler warning
-	t2 = (int)round(f);
-	t.freq = t2;
-
-#ifdef HAVE_STRUCT_TIMEX_TICK
-	DBG2("adjFreq: oldadj: %d, newadj: %d, tick: %d, tickadj: %d\n", oldAdj, adj,t.tick,tickAdj);
-#endif /* HAVE_STRUCT_TIMEX_TICK */
-
-	DBG2("        adj is %d;  t freq is %d       (float: %f Integer32: %d)\n", adj, t.freq,  f, t1);
-
-	return !adjtimex(&t);
-
-}
-
-/* Version for double precision servo */
-#else
-
 Boolean
 adjFreq(double adj)
 {
@@ -1557,15 +1446,9 @@ adjFreq(double adj)
 	return !adjtimex(&t);
 }
 
-#endif /* PTPD_INTEGER_SERVO */
 
-#ifdef PTPD_INTEGER_SERVO
-Integer32
-getAdjFreq(void)
-#else
 double
 getAdjFreq(void)
-#endif /* PTPD_INTEGER_SERVO */
 {
 	struct timex t;
 	Integer32 freq;
@@ -1584,18 +1467,10 @@ getAdjFreq(void)
 	DBGV("          kernel adj is: float %f, Integer32 %d, kernel freq is: %d",
 		dFreq, freq, t.freq);
 
-#ifdef PTPD_INTEGER_SERVO
-	return(freq);
-#else
 	return(dFreq);
-#endif /* PTPD_INTEGER_SERVO */
 }
 
-#ifdef PTPD_INTEGER_SERVO
-#define DRIFTFORMAT "%d"
-#else
 #define DRIFTFORMAT "%.0f"
-#endif /* PTPD_INTEGER_SERVO */
 
 void
 restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
@@ -1603,11 +1478,7 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	FILE *driftFP;
 	Boolean reset_offset = FALSE;
-#ifdef PTPD_INTEGER_SERVO
-	Integer32 recovered_drift;
-#else
 	double recovered_drift;
-#endif /* PTPD_INTEGER_SERVO */
 
 	DBGV("restoreDrift called\n");
 
@@ -1633,11 +1504,7 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 					rtOpts->driftFile);
 			} else
 
-#ifdef PTPD_INTEGER_SERVO
-			if (fscanf(driftFP, "%d", &recovered_drift) != 1) {
-#else
 			if (fscanf(driftFP, "%lf", &recovered_drift) != 1) {
-#endif /* PTPD_INTEGER_SERVO */
 				PERROR("Could not load saved offset from drift file - using current kernel frequency offset");
 			} else {
 
@@ -1714,12 +1581,8 @@ saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 		return;
 	}
 
-#ifdef PTPD_INTEGER_SERVO
-	fprintf(driftFP, "%d\n", ptpClock->servo.observedDrift);
-#else
 	/* The fractional part really won't make a difference here */
 	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.observedDrift));
-#endif /* PTPD_INTEGER_SERVO */
 
 	if (quiet) {
 		DBGV("Wrote observed drift to %s\n", rtOpts->driftFile);

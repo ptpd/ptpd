@@ -669,13 +669,8 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 }
 
-#ifdef PTPD_INTEGER_SERVO
-void
-warn_operator_fast_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
-#else
 void
 warn_operator_fast_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
-#endif /* PTPD_INTEGER_SERVO */
 {
 	if(ptpClock->warned_operator_fast_slewing == 0){
 		if ((adj >= rtOpts->servoMaxPpb) || ((adj <= -rtOpts->servoMaxPpb))){
@@ -711,25 +706,6 @@ warn_operator_slow_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock )
  */
 #if !defined(__APPLE__)
 
-#ifdef PTPD_INTEGER_SERVO
-
-void
-adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj)
-{
-    if (rtOpts->noAdjust){
-		DBGV("adjFreq2: noAdjust on, returning\n");
-		return;
-	}
-
-	// call original adjtime
-	DBG2("     adjFreq2: call adjfreq to %d us \n", adj / DBG_UNIT);
-	adjFreq(adj);
-
-	warn_operator_fast_slewing(rtOpts, ptpClock, adj);
-}
-
-#else
-
 void
 adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
 {
@@ -744,9 +720,6 @@ adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
 
 	warn_operator_fast_slewing(rtOpts, ptpClock, adj);
 }
-
-
-#endif /* PTPD_INTEGER_SERVO */
 
 #endif /* __APPLE__ */
 
@@ -890,7 +863,7 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 	} else {
 
 	    /* If we're in panic mode, either exit if no threshold configured, or exit if we're outside the exit threshold */
-	    if(rtOpts->enablePanicMode && (ptpClock->panicMode && ( rtOpts->panicModeExitThreshold == 0 || (rtOpts->panicModeExitThreshold > 0 &&  (ptpClock->offsetFromMaster.nanoseconds < rtOpts->panicModeExitThreshold)))   ) || ptpClock->panicOver) {
+	    if(rtOpts->enablePanicMode && (ptpClock->panicMode && ( rtOpts->panicModeExitThreshold == 0 || (rtOpts->panicModeExitThreshold > 0 &&  (ptpClock->offsetFromMaster.seconds == 0 && ptpClock->offsetFromMaster.nanoseconds < rtOpts->panicModeExitThreshold)))   ) || ptpClock->panicOver) {
 		    ptpClock->panicMode = FALSE;
 		    ptpClock->panicOver = FALSE;
 		    timerStop(PANIC_MODE_TIMER, ptpClock->itimer);
@@ -950,12 +923,7 @@ statistics:
                                 feedDoubleMovingMean(ptpClock->delayMSFiltered, timeInternalToDouble(&ptpClock->delayMS));
                         }
                         feedDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats, timeInternalToDouble(&ptpClock->offsetFromMaster));
-#ifdef PTPD_INTEGER_SERVO
-                        feedIntPermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
-#else
                         feedDoublePermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
-#endif /* PTPD_INTEGER_SERVO */
-
 #endif /* PTPD_STATISTICS */
 
 display:
@@ -988,15 +956,8 @@ void
 setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts)
 {
     servo->maxOutput = rtOpts->servoMaxPpb;
-#ifdef PTPD_INTEGER_SERVO
-    servo->aP = (Integer32)round(1.0 / rtOpts->servoKP);
-    servo->aI = (Integer32)round(1.0 / rtOpts->servoKI);
-    DBG("aP for int servo is: %d\n",servo->aP);
-    DBG("aI for int servo is: %d\n",servo->aI);
-#else
     servo->kP = rtOpts->servoKP;
     servo->kI = rtOpts->servoKI;
-#endif /* PTPD_INTEGER_SERVO */
     servo->dTmethod = rtOpts->servoDtMethod;
 #ifdef PTPD_STATISTICS
     servo->stabilityThreshold = rtOpts->servoStabilityThreshold;
@@ -1015,79 +976,6 @@ resetPIservo(PIservo* servo)
     servo->lastUpdate.seconds = 0;
     servo->lastUpdate.nanoseconds = 0;
 }
-
-
-#ifdef PTPD_INTEGER_SERVO
-
-Integer32
-runPIservo(PIservo* servo, const Integer32 input)
-{
-
-	double dt;
-	TimeInternal now, delta;
-
-        switch(servo->dTmethod) {
-
-        case DT_MEASURED:
-
-                getTime(&now);
-                if(servo->lastUpdate.seconds == 0 &&
-                servo->lastUpdate.nanoseconds == 0) {
-                        dt = 1.0;
-                } else {
-                        subTime(&delta, &now, &servo->lastUpdate);
-                        dt = delta.nanoseconds / 1E9;
-                }
-                /* Don't use dT > 2 * target update interval */
-                if(dt > 2 * pow(2, servo->logdT))
-                        dt = 2 * pow(2, servo->logdT);
-
-                break;
-
-        case DT_CONSTANT:
-                dt = pow(2, servo->logdT);
-
-		break;
-
-        case DT_NONE:
-        default:
-                dt = 1.0;
-                break;
-        }
-
-        if(dt <= 0.0)
-            dt = 1.0;
-
-	servo->input = input;
-
-    	if (servo->aP <1)
-		servo->aP = 1;
-	if (servo->aI < 1)
-		servo->aI = 1;
-
-	servo->observedDrift +=
-		dt * input / servo->aI;
-
-	if(servo->observedDrift >= servo->maxOutput) {
-		servo->observedDrift = servo->maxOutput;
-		servo->runningMaxOutput = TRUE;
-	}
-	else if(servo->observedDrift <= -servo->maxOutput) {
-		servo->observedDrift = -servo->maxOutput;
-		servo->runningMaxOutput = TRUE;
-	} else {
-		servo->runningMaxOutput = FALSE;
-	}
-	servo->output = input / servo->aP + servo->observedDrift;
-
-	if(servo->dTmethod == DT_MEASURED)
-	        servo->lastUpdate = now;
-	DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %d, accumulator (observed drift): %d\n", dt, input, servo->output, servo->observedDrift);
-	return -servo->output;
-
-}
-
-#else
 
 double
 runPIservo(PIservo* servo, const Integer32 input)
@@ -1160,10 +1048,6 @@ runPIservo(PIservo* servo, const Integer32 input)
 
         return -servo->output;
 }
-
-
-
-#endif /* PTPD_INTEGER_SERVO */
 
 #ifdef PTPD_STATISTICS
 void
@@ -1238,11 +1122,7 @@ updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts)
 
                         resetDoublePermanentStdDev(&ptpClock->slaveStats.owdStats);
                         resetDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats);
-#ifdef PTPD_INTEGER_SERVO
-                        resetIntPermanentStdDev(&ptpClock->servo.driftStats);
-#else
                         resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
-#endif /* PTPD_INTEGER_SERVO */
 
 }
 

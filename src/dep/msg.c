@@ -1407,7 +1407,7 @@ msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
 	 * TimePropertiesDS in FlagField, 2nd octet - spec 13.3.2.6 table 20
 	 * Could / should have used constants here PTP_LI_61 etc, but this is clean
 	 */
-	*(UInteger8*) (buf + 7) |= ptpClock->timePropertiesDS.leap61			<< 0;
+	*(UInteger8*) (buf + 7) = ptpClock->timePropertiesDS.leap61			<< 0;
 	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.leap59)			<< 1;
 	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.currentUtcOffsetValid)	<< 2;
 	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.ptpTimescale)		<< 3;

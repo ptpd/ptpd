@@ -568,11 +568,7 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 		ptpClock->servo.driftStdDev = 0;
 		ptpClock->servo.isStable = FALSE;
 		ptpClock->servo.statsCalculated = FALSE;
-#ifdef PTPD_INTEGER_SERVO
-		resetIntPermanentStdDev(&ptpClock->servo.driftStats);
-#else
 		resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
-#endif /* PTPD_INTEGER_SERVO */
 		timerStart(STATISTICS_UPDATE_TIMER, rtOpts->statsUpdateInterval, ptpClock->itimer);
 #endif /* PTPD_STATISTICS */
 
@@ -1215,8 +1211,6 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 
 	//DBGV("  >> HandleAnnounce : %d  \n", ptpClock->portState);
 
-
-
 	switch (ptpClock->portState) {
 	case PTP_INITIALIZING:
 	case PTP_FAULTY:
@@ -1229,6 +1223,10 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 	case PTP_SLAVE:
 		if (isFromSelf) {
 			DBGV("HandleAnnounce : Ignore message from self \n");
+			return;
+		}
+		if(rtOpts->requireUtcValid && !IS_SET(header->flagField1, UTCV)) {
+			ptpClock->counters.ignoredAnnounce++;
 			return;
 		}
 		
@@ -1346,7 +1344,10 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			DBGV("HandleAnnounce : Ignore message from self \n");
 			return;
 		}
-
+		if(rtOpts->requireUtcValid && !IS_SET(header->flagField1, UTCV)) {
+			ptpClock->counters.ignoredAnnounce++;
+			return;
+		}
 		/*
 		 * Valid announce message is received : BMC algorithm
 		 * will be executed
@@ -1392,6 +1393,10 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 		if (isFromSelf) {
 			DBGV("HandleAnnounce : Ignore message from self \n");
 			ptpClock->counters.discardedMessages++;
+			return;
+		}
+		if(rtOpts->requireUtcValid && !IS_SET(header->flagField1, UTCV)) {
+			ptpClock->counters.ignoredAnnounce++;
 			return;
 		}
 		ptpClock->counters.announceMessagesReceived++;
@@ -1683,7 +1688,7 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 					&rtOpts->outboundLatency);
 				DBGV("HandleDelayReq: %s %d\n",
 				    dump_TimeInternal(&ptpClock->delay_req_send_time),
-				    &rtOpts->outboundLatency);
+				    rtOpts->outboundLatency);
 				    
 				break;
 			} else {

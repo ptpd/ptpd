@@ -9,14 +9,6 @@
 #ifndef PTPD_DEP_H_
 #define PTPD_DEP_H_
 
-/* No support for double precision servo for Apple */
-#ifdef __APPLE__
-#ifndef PTPD_INTEGER_SERVO
-#define PTPD_INTEGER_SERVO
-#endif /* PTPD_INTEGER_SERVO */
-#endif /* APPLE */
-
-
 #ifdef RUNTIME_DEBUG
 #undef PTPD_DBGV
 #define PTPD_DBGV
@@ -393,21 +385,11 @@ void adjTime(Integer32);
 
 #if !defined(__APPLE__)
 
-#ifdef PTPD_INTEGER_SERVO
-
-void adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 adj);
-Boolean adjFreq(Integer32);
-Integer32 getAdjFreq(void);
-void informClockSource(PtpClock* ptpClock);
-
-#else
 
 void adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj);
 Boolean adjFreq(double);
 double getAdjFreq(void);
 void informClockSource(PtpClock* ptpClock);
-
-#endif /* PTPD_INTEGER_SERVO */
 
 /* Observed drift save / recovery functions */
 void restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet);
@@ -452,12 +434,7 @@ reset_operator_messages(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
 void setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts);
 void resetPIservo(PIservo* servo);
-
-#ifdef PTPD_INTEGER_SERVO
-Integer32 runPIservo(PIservo* servo, const Integer32 input);
-#else
 double runPIservo(PIservo* servo, const Integer32 input);
-#endif /* PTPD_INTEGER_SERVO */
 
 #ifdef PTPD_STATISTICS
 void updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts);

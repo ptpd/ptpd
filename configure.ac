@@ -303,25 +303,6 @@ esac
 AC_SUBST(PTP_NTPDC)
 AM_CONDITIONAL([NTPDC], [test x$ptp_ntpdc = xyes])
 
-AC_MSG_CHECKING([for integer-based PI servo support])
-AC_ARG_ENABLE(
-    [integer-servo],
-    [AS_HELP_STRING(
-	[--enable-integer-servo],
-	[Enable support for integer-based PI servo]
-    )],
-    [ptp_integer_servo=$enableval],
-    [ptp_integer_servo=no]
-)
-AC_MSG_RESULT([$ptp_integer_servo])
-case "$ptp_integer_servo" in
- yes)
-    PTP_INTEGER_SERVO="-DPTPD_INTEGER_SERVO"
-    ;;
-esac
-AC_SUBST(PTP_INTEGER_SERVO)
-AM_CONDITIONAL([INTEGER_SERVO], [test x$ptp_integer_servo = xyes])
-
 AC_MSG_CHECKING([for SIGUSR2 support])
 AC_ARG_ENABLE(
     [sigusr2],

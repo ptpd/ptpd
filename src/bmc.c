@@ -214,7 +214,8 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	/* Timeproperties DS */
 	ptpClock->timePropertiesDS.currentUtcOffset = announce->currentUtcOffset;
 
-	if (ptpClock->timePropertiesDS.currentUtcOffsetValid && !IS_SET(header->flagField1, UTCV)) {
+	if (ptpClock->portState != PTP_PASSIVE && ptpClock->timePropertiesDS.currentUtcOffsetValid && 
+			!IS_SET(header->flagField1, UTCV)) {
 		if(rtOpts->alwaysRespectUtcOffset)
 			WARNING("UTC Offset no longer valid and ptpengine:always_respect_utc_offset is set: continuing as normal\n");
 		else
@@ -333,6 +334,15 @@ copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
 	announce->stepsRemoved = 0;
 	copyClockIdentity(header->sourcePortIdentity.clockIdentity,
 	       ptpClock->clockIdentity);
+
+	/* Copy TimePropertiesDS into FlagField1 */
+        header->flagField1 = ptpClock->timePropertiesDS.leap61			<< 0;
+        header->flagField1 |= ptpClock->timePropertiesDS.leap59			<< 1;
+        header->flagField1 |= ptpClock->timePropertiesDS.currentUtcOffsetValid	<< 2;
+        header->flagField1 |= ptpClock->timePropertiesDS.ptpTimescale		<< 3;
+        header->flagField1 |= ptpClock->timePropertiesDS.timeTraceable		<< 4;
+        header->flagField1 |= ptpClock->timePropertiesDS.frequencyTraceable	<< 5;
+
 }
 
 
@@ -342,113 +352,104 @@ copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
 static Integer8 
 bmcDataSetComparison(const MsgHeader *headerA, const MsgAnnounce *announceA,
 		     const MsgHeader *headerB, const MsgAnnounce *announceB,
-		     const PtpClock *ptpClock)
+		     const PtpClock *ptpClock, const RunTimeOpts * rtOpts)
 {
 	DBGV("Data set comparison \n");
 	short comp = 0;
 	/*Identity comparison*/
-	if (!memcmp(announceA->grandmasterIdentity,
-		    announceB->grandmasterIdentity,CLOCK_IDENTITY_LENGTH)){
+	comp = memcmp(announceA->grandmasterIdentity,announceB->grandmasterIdentity,CLOCK_IDENTITY_LENGTH);
+
+	if (comp!=0)
+		goto dataset_comp_part_1;
+
 	  /* Algorithm part2 Fig 28 */
-		if (announceA->stepsRemoved > announceB->stepsRemoved+1) {
-			return 1;
-		}
-		else if (announceB->stepsRemoved > announceA->stepsRemoved+1) {
+	if (announceA->stepsRemoved > announceB->stepsRemoved+1)
+		return 1;
+	if (announceA->stepsRemoved+1 < announceB->stepsRemoved)
+		return -1;
+
+	/* A within 1 of B */
+
+	if (announceA->stepsRemoved > announceB->stepsRemoved) {
+		comp = memcmp(headerA->sourcePortIdentity.clockIdentity,ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
+		if(comp < 0)
 			return -1;
-		} else { /* A within 1 of B */
-			if (announceA->stepsRemoved > announceB->stepsRemoved) {
-				if (!memcmp(headerA->sourcePortIdentity.clockIdentity,ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH)) {
-					DBG("Sender=Receiver : Error -1");
-					return 0;
-				} else {
-					return 1;
-				}
-			} else if (announceB->stepsRemoved > 
-				   announceA->stepsRemoved) {
-				if (!memcmp(headerB->sourcePortIdentity.clockIdentity,ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH)) {
-					DBG("Sender=Receiver : Error -1");
-					return 0;
-				} else {
-					return -1;
-				}
-			}
-			else { /*  steps removed A = steps removed B */
-				comp = memcmp(headerA->sourcePortIdentity.clockIdentity,headerB->sourcePortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
-				if (!comp) {
-					DBG("Sender=Receiver : Error -2");
-					return 0;
-				} else if (comp<0) {
-					return -1;
-				} else {
-					return 1;
-				}
-			}
-
-		}
-	} else { /* GrandMaster are not identical */
-		if(announceA->grandmasterPriority1 == 
-		   announceB->grandmasterPriority1) {
-			if (announceA->grandmasterClockQuality.clockClass == 
-			    announceB->grandmasterClockQuality.clockClass) {
-				if (announceA->grandmasterClockQuality.clockAccuracy == announceB->grandmasterClockQuality.clockAccuracy) {
-					if (announceA->grandmasterClockQuality.offsetScaledLogVariance == announceB->grandmasterClockQuality.offsetScaledLogVariance) {
-						if (announceA->grandmasterPriority2 == announceB->grandmasterPriority2)		{
-							comp = memcmp(announceA->grandmasterIdentity,announceB->grandmasterIdentity,CLOCK_IDENTITY_LENGTH);
-							if (comp < 0)
-								return -1;
-							else if (comp > 0)
-								return 1;
-							else
-								return 0;
-						} else {
-/* Priority2 are not identical */
-							comp =memcmp(&announceA->grandmasterPriority2,&announceB->grandmasterPriority2,1);
-							if (comp < 0)
-								return -1;
-							else if (comp > 0)
-								return 1;
-							else
-								return 0;
-						}
-					} else {
-/* offsetScaledLogVariance are not identical */
-						comp = announceA->grandmasterClockQuality.offsetScaledLogVariance < announceB->grandmasterClockQuality.offsetScaledLogVariance ? -1 : 1;
-						if (comp < 0)
-							return -1;
-						else if (comp > 0)
-							return 1;
-						else
-							return 0;
-					}
-
-				} else { /*  Accuracy are not identitcal */
-					comp = memcmp(&announceA->grandmasterClockQuality.clockAccuracy,&announceB->grandmasterClockQuality.clockAccuracy,1);
-					if (comp < 0)
-						return -1;
-					else if (comp > 0)
-						return 1;
-					else
-						return 0;
-				}
-			} else { /* ClockClass are not identical */
-				comp =  memcmp(&announceA->grandmasterClockQuality.clockClass,&announceB->grandmasterClockQuality.clockClass,1);
-				if (comp < 0)
-					return -1;
-				else if (comp > 0)
-					return 1;
-				else
-					return 0;
-			}
-		} else { /*  Priority1 are not identical */
-			comp =  memcmp(&announceA->grandmasterPriority1,&announceB->grandmasterPriority1,1);
-			if (comp < 0)
-				return -1;
-			else if (comp > 0)
-				return 1;
-			else
-				return 0;
-		}
+		if(comp > 0)
+			return 1;
+		DBG("Sender=Receiver : Error -1");
+		return 0;
 	}
+
+	if (announceA->stepsRemoved < announceB->stepsRemoved) {
+		comp = memcmp(headerB->sourcePortIdentity.clockIdentity,ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
+
+		if(comp < 0)
+			return -1;
+		if(comp > 0)
+			return 1;
+		DBG("Sender=Receiver : Error -1");
+		return 0;
+	}
+	/*  steps removed A = steps removed B */
+	comp = memcmp(headerA->sourcePortIdentity.clockIdentity,headerB->sourcePortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
+
+	if (comp<0) {
+		return -1;
+	}
+
+	if (comp>0) {
+		return 1;
+	}
+
+	/* identity A = identity B */
+
+	if (headerA->sourcePortIdentity.portNumber < headerB->sourcePortIdentity.portNumber)
+		return -1;
+	if (headerA->sourcePortIdentity.portNumber > headerB->sourcePortIdentity.portNumber)
+		return 1;
+
+	DBG("Sender=Receiver : Error -2");
+	return 0;
+
+	  /* Algorithm part 1 Fig 27 */
+dataset_comp_part_1:
+
+	if (announceA->grandmasterPriority1 < announceB->grandmasterPriority1)
+		return -1;
+	if (announceA->grandmasterPriority1 > announceB->grandmasterPriority1)
+		return 1;
+
+	/* non-standard BMC extension to prioritise GMs with UTC valid */
+	if(rtOpts->preferUtcValid) {
+		Boolean utcA = IS_SET(headerA->flagField1, UTCV);
+		Boolean utcB = IS_SET(headerB->flagField1, UTCV);
+		if(utcA > utcB)
+			return -1;
+		if(utcA < utcB)
+			return 1;
+	}
+
+	if (announceA->grandmasterClockQuality.clockClass <
+			announceB->grandmasterClockQuality.clockClass)
+		return -1;
+	if (announceA->grandmasterClockQuality.clockClass >
+			announceB->grandmasterClockQuality.clockClass)
+		return 1;
+	if (announceA->grandmasterClockQuality.offsetScaledLogVariance <
+			announceB->grandmasterClockQuality.offsetScaledLogVariance)
+		return -1;
+	if (announceA->grandmasterClockQuality.offsetScaledLogVariance >
+			announceB->grandmasterClockQuality.offsetScaledLogVariance)
+		return 1;
+	if (announceA->grandmasterPriority2 < announceB->grandmasterPriority2)
+		return -1;
+	if (announceA->grandmasterPriority2 > announceB->grandmasterPriority2)
+		return 1;
+	if (comp < 0)
+		return -1;
+	else if (comp > 0)
+		return 1;
+	return 0;
 }
 
 /*State decision algorithm 9.3.3 Fig 26*/
@@ -488,7 +489,8 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce,
 	copyD0(&ptpClock->msgTmpHeader,&ptpClock->msgTmp.announce,ptpClock);
 
 	DBGV("local clockQuality.clockClass: %d \n", ptpClock->clockQuality.clockClass);
-	comp = bmcDataSetComparison(&ptpClock->msgTmpHeader, &ptpClock->msgTmp.announce, header, announce, ptpClock);
+
+	comp = bmcDataSetComparison(&ptpClock->msgTmpHeader, &ptpClock->msgTmp.announce, header, announce, ptpClock, rtOpts);
 	if (ptpClock->clockQuality.clockClass < 128) {
 		if (comp < 0) {
 			m1(rtOpts, ptpClock);
@@ -558,7 +560,7 @@ bmc(ForeignMasterRecord *foreignMaster,
 					  &foreignMaster[i].announce,
 					  &foreignMaster[best].header,
 					  &foreignMaster[best].announce,
-					  ptpClock)) < 0)
+					  ptpClock, rtOpts)) < 0)
 			best = i;
 
 	DBGV("Best record : %d \n",best);

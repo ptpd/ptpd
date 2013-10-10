@@ -506,9 +506,10 @@ typedef struct
 	uint32_t masterChanges;		  /* number of BM changes as result of BMC */
 	uint32_t announceTimeouts;	  /* number of announce receipt timeouts */
 
-	/* discarded / uknown */
+	/* discarded / uknown / ignored */
 	uint32_t discardedMessages;	  /* only messages we shouldn't be receiving - ignored from self don't count */
 	uint32_t unknownMessages;	  /* unknown type - also increments discarded */
+	uint32_t ignoredAnnounce;	  /* ignored Announce messages: acl / security / preference */
 
 	/* error counters */
 	uint32_t messageRecvErrors;	  /* message receive errors */
@@ -532,34 +533,7 @@ typedef struct
  * \brief PI controller model structure
  */
 
-#ifdef PTPD_INTEGER_SERVO
 typedef struct{
-
-    int maxOutput;
-    Integer32 input;
-    Integer32 output;
-    Integer32 observedDrift;
-    Integer32 aP, aI;
-    TimeInternal lastUpdate;
-    Boolean runningMaxOutput;
-    int dTmethod;
-    int logdT;
-#ifdef PTPD_STATISTICS
-    int updateCount;
-    int stableCount;
-    Boolean statsCalculated;
-    Boolean isStable;
-    Integer32 stabilityThreshold;
-    int stabilityPeriod;
-    int stabilityTimeout;
-    Integer32 driftMean;
-    Integer32 driftStdDev;
-    IntPermanentStdDev driftStats;
-#endif /* PTPD_STATISTICS */
-} PIservo;
-#else
-typedef struct{
-
     int maxOutput;
     Integer32 input;
     double output;
@@ -581,10 +555,7 @@ typedef struct{
     double driftStdDev;
     DoublePermanentStdDev driftStats;
 #endif /* PTPD_STATISTICS */
-
 } PIservo;
-#endif /* PTPD_INTEGER_SERVO */
-
 
 /**
  * \struct PtpClock
@@ -751,11 +722,7 @@ typedef struct {
 
 	uint32_t init_timestamp;                        /* When the clock was last initialised */
 	Integer32 stabilisation_time;                   /* How long (seconds) it took to stabilise the clock */
-#ifdef PTPD_INTEGER_SERVO
-	Integer32 last_saved_drift;                     /* Last observed drift value written to file */
-#else
 	double last_saved_drift;                     /* Last observed drift value written to file */
-#endif /* PTPD_INTEGER_SERVO */
 	Boolean drift_saved;                            /* Did we save a drift value already? */
 
 	/* user description is max size + 1 to leave space for a null terminator */
@@ -868,6 +835,8 @@ typedef struct {
 #endif /* linux */
 
 	Boolean alwaysRespectUtcOffset;
+	Boolean preferUtcValid;
+	Boolean requireUtcValid;
 	Boolean useSysLog;
 	Boolean checkConfigOnly;
 	Boolean printLockFile;
@@ -950,11 +919,7 @@ typedef struct {
 
 	int statsUpdateInterval;
 	Boolean servoStabilityDetection;
-#ifdef PTPD_INTEGER_SERVO
-	Integer32 servoStabilityThreshold;
-#else
 	double servoStabilityThreshold;
-#endif /* PTPD_INTEGER_SERVO */
 	int servoStabilityTimeout;
 	int servoStabilityPeriod;
 
