@@ -2177,6 +2177,7 @@ short_help:
 			break;
 		/* verbose mode */
 		case 'V':
+			dictionary_set(dict,"global:foreground", "Y");
 			dictionary_set(dict,"global:verbose_foreground", "Y");
 			break;
 		/* Skip locking */

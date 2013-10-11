@@ -371,8 +371,8 @@ int dictionary_merge(dictionary* source, dictionary* dest, int warn, const char*
 	    continue;
 	if(warn && strcmp(dictionary_get(dest,source->key[i],""),"") != 0) {
 		WARNING("Warning: %s=\"%s\" setting will be overwritten with \"%s\" %s\n",
-				source->key[i], source->val[i],
-				dictionary_get(dest,source->key[i],""), warnStr);
+				source->key[i], dictionary_get(dest,source->key[i],""),
+				source->val[i], warnStr);
 	}
         if ( dictionary_set( dest, source->key[i], source->val[i]) != 0)
 	    return -1;

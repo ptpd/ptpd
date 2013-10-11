@@ -522,7 +522,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * Config parameter evaluation priority order:
 	 * 	1. Any dictionary keys set in the getopt_long loop
 	 * 	2. CLI long section:key type options
-	 * 	3. Config file (parsed last), merged with 2. and 3 - will be overwritten by CLO options
+	 * 	3. Config file (parsed last), merged with 2. and 3 - will be overwritten by CLI options
 	 * 	4. Defaults and any rtOpts fields set in the getopt_long loop
 	**/
 
