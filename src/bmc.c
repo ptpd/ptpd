@@ -414,6 +414,7 @@ bmcDataSetComparison(const MsgHeader *headerA, const MsgAnnounce *announceA,
 	  /* Algorithm part 1 Fig 27 */
 dataset_comp_part_1:
 
+	/* Compare GM priority1 */
 	if (announceA->grandmasterPriority1 < announceB->grandmasterPriority1)
 		return -1;
 	if (announceA->grandmasterPriority1 > announceB->grandmasterPriority1)
@@ -429,22 +430,37 @@ dataset_comp_part_1:
 			return 1;
 	}
 
+	/* Compare GM class */
 	if (announceA->grandmasterClockQuality.clockClass <
 			announceB->grandmasterClockQuality.clockClass)
 		return -1;
 	if (announceA->grandmasterClockQuality.clockClass >
 			announceB->grandmasterClockQuality.clockClass)
 		return 1;
+	
+	/* Compare GM accuracy */
+	if (announceA->grandmasterClockQuality.clockAccuracy <
+			announceB->grandmasterClockQuality.clockAccuracy)
+		return -1;
+	if (announceA->grandmasterClockQuality.clockAccuracy >
+			announceB->grandmasterClockQuality.clockAccuracy)
+		return 1;
+
+	/* Compare GM offsetScaledLogVariance */
 	if (announceA->grandmasterClockQuality.offsetScaledLogVariance <
 			announceB->grandmasterClockQuality.offsetScaledLogVariance)
 		return -1;
 	if (announceA->grandmasterClockQuality.offsetScaledLogVariance >
 			announceB->grandmasterClockQuality.offsetScaledLogVariance)
 		return 1;
+	
+	/* Compare GM priority2 */
 	if (announceA->grandmasterPriority2 < announceB->grandmasterPriority2)
 		return -1;
 	if (announceA->grandmasterPriority2 > announceB->grandmasterPriority2)
 		return 1;
+
+	/* Compare GM identity */
 	if (comp < 0)
 		return -1;
 	else if (comp > 0)
