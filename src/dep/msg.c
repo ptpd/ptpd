@@ -138,29 +138,30 @@ FREE ( Nibble )
 void
 unpackUInteger48( void *buf, void *i, PtpClock *ptpClock)
 {
-	unpackUInteger32(buf, &((UInteger48*)i)->lsb, ptpClock);
-	unpackUInteger16(buf + 4, &((UInteger48*)i)->msb, ptpClock);
+
+	unpackUInteger16(buf, &((UInteger48*)i)->msb, ptpClock);
+	unpackUInteger32(buf + 2, &((UInteger48*)i)->lsb, ptpClock);
 }
 
 void
 packUInteger48( void *i, void *buf)
 {
-	packUInteger32(&((UInteger48*)i)->lsb, buf);
-	packUInteger16(&((UInteger48*)i)->msb, buf + 4);
+	packUInteger16(&((UInteger48*)i)->msb, buf);
+	packUInteger32(&((UInteger48*)i)->lsb, buf + 2);
 }
 
 void
 unpackInteger64( void *buf, void *i, PtpClock *ptpClock)
 {
-	unpackUInteger32(buf, &((Integer64*)i)->lsb, ptpClock);
-	unpackInteger32(buf + 4, &((Integer64*)i)->msb, ptpClock);
+	unpackInteger32(buf, &((Integer64*)i)->msb, ptpClock);
+	unpackUInteger32(buf + 4, &((Integer64*)i)->lsb, ptpClock);
 }
 
 void
 packInteger64( void* i, void *buf )
 {
-	packUInteger32(&((Integer64*)i)->lsb, buf);
-	packInteger32(&((Integer64*)i)->msb, buf + 4);
+	packInteger32(&((Integer64*)i)->msb, buf);
+	packUInteger32(&((Integer64*)i)->lsb, buf + 4);
 }
 
 /* NOTE: the unpack functions for management messages can probably be refactored into a macro */

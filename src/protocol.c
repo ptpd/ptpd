@@ -86,7 +86,6 @@ static void issueManagementErrorStatus(MsgManagement*,RunTimeOpts*,PtpClock*);
 void addForeign(Octet*,MsgHeader*,PtpClock*);
 
 void clearCounters(PtpClock *);
-static Boolean respectUtcOffset(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
 /* loop forever. doState() has a switch for the actions and events to be
    checked for 'port_state'. the actions and events may or may not change
@@ -2310,7 +2309,7 @@ handleManagement(MsgHeader *header,
         case MM_TIME:
                 DBGV("handleManagement: Time\n");
                 unpackMMTime(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMTime(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
+                handleMMTime(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock, rtOpts);
 		ptpClock->counters.managementMessagesReceived++;
                 break;
         case MM_CLOCK_ACCURACY:

@@ -25,7 +25,7 @@
 #define PRODUCT_DESCRIPTION \
   ";;"
 #define REVISION \
-  ";;2.2"
+  ";;2.3"
 #define USER_VERSION \
   "2.3.0-svn"
 #define USER_DESCRIPTION \

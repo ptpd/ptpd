@@ -240,7 +240,7 @@ void handleMMLogSyncInterval(MsgManagement*, MsgManagement*, PtpClock*);
 void handleMMVersionNumber(MsgManagement*, MsgManagement*, PtpClock*);
 void handleMMEnablePort(MsgManagement*, MsgManagement*, PtpClock*);
 void handleMMDisablePort(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMTime(MsgManagement*, MsgManagement*, PtpClock*);
+void handleMMTime(MsgManagement*, MsgManagement*, PtpClock*, RunTimeOpts*);
 void handleMMClockAccuracy(MsgManagement*, MsgManagement*, PtpClock*);
 void handleMMUtcProperties(MsgManagement*, MsgManagement*, PtpClock*);
 void handleMMTraceabilityProperties(MsgManagement*, MsgManagement*, PtpClock*);
@@ -365,5 +365,7 @@ void toState(UInteger8,RunTimeOpts*,PtpClock*);
 /* helper functions for leap second handling */
 float secondsToMidnight(void);
 float getPauseAfterMidnight(Integer8 announceInterval);
+
+Boolean respectUtcOffset(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
 #endif /*PTPD_H_*/

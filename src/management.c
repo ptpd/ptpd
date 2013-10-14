@@ -984,27 +984,35 @@ void handleMMDisablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 }
 
 /**\brief Handle incoming TIME management message type*/
-void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
+void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock, RunTimeOpts* rtOpts)
 {
 	DBGV("received TIME message\n");
 
 	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
 	outgoing->tlv->tlvType = TLV_MANAGEMENT;
 	outgoing->tlv->managementId = MM_TIME;
-/* commented out to suppress unused variable compiler warning */
-//	MMTime* data = NULL;
+
+	MMTime* data = NULL;
 	switch( incoming->actionField )
 	{
 	case SET:
 		DBGV(" SET action\n");
-/* commented out to suppress unused variable compiler warning */
-//		data = (MMTime*)incoming->tlv->dataField;
+		data = (MMTime*)incoming->tlv->dataField;
 		/* SET actions */
 		/* TODO: add currentTime */
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		/* TODO: implement action */
+		XMALLOC(outgoing->tlv->dataField, sizeof(MMTime));
+		data = (MMTime*)outgoing->tlv->dataField;
+		/* GET actions */
+		TimeInternal internalTime;
+		getTime(&internalTime);
+		if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
+			internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
+		}
+		fromInternalTime(&internalTime, &data->currentTime);
+		timestamp_display(&data->currentTime);
 		break;
 	case RESPONSE:
 		DBGV(" RESPONSE action\n");
