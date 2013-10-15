@@ -457,17 +457,13 @@ void handleMMCurrentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 		TimeInterval oFM;
 		oFM.scaledNanoseconds.lsb = 0;
 		oFM.scaledNanoseconds.msb = 0;
-		/* TODO: call function
-		 * internalTime_to_integer64(ptpClock->offsetFromMaster, &oFM.scaledNanoseconds);
-		 */
+		internalTime_to_integer64(ptpClock->offsetFromMaster, &oFM.scaledNanoseconds);
 		data->offsetFromMaster.scaledNanoseconds.lsb = oFM.scaledNanoseconds.lsb;
 		data->offsetFromMaster.scaledNanoseconds.msb = oFM.scaledNanoseconds.msb;
 		TimeInterval mPD;
 		mPD.scaledNanoseconds.lsb = 0;
 		mPD.scaledNanoseconds.msb = 0;
-		/* TODO: call function
-		 * internalTime_to_integer64(ptpClock->meanPathDelay, &mPD.scaledNanoseconds);
-		 */
+		internalTime_to_integer64(ptpClock->meanPathDelay, &mPD.scaledNanoseconds);
 		data->meanPathDelay.scaledNanoseconds.lsb = mPD.scaledNanoseconds.lsb;
 		data->meanPathDelay.scaledNanoseconds.msb = mPD.scaledNanoseconds.msb;
 		break;
@@ -599,9 +595,7 @@ void handleMMPortDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 		TimeInterval pMPD;
 		pMPD.scaledNanoseconds.lsb = 0;
 		pMPD.scaledNanoseconds.msb = 0;
-		/* TODO: call function
-		 * internalTime_to_integer64(ptpClock->peerMeanPathDelay, &pMPD.scaledNanoseconds);
-		 */
+		internalTime_to_integer64(ptpClock->peerMeanPathDelay, &pMPD.scaledNanoseconds);
 		data->peerMeanPathDelay.scaledNanoseconds.lsb = pMPD.scaledNanoseconds.lsb;
 		data->peerMeanPathDelay.scaledNanoseconds.msb = pMPD.scaledNanoseconds.msb;
 		data->logAnnounceInterval = ptpClock->logAnnounceInterval;
