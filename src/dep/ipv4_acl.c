@@ -58,10 +58,10 @@ int
 maskParser(const char* input, AclEntry* output)
 {
 	int i;
-	int offset=0;
-	int masks_found=0;
+	int offset = 0;
+	int masks_found = 0;
 	int matches;
-	int oct1,oct2,oct3,oct4,mask;
+	int oct1, oct2, oct3, oct4, mask;
 	uint32_t network, bitmask;
 
 	static char* expr1="%d.%d.%d.%d/%d%[, ]";
@@ -69,9 +69,9 @@ maskParser(const char* input, AclEntry* output)
 
 	char** expr = &expr1;
 	char junk[10];
-	char buf[PATH_MAX];
+	char buf[PATH_MAX+1];
 
-	int len = strlen(input);
+	int len = strlen(input) > PATH_MAX ? PATH_MAX : strlen(input);
 
 	for(i=0; i <= len; i++) {
 
@@ -79,7 +79,8 @@ maskParser(const char* input, AclEntry* output)
 		strncpy(buf,input+offset,i-offset);
 		if(i==len) expr = &expr2;
 		matches=sscanf(buf,*expr,&oct1,&oct2,&oct3,&oct4,&mask,&junk);
-//		printf("%d + %d of %d, buf: %s , matches: %d\n",offset,i,len,buf,matches);
+		/* Only useful for "deep" debugging */
+//		DBGV("%d + %d of %d, buf: \"%s\" , matches: %d\n",offset,i,len,buf,matches);
 		if(matches==6 || (i==len && matches==5)) {
 
 			offset = i;
@@ -111,8 +112,18 @@ maskParser(const char* input, AclEntry* output)
 		}
 
 	}
+
 	if(output != NULL)
 		qsort(output, masks_found, sizeof(AclEntry), cmpAclEntry);
+
+	/* We got input but found nothing - error */
+	if (!masks_found && len > 0)
+		masks_found = -1;
+
+	/* We did not complete parsing the ACL - error */
+	if(len != offset)
+		masks_found = -1;
+
 	return masks_found;
 
 }
@@ -166,13 +177,13 @@ dumpMaskTable(MaskTable* table)
 void 
 freeIpv4AccessList(Ipv4AccessList* acl)
 {
-	if(acl==NULL)
+	if(acl == NULL)
 	    return;
-	if(acl->permitEntries!=NULL && acl->permitEntries->entries != NULL)
+	if(acl->permitEntries != NULL && acl->permitEntries->entries != NULL)
 	    free(acl->permitEntries->entries);
 	if(acl->permitEntries != NULL)
 	    free(acl->permitEntries);
-	if(acl!=NULL)
+	if(acl != NULL)
 	    free(acl);
 }
 
@@ -181,7 +192,7 @@ Ipv4AccessList*
 createIpv4AccessList(const char* permitList, const char* denyList, int processingOrder)
 {
 	Ipv4AccessList* ret;
-	ret=(Ipv4AccessList*)calloc(1,sizeof(Ipv4AccessList));
+	ret = (Ipv4AccessList*)calloc(1,sizeof(Ipv4AccessList));
 	ret->permitEntries = createMaskTable(permitList);
 	ret->denyEntries = createMaskTable(denyList);
 	if(ret->permitEntries == NULL || ret->denyEntries == NULL) {
@@ -219,7 +230,6 @@ matchIpv4AccessList(Ipv4AccessList* acl, const uint32_t addr)
 {
 
 	int ret;
-
 	int matchPermit = 0;
 	int matchDeny = 0;
 
@@ -231,6 +241,7 @@ matchIpv4AccessList(Ipv4AccessList* acl, const uint32_t addr)
 
 	if(acl->permitEntries != NULL)
 		matchPermit = matchAddress(addr,acl->permitEntries) > 0;
+
 	if(acl->denyEntries != NULL)
 		matchDeny = matchAddress(addr,acl->denyEntries) > 0;
 
