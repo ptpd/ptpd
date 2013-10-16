@@ -91,7 +91,14 @@ typedef struct {
 	int ttlGeneral;
 	int ttlEvent;
 	struct ether_addr etherDest;
-	struct ether_addr peerEtherDest;	
+	struct ether_addr peerEtherDest;
+#ifdef SO_TIMESTAMPING
+	Boolean txTimestampFailure;
+#endif /* SO_TIMESTAMPING */
+
+	Ipv4AccessList* timingAcl;
+	Ipv4AccessList* managementAcl;
+
 } NetPath;
 
 typedef struct {

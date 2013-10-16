@@ -876,6 +876,10 @@ displayCounters(const PtpClock * ptpClock)
 		ptpClock->counters.unknownMessages);
 	INFO("                   ignoredAnnounce : %d\n",
 		ptpClock->counters.ignoredAnnounce);
+	INFO("    aclManagementDiscardedMessages : %d\n",
+		ptpClock->counters.aclManagementDiscardedMessages);
+	INFO("        aclTimingDiscardedMessages : %d\n",
+		ptpClock->counters.aclTimingDiscardedMessages);
 
 	INFO("Error counters:\n");
 	INFO("                 messageSendErrors : %d\n",

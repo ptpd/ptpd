@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2012-2013 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer, 
  *                         Martin Burnicki, 
@@ -238,7 +239,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				ptpClock->meanPathDelay.nanoseconds);
 			/* revert back to previous value */
 			ptpClock->meanPathDelay = prev_meanPathDelay;
-#ifdef PTPD_STATISTICE
+#ifdef PTPD_STATISTICS
 			goto statistics;
 #else
 			goto display;
@@ -379,7 +380,7 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 
 	DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
 
-display:
+//display:
 	if(ptpClock->portState == PTP_SLAVE)
 		logStatistics(rtOpts, ptpClock);	
 }
@@ -863,7 +864,8 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 	} else {
 
 	    /* If we're in panic mode, either exit if no threshold configured, or exit if we're outside the exit threshold */
-	    if(rtOpts->enablePanicMode && (ptpClock->panicMode && ( rtOpts->panicModeExitThreshold == 0 || (rtOpts->panicModeExitThreshold > 0 &&  (ptpClock->offsetFromMaster.seconds == 0 && ptpClock->offsetFromMaster.nanoseconds < rtOpts->panicModeExitThreshold)))   ) || ptpClock->panicOver) {
+	    if(rtOpts->enablePanicMode && 
+		((ptpClock->panicMode && ( rtOpts->panicModeExitThreshold == 0 || ((rtOpts->panicModeExitThreshold > 0) &&  ((ptpClock->offsetFromMaster.seconds == 0) && (ptpClock->offsetFromMaster.nanoseconds < rtOpts->panicModeExitThreshold))))   ) || ptpClock->panicOver)) {
 		    ptpClock->panicMode = FALSE;
 		    ptpClock->panicOver = FALSE;
 		    timerStop(PANIC_MODE_TIMER, ptpClock->itimer);

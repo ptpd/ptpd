@@ -1450,7 +1450,7 @@ msgUnpackAnnounce(Octet * buf, MsgAnnounce * announce)
 
 /*pack Follow_up message into OUT buffer of ptpClock*/
 void
-msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock)
+msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -1460,8 +1460,7 @@ msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpC
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x08;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(FOLLOW_UP_LENGTH);
-	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentSyncSequenceId - 1);
-	/* sentSyncSequenceId has already been incremented in "issueSync" */
+	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
 	*(UInteger8 *) (buf + 32) = 0x02;
 	/* Table 23 */
 	*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
@@ -1705,7 +1704,7 @@ msgUnpackPDelayResp(Octet * buf, MsgPDelayResp * presp)
 
 /*pack PdelayRespfollowup message into OUT buffer of ptpClock*/
 void 
-msgPackPDelayRespFollowUp(Octet * buf, MsgHeader * header, Timestamp * responseOriginTimestamp, PtpClock * ptpClock)
+msgPackPDelayRespFollowUp(Octet * buf, MsgHeader * header, Timestamp * responseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -1715,7 +1714,7 @@ msgPackPDelayRespFollowUp(Octet * buf, MsgHeader * header, Timestamp * responseO
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x0A;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(PDELAY_RESP_FOLLOW_UP_LENGTH);
-	*(UInteger16 *) (buf + 30) = flip16(ptpClock->PdelayReqHeader.sequenceId);
+	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
 	*(UInteger8 *) (buf + 32) = 0x05;
 	/* Table 23 */
 	*(Integer8 *) (buf + 33) = 0x7F;

@@ -73,11 +73,11 @@ PTP announce message interval in master state (expressed as log 2
 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 .B (default = 1)
 .TP
-.BR ptpengine:announce_timeout
+.BR ptpengine:announce_receipt_timeout
 PTP announce receipt timeout announced in master state.
 .B (default = 6)
 .TP
-.BR ptpengine:announce_timeout_grace_period
+.BR ptpengine:announce_receipt_grace_period
 PTP announce receipt timeout grace period in slave state: when
 announce receipt timeout occurs, disqualify current best GM, then wait
 n times announce receipt timeout before resetting.  Allows for a

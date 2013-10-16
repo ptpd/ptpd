@@ -957,8 +957,14 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 /* Management message support settings */
 	rtOpts->managementEnabled = TRUE;
-	rtOpts->managementReadWrite = FALSE;
+	rtOpts->managementSetEnable = FALSE;
 
+/* IP ACL settings */
+
+	rtOpts->timingAclEnabled = FALSE;
+	rtOpts->managementAclEnabled = FALSE;
+	rtOpts->timingAclOrder = ACL_DENY_PERMIT;
+	rtOpts->managementAclOrder = ACL_DENY_PERMIT;
 }
 
 /* The PtpEnginePreset structure for reference: 
@@ -1179,10 +1185,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT_RANGE("ptpengine:log_announce_interval",rtOpts->announceInterval,rtOpts->announceInterval,
 	"PTP announce message interval in master state "LOG2_HELP,-1,7);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:announce_timeout",rtOpts->announceReceiptTimeout,rtOpts->announceReceiptTimeout,
+	CONFIG_MAP_INT_RANGE("ptpengine:announce_receipt_timeout",rtOpts->announceReceiptTimeout,rtOpts->announceReceiptTimeout,
 	"PTP announce receipt timeout announced in master state",2,255);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:announce_timeout_grace_period",rtOpts->announceTimeoutGracePeriod,rtOpts->announceTimeoutGracePeriod,
+	CONFIG_MAP_INT_RANGE("ptpengine:announce_receipt_grace_period",rtOpts->announceTimeoutGracePeriod,rtOpts->announceTimeoutGracePeriod,
 	"PTP announce receipt timeout grace period in slave state:\n"
 	"	 when announce receipt timeout occurs, disqualify current best GM,\n"
 	"	 then wait n times announce receipt timeout before resetting.\n"
@@ -1305,9 +1311,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ip_mode == IPMODE_HYBRID,
 				    "ptpengine:log_delayreq_interval",
 				    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in hybrid mode");
-	/* unicast mode -> must specify delayreq interval */
+
+	/* unicast mode -> must specify delayreq interval if we can become a slave */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
-				    rtOpts->ip_mode == IPMODE_UNICAST,
+				    rtOpts->ip_mode == IPMODE_UNICAST && rtOpts->clockQuality.clockClass > 127,
 				    "unicast",
 				    "ptpengine:log_delayreq_interval");
 	/* 
@@ -1328,7 +1335,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_BOOLEAN("ptpengine:management_enable",rtOpts->managementEnabled,rtOpts->managementEnabled,
 	"Enable handling of PTP management messages");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:management_readwrite",rtOpts->managementReadWrite,rtOpts->managementReadWrite,
+	CONFIG_MAP_BOOLEAN("ptpengine:management_set_enable",rtOpts->managementSetEnable,rtOpts->managementSetEnable,
 	"Accept SET and COMMAND management messages");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:igmp_refresh",rtOpts->do_IGMP_refresh,rtOpts->do_IGMP_refresh,
@@ -1440,8 +1447,62 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_KEY_DEPENDENCY("ptpengine:panic_mode_ntp", "ntpengine:enabled");
 
-
 #endif /* PTPD_NTPDC */
+
+	/* Defining the ACLs enables ACL matching */
+	CONFIG_KEY_TRIGGER("ptpengine:timing_acl_permit",rtOpts->timingAclEnabled,TRUE,FALSE);
+	CONFIG_KEY_TRIGGER("ptpengine:timing_acl_deny",rtOpts->timingAclEnabled,TRUE,FALSE);
+	CONFIG_KEY_TRIGGER("ptpengine:management_acl_permit",rtOpts->managementAclEnabled,TRUE,FALSE);
+	CONFIG_KEY_TRIGGER("ptpengine:management_acl_deny",rtOpts->managementAclEnabled,TRUE,FALSE);
+
+	CONFIG_MAP_CHARARRAY("ptpengine:timing_acl_permit",rtOpts->timingAclPermitText, rtOpts->timingAclPermitText,
+	"Permit access control list for timing packets. The format is a series of comma-separated\n"
+	"	 network prefixes in full CIDR notation a.b.c.d/x where a.b.c.d is the subnet and x is the mask.\n"
+	"	 For single IP addresses, a /32 mask is required for the ACL to be parsed correctly.\n"
+	"	 The match is performed on the source IP address of the incoming messages.\n"
+	"	 IP access lists are only supported when using the IP transport");
+
+	CONFIG_MAP_CHARARRAY("ptpengine:timing_acl_deny",rtOpts->timingAclDenyText, rtOpts->timingAclDenyText,
+	"Deny access control list for timing packets. The format is a series of comma-separated\n"
+	"	 network prefixes in full CIDR notation a.b.c.d/x where a.b.c.d is the subnet and x is the mask.\n"
+	"	 For single IP addresses, a /32 mask is required for the ACL to be parsed correctly.\n"
+	"	 The match is performed on the source IP address of the incoming messages.\n"
+	"	 IP access lists are only supported when using the IP transport");
+
+	CONFIG_MAP_CHARARRAY("ptpengine:management_acl_permit",rtOpts->managementAclPermitText, rtOpts->managementAclPermitText,
+	"Permit access control list for management messages. The format is a series of comma-separated\n"
+	"	 network prefixes in full CIDR notation a.b.c.d/x where a.b.c.d is the subnet and x is the mask.\n"
+	"	 For single IP addresses, a /32 mask is required for the ACL to be parsed correctly.\n"
+	"	 The match is performed on the source IP address of the incoming messages.\n"
+	"	 IP access lists are only supported when using the IP transport");
+
+	CONFIG_MAP_CHARARRAY("ptpengine:management_acl_deny",rtOpts->managementAclDenyText, rtOpts->managementAclDenyText,
+	"Deny access control list for management messages. The format is a series of comma-separated\n"
+	"	 network prefixes in full CIDR notation a.b.c.d/x where a.b.c.d is the subnet and x is the mask.\n"
+	"	 For single IP addresses, a /32 mask is required for the ACL to be parsed correctly.\n"
+	"	 The match is performed on the source IP address of the incoming messages.\n"
+	"	 IP access lists are only supported when using the IP transport");
+
+	CONFIG_MAP_SELECTVALUE("ptpengine:timing_acl_order",rtOpts->timingAclOrder,rtOpts->timingAclOrder,
+	 "Order in which permit and deny access lists are evaluated for timing packets,\n"
+	"	 the evaluation process is the same as for Apache httpd.",
+				"permit-deny", 	ACL_PERMIT_DENY,
+				"deny-permit", 	ACL_DENY_PERMIT
+				);
+
+	CONFIG_MAP_SELECTVALUE("ptpengine:management_acl_order",rtOpts->managementAclOrder,rtOpts->managementAclOrder,
+	 "Order in which permit and deny access lists are evaluated for management messages,\n"
+	"	 the evaluation process is the same as for Apache httpd.",
+				"permit-deny", 	ACL_PERMIT_DENY,
+				"deny-permit", 	ACL_DENY_PERMIT
+				);
+
+
+	/* Ethernet mode disables ACL processing*/
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3,rtOpts->timingAclEnabled,FALSE,rtOpts->timingAclEnabled);
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3,rtOpts->managementAclEnabled,FALSE,rtOpts->managementAclEnabled);
+
+
 
 /* ===== clock section ===== */
 
@@ -1689,8 +1750,13 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 * default field used for both. verbose_foreground triggers nonDaemon which is OK,
 	 * but we don't want foreground=y to switch on verbose_foreground if not set.
 	 */
+
 	CONFIG_MAP_BOOLEAN("global:foreground",rtOpts->nonDaemon,rtOpts->nonDaemon,
-	"Run in foreground");
+	"Run in foreground - this setting is ignored when global:verbose_foreground is set");
+
+	if(CONFIG_ISTRUE("global:verbose_foreground")) {
+		rtOpts->nonDaemon = TRUE;
+	}
 
 	/* If this is processed after verbose_foreground, we can still control logStatistics */
 	CONFIG_MAP_BOOLEAN("global:log_statistics",rtOpts->logStatistics,rtOpts->logStatistics,
@@ -1757,6 +1823,51 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 /* ============== END CONFIG MAPPINGS, TRIGGERS AND DEPENDENCIES =========== */
 
 /* ==== Any additional logic should go here ===== */
+
+	/* Check timing packet ACLs */
+	if(rtOpts->timingAclEnabled) {
+
+		int pResult, dResult;
+
+		if((pResult = maskParser(rtOpts->timingAclPermitText, NULL)) == -1)
+			ERROR("Error while parsing timing permit access list: \"%s\"\n",
+				rtOpts->timingAclPermitText);
+		if((dResult = maskParser(rtOpts->timingAclDenyText, NULL)) == -1)
+			ERROR("Error while parsing timing deny access list: \"%s\"\n",
+				rtOpts->timingAclDenyText);
+
+		/* -1 = ACL format error*/
+		if(pResult == -1 || dResult == -1) {
+			parseResult = FALSE;
+			rtOpts->timingAclEnabled = FALSE;
+		}
+		/* 0 = no entries - we simply don't match */
+		if(pResult == 0 && dResult == 0) {
+			rtOpts->timingAclEnabled = FALSE;
+		}
+	}
+
+	/* Check management message ACLs */
+	if(rtOpts->managementAclEnabled) {
+		int pResult, dResult;
+
+		if((pResult = maskParser(rtOpts->managementAclPermitText, NULL)) == -1)
+			ERROR("Error while parsing management permit access list: \"%s\"\n",
+				rtOpts->managementAclPermitText);
+		if((dResult = maskParser(rtOpts->managementAclDenyText, NULL)) == -1)
+			ERROR("Error while parsing management deny access list: \"%s\"\n",
+				rtOpts->managementAclDenyText);
+
+		/* -1 = ACL format error*/
+		if(pResult == -1 || dResult == -1) {
+			parseResult = FALSE;
+			rtOpts->managementAclEnabled = FALSE;
+		}
+		/* 0 = no entries - we simply don't match */
+		if(pResult == 0 && dResult == 0) {
+			rtOpts->managementAclEnabled = FALSE;
+		}
+	}
 
 	/* Scale the maxPPM to PPB */
 	rtOpts->servoMaxPpb *= 1000;
@@ -1919,7 +2030,7 @@ printDefaultConfig()
 {
 
 	RunTimeOpts rtOpts;
-	dictionary *dict, *tmp;
+	dictionary *dict;
 
 	loadDefaultSettings(&rtOpts);
 	dict = dictionary_new(0);
@@ -1935,7 +2046,7 @@ printDefaultConfig()
 
 	SET_SHOWDEFAULT();
 	/* NULL will always be returned in this mode */
-	tmp = parseConfig(dict, &rtOpts);
+	parseConfig(dict, &rtOpts);
 	END_SHOWDEFAULT();
 	dictionary_del(dict);
 
@@ -1955,7 +2066,7 @@ printConfigHelp()
 {
 
 	RunTimeOpts rtOpts;
-	dictionary *dict, *tmp;
+	dictionary *dict;
 
 	loadDefaultSettings(&rtOpts);
 	dict = dictionary_new(0);
@@ -1964,7 +2075,7 @@ printConfigHelp()
 	printf("\n============== Full list of "PTPD_PROGNAME" settings ========\n\n");
 
 	/* NULL will always be returned in this mode */
-	tmp =  parseConfig(dict, &rtOpts);
+	parseConfig(dict, &rtOpts);
 
 	HELP_END();
 	dictionary_del(dict);
@@ -1981,7 +2092,7 @@ printSettingHelp(char* key)
 {
 
 	RunTimeOpts rtOpts;
-	dictionary *dict, *tmp;
+	dictionary *dict;
 
 	loadDefaultSettings(&rtOpts);
 	dict = dictionary_new(0);
@@ -1990,7 +2101,7 @@ printSettingHelp(char* key)
 
 	printf("\n");
 	/* NULL will always be returned in this mode */
-	tmp =  parseConfig(dict, &rtOpts);
+	parseConfig(dict, &rtOpts);
 	
 	if(!HELP_ITEM_FOUND())
 	    printf("Unknown setting: %s\n\n", key);
@@ -2440,7 +2551,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:pid_as_clock_idendity", 	PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:ptp_slaveonly",           PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_announce_interval",   PTPD_UPDATE_DATASETS );
-        COMPONENT_RESTART_REQUIRED("ptpengine:announce_timeout",        PTPD_UPDATE_DATASETS );
+        COMPONENT_RESTART_REQUIRED("ptpengine:announce_receipt_timeout",        PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_sync_interval",     	PTPD_UPDATE_DATASETS );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_interval_initial",PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_interval",   PTPD_UPDATE_DATASETS );
@@ -2460,10 +2571,10 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:always_respect_utc_offset", PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:prefer_utc_offset_valid", PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:require_utc_offset_valid", PTPD_RESTART_NONE );
-//        COMPONENT_RESTART_REQUIRED("ptpengine:announce_timeout_grace_period", PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:announce_receipt_grace_period", PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:unicast_address",   	PTPD_RESTART_NETWORK );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:management_enable",         	PTPD_RESTART_NONE );
-//        COMPONENT_RESTART_REQUIRED("ptpengine:management_readwrite",         	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:management_set_enable",         	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:igmp_refresh",         	PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:multicast_ttl",        		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:ip_dscp",        		PTPD_RESTART_NETWORK );
@@ -2484,6 +2595,14 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_threshold",  	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_weight",  	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:calibration_delay",  	PTPD_RESTART_NONE );
+
+	COMPONENT_RESTART_REQUIRED("ptpengine:timing_acl_permit",		PTPD_RESTART_ACLS);
+	COMPONENT_RESTART_REQUIRED("ptpengine:timing_acl_deny",			PTPD_RESTART_ACLS);
+	COMPONENT_RESTART_REQUIRED("ptpengine:management_acl_permit",		PTPD_RESTART_ACLS);
+	COMPONENT_RESTART_REQUIRED("ptpengine:management_acl_deny",		PTPD_RESTART_ACLS);
+	COMPONENT_RESTART_REQUIRED("ptpengine:timing_acl_order",		PTPD_RESTART_ACLS);
+	COMPONENT_RESTART_REQUIRED("ptpengine:management_acl_order",		PTPD_RESTART_ACLS);
+
 
 #endif /* PTPD_STATISTICS */
 

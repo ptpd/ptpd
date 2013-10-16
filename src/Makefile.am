@@ -4,7 +4,7 @@ lib_LTLIBRARIES = $(LIBPTPD2_LIBS_LA)
 sbin_PROGRAMS = ptpd2
 man_MANS = ptpd2.8 ptpd2.conf.8
 
-AM_CFLAGS	= $(SNMP_CFLAGS)
+AM_CFLAGS	= $(SNMP_CFLAGS) -Wall
 AM_CPPFLAGS	= $(SNMP_CPPFLAGS)
 AM_LDFLAGS	= $(SNMP_LIBS)
 
@@ -24,6 +24,8 @@ ptpd2_SOURCES =				\
 	datatypes.h			\
 	dep/constants_dep.h		\
 	dep/datatypes_dep.h		\
+	dep/ipv4_acl.h			\
+	dep/ipv4_acl.c			\
 	dep/msg.c			\
 	dep/net.c			\
 	dep/ptpd_dep.h			\

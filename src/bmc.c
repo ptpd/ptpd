@@ -106,6 +106,7 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->portIdentity.portNumber = NUMBER_PORTS;
 
 	/* select the initial rate of delayreqs until we receive the first announce message */
+
 	ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
 
 	clearTime(&ptpClock->peerMeanPathDelay);
@@ -156,6 +157,7 @@ void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->clockQuality.offsetScaledLogVariance;
 	ptpClock->grandmasterPriority1 = ptpClock->priority1;
 	ptpClock->grandmasterPriority2 = ptpClock->priority2;
+        ptpClock->logMinDelayReqInterval = rtOpts->subsequent_delayreq;
 
 	/*Time Properties data set*/
 	ptpClock->timePropertiesDS.currentUtcOffsetValid = rtOpts->timeProperties.currentUtcOffsetValid;

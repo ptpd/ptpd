@@ -57,6 +57,7 @@
 #include <ctype.h>
 #include <glob.h>
 #include <stddef.h>
+#include <stdint.h>
 #ifdef HAVE_UTMPX_H
 #include <utmpx.h>
 #else
@@ -81,6 +82,8 @@
 
 #include "constants.h"
 #include "limits.h"
+
+#include "dep/ipv4_acl.h"
 
 #include "dep/constants_dep.h"
 #include "dep/datatypes_dep.h"

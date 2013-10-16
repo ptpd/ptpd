@@ -369,8 +369,10 @@ int dictionary_merge(dictionary* source, dictionary* dest, int warn, const char*
 	/* do not overwrite with an empty key */
 	if((source->val[i] == NULL) || (strlen(source->val[i])==0))
 	    continue;
-	if(warn && strcmp(dictionary_get(dest,source->key[i],""),"") != 0) {
-		WARNING("Warning: %s=\"%s\" setting will be overwritten with \"%s\" %s\n",
+	/* no need to warn for settings whose value will not change */
+	if(warn && (strcmp(dictionary_get(dest,source->key[i],""),"") != 0) &&
+		    (strcmp(dictionary_get(dest,source->key[i],""),source->val[i]) != 0)) {
+		WARNING("Warning: %s=\"%s\" : setting will be overwritten with value \"%s\" %s\n",
 				source->key[i], dictionary_get(dest,source->key[i],""),
 				source->val[i], warnStr);
 	}

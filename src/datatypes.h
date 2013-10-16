@@ -510,6 +510,8 @@ typedef struct
 	uint32_t discardedMessages;	  /* only messages we shouldn't be receiving - ignored from self don't count */
 	uint32_t unknownMessages;	  /* unknown type - also increments discarded */
 	uint32_t ignoredAnnounce;	  /* ignored Announce messages: acl / security / preference */
+	uint32_t aclTimingDiscardedMessages;	  /* Timing messages discarded by access lists */
+	uint32_t aclManagementDiscardedMessages;	  /* Timing messages discarded by access lists */
 
 	/* error counters */
 	uint32_t messageRecvErrors;	  /* message receive errors */
@@ -935,7 +937,17 @@ typedef struct {
 #endif
 
 	Boolean managementEnabled;
-	Boolean managementReadWrite;
+	Boolean managementSetEnable;
+
+	/* Access list settings */
+	Boolean timingAclEnabled;
+	Boolean managementAclEnabled;
+	char timingAclPermitText[PATH_MAX];
+	char timingAclDenyText[PATH_MAX];
+	char managementAclPermitText[PATH_MAX];
+	char managementAclDenyText[PATH_MAX];
+	int timingAclOrder;
+	int managementAclOrder;
 
 } RunTimeOpts;
 

@@ -233,6 +233,22 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif /* HAVE_SCHED_H */
 #endif /* linux */
 
+	if(rtOpts->restartSubsystems & PTPD_RESTART_ACLS) {
+		NOTIFY("Applying access control list configuration\n");
+		/* re-compile ACLs */
+		freeIpv4AccessList(ptpClock->netPath.timingAcl);
+		freeIpv4AccessList(ptpClock->netPath.managementAcl);
+		if(rtOpts->timingAclEnabled) {
+			ptpClock->netPath.timingAcl=createIpv4AccessList(rtOpts->timingAclPermitText,
+				rtOpts->timingAclDenyText, rtOpts->timingAclOrder);
+		}
+		if(rtOpts->managementAclEnabled) {
+			freeIpv4AccessList(ptpClock->netPath.managementAcl);
+			ptpClock->netPath.managementAcl=createIpv4AccessList(rtOpts->managementAclPermitText,
+				rtOpts->managementAclDenyText, rtOpts->managementAclOrder);
+		}
+	}
+
 	if(rtOpts->restartSubsystems == -1) {
 		ERROR("New configuration cannot be applied - aborting reload\n");
 		rtOpts->restartSubsystems = 0;
@@ -346,6 +362,16 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #ifdef DBG_SIGUSR2_DUMP_COUNTERS
 	if(sigusr2_received){
 		displayCounters(ptpClock);
+		if(rtOpts->timingAclEnabled) {
+			INFO("\n\n");
+			INFO("** Timing message ACL:\n");
+			dumpIpv4AccessList(ptpClock->netPath.timingAcl);
+		}
+		if(rtOpts->managementAclEnabled) {
+			INFO("\n\n");
+			INFO("** Management message ACL:\n");
+			dumpIpv4AccessList(ptpClock->netPath.managementAcl);
+		}
 		sigusr2_received = 0;
 	}
 #endif

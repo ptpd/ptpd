@@ -832,6 +832,27 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 	    }
 
 	}
+	if(ptpClock->portState == PTP_SLAVE) {
+	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d\n","GM info", 
+	ptpClock->grandmasterPriority1, ptpClock->grandmasterPriority2, ptpClock->grandmasterClockQuality.clockClass);
+	}
+
+	if(ptpClock->clockQuality.clockClass < 128 ||
+		ptpClock->portState == PTP_SLAVE ||
+		ptpClock->portState == PTP_PASSIVE){
+	fprintf(out, 		STATUSPREFIX"  ","Time properties");
+	fprintf(out, "%s timescale, ",ptpClock->timePropertiesDS.ptpTimescale ? "PTP":"ARB");
+	fprintf(out, "traceable: time %s, freq %s\n", ptpClock->timePropertiesDS.timeTraceable ? "Y" : "N",
+							ptpClock->timePropertiesDS.frequencyTraceable ? "Y" : "N");
+	fprintf(out, 		STATUSPREFIX"  ","UTC properties");
+	fprintf(out, "UTC valid: %s", ptpClock->timePropertiesDS.currentUtcOffsetValid ? "Y" : "N");
+	fprintf(out, ", UTC offset: %d",ptpClock->timePropertiesDS.currentUtcOffset);
+	fprintf(out, "%s",ptpClock->timePropertiesDS.leap61 ? 
+			", LEAP61 pending" : ptpClock->timePropertiesDS.leap59 ? ", LEAP59 pending" : "");
+	fprintf(out, "%s", rtOpts->preferUtcValid ? ", prefer UTC" : "");
+	fprintf(out, "%s", rtOpts->requireUtcValid ? ", require UTC" : "");
+	fprintf(out,"\n");
+	}
 
 	if(ptpClock->portState == PTP_SLAVE) {
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
@@ -847,6 +868,7 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 #endif /* PTPD_STATISTICS */
 	    fprintf(out,"\n");
 
+	if(ptpClock->delayMechanism == E2E) {
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
 		&ptpClock->meanPathDelay);
@@ -859,6 +881,15 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 	);
 #endif /* PTPD_STATISTICS */
 	fprintf(out,"\n");
+	}
+	if(ptpClock->delayMechanism == P2P) {
+	    memset(tmpBuf, 0, sizeof(tmpBuf));
+	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
+		&ptpClock->peerMeanPathDelay);
+	fprintf(out, 		STATUSPREFIX" %s s","One-way pDelay", tmpBuf);
+	fprintf(out,"\n");
+	}
+
 #ifndef PTPD_STATISTICS
 if(rtOpts->enablePanicMode)
 	fprintf(out, 		STATUSPREFIX"  ","Clock status");
@@ -905,6 +936,38 @@ else {
 }
 	    fprintf(out,"\n");
 
+
+	}
+
+
+
+	if(ptpClock->portState == PTP_MASTER || ptpClock->portState == PTP_PASSIVE) {
+
+	fprintf(out, 		STATUSPREFIX"  %d","Priority1 ", ptpClock->priority1);
+	if(ptpClock->portState == PTP_PASSIVE)
+		fprintf(out, " (best master: %d)", ptpClock->grandmasterPriority1);
+	fprintf(out,"\n");
+	fprintf(out, 		STATUSPREFIX"  %d","Priority2 ", ptpClock->priority2);
+	if(ptpClock->portState == PTP_PASSIVE)
+		fprintf(out, " (best master: %d)", ptpClock->grandmasterPriority2);
+	fprintf(out,"\n");
+	fprintf(out, 		STATUSPREFIX"  %d","ClockClass ", ptpClock->clockQuality.clockClass);
+	if(ptpClock->portState == PTP_PASSIVE)
+		fprintf(out, " (best master: %d)", ptpClock->grandmasterClockQuality.clockClass);
+	fprintf(out,"\n");
+	if(ptpClock->delayMechanism == P2P) {
+	    memset(tmpBuf, 0, sizeof(tmpBuf));
+	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
+		&ptpClock->peerMeanPathDelay);
+	fprintf(out, 		STATUSPREFIX" %s s","One-way pDelay", tmpBuf);
+	fprintf(out,"\n");
+	}
+
+	}
+
+	if(ptpClock->portState == PTP_MASTER || ptpClock->portState == PTP_PASSIVE ||
+	    ptpClock->portState == PTP_SLAVE) {
+
 	fprintf(out,		STATUSPREFIX"  ","Message rates");
 
 	if (ptpClock->logSyncInterval <= 0)
@@ -912,6 +975,7 @@ else {
 	else
 	    fprintf(out,"1/%.0fs",pow(2,ptpClock->logSyncInterval));
 	fprintf(out, " sync");
+
 
 	if(ptpClock->delayMechanism == E2E) {
 		if (ptpClock->logMinDelayReqInterval <= 0)
@@ -929,25 +993,18 @@ else {
 		fprintf(out, " pdelay");
 	}
 
+	if (ptpClock->logAnnounceInterval <= 0)
+	    fprintf(out,", %.0f/s",pow(2,-ptpClock->logAnnounceInterval));
+	else
+	    fprintf(out,", 1/%.0fs",pow(2,ptpClock->logAnnounceInterval));
+	fprintf(out, " announce");
+
+
+
 	    fprintf(out,"\n");
 
 	}
-	if(ptpClock->portState == PTP_MASTER || ptpClock->portState == PTP_PASSIVE) {
 
-	fprintf(out, 		STATUSPREFIX"  %d","Priority1 ", ptpClock->priority1);
-	if(ptpClock->portState == PTP_PASSIVE)
-		fprintf(out, " (best master: %d)", ptpClock->grandmasterPriority1);
-	fprintf(out,"\n");
-	fprintf(out, 		STATUSPREFIX"  %d","Priority2 ", ptpClock->priority2);
-	if(ptpClock->portState == PTP_PASSIVE)
-		fprintf(out, " (best master: %d)", ptpClock->grandmasterPriority2);
-	fprintf(out,"\n");
-	fprintf(out, 		STATUSPREFIX"  %d","ClockClass ", ptpClock->clockQuality.clockClass);
-	if(ptpClock->portState == PTP_PASSIVE)
-		fprintf(out, " (best master: %d)", ptpClock->grandmasterClockQuality.clockClass);
-	fprintf(out,"\n");
-
-	}
 
 	fprintf(out, "\n");
 
@@ -982,8 +1039,6 @@ else {
 #endif /* PTPD_NTPDC */
 
 
-
-
 	if ( ptpClock->portState == PTP_SLAVE ||
 	    ptpClock->clockQuality.clockClass == 255 ) {
 
@@ -1005,9 +1060,8 @@ else {
 	if( ptpClock->portState == PTP_MASTER ||
 	    ptpClock->clockQuality.clockClass < 128 ) {
 
-	fprintf(out, 		STATUSPREFIX"  %d\n","Announce received",
-	    ptpClock->counters.announceMessagesReceived);
-	fprintf(out, 		STATUSPREFIX"  %d\n","Announce sent",
+	fprintf(out, 		STATUSPREFIX"  %d received, %d sent \n","Announce",
+	    ptpClock->counters.announceMessagesReceived,
 	    ptpClock->counters.announceMessagesSent);
 	fprintf(out, 		STATUSPREFIX"  %d\n","Sync sent",
 	    ptpClock->counters.syncMessagesSent);
@@ -1451,7 +1505,6 @@ double
 getAdjFreq(void)
 {
 	struct timex t;
-	Integer32 freq;
 	double dFreq;
 
 	DBGV("getAdjFreq called\n");
@@ -1462,10 +1515,8 @@ getAdjFreq(void)
 
 	dFreq = (t.freq + 0.0) / ((1<<16) / 1000.0);
 
-	freq = (Integer32)round(dFreq);
-
-	DBGV("          kernel adj is: float %f, Integer32 %d, kernel freq is: %d",
-		dFreq, freq, t.freq);
+	DBGV("          kernel adj is: %f, kernel freq is: %d",
+		dFreq, t.freq);
 
 	return(dFreq);
 }
@@ -1568,6 +1619,8 @@ saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	DBGV("saveDrift called\n");
 
+
+
 	if (rtOpts->drift_recovery_method > 0) {
 		ptpClock->last_saved_drift = ptpClock->servo.observedDrift;
 		ptpClock->drift_saved = TRUE;
@@ -1575,6 +1628,11 @@ saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	if (rtOpts->drift_recovery_method != DRIFT_FILE)
 		return;
+
+	if(ptpClock->servo.runningMaxOutput) {
+	    DBG("Servo running ad maximum shift - not saving drift file");
+	    return;
+	}
 
 	if( (driftFP = fopen(rtOpts->driftFile,"w")) == NULL) {
 		PERROR("Could not open drift file %s for writing", rtOpts->driftFile);

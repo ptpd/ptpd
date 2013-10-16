@@ -23,7 +23,9 @@ ptpengine:interface =
 ptpengine:preset = slaveonly
 
 ; IP transmission mode (requires IP transport) - hybrid mode uses multicast for sync and announce,
-; and unicast for delay request / response
+; and unicast for delay request / response, unicast mode uses unicast for all transmission.
+; When unicast mode is selected, destination IP (ptpengine:unicast_address) must be configured.
+; 
 ; Options: multicast unicast hybrid 
 ptpengine:ip_mode = multicast
 
@@ -52,21 +54,32 @@ ptpengine:outbound_latency = 0
 
 ; Compatibility option: In slave state, always respect UTC offset
 ; announced by best master, even if the the
-; currrentUtcOffsetValid flag is announced FALSE
+; currrentUtcOffsetValid flag is announced FALSE.
+; NOTE: this behaviour is not part of the standard.
 ptpengine:always_respect_utc_offset = N
+
+; Compatibility extension to BMC algorithm: when enabled, BMC for both master and slave clocks
+; will prefer those announcing currrentUtcOffsetValid flag as TRUE.
+; NOTE: this behaviour is not part of the standard.
+ptpengine:prefer_utc_offset_valid = N
+
+; Compatibility option: when enabled, ptpd2 will ignore Announce messages
+; from masters announcing currentUtcOffsetValid as FALSE.
+; NOTE: this behaviour is not part of the standard.
+ptpengine:require_utc_offset_valid = N
 
 ; PTP announce message interval in master state (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_announce_interval = 1
 
 ; PTP announce receipt timeout announced in master state
-ptpengine:announce_timeout = 6
+ptpengine:announce_receipt_timeout = 6
 
 ; PTP announce receipt timeout grace period in slave state:
 ; when announce receipt timeout occurs, disqualify current best GM,
 ; then wait n times announce receipt timeout before resetting.
 ; Allows for a seamless GM failover when standby GMs are slow to react.
 ; When set to 0, this option is not used.
-ptpengine:announce_timeout_grace_period = 0
+ptpengine:announce_receipt_grace_period = 0
 
 ; PTP sync message interval in master state (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_sync_interval = 0
@@ -130,6 +143,12 @@ ptpengine:priority2 = 128
 
 ; Specify unicast destination for unicast master mode (in unicast slave mode overrides delay request destination)
 ptpengine:unicast_address = 
+
+; Enable handling of PTP management messages
+ptpengine:management_enable = Y
+
+; Accept SET and COMMAND management messages
+ptpengine:management_set_enable = N
 
 ; Send explicit IGMP joins between servo resets
 ptpengine:igmp_refresh = Y
@@ -198,6 +217,10 @@ ptpengine:panic_mode = N
 ; 
 ptpengine:panic_mode_duration = 2
 
+; Do not exit panic mode until offset drops below this value (nanoseconds). 0 = not used.
+; 
+ptpengine:panic_mode_exit_threshold = 0
+
 ; Use JobID (PID) for UUID
 ptpengine:pid_as_clock_idendity = N
 
@@ -218,6 +241,44 @@ ptpengine:prefer_ntp = N
 ; requires ntpengine:enabled but does not require the rest of NTP configuration -
 ; will warn instead of failing over if it cannot control ntpd.
 ptpengine:panic_mode_ntp = N
+
+; Permit access control list for timing packets. The format is a series of comma-separated
+; network prefixes in full CIDR notation a.b.c.d/x where a.b.c.d is the subnet and x is the mask.
+; For single IP addresses, a /32 mask is required for the ACL to be parsed correctly.
+; The match is performed on the source IP address of the incoming messages.
+; IP access lists are only supported when using the IP transport
+ptpengine:timing_acl_permit = 
+
+; Deny access control list for timing packets. The format is a series of comma-separated
+; network prefixes in full CIDR notation a.b.c.d/x where a.b.c.d is the subnet and x is the mask.
+; For single IP addresses, a /32 mask is required for the ACL to be parsed correctly.
+; The match is performed on the source IP address of the incoming messages.
+; IP access lists are only supported when using the IP transport
+ptpengine:timing_acl_deny = 
+
+; Permit access control list for management messages. The format is a series of comma-separated
+; network prefixes in full CIDR notation a.b.c.d/x where a.b.c.d is the subnet and x is the mask.
+; For single IP addresses, a /32 mask is required for the ACL to be parsed correctly.
+; The match is performed on the source IP address of the incoming messages.
+; IP access lists are only supported when using the IP transport
+ptpengine:management_acl_permit = 
+
+; Deny access control list for management messages. The format is a series of comma-separated
+; network prefixes in full CIDR notation a.b.c.d/x where a.b.c.d is the subnet and x is the mask.
+; For single IP addresses, a /32 mask is required for the ACL to be parsed correctly.
+; The match is performed on the source IP address of the incoming messages.
+; IP access lists are only supported when using the IP transport
+ptpengine:management_acl_deny = 
+
+; Order in which permit and deny access lists are evaluated for timing packets,
+; the evaluation process is the same as for Apache httpd.
+; Options: permit-deny deny-permit 
+ptpengine:timing_acl_order = deny-permit
+
+; Order in which permit and deny access lists are evaluated for management messages,
+; the evaluation process is the same as for Apache httpd.
+; Options: permit-deny deny-permit 
+ptpengine:management_acl_order = deny-permit
 
 ; Do not adjust the clock
 clock:no_adjust = N
@@ -240,16 +301,23 @@ clock:drift_file = /etc/ptpd2_kernelclock.drift
 ; when slewing the clock. Expressed in parts per million (1 ppm = shift of
 ; 1 us per second. Values above 512 will use the tick duration correction
 ; to allow even faster slewing. Default maximum is 512 without using tick.
-clock:max_offset_ppm = 512
+clock:max_offset_ppm = 500
 
 ; One-way delay filter stiffness
 servo:delayfilter_stiffness = 6
 
 ; Clock servo PI controller proportional component gain (kP)
-servo:kp = 1000.000000
+servo:kp = 0.100000
 
 ; Clock servo PI controller integral component gain (kI)
-servo:ki = 10.000000
+servo:ki = 0.001000
+
+; How servo update interval (delta t) is calculated:
+; none:     servo not corrected for update interval (dt always 1),
+; constant: constant value (target servo update rate - sync interval for PTP,
+; measured: servo measures how often it's updated and uses this interval.
+; Options: none constant measured 
+servo:dt_method = constant
 
 ; Maximum accepted delayMS value in nanoseconds (Sync).
 ; 0 =  not checked.
@@ -285,6 +353,9 @@ servo:max_delay = 0
 ; Do not reset the clock if offset from master is greater
 ; than this value (nanoseconds). 0 = not used.
 servo:max_offset = 0
+
+; Enable SNMP agent (if compiled with PTPD_SNMP)
+global:enable_snmp = N
 
 ; Send log messages to syslog. Disabling this
 ; sends all messages to stdout (or speficied log file)
@@ -373,7 +444,7 @@ global:dump_packets = N
 ; 
 global:verbose_foreground = N
 
-; Run in foreground
+; Run in foreground - this setting is ignored when global:verbose_foreground is set
 global:foreground = N
 
 ; Log timing statistics for every PTP packet received

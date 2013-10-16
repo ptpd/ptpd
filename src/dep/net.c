@@ -78,9 +78,15 @@
 
 
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
-#if !defined(SO_TIMESTAMPNS) && !defined(SO_TIMESTAMP) && !defined(SO_BINTIME)
-#error kernel-level timestamps not detected
+#if !defined(SO_TIMESTAMPING) && !defined(SO_TIMESTAMPNS) && !defined(SO_TIMESTAMP) && !defined(SO_BINTIME)
+#error No kernel-level support for packet timestamping detected!
 #endif
+
+#ifdef SO_TIMESTAMPING
+#include <linux/net_tstamp.h>
+#include <linux/sockios.h>
+#include <linux/ethtool.h>
+#endif /* SO_TIMESTAMPING */
 
 /**
  * shutdown the IPv4 multicast for specific address
@@ -153,6 +159,9 @@ netShutdown(NetPath * netPath)
 		pcap_close(netPath->pcapGeneral);
 		netPath->pcapGeneralSock = -1;
 	}
+
+	freeIpv4AccessList(netPath->timingAcl);
+	freeIpv4AccessList(netPath->managementAcl);
 
 	return TRUE;
 }
@@ -482,6 +491,66 @@ netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
 	return TRUE;
 }
 
+Boolean
+netSetMulticastLoopback(NetPath * netPath, Boolean value) {
+	int temp = value ? 1 : 0;
+
+	DBG("Going to set multicast loopback with %d \n", temp);
+
+	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
+	       &temp, sizeof(int)) < 0) {
+		PERROR("Failed to set multicast loopback");
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+#if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)
+static Boolean
+getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
+	extern PtpClock *G_ptpClock;
+	ssize_t length;
+	fd_set tmpSet;
+	struct timeval timeOut = {0,0};
+	int val = 1;
+	if(netPath->txTimestampFailure)
+		goto end;
+
+	FD_ZERO(&tmpSet);
+	FD_SET(netPath->eventSock, &tmpSet);
+
+	if(select(netPath->eventSock + 1, &tmpSet, NULL, NULL, &timeOut) > 0) {
+		if (FD_ISSET(netPath->eventSock, &tmpSet)) {
+			length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, 
+			    netPath, MSG_ERRQUEUE);
+
+			if (length > 0) {
+				DBG("Grabbed sent msg via errqueue: %d bytes, at %d.%d\n", length, timeStamp->seconds, timeStamp->nanoseconds);
+				return TRUE;
+			} else if (length < 0) {
+				DBG("Failed to poll error queue for SO_TIMESTAMPING transmit time");
+				G_ptpClock->counters.messageRecvErrors++;
+				goto end;
+			} else if (length == 0) {
+				DBG("Received no data from TX error queue");
+				goto end;
+			}
+		}
+	} else {
+		DBG("SO_TIMESTAMPING - t timeout on TX timestamp - will use loop from now on\n");
+		return FALSE;
+	}
+end:
+		if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
+			DBG("gettxtimestamp: failed to revert to SO_TIMESTAMPNS");
+		}
+
+		return FALSE;
+}
+#endif /* SO_TIMESTAMPING */
+
+
 /**
  * Initialize timestamping of packets
  *
@@ -490,24 +559,69 @@ netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
  * @return TRUE if successful
  */
 Boolean 
-netInitTimestamping(NetPath * netPath)
+netInitTimestamping(NetPath * netPath, RunTimeOpts * rtOpts)
 {
+
 	int val = 1;
 	Boolean result = TRUE;
-	
-#if defined(SO_TIMESTAMPNS) /* Linux, Apple */
+#if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)/* Linux - current API */
+	DBG("netInitTimestamping: trying to use SO_TIMESTAMPING\n");
+	val = SOF_TIMESTAMPING_TX_SOFTWARE |
+	    SOF_TIMESTAMPING_RX_SOFTWARE |
+	    SOF_TIMESTAMPING_SOFTWARE;
+
+/* unless compiled with PTPD_EXPERIMENTAL, check if we support the desired tstamp capabilities */
+#ifndef PTPD_EXPERIMENTAL
+#ifdef ETHTOOL_GET_TS_INFO
+
+       struct ethtool_ts_info tsInfo;
+	struct ifreq ifRequest;
+        int res;
+
+        memset(&tsInfo, 0, sizeof(tsInfo));
+        memset(&ifRequest, 0, sizeof(ifRequest));
+        tsInfo.cmd = ETHTOOL_GET_TS_INFO;
+        strncpy( ifRequest.ifr_name, rtOpts->ifaceName, IFNAMSIZ - 1);
+        ifRequest.ifr_data = (char *) &tsInfo;
+        res = ioctl(netPath->eventSock, SIOCETHTOOL, &ifRequest);
+
+	if (res < 0) {
+		PERROR("Could not retrieve ethtool information for %s",
+			    rtOpts->ifaceName;
+			    return FALSE;
+	}
+
+	if(!(tsInfo.so_timestamping & val)) {
+		DBGV("Required SO_TIMESTAMPING flags not supported - reverting to SO_TIMESTAMPNS\n");
+		val = 1;
+		netPath->txTimestampFailure = FALSE;
+	}
+
+
+#else
+	netPath->txTimestampFailure = FALSE;
+	val = 1;
+#endif /* ETHTOOL_GET_TS_INFO */
+#endif /* PTPD_EXPERIMENTAL */
+
+	if((val==1 && (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0)) ||
+		(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(int)) < 0)) {
+		PERROR("netInitTimestamping: failed to enable SO_TIMESTAMPING");
+		result = FALSE;
+	} else {
+	DBG("SO_TIMESTAMP%s initialised\n",(val==1)?"NS":"ING");
+	}
+#elif defined(SO_TIMESTAMPNS) /* Linux, Apple */
 	DBG("netInitTimestamping: trying to use SO_TIMESTAMPNS\n");
 	
-	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0
-	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
+	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
 		PERROR("netInitTimestamping: failed to enable SO_TIMESTAMPNS");
 		result = FALSE;
 	}
 #elif defined(SO_BINTIME) /* FreeBSD */
 	DBG("netInitTimestamping: trying to use SO_BINTIME\n");
 		
-	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINTIME, &val, sizeof(int)) < 0
-	    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINTIME, &val, sizeof(int)) < 0) {
+	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINTIME, &val, sizeof(int)) < 0) {
 		PERROR("netInitTimestamping: failed to enable SO_BINTIME");
 		result = FALSE;
 	}
@@ -520,8 +634,7 @@ netInitTimestamping(NetPath * netPath)
 	if (!result) {
 		DBG("netInitTimestamping: trying to use SO_TIMESTAMP\n");
 		
-		if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(int)) < 0
-		    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(int)) < 0) {
+		if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(int)) < 0) {
 			PERROR("netInitTimestamping: failed to enable SO_TIMESTAMP");
 			result = FALSE;
 		}
@@ -796,26 +909,48 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		}
 
+
+#ifdef SO_TIMESTAMPING
+			/* Reset the failure indicator when (re)starting network */
+			netPath->txTimestampFailure = FALSE;
+			/* for SO_TIMESTAMPING we're receiving transmitted packets via ERRQUEUE */
+			temp = 0;
+#else
 			/* enable loopback */
 			temp = 1;
-
-			DBG("Going to set IP_MULTICAST_LOOP with %d \n", temp);
-
-			if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
-				       &temp, sizeof(int)) < 0
-			    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
-					  &temp, sizeof(int)) < 0) {
-				PERROR("Failed to enable multicast loopback");
-				return FALSE;
-			}
+#endif
 
 		/* make timestamps available through recvmsg() */
-		if (!netInitTimestamping(netPath)) {
+		if (!netInitTimestamping(netPath,rtOpts)) {
 			ERROR("failed to enable receive time stamps");
 			return FALSE;
 		}
+
+#ifdef SO_TIMESTAMPING
+		/* If we failed to initialise SO_TIMESTAMPING, enable mcast loopback */
+		if(netPath->txTimestampFailure)
+			temp = 1;
+#endif
+
+			if(!netSetMulticastLoopback(netPath, temp)) {
+				return FALSE;
+			}
+
+
 	}
-	
+
+	/* Compile ACLs */
+	if(rtOpts->timingAclEnabled) {
+    		freeIpv4AccessList(netPath->timingAcl);
+		netPath->timingAcl=createIpv4AccessList(rtOpts->timingAclPermitText,
+			rtOpts->timingAclDenyText, rtOpts->timingAclOrder);
+	}
+	if(rtOpts->managementAclEnabled) {
+		freeIpv4AccessList(netPath->managementAcl);
+		netPath->managementAcl=createIpv4AccessList(rtOpts->managementAclPermitText,
+			rtOpts->managementAclDenyText, rtOpts->managementAclOrder);
+	}
+
 	return TRUE;
 }
 
@@ -901,9 +1036,6 @@ if (rtOpts.snmp_enabled) {
 	return ret;
 }
 
-
-
-
 /** 
  * store received data from network to "buf" , get and store the
  * SO_TIMESTAMP value in "time" for an event message
@@ -922,7 +1054,7 @@ if (rtOpts.snmp_enabled) {
  */
 
 ssize_t 
-netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
+netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 {
 	ssize_t ret = 0;
 	struct msghdr msg;
@@ -934,12 +1066,12 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 
 	union {
 		struct cmsghdr cm;
-		char	control[CMSG_SPACE(sizeof(struct timeval))];
+		char	control[256];
 	}     cmsg_un;
 
 	struct cmsghdr *cmsg;
 
-#if defined(SO_TIMESTAMPNS)
+#if defined(SO_TIMESTAMPNS) || defined(SO_TIMESTAMPING)
 	struct timespec * ts;
 #elif defined(SO_BINTIME)
 	struct bintime * bt;
@@ -968,13 +1100,13 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		msg.msg_controllen = sizeof(cmsg_un.control);
 		msg.msg_flags = 0;
 
-		ret = recvmsg(netPath->eventSock, &msg, MSG_DONTWAIT);
+		ret = recvmsg(netPath->eventSock, &msg, flags | MSG_DONTWAIT);
 		if (ret <= 0) {
 			if (errno == EAGAIN || errno == EINTR)
 				return 0;
 
 			return ret;
-		}
+		};
 		if (msg.msg_flags & MSG_TRUNC) {
 			ERROR("received truncated message\n");
 			return 0;
@@ -989,7 +1121,8 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 			return 0;
 		}
 
-		netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
+		if(!(flags & MSG_ERRQUEUE))
+			netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 		netPath->receivedPackets++;
 
 		if (msg.msg_controllen <= 0) {
@@ -1002,7 +1135,19 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
 		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
 		     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 			if (cmsg->cmsg_level == SOL_SOCKET) {
-#if defined(SO_TIMESTAMPNS)
+#if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)
+				if(cmsg->cmsg_type == SO_TIMESTAMPING || 
+				    cmsg->cmsg_type == SO_TIMESTAMPNS) {
+					ts = (struct timespec *)CMSG_DATA(cmsg);
+					time->seconds = ts->tv_sec;
+					time->nanoseconds = ts->tv_nsec;
+					timestampValid = TRUE;
+					DBG("rcvevent: SO_TIMESTAMP%s %s time stamp: %us %dns\n", netPath->txTimestampFailure ?
+					    "NS" : "ING",
+					    (flags & MSG_ERRQUEUE) ? "(TX)" : "(RX)" , time->seconds, time->nanoseconds);
+					break;
+				}
+#elif defined(SO_TIMESTAMPNS)
 				if(cmsg->cmsg_type == SCM_TIMESTAMPNS) {
 					ts = (struct timespec *)CMSG_DATA(cmsg);
 					time->seconds = ts->tv_sec;
@@ -1099,126 +1244,23 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath)
  */
 
 ssize_t 
-netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
+netRecvGeneral(Octet * buf, NetPath * netPath)
 {
 	ssize_t ret;
-	struct msghdr msg;
-	struct iovec vec[1];
 	struct sockaddr_in from_addr;
-	
 	struct pcap_pkthdr *pkt_header;
 	const u_char *pkt_data;
+	socklen_t from_addr_len = sizeof(from_addr);
 
-	union {
-		struct cmsghdr cm;
-		char	control[CMSG_SPACE(sizeof(struct timeval))];
-	}     cmsg_un;
-	
-	struct cmsghdr *cmsg;
-	
-#if defined(SO_TIMESTAMPNS)
-	struct timespec * ts;
-#elif defined(SO_BINTIME)
-	struct bintime * bt;
-	struct timespec ts;
-#endif
-	
-#if defined(SO_TIMESTAMP)
-	struct timeval * tv;
-#endif
-	Boolean timestampValid = FALSE;
-	
 	if (netPath->pcapGeneral == NULL) {
-		vec[0].iov_base = buf;
-		vec[0].iov_len = PACKET_SIZE;
-	
-		memset(&msg, 0, sizeof(msg));
-		memset(&from_addr, 0, sizeof(from_addr));
-		memset(buf, 0, PACKET_SIZE);
-		memset(&cmsg_un, 0, sizeof(cmsg_un));
-	
-		msg.msg_name = (caddr_t)&from_addr;
-		msg.msg_namelen = sizeof(from_addr);
-		msg.msg_iov = vec;
-		msg.msg_iovlen = 1;
-		msg.msg_control = cmsg_un.control;
-		msg.msg_controllen = sizeof(cmsg_un.control);
-		msg.msg_flags = 0;
-	
-		ret = recvmsg(netPath->generalSock, &msg, MSG_DONTWAIT);
-		if (ret <= 0) {
-			if (errno == EAGAIN || errno == EINTR)
-				return 0;
-
-			return ret;
-		}
-		if (msg.msg_flags & MSG_TRUNC) {
-			ERROR("received truncated message\n");
-			return 0;
-		}
-		/* get time stamp of packet */
-		if (!time) {
-			ERROR("null receive time stamp argument\n");
-			return 0;
-		}
-		if (msg.msg_flags & MSG_CTRUNC) {
-			ERROR("received truncated ancillary data\n");
-			return 0;
-		}
-
+		ret=recvfrom(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT, &from_addr, &from_addr_len);
 		netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
-
-		netPath->receivedPackets++;
-	
-		if (msg.msg_controllen <= 0) {
-			ERROR("received short ancillary data (%ld/%ld)\n",
-			      (long)msg.msg_controllen, (long)sizeof(cmsg_un.control));
-		
-			return 0;
-		}
-	
-		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
-		     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-			if (cmsg->cmsg_level == SOL_SOCKET) {
-#if defined(SO_TIMESTAMPNS)
-				if(cmsg->cmsg_type == SCM_TIMESTAMPNS) {
-					ts = (struct timespec *)CMSG_DATA(cmsg);
-					time->seconds = ts->tv_sec;
-					time->nanoseconds = ts->tv_nsec;
-					timestampValid = TRUE;
-					DBGV("kernel NANO recv time stamp %us %dns\n", 
-					     time->seconds, time->nanoseconds);
-					break;
-				}
-#elif defined(SO_BINTIME)
-				if(cmsg->cmsg_type == SCM_BINTIME) {
-					bt = (struct bintime *)CMSG_DATA(cmsg);
-					bintime2timespec(bt, &ts);
-					time->seconds = ts.tv_sec;
-					time->nanoseconds = ts.tv_nsec;
-					timestampValid = TRUE;
-					DBGV("kernel NANO recv time stamp %us %dns\n",
-					     time->seconds, time->nanoseconds);
-					break;
-				}
-#endif
-			
-#if defined(SO_TIMESTAMP)
-				if(cmsg->cmsg_type == SCM_TIMESTAMP) {
-					tv = (struct timeval *)CMSG_DATA(cmsg);
-					time->seconds = tv->tv_sec;
-					time->nanoseconds = tv->tv_usec * 1000;
-					timestampValid = TRUE;
-					DBGV("kernel MICRO recv time stamp %us %dns\n",
-					     time->seconds, time->nanoseconds);
-				}
-#endif
-			}
-		}
+		return ret;
 	} else { /* Using PCAP */
 		/* Discard packet on socket */
 		if (netPath->generalSock >= 0)
 			recv(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT);
+
 		
 		if (( ret = pcap_next_ex(netPath->pcapGeneral, &pkt_header, 
 					 &pkt_data)) < 1) {
@@ -1227,8 +1269,6 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 				     ret, pcap_geterr(netPath->pcapGeneral));
 			return 0;
 		}
-
-
 	/* Make sure this is IP (could dot1q get here?) */
 	if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP)
 		DBGV("PCAP payload received is not Ethernet: 0x%04x\n",
@@ -1240,24 +1280,8 @@ netRecvGeneral(Octet * buf, TimeInternal * time, NetPath * netPath)
 		/* XXX Total cheat */
 		memcpy(buf, pkt_data + netPath->headerOffset, 
 		       pkt_header->caplen - netPath->headerOffset);
-		time->seconds = pkt_header->ts.tv_sec;
-		time->nanoseconds = pkt_header->ts.tv_usec * 1000;
-		timestampValid = TRUE;
-		DBGV("netRecvGeneral: kernel PCAP recv time stamp %us %dns\n",
-		     time->seconds, time->nanoseconds);
 		fflush(NULL);
 		ret = pkt_header->caplen - netPath->headerOffset;
-	}
-
-	if (!timestampValid) {
-		/*
-		 * do not try to get by with recording the time here, better
-		 * to fail because the time recorded could be well after the
-		 * message receive, which would put a big spike in the
-		 * offset signal sent to the clock servo
-		 */
-		DBG("netRecvGeneral: no receive time stamp\n");
-		return 0;
 	}
 
 	return ret;
@@ -1288,7 +1312,7 @@ netSendPcapEther(Octet * buf,  UInteger16 length,
 ///
 ssize_t 
 netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
-	     RunTimeOpts *rtOpts, Integer32 alt_dst)
+	     RunTimeOpts *rtOpts, Integer32 alt_dst, TimeInternal * tim)
 {
 	ssize_t ret;
 	struct sockaddr_in addr;
@@ -1326,34 +1350,49 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				DBG("Error sending unicast event message\n");
 			else
 				netPath->sentPackets++;
+#ifndef SO_TIMESTAMPING
 			/* 
 			 * Need to forcibly loop back the packet since
 			 * we are not using multicast. 
 			 */
 
 			addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
-
 			ret = sendto(netPath->eventSock, buf, length, 0, 
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
 				DBG("Error looping back unicast event message\n");
-		
+#else
+			if(!netPath->txTimestampFailure) {
+				if(!getTxTimestamp(netPath, tim)) {
+					netPath->txTimestampFailure = TRUE;
+					if (tim) {
+						clearTime(tim);
+					}
+				}
+			}
+
+			if(netPath->txTimestampFailure)
+			{
+				/* We've had a TX timestamp receipt timeout - falling back to packet looping */
+				addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
+				ret = sendto(netPath->eventSock, buf, length, 0, 
+				     (struct sockaddr *)&addr, 
+				     sizeof(struct sockaddr_in));
+				if (ret <= 0)
+					DBG("Error looping back unicast event message\n");
+			}
+#endif /* SO_TIMESTAMPING */		
 		} else {
 			addr.sin_addr.s_addr = netPath->multicastAddr;
-
                         /* Is TTL OK? */
 			if(netPath->ttlEvent != rtOpts->ttl) {
 				/* Try restoring TTL */
 				if(setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
 					&rtOpts->ttl, sizeof(int)) >= 0) {
-
 				    netPath->ttlEvent = rtOpts->ttl;
-
 				}
-
             		}
-
 			ret = sendto(netPath->eventSock, buf, length, 0, 
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
@@ -1361,6 +1400,20 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				DBG("Error sending multicast event message\n");
 			else
 				netPath->sentPackets++;
+#ifdef SO_TIMESTAMPING
+			if(!netPath->txTimestampFailure) {
+				if(!getTxTimestamp(netPath, tim)) {
+					if (tim) {
+						clearTime(tim);
+					}
+					
+					netPath->txTimestampFailure = TRUE;
+
+					/* Try re-enabling MULTICAST_LOOP */
+					netSetMulticastLoopback(netPath, TRUE);
+				}
+			}
+#endif /* SO_TIMESTAMPING */
 		}
 	}
 	return ret;
@@ -1436,7 +1489,6 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpt
 	ssize_t ret;
 	struct sockaddr_in addr;
 
-
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
@@ -1486,7 +1538,7 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpt
 }
 
 ssize_t 
-netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts *rtOpts)
+netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts *rtOpts, TimeInternal * tim)
 {
 	ssize_t ret;
 	struct sockaddr_in addr;
@@ -1513,6 +1565,7 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts 
 		else
 			netPath->sentPackets++;
 
+#ifndef SO_TIMESTAMPING
 		/* 
 		 * Need to forcibly loop back the packet since
 		 * we are not using multicast. 
@@ -1524,6 +1577,27 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts 
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("Error looping back unicast peer event message\n");
+#else
+		if(!netPath->txTimestampFailure) {
+			if(!getTxTimestamp(netPath, tim)) {
+				netPath->txTimestampFailure = TRUE;
+				if (tim) {
+					clearTime(tim);
+				}
+			}
+		}
+
+		if(netPath->txTimestampFailure) {
+			/* We've had a TX timestamp receipt timeout - falling back to packet looping */
+			addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
+			ret = sendto(netPath->eventSock, buf, length, 0, 
+				     (struct sockaddr *)&addr, 
+				     sizeof(struct sockaddr_in));
+			if (ret <= 0)
+				DBG("Error looping back unicast event message\n");
+		}
+#endif /* SO_TIMESTAMPING */
+
 	} else {
 		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
 
@@ -1545,6 +1619,20 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts 
 			DBG("Error sending multicast peer event message\n");
 		else
 			netPath->sentPackets++;
+#ifdef SO_TIMESTAMPING
+		if(!netPath->txTimestampFailure) {
+			if(!getTxTimestamp(netPath, tim)) {
+				if (tim) {
+					clearTime(tim);
+				}
+					
+				netPath->txTimestampFailure = TRUE;
+
+				/* Try re-enabling MULTICAST_LOOP */
+				netSetMulticastLoopback(netPath, TRUE);
+			}
+		}
+#endif /* SO_TIMESTAMPING */
 	}
 
 	if (ret > 0)
