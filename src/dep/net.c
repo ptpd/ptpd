@@ -587,7 +587,7 @@ netInitTimestamping(NetPath * netPath, RunTimeOpts * rtOpts)
 
 	if (res < 0) {
 		PERROR("Could not retrieve ethtool information for %s",
-			    rtOpts->ifaceName;
+			    rtOpts->ifaceName);
 			    return FALSE;
 	}
 

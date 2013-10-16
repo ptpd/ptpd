@@ -301,6 +301,7 @@ void PTPText_display(const PTPText*, const PtpClock*);
 void iFaceName_display(const Octet*);
 void unicast_display(const Octet*);
 const char *portState_getName(Enumeration8 portState);
+void timestamp_display(const Timestamp * timestamp);
 
 void displayCounters(const PtpClock*);
 void displayStatistics(const PtpClock*);

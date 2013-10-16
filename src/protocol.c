@@ -1160,6 +1160,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     TimeInternal timeStamp = { 0, 0 };
     fd_set readfds;
 
+    FD_ZERO(&readfds);
     if (!ptpClock->message_activity) {
 	ret = netSelect(NULL, &ptpClock->netPath, &readfds);
 	if (ret < 0) {
@@ -1177,7 +1178,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     DBGV("handle: something\n");
 
     if (rtOpts->pcap == TRUE) {
-	if (FD_ISSET(ptpClock->netPath.pcapEventSock, &readfds)) {
+	if (ptpClock->netPath.pcapEventSock >=0 && FD_ISSET(ptpClock->netPath.pcapEventSock, &readfds)) {
 	    length = netRecvEvent(ptpClock->msgIbuf, &timeStamp, 
 		          &ptpClock->netPath,0);
 	    if (length == 0) /* timeout, return for now */
@@ -1190,7 +1191,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    }
 	    processMessage(rtOpts, ptpClock, &timeStamp, length);
 	}
-	if (FD_ISSET(ptpClock->netPath.pcapGeneralSock, &readfds)) {
+	if (ptpClock->netPath.pcapGeneralSock >=0 && FD_ISSET(ptpClock->netPath.pcapGeneralSock, &readfds)) {
 	    length = netRecvGeneral(ptpClock->msgIbuf, &ptpClock->netPath);
 	    if (length == 0) /* timeout, return for now */
 		return;
