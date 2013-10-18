@@ -151,9 +151,13 @@ enable running multiple ptpd2 daemons
 .Sh SEE ALSO
 .Xr ptpd2.conf 5
 .Sh AUTHORS
-Gael Mace <gael_mace@users.sourceforge.net>, Alexandre Van
-Kempen, Steven Kreuzer <skreuzer@freebsd.org> 
-.PP
+.P
+Gael Mace <gael_mace@users.sourceforge.net>
+.P
+Alexandre Van Kempen
+.P
+Steven Kreuzer <skreuzer@freebsd.org> 
+.P
 George Neville-Neil <gnn@freebsd.org>
-.PP
+.P
 Wojciech Owczarek <wojciech@owczarek.co.uk>
