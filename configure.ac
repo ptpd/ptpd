@@ -184,6 +184,8 @@ AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx])
 
+AC_CHECK_DECL(MSG_ERRQUEUE, [[#include <sys/socket.h]])
+
 AC_MSG_CHECKING([for RUNTIME_DEBUG])
 AC_ARG_ENABLE(
     [runtime-debug],

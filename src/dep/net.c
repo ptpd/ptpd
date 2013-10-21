@@ -1121,7 +1121,9 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 			return 0;
 		}
 
+#if defined(HAVE_DECL_MSG_ERRQUEUE) && HAVE_DECL_MSG_ERRQUEUE
 		if(!(flags & MSG_ERRQUEUE))
+#endif
 			netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 		netPath->receivedPackets++;
 
