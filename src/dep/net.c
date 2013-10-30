@@ -753,7 +753,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				    "ether proto 0x88f7":
 				 ( rtOpts->ip_mode != IPMODE_MULTICAST ) ?
 					 "udp port 319" :
-				 "multicast and host 224.0.1.129 and udp port 319" ,
+				 "host (224.0.1.129 or 224.0.0.107) and udp port 319" ,
 				 1, 0) < 0) {
 			PERROR("failed to compile pcap event filter");
 			pcap_perror(netPath->pcapEvent, "ptpd2");
@@ -780,7 +780,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			if (pcap_compile(netPath->pcapGeneral, &program,
 					 ( rtOpts->ip_mode != IPMODE_MULTICAST ) ?
 						 "udp port 320" :
-					 "multicast and host 224.0.1.129 and udp port 320" ,
+					 "host (224.0.1.129 or 224.0.0.107) and udp port 320" ,
 					 1, 0) < 0) {
 				PERROR("failed to compile pcap general filter");
 				pcap_perror(netPath->pcapGeneral, "ptpd2");
@@ -804,6 +804,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		netPath->eventSock = -1;
 		close(netPath->generalSock);
 		netPath->generalSock = -1;
+		/* TX timestamp is not generated for PCAP mode and Ethernet transport */
+		netPath->txTimestampFailure = TRUE;
 	} else {
 		
 		/* save interface address for IGMP refresh */
@@ -981,25 +983,26 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 	}
 
 	FD_ZERO(readfds);
-	if (netPath->eventSock >=0) 
-		FD_SET(netPath->eventSock, readfds);
-	if (netPath->generalSock >=0)
-		FD_SET(netPath->generalSock, readfds);
-	if (netPath->pcapEventSock >= 0)
+	nfds = 0;
+	if (netPath->pcapEventSock >= 0) {
 		FD_SET(netPath->pcapEventSock, readfds);
-	if (netPath->pcapGeneralSock >= 0)
-		FD_SET(netPath->pcapGeneralSock, readfds);
+		if (netPath->pcapGeneralSock >= 0)
+			FD_SET(netPath->pcapGeneralSock, readfds);
 
-	if (netPath->pcapGeneralSock > 0)
-		nfds = netPath->pcapGeneralSock;
-	else 
-		if (netPath->pcapEventSock > netPath->pcapGeneralSock)
-			nfds = netPath->pcapEventSock;
-	else 
-		if (netPath->eventSock > netPath->generalSock)
-			nfds = netPath->eventSock;
-		else
+		nfds = netPath->pcapEventSock;
+		if (netPath->pcapEventSock < netPath->pcapGeneralSock)
+			nfds = netPath->pcapGeneralSock;
+
+	} else if (netPath->eventSock >= 0) {
+		FD_SET(netPath->eventSock, readfds);
+		if (netPath->generalSock >= 0)
+			FD_SET(netPath->generalSock, readfds);
+
+		nfds = netPath->eventSock;
+		if (netPath->eventSock < netPath->generalSock)
 			nfds = netPath->generalSock;
+
+	}
 	nfds++;
 
 #if defined PTPD_SNMP
