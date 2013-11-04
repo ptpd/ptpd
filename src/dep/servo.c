@@ -984,7 +984,6 @@ runPIservo(PIservo* servo, const Integer32 input)
 {
 
         double dt;
-        double inputNormalised;
 
         TimeInternal now, delta;
 
@@ -1022,7 +1021,6 @@ runPIservo(PIservo* servo, const Integer32 input)
             dt = 1.0;
 
 	servo->input = input;
-        inputNormalised = dt * (input + 0.0);
 
 	if (servo->kP < 0.000001)
 		servo->kP = 0.000001;
@@ -1030,7 +1028,7 @@ runPIservo(PIservo* servo, const Integer32 input)
 		servo->kI = 0.000001;
 
 	servo->observedDrift +=
-		(inputNormalised * servo->kI);
+		dt * ((input + 0.0 ) * servo->kI);
 
 	if(servo->observedDrift >= servo->maxOutput) {
 		servo->observedDrift = servo->maxOutput;
@@ -1043,7 +1041,7 @@ runPIservo(PIservo* servo, const Integer32 input)
 		servo->runningMaxOutput = FALSE;
 	}
 
-	servo->output = (servo->kP * inputNormalised) + servo->observedDrift;
+	servo->output = (servo->kP * (input + 0.0) ) + servo->observedDrift;
 
         if(servo->dTmethod == DT_MEASURED)
                 servo->lastUpdate = now;
