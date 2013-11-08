@@ -622,6 +622,7 @@ printKeyOptions( int count, ... )
 
     char *optionvalue;
     va_list va;
+#pragma message "Do NOT try fixing the 'set but not used' warning for optionnumber => segfaults"
     int i, optionnumber;
 
     /* if we got an incomplete argument list, cut it down to the last pair or nothing */

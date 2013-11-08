@@ -145,6 +145,29 @@ esac
 AC_SUBST(PTP_SNMP)
 AM_CONDITIONAL([SNMP], [test x$ptpd_snmp_enabled = x1])
 
+case $host in
+*linux*)
+
+    AC_CHECK_HEADERS([linux/net_tstamp.h], [], [
+
+    if [ test -d "/usr/src/kernels/`uname -r`/include" ]; then
+	LINUX_KERNEL_INCLUDES="-I/usr/src/kernels/`uname -r`/include"
+	LINUX_KERNEL_HEADERS=yes
+    fi
+
+    if [ test -d "/usr/src/linux-headers-`uname -r`/include" ]; then
+	LINUX_KERNEL_INCLUDES="-I/usr/src/linux-headers-`uname -r`/include"
+	LINUX_KERNEL_HEADERS=yes
+    fi
+
+    ])
+
+    ;;
+esac
+
+AM_CONDITIONAL(LINUX_KERNEL_HEADERS, test x$LINUX_KERNEL_HEADERS = xyes)
+AC_SUBST(LINUX_KERNEL_INCLUDES)
+
 # Checks for libraries.
 AC_CHECK_LIB([m], [pow])
 AC_CHECK_LIB([rt], [clock_gettime])
@@ -184,7 +207,7 @@ AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx])
 
-AC_CHECK_DECL(MSG_ERRQUEUE, [[#include <sys/socket.h]])
+AC_CHECK_DECLS([MSG_ERRQUEUE], [], [], [[#include <sys/socket.h>]])
 
 AC_MSG_CHECKING([for RUNTIME_DEBUG])
 AC_ARG_ENABLE(
