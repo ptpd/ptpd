@@ -8,4 +8,11 @@ Run:
 
  % autoreconf -vi
 
-to generate the build environment.
+to generate the build environment. On some older systems you may get
+libtool errors (./libtool: line nnnn: X[command]: command not found) -
+in that case use:
+
+ % libtoolize --force --copy; aclocal; autoconf; automake
+ 
+
+

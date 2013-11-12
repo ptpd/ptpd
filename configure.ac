@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 m4_include([m4/version.m4])
-AC_PREREQ(2.61)
+AC_PREREQ(2.59)
 AC_INIT(
     [ptpd2],
     [VERSION_NUMBER],
@@ -15,7 +15,7 @@ AC_CONFIG_HEADER([config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_INIT_AUTOMAKE([1.10 foreign -Wall])
+AM_INIT_AUTOMAKE([1.9 foreign -Wall])
 
 [RELEASE_DATE]="RELEASE_DATE"
 AC_SUBST([RELEASE_DATE])
@@ -185,14 +185,20 @@ AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h netinet/ethe
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_HEADER_STDBOOL
-AC_TYPE_INT64_T
-AC_TYPE_SIZE_T
-AC_TYPE_SSIZE_T
 AC_HEADER_TIME
-AC_TYPE_UINT32_T
-AC_TYPE_UINT64_T
-AC_TYPE_UINT8_T
 AC_C_VOLATILE
+
+# Automake 2.59 has a problem with those on RHEL5
+m4_version_prereq(2.60,[
+    AC_TYPE_UINT32_T
+    AC_TYPE_UINT64_T
+    AC_TYPE_UINT8_T
+    AC_TYPE_SIZE_T
+    AC_TYPE_SSIZE_T
+    AC_TYPE_INT64_T
+    ],
+    [AC_TYPE_SIZE_T]
+)
 
 # Check for tick in the timex structure
 AC_CHECK_MEMBERS([struct timex.tick], [], [], [[#include <sys/timex.h>]])
@@ -229,8 +235,9 @@ case "$ptp_runtime" in
     AC_ARG_ENABLE(
         [debug-level],
         [AS_HELP_STRING(
-	    [--enable-debug-level={basic,medium,all}],
+	    [[[[--enable-debug-level={basic,medium,all}]]]],        
 	    [debug message level: basic, medium, all]
+
         )],
         [ptp_dblevel=$enableval],
         [ptp_dblevel=no]
@@ -331,7 +338,7 @@ AC_MSG_CHECKING([for SIGUSR2 support])
 AC_ARG_ENABLE(
     [sigusr2],
     [AS_HELP_STRING(
-	[--enable-sigusr2={domain,debug,counters}],
+	[[[[--enable-sigusr2={domain,debug,counters}]]]],
 	[Enable SIGUSR2 support to: cycle PTP domain #, debug level or dump PTP engine counters (disabled by default)]
     )],
     [ptp_sigusr2=$enableval],
