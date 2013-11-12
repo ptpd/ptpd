@@ -2,7 +2,7 @@
 
 lib_LTLIBRARIES = $(LIBPTPD2_LIBS_LA)
 sbin_PROGRAMS = ptpd2
-man_MANS = ptpd2.8 ptpd2.conf.8
+man_MANS = ptpd2.8 ptpd2.conf.5
 
 AM_CFLAGS	= $(SNMP_CFLAGS) -Wall
 AM_CPPFLAGS	= $(SNMP_CPPFLAGS)

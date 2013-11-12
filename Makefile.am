@@ -12,9 +12,10 @@ EXTRA_DIST =			\
 	\
 	doc			\
 	tools			\
+	test			\
 	src/ptpd2.conf.minimal\
 	src/ptpd2.8\
-	src/ptpd2.conf.8\
+	src/ptpd2.conf.5\
 	\
 	$(NULL)
 

@@ -419,7 +419,7 @@ writeLockFile(RunTimeOpts * rtOpts)
 
 	int lockPid = 0;
 
-//	INFO("Checking lock file: %s\n", rtOpts->lockFile);
+	DBGV("Checking lock file: %s\n", rtOpts->lockFile);
 
 	if ( (G_lockFilePointer=fopen(rtOpts->lockFile, "w+")) == NULL) {
 		PERROR("Could not open lock file %s for writing", rtOpts->lockFile);
@@ -446,6 +446,7 @@ writeLockFile(RunTimeOpts * rtOpts)
 		goto failure;
 	}
 	INFO("Successfully acquired lock on %s\n", rtOpts->lockFile);
+	fflush(G_lockFilePointer);
 	return(1);
 	failure:
 	fclose(G_lockFilePointer);

@@ -4,7 +4,7 @@
 m4_include([m4/version.m4])
 AC_PREREQ(2.59)
 AC_INIT(
-    [ptpd2],
+    [ptpd],
     [VERSION_NUMBER],
     [ptpd-bugs@nwtime.org],
     [],
@@ -235,7 +235,7 @@ case "$ptp_runtime" in
     AC_ARG_ENABLE(
         [debug-level],
         [AS_HELP_STRING(
-	    [[[[--enable-debug-level={basic,medium,all}]]]],        
+	    [[[[--enable-debug-level={basic,medium,all}]]]],
 	    [debug message level: basic, medium, all]
 
         )],
@@ -363,6 +363,5 @@ AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([src/ptpd2.8])
 AC_CONFIG_FILES([src/ptpd2.conf.5])
-AC_CONFIG_FILES([src/ptpd2.conf.8])
 
 AC_OUTPUT
