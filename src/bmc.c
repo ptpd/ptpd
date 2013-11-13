@@ -213,6 +213,8 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	ptpClock->grandmasterPriority1 = announce->grandmasterPriority1;
 	ptpClock->grandmasterPriority2 = announce->grandmasterPriority2;
 
+	ptpClock->logAnnounceInterval = header->logMessageInterval;
+
 	/* Timeproperties DS */
 	ptpClock->timePropertiesDS.currentUtcOffset = announce->currentUtcOffset;
 

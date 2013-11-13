@@ -1619,7 +1619,16 @@ saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	DBGV("saveDrift called\n");
 
+       if(ptpClock->portState == PTP_PASSIVE ||
+              ptpClock->portState == PTP_MASTER ||
+                ptpClock->clockQuality.clockClass < 128) {
+                    DBGV("We're not slave - not saving drift\n");
+                    return;
+            }
 
+        if(ptpClock->servo.observedDrift == 0.0 &&
+            ptpClock->portState == PTP_LISTENING )
+                return;
 
 	if (rtOpts->drift_recovery_method > 0) {
 		ptpClock->last_saved_drift = ptpClock->servo.observedDrift;

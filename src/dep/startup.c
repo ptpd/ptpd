@@ -539,7 +539,8 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * this was not the case for log files. This adds consistency
 	 * and allows to use FILE* vs. fds everywhere
 	 */
-	umask(DEFAULT_UMASK);
+	umask(~DEFAULT_FILE_PERMS);
+
 	/** 
 	 * If a required setting, such as interface name, or a setting
 	 * requiring a range check is to be set via getopts_long,

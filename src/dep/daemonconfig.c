@@ -1209,8 +1209,9 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		"PTP sync message interval in master state\n"
 	"	"LOG2_HELP,-7,7);
 
-	/* if delayreq_interval defined, set the ignore_master to TRUE */
-	CONFIG_KEY_TRIGGER("ptpengine:log_delayreq_interval",rtOpts->ignore_delayreq_interval_master,TRUE,FALSE);
+	CONFIG_MAP_BOOLEAN("ptpengine:log_delayreq_override", rtOpts->ignore_delayreq_interval_master,
+	rtOpts->ignore_delayreq_interval_master,
+		 "Override the Delay Request interval announced by best master\n");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:log_delayreq_interval_initial",rtOpts->initial_delayreq,rtOpts->initial_delayreq,
 		"Delay request interval used before receiving first delay response\n"
@@ -2198,6 +2199,7 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	    {"log-file",	required_argument, 0, 'f'},
 	    {"statistics-file",	required_argument, 0, 'S'},
 	    {"delay-interval",	required_argument, 0, 'r'},
+	    {"delay-override",	no_argument, 	   0, 'a'},
 	    {"debug",		no_argument,	   0, 'D'},
 	    {"version",		optional_argument, 0, 'v'},
 	    {"foreground",	no_argument,	   0, 'C'},
@@ -2210,7 +2212,7 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	    {0,			0		 , 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHhe:Y:tOLEPAR:l", long_options, &opt_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHhe:Y:tOLEPAaR:l", long_options, &opt_index)) != -1) {
 	    switch(c) {
 /* non-config options first */
 
@@ -2302,6 +2304,10 @@ short_help:
 		/* statistics file */
 		case 'S':
 			dictionary_set(dict,"global:statistics_file", optarg);
+			break;
+		/* Override delay request interval from master */
+		case 'a':
+			dictionary_set(dict,"global:log_delayreq_override", "Y");
 			break;
 		/* Delay request interval - needed for hybrid mode */
 		case 'Y':
@@ -2447,8 +2453,10 @@ printShortHelp()
 			"-E --e2e			ptpengine:delay_mechanism=E2E	End to end delay detection\n"
 			"-P --p2p			ptpengine:delay_mechanism=P2P	Peer to peer delay detection\n"
 			"\n"
+			"-a --delay-override 		ptpengine:log_delayreq_override Override delay request interval\n"
+			"                                                               announced by master\n"
 			"-r --delay-interval [n] 	ptpengine:log_delayreq_interval=<n>	Delay request interval\n"
-			"									(log 2, overrides master)\n"
+			"									(log 2)\n"
 			"\n"
 			"-n --noadjust			clock:no_adjust			Do not adjust the clock\n"
 			"-D<DD...> --debug		global:debug_level=<level>	Debug level\n"
@@ -2597,6 +2605,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:log_sync_interval",     	PTPD_UPDATE_DATASETS );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_interval_initial",PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_interval",   PTPD_UPDATE_DATASETS );
+        COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_override",   PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:foreignrecord_capacity", 	PTPD_RESTART_DAEMON );
         COMPONENT_RESTART_REQUIRED("ptpengine:ptp_allan_variance",    	PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:ptp_clock_accuracy",    	PTPD_UPDATE_DATASETS );

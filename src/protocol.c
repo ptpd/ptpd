@@ -172,6 +172,10 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			    if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
 				NOTIFY("Applying network configuration: going into PTPD_INITIALIZING\n");
 			    }
+			    /* Those two parameters have to be passed to ptpClock before re-init */
+			    ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
+			    ptpClock->slaveOnly = rtOpts->slaveOnly;
+
 			    toState(PTP_INITIALIZING, rtOpts, ptpClock);
 		    } else {
 		    /* Nothing happens here for now - SIGHUP handler does this anyway */
@@ -1869,6 +1873,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 					
 					/* FIXME: the actual rearming of this timer with the new value only happens later in doState()/issueDelayReq() */
 				} else {
+
 					if (ptpClock->logMinDelayReqInterval != rtOpts->subsequent_delayreq) {
 						INFO("New Delay Request interval applied: %d (was: %d)\n",
 							rtOpts->subsequent_delayreq, ptpClock->logMinDelayReqInterval);
@@ -2852,7 +2857,6 @@ updateDatasets(PtpClock* ptpClock, RunTimeOpts* rtOpts)
 
 		/* We are master so update both the port and the parent dataset */
 		case PTP_MASTER:
-
 			ptpClock->numberPorts = NUMBER_PORTS;
 			ptpClock->delayMechanism = rtOpts->delayMechanism;
 			ptpClock->versionNumber = VERSION_PTP;
