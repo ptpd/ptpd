@@ -1,0 +1,205 @@
+#!/bin/bash
+
+#
+# ptpd:         Precision Time protocol server (IEEE 1588)
+#
+# chkconfig: 2345 59 73
+#
+# description:      The PTP daemon (PTPd) implements the Precision Time
+#           protocol (PTP) as defined by the IEEE 1588 standard.
+#           PTP was developed to provide very precise time
+#           coordination of LAN connected computers.
+
+DAEMON=/usr/sbin/ptpd2
+prog=PTPd
+RETVAL=0
+PATH=/sbin:/usr/local/bin:$PATH
+DAEMON_DESC="IEEE 1588 Precision Time Protocol (v2) daemon"
+
+. /etc/init.d/functions
+
+if test -e /etc/sysconfig/ptpd ; then
+
+    . /etc/sysconfig/ptpd
+    
+    PTPD_OPTIONS="--global:lock_file=$PTPD_PID_FILE --global:status_file=$PTPD_STATUS_FILE -c $PTPD_CONFIG_FILE $PTPD_EXTRA_OPTIONS"
+
+fi
+
+
+
+start() {
+
+	status $DAEMON > /dev/null 2>&1
+	RETVAL=$?
+	if [ "$RETVAL" -eq "0" ]
+	then
+		echo "$prog already running (PID `cat $PTPD_PID_FILE`)."
+		exit 0
+	fi
+
+	echo -n "Starting $DAEMON_DESC..."
+
+		$DAEMON $PTPD_OPTIONS
+		sleep 1 
+		status $DAEMON > /dev/null 2>&1
+		RETVAL=$?
+
+	if [ "$RETVAL" -eq "0" ] 
+	then 
+		echo_success
+	else
+		echo_failure
+	fi
+
+	echo
+
+}
+
+checkstatus() {
+	status $DAEMON > /dev/null 2>&1 	
+	RETVAL=$?
+	if [ "$RETVAL" -eq "0" ] 
+	then 
+	        if test -e $PTPD_PID_FILE ; then
+			echo "$prog is running (PID `cat $PTPD_PID_FILE`)."
+		fi
+	else
+			echo "$prog is not running."
+			RETVAL=3
+	fi
+
+	exit $RETVAL
+}
+
+showinfo() {
+	status $DAEMON > /dev/null 2>&1 	
+	RETVAL=$?
+	if [ "$RETVAL" -eq "0" ] 
+	then 
+	        if test -e $PTPD_PID_FILE ; then
+			echo "$prog is running (PID `cat $PTPD_PID_FILE`)."
+
+			taskset -pc `cat $PTPD_PID_FILE`
+		    
+			if test -e $PTPD_STATUS_FILE; then
+
+				cat $PTPD_STATUS_FILE
+
+			fi
+
+		fi
+	else
+			echo "$prog is not running."
+			RETVAL=3
+	fi
+
+	exit $RETVAL
+}
+
+
+checkconfig() {
+
+	$DAEMON -k $PTPD_OPTIONS
+	RETVAL=$?
+}
+
+stop() {
+	status $DAEMON > /dev/null 2>&1 	
+	RETVAL=$?
+   if [ "$RETVAL" -ne "0" ] 
+   then 
+   	echo "$prog not running."
+	else
+		killproc $DAEMON
+		RETVAL=$?
+		if [ "$RETVAL" -eq "0" ] 
+		then 
+			echo "Stopping $DAEMON_DESC...`echo_success`"
+		else
+			echo "Stopping $DAEMON_DESC...`echo_failure`"
+		fi
+	fi
+}
+
+reload() {
+
+	    checkconfig
+	    if [ "$RETVAL" -ne "0" ]; then
+		echo "Reloading $prog: `echo_failure`"
+		exit $RETVAL
+	    fi
+		echo -n $"Reloading $prog: "
+	    killproc $DAEMON -HUP
+	    RETVAL=$?
+	    echo
+}
+
+help() {
+
+        echo $"Usage: $0 {start|stop|restart|reload|checkconfig|condrestart|status|info}"
+        exit 1                         
+}
+
+if [ -z "$1" ]
+then
+    help
+fi
+
+case "$1" in
+    start)
+    start
+    RETVAL=$?
+    ;;
+
+    status)
+    checkstatus
+    RETVAL=$?
+    ;;
+
+    info)
+    showinfo
+    RETVAL=$?
+    ;;
+
+
+    restart)
+    stop
+	 sleep 1
+    start
+    RETVAL=$?
+    ;;
+
+    reload)
+    reload
+    RETVAL=$?
+
+    ;;
+
+    stop)
+    stop
+	 exit 0
+    ;;
+
+    checkconfig)
+    checkconfig
+    RETVAL=$?
+    ;;
+
+
+    condrestart)
+        if [ -f PID_FILE ]; then
+            stop
+            start
+            RETVAL=$?
+        fi
+        ;;
+    *)
+
+	echo $"Usage: $0 {start|stop|restart|reload|checkconfig|condrestart|status}"
+	RETVAL=3
+    ;;
+
+esac
+
+exit $RETVAL

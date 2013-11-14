@@ -1,0 +1,154 @@
+# (c) 2013:  Wojciech Owczarek, PTPd project
+
+%define _use_internal_dependency_generator 0
+
+# RHEL5.5 and older don't have the /etc/rpm/macros.dist macros
+%if "x%{dist}" != "x"
+%define distver %{dist}
+%else
+%define distver .el%(/usr/lib/rpm/redhat/dist.sh --distnum)
+%endif
+
+Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard
+Name: ptpd
+Version: 2.3.0
+Release: 0.99.rc2%{distver}
+License: distributable
+Group: System Environment/Daemons
+Vendor: PTPd project team
+Source0: ptpd-2.3.0-RC2.tar.gz
+Source1: ptpd.init
+Source2: ptpd.sysconfig
+Source3: ptpd.conf
+
+URL: http://ptpd.sf.net
+
+Requires(pre): /sbin/chkconfig
+Requires(pre): /bin/awk sed grep
+
+BuildRequires: libpcap-devel net-snmp-devel openssl-devel zlib-devel redhat-rpm-config
+Requires: libpcap net-snmp openssl zlib
+
+BuildRoot: %{_tmppath}/%{name}-root
+
+%description
+The PTP daemon (PTPd) implements the Precision Time
+protocol (PTP) as defined by the IEEE 1588 standard.
+PTP was developed to provide very precise time
+coordination of LAN connected computers.
+
+Install the ptpd package if you need tools for keeping your system's
+time synchronised via the PTP protocol.
+
+%prep 
+
+%setup -n ptpd-2.3.0-RC2
+
+%build
+
+./configure --enable-statistics --enable-ntpdc --enable-sigusr2=counters
+
+make
+
+find . -type f | xargs chmod 644
+find . -type d | xargs chmod 755
+
+%install
+rm -rf $RPM_BUILD_ROOT
+
+mkdir -p $RPM_BUILD_ROOT%{_mandir}/man{5,8}
+mkdir -p $RPM_BUILD_ROOT%{_sbindir}
+install -m 755 src/ptpd2 $RPM_BUILD_ROOT%{_sbindir}
+install -m 644 src/ptpd2.8 $RPM_BUILD_ROOT%{_mandir}/man8/ptpd2.8
+install -m 644 src/ptpd2.conf.5 $RPM_BUILD_ROOT%{_mandir}/man5/ptpd2.conf.5
+
+# fix section numbers
+sed -i 's/\(\.TH[a-zA-Z ]*\)[1-9]\(.*\)/\18\2/' $RPM_BUILD_ROOT%{_mandir}/man8/*.8
+sed -i 's/\(\.TH[a-zA-Z ]*\)[1-9]\(.*\)/\18\2/' $RPM_BUILD_ROOT%{_mandir}/man5/*.5
+
+{ cd $RPM_BUILD_ROOT
+
+  mkdir -p .%{_initrddir}
+  install -m755 $RPM_SOURCE_DIR/ptpd.init .%{_initrddir}/ptpd
+
+  mkdir -p .%{_sysconfdir}/sysconfig
+  install -m644 %{SOURCE2} .%{_sysconfdir}/sysconfig/ptpd
+  install -m644 %{SOURCE3} .%{_sysconfdir}/ptpd2.conf
+
+}
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%pre
+
+%post
+
+/sbin/chkconfig --add ptpd
+
+
+echo -e "\n===============\n"
+echo -e "**** Doing post-install checks...\n"
+
+grep -q : /etc/ethers >/dev/null 2>&1 || echo -e "Consider populating /etc/ethers with the MAC to host mappings of the GMs:\nexample:\t aa:bb:cc:dd:ee:ff gm-1.my.domain.net\n"
+
+echo -e "\n*** Checking NTPd status...\n"
+rpm -q ntp >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+
+    echo "** NTPd not installed."
+    echo -e "\n===============\n"
+    exit 0
+else
+    echo -e "** NTPd is installed.\n"
+fi
+
+chkconfig --level `runlevel | awk '{print $2;}'` ntpd >/dev/null 2>&1
+
+if [ $? == 0 ]; then
+    echo "** NTPd enabled in current runlevel - consider disabling unless:"
+    echo "- you're running a PTP master with NTP reference"
+    echo -e "- you configure NTP integration in the PTPd configuration file\n";
+fi
+
+service ntpd status > /dev/null 2>&1
+ret=$?
+if [ $ret == 3 ]; then
+    echo -e "** NTPd not running - good.\n";
+elif [ $ret == 0 ]; then
+    echo "** NTPd running - consider stopping before running ptpd unless:"
+    echo "- you're running a PTP master with NTP reference"
+    echo -e "- you configure NTP integration in the PTPd configuration file\n";
+fi
+
+echo -e "\n===============\n"
+
+:
+
+%preun
+if [ $1 = 0 ]; then
+    service ptpd stop > /dev/null 2>&1
+    /sbin/chkconfig --del ptpd
+fi
+:
+
+%postun
+if [ "$1" -ge "1" ]; then
+  service ptpd condrestart > /dev/null 2>&1
+fi
+:
+
+%files
+%defattr(-,root,root)
+%{_sbindir}/ptpd2
+%config			%{_initrddir}/ptpd
+%config(noreplace)	%{_sysconfdir}/sysconfig/ptpd
+%config(noreplace)	%{_sysconfdir}/ptpd2.conf
+%{_mandir}/man8/*
+%{_mandir}/man5/*
+
+
+%changelog
+* Wed Nov 14 2013 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.0-RC2
+- Initial public spec file and scripts for RHEL

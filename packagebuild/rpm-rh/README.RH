@@ -1,0 +1,37 @@
+====================== Building PTPd RPMs ===================
+
+- The rpmbuild.sh included in this directory should perform
+  a full RPM build for RHEL systems (and probably CentOS + FC).
+  This was used to build the RPMs starting with 2.3.0 RC2.
+  The script was successfully used to build under RHEL 5.5
+  and 6.2, but should build on any RHEL5+ system, CentOS,
+  Fedora and other distributions following the RH package
+  naming (-devel suffixes etc.). The spec file is easy
+  to modify to suit your distribution.
+
+- The rpmbuild.sh script calls "make dist" to generate
+  the tarball used for building the RPMs. If you are
+  building from svn, make sure you run autotools
+  (autoreconf) before trying to build RPMs. Follow the
+  README.repocheckout file in the main source directory
+  if in doubt.
+
+- * Not yet tested with FC19 / RHEL7 *
+
+- rpmbuild.sh will create a temporary build directory,
+  build to it, move the rpm files to the current directory
+  and finally clean up by removing the build directory.
+
+- The number of dependencies can be minimised mainly by
+  building ptpd without SNMP support (--disable-snmp).
+
+*******************************************************
+
+Wojciech Owczarek <wojciech%at%owczarek.co.uk>
+November 2013, PTPd project, http://ptpd.sf.net
+
+Please report init script and / or spec file
+bugs and modifications to the ptpd-devel mailing list
+on SourceForge, or use the SourceForge ptpd forums.
+
+*******************************************************
