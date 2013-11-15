@@ -201,8 +201,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	}
 
-#ifdef linux
-#ifdef HAVE_SCHED_H
+#if defined(linux) && defined(HAVE_SCHED_H)
                     /* Changing the CPU affinity mask */
                     if(rtOpts->restartSubsystems & PTPD_CHANGE_CPUAFFINITY) {
                         NOTIFY("Applying CPU binding configuration: changing selected CPU core\n");
@@ -229,10 +228,43 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
                                 else
                                         INFO("Successfully unbound "PTPD_PROGNAME" from cpu core CPU core %d\n", rtOpts->cpuNumber);
                         }
-                    }
-#endif /* HAVE_SCHED_H */
-#endif /* linux */
+                   }
+#endif /* linux && HAVE_SCHED_H */
 
+#ifdef HAVE_SYS_CPUSET_H
+	/* Changing the CPU affinity mask */
+		    if (rtOpts->restartSubsystems & PTPD_CHANGE_CPUAFFINITY) {
+			    NOTIFY("Applying CPU binding configuration:"
+				   "changing selected CPU core\n");
+			    cpuset_t mask;
+			    CPU_ZERO(&mask);
+			    if (tmpOpts.cpuNumber < 0) {
+				    if (cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_CPUSET, 1,
+							   sizeof(mask), &mask) < 0)
+					    PERROR("Could not get affinity.");
+				    if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
+							   -1, sizeof(mask), &mask) < 0)
+					    PERROR("Could not unbind from CPU core %d",
+						   rtOpts->cpuNumber);
+				    else
+					    INFO("Successfully unbound "
+						 PTPD_PROGNAME" from cpu core CPU core %d\n",
+						 rtOpts->cpuNumber);
+			    } else {
+				    CPU_SET(tmpOpts.cpuNumber,&mask);
+				    if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
+							   -1, sizeof(mask), &mask) < 0)  {
+					    PERROR("Could not bind to CPU core %d",
+							   tmpOpts.cpuNumber);
+					    rtOpts->restartSubsystems = -1;
+				    } else {
+					    INFO("Successfully bound "
+						 PTPD_PROGNAME" to CPU core %d\n",
+						 tmpOpts.cpuNumber);
+				    }
+			    }
+		    }
+#endif
 	if(rtOpts->restartSubsystems & PTPD_RESTART_ACLS) {
 		NOTIFY("Applying access control list configuration\n");
 		/* re-compile ACLs */
@@ -746,9 +778,7 @@ configcheck:
 		}
 	}
 
-#ifdef linux
-#ifdef HAVE_SCHED_H
-
+#if defined(linux) && defined(HAVE_SCHED_H)
 	/* Try binding to a single CPU core if configured to do so */
 
 	if(rtOpts->cpuNumber > -1) {
@@ -762,8 +792,26 @@ configcheck:
 		    INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n", rtOpts->cpuNumber);
 		}
 	}
-#endif /* HAVE_SCHED_H */
-#endif /* linux */
+#endif /* linux && HAVE_SCHED_H */
+
+#ifdef HAVE_SYS_CPUSET_H
+
+	/* Try binding to a single CPU core if configured to do so */
+
+	if(rtOpts->cpuNumber > -1) {
+		cpuset_t mask;
+    		CPU_ZERO(&mask);
+    		CPU_SET(rtOpts->cpuNumber,&mask);
+    		if(cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
+				      -1, sizeof(mask), &mask) < 0) {
+			PERROR("Could not bind to CPU core %d",
+			       rtOpts->cpuNumber);
+		} else {
+			INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n",
+			     rtOpts->cpuNumber);
+		}
+	}
+#endif /* HAVE_SYS_CPUSET_H */
 
 	/* use new synchronous signal handlers */
 	signal(SIGINT,  catchSignals);

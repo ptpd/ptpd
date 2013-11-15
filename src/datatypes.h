@@ -830,11 +830,9 @@ typedef struct {
 	Boolean	offset_first_updated;
 	int ttl;
 	int dscpValue;
-#ifdef linux
-#ifdef HAVE_SCHED_H
+#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H)
 	int cpuNumber;
-#endif /* HAVE_SCHED_H */
-#endif /* linux */
+#endif /* linux && HAVE_SCHED_H || HAVE_SYS_CPUSET_H*/
 
 	Boolean alwaysRespectUtcOffset;
 	Boolean preferUtcValid;

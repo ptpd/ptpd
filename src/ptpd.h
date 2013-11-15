@@ -74,11 +74,13 @@
 #else
 #include <pcap.h>
 #endif
-#ifdef linux
-#ifdef HAVE_SCHED_H
+#if defined(linux) && defined(HAVE_SCHED_H)
 #include <sched.h>
-#endif /* HAVE_SCHED_H */
-#endif /* linux */
+#endif /* linux && HAVE_SCHED_H */
+
+#ifdef HAVE_SYS_CPUSET_H
+#include <sys/cpuset.h>
+#endif /* HAVE_SYS_CPUSET_H */
 
 #include "constants.h"
 #include "limits.h"

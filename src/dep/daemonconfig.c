@@ -871,12 +871,9 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* Try 46 for expedited forwarding */
 	rtOpts->dscpValue = 0;
 
-#ifdef linux
-#ifdef HAVE_SCHED_H
-	/* Linux only (for now) - CPU core number */
+#if (defined(linux) && defined(HAVE_SHED_H)) || defined(HAVE_SYS_CPUSET_H)
 	rtOpts-> cpuNumber = -1;
-#endif /* HAVE_SCHED_H */
-#endif /* linux */
+#endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H*/
 
 #ifdef PTPD_STATISTICS
 
@@ -1807,14 +1804,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->statisticsLog.logEnabled && !rtOpts->logStatistics,
 					rtOpts->statisticsLog.logEnabled, FALSE, rtOpts->statisticsLog.logEnabled);
 
-#ifdef linux
-#ifdef HAVE_SCHED_H
+#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H)
 	CONFIG_MAP_INT_RANGE("global:cpuaffinity_cpucore",rtOpts->cpuNumber,rtOpts->cpuNumber,
 		"Linux only: bind "PTPD_PROGNAME" process to a selected CPU core number.\n"
 	"        0 = first CPU core, etc. -1 = do not bind to a single core.",
 	-1,255);
-#endif /* HAVE_SCHED_H */
-#endif /* linux */
+#endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H */
 
 #ifdef PTPD_STATISTICS
 	CONFIG_MAP_INT_RANGE("global:statistics_update_interval",rtOpts->statsUpdateInterval,
@@ -2712,11 +2707,9 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("global:foreground", 		PTPD_RESTART_DAEMON );
         COMPONENT_RESTART_REQUIRED("global:verbose_foreground",		PTPD_RESTART_DAEMON );
 
-#ifdef linux
-#ifdef HAVE_SCHED_H
+#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H)
         COMPONENT_RESTART_REQUIRED("global:cpuaffinity_cpucore",	PTPD_CHANGE_CPUAFFINITY );
-#endif /* HAVE_SCHED_H */
-#endif /* linux */
+#endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H */
 
 #ifdef PTPD_NTPDC
 	COMPONENT_RESTART_REQUIRED("ntpengine:enabled",			PTPD_RESTART_NTPENGINE);

@@ -182,6 +182,14 @@ AC_CHECK_LIB(
 AC_HEADER_STDC
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h netinet/ether.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h pcap/pcap.h pcap.h])
 
+# MUST chck for cpuset AFTER the check for param as the latter needs 
+# the former to pass the compile check.
+AC_CHECK_HEADERS([sys/cpuset.h], [], [],
+[#ifdef HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+])
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_HEADER_STDBOOL
