@@ -816,6 +816,16 @@ typedef struct {
 
 	Octet ifaceName[IFACE_NAME_LENGTH];
 	Boolean	noResetClock;
+#ifdef linux
+	Boolean setRtc;
+#endif /* linux */
+
+#ifdef DBG_SIGUSR2_DUMP_COUNTERS
+	Boolean clearCounters;
+#endif
+
+	Integer8 masterRefreshInterval;
+
 	Integer32 maxReset; /* Maximum number of nanoseconds to reset */
 	Integer32 maxDelay; /* Maximum number of nanoseconds of delay */
 	Integer32 origMaxDelay; /* Lower bound of nanoseconds of delay */
@@ -824,7 +834,7 @@ typedef struct {
 	Boolean displayPackets;
 	Octet unicastAddress[MAXHOSTNAMELEN];
 	Integer16 s;
-	TimeInternal inboundLatency, outboundLatency;
+	TimeInternal inboundLatency, outboundLatency, ofmShift;
 	Integer16 max_foreign_records;
 	Enumeration8 delayMechanism;
 	Boolean	offset_first_updated;

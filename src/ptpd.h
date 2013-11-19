@@ -123,6 +123,9 @@
 #define min(a,b)     (((a)<(b))?(a):(b))
 #define max(a,b)     (((a)>(b))?(a):(b))
 
+#ifdef HAVE_LINUX_RTC_H
+#include <linux/rtc.h>
+#endif /* HAVE_LINUX_RTC_H */
 
 /** \name arith.c
  * -Timing management and arithmetic*/
@@ -307,6 +310,7 @@ void timestamp_display(const Timestamp * timestamp);
 
 void displayCounters(const PtpClock*);
 void displayStatistics(const PtpClock*);
+void clearCounters(PtpClock *);
 
 void msgHeader_display(const MsgHeader*);
 void msgAnnounce_display(const MsgAnnounce*);

@@ -27,7 +27,7 @@
 #define REVISION \
   ";;2.3"
 #define USER_VERSION \
-  "2.3.0-RC2"
+  "2.3.0"
 #define USER_DESCRIPTION \
   "PTPDv2"
 #define USER_DESCRIPTION_MAX 128
@@ -176,6 +176,7 @@ enum {
   NTPD_CHECK_TIMER,
   NTPD_FAILOVER_TIMER,
 #endif
+  MASTER_NETREFRESH_TIMER,
   TIMER_ARRAY_SIZE
 };
 

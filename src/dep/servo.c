@@ -486,6 +486,10 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	ofm_filt->nsec_prev = ptpClock->offsetFromMaster.nanoseconds;
 	ptpClock->offsetFromMaster.nanoseconds = ofm_filt->y;
 
+	/* Apply the offset shift */
+	subTime(&ptpClock->offsetFromMaster, &ptpClock->offsetFromMaster,
+	&rtOpts->ofmShift);
+
 	DBGV("offset filter %d\n", ofm_filt->y);
 
 	/*
@@ -509,6 +513,13 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	subTime(&newTime, &oldTime, &ptpClock->offsetFromMaster);
 
 	setTime(&newTime);
+
+#ifdef HAVE_LINUX_RTC_H
+	if(rtOpts->setRtc) {
+		setRtc(&newTime);
+	}
+#endif /* HAVE_LINUX_RTC_H */
+
 	initClock(rtOpts, ptpClock);
 /* restoreDrift is not defined for Apple */
 #ifndef __APPLE__

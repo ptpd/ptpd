@@ -834,10 +834,19 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->ttl = 64;
 	rtOpts->delayMechanism   = DEFAULT_DELAY_MECHANISM;
 	rtOpts->noResetClock     = DEFAULT_NO_RESET_CLOCK;
+#ifdef HAVE_LINUX_RTC_H
+	rtOpts->setRtc		 = FALSE;
+#endif /* HAVE_LINUX_RTC_H */
+
+#ifdef DBG_SIGUSR2_DUMP_COUNTERS
+	rtOpts->clearCounters = FALSE;
+#endif /* DBG_SIGUSR2_DUMP_COUNTERS */
 	rtOpts->statisticsLogInterval = 0;
 
 	rtOpts->initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
 	rtOpts->subsequent_delayreq = DEFAULT_DELAYREQ_INTERVAL;      // this will be updated if -g is given
+
+	rtOpts->masterRefreshInterval = 60;
 
 	rtOpts->drift_recovery_method = DRIFT_KERNEL;
 	strncpy(rtOpts->lockDirectory, DEFAULT_LOCKDIR, PATH_MAX);
@@ -1164,10 +1173,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		 "Slave only mode (sets clock class to 255, overriding value from preset)");
 
 	CONFIG_MAP_INT( "ptpengine:inbound_latency",rtOpts->inboundLatency.nanoseconds,rtOpts->inboundLatency.nanoseconds,
-	"Specify latency correction for incoming packets");
+	"Specify latency correction (nanoseconds) for incoming packets");
 
 	CONFIG_MAP_INT( "ptpengine:outbound_latency",rtOpts->outboundLatency.nanoseconds,rtOpts->outboundLatency.nanoseconds,
-	"Specify latency correction for outgoing packets");
+	"Specify latency correction (nanoseconds) for outgoing packets");
+
+	CONFIG_MAP_INT( "ptpengine:offset_shift",rtOpts->ofmShift.nanoseconds,rtOpts->ofmShift.nanoseconds,
+	"Apply an arbitrary shift (nanoseconds) to offset from master when\n"
+	"	 in slave state. Value can be positive or negative - useful for\n"
+	"	 correcting for of antenna latencies and IP stack latencies. This will\n"
+	"	 not be visible in the offset from master value - only in the\n"
+	"	 resulting clock correction.");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:always_respect_utc_offset",rtOpts->alwaysRespectUtcOffset, rtOpts->alwaysRespectUtcOffset,
 		"Compatibility option: In slave state, always respect UTC offset\n"
@@ -1354,7 +1370,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"Accept SET and COMMAND management messages");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:igmp_refresh",rtOpts->do_IGMP_refresh,rtOpts->do_IGMP_refresh,
-	"Send explicit IGMP joins between engine resets");
+	"Send explicit IGMP joins between engine resets and periodically in master state");
+
+	CONFIG_MAP_INT_RANGE("ptpengine:master_igmp_refresh_interval",rtOpts->masterRefreshInterval,rtOpts->masterRefreshInterval,
+		"Periodic IGMP join interval (seconds) in master state when running IPv4 multicast:\n"
+		"	 when set below 10 or when ptpengine:igmp_refresh is disabled,\n"
+		"	 this setting has no effect.",0,255);
 
 	CONFIG_MAP_INT_RANGE("ptpengine:multicast_ttl",rtOpts->ttl,rtOpts->ttl,
 		"Multicast time to live for multicast PTP packets (ignored and set to 1\n"
@@ -1477,6 +1498,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #endif /* PTPD_NTPDC */
 
+#ifdef DBG_SIGUSR2_DUMP_COUNTERS
+	CONFIG_MAP_BOOLEAN("ptpengine:sigusr2_clears_counters",rtOpts->clearCounters,rtOpts->clearCounters,
+		"When compiled with --enable-sigusr2=counters, clear counters after dumping all counter values\n");
+#endif /* DBG_SIGUSR2_DUMP_COUNTERS */
+
+
 	/* Defining the ACLs enables ACL matching */
 	CONFIG_KEY_TRIGGER("ptpengine:timing_acl_permit",rtOpts->timingAclEnabled,TRUE,rtOpts->timingAclEnabled);
 	CONFIG_KEY_TRIGGER("ptpengine:timing_acl_deny",rtOpts->timingAclEnabled,TRUE,rtOpts->timingAclEnabled);
@@ -1543,6 +1570,13 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_BOOLEAN("clock:no_reset",rtOpts->noResetClock,rtOpts->noResetClock,
 	"Do not reset the clock - only slew");
+
+#ifdef HAVE_LINUX_RTC_H
+	CONFIG_MAP_BOOLEAN("clock:set_rtc_on_step",rtOpts->setRtc,rtOpts->setRtc,
+	"Attempt setting the RTC when stepping clock (Linux only - FreeBSD does this for us)\n"
+	"	 WARNING: this will always set the RTC to OS clock time regardless of time zones,\n"
+	"	 so this assumes that RTC runs in UTC - true on most single-boot x86 Linux systems");
+#endif /* HAVE_LINUX_RTC_H */
 
 	CONFIG_MAP_SELECTVALUE("clock:drift_handling",rtOpts->drift_recovery_method,rtOpts->drift_recovery_method,
 		"Observed drift handling method between servo restarts:\n"
@@ -2591,14 +2625,21 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:use_libpcap",   		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:delay_mechanism",        	PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:domain",    		PTPD_RESTART_PROTOCOL );
-//        COMPONENT_RESTART_REQUIRED("ptpengine:inbound_latency",       	PTPD_RESTART_NONE );
-//        COMPONENT_RESTART_REQUIRED("ptpengine:outbound_latency",      	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:inbound_latency",       PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:outbound_latency",      PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:offset_shift",      	PTPD_RESTART_NONE );
+
         COMPONENT_RESTART_REQUIRED("ptpengine:pid_as_clock_idendity", 	PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:ptp_slaveonly",           PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_announce_interval",   PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:announce_receipt_timeout",        PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_sync_interval",     	PTPD_UPDATE_DATASETS );
+        COMPONENT_RESTART_REQUIRED("ptpengine:master_igmp_refresh_interval",     	PTPD_RESTART_PROTOCOL );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_interval_initial",PTPD_RESTART_NONE );
+#ifdef DBG_SIGUSR2_DUMP_COUNTERS
+//        COMPONENT_RESTART_REQUIRED("ptpengine:sigusr2_clears_counters",      	PTPD_RESTART_NONE );
+#endif /* DBG_SIGUSR2_DUMP_COUNTERS */
+
         COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_interval",   PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_override",   PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:foreignrecord_capacity", 	PTPD_RESTART_DAEMON );
@@ -2658,6 +2699,9 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 
 //        COMPONENT_RESTART_REQUIRED("clock:no_adjust",    		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:no_reset",     		PTPD_RESTART_NONE );
+#ifdef HAVE_LINUX_RTC_H
+//        COMPONENT_RESTART_REQUIRED("clock:set_rtc_on_step",  		PTPD_RESTART_NONE );
+#endif /* HAVE_LINUX_RTC_H */
 //        COMPONENT_RESTART_REQUIRED("clock:drift_file",   		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:drift_handling",       	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:max_offset_ppm",       	PTPD_RESTART_NONE );

@@ -147,6 +147,14 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	NOTIFY("SIGHUP received\n");
 
+#ifdef RUNTIME_DEBUG
+	if(rtOpts->transport == UDP_IPV4 && rtOpts->ip_mode != IPMODE_UNICAST) {
+		DBG("SIGHUP - running an ipv4 multicast based mode, re-sending IGMP joins\n");
+		netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+	}
+#endif /* RUNTIME_DEBUG */
+
+
 	/* if we don't have a config file specified, we're done - just reopen log files*/
 	if(strlen(rtOpts->configFile) ==  0)
 	    goto end;
@@ -359,8 +367,12 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 	if(sigusr1_received){
-		WARNING("SIGUSR1 received, stepping clock to current known OFM\n");
-		servo_perform_clock_step(rtOpts, ptpClock);
+	    if(ptpClock->portState == PTP_SLAVE){
+		    WARNING("SIGUSR1 received, stepping clock to current known OFM\n");
+		    servo_perform_clock_step(rtOpts, ptpClock);
+	    } else {
+		    ERROR("SIGUSR1 received - will not step clock, not in PTP_SLAVE state\n");
+	    }
 	sigusr1_received = 0;
 	}
 
@@ -403,6 +415,10 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			INFO("\n\n");
 			INFO("** Management message ACL:\n");
 			dumpIpv4AccessList(ptpClock->netPath.managementAcl);
+		}
+		if(rtOpts->clearCounters) {
+			clearCounters(ptpClock);
+			NOTIFY("PTP engine counters cleared\n");
 		}
 		sigusr2_received = 0;
 	}

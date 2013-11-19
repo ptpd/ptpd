@@ -12,11 +12,11 @@
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard
 Name: ptpd
 Version: 2.3.0
-Release: 0.99.rc2%{distver}
+Release: 1%{distver}
 License: distributable
 Group: System Environment/Daemons
 Vendor: PTPd project team
-Source0: ptpd-2.3.0-RC2.tar.gz
+Source0: ptpd-2.3.0.tar.gz
 Source1: ptpd.init
 Source2: ptpd.sysconfig
 Source3: ptpd.conf
@@ -42,7 +42,7 @@ time synchronised via the PTP protocol.
 
 %prep 
 
-%setup -n ptpd-2.3.0-RC2
+%setup -n ptpd-2.3.0
 
 %build
 

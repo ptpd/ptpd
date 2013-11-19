@@ -90,8 +90,6 @@ static void processPDelayRespFromSelf(const TimeInternal * tint, RunTimeOpts * r
 
 void addForeign(Octet*,MsgHeader*,PtpClock*);
 
-void clearCounters(PtpClock *);
-
 /* loop forever. doState() has a switch for the actions and events to be
    checked for 'port_state'. the actions and events may or may not change
    'port_state' by calling toState(), but once they are done we loop around
@@ -313,6 +311,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(SYNC_INTERVAL_TIMER, ptpClock->itimer);  
 		timerStop(ANNOUNCE_INTERVAL_TIMER, ptpClock->itimer);
 		timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer); 
+		timerStop(MASTER_NETREFRESH_TIMER, ptpClock->itimer); 
 		break;
 		
 	case PTP_SLAVE:
@@ -472,6 +471,13 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   ptpClock->itimer);
 		timerStart(PDELAYREQ_INTERVAL_TIMER, 
 			   pow(2,ptpClock->logMinPdelayReqInterval), 
+			   ptpClock->itimer);
+		if( rtOpts->do_IGMP_refresh &&
+		    rtOpts->transport == UDP_IPV4 &&
+		    rtOpts->ip_mode != IPMODE_UNICAST &&
+		    rtOpts->masterRefreshInterval > 9 );
+			timerStart(MASTER_NETREFRESH_TIMER, 
+			   rtOpts->masterRefreshInterval, 
 			   ptpClock->itimer);
 		ptpClock->portState = PTP_MASTER;
 		displayStatus(ptpClock, "Now in state: ");
@@ -902,7 +908,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			DBGV("event ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES\n");
 			issueAnnounce(rtOpts, ptpClock);
 		}
-		
+
 		if (ptpClock->delayMechanism == P2P) {
 			if (timerExpired(PDELAYREQ_INTERVAL_TIMER,
 					ptpClock->itimer)) {
@@ -910,13 +916,24 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				issuePDelayReq(rtOpts,ptpClock);
 			}
 		}
-		
+
+		if(rtOpts->do_IGMP_refresh &&
+		    rtOpts->transport == UDP_IPV4 &&
+		    rtOpts->ip_mode != IPMODE_UNICAST &&
+		    rtOpts->masterRefreshInterval > 9 &&
+		    timerExpired(MASTER_NETREFRESH_TIMER, ptpClock->itimer)) {
+				DBGV("Master state periodic IGMP refresh - next in %d seconds...\n",
+				rtOpts->masterRefreshInterval);
+			       netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+
+		}
+
 		// TODO: why is handle() below expiretimer, while in slave is the opposite
 		handle(rtOpts, ptpClock);
 		
 		if (ptpClock->slaveOnly || ptpClock->clockQuality.clockClass == SLAVE_ONLY_CLOCK_CLASS)
 			toState(PTP_LISTENING, rtOpts, ptpClock);
-		
+
 		break;
 
 	case PTP_DISABLED:
