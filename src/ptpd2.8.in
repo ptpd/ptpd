@@ -222,6 +222,14 @@ Clean exit - close logs and other open files, clean up lock file and exit.
 \fISIGKILL\fR
 Force an unclean exit.
 .RE
+.SH EXIT CODES
+Upon exit, ptpd2 returns \fB0\fR on success - either successfully started in daemon mode, or otherwise exited cleanly.
+\fB0\fR is  also returned when the \fI-k\fR (\fI--check-config\fR)
+option is used and the configuration was correct. A non-zero exit code is returned on errors.
+\fB3\fR is returned on lock file errors and when ptpd2 could not be started as daemon.
+\fB2\fR is returned on memory allocation errors during startup. For all other error conditions such as
+configuration errors, running ptpd2 in help mode or with no parameters, on self shutdown,
+network startup errors and when attempting to run ptpd2 as non-root -  \fB1\fR is returned.
 
 .SH SEE ALSO
 .Xr ptpd2.conf 5
