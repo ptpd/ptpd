@@ -3,7 +3,7 @@
 %define _use_internal_dependency_generator 0
 
 # RHEL5.5 and older don't have the /etc/rpm/macros.dist macros
-%if "x%{dist}" != "x"
+%if %{?dist:1}%{!?dist:0}
 %define distver %{dist}
 %else
 %define distver .el%(/usr/lib/rpm/redhat/dist.sh --distnum)
