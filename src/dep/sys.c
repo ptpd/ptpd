@@ -797,7 +797,8 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 
 	fprintf(out, 		STATUSPREFIX"  %s\n","Interface", dictionary_get(rtOpts->currentConfig, "ptpengine:interface", ""));
 	fprintf(out, 		STATUSPREFIX"  %s\n","Preset", dictionary_get(rtOpts->currentConfig, "ptpengine:preset", ""));
-	fprintf(out, 		STATUSPREFIX"  %s\n","Transport", dictionary_get(rtOpts->currentConfig, "ptpengine:transport", ""));
+	fprintf(out, 		STATUSPREFIX"  %s%s\n","Transport", dictionary_get(rtOpts->currentConfig, "ptpengine:transport", ""),
+		(rtOpts->transport==UDP_IPV4 && rtOpts->pcap == TRUE)?" + libpcap":"");
 	if(rtOpts->transport != IEEE_802_3)
 	fprintf(out, 		STATUSPREFIX"  %s\n","IP mode", dictionary_get(rtOpts->currentConfig, "ptpengine:ip_mode", ""));
 	fprintf(out, 		STATUSPREFIX"  %s\n","Delay mechanism", dictionary_get(rtOpts->currentConfig, "ptpengine:delay_mechanism", ""));

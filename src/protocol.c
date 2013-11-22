@@ -168,7 +168,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			    }
 
 			    if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
-				NOTIFY("Applying network configuration: going into PTPD_INITIALIZING\n");
+				NOTIFY("Applying network configuration: going into PTP_INITIALIZING\n");
 			    }
 			    /* Those two parameters have to be passed to ptpClock before re-init */
 			    ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
