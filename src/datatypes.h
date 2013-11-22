@@ -828,7 +828,6 @@ typedef struct {
 
 	Integer32 maxReset; /* Maximum number of nanoseconds to reset */
 	Integer32 maxDelay; /* Maximum number of nanoseconds of delay */
-	Integer32 origMaxDelay; /* Lower bound of nanoseconds of delay */
 	Boolean	noAdjust;
 
 	Boolean displayPackets;

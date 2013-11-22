@@ -4,153 +4,229 @@
 ptpd2 \- Precision Time Protocol daemon (1588-2008)
 .SH SYNOPSIS
 .B ptpd2
-[-?hH]
-[-A]
-[-c FILE]
-[-C]
-[-S FILE]
-[-f FILE]
-[-R]
-[-d NUMBER]
-[-D]
-[-P]
-[-O]
-[-M]
-[-t]
-[-b NAME]
-[-u ADDRESS]
-[-U]
-[-l]
-[-o NUMBER]
-[-i NUMBER]
-[-n]
-[-y]
-[-m]
-[-V]
-[-g]
-[-v]
-[-r NUMBER]
-[-s]
-[-G]
-[-W]
-[-Y NUMBER]
-[-L]
-.Sh DESCRIPTION
+\fB[ -?hH ]\fR
+\fB[ -e \fISETTING\fB ]\fR
+\fB[ -kvOLAl ]\fR
+\fB[ -smMyEPanCV ]\fR
+\fB[ -c \fIFILE\fB ]\fR
+\fB[ -R \fIDIR\fB ]\fR
+\fB[ -f \fIFILE\fB ]\fR
+\fB[ -S \fIFILE\fB ]\fR
+\fB[ -d \fIDOMAIN\fB ]\fR
+\fB[ -u \fIADDRESS\fB ]\fR
+\fB[ -r \fINUMBER\fB ]\fR
+\fB-i \fIINTERFACE\fB\fR
+.SH DESCRIPTION
 PTPd is a daemon that implements the Precision Time Protocol (PTP)
 Version 2 as defined by the IEEE 1588-2008 standard. PTP was developed
 to provide very precise time coordination of LAN connected computers.
 The daemon must run as
 .B root
-in order to be able to manipluate the system clock.
-.Sh OPTIONS
+in order to be able to manipluate the system clock and use low port numbers.
+PTPd is feature rich, supports IPv4 multicast, unicast and hybrid mode (mixed) operation,
+as well as Ethernet mode. Even without hardware assistance, PTPd is able to achieve and
+maintain sub-microsecond level timing precision and is able to withstand PTP Grandmaster
+failovers, link failures and restarts with minimal impact to timing performance.
+PTPd is lightweight, portable and currently supports Linux, FreeBSD
+and Mac OS X and runs on multiple CPU architectures, 32-bit and 64-bit, including x86 and ARM.
+.SH COMMAND-LINE CONFIGURATION
+As of version 2.3.0, configuration file is the preferred mechanism for configuring PTPd, therefore
+the options available as short (\fI-x\fR) and long options (\fI--xxxxx\fR) mostly provide basic control
+over the daemon operation, and only provide the very basic PTP protocol settings. The rest of the settings (see \fBptpd.conf(5)\fR)
+can also be specified as command-line options, but they take the long \fI--key:section="value"\fR form.
+
+.SH BASIC DAEMON OPTIONS
 .TP
-.B \-?
-explain the help options
+\fB-c --config-file \fIPATH\fR
+Path to configuration file (see \fBptpd2.conf(5)\fR)
 .TP
-.B \-h
-display short help
+\fB-k --check-config\fR
+Check configuration and exit - return 0 if configuration is correct.
 .TP
-.B \-H
-display long help
+\fB-v --version\fR
+Print version string and exit
 .TP
-.B \-A
-automatic file locking
+\fB-h --help\fR
+Show help screen
 .TP
-.B \-c FILE
-config file location
+\fB-H --long-help\fR
+Show detailed help for all settings and behaviours
 .TP
-.B \-k
-check config file and exit
+\fB-e --explain \fISETTING\fR
+Show help for a single setting (\fIsection:key\fR)
 .TP
-.B \-C
-run in command line mode and display statistics and logs
+\fB-O --default-config\fR
+Show default configuration and exit (output usable as a configuration file)
 .TP
-.B \-S FILE
-statistics file
+\fB-L --ignore-lock\fR
+Skip lock file checks and locking (also \fIglobal:ignore_lock\fR)
 .TP
-.B \-f FILE
-send output to FILE
+\fB-A --auto-lock\fR
+Use preset / port mode specific lock file names - useful when running multiple instances
 .TP
-.B \-R
-show the lock directory
+\fB-l --lockfile\fR
+Specify lock file path (also \fIglobal:lock_file\fR)
 .TP
-.B \-D
-run time debug, requires building with RUNTIME_DEBUG
+\fB-p --print-lockfile\fR
+Print path to lock file and exit (useful for init scripts in combination with auto lock files)
 .TP
-.B \-M 
-run as master with connection to NTP
+\fB-R --lock-directory \fIDIR\fR
+Directory to store lock files (also \fIglobal:lock_directory\fR)
 .TP
-.B \-O 
-print out the default configuration
+\fB-f --log-file \fIPATH\fR
+Path to log file (also \fIglobal:logfile\fR)
 .TP
-.B \-t
-do not adjust the system clock (deprecated, use -n)
+\fB-S --statistics-file \fII PATH\fR
+Path to statistics file (also \fIglobal:statistics_file\fR)
+.SH BASIC PTP PROTOCOL OPTIONS
 .TP
-.B \-b NAME 
-bind PTP to network interface NAME (deprecated, use config files)
+\fB-i --interface \fDEV\fR
+\fIREQUIRED:\fRInterface to use - eth0, etc (also \fIptpengine:interface\fR)
 .TP
-.B \-u ADDRESS
-also send uni-cast to ADDRESS
+\fB-d --domain \fINUMBER\fR
+PTP domain number to become part of (also \fIptpengine:domain\fR)
 .TP
-.B \-U
-hybrid mode which uses both unicast and multicast, requires PTPD_EXPERIMENTAL (deprecated use -y)
+\fB-s --slaveonly\fR
+Slave only mode (also \fIptpengine:preset=slaveonly\fR)
 .TP
-.B \-E
-run in End to End mode
+\fB-m --masterslave\fR
+Full IEEE 1588 implementation: master, slave when not best GM (also \fIptpengine:preset=masterslave\fR)
 .TP
-.B \-P
-run in Point to Point (P2P) mode
+\fB-M --masteronly\fR
+Master only mode: passive when not best GM (also \fIptpengine:preset=masteronly\fR)
 .TP
-.B \-l
-print lock file
+\fB-y --hybrid\fR
+Hybrid mode - mixed multicast and unicast operation (multicast for sync and announce, unicast
+for delay request and response (also \fIptpengine:ip_mode=hybrid\fR)
 .TP
-.B \-o NUMBER
-specify current UTC offset
+\fB-u --unicast \fIIP\fR
+Unicast mode (no unicast negotiation) - send all messages to \fIIP\fR
+(also \fIptpengine:ip_mode=unicast\fR + \fIptpengine:unicast_address\fR)
+\fB-E --e2e\fR
+End to end delay detection (also \fIptpengine:delay_mechanism=E2E\fR)
 .TP
-.B \-i NUMBER
-specify PTP domain number (deprecated use -d or config files)
+\fB-E --p2p\fR
+Peer to peer delay detection (also \fIptpengine:delay_mechanism=P2P\fR)
 .TP
-.B \-d NUMBER
-domain number
+\fB-a --delay-override\fR
+In slave state, override delay request interval announced by master (also \fIptpengine:log_delayreq_override\fR) - the value
+of \fIptpengine:log_delayreq_interval\fR is used
 .TP
-.B \-n
-do not adjust the system clock
+\fB-r --delay-interval \fINUMBER\fR
+Specify delay request message interval (log 2) - (also \fIptpengine:log_delayreq_interval\fR)
 .TP
-.B \-y
-hybrid mode which uses both unicast and multicast, requires PTPD_EXPERIMENTAL
+\fB-n --clock:no_adjust\fR
+Do not adjust the clock (also \fIclock:no_adjust\fR)
 .TP
-.B \-m
-run as master only
+\fB-D<DD...> --debug\fR
+Debug level (also \fIglobal:debug_level\fR) - only if compiled with RUNTIME_DEBUG
 .TP
-.B \-V
-run in the foreground with verbose messages
+\fB-C --foreground\fR
+Don't run in background (also \fIglobal:foreground=Y\fR)
 .TP
-.B \-g
-run as slave only (deprecated, use config files)
+\fB-V --verbose\fR
+Run in foreground, log all the messages to standard output (also \fIglobal:verbose_foreground=Y\fR)
+
+.SH COMPATIBILITY OPTIONS
+
 .TP
-.B \-v
-show daemon version
+PTPd supports the following options compatible with versions before 2.3.0:
+.RS 8
+.TP 8
+\fB-b \fIDEV\fR
+Network interface to use
+.TP 8
+\fB-i \fINUMBER\fR
+PTP domain number
+.TP 8
+\fB-g\fR
+Slave only mode
+.TP 8
+\fB-G\fR
+\'Master mode with NTP\' (master only mode)
+.TP 8
+\fB-W\fR
+\'Master mode without NTP\' (master / slave mode)
+.TP 8
+\fB-U\fR
+Hybrid mode (mixed unicast + multicast operation)
+.TP 8
+\fB-Y \fINUMBER\fR
+Delay request interval (log 2)
+.TP 8
+\fB-t\fR
+Do not adjust the clock
+.RE
 .TP
-.B \-r NUMBER
-delay request interval in seconds
+\fBNOTE:\fR the above options are deprecated and will be removed in subsequent versions. Until then, their use will issue a warning.
+
+
+.SH PTPD PORT STATES
+
+.RS 8
 .TP
-.B \-s 
-slave only mode
+\fIinit\fR
+INITIALIZING
 .TP
-.B \-G
-run as master with connection to NTP (deprecated use -M)
+\fIflt\fR
+FAULTY
 .TP
-.B \-W
-run as master without NTP (deprecated use -m)
+\fIlstn_init\fR
+LISTENING (first time)
 .TP
-.B \-Y NUMBER
-set an initial delay request value (deprecated, use -r)
+\fIlstn_reset\fR
+LISTENING (subsequent reset)
 .TP
-.B \-L
-enable running multiple ptpd2 daemons
-.Sh SEE ALSO
+\fIpass\fR
+PASSIVE (not best master, not announcing)
+.TP
+\fIuncl\fR
+UNCALIBRATED
+.TP
+\fIslv\fR
+SLAVE
+.TP
+\fIpmst\fR
+PRE-MASTER
+.TP
+\fImst\fR
+MASTER (active)
+.TP
+\fIdsbl\fR
+DISABLED
+.TP
+\fI? (unk)\fR
+UNKNOWN state
+.RE
+
+.SH HANDLED SIGNALS
+.TP
+\fBPTPd handles the following signals:\fR
+.RS 8
+.TP 8
+\fISIGHUP\fR
+Reload configuration file (if used) and reopen log files
+.TP 8
+\fISIGUSR1\fR
+When in slave state, force clock step to current Offset from Master value
+.TP 8
+\fISIGUSR2\fR
+Bahaviour based on \fIconfigure --enable-sigusr2=[value]\fR. Options:
+\fIdomain\fR: swap domain between current and current +1;
+\fIdebug\fR: cycle runtime debug level;
+\fIcounters\fR:Dump all PTP protocol counters to current log targer.
+.TP 8
+\fISIGINT|SIGTERM\fR
+Clean exit - close logs and other open files, clean up lock file and exit.
+.TP 8
+\fISIGKILL\fR
+Force an unclean exit.
+.RE
+
+.SH SEE ALSO
 .Xr ptpd2.conf 5
-.Sh AUTHORS
+ptpd2.conf(5)
+.SH AUTHORS
 .P
 Gael Mace <gael_mace@users.sourceforge.net>
 .P
@@ -161,3 +237,5 @@ Steven Kreuzer <skreuzer@freebsd.org>
 George Neville-Neil <gnn@freebsd.org>
 .P
 Wojciech Owczarek <wojciech@owczarek.co.uk>
+
+\fBptpd2(8)\fR man page was written by Wojciech Owczarek for ptpd 2.3.0 in November 2013

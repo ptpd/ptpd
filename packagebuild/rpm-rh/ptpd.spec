@@ -58,9 +58,13 @@ rm -rf $RPM_BUILD_ROOT
 
 mkdir -p $RPM_BUILD_ROOT%{_mandir}/man{5,8}
 mkdir -p $RPM_BUILD_ROOT%{_sbindir}
+mkdir -p $RPM_BUILD_ROOT%{_datadir}/snmp/mibs
+
 install -m 755 src/ptpd2 $RPM_BUILD_ROOT%{_sbindir}
 install -m 644 src/ptpd2.8 $RPM_BUILD_ROOT%{_mandir}/man8/ptpd2.8
 install -m 644 src/ptpd2.conf.5 $RPM_BUILD_ROOT%{_mandir}/man5/ptpd2.conf.5
+install -m 644 doc/PTPBASE-MIB.txt $RPM_BUILD_ROOT%{_datadir}/snmp/mibs/PTPBASE-MIB.txt
+
 
 # fix section numbers
 sed -i 's/\(\.TH[a-zA-Z ]*\)[1-9]\(.*\)/\18\2/' $RPM_BUILD_ROOT%{_mandir}/man8/*.8
@@ -147,8 +151,11 @@ fi
 %config(noreplace)	%{_sysconfdir}/ptpd2.conf
 %{_mandir}/man8/*
 %{_mandir}/man5/*
+%{_datadir}/snmp/mibs/*
 
 
 %changelog
-* Wed Nov 14 2013 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.0-RC2
+* Thu Nov 21 2013 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.0-1
+- Added the PTPBASE SNMP MIB
+* Wed Nov 14 2013 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.0-0.99-rc2
 - Initial public spec file and scripts for RHEL

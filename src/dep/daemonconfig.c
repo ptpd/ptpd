@@ -1107,7 +1107,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_REQUIRED("ptpengine:interface");
 
 	CONFIG_MAP_CHARARRAY("ptpengine:interface",rtOpts->ifaceName,rtOpts->ifaceName,
-	"Network interface to use (required)");
+	"Network interface to use - eth0, igb0 etc. (required).");
 
 	/* Preset option names have to be mapped to defined presets - no free strings here */
 	CONFIG_MAP_SELECTVALUE("ptpengine:preset",rtOpts->selectedPreset,rtOpts->selectedPreset,
@@ -1131,14 +1131,14 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 multicast for sync and announce, and unicast for delay request and\n"
 	"	 response; unicast mode uses unicast for all transmission.\n"
 	"	 When unicast mode is selected, destination IP must be configured\n"
-	"	(ptpengine:unicast_address)\n",
+	"	(ptpengine:unicast_address).",
 				"multicast", 	IPMODE_MULTICAST,
 				"unicast", 	IPMODE_UNICAST,
 				"hybrid", 	IPMODE_HYBRID
 				);
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:transport",rtOpts->transport,rtOpts->transport,
-		"Transport type for PTP packets",
+		"Transport type for PTP packets.",
 				"ipv4",		UDP_IPV4,
 #if 0
 				"ipv6",		UDP_IPV6,
@@ -1154,36 +1154,37 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_BOOLEAN("ptpengine:use_libpcap",rtOpts->pcap,rtOpts->pcap,
 		"Use libpcap for sending and receiving traffic (automatically enabled\n"
-	"	 in Ethernet mode)");
+	"	 in Ethernet mode).");
 
 	/* in ethernet mode, activate pcap and overwrite previous setting */
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport==IEEE_802_3,rtOpts->pcap,TRUE,rtOpts->pcap);
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:delay_mechanism",rtOpts->delayMechanism,rtOpts->delayMechanism,
 		 "Delay detection mode used - use DELAY_DISABLED for syntonisation only\n"
-	"	 (no synchronisation)",
+	"	 (no synchronisation).",
 				"E2E",		E2E,	
 				"P2P",		P2P,
 				"DELAY_DISABLED", DELAY_DISABLED
 				);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:domain",rtOpts->domainNumber,rtOpts->domainNumber,"PTP domain number",0,127);
+	CONFIG_MAP_INT_RANGE("ptpengine:domain",rtOpts->domainNumber,rtOpts->domainNumber,
+		"PTP domain number.",0,127);
 
 	CONFIG_MAP_BOOLEAN("ptpengine:slave_only",rtOpts->slaveOnly, ptpPreset.slaveOnly,
-		 "Slave only mode (sets clock class to 255, overriding value from preset)");
+		 "Slave only mode (sets clock class to 255, overriding value from preset).");
 
 	CONFIG_MAP_INT( "ptpengine:inbound_latency",rtOpts->inboundLatency.nanoseconds,rtOpts->inboundLatency.nanoseconds,
-	"Specify latency correction (nanoseconds) for incoming packets");
+	"Specify latency correction (nanoseconds) for incoming packets.");
 
 	CONFIG_MAP_INT( "ptpengine:outbound_latency",rtOpts->outboundLatency.nanoseconds,rtOpts->outboundLatency.nanoseconds,
-	"Specify latency correction (nanoseconds) for outgoing packets");
+	"Specify latency correction (nanoseconds) for outgoing packets.");
 
 	CONFIG_MAP_INT( "ptpengine:offset_shift",rtOpts->ofmShift.nanoseconds,rtOpts->ofmShift.nanoseconds,
 	"Apply an arbitrary shift (nanoseconds) to offset from master when\n"
 	"	 in slave state. Value can be positive or negative - useful for\n"
-	"	 correcting for of antenna latencies and IP stack latencies. This will\n"
-	"	 not be visible in the offset from master value - only in the\n"
-	"	 resulting clock correction.");
+	"	 correcting for of antenna latencies, delay assymetry\n"
+	"	 and IP stack latencies. This will not be visible in the offset \n"
+	"	 from master value - only in the resulting clock correction.");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:always_respect_utc_offset",rtOpts->alwaysRespectUtcOffset, rtOpts->alwaysRespectUtcOffset,
 		"Compatibility option: In slave state, always respect UTC offset\n"
@@ -1204,11 +1205,11 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 NOTE: this behaviour is not part of the standard.");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:log_announce_interval",rtOpts->announceInterval,rtOpts->announceInterval,
-		"PTP announce message interval in master state\n"
+		"PTP announce message interval in master state."
 		 LOG2_HELP,-1,7);
 
 	CONFIG_MAP_INT_RANGE("ptpengine:announce_receipt_timeout",rtOpts->announceReceiptTimeout,rtOpts->announceReceiptTimeout,
-		"PTP announce receipt timeout announced in master state",2,255);
+		"PTP announce receipt timeout announced in master state.",2,255);
 
 	CONFIG_MAP_INT_RANGE("ptpengine:announce_receipt_grace_period",rtOpts->announceTimeoutGracePeriod,rtOpts->announceTimeoutGracePeriod,
 		"PTP announce receipt timeout grace period in slave state:\n"
@@ -1224,7 +1225,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_BOOLEAN("ptpengine:log_delayreq_override", rtOpts->ignore_delayreq_interval_master,
 	rtOpts->ignore_delayreq_interval_master,
-		 "Override the Delay Request interval announced by best master\n");
+		 "Override the Delay Request interval announced by best master.");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:log_delayreq_interval_initial",rtOpts->initial_delayreq,rtOpts->initial_delayreq,
 		"Delay request interval used before receiving first delay response\n"
@@ -1238,17 +1239,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 "LOG2_HELP,-7,7);
 
 	CONFIG_MAP_INT_RANGE("ptpengine:log_peer_delayreq_interval",rtOpts->logMinPdelayReqInterval,rtOpts->logMinPdelayReqInterval,
-		"Minimum peer delay request message interval in peer ro peer delay mode\n"
+		"Minimum peer delay request message interval in peer to peer delay mode\n"
 	"	"LOG2_HELP,-7,7);
 
 	CONFIG_MAP_INT_RANGE("ptpengine:foreignrecord_capacity",rtOpts->max_foreign_records,rtOpts->max_foreign_records,
-	"Foreign master record size (Maximum number of foreign masters)",5,10);
+	"Foreign master record size (Maximum number of foreign masters).",5,10);
 
 	CONFIG_MAP_INT_RANGE("ptpengine:ptp_allan_variance",rtOpts->clockQuality.offsetScaledLogVariance,rtOpts->clockQuality.offsetScaledLogVariance,
-	"Specify Allan variance announced in master state",0,65535);
+	"Specify Allan variance announced in master state.",0,65535);
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:ptp_clock_accuracy",rtOpts->clockQuality.clockAccuracy,rtOpts->clockQuality.clockAccuracy,
-	"Clock accuracy range announced in master state",
+	"Clock accuracy range announced in master state.",
 				"ACC_25NS",		0x20,
 				"ACC_100NS",		0x21,
 				"ACC_250NS",		0x22,
@@ -1271,19 +1272,19 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				);
 
 	CONFIG_MAP_INT( "ptpengine:utc_offset",rtOpts->timeProperties.currentUtcOffset,rtOpts->timeProperties.currentUtcOffset,
-		 "Underlying time source UTC offset announced in master state");
+		 "Underlying time source UTC offset announced in master state.");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:utc_offset_valid",rtOpts->timeProperties.currentUtcOffsetValid,
 	rtOpts->timeProperties.currentUtcOffsetValid,
-		 "Underlying time source UTC offset validity announced in master state");
+		 "Underlying time source UTC offset validity announced in master state.");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:time_traceable",rtOpts->timeProperties.timeTraceable,
 	rtOpts->timeProperties.timeTraceable,
-		 "Underlying time source time traceability announced in master state");
+		 "Underlying time source time traceability announced in master state.");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:frequency_traceable",rtOpts->timeProperties.frequencyTraceable,
 	rtOpts->timeProperties.frequencyTraceable,
-		 "Underlying time source frequency traceability announced in master state");
+		 "Underlying time source frequency traceability announced in master state.");
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:ptp_timescale",rtOpts->timeProperties.ptpTimescale,rtOpts->timeProperties.ptpTimescale,
 		"Time scale announced in master state (with ARB, UTC properties\n"
@@ -1294,7 +1295,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				);
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:ptp_timesource",rtOpts->timeProperties.timeSource,rtOpts->timeProperties.timeSource,
-	"Time source announced in master state",
+	"Time source announced in master state.",
 				"ATOMIC_CLOCK",		ATOMIC_CLOCK,
 				"GPS",			GPS,
 				"TERRESTRIAL_RADIO",	TERRESTRIAL_RADIO,
@@ -1326,11 +1327,11 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_INT_RANGE("ptpengine:priority1",rtOpts->priority1,rtOpts->priority1,
 		"Priority 1 announced in master state,used for Best Master\n"
-	"	 Clock selection",0,248);
+	"	 Clock selection.",0,248);
 
 	CONFIG_MAP_INT_RANGE("ptpengine:priority2",rtOpts->priority2,rtOpts->priority2,
 		"Priority 2 announced in master state, used for Best Master\n"
-	"	 Clock selection",0,248);
+	"	 Clock selection.",0,248);
 
 	/* 
 	 * TODO: in unicast and hybrid mode, automativally override master delayreq interval with a default,
@@ -1361,39 +1362,40 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_CHARARRAY("ptpengine:unicast_address",rtOpts->unicastAddress,rtOpts->unicastAddress,
 		"Specify unicast destination for unicast master mode (in unicast slave mode,\n"
-	"	 overrides delay request destination)");
+	"	 overrides delay request destination).");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:management_enable",rtOpts->managementEnabled,rtOpts->managementEnabled,
-	"Enable handling of PTP management messages");
+	"Enable handling of PTP management messages.");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:management_set_enable",rtOpts->managementSetEnable,rtOpts->managementSetEnable,
-	"Accept SET and COMMAND management messages");
+	"Accept SET and COMMAND management messages.");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:igmp_refresh",rtOpts->do_IGMP_refresh,rtOpts->do_IGMP_refresh,
-	"Send explicit IGMP joins between engine resets and periodically in master state");
+	"Send explicit IGMP joins between engine resets and periodically\n"
+	"	 in master state.");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:master_igmp_refresh_interval",rtOpts->masterRefreshInterval,rtOpts->masterRefreshInterval,
-		"Periodic IGMP join interval (seconds) in master state when running IPv4 multicast:\n"
-		"	 when set below 10 or when ptpengine:igmp_refresh is disabled,\n"
-		"	 this setting has no effect.",0,255);
+		"Periodic IGMP join interval (seconds) in master state when running\n"
+		"	 IPv4 multicast: when set below 10 or when ptpengine:igmp_refresh\n"
+		"	 is disabled, this setting has no effect.",0,255);
 
 	CONFIG_MAP_INT_RANGE("ptpengine:multicast_ttl",rtOpts->ttl,rtOpts->ttl,
 		"Multicast time to live for multicast PTP packets (ignored and set to 1\n"
-	"	 for peer to peer messages)",1,64);
+	"	 for peer to peer messages).",1,64);
 
 	CONFIG_MAP_INT_RANGE("ptpengine:ip_dscp",rtOpts->dscpValue,rtOpts->dscpValue,
 		"DiffServ CodepPoint for packet prioritisation (decimal). When set to zero, \n"
-	"	 this option is not used. Use 46 for Expedited Forwarding (0x2e)",0,63);
+	"	 this option is not used. Use 46 for Expedited Forwarding (0x2e).",0,63);
 
 
 #ifdef PTPD_EXPERIMENTAL
 	CONFIG_MAP_INT_RANGE("ptpengine:alt_mcast_group",rtOpts->mcast_group_Number,rtOpts->mcast_group_Number,
 	"Use PTP alternative multicast group like PTPv1:\n"
-	"0 = 224.0.1.129, 1 = 224.0.1.130, 2 = 224.0.1.131, 3 = 224.0.1.132",0,3);
+	"0 = 224.0.1.129, 1 = 224.0.1.130, 2 = 224.0.1.131, 3 = 224.0.1.132.",0,3);
 #else	
 	if(!IS_QUIET() && CONFIG_ISSET("ptpengine:alt_mcast_group"))
-	INFO("PTPv1 multicast group support not enabled. Please compile with PTPD_EXPERIMENTAL "
-		    "to use ptpengine:v1style_mcast_group\n");
+	INFO("PTPv1 multicast group support not enabled. Please compile with PTPD_EXPERIMENTAL \n"
+		    "to use ptpengine:v1style_mcast_group.");
 #endif /* PTPD_EXPERIMENTAL */
 
 #ifdef PTPD_STATISTICS
@@ -1403,7 +1405,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:delay_outlier_filter_action",rtOpts->delaySMOutlierFilterDiscard,rtOpts->delaySMOutlierFilterDiscard,
 		"Delay Response outlier filter action. If set to 'filter', outliers are\n"
-	"	 replaced with moving average",
+	"	 replaced with moving average.",
 	"discard", TRUE,
 	"filter", FALSE);
 
@@ -1420,19 +1422,19 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		"Delay Response outlier weight: if an outlier is detected, determines\n"
 	"	 the amount of its deviation from mean that is used to build the standard\n"
 	"	 deviation statistics and influence further outlier detection.\n"
-	"	 When set to 1.0, the outlier is used as is.\n", 0.01, 2.0);
+	"	 When set to 1.0, the outlier is used as is.", 0.01, 2.0);
 
     CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_enable",rtOpts->delayMSOutlierFilterEnabled,rtOpts->delayMSOutlierFilterEnabled,
-		"Enable outlier filter for the Sync component in slave state");
+		"Enable outlier filter for the Sync component in slave state.");
 
     CONFIG_MAP_SELECTVALUE("ptpengine:sync_outlier_filter_action",rtOpts->delayMSOutlierFilterDiscard,rtOpts->delayMSOutlierFilterDiscard,
 		"Sync outlier filter action. If set to 'filter', outliers are replaced\n"
-	"	 with moving average",
+	"	 with moving average.",
      "discard", TRUE,
      "filter", FALSE);
 
      CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_capacity",rtOpts->delayMSOutlierFilterCapacity,rtOpts->delayMSOutlierFilterCapacity,
-    "Number of samples in the Sync outlier filter buffer",4,STATCONTAINER_MAX_SAMPLES);
+    "Number of samples in the Sync outlier filter buffer.",4,STATCONTAINER_MAX_SAMPLES);
 
     CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_threshold",rtOpts->delayMSOutlierFilterThreshold,rtOpts->delayMSOutlierFilterThreshold,
 		"Sync outlier filter threshold: multiplier for the Peirce's maximum standard\n"
@@ -1461,15 +1463,15 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
     CONFIG_MAP_INT_RANGE("ptpengine:panic_mode_duration",rtOpts->panicModeDuration,rtOpts->panicModeDuration,
 		"Duration (minutes) of the panic mode period (no clock updates) when offset\n"
-	"	 above 1 second detected\n",1,60);
+	"	 above 1 second detected.",1,60);
 
     CONFIG_MAP_INT_RANGE("ptpengine:panic_mode_exit_threshold",rtOpts->panicModeExitThreshold,rtOpts->panicModeExitThreshold,
 		"Do not exit panic mode until offset drops below this value (nanoseconds).\n"
-	"	 0 = not used.\n",0,NANOSECONDS_MAX);
+	"	 0 = not used.",0,NANOSECONDS_MAX);
 
 
 	CONFIG_MAP_BOOLEAN("ptpengine:pid_as_clock_idendity",rtOpts->jobid,rtOpts->jobid,
-	"Use JobID (PID) for UUID");
+	"Use JobID (PID) for UUID.");
 
 #ifdef PTPD_NTPDC
 
@@ -1483,11 +1485,11 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT_RANGE("ptpengine:ntp_failover_timeout",rtOpts->ntpOptions.failoverTimeout,
 								rtOpts->ntpOptions.failoverTimeout,	
 		"NTP failover timeout in seconds: time between PTP slave going into\n"
-	"	 LISTENING state, and failing over to NTP. 0 = fail over immediately.\n", 0, 1800);
+	"	 LISTENING state, and failing over to NTP. 0 = fail over immediately.", 0, 1800);
 
 	CONFIG_MAP_BOOLEAN("ptpengine:prefer_ntp",rtOpts->ntpOptions.ntpInControl,rtOpts->ntpOptions.ntpInControl,
 		"Prefer NTP time synchronisation when not controlling the clock (all states,\n"
-	"	 including slave when clock:no_adjust set)");
+	"	 including slave when clock:no_adjust set).");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:panic_mode_ntp",rtOpts->panicModeNtp,rtOpts->panicModeNtp,
 		"When entering panic mode, fail over to NTP (after the NTP failover timeout\n"
@@ -1500,7 +1502,8 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #ifdef DBG_SIGUSR2_DUMP_COUNTERS
 	CONFIG_MAP_BOOLEAN("ptpengine:sigusr2_clears_counters",rtOpts->clearCounters,rtOpts->clearCounters,
-		"When compiled with --enable-sigusr2=counters, clear counters after dumping all counter values\n");
+		"When compiled with --enable-sigusr2=counters, clear counters after dumping\n"
+		"all counter values.");
 #endif /* DBG_SIGUSR2_DUMP_COUNTERS */
 
 
@@ -1516,7 +1519,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32\n"
 	"	 mask is required for the ACL to be parsed correctly. The match is performed\n"
 	"	 on the source IP address of the incoming messages. IP access lists are\n"
-	"	 only supported when using the IP transport");
+	"	 only supported when using the IP transport.");
 
 	CONFIG_MAP_CHARARRAY("ptpengine:timing_acl_deny",rtOpts->timingAclDenyText, rtOpts->timingAclDenyText,
 		"Deny access control list for timing packets. Format is a series of \n"
@@ -1524,7 +1527,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32\n"
 	"	 mask is required for the ACL to be parsed correctly. The match is performed\n"
 	"	 on the source IP address of the incoming messages. IP access lists are\n"
-	"	 only supported when using the IP transport");
+	"	 only supported when using the IP transport.");
 
 	CONFIG_MAP_CHARARRAY("ptpengine:management_acl_permit",rtOpts->managementAclPermitText, rtOpts->managementAclPermitText,
 		"Permit access control list for management messages. Format is a series of \n"
@@ -1532,7 +1535,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32\n"
 	"	 mask is required for the ACL to be parsed correctly. The match is performed\n"
 	"	 on the source IP address of the incoming messages. IP access lists are\n"
-	"	 only supported when using the IP transport");
+	"	 only supported when using the IP transport.");
 
 	CONFIG_MAP_CHARARRAY("ptpengine:management_acl_deny",rtOpts->managementAclDenyText, rtOpts->managementAclDenyText,
 	"Deny access control list for management messages. Format is a series of \n"
@@ -1540,7 +1543,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32\n"
 	"	 mask is required for the ACL to be parsed correctly. The match is performed\n"
 	"	 on the source IP address of the incoming messages. IP access lists are\n"
-	"	 only supported when using the IP transport");
+	"	 only supported when using the IP transport.");
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:timing_acl_order",rtOpts->timingAclOrder,rtOpts->timingAclOrder,
 		"Order in which permit and deny access lists are evaluated for timing\n"
@@ -1566,16 +1569,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 /* ===== clock section ===== */
 
 	CONFIG_MAP_BOOLEAN("clock:no_adjust",rtOpts->noAdjust,ptpPreset.noAdjust,
-	"Do not adjust the clock");
+	"Do not adjust the clock.");
 
 	CONFIG_MAP_BOOLEAN("clock:no_reset",rtOpts->noResetClock,rtOpts->noResetClock,
-	"Do not reset the clock - only slew");
+	"Do not reset the clock - only slew.");
 
 #ifdef HAVE_LINUX_RTC_H
 	CONFIG_MAP_BOOLEAN("clock:set_rtc_on_step",rtOpts->setRtc,rtOpts->setRtc,
-	"Attempt setting the RTC when stepping clock (Linux only - FreeBSD does this for us)\n"
-	"	 WARNING: this will always set the RTC to OS clock time regardless of time zones,\n"
-	"	 so this assumes that RTC runs in UTC - true on most single-boot x86 Linux systems");
+	"Attempt setting the RTC when stepping clock (Linux only - FreeBSD does \n"
+	"	 this for us. WARNING: this will always set the RTC to OS clock time,\n"
+	"	 regardless of time zones, so this assumes that RTC runs in UTC - \n"
+	"	 true at least on most single-boot x86 Linux systems.");
 #endif /* HAVE_LINUX_RTC_H */
 
 	CONFIG_MAP_SELECTVALUE("clock:drift_handling",rtOpts->drift_recovery_method,rtOpts->drift_recovery_method,
@@ -1614,12 +1618,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 /* ===== servo section ===== */
 
 	CONFIG_MAP_INT( "servo:delayfilter_stiffness",rtOpts->s,rtOpts->s,
-	"One-way delay filter stiffness");
+	"One-way delay filter stiffness.");
 
 	CONFIG_MAP_DOUBLE_MIN("servo:kp",rtOpts->servoKP,rtOpts->servoKP,
-	"Clock servo PI controller proportional component gain (kP)",0.000001);
+	"Clock servo PI controller proportional component gain (kP).",0.000001);
 	CONFIG_MAP_DOUBLE_MIN("servo:ki",rtOpts->servoKI,rtOpts->servoKI,
-	"Clock servo PI controller integral component gain (kI)",0.000001);
+	"Clock servo PI controller integral component gain (kI).",0.000001);
 
 	CONFIG_MAP_SELECTVALUE("servo:dt_method",rtOpts->servoDtMethod,rtOpts->servoDtMethod,
 		"How servo update interval (delta t) is calculated:\n"
@@ -1631,10 +1635,6 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 			"measured", DT_MEASURED
 	);
 
-	CONFIG_MAP_INT_RANGE("servo:max_delay",rtOpts->maxDelay,rtOpts->maxDelay,
-		"Maximum accepted delayMS value in nanoseconds (Sync).\n"
-	"        0 =  not checked."
-	,0,NANOSECONDS_MAX);
 
 #ifdef PTPD_STATISTICS
 	CONFIG_MAP_BOOLEAN("servo:stability_detection",rtOpts->servoStabilityDetection,
@@ -1642,7 +1642,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		 "Enable clock synchronisation servo stability detection\n"
 	"	 (based on standard deviation of the observed drift value)\n"
 	"	 - drift will be saved to drift file / cached when considered stable,\n"
-	"	 also clock stability status will be logged\n");
+	"	 also clock stability status will be logged.");
 
 	CONFIG_MAP_DOUBLE_RANGE("servo:stability_threshold",rtOpts->servoStabilityThreshold,
 							rtOpts->servoStabilityThreshold,
@@ -1654,7 +1654,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT_RANGE("servo:stability_period",rtOpts->servoStabilityPeriod,
 							rtOpts->servoStabilityPeriod,
 		"Specify for how many statistics update intervals the observed drift\n"
-	"	standard deviation has to stay within threshold to be considered stable\n",
+	"	standard deviation has to stay within threshold to be considered stable.",
 	1,100);
 
 	CONFIG_MAP_INT_RANGE("servo:stability_timeout",rtOpts->servoStabilityTimeout,
@@ -1666,13 +1666,8 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #endif
 
-	/**
-	 * Initialise the origMaxDelay to the maxDelay value if max_delay not set.
-	 * Help string is empty here because we've just mapped this value above,
-	 * so help will not be displayed for this option.
-	 */
-	CONFIG_MAP_INT_RANGE("servo:max_delay",rtOpts->origMaxDelay,rtOpts->maxDelay,
-		"Do not update one-way delay if slave to master delay (from Delay Response)\n"
+	CONFIG_MAP_INT_RANGE("servo:max_delay",rtOpts->maxDelay,rtOpts->maxDelay,
+		"Do not update one-way delay if slave to master delay (delaySM - from Delay Response)\n"
 	"	 is greater than this value (nanoseconds). 0 = not used."
 	,0,NANOSECONDS_MAX);
 
@@ -1685,7 +1680,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #ifdef PTPD_SNMP
 	CONFIG_MAP_BOOLEAN("global:enable_snmp",rtOpts->snmp_enabled,rtOpts->snmp_enabled,
-	"Enable SNMP agent (if compiled with PTPD_SNMP)");
+	"Enable SNMP agent (if compiled with PTPD_SNMP).");
 #else
 	if(!IS_QUIET() && CONFIG_ISTRUE("global:enable_snmp"))
 	    INFO("SNMP support not enabled. Please compile with PTPD_SNMP to use global:enable_snmp\n");
@@ -1693,14 +1688,14 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_BOOLEAN("global:use_syslog",rtOpts->useSysLog,rtOpts->useSysLog,
 		"Send log messages to syslog. Disabling this\n"
-	"        sends all messages to stdout (or speficied log file)");
+	"        sends all messages to stdout (or speficied log file).");
 
 	CONFIG_MAP_CHARARRAY("global:lock_file",rtOpts->lockFile,rtOpts->lockFile,
 	"Lock file location");
 
 	CONFIG_MAP_BOOLEAN("global:auto_lockfile",rtOpts->autoLockFile,rtOpts->autoLockFile,
 	"	 Use mode specific and interface specific lock file\n"
-	"	 (overrides global:lock_file)");
+	"	 (overrides global:lock_file).");
 
 	CONFIG_MAP_CHARARRAY("global:lock_directory",rtOpts->lockDirectory,rtOpts->lockDirectory,
 		 "Lock file directory: used with automatic mode-specific lock files,\n"
@@ -1708,12 +1703,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 is specified, it's expected to be an absolute path.");
 
 	CONFIG_MAP_BOOLEAN("global:ignore_lock",rtOpts->ignore_daemon_lock,rtOpts->ignore_daemon_lock,
-	"Skip lock file checking and locking");
+	"Skip lock file checking and locking.");
 
 	/* if quality file specified, enable quality recording  */
 	CONFIG_KEY_TRIGGER("global:quality_file",rtOpts->recordLog.logEnabled,TRUE,FALSE);
 	CONFIG_MAP_CHARARRAY("global:quality_file",rtOpts->recordLog.logPath,rtOpts->recordLog.logPath,
-		"File used to record data about sync packets. Wnables recording when set.");
+		"File used to record data about sync packets. Enables recording when set.");
 
 	CONFIG_MAP_INT_MIN("global:quality_file_max_size",rtOpts->recordLog.maxSize,rtOpts->recordLog.maxSize,
 		"Maximum sync packet record file size (in kB) - file will be truncated\n"
@@ -1725,23 +1720,23 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_BOOLEAN("global:quality_file_truncate",rtOpts->recordLog.truncateOnReopen,rtOpts->recordLog.truncateOnReopen,
 		"Truncate the sync packet record file every time it is (re) opened:\n"
-	"	 startup and SIGHUP");
+	"	 startup and SIGHUP.");
 
 	/* if status file specified, enable status logging*/
 	CONFIG_KEY_TRIGGER("global:status_file",rtOpts->statusLog.logEnabled,TRUE,FALSE);
 	CONFIG_MAP_CHARARRAY("global:status_file",rtOpts->statusLog.logPath,rtOpts->statusLog.logPath,
-	"File used to log "PTPD_PROGNAME" status information");
+	"File used to log "PTPD_PROGNAME" status information.");
 	/* status file can be disabled even if specified */
 	CONFIG_MAP_BOOLEAN("global:log_status",rtOpts->statusLog.logEnabled, rtOpts->statusLog.logEnabled,
-		"Enable / disable writing status information to file");
+		"Enable / disable writing status information to file.");
 
 	CONFIG_MAP_INT_RANGE("global:status_update_interval",rtOpts->statusFileUpdateInterval,rtOpts->statusFileUpdateInterval,
-		"Status file update interval in seconds\n",
+		"Status file update interval in seconds.",
 	1,30);
 
 #ifdef RUNTIME_DEBUG
 	CONFIG_MAP_SELECTVALUE("global:debug_level",rtOpts->debug_level,rtOpts->debug_level,
-	"Specify debug level (if compiled with RUNTIME_DEBUG)",
+	"Specify debug level (if compiled with RUNTIME_DEBUG).",
 				"LOG_DEBUG", 	LOG_DEBUG,
 				"LOG_DEBUG1", 	LOG_DEBUG1,
 				"LOG_DEBUG2", 	LOG_DEBUG2,
@@ -1750,7 +1745,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				);
 #else
 	if (!IS_QUIET() && CONFIG_ISSET("global:debug_level"))
-	    INFO("Runtime debug not enabled. Please compile with RUNTIME_DEBUG to use global:debug_level\n");
+	    INFO("Runtime debug not enabled. Please compile with RUNTIME_DEBUG to use global:debug_level.\n");
 #endif /* RUNTIME_DEBUG */
 
 	/* if log file specified, enable file logging - otherwise disable */
@@ -1764,15 +1759,15 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_INT_RANGE("global:log_file_max_files",rtOpts->eventLog.maxFiles,rtOpts->eventLog.maxFiles,
 		"Enable log rotation of the sync packet record file up to n files.\n"
-	"	 0 - do not rotate\n", 0, 100);
+	"	 0 - do not rotate.\n", 0, 100);
 
 	CONFIG_MAP_BOOLEAN("global:log_file_truncate",rtOpts->eventLog.truncateOnReopen,rtOpts->eventLog.truncateOnReopen,
-		"Truncate the log file every time it is (re) opened: startup and SIGHUP");
+		"Truncate the log file every time it is (re) opened: startup and SIGHUP.");
 
 	CONFIG_MAP_SELECTVALUE("global:log_level",rtOpts->logLevel,rtOpts->logLevel,
 		"Specify log level (only messages at this priority or higer will be logged).\n"
 	"	 The minimal level is LOG_ERR. LOG_ALL enables debug output if compiled with\n"
-	"	 RUNTIME_DEBUG",
+	"	 RUNTIME_DEBUG.",
 				"LOG_ERR", 	LOG_ERR,
 				"LOG_WARNING", 	LOG_WARNING,
 				"LOG_NOTICE", 	LOG_NOTICE,
@@ -1785,21 +1780,21 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_TRIGGER("global:statistics_file",rtOpts->logStatistics,TRUE,FALSE);
 	CONFIG_MAP_CHARARRAY("global:statistics_file",rtOpts->statisticsLog.logPath,rtOpts->statisticsLog.logPath,
 		"Specify statistics log file path. Setting this enables logging of \n"
-	"	 statistics, but can be overriden with global:log_statistics");
+	"	 statistics, but can be overriden with global:log_statistics.");
 
 	CONFIG_MAP_INT_MIN("global:statistics_log_interval",rtOpts->statisticsLogInterval,rtOpts->statisticsLogInterval,
 		 "Log timing statistics every n seconds for Sync and Delay messages\n"
-	"	 (0 - log all)",0);
+	"	 (0 - log all).",0);
 
 	CONFIG_MAP_INT_MIN("global:statistics_file_max_size",rtOpts->statisticsLog.maxSize,rtOpts->statisticsLog.maxSize,
 		"Maximum statistics log file size (in kB) - log file will be truncated\n"
 	"	 if size exceeds the limit. 0 - no limit.", 0);
 
 	CONFIG_MAP_INT_RANGE("global:statistics_file_max_files",rtOpts->statisticsLog.maxFiles,rtOpts->statisticsLog.maxFiles,
-		"Enable log rotation of the statistics file up to n files. 0 - do not rotate\n", 0, 100);
+		"Enable log rotation of the statistics file up to n files. 0 - do not rotate.", 0, 100);
 
 	CONFIG_MAP_BOOLEAN("global:statistics_file_truncate",rtOpts->statisticsLog.truncateOnReopen,rtOpts->statisticsLog.truncateOnReopen,
-		"Truncate the statistics file every time it is (re) opened: startup and SIGHUP");
+		"Truncate the statistics file every time it is (re) opened: startup and SIGHUP.");
 
 	CONFIG_MAP_BOOLEAN("global:dump_packets",rtOpts->displayPackets,rtOpts->displayPackets,
 		"Dump the contents of every PTP packet");
@@ -1840,7 +1835,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H)
 	CONFIG_MAP_INT_RANGE("global:cpuaffinity_cpucore",rtOpts->cpuNumber,rtOpts->cpuNumber,
-		"Linux only: bind "PTPD_PROGNAME" process to a selected CPU core number.\n"
+		"Bind "PTPD_PROGNAME" process to a selected CPU core number.\n"
 	"        0 = first CPU core, etc. -1 = do not bind to a single core.",
 	-1,255);
 #endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H */
@@ -1898,6 +1893,15 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	/* Check timing packet ACLs */
 	if(rtOpts->timingAclEnabled) {
 
+		/*
+		 * if we're here, then one of the ACLs is non-empty - so the
+		 * other one can be made a catch-all if empty
+		 */
+		if (strcmp(rtOpts->timingAclPermitText, "") == 0)
+		    strncpy(rtOpts->timingAclPermitText,"0.0.0.0/0",10);
+		if (strcmp(rtOpts->timingAclDenyText, "") == 0)
+		    strncpy(rtOpts->timingAclDenyText,"0.0.0.0/0",10);
+
 		int pResult, dResult;
 
 		if((pResult = maskParser(rtOpts->timingAclPermitText, NULL)) == -1)
@@ -1920,6 +1924,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	/* Check management message ACLs */
 	if(rtOpts->managementAclEnabled) {
+
+		/*
+		 * if we're here, then one of the ACLs is non-empty - so the
+		 * other one can be made a catch-all if empty
+		 */
+
+		if (strcmp(rtOpts->managementAclPermitText, "") == 0)
+		    strncpy(rtOpts->managementAclPermitText,"0.0.0.0/0",10);
+		if (strcmp(rtOpts->managementAclDenyText, "") == 0)
+		    strncpy(rtOpts->managementAclDenyText,"0.0.0.0/0",10);
+
 		int pResult, dResult;
 
 		if((pResult = maskParser(rtOpts->managementAclPermitText, NULL)) == -1)
@@ -2223,7 +2238,8 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	    {"noadjust",	optional_argument, 0, 'n'},
 	    {"ignore-lock",	optional_argument, 0, 'L'},
 	    {"auto-lock",	optional_argument, 0, 'A'},
-	    {"print-lockfile",	optional_argument, 0, 'l'},
+	    {"lockfile",	optional_argument, 0, 'l'},
+	    {"print-lockfile",	optional_argument, 0, 'p'},
 	    {"lock-directory",	required_argument, 0, 'R'},
 	    {"log-file",	required_argument, 0, 'f'},
 	    {"statistics-file",	required_argument, 0, 'S'},
@@ -2241,7 +2257,7 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	    {0,			0		 , 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHhe:Y:tOLEPAaR:l", long_options, &opt_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHhe:Y:tOLEPAaR:l:p", long_options, &opt_index)) != -1) {
 	    switch(c) {
 /* non-config options first */
 
@@ -2384,8 +2400,12 @@ short_help:
 			dictionary_set(dict,"global:auto_lock", "Y");
 			break;
 		/* Print lock file only */
-		case 'l':
+		case 'p':
 			rtOpts->printLockFile = TRUE;
+			break;
+		/* Lock file */
+		case 'l':
+			dictionary_set(dict,"global:lock_file", optarg);
 			break;
 		/* Lock directory */
 		case 'R':
@@ -2459,7 +2479,8 @@ printShortHelp()
 			"-O --default-config		Output default configuration (usable as config file)\n"
 			"-L --ignore-lock		Skip lock file checks and locking\n"
 			"-A --auto-lock			Use preset / port mode specific lock files\n"
-			"-l --print-lockfile		Print path to lock file and exit (useful for init scripts)\n"
+			"-l --lockfile [path]		Specify path to lock file\n"
+			"-p --print-lockfile		Print path to lock file and exit (useful for init scripts)\n"
 			"-R --lock-directory [path]	Directory to store lock files\n"
 			"-f --log-file [path]		global:log_file=[path]		Log file\n"
 			"-S --statistics-file [path]	global:statistics_file=[path]	Statistics file\n"
@@ -2565,7 +2586,7 @@ printLongHelp()
 		"       counters: Dump all PTP protocol counters to current log target\n"
 		"\n"
 		"  SIGINT|SIGTERM Close open files, remove lock file and exit cleanly\n"
-		"  SIGKILL        Corce an unclean exit\n"
+		"  SIGKILL        Force an unclean exit\n"
 				"\n"
 		"BMC Algorithm defaults:\n"
 		"  Software:   P1(128) > Class(13|248) > Accuracy(\"unk\"/0xFE)   > Variance(65536) > P2(128)\n"
@@ -2667,6 +2688,13 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:ip_dscp",        		PTPD_RESTART_NETWORK );
 
         COMPONENT_RESTART_REQUIRED("ptpengine:alt_mcast_group",       	PTPD_RESTART_NETWORK );
+
+
+#ifdef PTPD_SNMP
+        COMPONENT_RESTART_REQUIRED("global:enable_snmp",       	PTPD_RESTART_DAEMON );
+#endif /* PTPD_SNMP */
+
+
 
 #ifdef PTPD_STATISTICS
         COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_enable",     PTPD_RESTART_PEIRCE );
@@ -2799,4 +2827,3 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 	return restartFlags;
 
 }
-

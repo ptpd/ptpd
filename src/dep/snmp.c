@@ -40,6 +40,9 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
+//  snmp_shutdown("example-demon");
+
+
 /* Hard to get header... */
 extern int header_generic(struct variable *, oid *, size_t *, int,
 			  size_t *, WriteMethod **);
@@ -113,7 +116,10 @@ extern int header_generic(struct variable *, oid *, size_t *, int,
 #define SNMP_PTP_TX_MULTICAST 2
 #define SNMP_PTP_TX_MULTICAST_MIX 3
 
+static oid ptp_oid[] = {1, 3, 6, 1, 4, 1, 39178, 100, 2};
+
 static PtpClock *snmpPtpClock;
+static RunTimeOpts *snmpRtOpts;
 
 /* Helper functions to build header_*indexed_table() functions.  Those
    functions keep an internal state. They are not reentrant!
@@ -512,8 +518,10 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		return SNMP_INTEGER(0);
 	case PTPBASE_CLOCK_PORT_RUNNING_TX_MODE:
 	case PTPBASE_CLOCK_PORT_RUNNING_RX_MODE:	
-		if (snmpPtpClock->netPath.unicastAddr)
+		if (snmpRtOpts->ip_mode == IPMODE_UNICAST)
 			return SNMP_INTEGER(SNMP_PTP_TX_UNICAST);
+		if (snmpRtOpts->ip_mode == IPMODE_HYBRID)
+			return SNMP_INTEGER(SNMP_PTP_TX_MULTICAST_MIX);
 		return SNMP_INTEGER(SNMP_PTP_TX_MULTICAST);
 	case PTPBASE_CLOCK_PORT_RUNNING_PACKETS_RECEIVED:
 		return SNMP_COUNTER64(snmpPtpClock->netPath.receivedPackets);
@@ -691,8 +699,8 @@ snmpLogCallback(int major, int minor,
  * Initialisation of SNMP subsystem.
  */
 void
-snmpInit(PtpClock *ptpClock) {
-	static oid ptp_oid[] = {1, 3, 6, 1, 4, 1, 39178, 100, 2};
+snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
+
 	netsnmp_enable_subagent();
 	snmp_disable_log();
 	snmp_enable_calllog();
@@ -707,4 +715,18 @@ snmpInit(PtpClock *ptpClock) {
 	/* Currently, ptpd only handle one clock. We put it in a
 	 * global variable for the need of our subsystem. */
 	snmpPtpClock = ptpClock;
+	snmpRtOpts = rtOpts;
+}
+
+/**
+ * Clean up and shut down the SNMP subagent
+ */
+
+void
+snmpShutdown() {
+
+	unregister_mib(ptp_oid, sizeof(ptp_oid) / sizeof(oid));
+	snmp_shutdown("ptpMib");
+	SOCK_CLEANUP;
+
 }

@@ -1,5 +1,5 @@
 ; ========================================
-; PTPDv2 version 2.3.0-svn default configuration
+; PTPDv2 version 2.3.0 default configuration
 ; ========================================
 
 ; NOTE: the following settings are affected by ptpengine:preset selection:
@@ -8,7 +8,7 @@
 ;           ptpengine:clock_class - allowed range and default value
 ; To see all preset settings, run ptpd2 -H (--long-help)
 
-; Network interface to use (required)
+; Network interface to use - eth0, igb0 etc. (required).
 ptpengine:interface = 
 
 ; PTP engine preset:
@@ -26,35 +26,41 @@ ptpengine:preset = slaveonly
 ; multicast for sync and announce, and unicast for delay request and
 ; response; unicast mode uses unicast for all transmission.
 ; When unicast mode is selected, destination IP must be configured
-; (ptpengine:unicast_address)
-; 
+; (ptpengine:unicast_address).
 ; Options: multicast unicast hybrid 
 ptpengine:ip_mode = multicast
 
-; Transport type for PTP packets
+; Transport type for PTP packets.
 ; Options: ipv4 ethernet 
 ptpengine:transport = ipv4
 
 ; Use libpcap for sending and receiving traffic (automatically enabled
-; in Ethernet mode)
+; in Ethernet mode).
 ptpengine:use_libpcap = N
 
 ; Delay detection mode used - use DELAY_DISABLED for syntonisation only
-; (no synchronisation)
+; (no synchronisation).
 ; Options: E2E P2P DELAY_DISABLED 
 ptpengine:delay_mechanism = E2E
 
-; PTP domain number
+; PTP domain number.
 ptpengine:domain = 0
 
-; Slave only mode (sets clock class to 255, overriding value from preset)
+; Slave only mode (sets clock class to 255, overriding value from preset).
 ptpengine:slave_only = Y
 
-; Specify latency correction for incoming packets
+; Specify latency correction (nanoseconds) for incoming packets.
 ptpengine:inbound_latency = 0
 
-; Specify latency correction for outgoing packets
+; Specify latency correction (nanoseconds) for outgoing packets.
 ptpengine:outbound_latency = 0
+
+; Apply an arbitrary shift (nanoseconds) to offset from master when
+; in slave state. Value can be positive or negative - useful for
+; correcting for of antenna latencies, delay assymetry
+; and IP stack latencies. This will not be visible in the offset 
+; from master value - only in the resulting clock correction.
+ptpengine:offset_shift = 0
 
 ; Compatibility option: In slave state, always respect UTC offset
 ; announced by best master, even if the the
@@ -74,11 +80,10 @@ ptpengine:prefer_utc_offset_valid = N
 ; NOTE: this behaviour is not part of the standard.
 ptpengine:require_utc_offset_valid = N
 
-; PTP announce message interval in master state
-; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+; PTP announce message interval in master state.(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_announce_interval = 1
 
-; PTP announce receipt timeout announced in master state
+; PTP announce receipt timeout announced in master state.
 ptpengine:announce_receipt_timeout = 6
 
 ; PTP announce receipt timeout grace period in slave state:
@@ -92,6 +97,9 @@ ptpengine:announce_receipt_grace_period = 0
 ; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_sync_interval = 0
 
+; Override the Delay Request interval announced by best master.
+ptpengine:log_delayreq_override = N
+
 ; Delay request interval used before receiving first delay response
 ; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_delayreq_interval_initial = 0
@@ -102,33 +110,30 @@ ptpengine:log_delayreq_interval_initial = 0
 ; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_delayreq_interval = 0
 
-; Minimum peer delay request message interval in peer ro peer delay mode
+; Minimum peer delay request message interval in peer to peer delay mode
 ; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_peer_delayreq_interval = 1
 
-; Foreign master record size (Maximum number of foreign masters)
+; Foreign master record size (Maximum number of foreign masters).
 ptpengine:foreignrecord_capacity = 5
 
-; Specify Allan variance announced in master state
+; Specify Allan variance announced in master state.
 ptpengine:ptp_allan_variance = 28768
 
-; Clock accuracy range announced in master state
-; Options: ACC_25NS ACC_100NS ACC_250NS ACC_1US ACC_2.5US ACC_10US
-;	   ACC_25US ACC_100US ACC_250US ACC_1MS ACC_2.5MS ACC_10MS
-;	   ACC_25MS ACC_100MS ACC_250MS ACC_1S ACC_10S ACC_10SPLUS
-;	   ACC_UNKNOWN
+; Clock accuracy range announced in master state.
+; Options: ACC_25NS ACC_100NS ACC_250NS ACC_1US ACC_2.5US ACC_10US ACC_25US ACC_100US ACC_250US ACC_1MS ACC_2.5MS ACC_10MS ACC_25MS ACC_100MS ACC_250MS ACC_1S ACC_10S ACC_10SPLUS ACC_UNKNOWN 
 ptpengine:ptp_clock_accuracy = ACC_UNKNOWN
 
-; Underlying time source UTC offset announced in master state
+; Underlying time source UTC offset announced in master state.
 ptpengine:utc_offset = 0
 
-; Underlying time source UTC offset validity announced in master state
+; Underlying time source UTC offset validity announced in master state.
 ptpengine:utc_offset_valid = N
 
-; Underlying time source time traceability announced in master state
+; Underlying time source time traceability announced in master state.
 ptpengine:time_traceable = N
 
-; Underlying time source frequency traceability announced in master state
+; Underlying time source frequency traceability announced in master state.
 ptpengine:frequency_traceable = N
 
 ; Time scale announced in master state (with ARB, UTC properties
@@ -137,9 +142,8 @@ ptpengine:frequency_traceable = N
 ; Options: PTP ARB 
 ptpengine:ptp_timescale = ARB
 
-; Time source announced in master state
-; Options: ATOMIC_CLOCK GPS TERRESTRIAL_RADIO PTP NTP
-;	   HAND_SET OTHER INTERNAL_OSCILLATOR 
+; Time source announced in master state.
+; Options: ATOMIC_CLOCK GPS TERRESTRIAL_RADIO PTP NTP HAND_SET OTHER INTERNAL_OSCILLATOR 
 ptpengine:ptp_timesource = INTERNAL_OSCILLATOR
 
 ; Clock class - announced in master state. Always 255 for slave-only.
@@ -152,43 +156,45 @@ ptpengine:ptp_timesource = INTERNAL_OSCILLATOR
 ptpengine:clock_class = 255
 
 ; Priority 1 announced in master state,used for Best Master
-; Clock selection
+; Clock selection.
 ptpengine:priority1 = 128
 
 ; Priority 2 announced in master state, used for Best Master
-; Clock selection
+; Clock selection.
 ptpengine:priority2 = 128
 
 ; Specify unicast destination for unicast master mode (in unicast slave mode,
-; overrides delay request destination)
+; overrides delay request destination).
 ptpengine:unicast_address = 
 
-; Enable handling of PTP management messages
+; Enable handling of PTP management messages.
 ptpengine:management_enable = Y
 
-; Accept SET and COMMAND management messages
+; Accept SET and COMMAND management messages.
 ptpengine:management_set_enable = N
 
-; Send explicit IGMP joins between engine resets
+; Send explicit IGMP joins between engine resets and periodically
+; in master state.
 ptpengine:igmp_refresh = Y
 
+; Periodic IGMP join interval (seconds) in master state when running
+; IPv4 multicast: when set below 10 or when ptpengine:igmp_refresh
+; is disabled, this setting has no effect.
+ptpengine:master_igmp_refresh_interval = 60
+
 ; Multicast time to live for multicast PTP packets (ignored and set to 1
-; for peer to peer messages)
+; for peer to peer messages).
 ptpengine:multicast_ttl = 64
 
 ; DiffServ CodepPoint for packet prioritisation (decimal). When set to zero, 
-; this option is not used. Use 46 for Expedited Forwarding (0x2e)
+; this option is not used. Use 46 for Expedited Forwarding (0x2e).
 ptpengine:ip_dscp = 0
-
-; Use PTP alternative multicast group like PTPv1:
-; 0 = 224.0.1.129, 1 = 224.0.1.130, 2 = 224.0.1.131, 3 = 224.0.1.132
-ptpengine:alt_mcast_group = 0
 
 ; Enable outlier filter for the Delay Response component in slave state
 ptpengine:delay_outlier_filter_enable = N
 
 ; Delay Response outlier filter action. If set to 'filter', outliers are
-; replaced with moving average
+; replaced with moving average.
 ; Options: discard filter 
 ptpengine:delay_outlier_filter_action = filter
 
@@ -204,18 +210,17 @@ ptpengine:delay_outlier_filter_threshold = 1.000000
 ; the amount of its deviation from mean that is used to build the standard
 ; deviation statistics and influence further outlier detection.
 ; When set to 1.0, the outlier is used as is.
-; 
 ptpengine:delay_outlier_weight = 1.000000
 
-; Enable outlier filter for the Sync component in slave state
+; Enable outlier filter for the Sync component in slave state.
 ptpengine:sync_outlier_filter_enable = N
 
 ; Sync outlier filter action. If set to 'filter', outliers are replaced
-; with moving average
+; with moving average.
 ; Options: discard filter 
 ptpengine:sync_outlier_filter_action = filter
 
-; Number of samples in the Sync outlier filter buffer
+; Number of samples in the Sync outlier filter buffer.
 ptpengine:sync_outlier_filter_capacity = 20
 
 ; Sync outlier filter threshold: multiplier for the Peirce's maximum standard
@@ -242,16 +247,14 @@ ptpengine:calibration_delay = 0
 ptpengine:panic_mode = N
 
 ; Duration (minutes) of the panic mode period (no clock updates) when offset
-; above 1 second detected
-; 
+; above 1 second detected.
 ptpengine:panic_mode_duration = 2
 
 ; Do not exit panic mode until offset drops below this value (nanoseconds).
 ; 0 = not used.
-; 
 ptpengine:panic_mode_exit_threshold = 0
 
-; Use JobID (PID) for UUID
+; Use JobID (PID) for UUID.
 ptpengine:pid_as_clock_idendity = N
 
 ; Fail over to NTP when PTP time sync not available - requires
@@ -261,11 +264,10 @@ ptpengine:ntp_failover = N
 
 ; NTP failover timeout in seconds: time between PTP slave going into
 ; LISTENING state, and failing over to NTP. 0 = fail over immediately.
-; 
 ptpengine:ntp_failover_timeout = 60
 
 ; Prefer NTP time synchronisation when not controlling the clock (all states,
-; including slave when clock:no_adjust set)
+; including slave when clock:no_adjust set).
 ptpengine:prefer_ntp = N
 
 ; When entering panic mode, fail over to NTP (after the NTP failover timeout
@@ -273,12 +275,16 @@ ptpengine:prefer_ntp = N
 ; configuration - will warn instead of failing over if it cannot control ntpd.
 ptpengine:panic_mode_ntp = N
 
+; When compiled with --enable-sigusr2=counters, clear counters after dumping
+; all counter values.
+ptpengine:sigusr2_clears_counters = N
+
 ; Permit access control list for timing packets. Format is a series of 
 ; comma-separated network prefixes in full CIDR notation a.b.c.d/x where
 ; a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
 ; mask is required for the ACL to be parsed correctly. The match is performed
 ; on the source IP address of the incoming messages. IP access lists are
-; only supported when using the IP transport
+; only supported when using the IP transport.
 ptpengine:timing_acl_permit = 
 
 ; Deny access control list for timing packets. Format is a series of 
@@ -286,7 +292,7 @@ ptpengine:timing_acl_permit =
 ; a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
 ; mask is required for the ACL to be parsed correctly. The match is performed
 ; on the source IP address of the incoming messages. IP access lists are
-; only supported when using the IP transport
+; only supported when using the IP transport.
 ptpengine:timing_acl_deny = 
 
 ; Permit access control list for management messages. Format is a series of 
@@ -294,7 +300,7 @@ ptpengine:timing_acl_deny =
 ; a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
 ; mask is required for the ACL to be parsed correctly. The match is performed
 ; on the source IP address of the incoming messages. IP access lists are
-; only supported when using the IP transport
+; only supported when using the IP transport.
 ptpengine:management_acl_permit = 
 
 ; Deny access control list for management messages. Format is a series of 
@@ -302,7 +308,7 @@ ptpengine:management_acl_permit =
 ; a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
 ; mask is required for the ACL to be parsed correctly. The match is performed
 ; on the source IP address of the incoming messages. IP access lists are
-; only supported when using the IP transport
+; only supported when using the IP transport.
 ptpengine:management_acl_deny = 
 
 ; Order in which permit and deny access lists are evaluated for timing
@@ -315,11 +321,17 @@ ptpengine:timing_acl_order = deny-permit
 ; Options: permit-deny deny-permit 
 ptpengine:management_acl_order = deny-permit
 
-; Do not adjust the clock
+; Do not adjust the clock.
 clock:no_adjust = N
 
-; Do not reset the clock - only slew
+; Do not reset the clock - only slew.
 clock:no_reset = N
+
+; Attempt setting the RTC when stepping clock (Linux only - FreeBSD does 
+; this for us. WARNING: this will always set the RTC to OS clock time,
+; regardless of time zones, so this assumes that RTC runs in UTC - 
+; true at least on most single-boot x86 Linux systems.
+clock:set_rtc_on_step = N
 
 ; Observed drift handling method between servo restarts:
 ; reset: set to zero (not recommended)
@@ -338,13 +350,13 @@ clock:drift_file = /etc/ptpd2_kernelclock.drift
 ; to allow even faster slewing. Default maximum is 512 without using tick.
 clock:max_offset_ppm = 500
 
-; One-way delay filter stiffness
+; One-way delay filter stiffness.
 servo:delayfilter_stiffness = 6
 
-; Clock servo PI controller proportional component gain (kP)
+; Clock servo PI controller proportional component gain (kP).
 servo:kp = 0.100000
 
-; Clock servo PI controller integral component gain (kI)
+; Clock servo PI controller integral component gain (kI).
 servo:ki = 0.001000
 
 ; How servo update interval (delta t) is calculated:
@@ -354,15 +366,10 @@ servo:ki = 0.001000
 ; Options: none constant measured 
 servo:dt_method = constant
 
-; Maximum accepted delayMS value in nanoseconds (Sync).
-; 0 =  not checked.
-servo:max_delay = 0
-
 ; Enable clock synchronisation servo stability detection
 ; (based on standard deviation of the observed drift value)
 ; - drift will be saved to drift file / cached when considered stable,
-; also clock stability status will be logged
-; 
+; also clock stability status will be logged.
 servo:stability_detection = N
 
 ; Specify the observed drift standard deviation threshold in parts per
@@ -371,8 +378,7 @@ servo:stability_detection = N
 servo:stability_threshold = 5.000000
 
 ; Specify for how many statistics update intervals the observed drift
-; standard deviation has to stay within threshold to be considered stable
-; 
+; standard deviation has to stay within threshold to be considered stable.
 servo:stability_period = 3
 
 ; Specify after how many minutes without stabilisation servo is considered
@@ -381,7 +387,7 @@ servo:stability_period = 3
 ; 
 servo:stability_timeout = 10
 
-; Do not update one-way delay if slave to master delay (from Delay Response)
+; Do not update one-way delay if slave to master delay (delaySM - from Delay Response)
 ; is greater than this value (nanoseconds). 0 = not used.
 servo:max_delay = 0
 
@@ -389,15 +395,18 @@ servo:max_delay = 0
 ; than this value (nanoseconds). 0 = not used.
 servo:max_offset = 0
 
+; Enable SNMP agent (if compiled with PTPD_SNMP).
+global:enable_snmp = N
+
 ; Send log messages to syslog. Disabling this
-; sends all messages to stdout (or speficied log file)
+; sends all messages to stdout (or speficied log file).
 global:use_syslog = N
 
 ; Lock file location
 global:lock_file = 
 
 ; 	 Use mode specific and interface specific lock file
-; (overrides global:lock_file)
+; (overrides global:lock_file).
 global:auto_lockfile = N
 
 ; Lock file directory: used with automatic mode-specific lock files,
@@ -405,10 +414,10 @@ global:auto_lockfile = N
 ; is specified, it's expected to be an absolute path.
 global:lock_directory = /var/run
 
-; Skip lock file checking and locking
+; Skip lock file checking and locking.
 global:ignore_lock = N
 
-; File used to record data about sync packets. Wnables recording when set.
+; File used to record data about sync packets. Enables recording when set.
 global:quality_file = 
 
 ; Maximum sync packet record file size (in kB) - file will be truncated
@@ -421,17 +430,16 @@ global:quality_file_max_size = 0
 global:quality_file_max_files = 0
 
 ; Truncate the sync packet record file every time it is (re) opened:
-; startup and SIGHUP
+; startup and SIGHUP.
 global:quality_file_truncate = N
 
-; File used to log ptpd2 status information
+; File used to log ptpd2 status information.
 global:status_file = /var/run/ptpd2.status
 
-; Enable / disable writing status information to file
+; Enable / disable writing status information to file.
 global:log_status = N
 
-; Status file update interval in seconds
-; 
+; Status file update interval in seconds.
 global:status_update_interval = 1
 
 ; Specify log file path (event log). Setting this enables logging to file.
@@ -442,36 +450,35 @@ global:log_file =
 global:log_file_max_size = 0
 
 ; Enable log rotation of the sync packet record file up to n files.
-; 0 - do not rotate
+; 0 - do not rotate.
 ; 
 global:log_file_max_files = 0
 
-; Truncate the log file every time it is (re) opened: startup and SIGHUP
+; Truncate the log file every time it is (re) opened: startup and SIGHUP.
 global:log_file_truncate = N
 
 ; Specify log level (only messages at this priority or higer will be logged).
 ; The minimal level is LOG_ERR. LOG_ALL enables debug output if compiled with
-; RUNTIME_DEBUG
+; RUNTIME_DEBUG.
 ; Options: LOG_ERR LOG_WARNING LOG_NOTICE LOG_INFO LOG_ALL 
 global:log_level = LOG_ALL
 
 ; Specify statistics log file path. Setting this enables logging of 
-; statistics, but can be overriden with global:log_statistics
+; statistics, but can be overriden with global:log_statistics.
 global:statistics_file = 
 
 ; Log timing statistics every n seconds for Sync and Delay messages
-; (0 - log all)
+; (0 - log all).
 global:statistics_log_interval = 0
 
 ; Maximum statistics log file size (in kB) - log file will be truncated
 ; if size exceeds the limit. 0 - no limit.
 global:statistics_file_max_size = 0
 
-; Enable log rotation of the statistics file up to n files. 0 - do not rotate
-; 
+; Enable log rotation of the statistics file up to n files. 0 - do not rotate.
 global:statistics_file_max_files = 0
 
-; Truncate the statistics file every time it is (re) opened: startup and SIGHUP
+; Truncate the statistics file every time it is (re) opened: startup and SIGHUP.
 global:statistics_file_truncate = N
 
 ; Dump the contents of every PTP packet
@@ -488,9 +495,9 @@ global:foreground = N
 ; Log timing statistics for every PTP packet received
 global:log_statistics = N
 
-; Linux only: bind ptpd2 process to a selected CPU core number.
+; Bind ptpd2 process to a selected CPU core number.
 ; 0 = first CPU core, etc. -1 = do not bind to a single core.
-global:cpuaffinity_cpucore = -1
+global:cpuaffinity_cpucore = 0
 
 ; Clock synchronisation statistics update interval in seconds
 ; 

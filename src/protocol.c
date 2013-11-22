@@ -186,6 +186,22 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				NOTIFY("Applying logging configuration: restarting logging\n");
 		    }
 
+    		if(rtOpts->restartSubsystems & PTPD_RESTART_ACLS) {
+            		NOTIFY("Applying access control list configuration\n");
+            		/* re-compile ACLs */
+            		freeIpv4AccessList(ptpClock->netPath.timingAcl);
+            		freeIpv4AccessList(ptpClock->netPath.managementAcl);
+            		if(rtOpts->timingAclEnabled) {
+                    	    ptpClock->netPath.timingAcl=createIpv4AccessList(rtOpts->timingAclPermitText,
+                                rtOpts->timingAclDenyText, rtOpts->timingAclOrder);
+            		}
+            		if(rtOpts->managementAclEnabled) {
+                    	    ptpClock->netPath.managementAcl=createIpv4AccessList(rtOpts->managementAclPermitText,
+                                rtOpts->managementAclDenyText, rtOpts->managementAclOrder);
+            		}
+    		}
+
+
 #ifdef PTPD_STATISTICS
                     /* Reinitialising the outlier filter containers */
                     if(rtOpts->restartSubsystems & PTPD_RESTART_PEIRCE) {

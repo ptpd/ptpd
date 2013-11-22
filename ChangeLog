@@ -1,8 +1,8 @@
-2013-07-25  George Neville-Neil  <gnn@neville-neil.com>
+2013-11-22  George Neville-Neil  <gnn@neville-neil.com>, Wojciech Owczarek <wojciech@owczarek.co.uk>
 
 	* 2.3.0 release
 
-	* New Features
+	* New Features:
 	
 	- IEEE 802.3 Support
 	- Support for reading from the Berkeley Packet Filter, resulting in lower jitter
@@ -28,6 +28,7 @@
 	- Initial support for informing the clock subsystem about the sync status
 		STA_UNSYNC is unset when adjusting the clock (allows syncing hardware RTC clocks with the system clock)
 		also maxerror and esterror are set,
+	- Support for RTC clock control on Linux
 	- Support for legacy command line switches from previous versions
 	- Configurable log level for normal logs, not only debug logs.
 	- Generic log file handler mechanism with a simple built-in logrotate implementation
@@ -40,9 +41,8 @@
 	- Outlier filters based on Peirce's criterion 
 	  blocks / filters spikes from delayMS and delaySM 
 	- Generic PI controler model
-	- P and I components changed from attenuations to gains (scaled to 1/1000)
-	- Optional double precision servo allows for tighter clock control
-			configure --enable-double-servo
+	- P and I components changed from attenuations to gains
+	- Double precision servo allows for tighter clock control
 	- Clock stabilisation detection based on the standard dev of observed drift
 	- Clock "calibration delay" 
 		allows a configurable delay between seeing a GM for the first time and enabling clock control
@@ -54,10 +54,21 @@
 		ptpd can now connect to local ntpd using mode 7 packets (code derived from ntpdc)
 	  	and using authenticated requests can enable/disable ntpd clock control.
 	  		Enable with configure --enable-ntpdc
-	- Dump counters using a SIGUSR2 handler to dump all counters to the log file
+	- Dump counters + clear counters using a SIGUSR2 handler to dump all counters to the log file
 	  	configure --enable-sigusr2=counters
+	- Support for ACLs for management and timing messages
+	- Basic support for SO_TIMESTAMPING (RX, TX) on Linux
+	- Support for non-Ethernet interfaces on Linux (Infiniband, GRE etc.)
+	- Support for offset / delay asymmetry correction
+	- Ptpd can now prefer or require GMs with valid UTC time
+	- Support for setting IP DSCP values
+	- Periodic IGMP joins also in master mode - improved robustness against network port failures
+	- Support for binding PTPd to a CPU core
+	- Control over tick rate on Linux, allowing faster clock slewing if needed
+
+
 	  		  
-	Bug fixes:
+	* Bug fixes:
 	
 	- TTL no longer defaults to 64 in P2P mode - in P2P it's set to 1,
 	- Fixed an issue whereby observed drift would be reset to 0 if it
@@ -65,8 +76,12 @@
 	  now the kernel value is used if read from file fails.
 	 - Support for updating utmp/wtmp when stepping the clock (FR #38)
 	 - Mean Path Delay filtering now done in float (patch #49)
+	 - Multiple other SourceForge bugs closed: Bugs closed:
+
+		    #25, #34, #26, #42, #39, #33, #46, #45, #28, 
+		    #27, #48, #54, #47, #40, #37, #53, #50, #52, #59, #60 
 	
-	Cleanups and other changes:
+	* Cleanups and other changes:
 	
 	- Major startup.c cleanup, removed the parallel daemon checks,
 	  in favour of better lock handling and the automatic lock file
@@ -84,6 +99,7 @@
 	  drift: resets it or restores it based on the drift handling setting,
 	  and sets the time immediately before writing any logs - this allows
 	  to re-sync and stabilise time almost instantly
+	- Up to date man pages written
 	  
 2012-06-20  George Neville-Neil  <gnn@neville-neil.com>
 

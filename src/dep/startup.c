@@ -209,6 +209,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	}
 
+
 #if defined(linux) && defined(HAVE_SCHED_H)
                     /* Changing the CPU affinity mask */
                     if(rtOpts->restartSubsystems & PTPD_CHANGE_CPUAFFINITY) {
@@ -273,21 +274,6 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			    }
 		    }
 #endif
-	if(rtOpts->restartSubsystems & PTPD_RESTART_ACLS) {
-		NOTIFY("Applying access control list configuration\n");
-		/* re-compile ACLs */
-		freeIpv4AccessList(ptpClock->netPath.timingAcl);
-		freeIpv4AccessList(ptpClock->netPath.managementAcl);
-		if(rtOpts->timingAclEnabled) {
-			ptpClock->netPath.timingAcl=createIpv4AccessList(rtOpts->timingAclPermitText,
-				rtOpts->timingAclDenyText, rtOpts->timingAclOrder);
-		}
-		if(rtOpts->managementAclEnabled) {
-			freeIpv4AccessList(ptpClock->netPath.managementAcl);
-			ptpClock->netPath.managementAcl=createIpv4AccessList(rtOpts->managementAclPermitText,
-				rtOpts->managementAclDenyText, rtOpts->managementAclOrder);
-		}
-	}
 
 	if(rtOpts->restartSubsystems == -1) {
 		ERROR("New configuration cannot be applied - aborting reload\n");
@@ -518,6 +504,10 @@ ptpdShutdown(PtpClock * ptpClock)
 	if(ptpClock->msgTmpHeader.messageType == MANAGEMENT)
 		freeManagementTLV(&ptpClock->msgTmp.manage);
 	freeManagementTLV(&ptpClock->outgoingManageTmp);
+
+#ifdef PTPD_SNMP
+	snmpShutdown();
+#endif /* PTPD_SNMP */
 
 #if !defined(__APPLE__)
 #ifndef PTPD_STATISTICS
@@ -840,7 +830,7 @@ configcheck:
 #if defined PTPD_SNMP
 	/* Start SNMP subsystem */
 	if (rtOpts->snmp_enabled)
-		snmpInit(ptpClock);
+		snmpInit(rtOpts, ptpClock);
 #endif
 
 

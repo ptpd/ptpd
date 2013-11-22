@@ -312,7 +312,8 @@ Boolean hostLookup(const char* hostname, Integer32* addr);
  * -Handle SNMP subsystem*/
  /**\{*/
 
-void snmpInit(PtpClock *);
+void snmpInit(RunTimeOpts *, PtpClock *);
+void snmpShutdown();
 
 /** \}*/
 #endif
