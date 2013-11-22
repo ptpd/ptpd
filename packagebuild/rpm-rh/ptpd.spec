@@ -65,11 +65,6 @@ install -m 644 src/ptpd2.8 $RPM_BUILD_ROOT%{_mandir}/man8/ptpd2.8
 install -m 644 src/ptpd2.conf.5 $RPM_BUILD_ROOT%{_mandir}/man5/ptpd2.conf.5
 install -m 644 doc/PTPBASE-MIB.txt $RPM_BUILD_ROOT%{_datadir}/snmp/mibs/PTPBASE-MIB.txt
 
-
-# fix section numbers
-sed -i 's/\(\.TH[a-zA-Z ]*\)[1-9]\(.*\)/\18\2/' $RPM_BUILD_ROOT%{_mandir}/man8/*.8
-sed -i 's/\(\.TH[a-zA-Z ]*\)[1-9]\(.*\)/\18\2/' $RPM_BUILD_ROOT%{_mandir}/man5/*.5
-
 { cd $RPM_BUILD_ROOT
 
   mkdir -p .%{_initrddir}
