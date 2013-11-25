@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="generator" content="HTML Tidy for Linux (vers 25 March 2009), see www.w3.org" />
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=us-ascii" />
+<title xml:lang="en-US" lang="en-US">PTPd</title>
+
+<style type="text/css">
+/*<![CDATA[*/
+ th {text-align: left;}
+ table {border-collapse:collapse;}
+ table, th, td, tr {border: 1px solid black;}
+ td.c1 {font-family: monospace;}
+ td.c2 {font-family: monospace;}
+/*]]>*/
+</style>
+</head>
+<body>
+<h1>PTPd 2.2.x &rarr; 2.3.0 migration guide</h1>
+<table>
+<tr>
+<th>Old option (2.2.2)</th>
+<th>New option (2.3.0)</th>
+<th>Meaning</th>
+</tr>
+<tr>
+<td class="c1">-H</td>
+<td class="c2">-H --long-help</td>
+<td class="c3">show detailed help page</td>
+</tr>
+<tr>
+<td class="c1">-g</td>
+<td class="c2">-s --slaveonly</td>
+<td class="c3">run as slave only</td>
+</tr>
+<tr>
+<td class="c1">-G</td>
+<td class="c2">-M --masteronly</td>
+<td class="c3">Master, passive when not best GM</td>
+</tr>
+<tr>
+<td class="c1">-W</td>
+<td class="c2">-m --masterslave</td>
+<td class="c3">Master, slave when not best GM</td>
+</tr>
+<tr>
+<td class="c1">-b NAME</td>
+<td class="c2">-i --interface</td>
+<td class="c3">Interface to use</td>
+</tr>
+<tr>
+<td class="c1">-c</td>
+<td class="c2">-C --foreground</td>
+<td class="c3">Don't run in background</td>
+</tr>
+<tr>
+<td class="c1">-C</td>
+<td class="c2">-V --verbose</td>
+<td class="c3">Run in verbose foreground mode</td>
+</tr>
+<tr>
+<td class="c1">-f FILE</td>
+<td class="c2">-f --log-file<br />
+-S --statistics-file</td>
+<td class="c3">Log file Statistics file</td>
+</tr>
+<tr>
+<td class="c1">-S</td>
+<td class="c2">--global:use_syslog=N</td>
+<td class="c3">DON'T send messages to syslog</td>
+</tr>
+<tr>
+<td class="c1">-T NUM</td>
+<td class="c2">--ptpengine:multicast_ttl</td>
+<td class="c3">set multicast time to live</td>
+</tr>
+<tr>
+<td class="c1">-D</td>
+<td class="c2">(always in .csv format)</td>
+<td class="c3">display stats in .csv format</td>
+</tr>
+<tr>
+<td class="c1">-P</td>
+<td class="c2">&nbsp;</td>
+<td class="c3">display each received packet in detail</td>
+</tr>
+<tr>
+<td class="c1">-R FILE</td>
+<td class="c2">--global:quality_file</td>
+<td class="c3">record data about sync packets in a seperate file</td>
+</tr>
+<tr>
+<td class="c1">-x</td>
+<td class="c2">(no alternative)</td>
+<td class="c3">do not reset the clock if off by more than one second</td>
+</tr>
+<tr>
+<td class="c1">-O NUM</td>
+<td class="c2">--servo:max_offset<br />
+see also ptpengine:sync_outlier_filter_*</td>
+<td class="c3">do not reset the clock if offset is more than NUMBER nanoseconds</td>
+</tr>
+<tr>
+<td class="c1">-t</td>
+<td class="c2">-n --noadjust</td>
+<td class="c3">Do not adjust the clock</td>
+</tr>
+<tr>
+<td class="c1">-M NUM</td>
+<td class="c2">setup by ptpengine:delay_outlier_filter_* options</td>
+<td class="c3">do not accept delay values of more than NUMBER nanoseconds</td>
+</tr>
+<tr>
+<td class="c1">-a NUM,NUM</td>
+<td class="c2">--servo:kp --servo:ki</td>
+<td class="c3">specify clock servo Proportional and Integral components &rarr; converted from attenuations to gains</td>
+</tr>
+<tr>
+<td class="c1">-w NUM</td>
+<td class="c2">--servo:delayfilter_stiffness</td>
+<td class="c3">specify one way delay filter stiffness</td>
+</tr>
+<tr>
+<td class="c1">-u</td>
+<td class="c2">-u --unicast</td>
+<td class="c3">Unicast mode</td>
+</tr>
+<tr>
+<td class="c1">-U</td>
+<td class="c2">-y --hybrid</td>
+<td class="c3">Hybrid mode</td>
+</tr>
+<tr>
+<td class="c1">-e</td>
+<td class="c2">--ptpengine:transport=ethernet</td>
+<td class="c3">run in ethernet mode</td>
+</tr>
+<tr>
+<td class="c1">-h</td>
+<td class="c2">-E --e2e</td>
+<td class="c3">run in End to End mode</td>
+</tr>
+<tr>
+<td class="c1">-z</td>
+<td class="c2">-P --p2p</td>
+<td class="c3">run in Peer-delay mode</td>
+</tr>
+<tr>
+<td class="c1">-l NUM,NUM</td>
+<td class="c2">--ptpengine:inbound_latency<br />
+--ptpengine:outbound_latency</td>
+<td class="c3">inbound, outbound latency in nsec.</td>
+</tr>
+<tr>
+<td class="c1">-o NUM</td>
+<td class="c2">--ptpengine:utc_offset</td>
+<td class="c3">current UTC offset</td>
+</tr>
+<tr>
+<td class="c1">-i NUM</td>
+<td class="c2">-d --domain</td>
+<td class="c3">PTP domain number (between 0-3)</td>
+</tr>
+<tr>
+<td class="c1">-I NUM</td>
+<td class="c2">--ptpengine:alt_mcast_group</td>
+<td class="c3">Mcast group</td>
+</tr>
+<tr>
+<td class="c1">-n NUM</td>
+<td class="c2">--ptpengine:log_announce_interval</td>
+<td class="c3">announce interval</td>
+</tr>
+<tr>
+<td class="c1">-N NUM</td>
+<td class="c2">--ptpengine:announce_receipt_timeout</td>
+<td class="c3">announce receipt timeout</td>
+</tr>
+<tr>
+<td class="c1">-y NUM</td>
+<td class="c2">--ptpengine:log_sync_interval</td>
+<td class="c3">sync interval</td>
+</tr>
+<tr>
+<td class="c1">-m NUM</td>
+<td class="c2">--ptpengine:foreignrecord_capacity</td>
+<td class="c3">max number of foreign master records</td>
+</tr>
+<tr>
+<td class="c1">-v NUM</td>
+<td class="c2">--ptpengine:ptp_allan_variance</td>
+<td class="c3">Master mode: specify system clock Allen variance</td>
+</tr>
+<tr>
+<td class="c1">-r NUM</td>
+<td class="c2">--ptpengine:ptp_clock_accuracy</td>
+<td class="c3">Master mode: specify system clock accuracy</td>
+</tr>
+<tr>
+<td class="c1">-s NUM</td>
+<td class="c2">--ptpengine:clock_class</td>
+<td class="c3">Master mode: specify system clock class</td>
+</tr>
+<tr>
+<td class="c1">-p NUM</td>
+<td class="c2">--ptpengine:priority1</td>
+<td class="c3">Master mode: specify priority1 attribute</td>
+</tr>
+<tr>
+<td class="c1">-q NUM</td>
+<td class="c2">--ptpengine:priority2</td>
+<td class="c3">Master mode: specify priority2 attribute</td>
+</tr>
+<tr>
+<td class="c1">-Y 0[,0]</td>
+<td class="c2">-a --delay-override<br />
+-r --delay-interval</td>
+<td class="c3">Initial and Master_Overide delayreq intervals</td>
+</tr>
+<tr>
+<td class="c1">-B</td>
+<td class="c2">-D&lt;DD...&gt; --debug</td>
+<td class="c3">Enable debug messages</td>
+</tr>
+<tr>
+<td class="c1">-j</td>
+<td class="c2">--ptpengine:igmp_refresh=N</td>
+<td class="c3">Do not refresh the IGMP Multicast menbership at each protol reset</td>
+</tr>
+<tr>
+<td class="c1">-L</td>
+<td class="c2">-L --ignore-lock<br />
+see --ptpengine:pid_as_clock_idendity</td>
+<td class="c3">Allow multiple instances</td>
+</tr>
+<tr>
+<td class="c1">-V 0</td>
+<td class="c2">--global:status_update_interval<br />
+--global:statistics_log_interval</td>
+<td class="c3">Seconds between log messages</td>
+</tr>
+</table>
+</body>
+</html>
