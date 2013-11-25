@@ -586,18 +586,15 @@ netInitTimestamping(NetPath * netPath, RunTimeOpts * rtOpts)
         res = ioctl(netPath->eventSock, SIOCETHTOOL, &ifRequest);
 
 	if (res < 0) {
-		PERROR("Could not retrieve ethtool information for %s",
+		PERROR("Could not retrieve ethtool timestamping capabilities for %s - reverting to SO_TIMESTAMPNS",
 			    rtOpts->ifaceName);
-			    return FALSE;
-	}
-
-	if(!(tsInfo.so_timestamping & val)) {
+		val = 1;
+		netPath->txTimestampFailure = FALSE;
+	} else if(!(tsInfo.so_timestamping & val)) {
 		DBGV("Required SO_TIMESTAMPING flags not supported - reverting to SO_TIMESTAMPNS\n");
 		val = 1;
 		netPath->txTimestampFailure = FALSE;
 	}
-
-
 #else
 	netPath->txTimestampFailure = FALSE;
 	val = 1;
@@ -606,7 +603,7 @@ netInitTimestamping(NetPath * netPath, RunTimeOpts * rtOpts)
 
 	if((val==1 && (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0)) ||
 		(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(int)) < 0)) {
-		PERROR("netInitTimestamping: failed to enable SO_TIMESTAMPING");
+		PERROR("netInitTimestamping: failed to enable SO_TIMESTAMP%s",(val==1)?"NS":"ING");
 		result = FALSE;
 	} else {
 	DBG("SO_TIMESTAMP%s initialised\n",(val==1)?"NS":"ING");
@@ -926,7 +923,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		/* make timestamps available through recvmsg() */
 		if (!netInitTimestamping(netPath,rtOpts)) {
-			ERROR("failed to enable receive time stamps");
+			ERROR("Failed to enable packet time stamping\n");
 			return FALSE;
 		}
 
