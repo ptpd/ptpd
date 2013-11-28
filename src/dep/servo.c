@@ -895,7 +895,8 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 	    }
 
 	/* Servo dT is the log sync interval */
-	if(rtOpts->servoDtMethod == DT_CONSTANT);
+	/* TODO: if logsyincinterval is 127 [unicast], switch to measured */
+	if(rtOpts->servoDtMethod == DT_CONSTANT)
 		ptpClock->servo.logdT = ptpClock->logSyncInterval;
 
 /* If the last delayMS was an outlier and filter action is discard, skip servo run */

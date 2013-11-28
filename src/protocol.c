@@ -491,7 +491,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if( rtOpts->do_IGMP_refresh &&
 		    rtOpts->transport == UDP_IPV4 &&
 		    rtOpts->ip_mode != IPMODE_UNICAST &&
-		    rtOpts->masterRefreshInterval > 9 );
+		    rtOpts->masterRefreshInterval > 9 )
 			timerStart(MASTER_NETREFRESH_TIMER, 
 			   rtOpts->masterRefreshInterval, 
 			   ptpClock->itimer);

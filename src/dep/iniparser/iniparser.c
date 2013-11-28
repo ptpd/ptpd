@@ -525,9 +525,9 @@ int iniparser_find_entry(
 int iniparser_set(dictionary * ini, const char * entry, const char * val)
 {
     char section[ASCIILINESZ+1];
-    if(sscanf(entry,":%[^:]:",section)>0);
+    if(sscanf(entry,":%[^:]:",section)>0)
 	dictionary_set(ini,section,NULL);
-    if(sscanf(entry,"%[^:]:",section)>0);
+    if(sscanf(entry,"%[^:]:",section)>0)
 	dictionary_set(ini,section,NULL);
     return dictionary_set(ini, strlwc(entry), val) ;
 }
