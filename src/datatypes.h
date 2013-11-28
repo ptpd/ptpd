@@ -820,9 +820,8 @@ typedef struct {
 	Boolean setRtc;
 #endif /* linux */
 
-#ifdef DBG_SIGUSR2_DUMP_COUNTERS
+
 	Boolean clearCounters;
-#endif
 
 	Integer8 masterRefreshInterval;
 

@@ -46,7 +46,7 @@ time synchronised via the PTP protocol.
 
 %build
 
-./configure --enable-statistics --enable-ntpdc --enable-sigusr2=counters
+./configure --enable-statistics --enable-ntpdc
 
 make
 

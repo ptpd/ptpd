@@ -1038,26 +1038,32 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 	return;
     }
     msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
+
     /* packet is not from self, and is from a non-zero source address - check ACLs */
     if(ptpClock->netPath.lastRecvAddr && 
 	(ptpClock->netPath.lastRecvAddr != ptpClock->netPath.interfaceAddr.s_addr)) {
 		struct in_addr in;
 		in.s_addr=ptpClock->netPath.lastRecvAddr;
 		if(ptpClock->msgTmpHeader.messageType == MANAGEMENT) {
-			if(rtOpts->timingAclEnabled && 
-				!matchIpv4AccessList(ptpClock->netPath.managementAcl, ntohl(ptpClock->netPath.lastRecvAddr))) {
+			if(rtOpts->managementAclEnabled) {
+			    if (!matchIpv4AccessList(
+				ptpClock->netPath.managementAcl, 
+				ntohl(ptpClock->netPath.lastRecvAddr))) {
 					DBG("ACL dropped management message from %s\n", inet_ntoa(in));
 					ptpClock->counters.aclTimingDiscardedMessages++;
 					return;
-			} else
+				} else
 					DBG("ACL Accepted management message from %s\n", inet_ntoa(in));
-	        } else if(rtOpts->timingAclEnabled && 
-		    !matchIpv4AccessList(ptpClock->netPath.timingAcl, ntohl(ptpClock->netPath.lastRecvAddr))) {
-					DBG("ACL dropped timing message from %s\n", inet_ntoa(in));
-					ptpClock->counters.aclManagementDiscardedMessages++;
-					return;
-		} else
-					DBG("ACL accepted timing message from %s\n", inet_ntoa(in));
+			}
+	        } else if(rtOpts->timingAclEnabled) {
+			if(!matchIpv4AccessList(ptpClock->netPath.timingAcl, 
+			    ntohl(ptpClock->netPath.lastRecvAddr))) {
+				DBG("ACL dropped timing message from %s\n", inet_ntoa(in));
+				ptpClock->counters.aclManagementDiscardedMessages++;
+				return;
+			} else
+				DBG("ACL accepted timing message from %s\n", inet_ntoa(in));
+		}
     }
 
     if (ptpClock->msgTmpHeader.versionPTP != ptpClock->versionNumber) {
@@ -1768,7 +1774,6 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 			// remember IP address of this client for hybrid mode
 			ptpClock->LastSlaveAddr = ptpClock->netPath.lastRecvAddr;
 
-					
 			issueDelayResp(tint,&ptpClock->delayReqHeader,
 				       rtOpts,ptpClock);
 			break;
@@ -2476,6 +2481,11 @@ handleManagement(MsgHeader *header,
 		ptpClock->counters.discardedMessages++;
 	}
 
+        /* If the management message we received was unicast, we also reply with unicast */
+        if((header->flagField0 & PTP_UNICAST) == PTP_UNICAST)
+                ptpClock->LastSlaveAddr = ptpClock->netPath.lastRecvAddr;
+        else ptpClock->LastSlaveAddr = 0;
+
 	/* send management message response or acknowledge */
 	if(ptpClock->outgoingManageTmp.tlv->tlvType == TLV_MANAGEMENT) {
 		if(ptpClock->outgoingManageTmp.actionField == RESPONSE ||
@@ -2726,11 +2736,13 @@ issueDelayResp(const TimeInternal *tint,MsgHeader *header,RunTimeOpts *rtOpts, P
 
 	Integer32 dst = 0;
 
-	if (rtOpts->ip_mode == IPMODE_HYBRID) {
+	/* hybrid mode: if request was unicast, reply unicast - if not, not */
+	if ( (rtOpts->ip_mode == IPMODE_HYBRID) &&
+	     (header->flagField0 & PTP_UNICAST) == PTP_UNICAST) {
 		dst = ptpClock->LastSlaveAddr;
 	}
 
-	if (!netSendGeneral(ptpClock->msgObuf,PDELAY_RESP_LENGTH,
+	if (!netSendGeneral(ptpClock->msgObuf, DELAY_RESP_LENGTH,
 			    &ptpClock->netPath, rtOpts, dst)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
@@ -2778,6 +2790,8 @@ static void
 issueManagementRespOrAck(MsgManagement *outgoing, RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
+	Integer32 dst;
+
 	/* pack ManagementTLV */
 	msgPackManagementTLV( ptpClock->msgObuf, outgoing, ptpClock);
 
@@ -2788,8 +2802,12 @@ issueManagementRespOrAck(MsgManagement *outgoing, RunTimeOpts *rtOpts,
 
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
 
+	/* If LastSlaveAddr was populated, we reply via Unicast */
+	if (ptpClock->LastSlaveAddr > 0)
+		dst = ptpClock->LastSlaveAddr;
+
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-			   &ptpClock->netPath, rtOpts, 0)) {
+			   &ptpClock->netPath, rtOpts, dst)) {
 		DBGV("Management response/acknowledge can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -2802,6 +2820,8 @@ issueManagementRespOrAck(MsgManagement *outgoing, RunTimeOpts *rtOpts,
 static void
 issueManagementErrorStatus(MsgManagement *outgoing, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
+	Integer32 dst = 0;
+
 	/* pack ManagementErrorStatusTLV */
 	msgPackManagementErrorStatusTLV( ptpClock->msgObuf, outgoing, ptpClock);
 
@@ -2812,8 +2832,11 @@ issueManagementErrorStatus(MsgManagement *outgoing, RunTimeOpts *rtOpts, PtpCloc
 
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
 
+	if (ptpClock->LastSlaveAddr > 0)
+		dst = ptpClock->LastSlaveAddr;
+
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-			   &ptpClock->netPath, rtOpts, 0)) {
+			   &ptpClock->netPath, rtOpts, dst)) {
 		DBGV("Management error status can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);

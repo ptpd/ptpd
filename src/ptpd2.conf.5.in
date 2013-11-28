@@ -934,8 +934,7 @@ When entering panic mode, fail over to NTP (after the NTP failover timeout
 .RS 8
 .TP 8
 \fBusage\fR
-When compiled with --enable-sigusr2=counters, clear counters after dumping
-all counter values.
+Clear counters after dumping all counter values on SIGUSR2.
 .TP 8
 \fBdefault\fR
 \fIN\fR

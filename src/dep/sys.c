@@ -971,7 +971,9 @@ else {
 
 	fprintf(out,		STATUSPREFIX"  ","Message rates");
 
-	if (ptpClock->logSyncInterval <= 0)
+	if (ptpClock->logSyncInterval == 0x7F)
+	    fprintf(out,"[UC-unknown]");
+	else if (ptpClock->logSyncInterval <= 0)
 	    fprintf(out,"%.0f/s",pow(2,-ptpClock->logSyncInterval));
 	else
 	    fprintf(out,"1/%.0fs",pow(2,ptpClock->logSyncInterval));
@@ -979,7 +981,9 @@ else {
 
 
 	if(ptpClock->delayMechanism == E2E) {
-		if (ptpClock->logMinDelayReqInterval <= 0)
+		if (ptpClock->logMinDelayReqInterval == 0x7F)
+		    fprintf(out,"[UC-unknown]");
+		else if (ptpClock->logMinDelayReqInterval <= 0)
 		    fprintf(out,", %.0f/s",pow(2,-ptpClock->logMinDelayReqInterval));
 		else
 		    fprintf(out,", 1/%.0fs",pow(2,ptpClock->logMinDelayReqInterval));
@@ -987,20 +991,22 @@ else {
 	}
 
 	if(ptpClock->delayMechanism == P2P) {
-		if (ptpClock->logMinPdelayReqInterval <= 0)
+		if (ptpClock->logMinPdelayReqInterval == 0x7F)
+		    fprintf(out,"[UC-unknown]");
+		else if (ptpClock->logMinPdelayReqInterval <= 0)
 		    fprintf(out,", %.0f/s",pow(2,-ptpClock->logMinPdelayReqInterval));
 		else
 		    fprintf(out,", 1/%.0fs",pow(2,ptpClock->logMinPdelayReqInterval));
 		fprintf(out, " pdelay");
 	}
 
-	if (ptpClock->logAnnounceInterval <= 0)
+	if (ptpClock->logAnnounceInterval == 0x7F)
+	    fprintf(out,"[UC-unknown]");
+	else if (ptpClock->logAnnounceInterval <= 0)
 	    fprintf(out,", %.0f/s",pow(2,-ptpClock->logAnnounceInterval));
 	else
 	    fprintf(out,", 1/%.0fs",pow(2,ptpClock->logAnnounceInterval));
 	fprintf(out, " announce");
-
-
 
 	    fprintf(out,"\n");
 

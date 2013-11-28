@@ -211,10 +211,8 @@ Reload configuration file (if used) and reopen log files
 When in slave state, force clock step to current Offset from Master value
 .TP 8
 \fISIGUSR2\fR
-Bahaviour based on \fIconfigure --enable-sigusr2=[value]\fR. Options:
-\fIdomain\fR: swap domain between current and current +1;
-\fIdebug\fR: cycle runtime debug level;
-\fIcounters\fR:Dump all PTP protocol counters to current log targer.
+Dump all PTP protocol counters to current log target
+(and clear if \fIptpengine:sigusr2_clears_counters\fR set)
 .TP 8
 \fISIGINT|SIGTERM\fR
 Clean exit - close logs and other open files, clean up lock file and exit.

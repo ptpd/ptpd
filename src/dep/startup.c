@@ -362,34 +362,6 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	sigusr1_received = 0;
 	}
 
-
-#ifdef DBG_SIGUSR2_CHANGE_DOMAIN
-	if(sigusr2_received){
-		/* swap domain numbers */
-		static int prev_domain;
-		static int first_time = 1;
-		if(first_time){
-			first_time = 0;
-			prev_domain = ptpClock->domainNumber + 1;
-		}
-
-		int  temp = ptpClock->domainNumber;
-		ptpClock->domainNumber = prev_domain;
-		prev_domain = temp;
-
-		
-		// propagate new choice as the run-time option
-		rtOpts->domainNumber = ptpClock->domainNumber;
-		
-		WARNING("SigUSR2 received. PTP_Domain is now %d  (saved: %d)\n",
-			ptpClock->domainNumber,
-			prev_domain
-		);
-		sigusr2_received = 0;
-	}
-#endif
-
-#ifdef DBG_SIGUSR2_DUMP_COUNTERS
 	if(sigusr2_received){
 		displayCounters(ptpClock);
 		if(rtOpts->timingAclEnabled) {
@@ -408,26 +380,7 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		}
 		sigusr2_received = 0;
 	}
-#endif
 
-		
-#ifdef DBG_SIGUSR2_CHANGE_DEBUG
-#ifdef RUNTIME_DEBUG
-	if(sigusr2_received){
-		/* cycle debug levels, from INFO (=no debug) to Verbose */
-		INFO("Current debug level: %d\n", rtOpts->debug_level);
-		
-		(rtOpts->debug_level)++;
-		if(rtOpts->debug_level > LOG_DEBUGV ){
-			rtOpts->debug_level = LOG_INFO;
-	}
-
-		INFO("New debug level: %d\n", rtOpts->debug_level);
-	sigusr2_received = 0;
-	}
-#endif
-#endif
-	
 }
 
 #ifdef RUNTIME_DEBUG

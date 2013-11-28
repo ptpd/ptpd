@@ -342,31 +342,6 @@ esac
 AC_SUBST(PTP_NTPDC)
 AM_CONDITIONAL([NTPDC], [test x$ptp_ntpdc = xyes])
 
-AC_MSG_CHECKING([for SIGUSR2 support])
-AC_ARG_ENABLE(
-    [sigusr2],
-    [AS_HELP_STRING(
-	[[[[--enable-sigusr2={domain,debug,counters}]]]],
-	[Enable SIGUSR2 support to: cycle PTP domain #, debug level or dump PTP engine counters (disabled by default)]
-    )],
-    [ptp_sigusr2=$enableval],
-    [ptp_sigusr2=no]
-)
-AC_MSG_RESULT([$ptp_sigusr2])
-case "$ptp_sigusr2" in
- domain)
-    PTP_SIGUSR2="-DDBG_SIGUSR2_CHANGE_DOMAIN"
-    ;;
- debug)
-    # We could/should check to be sure that RUNTIME_DEBUG is set...
-    PTP_SIGUSR2="-DDBG_SIGUSR2_CHANGE_DEBUG"
-    ;;
- counters)
-    PTP_SIGUSR2="-DDBG_SIGUSR2_DUMP_COUNTERS"
-    ;;
-esac
-AC_SUBST(PTP_SIGUSR2)
-
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([src/ptpd2.8])

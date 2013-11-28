@@ -134,6 +134,20 @@ netShutdownMulticast(NetPath * netPath)
 	return TRUE;
 }
 
+/*
+ * For future use: Check if IPv4 address is multiast -
+ * If last 4 bits of an address are 0xE (1110), it's multicast
+ */
+/*
+static Boolean
+isIpMulticast(struct in_addr in)
+{
+        if((ntohl(in.s_addr) >> 28) == 0x0E )
+	    return TRUE;
+	return FALSE;
+}
+*/
+
 /* shut down the UDP stuff */
 Boolean 
 netShutdown(NetPath * netPath)
@@ -1347,6 +1361,12 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				addr.sin_addr.s_addr = alt_dst;
 			}
 
+			/*
+			 * This function is used for PTP only anyway...
+			 * If we're sending to a unicast address, set the UNICAST flag.
+			 */
+			*(char *)(buf + 6) |= PTP_UNICAST;
+
 			ret = sendto(netPath->eventSock, buf, length, 0, 
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
@@ -1452,6 +1472,11 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 				addr.sin_addr.s_addr = alt_dst;
 			}
 
+			/*
+			 * This function is used for PTP only anyway...
+			 * If we're sending to a unicast address, set the UNICAST flag.
+			 */
+			*(char *)(buf + 6) |= PTP_UNICAST;
 
 			ret = sendto(netPath->generalSock, buf, length, 0, 
 				     (struct sockaddr *)&addr, 

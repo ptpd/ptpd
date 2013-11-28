@@ -14,17 +14,6 @@
 #define PTPD_DBGV
 #endif
 
-#ifdef DBG_SIGUSR2_CHANGE_DOMAIN
-#ifdef DBG_SIGUSR2_CHANGE_DEBUG
-
-#error "Cannot compile with both DBG_SIGUSR2_CHANGE_DOMAIN and DBG_SIGUSR2_CHANGE_DEBUG"
-
-#endif
-#endif
-
-
-
-
  /** \name System messages*/
  /**\{*/
 

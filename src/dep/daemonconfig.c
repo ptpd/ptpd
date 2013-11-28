@@ -838,9 +838,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->setRtc		 = FALSE;
 #endif /* HAVE_LINUX_RTC_H */
 
-#ifdef DBG_SIGUSR2_DUMP_COUNTERS
 	rtOpts->clearCounters = FALSE;
-#endif /* DBG_SIGUSR2_DUMP_COUNTERS */
 	rtOpts->statisticsLogInterval = 0;
 
 	rtOpts->initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
@@ -1340,14 +1338,16 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	/* hybrid mode -> should specify delayreq interval: override set in the bottom of this function */
 	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ip_mode == IPMODE_HYBRID,
-	"ptpengine:log_delayreq_interval",
-	"It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in hybrid mode");
+    		    "ptpengine:log_delayreq_interval",
+		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in hybrid mode"
+	);
 
-	/* unicast mode -> must specify delayreq interval if we can become a slave */
-	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
-				    rtOpts->ip_mode == IPMODE_UNICAST && rtOpts->clockQuality.clockClass > 127,
-				    "unicast",
-				    "ptpengine:log_delayreq_interval");
+	/* unicast mode -> should specify delayreq interval if we can become a slave */
+	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ip_mode == IPMODE_UNICAST &&
+		    rtOpts->clockQuality.clockClass > 127,
+		    "ptpengine:log_delayreq_interval",
+		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in unicast mode"
+	);
 	/* 
 	 * TODO: this should only be required in master mode - in unicast slave mode,
 	 * we should be sending delay requests to the IP of the current master, just
@@ -1500,12 +1500,8 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #endif /* PTPD_NTPDC */
 
-#ifdef DBG_SIGUSR2_DUMP_COUNTERS
 	CONFIG_MAP_BOOLEAN("ptpengine:sigusr2_clears_counters",rtOpts->clearCounters,rtOpts->clearCounters,
-		"When compiled with --enable-sigusr2=counters, clear counters after dumping\n"
-		"all counter values.");
-#endif /* DBG_SIGUSR2_DUMP_COUNTERS */
-
+		"Clear counters after dumping all counter values on SIGUSR2.");
 
 	/* Defining the ACLs enables ACL matching */
 	CONFIG_KEY_TRIGGER("ptpengine:timing_acl_permit",rtOpts->timingAclEnabled,TRUE,rtOpts->timingAclEnabled);
@@ -1967,6 +1963,15 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 */
 	if((rtOpts->ip_mode == IPMODE_HYBRID) &&
 	 !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
+		rtOpts->ignore_delayreq_interval_master=TRUE;
+
+	/*
+	 * We're in unicast slave-capable mode and we haven't specified the delay request interval:
+	 * use override with a default value
+	 */
+	if((rtOpts->ip_mode == IPMODE_UNICAST && 
+	    rtOpts->clockQuality.clockClass > 127) &&
+	    !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
 		rtOpts->ignore_delayreq_interval_master=TRUE;
 
 	/*
@@ -2578,12 +2583,9 @@ printLongHelp()
 		"Handled signals:\n"
 		"  SIGHUP         Reload configuration file and close / re-open log files\n"
 		"  SIGUSR1        Manually step clock to current OFM value\n"
-		"                (overides clock:no_reset, but honors clock:no_adjust)\n"
-		"  SIGUSR2        Behaviour based on ./configure --enable-sigusr2=[value]:"
-		"\n"
-		"         domain: Swap domain between current and current + 1\n"
-		"          debug: Cycle run-time debug level (requires RUNTIME_DEBUG)\n"
-		"       counters: Dump all PTP protocol counters to current log target\n"
+		"                 (overides clock:no_reset, but honors clock:no_adjust)\n"
+		"  SIGUSR2	  Dump all PTP protocol counters to current log target\n"
+		"                 (and clear if ptpengine:sigusr2_clears_counters set)\n"
 		"\n"
 		"  SIGINT|SIGTERM Close open files, remove lock file and exit cleanly\n"
 		"  SIGKILL        Force an unclean exit\n"

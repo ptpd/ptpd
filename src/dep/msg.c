@@ -1532,8 +1532,7 @@ msgPackDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_REQ_LENGTH);
 
-	if((rtOpts.ip_mode == IPMODE_HYBRID) || (rtOpts.ip_mode == IPMODE_UNICAST))
-		*(char *)(buf + 6) |= PTP_UNICAST;
+	/* -- PTP_UNICAST flag will be set in netsend* if needed */
 
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentDelayReqSequenceId);
 	*(UInteger8 *) (buf + 32) = 0x01;
@@ -1562,9 +1561,7 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 	*(UInteger16 *) (buf + 2) = flip16(DELAY_RESP_LENGTH);
 	*(UInteger8 *) (buf + 4) = header->domainNumber;
 
-
-	if(rtOpts.ip_mode == IPMODE_HYBRID)
-		*(char *)(buf + 6) |= PTP_UNICAST;
+	/* -- PTP_UNICAST flag will be set in netsend* if needed */
 
 	memset((buf + 8), 0, 8);
 
