@@ -157,11 +157,11 @@ netShutdown(NetPath * netPath)
 	netPath->unicastAddr = 0;
 
 	/* Close sockets */
-	if (netPath->eventSock > 0)
+	if (netPath->eventSock >= 0)
 		close(netPath->eventSock);
 	netPath->eventSock = -1;
 
-	if (netPath->generalSock > 0)
+	if (netPath->generalSock >= 0)
 		close(netPath->generalSock);
 	netPath->generalSock = -1;
 
@@ -718,6 +718,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	netPath->pcapGeneral = NULL;
 	netPath->pcapEventSock = -1;
 	netPath->pcapGeneralSock = -1;
+	netPath->generalSock = -1;
+	netPath->eventSock = -1;
 
 	if (rtOpts->transport == IEEE_802_3) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
