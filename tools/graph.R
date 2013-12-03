@@ -38,6 +38,8 @@
 # Usage: graph.R input_file [output_file]
 #
 
+source("ptplib.R")
+
 argv <- commandArgs(TRUE)
 
 file = argv[1]
@@ -45,20 +47,5 @@ output = argv[2]
 if (is.na(output))
   output = paste(basename(file), ".png", sep="")
   
-ptplog = read.table(file, fill=TRUE, sep=",", col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "drift", "packet"), blank.lines.skip=TRUE, header=FALSE, skip=100) 
-ymin = min(min(ptplog$offset, na.rm=TRUE), min(ptplog$delay, na.rm=TRUE),
-  min(ptplog$master.to.slave, na.rm=TRUE),
-  min(ptplog$slave.to.master, na.rm=TRUE))
-ymax = max(max(ptplog$offset, na.rm=TRUE), max(ptplog$delay, na.rm=TRUE),
-  max(ptplog$master.to.slave, na.rm=TRUE),
-  max(ptplog$slave.to.master, na.rm=TRUE))
-png(filename=output, height=960, width=1280, bg="white")
-plot(ptplog$delay, y=NULL, xaxt = "n" ,type="n", ylim=range(ymin, ymax),
-     main="PTP Results", xlab="Time", ylab="Nanoseconds")
-legend(100, ymax,
-       c("Delay", "Offset", "M->S", "S->M"), col=c("orange", "blue", "red", "green"), pch=21:24)
-points(ptplog$offset, y=NULL, cex=.1, col="blue", pch=21)
-points(ptplog$master.to.slave, y=NULL, cex=.1, col="red", pch=22)
-points(ptplog$slave.to.master, y=NULL, cex=.1, col="green", pch=23)
-points(ptplog$delay, y=NULL, cex=.1, col="orange", pch=24)
-axis(1, at=ptplog$timestamp, labels=ptplog$timestamp, )
+logA = ptpLogRead(file)
+ptpGraph(logA, output)

@@ -1,5 +1,5 @@
 #!/usr/local/bin/Rscript --slave
-# Copyright (c) 2012, Neville-Neil Consulting
+# Copyright (c) 2013, Neville-Neil Consulting
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,39 +35,28 @@
 # delay vs. the slave to mater delay vs. the calculated delay from a
 # PTPd output file generated with the -D flag.
 #
-# Usage: compare.R input_file input_file2 [output_file]
+# Usage: compare.R input_file input_file2 [value] [output_file]
 #
+# Value is one of: offset [default value], delay, master.to.slave, slave.to.master
+#
+
+source("ptplib.R")
 
 argv <- commandArgs(TRUE)
 
 file1 = argv[1]
 file2 = argv[2]
-output = argv[3]
-if (is.na(output))
-  output = paste(basename(file2), ".png", sep="")
-  
-ptplog = read.table(file1, fill=TRUE, sep=",", col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "drift", "discarded", "packet"), blank.lines.skip=TRUE, header=FALSE, skip=100) 
-png(filename=output, height=960, width=1280, bg="white")
-ymin = min(min(ptplog$offset, na.rm=TRUE), min(ptplog$delay, na.rm=TRUE),
-  min(ptplog$master.to.slave, na.rm=TRUE),
-  min(ptplog$slave.to.master, na.rm=TRUE))
-ymax = max(max(ptplog$offset, na.rm=TRUE), max(ptplog$delay, na.rm=TRUE),
-  max(ptplog$master.to.slave, na.rm=TRUE),
-  max(ptplog$slave.to.master, na.rm=TRUE))
-png(filename=output, height=960, width=1280, bg="white")
-plot(ptplog$delay, y=NULL, xaxt = "n" ,type="n", ylim=range(ymin, ymax),
-     main="PTP Results", xlab="Time", ylab="Nanoseconds")
-points(ptplog$delay, y=NULL, cex=.1, col="black", pch=24)
-points(ptplog$offset, y=NULL, cex=.1, col="blue", pch=21)
-points(ptplog$master.to.slave, y=NULL, cex=.1, col="purple", pch=22)
-points(ptplog$slave.to.master, y=NULL, cex=.1, col="green", pch=23)
+value = argv[3]
+outputFile = argv[4]
 
-# read in the second file
-ptplog = read.table(file2, fill=TRUE, sep=",", col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "drift", "discarded", "packet"), blank.lines.skip=TRUE, header=FALSE, skip=100) 
-points(ptplog$delay, y=NULL, cex=.1, col="black", pch=24)
-points(ptplog$offset, y=NULL, cex=.1, col="deeppink", pch=21)
-points(ptplog$master.to.slave, y=NULL, cex=.1, col="blue", pch=22)
-points(ptplog$slave.to.master, y=NULL, cex=.1, col="red", pch=23)
-legend(100, ymax,
-       c("Delay1", "Offset1", "M->S_1", "S->M_1", "Delay2", "Offset2", "M->S_2", "S->M_w"), col=c("black", "blue", "purple", "green", "black", "deeppink", "blue", "red"), pch=21:24)
-axis(1, at=ptplog$timestamp, labels=ptplog$timestamp, )
+if (is.na(outputFile))
+    outputFile = paste(basename(file2), ".png", sep="")
+  
+logA = ptpLogRead(file1)
+logB = ptpLogRead(file2)
+
+if (is.na(value)) {
+    ptpCompare(logA, logB, output=outputFile)
+} else {
+    ptpCompare(logA, logB, value, outputFile)
+}
