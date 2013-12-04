@@ -50,25 +50,35 @@ ptpLogRead <- function(file) {
 # Graphs a dataframe returned by a call to ptplog
 #
 # @logframe - A data frame returned by ptpLogRead
+# @value - Graph only a specific value rather than the four major ones.
 # @output - An optional file name to place a PNG of the graph into
 #
-ptpGraph <- function(logframe, output) {
-    ymin = min(min(logframe$offset, na.rm=TRUE), min(logframe$delay, na.rm=TRUE),
-        min(logframe$master.to.slave, na.rm=TRUE),
-        min(logframe$slave.to.master, na.rm=TRUE))
-    ymax = max(max(logframe$offset, na.rm=TRUE), max(logframe$delay, na.rm=TRUE),
-        max(logframe$master.to.slave, na.rm=TRUE),
-        max(logframe$slave.to.master, na.rm=TRUE))
+ptpGraph <- function(logframe, value, output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
-    plot(logframe$delay, y=NULL, xaxt = "n" ,type="n", ylim=range(ymin, ymax),
-         main="PTP Results", xlab="Time", ylab="Nanoseconds")
-    legend(100, ymax,
-           c("Delay", "Offset", "M->S", "S->M"), col=c("orange", "blue", "red", "green"), pch=21:24)
-    points(logframe$offset, y=NULL, cex=.1, col="blue", pch=21)
-    points(logframe$master.to.slave, y=NULL, cex=.1, col="red", pch=22)
-    points(logframe$slave.to.master, y=NULL, cex=.1, col="green", pch=23)
-    points(logframe$delay, y=NULL, cex=.1, col="orange", pch=24)
+    if (missing(value)) {
+        ymin = min(min(logframe$offset, na.rm=TRUE), min(logframe$delay, na.rm=TRUE),
+            min(logframe$master.to.slave, na.rm=TRUE),
+            min(logframe$slave.to.master, na.rm=TRUE))
+        ymax = max(max(logframe$offset, na.rm=TRUE), max(logframe$delay, na.rm=TRUE),
+            max(logframe$master.to.slave, na.rm=TRUE),
+            max(logframe$slave.to.master, na.rm=TRUE))
+        plot(logframe$delay, y=NULL, xaxt = "n" ,type="n", ylim=range(ymin, ymax),
+             main="PTP Results", xlab="Time", ylab="Nanoseconds")
+        legend(100, ymax,
+               c("Delay", "Offset", "M->S", "S->M"), col=c("orange", "blue", "red", "green"), pch=21:24)
+        points(logframe$offset, y=NULL, cex=.1, col="blue", pch=21)
+        points(logframe$master.to.slave, y=NULL, cex=.1, col="red", pch=22)
+        points(logframe$slave.to.master, y=NULL, cex=.1, col="green", pch=23)
+        points(logframe$delay, y=NULL, cex=.1, col="orange", pch=24)
+    } else {
+        ymin = min(logframe[[value]], na.rm=TRUE)
+        ymax = max(logframe[[value]], na.rm=TRUE)
+        plot(logframe[[value]], y=NULL, xaxt = "n" ,type="n",
+             ylim=range(ymin, ymax),
+             main="PTP Results", xlab="Time", ylab="Nanoseconds")
+        points(logframe[[value]], y=NULL, cex=.1, col="red", pch=21)
+    }
 }
     
 #
@@ -130,3 +140,36 @@ ptpQualityRead <- function(file) {
 ptpQualityCompare <- function(loga, logb, output) {
 }
 
+
+# Functions for deriving various statistics over a PTP log
+
+ptpStats <- function(ptplog) {
+    cat("Offset",
+        "\nmin:", min(ptplog$offset, na.rm=TRUE),
+        " max: ", max(ptplog$offset, na.rm=TRUE),
+        " median: ", median(ptplog$offset, na.rm=TRUE),
+        " mean: ", mean(ptplog$offset, na.rm=TRUE),
+        "\nstd dev: ", sd(ptplog$offset, na.rm=TRUE),
+        " variance: ", var(ptplog$offset, na.rm=TRUE), "\n")
+    cat("Delay",
+        "\nmin:", min(ptplog$delay, na.rm=TRUE),
+        " max: ", max(ptplog$delay, na.rm=TRUE),
+        " median: ", median(ptplog$delay, na.rm=TRUE),
+        " mean: ", mean(ptplog$delay, na.rm=TRUE),
+        "\nstd dev: ", sd(ptplog$delay, na.rm=TRUE),
+        " variance: ", var(ptplog$delay, na.rm=TRUE), "\n")
+    cat("Master -> Slave",
+        "\nmin:", min(ptplog$master.to.slave, na.rm=TRUE),
+        " max: ", max(ptplog$master.to.slave, na.rm=TRUE),
+        " median: ", median(ptplog$master.to.slave, na.rm=TRUE),
+        " mean: ", mean(ptplog$master.to.slave, na.rm=TRUE),
+        "\nstd dev: ", sd(ptplog$master.to.slave, na.rm=TRUE),
+        " variance: ", var(ptplog$master.to.slave, na.rm=TRUE), "\n")
+    cat("Slave -> Master",
+        "\nmin:", min(ptplog$slave.to.master, na.rm=TRUE),
+        " max: ", max(ptplog$slave.to.master, na.rm=TRUE),
+        " median: ", median(ptplog$slave.to.master, na.rm=TRUE),
+        " mean: ", mean(ptplog$slave.to.master, na.rm=TRUE),
+        "\nstd dev: ", sd(ptplog$slave.to.master, na.rm=TRUE),
+        " variance: ", var(ptplog$slave.to.master, na.rm=TRUE), "\n")
+}

@@ -37,36 +37,11 @@
 # to Slave and Slave to Master timings.  An argument is required which
 # is a raw ptpd log produced by the -D flag to ptpd2.
 
+source ("ptplib.R")
+
 argv <- commandArgs(TRUE)
 
 file = argv[1]
 
-ptplog = read.table(file, fill=TRUE, sep=",", col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "drift", "packet"), blank.lines.skip=TRUE, header=FALSE, skip=100)
-cat("Offset",
-    "\nmin:", min(ptplog$offset, na.rm=TRUE),
-    " max: ", max(ptplog$offset, na.rm=TRUE),
-    " median: ", median(ptplog$offset, na.rm=TRUE),
-    " mean: ", mean(ptplog$offset, na.rm=TRUE),
-    "\nstd dev: ", sd(ptplog$offset, na.rm=TRUE),
-    " variance: ", var(ptplog$offset, na.rm=TRUE), "\n")
-cat("Delay",
-    "\nmin:", min(ptplog$delay, na.rm=TRUE),
-    " max: ", max(ptplog$delay, na.rm=TRUE),
-    " median: ", median(ptplog$delay, na.rm=TRUE),
-    " mean: ", mean(ptplog$delay, na.rm=TRUE),
-    "\nstd dev: ", sd(ptplog$delay, na.rm=TRUE),
-    " variance: ", var(ptplog$delay, na.rm=TRUE), "\n")
-cat("Master -> Slave",
-    "\nmin:", min(ptplog$master.to.slave, na.rm=TRUE),
-    " max: ", max(ptplog$master.to.slave, na.rm=TRUE),
-    " median: ", median(ptplog$master.to.slave, na.rm=TRUE),
-    " mean: ", mean(ptplog$master.to.slave, na.rm=TRUE),
-    "\nstd dev: ", sd(ptplog$master.to.slave, na.rm=TRUE),
-    " variance: ", var(ptplog$master.to.slave, na.rm=TRUE), "\n")
-cat("Slave -> Master",
-    "\nmin:", min(ptplog$slave.to.master, na.rm=TRUE),
-    " max: ", max(ptplog$slave.to.master, na.rm=TRUE),
-    " median: ", median(ptplog$slave.to.master, na.rm=TRUE),
-    " mean: ", mean(ptplog$slave.to.master, na.rm=TRUE),
-    "\nstd dev: ", sd(ptplog$slave.to.master, na.rm=TRUE),
-    " variance: ", var(ptplog$slave.to.master, na.rm=TRUE), "\n")
+log = ptpLogRead(file)
+ptpStats(log)

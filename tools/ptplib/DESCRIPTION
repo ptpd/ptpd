@@ -1,0 +1,9 @@
+Package: ptplib
+Type: Package
+Title: Routines for working with PTPd log files (ptpd.sf.net)
+Version: 1.0
+Date: 2013-12-04
+Author: George Neville-Neil
+Maintainer: George Neville-Nei <gnn@neville-neil.com>
+Description: A set of routines for reading PTPd log files into data frames, graphing the frames in various ways and based on different columns, as well as showing generalized statistics about the performance of the PTPd client based on the log data.
+License: BSD_2_clause
