@@ -2,10 +2,10 @@
 \alias{ptpLogRead}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-Read a PTPd log file into a data frame.
+Read a PTPd log file into a data frame and several time series
 }
 \description{
-Read a PTPd log file into a data frame.
+Read a PTPd log file into a data frame and several time series.
 }
 \usage{
 ptpLogRead(file)
@@ -22,7 +22,11 @@ is used to read a log file into a data frame that can be used by the
 other calls in ptplib.
 }
 \value{
-data.frame
+  \item{log}{Data frame containing the full log}
+  \item{offset}{Zoo time series of the offset from the master.}
+  \item{delay}{Zoo time series of the measured round trip delay.}
+  \item{master.to.slave}{Zoo time series of the M->S one way time.}
+  \item{slave.to.master}{Zoo time series of the S->M one way time.}
 }
 \references{
 http://ptpd.sf.net
