@@ -45,10 +45,23 @@ require(zoo) # Time series objects
 #
 ptpLogRead <- function(file) {
 
-    log = read.table(file, fill=TRUE, sep=",",
-        col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "drift", "packet"),
-        colClasses=c("timestamp"="POSIXct"),
-        blank.lines.skip=TRUE, header=FALSE, skip=100)
+    # Attempt to read log files from version 2.3 first.
+    tryCatch({
+        log = read.table(file, fill=TRUE, sep=",",
+            col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "drift", "packet"),
+            colClasses=c("timestamp"="POSIXct"),
+            blank.lines.skip=TRUE, header=FALSE, skip=100)
+    }, warning = function(w) {
+        print(paste("File is not new style, trying old style.", file))
+    }, error = function(e) {
+        print(paste("File is not new style, trying old style.", file))
+    }, finally = { # If that fails try to read the old style
+        log = read.table(file, fill=TRUE, sep=",",
+            col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "steering", "drift", "packet"),
+            colClasses=c("timestamp"="POSIXct"),
+            blank.lines.skip=TRUE, header=FALSE, skip=100)
+    } # and if this fails we really error out.
+             )
 
     return (list(log=log, offset = zoo(log$offset, log$timestamp),
                  delay = zoo(log$delay, log$timestamp),
@@ -93,6 +106,8 @@ ptpGraph <- function(logframe, value, output) {
              main="PTP Results", xlab="Time", ylab="Nanoseconds")
         points(logframe[[value]], y=NULL, cex=.1, col="red", pch=21)
     }
+    if (!missing(output))
+        dev.off()
 }
     
 #
@@ -139,6 +154,8 @@ ptpCompare <-function(loga, logb, value, output) {
         legend(100, ymax,
                c(paste(value,"1"), paste(value, "2")), col=c("red", "blue"), pch=21:22)
     }
+    if (!missing(output))
+        dev.off()
 }
 
 # Functions for working with PTPd quality files
