@@ -38,7 +38,8 @@
 # Usage: graph.R input_file [output_file]
 #
 
-source("ptplib.R")
+require(zoo)
+require(ptplib)
 
 argv <- commandArgs(TRUE)
 
@@ -48,4 +49,4 @@ if (is.na(output))
   output = paste(basename(file), ".png", sep="")
   
 logA = ptpLogRead(file)
-ptpGraph(logA, output)
+ptpGraph(logA$ts, output=output)

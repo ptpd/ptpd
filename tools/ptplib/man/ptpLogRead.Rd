@@ -23,6 +23,7 @@ other calls in ptplib.
 }
 \value{
   \item{log}{Data frame containing the full log}
+  \item{ts}{Merged time series of next four value (offset, delay, m->s, s->m)}
   \item{offset}{Zoo time series of the offset from the master.}
   \item{delay}{Zoo time series of the measured round trip delay.}
   \item{master.to.slave}{Zoo time series of the M->S one way time.}
