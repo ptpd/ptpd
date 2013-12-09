@@ -80,7 +80,9 @@ ptpGraph <- function(logframe, value, output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
     if (class(logframe) == "zoo") {
-        plot(logframe, cex=.1)
+        ynames = unlist(strsplit(names(logframe), "[$]"))
+        ynames = ynames[seq(0,length(ynames),2)]
+        plot(logframe, cex=.1, ylab=ynames, xlab="Time")
         return(NULL)
     }
     if (missing(value)) {
