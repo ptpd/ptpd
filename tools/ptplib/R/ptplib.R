@@ -167,17 +167,28 @@ ptpCompare <-function(loga, logb, value, output) {
 }
 
 # Functions for working with PTPd quality files
-
+#
 #
 # Returns a data frame based on a PTPd quality file.
 ptpQualityRead <- function(file) {
-    log = read.table(file, file=TRUE, sep=",", col.names=c("packet", "time"), blank.lines.skip=TRUE, header=FALSE)
-    return (log)
+    read.table(file, fill=FALSE, sep=" ",
+               col.names=c("packet", "timestamp"),
+               colClasses=c("packet"="numeric"),
+               blank.lines.skip=TRUE, header=FALSE)
 }
 
-ptpQualityCompare <- function(loga, logb, output) {
+ptpQualityGraph <- function(logA, logB, output) {
+    quality = merge(logA, logB, by="packet")
+    difference = zoo(quality$timestamp.x - quality$timestamp.y, quality$packet)
+    plot(difference, type="p", cex=.1, ylab="nanoseconds",
+         xlab="Sequence Number")
+    return(difference)
 }
 
+ptpQualityGraphCompare <- function(diffA, diffB, output) {
+    plot(diffA, type = "p", ylab="nanoseconds", xlab="Sequence Number", cex=.1, col="red")
+    points(diffB, ylab="nanoseconds", xlab="Sequence Number", cex=.1, col="green")
+}
 
 # Functions for deriving various statistics over a PTP log
 
@@ -210,4 +221,13 @@ ptpStats <- function(ptplog) {
         " mean: ", mean(ptplog$slave.to.master, na.rm=TRUE),
         "\nstd dev: ", sd(ptplog$slave.to.master, na.rm=TRUE),
         " variance: ", var(ptplog$slave.to.master, na.rm=TRUE), "\n")
+}
+
+ptpQualityStats <- function(difference) {
+    cat("\nmin:", min(difference, na.rm=TRUE),
+        " max: ", max(difference, na.rm=TRUE),
+        " median: ", median(difference, na.rm=TRUE),
+        " mean: ", mean(difference, na.rm=TRUE),
+        "\nstd dev: ", sd(difference, na.rm=TRUE),
+        " variance: ", var(difference, na.rm=TRUE), "\n")
 }
