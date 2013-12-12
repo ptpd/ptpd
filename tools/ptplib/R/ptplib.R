@@ -70,7 +70,7 @@ ptpLogRead <- function(file) {
     slave.to.master = zoo(log$slave.to.master, log$timestamp)
     ts = merge(offset, delay, master.to.slave, slave.to.master)
 
-    return (list(log=log, ts=ts, offset=offset,
+    return (list(log=log, ts=ts, offset=offset, delay=delay,
                  master.to.slave=master.to.slave,
                  slave.to.master=slave.to.master))
 }
@@ -86,7 +86,7 @@ ptpGraph <- function(logframe, value, output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
     if (class(logframe) == "zoo") {
-        plot(logframe, cex=.1, main="PTP Log Graph", xlab="Time", mar=c(1, 5.1, 1, 5.1))
+        plot(logframe, type="p", cex=.1, main="PTP Log Graph", xlab="Time", mar=c(1, 5.1, 1, 5.1))
         if (!missing(output))
             dev.off()
         return(NULL)
@@ -100,7 +100,7 @@ ptpGraph <- function(logframe, value, output) {
             max(logframe$slave.to.master, na.rm=TRUE))
         plot(logframe$delay, y=NULL, xaxt = "n" ,type="n", ylim=range(ymin, ymax),
              main="PTP Results", xlab="Time", ylab="Nanoseconds")
-        legend(100, ymax,
+        legend("topright",
                c("Delay", "Offset", "M->S", "S->M"), col=c("orange", "blue", "red", "green"), pch=21:24)
         points(logframe$offset, y=NULL, cex=.1, col="blue", pch=21)
         points(logframe$master.to.slave, y=NULL, cex=.1, col="red", pch=22)
@@ -118,6 +118,19 @@ ptpGraph <- function(logframe, value, output) {
         dev.off()
 }
     
+ptpHistogram <- function(loga, logb) {
+    left = min(min(loga), min(logb))
+    right = max(max(loga), max(logb))
+    height = max(length(loga), length(logb))
+    hist (loga, xlim=c(left, right), col=rgb(1.0, 0, 0, 0.5))
+    hist (logb, xlim=c(left, right), ylim=c(0,2000),
+          col=rgb(0, 0, 1.0, 0.5), add=TRUE)
+    legend("topright",
+           c("A", "B"),
+           col=c(rgb(1.0, 0, 0, 0.5), rgb(0, 0, 1.0, 0.5)), pch=21:22)
+
+}
+
 #
 # Compare two log files on a graph
 #
@@ -149,7 +162,7 @@ ptpCompare <-function(loga, logb, value, output) {
         points(logb$offset, y=NULL, cex=.1, col="deeppink", pch=21)
         points(logb$master.to.slave, y=NULL, cex=.1, col="blue", pch=22)
         points(logb$slave.to.master, y=NULL, cex=.1, col="red", pch=23)
-        legend(100, ymax,
+        legend("topright",
                c("Delay1", "Offset1", "M->S_1", "S->M_1", "Delay2", "Offset2", "M->S_2", "S->M_w"), col=c("black", "blue", "purple", "green", "black", "deeppink", "blue", "red"), pch=21:24)
     } else {
         ymin = min(min(loga[[value]], na.rm=TRUE), min(logb[[value]], na.rm=TRUE))
@@ -159,7 +172,7 @@ ptpCompare <-function(loga, logb, value, output) {
         points(loga[[value]], y=NULL, cex=.1, col="red", pch=21)
 
         points(logb[[value]], y=NULL, cex=.1, col="blue", pch=22)
-        legend(100, ymax,
+        legend("topright",
                c(paste(value,"1"), paste(value, "2")), col=c("red", "blue"), pch=21:22)
     }
     if (!missing(output))
