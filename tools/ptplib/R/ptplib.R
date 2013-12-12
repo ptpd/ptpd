@@ -121,9 +121,10 @@ ptpGraph <- function(logframe, value, output) {
 ptpHistogram <- function(loga, logb) {
     left = min(min(loga), min(logb))
     right = max(max(loga), max(logb))
-    height = max(length(loga), length(logb))
-    hist (loga, xlim=c(left, right), col=rgb(1.0, 0, 0, 0.5))
-    hist (logb, xlim=c(left, right), ylim=c(0,2000),
+    height = max(length(loga), length(logb)) * 0.69
+    hist (loga, xlim=c(left, right), ylim=c(0,height), breaks=20,
+          col=rgb(1.0, 0, 0, 0.5))
+    hist (logb, xlim=c(left, right), ylim=c(0,height), breaks=20,
           col=rgb(0, 0, 1.0, 0.5), add=TRUE)
     legend("topright",
            c("A", "B"),
