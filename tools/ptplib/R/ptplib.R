@@ -118,7 +118,24 @@ ptpGraph <- function(logframe, value, output) {
         dev.off()
 }
     
-ptpHistogram <- function(loga, logb) {
+#
+# Draw a simple histogram of some one variable in our log
+#
+# e.g. foo$log$offset etc.
+
+ptpHistogram <- function(log) {
+    left = min(log)
+    right = max(log)
+    height = max(length(log)) * 0.69
+    hist (log, xlim=c(left, right), ylim=c(0,height), breaks=20,
+          col=rgb(1.0, 0, 0, 0.5))
+}
+
+#
+# Compare two data sets to each other using a histogram
+#
+# e.g. foo$log$offset, bar$log$offset
+ptpHistogramCompare <- function(loga, logb) {
     left = min(min(loga), min(logb))
     right = max(max(loga), max(logb))
     height = max(length(loga), length(logb)) * 0.69
