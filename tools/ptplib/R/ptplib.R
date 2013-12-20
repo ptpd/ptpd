@@ -209,16 +209,26 @@ ptpQualityRead <- function(file) {
 }
 
 ptpQualityGraph <- function(logA, logB, output) {
+    if (!missing(output))
+        png(filename=output, height=960, width=1280, bg="white")
     quality = merge(logA, logB, by="packet")
     difference = zoo(quality$timestamp.x - quality$timestamp.y, quality$packet)
     plot(difference, type="p", cex=.1, ylab="nanoseconds",
          xlab="Sequence Number")
+    if (!missing(output))
+            dev.off()
     return(difference)
 }
 
 ptpQualityGraphCompare <- function(diffA, diffB, output) {
+    if (!missing(output))
+        png(filename=output, height=960, width=1280, bg="white")
     plot(diffA, type = "p", ylab="nanoseconds", xlab="Sequence Number", cex=.1, col="red")
     points(diffB, ylab="nanoseconds", xlab="Sequence Number", cex=.1, col="green")
+    legend("topright",
+           c("1", "2"), col=c("red", "green"), pch=21:22)
+    if (!missing(output))
+        dev.off()
 }
 
 # Functions for deriving various statistics over a PTP log
