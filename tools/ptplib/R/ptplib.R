@@ -123,19 +123,25 @@ ptpGraph <- function(logframe, value, output) {
 #
 # e.g. foo$log$offset etc.
 
-ptpHistogram <- function(log) {
+ptpHistogram <- function(log, output) {
+    if (!missing(output))
+        png(filename=output, height=960, width=1280, bg="white")
     left = min(log)
     right = max(log)
     height = max(length(log)) * 0.69
     hist (log, xlim=c(left, right), ylim=c(0,height), breaks=20,
           col=rgb(1.0, 0, 0, 0.5))
+    if (!missing(output))
+        dev.off()
 }
 
 #
 # Compare two data sets to each other using a histogram
 #
 # e.g. foo$log$offset, bar$log$offset
-ptpHistogramCompare <- function(loga, logb) {
+ptpHistogramCompare <- function(loga, logb, output) {
+    if (!missing(output))
+        png(filename=output, height=960, width=1280, bg="white")
     left = min(min(loga), min(logb))
     right = max(max(loga), max(logb))
     height = max(length(loga), length(logb)) * 0.69
@@ -146,7 +152,8 @@ ptpHistogramCompare <- function(loga, logb) {
     legend("topright",
            c("A", "B"),
            col=c(rgb(1.0, 0, 0, 1), rgb(0, 0, 1.0, 1)), pch=21:22)
-
+    if (!missing(output))
+        dev.off()
 }
 
 #
