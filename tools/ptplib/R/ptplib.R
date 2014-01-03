@@ -140,12 +140,12 @@ ptpHistogramCompare <- function(loga, logb) {
     right = max(max(loga), max(logb))
     height = max(length(loga), length(logb)) * 0.69
     hist (loga, xlim=c(left, right), ylim=c(0,height), breaks=20,
-          col=rgb(1.0, 0, 0, 0.5))
+          col=rgb(1.0, 0, 0, 0.25))
     hist (logb, xlim=c(left, right), ylim=c(0,height), breaks=20,
-          col=rgb(0, 0, 1.0, 0.5), add=TRUE)
+          col=rgb(0, 0, 1.0, 0.25), add=TRUE)
     legend("topright",
            c("A", "B"),
-           col=c(rgb(1.0, 0, 0, 0.5), rgb(0, 0, 1.0, 0.5)), pch=21:22)
+           col=c(rgb(1.0, 0, 0, 1), rgb(0, 0, 1.0, 1)), pch=21:22)
 
 }
 
@@ -171,15 +171,15 @@ ptpCompare <-function(loga, logb, value, output) {
 
         plot(loga$delay, y=NULL, xaxt = "n" ,type="n", ylim=range(ymin, ymax),
              main="PTP Results", xlab="Time", ylab="Nanoseconds")
-        points(loga$delay, y=NULL, cex=.1, col="black", pch=24)
-        points(loga$offset, y=NULL, cex=.1, col="blue", pch=21)
-        points(loga$master.to.slave, y=NULL, cex=.1, col="purple", pch=22)
-        points(loga$slave.to.master, y=NULL, cex=.1, col="green", pch=23)
+        points(loga$delay, y=NULL, cex=.5, col="black", pch=24)
+        points(loga$offset, y=NULL, cex=.5, col="blue", pch=21)
+        points(loga$master.to.slave, y=NULL, cex=.5, col="purple", pch=22)
+        points(loga$slave.to.master, y=NULL, cex=.5, col="green", pch=23)
 
-        points(logb$delay, y=NULL, cex=.1, col="black", pch=24)
-        points(logb$offset, y=NULL, cex=.1, col="deeppink", pch=21)
-        points(logb$master.to.slave, y=NULL, cex=.1, col="blue", pch=22)
-        points(logb$slave.to.master, y=NULL, cex=.1, col="red", pch=23)
+        points(logb$delay, y=NULL, cex=.5, col="black", pch=24)
+        points(logb$offset, y=NULL, cex=.5, col="deeppink", pch=21)
+        points(logb$master.to.slave, y=NULL, cex=.5, col="blue", pch=22)
+        points(logb$slave.to.master, y=NULL, cex=.5, col="red", pch=23)
         legend("topright",
                c("Delay1", "Offset1", "M->S_1", "S->M_1", "Delay2", "Offset2", "M->S_2", "S->M_w"), col=c("black", "blue", "purple", "green", "black", "deeppink", "blue", "red"), pch=21:24)
     } else {
@@ -187,9 +187,9 @@ ptpCompare <-function(loga, logb, value, output) {
         ymax = max(max(loga[[value]], na.rm=TRUE), max(logb[[value]], na.rm=TRUE))
         plot(loga[[value]], y=NULL, xaxt = "n" ,type="n", ylim=range(ymin, ymax),
              main="PTP Results", xlab="Time", ylab="Nanoseconds")
-        points(loga[[value]], y=NULL, cex=.1, col="red", pch=21)
+        points(loga[[value]], y=NULL, cex=.5, col="red", pch=21)
 
-        points(logb[[value]], y=NULL, cex=.1, col="blue", pch=22)
+        points(logb[[value]], y=NULL, cex=.5, col="blue", pch=22)
         legend("topright",
                c(paste(value,"1"), paste(value, "2")), col=c("red", "blue"), pch=21:22)
     }
