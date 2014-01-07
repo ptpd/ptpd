@@ -82,10 +82,17 @@ ptpLogRead <- function(file) {
 # @value - Graph only a specific value rather than the four major ones.
 # @output - An optional file name to place a PNG of the graph into
 #
-ptpGraph <- function(logframe, value, output) {
+ptpGraph <- function(logframe, value, start, end, output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
     if (class(logframe) == "zoo") {
+        if (!missing(start))
+            logframe = logframe[index(logframe) > as.POSIXct(start)]
+        if (!missing(end))
+            logframe = logframe[index(logframe) < as.POSIXct(end)]
+        if (!missing(start) && !missing(end))
+            logframe = logframe[index(logframe) > as.POSIXct(start) &
+                index(logframe) < as.POSIXct(end)]
         plot(logframe, type="p", cex=.1, main="PTP Log Graph", xlab="Time", mar=c(1, 5.1, 1, 5.1))
         if (!missing(output))
             dev.off()
@@ -123,9 +130,16 @@ ptpGraph <- function(logframe, value, output) {
 #
 # e.g. foo$log$offset etc.
 
-ptpHistogram <- function(log, output) {
+ptpHistogram <- function(log, start, end, output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
+    if (!missing(start))
+        log = log[index(log) > as.POSIXct(start)]
+    if (!missing(end))
+        log = log[index(log) < as.POSIXct(end)]
+    if (!missing(start) && !missing(end))
+        log = log[index(log) > as.POSIXct(start) &
+            index(log) < as.POSIXct(end)]
     left = min(log)
     right = max(log)
     height = max(length(log)) * 0.69
@@ -139,9 +153,25 @@ ptpHistogram <- function(log, output) {
 # Compare two data sets to each other using a histogram
 #
 # e.g. foo$log$offset, bar$log$offset
-ptpHistogramCompare <- function(loga, logb, output) {
+ptpHistogramCompare <- function(loga, logb, starta, enda, startb, endb,
+                                output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
+    if (!missing(starta) && !missing(startb)) {
+        loga = loga[index(loga) > as.POSIXct(starta)]
+        logb = logb[index(logb) > as.POSIXct(startb)]
+    }
+    if (!missing(enda) && !missing(endb)) {
+        loga = loga[index(loga) < as.POSIXct(enda)]
+        logb = logb[index(logb) < as.POSIXct(endb)]
+    }
+    if (!missing(starta) && !missing(enda) &&
+        !missing(startb) && !missing(endb)) {
+        loga = loga[index(loga) > as.POSIXct(starta) &
+            index(loga) < as.POSIXct(enda)]
+        logb = logb[index(logb) > as.POSIXct(startb) &
+            index(logb) < as.POSIXct(endb)]
+    }
     left = min(min(loga), min(logb))
     right = max(max(loga), max(logb))
     height = max(length(loga), length(logb)) * 0.69
@@ -164,9 +194,23 @@ ptpHistogramCompare <- function(loga, logb, output) {
 # @value - column of the log file to compare
 #          e.g. offset, delay, slave.to.master, master.to.slave
 # @output - an output file name for a PNG image
-ptpCompare <-function(loga, logb, value, output) {
+ptpCompare <-function(loga, logb, value, start, end, output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
+    if (!missing(start)) {
+        loga = loga[index(loga) > as.POSIXct(start)]
+        logb = logb[index(logb) > as.POSIXct(start)]
+    }
+    if (!missing(end)) {
+        loga = loga[index(loga) < as.POSIXct(end)]
+        logb = logb[index(logb) < as.POSIXct(end)]
+    }
+    if (!missing(start) && !missing(end)) {
+        loga = loga[index(loga) > as.POSIXct(start) &
+            index(loga) < as.POSIXct(end)]
+        logb = logb[index(logb) > as.POSIXct(start) &
+            index(logb) < as.POSIXct(end)]
+    }
     # If the caller does not specify which value to compare, compare them all
     if (missing (value)) {
         ymin = min(min(loga$offset, na.rm=TRUE), min(loga$delay, na.rm=TRUE),
@@ -240,35 +284,35 @@ ptpQualityGraphCompare <- function(diffA, diffB, output) {
 
 # Functions for deriving various statistics over a PTP log
 
-ptpStats <- function(ptplog) {
+ptpStats <- function(log, start, end) {
     cat("Offset",
-        "\nmin:", min(ptplog$offset, na.rm=TRUE),
-        " max: ", max(ptplog$offset, na.rm=TRUE),
-        " median: ", median(ptplog$offset, na.rm=TRUE),
-        " mean: ", mean(ptplog$offset, na.rm=TRUE),
-        "\nstd dev: ", sd(ptplog$offset, na.rm=TRUE),
-        " variance: ", var(ptplog$offset, na.rm=TRUE), "\n")
+        "\nmin:", min(log$offset, na.rm=TRUE),
+        " max: ", max(log$offset, na.rm=TRUE),
+        " median: ", median(log$offset, na.rm=TRUE),
+        " mean: ", mean(log$offset, na.rm=TRUE),
+        "\nstd dev: ", sd(log$offset, na.rm=TRUE),
+        " variance: ", var(log$offset, na.rm=TRUE), "\n")
     cat("Delay",
-        "\nmin:", min(ptplog$delay, na.rm=TRUE),
-        " max: ", max(ptplog$delay, na.rm=TRUE),
-        " median: ", median(ptplog$delay, na.rm=TRUE),
-        " mean: ", mean(ptplog$delay, na.rm=TRUE),
-        "\nstd dev: ", sd(ptplog$delay, na.rm=TRUE),
-        " variance: ", var(ptplog$delay, na.rm=TRUE), "\n")
+        "\nmin:", min(log$delay, na.rm=TRUE),
+        " max: ", max(log$delay, na.rm=TRUE),
+        " median: ", median(log$delay, na.rm=TRUE),
+        " mean: ", mean(log$delay, na.rm=TRUE),
+        "\nstd dev: ", sd(log$delay, na.rm=TRUE),
+        " variance: ", var(log$delay, na.rm=TRUE), "\n")
     cat("Master -> Slave",
-        "\nmin:", min(ptplog$master.to.slave, na.rm=TRUE),
-        " max: ", max(ptplog$master.to.slave, na.rm=TRUE),
-        " median: ", median(ptplog$master.to.slave, na.rm=TRUE),
-        " mean: ", mean(ptplog$master.to.slave, na.rm=TRUE),
-        "\nstd dev: ", sd(ptplog$master.to.slave, na.rm=TRUE),
-        " variance: ", var(ptplog$master.to.slave, na.rm=TRUE), "\n")
+        "\nmin:", min(log$master.to.slave, na.rm=TRUE),
+        " max: ", max(log$master.to.slave, na.rm=TRUE),
+        " median: ", median(log$master.to.slave, na.rm=TRUE),
+        " mean: ", mean(log$master.to.slave, na.rm=TRUE),
+        "\nstd dev: ", sd(log$master.to.slave, na.rm=TRUE),
+        " variance: ", var(log$master.to.slave, na.rm=TRUE), "\n")
     cat("Slave -> Master",
-        "\nmin:", min(ptplog$slave.to.master, na.rm=TRUE),
-        " max: ", max(ptplog$slave.to.master, na.rm=TRUE),
-        " median: ", median(ptplog$slave.to.master, na.rm=TRUE),
-        " mean: ", mean(ptplog$slave.to.master, na.rm=TRUE),
-        "\nstd dev: ", sd(ptplog$slave.to.master, na.rm=TRUE),
-        " variance: ", var(ptplog$slave.to.master, na.rm=TRUE), "\n")
+        "\nmin:", min(log$slave.to.master, na.rm=TRUE),
+        " max: ", max(log$slave.to.master, na.rm=TRUE),
+        " median: ", median(log$slave.to.master, na.rm=TRUE),
+        " mean: ", mean(log$slave.to.master, na.rm=TRUE),
+        "\nstd dev: ", sd(log$slave.to.master, na.rm=TRUE),
+        " variance: ", var(log$slave.to.master, na.rm=TRUE), "\n")
 }
 
 ptpQualityStats <- function(difference) {
