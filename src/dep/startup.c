@@ -486,7 +486,9 @@ ptpdShutdown(PtpClock * ptpClock)
 	G_ptpClock = NULL;
 
 	/* properly clean lockfile (eventough new deaemons can acquire the lock after we die) */
-	fclose(G_lockFilePointer);
+	if(!rtOpts.ignore_daemon_lock && G_lockFilePointer != NULL) {
+	    fclose(G_lockFilePointer);
+	}
 	unlink(rtOpts.lockFile);
 
 	if(rtOpts.statusLog.logEnabled) {
