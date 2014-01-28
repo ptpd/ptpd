@@ -804,8 +804,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 #ifdef PTPD_EXPERIMENTAL
 	rtOpts->mcast_group_Number = 0;
 #endif
-	rtOpts->ip_mode = IPMODE_MULTICAST;
-	
+	rtOpts->ip_mode = IPMODE_NONE;
 
 	rtOpts->noAdjust = NO_ADJUST;  // false
 	rtOpts->logStatistics = TRUE;
@@ -1124,12 +1123,13 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	ptpPreset = getPtpPreset(rtOpts->selectedPreset, rtOpts);
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:ip_mode", rtOpts->ip_mode, rtOpts->ip_mode,		
+	CONFIG_MAP_SELECTVALUE("ptpengine:ip_mode", rtOpts->ip_mode, rtOpts->ip_mode,
 		"IP transmission mode (requires IP transport) - hybrid mode uses\n"
 	"	 multicast for sync and announce, and unicast for delay request and\n"
 	"	 response; unicast mode uses unicast for all transmission.\n"
 	"	 When unicast mode is selected, destination IP must be configured\n"
 	"	(ptpengine:unicast_address).",
+	    "none", IPMODE_NONE,
 				"multicast", 	IPMODE_MULTICAST,
 				"unicast", 	IPMODE_UNICAST,
 				"hybrid", 	IPMODE_HYBRID
@@ -1146,9 +1146,9 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	/* ethernet mode - cannot specify IP mode */
 	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:ip_mode",
-				    rtOpts->transport == IEEE_802_3,
-				    "ethernet",
-				    "ptpengine:ip_mode");
+	 			    rtOpts->transport == IEEE_802_3 && rtOpts->ip_mode != IPMODE_NONE, 
+	 			    "ethernet",
+	 			    "ptpengine:ip_mode");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:use_libpcap",rtOpts->pcap,rtOpts->pcap,
 		"Use libpcap for sending and receiving traffic (automatically enabled\n"
