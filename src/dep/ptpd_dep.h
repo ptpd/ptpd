@@ -283,7 +283,7 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
 Boolean testInterface(char* ifaceName);
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
 UInteger32 findIface(Octet * ifaceName, UInteger8 * communicationTechnology, Octet * uuid, NetPath * netPath);
-Boolean netShutdown(NetPath*);
+Boolean netShutdown(NetPath*, RunTimeOpts*);
 int netSelect(TimeInternal*,NetPath*,fd_set*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*,int);
 ssize_t netRecvGeneral(Octet*,NetPath*);

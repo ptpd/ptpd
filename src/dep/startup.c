@@ -447,7 +447,7 @@ ptpdShutdown(PtpClock * ptpClock)
 
 	extern RunTimeOpts rtOpts;
 
-	netShutdown(&ptpClock->netPath);
+	netShutdown(&ptpClock->netPath, &rtOpts);
 #ifdef PTPD_NTPDC
 	ntpShutdown(&rtOpts.ntpOptions, &ptpClock->ntpControl);
 #endif /* PTPD_NTPDC */

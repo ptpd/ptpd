@@ -121,7 +121,7 @@ netShutdownMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
  * @return TRUE if successful
  */
 static Boolean
-netShutdownMulticast(NetPath * netPath)
+netShutdownMulticast(NetPath * netPath, RunTimeOpts *rtOpts)
 {
 	/* Close General Multicast */
 	netShutdownMulticastIPv4(netPath, netPath->multicastAddr);
@@ -131,6 +131,28 @@ netShutdownMulticast(NetPath * netPath)
 	netShutdownMulticastIPv4(netPath, netPath->peerMulticastAddr);
 	netPath->peerMulticastAddr = 0;
 	
+	if ((rtOpts->transport == IEEE_802_3) && 
+	    (netPath->eventSock != -1) &&
+	    (netPath->headerOffset == PACKET_BEGIN_ETHER)) {
+		struct sockaddr_dl *dlp;
+		struct ifreq ifr;
+
+		memset(&ifr, 0, sizeof(struct ifreq));
+		strlcpy(&ifr.ifr_name[0], rtOpts->ifaceName, IFNAMSIZ);
+		dlp = (struct sockaddr_dl *)&ifr.ifr_addr;
+		memset(dlp, 0, sizeof(struct sockaddr_dl));
+		dlp->sdl_len = sizeof(struct sockaddr_dl);
+		dlp->sdl_family = AF_LINK;
+		dlp->sdl_alen = sizeof(struct ether_addr);
+		memcpy(LLADDR(dlp), netPath->etherDest.octet,
+		       sizeof(struct ether_addr));
+		netPath->eventSock = socket(AF_INET, SOCK_DGRAM, 0);
+		if (ioctl(netPath->eventSock, SIOCDELMULTI, &ifr) < 0) {
+			PERROR("failed to leave ethernet multicast group");
+			return FALSE;
+		}
+	}
+
 	return TRUE;
 }
 
@@ -150,9 +172,9 @@ isIpMulticast(struct in_addr in)
 
 /* shut down the UDP stuff */
 Boolean 
-netShutdown(NetPath * netPath)
+netShutdown(NetPath * netPath, RunTimeOpts *rtOpts)
 {
-	netShutdownMulticast(netPath);
+	netShutdownMulticast(netPath, rtOpts);
 
 	netPath->unicastAddr = 0;
 
@@ -753,9 +775,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	DBG("Listening on IP: %s\n",inet_ntoa(interfaceAddr));
 
 	if (rtOpts->pcap == TRUE) {
-		int promisc = (rtOpts->transport == IEEE_802_3 ) ? 1 : 0;
 		if ((netPath->pcapEvent = pcap_open_live(rtOpts->ifaceName,
-							 PACKET_SIZE, promisc,
+							 PACKET_SIZE, 0,
 							 PCAP_TIMEOUT,
 							 errbuf)) == NULL) {
 			PERROR("failed to open event pcap");
@@ -783,7 +804,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}		
 		if ((netPath->pcapGeneral = pcap_open_live(rtOpts->ifaceName,
-							   PACKET_SIZE, promisc,
+							   PACKET_SIZE, 0,
 							   PCAP_TIMEOUT,
 							 errbuf)) == NULL) {
 			PERROR("failed to open general pcap");
@@ -813,10 +834,28 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 	
 	if(rtOpts->transport == IEEE_802_3) {
+		struct sockaddr_dl *dlp;
+		struct ifreq ifr;
+
 		close(netPath->eventSock);
 		netPath->eventSock = -1;
 		close(netPath->generalSock);
 		netPath->generalSock = -1;
+
+		memset(&ifr, 0, sizeof(struct ifreq));
+		strlcpy(&ifr.ifr_name[0], rtOpts->ifaceName, IFNAMSIZ);
+		dlp = (struct sockaddr_dl *)&ifr.ifr_addr;
+		memset(dlp, 0, sizeof(struct sockaddr_dl));
+		dlp->sdl_len = sizeof(struct sockaddr_dl);
+		dlp->sdl_family = AF_LINK;
+		dlp->sdl_alen = sizeof(struct ether_addr);
+		memcpy(LLADDR(dlp), netPath->etherDest.octet,
+		       sizeof(struct ether_addr));
+		netPath->eventSock = socket(AF_INET, SOCK_DGRAM, 0);
+		if (ioctl(netPath->eventSock, SIOCADDMULTI, &ifr) < 0) {
+			PERROR("failed to join ethernet multicast group");
+			return FALSE;
+		}
 		/* TX timestamp is not generated for PCAP mode and Ethernet transport */
 #ifdef SO_TIMESTAMPING
 		netPath->txTimestampFailure = TRUE;
@@ -1685,7 +1724,7 @@ netRefreshIGMP(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	DBG("netRefreshIGMP\n");
 	
-	netShutdownMulticast(netPath);
+	netShutdownMulticast(netPath, rtOpts);
 	
 	/* suspend process 100 milliseconds, to make sure the kernel sends the IGMP_leave properly */
 	usleep(100*1000);

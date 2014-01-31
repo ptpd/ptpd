@@ -639,7 +639,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		MANUFACTURER_ID_OUI1,
 		MANUFACTURER_ID_OUI2);
 	/* initialize networking */
-	netShutdown(&ptpClock->netPath);
+	netShutdown(&ptpClock->netPath, rtOpts);
 	if (!netInit(&ptpClock->netPath, rtOpts, ptpClock)) {
 		ERROR("failed to initialize network\n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
