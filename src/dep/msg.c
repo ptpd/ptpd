@@ -1319,10 +1319,9 @@ msgPackHeader(Octet * buf, PtpClock * ptpClock)
 	memset((buf + 8), 0, 8);
 	copyClockIdentity((buf + 20), ptpClock->portIdentity.clockIdentity);
 	*(UInteger16 *) (buf + 28) = flip16(ptpClock->portIdentity.portNumber);
+	/* LogMessageInterval defaults to 0x7F, will be set to another value if needed as per table 24*/
 	*(UInteger8 *) (buf + 33) = 0x7F;
-	/* Default value(spec Table 24) */
 }
-
 
 
 /*Pack SYNC message into OUT buffer of ptpClock*/
@@ -1342,8 +1341,10 @@ msgPackSync(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	*(UInteger16 *) (buf + 2) = flip16(SYNC_LENGTH);
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentSyncSequenceId);
 	*(UInteger8 *) (buf + 32) = 0x00;
-	/* Table 23 */
-	*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
+
+	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
+	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ip_mode == IPMODE_MULTICAST)
+		*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
 	memset((buf + 8), 0, 8);
 
 	/* Sync message */
@@ -1386,8 +1387,9 @@ msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
 	*(UInteger16 *) (buf + 2) = flip16(ANNOUNCE_LENGTH);
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentAnnounceSequenceId);
 	*(UInteger8 *) (buf + 32) = 0x05;
-	/* Table 23 */
-	*(Integer8 *) (buf + 33) = ptpClock->logAnnounceInterval;
+	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
+	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ip_mode == IPMODE_MULTICAST)
+		*(Integer8 *) (buf + 33) = ptpClock->logAnnounceInterval;
 
 	/* Announce message */
 	memset((buf + 34), 0, 10);
@@ -1462,8 +1464,10 @@ msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpC
 	*(UInteger16 *) (buf + 2) = flip16(FOLLOW_UP_LENGTH);
 	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
 	*(UInteger8 *) (buf + 32) = 0x02;
-	/* Table 23 */
-	*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
+
+	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
+	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ip_mode == IPMODE_MULTICAST)
+		*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
 
 	/* Follow_up message */
 	*(UInteger16 *) (buf + 34) =
@@ -1572,9 +1576,10 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 	*(UInteger16 *) (buf + 30) = flip16(header->sequenceId);
 
 	*(UInteger8 *) (buf + 32) = 0x03;
-	/* Table 23 */
-	*(Integer8 *) (buf + 33) = ptpClock->logMinDelayReqInterval;
-	/* Table 24 */
+
+	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
+	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ip_mode == IPMODE_MULTICAST)
+		*(Integer8 *) (buf + 33) = ptpClock->logMinDelayReqInterval;
 
 	/* Pdelay_resp message */
 	*(UInteger16 *) (buf + 34) =

@@ -902,24 +902,18 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 #endif /* PTPD_STATISTICS */
 
-
-
 		break;
 
 	case PTP_MASTER:
 		/*
 		 * handle SLAVE timers:
-		 *   - Time to send new Sync
 		 *   - Time to send new Announce
 		 *   - Time to send new PathDelay
+		 *   - Time to send new Sync (last order - so that follow-up always follows sync
+		 *     in two-step mode: improves interoperability
 		 *      (DelayResp has no timer - as these are sent and retransmitted by the slaves)
 		 */
-	
-		if (timerExpired(SYNC_INTERVAL_TIMER, ptpClock->itimer)) {
-			DBGV("event SYNC_INTERVAL_TIMEOUT_EXPIRES\n");
-			issueSync(rtOpts, ptpClock);
-		}
-		
+
 		if (timerExpired(ANNOUNCE_INTERVAL_TIMER, ptpClock->itimer)) {
 			DBGV("event ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES\n");
 			issueAnnounce(rtOpts, ptpClock);
@@ -944,9 +938,14 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		}
 
+		if (timerExpired(SYNC_INTERVAL_TIMER, ptpClock->itimer)) {
+			DBGV("event SYNC_INTERVAL_TIMEOUT_EXPIRES\n");
+			issueSync(rtOpts, ptpClock);
+		}
+
 		// TODO: why is handle() below expiretimer, while in slave is the opposite
 		handle(rtOpts, ptpClock);
-		
+
 		if (ptpClock->slaveOnly || ptpClock->clockQuality.clockClass == SLAVE_ONLY_CLOCK_CLASS)
 			toState(PTP_LISTENING, rtOpts, ptpClock);
 

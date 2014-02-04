@@ -30,7 +30,7 @@ fi
 
 start() {
 
-	status $DAEMON > /dev/null 2>&1
+	status -p $PTPD_PID_FILE $DAEMON > /dev/null 2>&1
 	RETVAL=$?
 	if [ "$RETVAL" -eq "0" ]
 	then
@@ -42,7 +42,7 @@ start() {
 
 		$DAEMON $PTPD_OPTIONS
 		sleep 1 
-		status $DAEMON > /dev/null 2>&1
+		status -p $PTPD_PID_FILE $DAEMON > /dev/null 2>&1
 		RETVAL=$?
 
 	if [ "$RETVAL" -eq "0" ] 
@@ -57,7 +57,7 @@ start() {
 }
 
 checkstatus() {
-	status $DAEMON > /dev/null 2>&1 	
+	status -p $PTPD_PID_FILE $DAEMON > /dev/null 2>&1 	
 	RETVAL=$?
 	if [ "$RETVAL" -eq "0" ] 
 	then 
@@ -73,7 +73,7 @@ checkstatus() {
 }
 
 showinfo() {
-	status $DAEMON > /dev/null 2>&1 	
+	status -p $PTPD_PID_FILE $DAEMON > /dev/null 2>&1 	
 	RETVAL=$?
 	if [ "$RETVAL" -eq "0" ] 
 	then 
@@ -105,13 +105,13 @@ checkconfig() {
 }
 
 stop() {
-	status $DAEMON > /dev/null 2>&1 	
+	status -p $PTPD_PID_FILE $DAEMON > /dev/null 2>&1 	
 	RETVAL=$?
    if [ "$RETVAL" -ne "0" ] 
    then 
    	echo "$prog not running."
 	else
-		killproc $DAEMON
+		killproc -p $PTPD_PID_FILE $DAEMON
 		RETVAL=$?
 		if [ "$RETVAL" -eq "0" ] 
 		then 
@@ -130,7 +130,7 @@ reload() {
 		exit $RETVAL
 	    fi
 		echo -n $"Reloading $prog: "
-	    killproc $DAEMON -HUP
+	    killproc -p $PTPD_PID_FILE $DAEMON -HUP
 	    RETVAL=$?
 	    echo
 }
