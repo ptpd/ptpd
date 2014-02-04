@@ -528,7 +528,7 @@ Boolean isDoublePeircesOutlier(DoubleMovingStdDev *container, double sample, dou
 void
 clearPtpEngineSlaveStats(PtpEngineSlaveStats* stats)
 {
-	memset(stats, 0, sizeof(stats));
+	memset(stats, 0, sizeof(*stats));
 }
 
 void

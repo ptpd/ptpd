@@ -78,24 +78,24 @@ void unpack##type( void* from, void* to, PtpClock *ptpClock ) \
 #define PACK_LOWER_AND_UPPER( type ) \
 void pack##type##Lower( void* from, void* to ) \
 { \
-	*(char *)to = *(char *)to & 0xF0; \
-	*(char *)to = *(char *)to | *(type *)from; \
+        *(char *)to = *(char *)to & 0xF0; \
+        *(char *)to = *(char *)to | *(type *)from; \
 } \
 \
 void pack##type##Upper( void* from, void* to ) \
 { \
-	*(char *)to = *(char *)to & 0x0F; \
-	*(char *)to = *(char *)to | (*(type *)from << 4); \
+        *(char *)to = *(char *)to & 0x0F; \
+        *(char *)to = *(char *)to | (*(type *)from << 4); \
 } \
 \
 void unpack##type##Lower( void* from, void* to, PtpClock *ptpClock ) \
 { \
-	*(type *)to = *(char *)from & 0x0F; \
+        *(type *)to = *(char *)from & 0x0F; \
 } \
 \
 void unpack##type##Upper( void* from, void* to, PtpClock *ptpClock ) \
 { \
-	*(type *)to = *(char *)from & 0xF0; \
+        *(type *)to = (*(char *)from >> 4) & 0x0F; \
 }
 
 PACK_SIMPLE( Boolean )

@@ -69,10 +69,15 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
+#ifdef PTPD_PCAP
 #ifdef HAVE_PCAP_PCAP_H
 #include <pcap/pcap.h>
 #else
+/* Cases like RHEL5 and others where only pcap.h exists */
+#ifdef HAVE_PCAP_H
 #include <pcap.h>
+#endif /* HAVE_PCAP_H */
+#endif
 #endif
 #if defined(linux) && defined(HAVE_SCHED_H)
 #include <sched.h>

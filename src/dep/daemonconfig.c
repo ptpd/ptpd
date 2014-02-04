@@ -200,6 +200,16 @@
 	    parseResult = FALSE;\
 	 }
 
+#define CONFIG_KEY_VALUE_FORBIDDEN(key,condition,stringval,message) \
+	if ( (condition) && \
+	    CONFIG_ISSET(key) ) \
+	 { \
+	    if(!IS_QUIET())\
+		ERROR("Configuration error: option \"%s=%s\" cannot be used: \n%s", key, stringval, message); \
+	    parseResult = FALSE;\
+	 }
+
+
 #define CONFIG_KEY_TRIGGER(key,variable,value, otherwise) \
 	if (CONFIG_ISSET(key) ) \
 	 { \
@@ -804,7 +814,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 #ifdef PTPD_EXPERIMENTAL
 	rtOpts->mcast_group_Number = 0;
 #endif
-	rtOpts->ip_mode = IPMODE_NONE;
+	rtOpts->ip_mode = IPMODE_MULTICAST;
 
 	rtOpts->noAdjust = NO_ADJUST;  // false
 	rtOpts->logStatistics = TRUE;
@@ -877,7 +887,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* Try 46 for expedited forwarding */
 	rtOpts->dscpValue = 0;
 
-#if (defined(linux) && defined(HAVE_SHED_H)) || defined(HAVE_SYS_CPUSET_H)
+#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H)
 	rtOpts-> cpuNumber = -1;
 #endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H*/
 
@@ -1123,20 +1133,9 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	ptpPreset = getPtpPreset(rtOpts->selectedPreset, rtOpts);
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:ip_mode", rtOpts->ip_mode, rtOpts->ip_mode,
-		"IP transmission mode (requires IP transport) - hybrid mode uses\n"
-	"	 multicast for sync and announce, and unicast for delay request and\n"
-	"	 response; unicast mode uses unicast for all transmission.\n"
-	"	 When unicast mode is selected, destination IP must be configured\n"
-	"	(ptpengine:unicast_address).",
-	    "none", IPMODE_NONE,
-				"multicast", 	IPMODE_MULTICAST,
-				"unicast", 	IPMODE_UNICAST,
-				"hybrid", 	IPMODE_HYBRID
-				);
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:transport",rtOpts->transport,rtOpts->transport,
-		"Transport type for PTP packets.",
+		"Transport type for PTP packets. Ethernet transport requires libpcap support.",
 				"ipv4",		UDP_IPV4,
 #if 0
 				"ipv6",		UDP_IPV6,
@@ -1144,12 +1143,26 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"ethernet", 	IEEE_802_3
 				);
 
+#ifdef PTPD_PCAP
 	/* ethernet mode - cannot specify IP mode */
 	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:ip_mode",
-	 			    rtOpts->transport == IEEE_802_3 && rtOpts->ip_mode != IPMODE_NONE, 
+	 			    rtOpts->transport == IEEE_802_3,
 	 			    "ethernet",
 	 			    "ptpengine:ip_mode");
+#endif
 
+	CONFIG_MAP_SELECTVALUE("ptpengine:ip_mode", rtOpts->ip_mode, rtOpts->ip_mode,
+		"IP transmission mode (requires IP transport) - hybrid mode uses\n"
+	"	 multicast for sync and announce, and unicast for delay request and\n"
+	"	 response; unicast mode uses unicast for all transmission.\n"
+	"	 When unicast mode is selected, destination IP must be configured\n"
+	"	(ptpengine:unicast_address).",
+				"multicast", 	IPMODE_MULTICAST,
+				"unicast", 	IPMODE_UNICAST,
+				"hybrid", 	IPMODE_HYBRID
+				);
+
+#ifdef PTPD_PCAP
 	CONFIG_MAP_BOOLEAN("ptpengine:use_libpcap",rtOpts->pcap,rtOpts->pcap,
 		"Use libpcap for sending and receiving traffic (automatically enabled\n"
 	"	 in Ethernet mode).");
@@ -1157,9 +1170,25 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	/* in ethernet mode, activate pcap and overwrite previous setting */
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport==IEEE_802_3,rtOpts->pcap,TRUE,rtOpts->pcap);
 
+#else
+	if(CONFIG_ISTRUE("ptpengine:use_libpcap"))
+	INFO("Libpcap support disabled or not available. Please install libpcap,\n"
+	     "build without --disable-pcap, or try building with ---with-pcap-config\n"
+	     " to use ptpengine:use_libpcap.\n");
+
+	/* cannot set ethernet transport without libpcap */
+	CONFIG_KEY_VALUE_FORBIDDEN("ptpengine:transport",
+				    rtOpts->transport == IEEE_802_3,
+				    "ethernet",
+	    "Libpcap support disabled or not available. Please install libpcap,\n"
+	     "build without --disable-pcap, or try building with ---with-pcap-config\n"
+	     "to use Ethernet transport. "PTPD_PROGNAME" was built with no libpcap support.\n");
+
+#endif /* PTPD_PCAP */
+
 	CONFIG_MAP_SELECTVALUE("ptpengine:delay_mechanism",rtOpts->delayMechanism,rtOpts->delayMechanism,
 		 "Delay detection mode used - use DELAY_DISABLED for syntonisation only\n"
-	"	 (no synchronisation).",
+	"	 (no full synchronisation).",
 				"E2E",		E2E,	
 				"P2P",		P2P,
 				"DELAY_DISABLED", DELAY_DISABLED
@@ -2645,7 +2674,9 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:preset",  		PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:ip_mode",       		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:transport",     		PTPD_RESTART_NETWORK );
+#ifdef PTPD_PCAP
         COMPONENT_RESTART_REQUIRED("ptpengine:use_libpcap",   		PTPD_RESTART_NETWORK );
+#endif
         COMPONENT_RESTART_REQUIRED("ptpengine:delay_mechanism",        	PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:domain",    		PTPD_RESTART_PROTOCOL );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:inbound_latency",       PTPD_RESTART_NONE );

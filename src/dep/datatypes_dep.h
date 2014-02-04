@@ -80,11 +80,13 @@ typedef struct {
 
 	uint64_t sentPackets;
 	uint64_t receivedPackets;
-	
+
+#ifdef PTPD_PCAP
 	pcap_t *pcapEvent;
-	Integer32 pcapEventSock;
 	pcap_t *pcapGeneral;
+	Integer32 pcapEventSock;
 	Integer32 pcapGeneralSock;
+#endif
 	Integer32 headerOffset;
 
 	/* used for tracking the last TTL set */

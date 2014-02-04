@@ -135,7 +135,7 @@ createMaskTable(const char* input)
 {
 	MaskTable* ret;
 	int masksFound = maskParser(input, NULL);
-	if(masksFound>0) {
+	if(masksFound>=0) {
 		ret=(MaskTable*)calloc(1,sizeof(MaskTable));
 		ret->entries = (AclEntry*)calloc(masksFound, sizeof(AclEntry));
 		ret->numEntries = maskParser(input,ret->entries);

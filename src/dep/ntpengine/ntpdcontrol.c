@@ -74,7 +74,7 @@ ntpInit(NTPoptions* options, NTPcontrol* control)
 	if(!options->enableEngine)
 	    return FALSE;
 
-	memset(control, 0, sizeof(control));
+	memset(control, 0, sizeof(*control));
 
 	if(!hostLookup(options->hostAddress, &control->serverAddress)) {
                 control->serverAddress = 0;
@@ -236,8 +236,7 @@ NTPDCrequest(
 	int	maclen;
 	static char *key;
 
-	key=malloc(21);
-	memset (key, 0, sizeof(key));
+	key=calloc(21,sizeof(char));
 	strncpy(key,options->key,20);
 
 	memset(&qpkt, 0, sizeof(qpkt));

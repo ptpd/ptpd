@@ -28,6 +28,142 @@ AC_PROG_CC
 AC_PROG_LIBTOOL
 
 AC_ARG_WITH(
+    [pcap-config],
+    [AS_HELP_STRING(
+	[--with-pcap-config],
+	[+ =pcap-config]
+    )],
+    [ans=$withval],
+    [ans=yes]
+)
+case "$ans" in
+ no)
+    ;;
+ yes)
+    ans=pcap-config
+    ;;
+ /*)
+    pcap_config_dirname=`dirname $ans`
+    pcap_config_basename=`basename $ans`
+    ans=abspath
+    ;;
+ */*)
+    AC_MSG_ERROR([--with-pcap-config takes either a name or an absolute path])
+    ;;
+ *)
+    ;;
+esac
+PROG_PCAP_CONFIG=$ans
+case "$PROG_PCAP_CONFIG" in
+ no)
+    ;;
+ abspath)
+    AC_PATH_PROG([PATH_PCAP_CONFIG], [$pcap_config_basename], [], [$pcap_config_dirname])
+    AS_UNSET([ac_cv_path_PATH_PCAP_CONFIG])
+    ;;
+ *)
+    AC_PATH_PROG([PATH_PCAP_CONFIG], [$PROG_PCAP_CONFIG])
+    AS_UNSET([ac_cv_path_PATH_PCAP_CONFIG])
+    ;;
+esac
+
+AC_MSG_CHECKING([if we want to try building PCAP support])
+AC_ARG_ENABLE(
+    [pcap],
+    [AS_HELP_STRING(
+	[--disable-pcap],
+	[disable support for PCAP (enabled if we find pcap-config)]
+    )],
+    [try_pcap=$enableval],
+    [case "$PATH_PCAP_CONFIG" in
+     /*)
+	try_pcap=yes
+	;;
+     *)
+	try_pcap=no
+	;;
+    esac]
+)
+AC_MSG_RESULT([$try_pcap])
+
+ptpd_pcap_enabled=0
+case "$try_pcap" in
+ yes)
+    case "$PATH_PCAP_CONFIG" in
+     /*)
+	PCAP_LIBS=`$PATH_PCAP_CONFIG --libs`
+	AC_SUBST([PCAP_LIBS])
+	# Separate CPPFLAGS and CFLAGS
+	foo=`$PATH_PCAP_CONFIG --cflags`
+	PCAP_CPPFLAGS=
+	PCAP_CFLAGS=
+	for i in $foo; do
+	    case "$i" in
+	     -D*|-F*|-U*|-I*)
+		PCAP_CPPFLAGS="$PCAP_CPPFLAGS $i"
+		;;
+	    *)	PCAP_CFLAGS="$PCAP_CFLAGS $i"
+		;;
+	    esac
+	done
+	AC_SUBST([PCAP_CPPFLAGS])
+	AC_SUBST([PCAP_CFLAGS])
+
+	save_CFLAGS=$CFLAGS
+	save_CPPFLAGS=$CPPFLAGS
+	save_LIBS=$LIBS
+	CFLAGS=$PCAP_CFLAGS
+	CPPFLAGS=$PCAP_CPPFLAGS
+
+        AC_CHECK_HEADERS([pcap/pcap.h pcap.h])
+
+	CFLAGS=$save_CFLAGS
+	AS_UNSET([save_CFLAGS])
+	CPPFLAGS=$save_CPPFLAGS
+	AS_UNSET([save_CPPFLAGS])
+	LIBS=$save_LIBS
+	AS_UNSET([save_LIBS])
+
+	AC_MSG_CHECKING([if we are building PCAP support])
+	case "$ac_cv_header_pcap_pcap_h" in
+	 yes)
+		case "$ac_cv_header_pcap_h" in
+		 yes)
+			ptpd_pcap_enabled=1
+			PTP_PCAP="-DPTPD_PCAP"
+			AC_MSG_RESULT([yes])
+			;;
+		 no)
+			PTP_PCAP=""
+			PCAP_LIBS=""
+			PCAP_CPPFLAGS=""
+			PCAP_CFLAGS=""
+			AC_MSG_RESULT([no])
+			;;
+		esac
+		;;
+	 no)
+		PTP_PCAP=""
+		PCAP_LIBS=""
+		PCAP_CPPFLAGS=""
+		PCAP_CFLAGS=""
+		AC_MSG_RESULT([no])
+		;;
+	esac
+	;;
+     *)
+	# This case can't be triggered - we won't get here unless we
+	# have an absolute path to pcap-config.
+	AC_MSG_WARN([Cannot build with PCAP support - pcap-config cannot be found])
+	;;
+    esac
+    ;;
+esac
+
+AC_SUBST(PTP_PCAP)
+AM_CONDITIONAL([PCAP], [test x$ptpd_pcap_enabled = x1])
+
+AC_ARG_WITH(
     [net-snmp-config],
     [AS_HELP_STRING(
 	[--with-net-snmp-config],
@@ -43,6 +179,9 @@ case "$ans" in
     ans=net-snmp-config
     ;;
  /*)
+    net_snmp_config_dirname=`dirname $ans`
+    net_snmp_config_basename=`basename $ans`
+    ans=abspath
     ;;
  */*)
     AC_MSG_ERROR([--with-net-snmp-config takes either a name or an absolute path])
@@ -53,6 +192,10 @@ esac
 PROG_NET_SNMP_CONFIG=$ans
 case "$PROG_NET_SNMP_CONFIG" in
  no)
+    ;;
+ abspath)
+    AC_PATH_PROG([PATH_NET_SNMP_CONFIG], [$net_snmp_config_basename], [], [$net_snmp_config_dirname])
+    AS_UNSET([ac_cv_path_PATH_NET_SNMP_CONFIG])
     ;;
  *)
     AC_PATH_PROG([PATH_NET_SNMP_CONFIG], [$PROG_NET_SNMP_CONFIG])
@@ -171,16 +314,10 @@ AC_SUBST(LINUX_KERNEL_INCLUDES)
 # Checks for libraries.
 AC_CHECK_LIB([m], [pow])
 AC_CHECK_LIB([rt], [clock_gettime])
-AC_CHECK_LIB(
-    [pcap],
-    [pcap_inject],
-    [],
-    [AC_MSG_ERROR([Cannot find libpcap - required for pcap / BPF timestamping!])]
-)
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h netinet/ether.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h pcap/pcap.h pcap.h linux/rtc.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h netinet/ether.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h linux/rtc.h])
 
 # MUST chck for cpuset AFTER the check for param as the latter needs 
 # the former to pass the compile check.

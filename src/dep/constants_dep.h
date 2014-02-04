@@ -130,8 +130,7 @@ enum {
 };
 /* IP transmission mode */
 enum {
-	IPMODE_NONE = 0,
-	IPMODE_MULTICAST,
+	IPMODE_MULTICAST = 0,
 	IPMODE_UNICAST,
 	IPMODE_HYBRID,
 #if 0

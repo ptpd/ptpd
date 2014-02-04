@@ -127,10 +127,10 @@ uses unicast for all transmission. When unicast mode is selected, destination IP
 .RS 8
 .TP 8
 \fBoptions\fR
-\fIipv4 ethernet \fR
+\fIipv4 ethernet\fR
 .TP 8
 \fBusage\fR
-Transport type for PTP packets.
+Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building with \fIlibpcap\fR.
 .TP 8
 \fBdefault\fR
 \fIipv4\fR
@@ -144,6 +144,7 @@ Transport type for PTP packets.
 .TP 8
 \fBusage\fR
 Use libpcap for sending and receiving traffic (automatically enabled in Ethernet mode).
+Requires building with libpcap - builds made with --disable-pcap cannot use this feature.
 .TP 8
 \fBdefault\fR
 \fIN\fR

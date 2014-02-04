@@ -54,6 +54,7 @@
 
 #include "../ptpd.h"
 
+#ifdef PTPD_PCAP
 #ifdef HAVE_PCAP_PCAP_H
 #include <pcap/pcap.h>
 #else /* !HAVE_PCAP_PCAP_H */
@@ -62,8 +63,8 @@
 #include <pcap.h>
 #endif /* HAVE_PCAP_H */
 #endif
-
 #define PCAP_TIMEOUT 1 /* expressed in milliseconds */
+#endif
 
 #if defined PTPD_SNMP
 #include <net-snmp/net-snmp-config.h>
@@ -165,6 +166,7 @@ netShutdown(NetPath * netPath)
 		close(netPath->generalSock);
 	netPath->generalSock = -1;
 
+#ifdef PTPD_PCAP
 	if (netPath->pcapEvent != NULL) {
 		pcap_close(netPath->pcapEvent);
 		netPath->pcapEventSock = -1;
@@ -173,6 +175,7 @@ netShutdown(NetPath * netPath)
 		pcap_close(netPath->pcapGeneral);
 		netPath->pcapGeneralSock = -1;
 	}
+#endif
 
 	freeIpv4AccessList(netPath->timingAcl);
 	freeIpv4AccessList(netPath->managementAcl);
@@ -604,10 +607,10 @@ netInitTimestamping(NetPath * netPath, RunTimeOpts * rtOpts)
 			    rtOpts->ifaceName);
 		val = 1;
 		netPath->txTimestampFailure = FALSE;
-	} else if(!(tsInfo.so_timestamping & val)) {
+	} else if((tsInfo.so_timestamping & val) != val) {
 		DBGV("Required SO_TIMESTAMPING flags not supported - reverting to SO_TIMESTAMPNS\n");
 		val = 1;
-		netPath->txTimestampFailure = FALSE;
+		netPath->txTimestampFailure = TRUE;
 	}
 #else
 	netPath->txTimestampFailure = FALSE;
@@ -708,24 +711,31 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	int temp;
 	struct in_addr interfaceAddr;
 	struct sockaddr_in addr;
+
+#ifdef PTPD_PCAP
 	struct bpf_program program;
 	char errbuf[PCAP_ERRBUF_SIZE];
+#endif
 	pid_t job = htonl(getpid());
        
 	DBG("netInit\n");
 
+#ifdef PTPD_PCAP
 	netPath->pcapEvent = NULL;
 	netPath->pcapGeneral = NULL;
 	netPath->pcapEventSock = -1;
 	netPath->pcapGeneralSock = -1;
+#endif
 	netPath->generalSock = -1;
 	netPath->eventSock = -1;
 
+#ifdef PTPD_PCAP
 	if (rtOpts->transport == IEEE_802_3) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
 		memcpy(netPath->etherDest.octet, ether_aton(PTP_ETHER_DST), ETHER_ADDR_LEN);
 		memcpy(netPath->peerEtherDest.octet, ether_aton(PTP_ETHER_PEER), ETHER_ADDR_LEN);
 	} else
+#endif
 		netPath->headerOffset = PACKET_BEGIN_UDP;
 
 	if (rtOpts->jobid) {
@@ -752,6 +762,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	DBG("Listening on IP: %s\n",inet_ntoa(interfaceAddr));
 
+
+#ifdef PTPD_PCAP
 	if (rtOpts->pcap == TRUE) {
 		int promisc = (rtOpts->transport == IEEE_802_3 ) ? 1 : 0;
 		if ((netPath->pcapEvent = pcap_open_live(rtOpts->ifaceName,
@@ -811,7 +823,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			}
 		}
 	}
-	
+#endif
+
+#ifdef PTPD_PCAP
 	if(rtOpts->transport == IEEE_802_3) {
 		close(netPath->eventSock);
 		netPath->eventSock = -1;
@@ -822,7 +836,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		netPath->txTimestampFailure = TRUE;
 #endif /* SO_TIMESTAMPING */
 	} else {
-		
+#endif
 		/* save interface address for IGMP refresh */
 		netPath->interfaceAddr = interfaceAddr;
 		
@@ -953,8 +967,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				return FALSE;
 			}
 
-
+#ifdef PTPD_PCAP
 	}
+#endif
 
 	/* Compile ACLs */
 	if(rtOpts->timingAclEnabled) {
@@ -999,6 +1014,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 
 	FD_ZERO(readfds);
 	nfds = 0;
+#ifdef PTPD_PCAP
 	if (netPath->pcapEventSock >= 0) {
 		FD_SET(netPath->pcapEventSock, readfds);
 		if (netPath->pcapGeneralSock >= 0)
@@ -1009,6 +1025,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 			nfds = netPath->pcapGeneralSock;
 
 	} else if (netPath->eventSock >= 0) {
+#endif
 		FD_SET(netPath->eventSock, readfds);
 		if (netPath->generalSock >= 0)
 			FD_SET(netPath->generalSock, readfds);
@@ -1016,8 +1033,9 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 		nfds = netPath->eventSock;
 		if (netPath->eventSock < netPath->generalSock)
 			nfds = netPath->generalSock;
-
+#ifdef PTPD_PCAP
 	}
+#endif
 	nfds++;
 
 #if defined PTPD_SNMP
@@ -1079,8 +1097,10 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 	struct iovec vec[1];
 	struct sockaddr_in from_addr;
 
+#ifdef PTPD_PCAP
 	struct pcap_pkthdr *pkt_header;
 	const u_char *pkt_data;
+#endif
 
 	union {
 		struct cmsghdr cm;
@@ -1101,7 +1121,9 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 #endif
 	Boolean timestampValid = FALSE;
 
+#ifdef PTPD_PCAP
 	if (netPath->pcapEvent == NULL) { /* Using sockets */
+#endif
 		vec[0].iov_base = buf;
 		vec[0].iov_len = PACKET_SIZE;
 
@@ -1213,7 +1235,12 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 			DBG("netRecvEvent: no receive time stamp\n");
 			return 0;
 		}
-	} else { /* Using PCAP */
+#ifdef PTPD_PCAP
+	}
+#endif
+
+#ifdef PTPD_PCAP
+	else { /* Using PCAP */
 		/* Discard packet on socket */
 		if (netPath->eventSock >= 0) {
 			recv(netPath->eventSock, buf, PACKET_SIZE, MSG_DONTWAIT);
@@ -1246,6 +1273,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		fflush(NULL);
 		ret = pkt_header->caplen - netPath->headerOffset;
 	}
+#endif
 	return ret;
 }
 
@@ -1266,17 +1294,27 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 ssize_t 
 netRecvGeneral(Octet * buf, NetPath * netPath)
 {
-	ssize_t ret;
+	ssize_t ret = 0;
 	struct sockaddr_in from_addr;
+
+#ifdef PTPD_PCAP
 	struct pcap_pkthdr *pkt_header;
 	const u_char *pkt_data;
+#endif
 	socklen_t from_addr_len = sizeof(from_addr);
 
+#ifdef PTPD_PCAP
 	if (netPath->pcapGeneral == NULL) {
+#endif
 		ret=recvfrom(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT, &from_addr, &from_addr_len);
 		netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 		return ret;
-	} else { /* Using PCAP */
+#ifdef PTPD_PCAP
+	}
+#endif
+
+#ifdef PTPD_PCAP
+	else { /* Using PCAP */
 		/* Discard packet on socket */
 		if (netPath->generalSock >= 0)
 			recv(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT);
@@ -1303,11 +1341,12 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 		fflush(NULL);
 		ret = pkt_header->caplen - netPath->headerOffset;
 	}
-
+#endif
 	return ret;
 }
 
 
+#ifdef PTPD_PCAP
 ssize_t
 netSendPcapEther(Octet * buf,  UInteger16 length,
 			struct ether_addr * dst, struct ether_addr * src,
@@ -1320,7 +1359,7 @@ netSendPcapEther(Octet * buf,  UInteger16 length,
 
 	return pcap_inject(pcap, ether, ETHER_HDR_LEN + length);
 }
-
+#endif
 
 //
 // alt_dst: alternative destination.
@@ -1340,11 +1379,11 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
+#ifdef PTPD_PCAP
 	/* In PCAP Ethernet mode, we use pcapEvent for receiving all messages 
 	 * and pcapGeneral for sending all messages
 	 */
 	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == IEEE_802_3 )) {
-
 		ret = netSendPcapEther(buf, length,
 			&netPath->etherDest,
 			(struct ether_addr *)netPath->port_uuid_field,
@@ -1354,8 +1393,8 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 			DBG("Error sending ether multicast event message\n");
 		else
 			netPath->sentPackets++;
-
-	} else {
+        } else {
+#endif
 		if (netPath->unicastAddr || alt_dst ) {
 			if (netPath->unicastAddr) {
 				addr.sin_addr.s_addr = netPath->unicastAddr;
@@ -1441,7 +1480,10 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 			}
 #endif /* SO_TIMESTAMPING */
 		}
+
+#ifdef PTPD_PCAP
 	}
+#endif
 	return ret;
 }
 
@@ -1455,6 +1497,7 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
+#ifdef PTPD_PCAP
 	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == IEEE_802_3)) {
 		ret = netSendPcapEther(buf, length,
 			&netPath->etherDest,
@@ -1465,8 +1508,8 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 			DBG("Error sending ether multicast general message\n");
 		else
 			netPath->sentPackets++;
-
 	} else {
+#endif
 		if(netPath->unicastAddr || alt_dst ){
 			if (netPath->unicastAddr) {
 				addr.sin_addr.s_addr = netPath->unicastAddr;
@@ -1509,7 +1552,10 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 			else
 				netPath->sentPackets++;
 		}
+
+#ifdef PTPD_PCAP
 	}
+#endif
 	return ret;
 }
 
@@ -1523,6 +1569,7 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpt
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_GENERAL_PORT);
 
+#ifdef PTPD_PCAP
 	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == IEEE_802_3)) {
 		ret = netSendPcapEther(buf, length,
 			&netPath->peerEtherDest,
@@ -1531,7 +1578,11 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpt
 
 		if (ret <= 0) 
 			DBG("error sending ether multi-cast general message\n");
-	} else if (netPath->unicastAddr) {
+	} else if (netPath->unicastAddr)
+#else
+	if (netPath->unicastAddr)
+#endif
+	{
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
 		ret = sendto(netPath->generalSock, buf, length, 0, 
@@ -1577,6 +1628,7 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
+#ifdef PTPD_PCAP
 	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == IEEE_802_3)) {
 		ret = netSendPcapEther(buf, length,
 			&netPath->peerEtherDest,
@@ -1585,7 +1637,11 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts 
 
 		if (ret <= 0) 
 			DBG("error sending ether multi-cast general message\n");
-	} else if (netPath->unicastAddr) {
+	} else if (netPath->unicastAddr)
+#else
+	if (netPath->unicastAddr)
+#endif
+	{
 		addr.sin_addr.s_addr = netPath->unicastAddr;
 
 		ret = sendto(netPath->eventSock, buf, length, 0, 

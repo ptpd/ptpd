@@ -1220,6 +1220,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
     DBGV("handle: something\n");
 
+#ifdef PTPD_PCAP
     if (rtOpts->pcap == TRUE) {
 	if (ptpClock->netPath.pcapEventSock >=0 && FD_ISSET(ptpClock->netPath.pcapEventSock, &readfds)) {
 	    length = netRecvEvent(ptpClock->msgIbuf, &timeStamp, 
@@ -1247,6 +1248,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    processMessage(rtOpts, ptpClock, &timeStamp, length);
 	}
     } else {
+#endif
 	if (FD_ISSET(ptpClock->netPath.eventSock, &readfds)) {
 	    length = netRecvEvent(ptpClock->msgIbuf, &timeStamp, 
 		          &ptpClock->netPath, 0);
@@ -1269,7 +1271,9 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    }
 	    processMessage(rtOpts, ptpClock, &timeStamp, length);
 	}
+#ifdef PTPD_PCAP
     }
+#endif
 
 }
 
