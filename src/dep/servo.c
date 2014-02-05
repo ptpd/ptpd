@@ -543,7 +543,7 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #ifndef OTIME_MSG
 		strncpy(utx.ut_line, "|", sizeof(utx.ut_line));
 #else
-		strncpy(utx.ut_line, OTIME_MSG, sizeof(utx_ut.line));
+		strncpy(utx.ut_line, OTIME_MSG, sizeof(utx.ut_line));
 #endif /* OTIME_MSG */
 #ifdef OLD_TIME
 		utx.ut_tv.tv_sec = oldTime.seconds;

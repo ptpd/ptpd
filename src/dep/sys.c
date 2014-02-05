@@ -982,7 +982,7 @@ else {
 
 	if(ptpClock->delayMechanism == E2E) {
 		if (ptpClock->logMinDelayReqInterval == 0x7F)
-		    fprintf(out,"[UC-unknown]");
+		    fprintf(out,", [UC-unknown]");
 		else if (ptpClock->logMinDelayReqInterval <= 0)
 		    fprintf(out,", %.0f/s",pow(2,-ptpClock->logMinDelayReqInterval));
 		else
@@ -992,7 +992,7 @@ else {
 
 	if(ptpClock->delayMechanism == P2P) {
 		if (ptpClock->logMinPdelayReqInterval == 0x7F)
-		    fprintf(out,"[UC-unknown]");
+		    fprintf(out,", [UC-unknown]");
 		else if (ptpClock->logMinPdelayReqInterval <= 0)
 		    fprintf(out,", %.0f/s",pow(2,-ptpClock->logMinPdelayReqInterval));
 		else
@@ -1001,7 +1001,7 @@ else {
 	}
 
 	if (ptpClock->logAnnounceInterval == 0x7F)
-	    fprintf(out,"[UC-unknown]");
+	    fprintf(out,", [UC-unknown]");
 	else if (ptpClock->logAnnounceInterval <= 0)
 	    fprintf(out,", %.0f/s",pow(2,-ptpClock->logAnnounceInterval));
 	else
