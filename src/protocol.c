@@ -2793,7 +2793,7 @@ static void
 issueManagementRespOrAck(MsgManagement *outgoing, RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
-	Integer32 dst;
+	Integer32 dst = 0;
 
 	/* pack ManagementTLV */
 	msgPackManagementTLV( ptpClock->msgObuf, outgoing, ptpClock);

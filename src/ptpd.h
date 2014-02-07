@@ -65,10 +65,18 @@
 #include <utmp.h>
 #endif /* HAVE_UTMP_H */
 #endif /* HAVE_UTMPX_H */
+
+#ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>
+#endif /* HAVE_NET_ETHERNET_H */
+
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
+#ifdef HAVE_NETINET_ETHER_H
+#include <netinet/ether.h>
+#endif /* HAVE_NETINET_ETHER_H */
+
 #ifdef PTPD_PCAP
 #ifdef HAVE_PCAP_PCAP_H
 #include <pcap/pcap.h>

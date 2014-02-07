@@ -53,16 +53,21 @@
 
 #include "../ptpd.h"
 
-#if defined(linux)
+#ifdef HAVE_NETINET_ETHER_H
 #  include <netinet/ether.h>
-#elif defined( __FreeBSD__ )
-#  include <net/ethernet.h>
-#elif defined( __NetBSD__ )
-#  include <net/if_ether.h>
-#elif defined( __OpenBSD__ )
-#  include <some ether header>  // force build error
 #endif
 
+#ifdef HAVE_NET_ETHERNET_H
+#  include <net/ethernet.h>
+#endif
+
+#ifdef HAVE_NET_IF_H
+#  include <net/if.h>
+#endif
+
+#ifdef HAVE_NET_IF_ETHER_H
+#  include <net/if_ether.h>
+#endif
 
 /* only C99 has the round function built-in */
 double round (double __x);
@@ -232,18 +237,17 @@ int ether_ntohost_cache(char *hostname, struct ether_addr *addr)
 	static struct ether_addr prev_addr;
 	static char buf[BUF_SIZE];
 
-#if defined(linux) || defined(__NetBSD__)
-	if (memcmp(addr->ether_addr_octet, &prev_addr, 
-		  sizeof(struct ether_addr )) != 0) {
-		valid = 0;
-	}
-#else // e.g. defined(__FreeBSD__)
+#ifdef HAVE_STRUCT_ETHER_ADDR_OCTET
 	if (memcmp(addr->octet, &prev_addr, 
 		  sizeof(struct ether_addr )) != 0) {
 		valid = 0;
 	}
+#else
+	if (memcmp(addr->ether_addr_octet, &prev_addr, 
+		  sizeof(struct ether_addr )) != 0) {
+		valid = 0;
+	}
 #endif
-
 	if (!valid) {
 		if(ether_ntohost(buf, addr)){
 			snprintf(buf, BUF_SIZE,"%s", "unknown");
@@ -412,7 +416,7 @@ logMessage(int priority, const char * format, ...)
 		if(!startupInProgress)
 		    goto end;
 		else
-		    goto stderr;
+		    goto std_err;
 	    }
 	}
 
@@ -442,9 +446,9 @@ logMessage(int priority, const char * format, ...)
 		if (!startupInProgress)
 			goto end;
 		else
-			goto stderr;
+			goto std_err;
 	}
-stderr:
+std_err:
 	va_start(ap, format);
 	/* Either all else failed or we're running in foreground - or we also log to stderr */
 	writeMessage(stderr, priority, format, ap);

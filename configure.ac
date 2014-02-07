@@ -317,13 +317,38 @@ AC_CHECK_LIB([rt], [clock_gettime])
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h netinet/ether.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h linux/rtc.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/ether.h net/if.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h linux/rtc.h])
 
 # MUST chck for cpuset AFTER the check for param as the latter needs 
 # the former to pass the compile check.
 AC_CHECK_HEADERS([sys/cpuset.h], [], [],
 [#ifdef HAVE_SYS_PARAM_H
-# include <sys/param.h>
+    # include <sys/param.h>
+#endif
+])
+
+# Similar case for if_arp.h with socket.h and net/if.h
+AC_CHECK_HEADERS([net/if_arp.h], [], [],
+[
+#ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+    #include <sys/types.h>
+#endif
+#ifdef HAVE_NET_IF_H
+    #include <net/if.h>
+#endif
+])
+
+# ...and for if_ether.h
+AC_CHECK_HEADERS([net/if_ether.h], [], [],
+[
+#ifdef HAVE_SYS_TYPES_H
+    #include <sys/types.h>
+#endif
+#ifdef HAVE_NET_IF_H
+    #include <net/if.h>
 #endif
 ])
 
@@ -347,6 +372,26 @@ m4_version_prereq(2.60,[
 
 # Check for tick in the timex structure
 AC_CHECK_MEMBERS([struct timex.tick], [], [], [[#include <sys/timex.h>]])
+
+# ether_add: octet vs. ether_addr_octet - FreeBSD, any others?
+AC_CHECK_MEMBERS([struct ether_addr.octet], [], [],
+[
+#ifdef HAVE_SYS_TYPES_H
+    #include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_ETHER_H
+    #include <netinet/ether.h>
+#endif
+#ifdef HAVE_NET_ETHERNET_H
+    #include <net/ethernet.h>
+#endif
+#ifdef HAVE_NET_IF_ETHER_H
+    #include <net/if.h>
+#endif
+#ifdef HAVE_NET_IF_ETHER_H
+    #include <net/if_ether.h>
+#endif
+])
 
 # Checks for library functions.
 AC_PROG_GCC_TRADITIONAL

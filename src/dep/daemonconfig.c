@@ -811,9 +811,6 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->timeProperties.frequencyTraceable = FALSE;
 	rtOpts->timeProperties.ptpTimescale = FALSE;
 
-#ifdef PTPD_EXPERIMENTAL
-	rtOpts->mcast_group_Number = 0;
-#endif
 	rtOpts->ip_mode = IPMODE_MULTICAST;
 
 	rtOpts->noAdjust = NO_ADJUST;  // false
@@ -1415,17 +1412,6 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT_RANGE("ptpengine:ip_dscp",rtOpts->dscpValue,rtOpts->dscpValue,
 		"DiffServ CodepPoint for packet prioritisation (decimal). When set to zero, \n"
 	"	 this option is not used. Use 46 for Expedited Forwarding (0x2e).",0,63);
-
-
-#ifdef PTPD_EXPERIMENTAL
-	CONFIG_MAP_INT_RANGE("ptpengine:alt_mcast_group",rtOpts->mcast_group_Number,rtOpts->mcast_group_Number,
-	"Use PTP alternative multicast group like PTPv1:\n"
-	"0 = 224.0.1.129, 1 = 224.0.1.130, 2 = 224.0.1.131, 3 = 224.0.1.132.",0,3);
-#else	
-	if(!IS_QUIET() && CONFIG_ISSET("ptpengine:alt_mcast_group"))
-	INFO("PTPv1 multicast group support not enabled. Please compile with PTPD_EXPERIMENTAL \n"
-		    "to use ptpengine:v1style_mcast_group.");
-#endif /* PTPD_EXPERIMENTAL */
 
 #ifdef PTPD_STATISTICS
 
@@ -2719,9 +2705,6 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:igmp_refresh",         	PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:multicast_ttl",        		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:ip_dscp",        		PTPD_RESTART_NETWORK );
-
-        COMPONENT_RESTART_REQUIRED("ptpengine:alt_mcast_group",       	PTPD_RESTART_NETWORK );
-
 
 #ifdef PTPD_SNMP
         COMPONENT_RESTART_REQUIRED("global:enable_snmp",       	PTPD_RESTART_DAEMON );

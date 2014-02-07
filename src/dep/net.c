@@ -71,12 +71,6 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #endif
-#if HAVE_NETINET_ETHER_H
-#include <netinet/ether.h>
-#else /* !HAVE_NETINET_ETHER_H */
-#include <net/ethernet.h>
-#endif /* HAVE_NETINET_ETHER_H */
-
 
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
 #if !defined(SO_TIMESTAMPING) && !defined(SO_TIMESTAMPNS) && !defined(SO_TIMESTAMP) && !defined(SO_BINTIME)
@@ -182,46 +176,6 @@ netShutdown(NetPath * netPath)
 
 	return TRUE;
 }
-
-
-Boolean
-chooseMcastGroup(RunTimeOpts * rtOpts, struct in_addr *netAddr)
-{
-
-	char *addrStr;
-
-#ifdef PTPD_EXPERIMENTAL
-	switch(rtOpts->mcast_group_Number){
-	case 0:
-		addrStr = DEFAULT_PTP_DOMAIN_ADDRESS;
-		break;
-
-	case 1:
-		addrStr = ALTERNATE_PTP_DOMAIN1_ADDRESS;
-		break;
-	case 2:
-		addrStr = ALTERNATE_PTP_DOMAIN2_ADDRESS;
-		break;
-	case 3:
-		addrStr = ALTERNATE_PTP_DOMAIN3_ADDRESS;
-		break;
-
-	default:
-		ERROR("Unk group %d\n", rtOpts->mcast_group_Number);
-		exit(3);
-		break;
-	}
-#else
-	addrStr = DEFAULT_PTP_DOMAIN_ADDRESS;
-#endif
-
-	if (!inet_aton(addrStr, netAddr)) {
-		ERROR("failed to encode multicast address: %s\n", addrStr);
-		return FALSE;
-	}
-	return TRUE;
-}
-
 
 /*Test if network layer is OK for PTP*/
 UInteger8 
@@ -482,13 +436,17 @@ netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
 	char addrStr[NET_ADDRESS_LENGTH];
 	
 	/* Init General multicast IP address */
-	if(!chooseMcastGroup(rtOpts, &netAddr)){
+	memcpy(addrStr, DEFAULT_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
+	if (!inet_aton(addrStr, &netAddr)) {
+		ERROR("failed to encode multicast address: %s\n", addrStr);
 		return FALSE;
 	}
+
 	netPath->multicastAddr = netAddr.s_addr;
 	if(!netInitMulticastIPv4(netPath, netPath->multicastAddr)) {
 		return FALSE;
 	}
+
 	/* End of General multicast Ip address init */
 
 
@@ -732,8 +690,13 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #ifdef PTPD_PCAP
 	if (rtOpts->transport == IEEE_802_3) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
+#ifdef HAVE_STRUCT_ETHER_ADDR_OCTET
 		memcpy(netPath->etherDest.octet, ether_aton(PTP_ETHER_DST), ETHER_ADDR_LEN);
 		memcpy(netPath->peerEtherDest.octet, ether_aton(PTP_ETHER_PEER), ETHER_ADDR_LEN);
+#else
+		memcpy(netPath->etherDest.ether_addr_octet, ether_aton(PTP_ETHER_DST), ETHER_ADDR_LEN);
+		memcpy(netPath->peerEtherDest.ether_addr_octet, ether_aton(PTP_ETHER_PEER), ETHER_ADDR_LEN);
+#endif /* HAVE_STRUCT_ETHER_ADDR_OCTET */
 	} else
 #endif
 		netPath->headerOffset = PACKET_BEGIN_UDP;
@@ -1306,7 +1269,7 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 #ifdef PTPD_PCAP
 	if (netPath->pcapGeneral == NULL) {
 #endif
-		ret=recvfrom(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT, &from_addr, &from_addr_len);
+		ret=recvfrom(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT, (struct sockaddr*)&from_addr, &from_addr_len);
 		netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
 		return ret;
 #ifdef PTPD_PCAP
@@ -1352,8 +1315,13 @@ netSendPcapEther(Octet * buf,  UInteger16 length,
 			struct ether_addr * dst, struct ether_addr * src,
 			pcap_t * pcap) {
 	Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
+#ifdef HAVE_STRUCT_ETHER_ADDR_OCTET
 	memcpy(ether, dst->octet, ETHER_ADDR_LEN);
 	memcpy(ether + ETHER_ADDR_LEN, src->octet, ETHER_ADDR_LEN);
+#else
+	memcpy(ether, dst->ether_addr_octet, ETHER_ADDR_LEN);
+	memcpy(ether + ETHER_ADDR_LEN, src->ether_addr_octet, ETHER_ADDR_LEN);
+#endif /* HAVE_STRUCT_ETHER_ADDR_OCTET */
 	*((short *)&ether[2 * ETHER_ADDR_LEN]) = htons(PTP_ETHER_TYPE);
 	memcpy(ether + ETHER_HDR_LEN, buf, length);
 

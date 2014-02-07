@@ -615,7 +615,7 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #ifndef NTIME_MSG
 		strncpy(utx.ut_line, "}", sizeof(utx.ut_line));
 #else
-		strncpy(utx.ut_line, NTIME_MSG, sizeof(utx_ut.line));
+		strncpy(utx.ut_line, NTIME_MSG, sizeof(utx.ut_line));
 #endif /* NTIME_MSG */
 #ifdef NEW_TIME
 		utx.ut_tv.tv_sec = newTime.seconds;

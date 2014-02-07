@@ -139,12 +139,11 @@ createMaskTable(const char* input)
 		ret=(MaskTable*)calloc(1,sizeof(MaskTable));
 		ret->entries = (AclEntry*)calloc(masksFound, sizeof(AclEntry));
 		ret->numEntries = maskParser(input,ret->entries);
+		return ret;
 	} else {
-		if(masksFound < 0)
-		    ERROR("Error while parsing access list: \"%s\"\n", input);
+		ERROR("Error while parsing access list: \"%s\"\n", input);
 		return NULL;
 	}
-	return ret;
 }
 
 /* Print the contents of a single mask table */

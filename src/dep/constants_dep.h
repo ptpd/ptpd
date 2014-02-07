@@ -46,11 +46,12 @@
 # include <net/if.h>
 # include <net/if_dl.h>
 # include <net/if_types.h>
+#ifdef HAVE_NET_IF_ETHER_H
+#  include <net/if_ether.h>
+#endif
 # if defined(__FreeBSD__) || defined(__APPLE__)
 #  include <net/ethernet.h>
 #  include <sys/uio.h>
-# else
-#  include <net/if_ether.h>
 # endif
 # include <ifaddrs.h>
 # define IFACE_NAME_LENGTH         IF_NAMESIZE
@@ -92,11 +93,6 @@
 
 #define DEFAULT_PTP_DOMAIN_ADDRESS     "224.0.1.129"
 #define PEER_PTP_DOMAIN_ADDRESS        "224.0.0.107"
-
-/* used for -I option */
-#define ALTERNATE_PTP_DOMAIN1_ADDRESS  "224.0.1.130"
-#define ALTERNATE_PTP_DOMAIN2_ADDRESS  "224.0.1.131"
-#define ALTERNATE_PTP_DOMAIN3_ADDRESS  "224.0.1.132"
 
 /* 802.3 Support */
 
@@ -156,13 +152,10 @@ enum {
 /* default size for string buffers */
 #define BUF_SIZE  1000
 
-
 #define NANOSECONDS_MAX 999999999
-
 
 // limit operator messages to once every X seconds
 #define OPERATOR_MESSAGES_INTERVAL 300.0
-
 
 #define MAXTIMESTR 32
 

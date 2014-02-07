@@ -799,9 +799,6 @@ typedef struct {
 	UInteger8 priority2;
 	UInteger8 domainNumber;
 //	UInteger8 timeSource;
-#ifdef PTPD_EXPERIMENTAL
-	UInteger8 mcast_group_Number;
-#endif
 
 	/*
 	 * For slave state, grace period of n * announceReceiptTimeout
