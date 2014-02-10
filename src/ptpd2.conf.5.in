@@ -948,10 +948,12 @@ Clear counters after dumping all counter values on SIGUSR2.
 .RS 8
 .TP 8
 \fBusage\fR
-Permit access control list for timing packets. Format is a series of 
-comma-separated network prefixes in full CIDR notation a.b.c.d/x where
-a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
-mask is required for the ACL to be parsed correctly. The match is performed
+Permit access control list for timing and signaling messages. Format is a series of 
+network prefixes and/or IP addresses separated by commas, spaces, tabs or semicolons. 
+Accepted format is CIDR notation (a.b.c.d/mm), single IP address (a.b.c.d),
+or full network/mask (a.b.c.d/m.m.m.m). Shortcuts can be used: 172.16/12
+is expanded to 172.16.0.0/12; 192.168/255.255 is expanded to 
+192.168.0.0/255.255.0.0, etc. The match is performed
 on the source IP address of the incoming messages. IP access lists are
 only supported when using the IP transport.
 .TP 8
@@ -966,10 +968,12 @@ only supported when using the IP transport.
 .RS 8
 .TP 8
 \fBusage\fR
-Deny access control list for timing packets. Format is a series of 
-comma-separated network prefixes in full CIDR notation a.b.c.d/x where
-a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
-mask is required for the ACL to be parsed correctly. The match is performed
+Deny access control list for timing and signaling messages. Format is a series of 
+network prefixes and/or IP addresses separated by commas, spaces, tabs or semicolons. 
+Accepted format is CIDR notation (a.b.c.d/mm), single IP address (a.b.c.d),
+or full network/mask (a.b.c.d/m.m.m.m). Shortcuts can be used: 172.16/12
+is expanded to 172.16.0.0/12; 192.168/255.255 is expanded to 
+192.168.0.0/255.255.0.0, etc. The match is performed
 on the source IP address of the incoming messages. IP access lists are
 only supported when using the IP transport.
 .TP 8
@@ -985,9 +989,11 @@ only supported when using the IP transport.
 .TP 8
 \fBusage\fR
 Permit access control list for management messages. Format is a series of 
-comma-separated network prefixes in full CIDR notation a.b.c.d/x where
-a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
-mask is required for the ACL to be parsed correctly. The match is performed
+network prefixes and/or IP addresses separated by commas, spaces, tabs or semicolons. 
+Accepted format is CIDR notation (a.b.c.d/mm), single IP address (a.b.c.d),
+or full network/mask (a.b.c.d/m.m.m.m). Shortcuts can be used: 172.16/12
+is expanded to 172.16.0.0/12; 192.168/255.255 is expanded to 
+192.168.0.0/255.255.0.0, etc. The match is performed
 on the source IP address of the incoming messages. IP access lists are
 only supported when using the IP transport.
 .TP 8
@@ -1003,9 +1009,11 @@ only supported when using the IP transport.
 .TP 8
 \fBusage\fR
 Deny access control list for management messages. Format is a series of 
-comma-separated network prefixes in full CIDR notation a.b.c.d/x where
-a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
-mask is required for the ACL to be parsed correctly. The match is performed
+network prefixes and/or IP addresses separated by commas, spaces, tabs or semicolons. 
+Accepted format is CIDR notation (a.b.c.d/mm), single IP address (a.b.c.d),
+or full network/mask (a.b.c.d/m.m.m.m). Shortcuts can be used: 172.16/12
+is expanded to 172.16.0.0/12; 192.168/255.255 is expanded to 
+192.168.0.0/255.255.0.0, etc. The match is performed
 on the source IP address of the incoming messages. IP access lists are
 only supported when using the IP transport.
 .TP 8
@@ -1024,7 +1032,8 @@ only supported when using the IP transport.
 .TP 8
 \fBusage\fR
 Order in which permit and deny access lists are evaluated for timing
-packets, the evaluation process is the same as for Apache httpd.
+and signaling messages, the evaluation process is the same as for Apache httpd. \fBSee:
+\fIhttp://httpd.apache.org/docs/current/mod/mod_access_compat.html#order\fR
 .TP 8
 \fBdefault\fR
 \fIdeny-permit\fR
@@ -1041,7 +1050,8 @@ packets, the evaluation process is the same as for Apache httpd.
 .TP 8
 \fBusage\fR
 Order in which permit and deny access lists are evaluated for management
-messages, the evaluation process is the same as for Apache httpd.
+messages, the evaluation process is the same as for Apache httpd. \fBSee:
+\fIhttp://httpd.apache.org/docs/current/mod/mod_access_compat.html#order\fR
 .TP 8
 \fBdefault\fR
 \fIdeny-permit\fR

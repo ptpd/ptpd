@@ -171,8 +171,8 @@ netShutdown(NetPath * netPath)
 	}
 #endif
 
-	freeIpv4AccessList(netPath->timingAcl);
-	freeIpv4AccessList(netPath->managementAcl);
+	freeIpv4AccessList(&netPath->timingAcl);
+	freeIpv4AccessList(&netPath->managementAcl);
 
 	return TRUE;
 }
@@ -936,12 +936,12 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	/* Compile ACLs */
 	if(rtOpts->timingAclEnabled) {
-    		freeIpv4AccessList(netPath->timingAcl);
+    		freeIpv4AccessList(&netPath->timingAcl);
 		netPath->timingAcl=createIpv4AccessList(rtOpts->timingAclPermitText,
 			rtOpts->timingAclDenyText, rtOpts->timingAclOrder);
 	}
 	if(rtOpts->managementAclEnabled) {
-		freeIpv4AccessList(netPath->managementAcl);
+		freeIpv4AccessList(&netPath->managementAcl);
 		netPath->managementAcl=createIpv4AccessList(rtOpts->managementAclPermitText,
 			rtOpts->managementAclDenyText, rtOpts->managementAclOrder);
 	}
@@ -949,7 +949,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	return TRUE;
 }
 
-/*Check if data have been received*/
+/*Check if data has been received*/
 int 
 netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 {

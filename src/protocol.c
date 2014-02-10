@@ -189,8 +189,8 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     		if(rtOpts->restartSubsystems & PTPD_RESTART_ACLS) {
             		NOTIFY("Applying access control list configuration\n");
             		/* re-compile ACLs */
-            		freeIpv4AccessList(ptpClock->netPath.timingAcl);
-            		freeIpv4AccessList(ptpClock->netPath.managementAcl);
+            		freeIpv4AccessList(&ptpClock->netPath.timingAcl);
+            		freeIpv4AccessList(&ptpClock->netPath.managementAcl);
             		if(rtOpts->timingAclEnabled) {
                     	    ptpClock->netPath.timingAcl=createIpv4AccessList(rtOpts->timingAclPermitText,
                                 rtOpts->timingAclDenyText, rtOpts->timingAclOrder);
@@ -1049,7 +1049,7 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 				ptpClock->netPath.managementAcl, 
 				ntohl(ptpClock->netPath.lastRecvAddr))) {
 					DBG("ACL dropped management message from %s\n", inet_ntoa(in));
-					ptpClock->counters.aclTimingDiscardedMessages++;
+					ptpClock->counters.aclManagementDiscardedMessages++;
 					return;
 				} else
 					DBG("ACL Accepted management message from %s\n", inet_ntoa(in));
@@ -1058,7 +1058,7 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 			if(!matchIpv4AccessList(ptpClock->netPath.timingAcl, 
 			    ntohl(ptpClock->netPath.lastRecvAddr))) {
 				DBG("ACL dropped timing message from %s\n", inet_ntoa(in));
-				ptpClock->counters.aclManagementDiscardedMessages++;
+				ptpClock->counters.aclTimingDiscardedMessages++;
 				return;
 			} else
 				DBG("ACL accepted timing message from %s\n", inet_ntoa(in));

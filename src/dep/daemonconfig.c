@@ -1904,15 +1904,6 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	/* Check timing packet ACLs */
 	if(rtOpts->timingAclEnabled) {
 
-		/*
-		 * if we're here, then one of the ACLs is non-empty - so the
-		 * other one can be made a catch-all if empty
-		 */
-		if (strcmp(rtOpts->timingAclPermitText, "") == 0)
-		    strncpy(rtOpts->timingAclPermitText,"0.0.0.0/0",10);
-		if (strcmp(rtOpts->timingAclDenyText, "") == 0)
-		    strncpy(rtOpts->timingAclDenyText,"0.0.0.0/0",10);
-
 		int pResult, dResult;
 
 		if((pResult = maskParser(rtOpts->timingAclPermitText, NULL)) == -1)
@@ -1935,16 +1926,6 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	/* Check management message ACLs */
 	if(rtOpts->managementAclEnabled) {
-
-		/*
-		 * if we're here, then one of the ACLs is non-empty - so the
-		 * other one can be made a catch-all if empty
-		 */
-
-		if (strcmp(rtOpts->managementAclPermitText, "") == 0)
-		    strncpy(rtOpts->managementAclPermitText,"0.0.0.0/0",10);
-		if (strcmp(rtOpts->managementAclDenyText, "") == 0)
-		    strncpy(rtOpts->managementAclDenyText,"0.0.0.0/0",10);
 
 		int pResult, dResult;
 

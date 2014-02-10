@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Wojciech Owczarek,
+ * Copyright (c) 2013-2014 Wojciech Owczarek,
  *
  * All Rights Reserved
  * 
@@ -36,6 +36,159 @@
  */
 
 #include "../ptpd.h"
+#include "string.h"
+
+/**
+ * strdup + free are used across code using strtok_r, so as to
+ * protect the original string, as strtok* modify it.
+ */
+
+/* count tokens in string delimited by delim */
+static int countTokens(const char* text, const char* delim) {
+
+    int count=0;
+    char* stash = NULL;
+    char* text_;
+    char* text__;
+
+    if(text==NULL || delim==NULL)
+	return 0;
+
+    text_=strdup(text);
+
+    for(text__=text_,count=0;strtok_r(text__,delim, &stash) != NULL; text__=NULL) {
+	    count++;
+    }
+    free(text_);
+    return count;
+
+}
+
+/* Parse a dotted-decimal string into an uint8_t array - return -1 on error */
+static int ipToArray(const char* text, uint8_t dest[], int maxOctets, int isMask)
+{
+
+    char* text_;
+    char* text__;
+    char* subtoken;
+    char* stash = NULL;
+    char* endptr;
+    long octet;
+
+    int count = 0;
+    int result = 0;
+
+    memset(&dest[0], 0, maxOctets * sizeof(uint8_t));
+
+    text_=strdup(text);
+
+    for(text__=text_;;text__=NULL) {
+
+	if(count > maxOctets) {
+	    result = -1;
+	    goto end;
+	}
+
+	subtoken = strtok_r(text__,".",&stash);
+
+	if(subtoken == NULL)
+		goto end;
+
+	errno = 0;
+	octet=strtol(subtoken,&endptr,10);
+	if(errno!=0 || !IN_RANGE(octet,0,255)) {
+	    result = -1;
+	    goto end;
+
+	}
+
+	dest[count++] = (uint8_t)octet;
+
+	/* If we're parsing a mask and an octet is less than 0xFF, whole rest is zeros */
+	if(isMask && octet < 255)
+		goto end;
+    }
+
+    end:
+
+    free(text_);
+    return result;
+
+}
+
+/* Parse a single net mask into an AclEntry */
+static int parseAclEntry(const char* line, AclEntry* acl) {
+
+    int result = 1;
+    char* stash;
+    char* text_;
+    char* token;
+    char* endptr;
+    long octet = 0;
+
+    uint8_t net_octets[4];
+    uint8_t mask_octets[4];
+
+    if(line == NULL || acl == NULL)
+	return -1;
+
+    if(countTokens(line,"/") == 0)
+	return -1;
+
+    text_=strdup(line);
+
+    token=strtok_r(text_,"/",&stash);
+
+    if((countTokens(token,".") > 4) ||
+	(countTokens(token,".") < 1) ||
+	(ipToArray(token,net_octets,4,0) < 0)) {
+	    result=-1;
+	    goto end;
+    }
+
+    acl->network = (net_octets[0] << 24) | (net_octets[1] << 16) | ( net_octets[2] << 8) | net_octets[3];
+
+    token=strtok_r(NULL,"/",&stash);
+
+    if(token == NULL) {
+	acl->netmask=32;
+	acl->bitmask=~0;
+    } else if(countTokens(token,".") == 1) {
+	errno = 0;
+	octet = strtol(token,&endptr,10);
+	if(errno != 0 || !IN_RANGE(octet,0,32)) {
+		result = -1;
+		goto end;
+	}
+
+	if(octet == 0)
+	    acl->bitmask = 0;
+	else
+	    acl->bitmask = ~0 << (32 - octet);
+	acl->netmask = (uint16_t)octet;
+
+    } else if((countTokens(token,".") > 4) ||
+	(ipToArray(token,mask_octets,4,1) < 0)) {
+	    result=-1;
+	    goto end;
+    } else {
+
+	acl->bitmask = (mask_octets[0] << 24) | (mask_octets[1] << 16) | ( mask_octets[2] << 8) | mask_octets[3];
+	uint32_t tmp = acl->bitmask;
+	int count = 0;
+	for(tmp = acl->bitmask;tmp<<count;count++);
+	acl->netmask=count;
+    }
+
+    end:
+    free(text_);
+
+    acl->network &= acl->bitmask;
+
+    return result;
+
+}
+
 
 /* qsort() compare function for sorting ACL entries */
 static int
@@ -57,77 +210,51 @@ cmpAclEntry(const void *p1, const void *p2)
 int
 maskParser(const char* input, AclEntry* output)
 {
-	int i;
-	int offset = 0;
-	int masks_found = 0;
-	int matches;
-	int oct1, oct2, oct3, oct4, mask;
-	uint32_t network, bitmask;
 
-	static char* expr1="%d.%d.%d.%d/%d%[, ]";
-	static char* expr2="%d.%d.%d.%d/%d";
+    char* token;
+    char* stash;
+    int found = 0;
+    char* text_;
+    char* text__;
+    AclEntry tmp;
 
-	char** expr = &expr1;
-	char junk[10];
-	char buf[PATH_MAX+1];
+    tmp.hitCount=0;
 
-	int len = strlen(input) > PATH_MAX ? PATH_MAX : strlen(input);
+    if(strlen(input)==0) return 0;
 
-	for(i=0; i <= len; i++) {
+    text_=strdup(input);
 
-		memset(buf,0,PATH_MAX);
-		strncpy(buf,input+offset,i-offset);
-		if(i==len) expr = &expr2;
-		matches=sscanf(buf,*expr,&oct1,&oct2,&oct3,&oct4,&mask,&junk);
-		/* Only useful for "deep" debugging */
-//		DBGV("%d + %d of %d, buf: \"%s\" , matches: %d\n",offset,i,len,buf,matches);
-		if(matches==6 || (i==len && matches==5)) {
+    for(text__=text_;;text__=NULL) {
 
-			offset = i;
-			if(!IN_RANGE(oct1,0,255))
-			    return -1;
-			if(!IN_RANGE(oct2,0,255))
-			    return -1;
-			if(!IN_RANGE(oct3,0,255))
-			    return -1;
-			if(!IN_RANGE(oct4,0,255))
-			    return -1;
-			if(!IN_RANGE(mask,0,32))
-			    return -1;
-			network = (oct1 << 24) | (oct2 << 16) | (oct3 << 8) | oct4;
-			/* shifting a 32-bit field by 32 bits is undefined in C */
-			if(mask==0)
-			    bitmask = 0;
-			else
-			    bitmask = ~0 << (32 - mask);
-			network &= bitmask;
-			if(output != NULL) {
-				output[masks_found].bitmask = bitmask;
-				output[masks_found].network = network;
-				output[masks_found].netmask = (uint16_t)mask;
-			}
-			DBGV("Got mask: %d.%d.%d.%d/%d, network: %08x, netmask %08x\n", 
-				oct1, oct2, oct3, oct4, mask, network, bitmask);
-			masks_found++;
-		}
+	token=strtok_r(text__,", ;\t",&stash);
+	if(token==NULL) break;
+
+	if(parseAclEntry(token,&tmp)<1) {
+
+	    found = -1;
+	    break;
 
 	}
 
 	if(output != NULL)
-		qsort(output, masks_found, sizeof(AclEntry), cmpAclEntry);
+	    output[found]=tmp;
+
+	found++;
+
+
+    }
+
+	if(found && (output != NULL))
+		qsort(output, found, sizeof(AclEntry), cmpAclEntry);
 
 	/* We got input but found nothing - error */
-	if (!masks_found && len > 0)
-		masks_found = -1;
+	if (!found)
+		found = -1;
 
-	/* We did not complete parsing the ACL - error */
-	if(len != offset)
-		masks_found = -1;
-
-	return masks_found;
+	free(text_);
+	return found;
 
 }
-
 
 /* Create a maskTable from a text ACL */
 static MaskTable*
@@ -163,7 +290,7 @@ dumpMaskTable(MaskTable* table)
 #else
 		    network = htonl(this.network);
 #endif
-		    INFO("%d.%d.%d.%d/%d (0x%.8x / 0x%.8x), matches: %d\n",
+		    INFO("%d.%d.%d.%d/%d\t(0x%.8x/0x%.8x), matches: %d\n",
 		    *((uint8_t*)&network), *((uint8_t*)&network+1),
 		    *((uint8_t*)&network+2), *((uint8_t*)&network+3), this.netmask,
 		    this.network, this.bitmask, this.hitCount);
@@ -172,18 +299,32 @@ dumpMaskTable(MaskTable* table)
 
 }
 
+/* Free a MaskTable structure */
+static void freeMaskTable(MaskTable** table)
+{
+    if(*table == NULL)
+	return;
+
+    if((*table)->entries != NULL) {
+	free((*table)->entries);
+	(*table)->entries = NULL;
+    }
+    free(*table);
+    *table = NULL;
+}
+
 /* Destroy an Ipv4AccessList structure */
 void 
-freeIpv4AccessList(Ipv4AccessList* acl)
+freeIpv4AccessList(Ipv4AccessList** acl)
 {
-	if(acl == NULL)
+	if(*acl == NULL)
 	    return;
-	if(acl->permitEntries != NULL && acl->permitEntries->entries != NULL)
-	    free(acl->permitEntries->entries);
-	if(acl->permitEntries != NULL)
-	    free(acl->permitEntries);
-	if(acl != NULL)
-	    free(acl);
+
+	freeMaskTable(&(*acl)->permitTable);
+	freeMaskTable(&(*acl)->denyTable);
+
+	free(*acl);
+	*acl = NULL;
 }
 
 /* Structure initialisation for Ipv4AccessList */
@@ -192,10 +333,10 @@ createIpv4AccessList(const char* permitList, const char* denyList, int processin
 {
 	Ipv4AccessList* ret;
 	ret = (Ipv4AccessList*)calloc(1,sizeof(Ipv4AccessList));
-	ret->permitEntries = createMaskTable(permitList);
-	ret->denyEntries = createMaskTable(denyList);
-	if(ret->permitEntries == NULL || ret->denyEntries == NULL) {
-		freeIpv4AccessList(ret);
+	ret->permitTable = createMaskTable(permitList);
+	ret->denyTable = createMaskTable(denyList);
+	if(ret->permitTable == NULL || ret->denyTable == NULL) {
+		freeIpv4AccessList(&ret);
 		return NULL;
 	}
 	ret->processingOrder = processingOrder;
@@ -238,11 +379,11 @@ matchIpv4AccessList(Ipv4AccessList* acl, const uint32_t addr)
 		goto end;
 	}
 
-	if(acl->permitEntries != NULL)
-		matchPermit = matchAddress(addr,acl->permitEntries) > 0;
+	if(acl->permitTable != NULL)
+		matchPermit = matchAddress(addr,acl->permitTable) > 0;
 
-	if(acl->denyEntries != NULL)
-		matchDeny = matchAddress(addr,acl->denyEntries) > 0;
+	if(acl->denyTable != NULL)
+		matchDeny = matchAddress(addr,acl->denyTable) > 0;
 
 	switch(acl->processingOrder) {
 		case ACL_PERMIT_DENY:
@@ -295,10 +436,10 @@ void dumpIpv4AccessList(Ipv4AccessList* acl)
 				acl->passedCounter, acl->droppedCounter);
 		    INFO("--------\n");
 		    INFO("Deny list:\n");
-		    dumpMaskTable(acl->denyEntries);
+		    dumpMaskTable(acl->denyTable);
 		    INFO("--------\n");
 		    INFO("Permit list:\n");
-		    dumpMaskTable(acl->permitEntries);
+		    dumpMaskTable(acl->permitTable);
 		break;
 		case ACL_PERMIT_DENY:
 		default:
@@ -307,10 +448,10 @@ void dumpIpv4AccessList(Ipv4AccessList* acl)
 				acl->passedCounter, acl->droppedCounter);
 		    INFO("--------\n");
 		    INFO("Permit list:\n");
-		    dumpMaskTable(acl->permitEntries);
+		    dumpMaskTable(acl->permitTable);
 		    INFO("--------\n");
 		    INFO("Deny list:\n");
-		    dumpMaskTable(acl->denyEntries);
+		    dumpMaskTable(acl->denyTable);
 		break;
 	}
 		    INFO("\n\n");
@@ -339,7 +480,7 @@ void clearIpv4AccessListCounters(Ipv4AccessList* acl) {
 		return;
 	acl->passedCounter=0;
 	acl->droppedCounter=0;
-	clearMaskTableCounters(acl->permitEntries);
-	clearMaskTableCounters(acl->denyEntries);
+	clearMaskTableCounters(acl->permitTable);
+	clearMaskTableCounters(acl->denyTable);
 
 }

@@ -29,8 +29,8 @@ typedef struct {
 } MaskTable;
 
 typedef struct {
-	MaskTable* permitEntries;
-	MaskTable* denyEntries;
+	MaskTable* permitTable;
+	MaskTable* denyTable;
 	int processingOrder;
 	uint32_t passedCounter;
 	uint32_t droppedCounter;
@@ -39,7 +39,7 @@ typedef struct {
 /* Parse string into AclEntry array */
 int maskParser(const char* input, AclEntry* output);
 /* Destroy an Ipv4AccessList structure */
-void freeIpv4AccessList(Ipv4AccessList* acl);
+void freeIpv4AccessList(Ipv4AccessList** acl);
 /* Initialise an Ipv4AccessList structure */
 Ipv4AccessList* createIpv4AccessList(const char* permitList, const char* denyList, int processingOrder);
 /* Match on an IP address */
