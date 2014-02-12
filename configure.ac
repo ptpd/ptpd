@@ -27,6 +27,23 @@ AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_LIBTOOL
 
+# Check for svnversion, cut and tr
+
+AC_PATH_PROG(cutpath, cut)
+AC_PATH_PROG(trpath, tr)
+
+# Set CODE_REVISION if svnversion found, version is suffixed with "-svn" and code is versioned
+if test -n "$cutpath" && test -n "$trpath"; then
+    ver_prefix=`echo VERSION_NUMBER | $cutpath -s -d- -f2`
+    AC_PATH_PROG(svnverpath, svnversion)
+    if test "$ver_prefix" = "svn" && test -n "$svnverpath"; then
+	svn_rev=`$svnverpath 2>/dev/null | $cutpath -s -d: -f2 | $trpath -d MS`
+	if test -n "$svn_rev"; then
+	    AC_DEFINE_UNQUOTED(CODE_REVISION, ["$svn_rev"], [source code revision])
+	fi
+    fi
+fi
+
 AC_ARG_WITH(
     [pcap-config],
     [AS_HELP_STRING(

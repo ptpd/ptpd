@@ -2298,7 +2298,7 @@ short_help:
 			WARN_DEPRECATED('b', 'i', "interface", "ptpengine:interface");
 		case 'i':
 			/* if we got a number here, we've been given the domain number */
-			if( (c=='i') && strlen(optarg) > 0 && isdigit(optarg[0]) ) {
+			if( (c=='i') && strlen(optarg) > 0 && isdigit((unsigned char)optarg[0]) ) {
 				WARN_DEPRECATED_COMMENT('i', 'd', "domain", "ptpengine:domain",
 				"for specifying domain number ");
 				dictionary_set(dict,"ptpengine:domain", optarg);
@@ -2373,7 +2373,12 @@ short_help:
 			break;
 		/* print version string */
 		case 'v':
-			printf(PTPD_PROGNAME" version "USER_VERSION"\n");
+			printf(PTPD_PROGNAME" version "USER_VERSION
+#ifdef CODE_REVISION
+			CODE_REVISION
+#endif
+			"\n");
+
 			return FALSE;
 		/* run in foreground */
 		case 'C':

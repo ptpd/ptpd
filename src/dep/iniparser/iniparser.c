@@ -683,7 +683,7 @@ dictionary * iniparser_load(const char * ininame)
         }
         /* Get rid of \n and spaces at end of line */
         while ((len>=0) &&
-                ((line[len]=='\n') || (isspace(line[len])))) {
+                ((line[len]=='\n') || (isspace((unsigned char)line[len])))) {
             line[len]=0 ;
             len-- ;
         }

@@ -27,7 +27,7 @@
 #define REVISION \
   ";;2.3"
 #define USER_VERSION \
-  "2.3.0"
+  PACKAGE_VERSION
 #define USER_DESCRIPTION \
   "PTPDv2"
 #define USER_DESCRIPTION_MAX 128
