@@ -74,9 +74,9 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 
 /* do not reset frequency here - restoreDrift will do it if necessary */
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 	ptpClock->servo.observedDrift = 0;
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 
 	/* clear vars */
 	ptpClock->owd_filt.s_exp = 0;	/* clears one-way delay filter */
@@ -521,11 +521,11 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif /* HAVE_LINUX_RTC_H */
 
 	initClock(rtOpts, ptpClock);
-/* restoreDrift is not defined for Apple */
-#ifndef __APPLE__
+
+#ifdef HAVE_SYS_TIMEX_H
 	if(ptpClock->clockQuality.clockClass > 127)
 		restoreDrift(ptpClock, rtOpts, TRUE);
-#endif /* __APPLE__ */
+#endif /* HAVE_SYS_TIMEX_H */
 	ptpClock->servo.runningMaxOutput = FALSE;
 	toState(PTP_FAULTY, rtOpts, ptpClock);		/* make a full protocol reset */
 
@@ -589,19 +589,27 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #ifdef HAVE_UTMPNAME
 		utmpname(UTMP_FILE);
 #endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
 		setutent();
+#endif /* HAVE_SETUTENT */
 #ifdef HAVE_PUTUTLINE
 		pututline(&ut);
 #endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
 		endutent();
+#endif /* HAVE_ENDUTENT */
 #ifdef HAVE_UTMPNAME
 		utmpname(WTMP_FILE);
 #endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
 		setutent();
+#endif /* HAVE_SETUTENT */
 #ifdef HAVE_PUTUTLINE
 		pututline(&ut);
 #endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
 		endutent();
+#endif /* HAVE_ENDUTENT */
 /* ======== END    OLD TIME EVENT - UTMP / WTMP =========== */
 
 #endif /* HAVE_UTMP_H */
@@ -659,19 +667,27 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #ifdef HAVE_UTMPNAME
 		utmpname(UTMP_FILE);
 #endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
 		setutent();
+#endif /* HAVE_SETUTENT */
 #ifdef HAVE_PUTUTLINE
 		pututline(&ut);
 #endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
 		endutent();
+#endif /* HAVE_ENDUTENT */
 #ifdef HAVE_UTMPNAME
 		utmpname(WTMP_FILE);
 #endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
 		setutent();
+#endif /* HAVE_SETUTENT */
 #ifdef HAVE_PUTUTLINE
 		pututline(&ut);
 #endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
 		endutent();
+#endif /* HAVE_ENDUTENT */
 /* ======== END    NEW TIME EVENT - UTMP / WTMP =========== */
 
 #endif /* HAVE_UTMP_H */
@@ -716,7 +732,7 @@ warn_operator_slow_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock )
 /*
  * this is a wrapper around adjFreq to abstract extra operations
  */
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 
 void
 adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
@@ -733,7 +749,7 @@ adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
 	warn_operator_fast_slewing(rtOpts, ptpClock, adj);
 }
 
-#endif /* __APPLE__ */
+#endif /* HAVE_SYS_TIMEX_H */
 
 void
 updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
@@ -861,7 +877,7 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 			if (!rtOpts->noResetClock) {
 				servo_perform_clock_step(rtOpts, ptpClock);
 			} else {
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 				if(ptpClock->offsetFromMaster.nanoseconds > 0)
 				    ptpClock->servo.observedDrift = rtOpts->servoMaxPpb;
 				else
@@ -869,7 +885,7 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 				warn_operator_slow_slewing(rtOpts, ptpClock);
 				adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->servo.observedDrift);
 				/* its not clear how the APPLE case works for large jumps */
-#endif /* __APPLE__ */
+#endif /* HAVE_SYS_TIMEX_H */
 			}
 		}
 	} else {
@@ -905,7 +921,7 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 		goto statistics;
 #endif /* PTPD_STATISTICS */
 
-#if defined(__APPLE__)
+#ifndef HAVE_SYS_TIMEX_H
 			adjTime(ptpClock->offsetFromMaster.nanoseconds);
 #else
 
@@ -919,7 +935,7 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 		unsetTimexFlags(STA_UNSYNC, TRUE);
 		/* "Tell" the clock about maxerror, esterror etc. */
 		informClockSource(ptpClock);
-#endif /* __APPLE__ */
+#endif /* HAVE_SYS_TIMEX_H */
 	}
 
 /* Update relevant statistics containers, feed outlier filter thresholds etc. */
@@ -1108,9 +1124,13 @@ updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts)
                                 if(!ptpClock->servo.isStable) {
                                         NOTICE("Clock servo now stable - took %d seconds\n",
                                                 rtOpts->statsUpdateInterval * ptpClock->servo.updateCount);
+#ifdef HAVE_SYS_TIMEX_H
                                         saveDrift(ptpClock, rtOpts, FALSE);
+#endif /* HAVE_SYS_TIMEX_H */
                                 } else {
+#ifdef HAVE_SYS_TIMEX_H
                                        saveDrift(ptpClock, rtOpts, TRUE);
+#endif /* HAVE_SYS_TIMEX_H */
                                 }
                                 ptpClock->servo.isStable = TRUE;
                                 ptpClock->servo.stableCount = 0;
@@ -1123,7 +1143,9 @@ updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts)
                                         WARNING("Clock servo not stable after %d seconds - running at maximum rate.\n", rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
                                         } else {
                                         WARNING("Clock servo not stable after %d seconds since last check. Saving current observed drift.\n", rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
+#ifdef HAVE_SYS_TIMEX_H
                                         saveDrift(ptpClock, rtOpts, FALSE);
+#endif /* HAVE_SYS_TIMEX_H */
                                         }
                                 } else {
                                         WARNING("Clock servo no longer stable\n");

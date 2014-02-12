@@ -87,7 +87,7 @@ isc_md5_final(isc_md5_t *ctx, unsigned char *digest);
 
 #define NID_md5  4
 #define JAN_1970 2208988800UL
-#define FRAC 4294967296
+#define FRAC 4294967296LL
 
 int MD5authencrypt( char *key, uint32_t *pkt, int length, keyid_t keyid );
 

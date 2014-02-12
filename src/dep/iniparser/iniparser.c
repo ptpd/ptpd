@@ -80,7 +80,7 @@ static char * strstrip(const char * s)
     
     while (isspace((int)*s) && *s) s++;
     memset(l, 0, ASCIILINESZ+1);
-    strcpy(l, s);
+    strncpy(l, s, ASCIILINESZ);
     last = l + strlen(l);
     while (last > l) {
         if (!isspace((int)*(last-1)))
@@ -252,7 +252,7 @@ void iniparser_dumpsection_ini(dictionary * d, char * s, FILE * f)
 
     seclen  = (int)strlen(s);
     fprintf(f, "\n[%s]\n", s);
-    sprintf(keym, "%s:", s);
+    snprintf(keym, ASCIILINESZ, "%s:", s);
     for (j=0 ; j<d->size ; j++) {
         if (d->key[j]==NULL)
             continue ;
@@ -287,7 +287,7 @@ int iniparser_getsecnkeys(dictionary * d, char * s)
     if (! iniparser_find_entry(d, s)) return nkeys;
 
     seclen  = (int)strlen(s);
-    sprintf(keym, "%s:", s);
+    snprintf(keym, ASCIILINESZ, "%s:", s);
 
     for (j=0 ; j<d->size ; j++) {
         if (d->key[j]==NULL)
@@ -333,7 +333,7 @@ char ** iniparser_getseckeys(dictionary * d, char * s)
     keys = (char**) malloc(nkeys*sizeof(char*));
 
     seclen  = (int)strlen(s);
-    sprintf(keym, "%s:", s);
+    snprintf(keym, ASCIILINESZ, "%s:", s);
     
     i = 0;
 
@@ -566,8 +566,8 @@ static line_status iniparser_line(
     line_status sta ;
     char        line[ASCIILINESZ+1];
     int         len ;
-
-    strcpy(line, strstrip(input_line));
+    memset(line, 0, ASCIILINESZ + 1);
+    strncpy(line, strstrip(input_line), ASCIILINESZ);
     len = (int)strlen(line);
 
     sta = LINE_UNPROCESSED ;
@@ -580,16 +580,16 @@ static line_status iniparser_line(
     } else if (line[0]=='[' && line[len-1]==']') {
         /* Section name */
         sscanf(line, "[%[^]]", section);
-        strcpy(section, strstrip(section));
-        strcpy(section, strlwc(section));
+        strncpy(section, strstrip(section), ASCIILINESZ);
+        strncpy(section, strlwc(section), ASCIILINESZ);
         sta = LINE_SECTION ;
     } else if (sscanf (line, "%[^=] = \"%[^\"]\"", key, value) == 2
            ||  sscanf (line, "%[^=] = '%[^\']'",   key, value) == 2
            ||  sscanf (line, "%[^=] = %[^;#]",     key, value) == 2) {
         /* Usual key=value, with or without comments */
-        strcpy(key, strstrip(key));
-        strcpy(key, strlwc(key));
-        strcpy(value, strstrip(value));
+        strncpy(key, strstrip(key), ASCIILINESZ);
+        strncpy(key, strlwc(key), ASCIILINESZ);
+        strncpy(value, strstrip(value), ASCIILINESZ);
         /*
          * sscanf cannot handle '' or "" as empty values
          * this is done here
@@ -606,8 +606,8 @@ static line_status iniparser_line(
          * key=;
          * key=#
          */
-        strcpy(key, strstrip(key));
-        strcpy(key, strlwc(key));
+        strncpy(key, strstrip(key), ASCIILINESZ);
+        strncpy(key, strlwc(key), ASCIILINESZ);
         value[0]=0 ;
         sta = LINE_VALUE ;
     } else {
@@ -663,6 +663,7 @@ dictionary * iniparser_load(const char * ininame)
     memset(section, 0, ASCIILINESZ);
     memset(key,     0, ASCIILINESZ);
     memset(val,     0, ASCIILINESZ);
+    memset(tmp,     0, ASCIILINESZ);
     last=0 ;
 
     while (fgets(line+last, ASCIILINESZ-last, in)!=NULL) {
@@ -704,7 +705,7 @@ dictionary * iniparser_load(const char * ininame)
             break ;
 
             case LINE_VALUE:
-            sprintf(tmp, "%s%s%s", section,strlen(section)==0?"":":", key);
+            snprintf(tmp, ASCIILINESZ, "%s%s%s", section, strlen(section)==0?"":":", key);
             errs = dictionary_set(dict, tmp, val) ;
             break ;
 

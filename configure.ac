@@ -67,26 +67,30 @@ case "$PROG_PCAP_CONFIG" in
     ;;
 esac
 
-AC_MSG_CHECKING([if we want to try building PCAP support])
+AC_MSG_CHECKING([if we want to build with libpcap support])
 AC_ARG_ENABLE(
     [pcap],
     [AS_HELP_STRING(
 	[--disable-pcap],
 	[disable support for PCAP (enabled if we find pcap-config)]
     )],
-    [try_pcap=$enableval],
+    [try_pcap=$enableval; AC_MSG_RESULT([$try_pcap])],
     [case "$PATH_PCAP_CONFIG" in
      /*)
+	AC_MSG_RESULT([yes, pcap-config])
+	AC_CHECK_HEADERS([pcap/pcap.h pcap.h])
 	try_pcap=yes
 	;;
      *)
-	try_pcap=no
+	AC_MSG_RESULT([yes, guessing flags])
+	AC_CHECK_HEADERS([pcap/pcap.h pcap.h])
+	try_pcap=guess
 	;;
     esac]
 )
-AC_MSG_RESULT([$try_pcap])
 
 ptpd_pcap_enabled=0
+
 case "$try_pcap" in
  yes)
     case "$PATH_PCAP_CONFIG" in
@@ -115,7 +119,7 @@ case "$try_pcap" in
 	CFLAGS=$PCAP_CFLAGS
 	CPPFLAGS=$PCAP_CPPFLAGS
 
-        AC_CHECK_HEADERS([pcap/pcap.h pcap.h])
+
 
 	CFLAGS=$save_CFLAGS
 	AS_UNSET([save_CFLAGS])
@@ -124,9 +128,14 @@ case "$try_pcap" in
 	LIBS=$save_LIBS
 	AS_UNSET([save_LIBS])
 
-	AC_MSG_CHECKING([if we are building PCAP support])
+	AC_MSG_CHECKING([if we can build with libpcap support])
 	case "$ac_cv_header_pcap_pcap_h" in
 	 yes)
+		ptpd_pcap_enabled=1
+		PTP_PCAP="-DPTPD_PCAP"
+		AC_MSG_RESULT([yes])
+		;;
+	 no)
 		case "$ac_cv_header_pcap_h" in
 		 yes)
 			ptpd_pcap_enabled=1
@@ -142,22 +151,47 @@ case "$try_pcap" in
 			;;
 		esac
 		;;
-	 no)
-		PTP_PCAP=""
-		PCAP_LIBS=""
-		PCAP_CPPFLAGS=""
-		PCAP_CFLAGS=""
-		AC_MSG_RESULT([no])
-		;;
+
 	esac
 	;;
      *)
 	# This case can't be triggered - we won't get here unless we
 	# have an absolute path to pcap-config.
-	AC_MSG_WARN([Cannot build with PCAP support - pcap-config cannot be found])
+	AC_MSG_WARN([Cannot build with libpcap support - pcap-config cannot be found])
 	;;
     esac
     ;;
+ guess)
+	PCAP_LIBS="-lpcap"
+	AC_SUBST([PCAP_LIBS])
+
+	AC_MSG_CHECKING([if we can build with PCAP support])
+	case "$ac_cv_header_pcap_pcap_h" in
+	 yes)
+		ptpd_pcap_enabled=1
+		PTP_PCAP="-DPTPD_PCAP"
+		AC_MSG_RESULT([yes])
+		;;
+	 no)
+		case "$ac_cv_header_pcap_h" in
+		 yes)
+			ptpd_pcap_enabled=1
+			PTP_PCAP="-DPTPD_PCAP"
+			AC_MSG_RESULT([yes])
+			;;
+		 no)
+			PTP_PCAP=""
+			PCAP_LIBS=""
+			PCAP_CPPFLAGS=""
+			PCAP_CFLAGS=""
+			AC_MSG_RESULT([no])
+			;;
+		esac
+		;;
+	esac
+
+;;
+
 esac
 
 AC_SUBST(PTP_PCAP)
@@ -317,7 +351,7 @@ AC_CHECK_LIB([rt], [clock_gettime])
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/ether.h net/if.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h linux/rtc.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h linux/rtc.h sys/timex.h])
 
 # MUST chck for cpuset AFTER the check for param as the latter needs 
 # the former to pass the compile check.
@@ -327,7 +361,18 @@ AC_CHECK_HEADERS([sys/cpuset.h], [], [],
 #endif
 ])
 
-# Similar case for if_arp.h with socket.h and net/if.h
+# Similar case for if.h
+AC_CHECK_HEADERS([net/if.h], [], [],
+[
+#ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+    #include <sys/types.h>
+#endif
+])
+
+# Similar case for if_arp.h
 AC_CHECK_HEADERS([net/if_arp.h], [], [],
 [
 #ifdef HAVE_SYS_SOCKET_H
@@ -340,6 +385,27 @@ AC_CHECK_HEADERS([net/if_arp.h], [], [],
     #include <net/if.h>
 #endif
 ])
+
+# Similar case for netinet/if_ether.h
+AC_CHECK_HEADERS([netinet/if_ether.h], [], [],
+[
+#ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+    #include <arpa/inet.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+    #include <sys/types.h>
+#endif
+#ifdef HAVE_NET_IF_ARP_H
+    #include <net/if_arp.h>
+#endif
+#ifdef HAVE_NET_IF_H
+    #include <net/if.h>
+#endif
+])
+
 
 # ...and for if_ether.h
 AC_CHECK_HEADERS([net/if_ether.h], [], [],
@@ -401,7 +467,7 @@ AC_FUNC_SELECT_ARGTYPES
 AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx])
+AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent])
 
 AC_CHECK_DECLS([MSG_ERRQUEUE], [], [], [[#include <sys/socket.h>]])
 

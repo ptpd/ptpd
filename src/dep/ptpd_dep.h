@@ -372,12 +372,9 @@ Boolean checkOtherLocks(RunTimeOpts *rtOpts);
 
 void recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time);
 
-#if defined(__APPLE__)
+#ifndef HAVE_SYS_TIMEX_H
 void adjTime(Integer32);
-#endif /* __APPLE__ */
-
-#if !defined(__APPLE__)
-
+#else
 
 void adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj);
 Boolean adjFreq(double);
@@ -398,7 +395,7 @@ Boolean checkTimexFlags(int flags);
 void setKernelUtcOffset(int utc_offset);
 #endif /* MOD_TAI */
 
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 
 /** \}*/
 

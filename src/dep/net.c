@@ -433,10 +433,11 @@ Boolean
 netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
 {
 	struct in_addr netAddr;
-	char addrStr[NET_ADDRESS_LENGTH];
+	char addrStr[NET_ADDRESS_LENGTH+1];
+
 	
 	/* Init General multicast IP address */
-	memcpy(addrStr, DEFAULT_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
+	strncpy(addrStr, DEFAULT_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
 	if (!inet_aton(addrStr, &netAddr)) {
 		ERROR("failed to encode multicast address: %s\n", addrStr);
 		return FALSE;
@@ -451,8 +452,7 @@ netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
 
 
 	/* Init Peer multicast IP address */
-	memcpy(addrStr, PEER_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
-
+	strncpy(addrStr, PEER_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
 	if (!inet_aton(addrStr, &netAddr)) {
 		ERROR("failed to encode multi-cast address: %s\n", addrStr);
 		return FALSE;
@@ -467,13 +467,33 @@ netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
 }
 
 Boolean
-netSetMulticastLoopback(NetPath * netPath, Boolean value) {
-	int temp = value ? 1 : 0;
+netSetMulticastTTL(int sockfd, int ttl) {
 
+#ifdef __OpenBSD__
+	uint8_t temp = (uint8_t) ttl;
+#else
+	int temp = ttl;
+#endif
+
+	if (setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL,
+		       &temp, sizeof(temp)) < 0) {
+	    PERROR("Failed to set socket multicast time-to-live");
+	    return FALSE;
+	}
+	return TRUE;
+}
+
+Boolean
+netSetMulticastLoopback(NetPath * netPath, Boolean value) {
+#ifdef __OpenBSD__
+	uint8_t temp = value ? 1 : 0;
+#else
+	int temp = value ? 1 : 0;
+#endif
 	DBG("Going to set multicast loopback with %d \n", temp);
 
 	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
-	       &temp, sizeof(int)) < 0) {
+	       &temp, sizeof(temp)) < 0) {
 		PERROR("Failed to set multicast loopback");
 		return FALSE;
 	}
@@ -889,20 +909,14 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				return FALSE;
 
 			/* set socket time-to-live  */
-			if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
-				       &rtOpts->ttl, sizeof(int)) < 0
-			    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
-					  &rtOpts->ttl, sizeof(int)) < 0) {
-				PERROR("Failed to set socket multicast time-to-live");
+			if(!netSetMulticastTTL(netPath->eventSock,rtOpts->ttl) ||
+			    !netSetMulticastTTL(netPath->generalSock,rtOpts->ttl))
 				return FALSE;
-			}
 
 			/* start tracking TTL */
 			netPath->ttlEvent = rtOpts->ttl;
 			netPath->ttlGeneral = rtOpts->ttl;
-
 		}
-
 
 #ifdef SO_TIMESTAMPING
 			/* Reset the failure indicator when (re)starting network */
@@ -1421,8 +1435,8 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
                         /* Is TTL OK? */
 			if(netPath->ttlEvent != rtOpts->ttl) {
 				/* Try restoring TTL */
-				if(setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
-					&rtOpts->ttl, sizeof(int)) >= 0) {
+			/* set socket time-to-live  */
+			if (netSetMulticastTTL(netPath->eventSock,rtOpts->ttl)) {
 				    netPath->ttlEvent = rtOpts->ttl;
 				}
             		}
@@ -1504,11 +1518,8 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
                         /* Is TTL OK? */
 			if(netPath->ttlGeneral != rtOpts->ttl) {
 				/* Try restoring TTL */
-				if(setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
-					&rtOpts->ttl, sizeof(int)) >= 0) {
-
+				if (netSetMulticastTTL(netPath->generalSock,rtOpts->ttl)) {
 				    netPath->ttlGeneral = rtOpts->ttl;
-
 				}
             		}
 
@@ -1564,13 +1575,9 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpt
 		
 		/* is TTL already 1 ? */
 		if(netPath->ttlGeneral != 1) {
-			int ttl = 1;
 			/* Try setting TTL to 1 */
-			if(setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_TTL,
-				&ttl, sizeof(int)) >= 0) {
-				
+			if (netSetMulticastTTL(netPath->generalSock,1)) {
 				netPath->ttlGeneral = 1;
-
 			}
                 }
 		ret = sendto(netPath->generalSock, buf, length, 0, 
@@ -1658,13 +1665,9 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts 
 
 		/* is TTL already 1 ? */
 		if(netPath->ttlEvent != 1) {
-			int ttl = 1;
 			/* Try setting TTL to 1 */
-			if(setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_TTL,
-				&ttl, sizeof(int)) >= 0) {
-
+			if (netSetMulticastTTL(netPath->eventSock,1)) {
 			    netPath->ttlEvent = 1;
-
 			}
                 }
 		ret = sendto(netPath->eventSock, buf, length, 0, 

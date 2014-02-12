@@ -462,17 +462,17 @@ ptpdShutdown(PtpClock * ptpClock)
 	snmpShutdown();
 #endif /* PTPD_SNMP */
 
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 #ifndef PTPD_STATISTICS
 	/* Not running statistics code - write observed drift to driftfile if enabled, inform user */
 	if(ptpClock->slaveOnly && !ptpClock->servo.runningMaxOutput)
 		saveDrift(ptpClock, &rtOpts, FALSE);
 #else
-	/* We are running statistics code - save drift on exit only if we're nor monitoring servo stability */
+	/* We are running statistics code - save drift on exit only if we're not monitoring servo stability */
 	if(!rtOpts.servoStabilityDetection && !ptpClock->servo.runningMaxOutput)
 		saveDrift(ptpClock, &rtOpts, FALSE);
 #endif /* PTPD_STATISTICS */
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 
 	if (rtOpts.currentConfig != NULL)
 		dictionary_del(rtOpts.currentConfig);

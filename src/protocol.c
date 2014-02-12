@@ -339,10 +339,10 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
 /* If statistics are enabled, drift should have been saved already - otherwise save it*/
 #ifndef PTPD_STATISTICS
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 		/* save observed drift value, don't inform user */
 		saveDrift(ptpClock, rtOpts, TRUE);
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 #endif /* PTPD_STATISTICS */
 
 #ifdef PTPD_STATISTICS
@@ -541,13 +541,13 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 #endif /* PTPD_NTPDC */
 
 		initClock(rtOpts, ptpClock);
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 		/*
 		 * restore the observed drift value using the selected method,
 		 * reset on failure or when -F 0 (default) is used, don't inform user
 		 */
 		restoreDrift(ptpClock, rtOpts, TRUE);
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 
 		ptpClock->waitingForFollow = FALSE;
 		ptpClock->waitingForDelayResp = FALSE;
@@ -602,7 +602,7 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 		timerStart(STATISTICS_UPDATE_TIMER, rtOpts->statsUpdateInterval, ptpClock->itimer);
 #endif /* PTPD_STATISTICS */
 
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 
 		/* 
 		 * leap second pending in kernel but no leap second 
@@ -618,7 +618,7 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 				"GM: aborting kernel leap second\n");
 			unsetTimexFlags(STA_INS | STA_DEL, TRUE);
 		}
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 		break;
 	default:
 		DBG("to unrecognized state\n");
@@ -668,11 +668,11 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	initTimer();
 	initClock(rtOpts, ptpClock);
 	setupPIservo(&ptpClock->servo, rtOpts);
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 	/* restore observed drift and inform user */
 	if(ptpClock->clockQuality.clockClass > 127)
 		restoreDrift(ptpClock, rtOpts, FALSE);
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 	m1(rtOpts, ptpClock );
 	msgPackHeader(ptpClock->msgObuf, ptpClock);
 	
@@ -872,7 +872,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
                             WARNING("Leap second event imminent - pausing "
 				    "clock and offset updates\n");
                             ptpClock->leapSecondInProgress = TRUE;
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
                             if(!checkTimexFlags(ptpClock->timePropertiesDS.leap61 ? 
 						STA_INS : STA_DEL)) {
                                     WARNING("Kernel leap second flags have "
@@ -881,7 +881,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
                                     setTimexFlags(ptpClock->timePropertiesDS.leap61 ? 
 						  STA_INS : STA_DEL, FALSE);
                             }
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 			    /*
 			     * start pause timer from now until [pause] after
 			     * midnight, plus an extra second if inserting
@@ -1346,9 +1346,9 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 					ptpClock->leapSecondInProgress=FALSE;
 					ptpClock->timePropertiesDS.leap59 = FALSE;
 					ptpClock->timePropertiesDS.leap61 = FALSE;
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 					unsetTimexFlags(STA_INS | STA_DEL, TRUE);
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 				}
 			}
 			DBG2("___ Announce: received Announce from current Master, so reset the Announce timer\n");

@@ -42,7 +42,7 @@
 #include <netdb.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#ifndef __APPLE__
+#ifdef HAVE_SYS_TIMEX_H
 #include <sys/timex.h>
 #endif
 #include <sys/socket.h>
@@ -71,11 +71,27 @@
 #endif /* HAVE_NET_ETHERNET_H */
 
 #include <netinet/in.h>
+#ifdef HAVE_NETINET_IN_SYSTM_H
+#include <netinet/in_systm.h>
+#endif
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #ifdef HAVE_NETINET_ETHER_H
 #include <netinet/ether.h>
 #endif /* HAVE_NETINET_ETHER_H */
+
+#ifdef HAVE_NET_IF_ARP_H
+#include <net/if_arp.h>
+#endif /* HAVE_NET_IF_ARP_H*/
+
+#ifdef HAVE_NET_IF_H
+#include <net/if.h>
+#endif /* HAVE_NET_IF_H*/
+
+#ifdef HAVE_NETINET_IF_ETHER_H
+#include <netinet/if_ether.h>
+#endif /* HAVE_NETINET_IF_ETHER_H */
+
 
 #ifdef PTPD_PCAP
 #ifdef HAVE_PCAP_PCAP_H

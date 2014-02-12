@@ -16,8 +16,9 @@
 /* platform dependent */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) && \
-  !defined(__APPLE__)
-#error Not ported to this architecture, please update.
+  !defined(__APPLE__) && !defined(__OpenBSD__)
+#error PTPD hasn't been ported to this OS - should be possible \
+if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.net
 #endif
 
 #ifdef	linux
@@ -39,7 +40,7 @@
 #endif /* linux */
 
 
-#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__OpenBSD__)
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <netinet/in.h>
@@ -49,11 +50,13 @@
 #ifdef HAVE_NET_IF_ETHER_H
 #  include <net/if_ether.h>
 #endif
-# if defined(__FreeBSD__) || defined(__APPLE__)
-#  include <net/ethernet.h>
+#ifdef HAVE_SYS_UIO_H
 #  include <sys/uio.h>
-# endif
-# include <ifaddrs.h>
+#endif
+#ifdef HAVE_NET_ETHERNET_H
+#  include <net/ethernet.h>
+#endif
+#  include <ifaddrs.h>
 # define IFACE_NAME_LENGTH         IF_NAMESIZE
 # define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
 

@@ -262,7 +262,7 @@ int ether_ntohost_cache(char *hostname, struct ether_addr *addr)
 	}
 
 	valid = 1;
-	strcpy(hostname, buf);
+	strncpy(hostname, buf, 100);
 	return 0;
 }
 
@@ -280,10 +280,10 @@ snprint_ClockIdentity_ntohost(char *s, int max_len, const ClockIdentity id)
 	for (i = 0, j = 0; i< CLOCK_IDENTITY_LENGTH ; i++ ){
 		/* skip bytes 3 and 4 */
 		if(!((i==3) || (i==4))){
-#if defined(linux) || defined(__NetBSD__)
-			e.ether_addr_octet[j] = (uint8_t) id[i];
-#else // e.g. defined(__FreeBSD__)
+#ifdef HAVE_STRUCT_ETHER_ADDR_OCTET
 			e.octet[j] = (uint8_t) id[i];
+#else
+			e.ether_addr_octet[j] = (uint8_t) id[i];
 #endif
 			j++;
 		}
@@ -345,7 +345,7 @@ int writeMessage(FILE* destination, int priority, const char * format, va_list a
 		 *  handling synchronous, and not calling this function inside asycnhronous signal processing)
 		 */
 		gettimeofday(&now, 0);
-		strftime(time_str, MAXTIMESTR, "%F %X", localtime(&now.tv_sec));
+		strftime(time_str, MAXTIMESTR, "%F %X", localtime((time_t*)&now.tv_sec));
 		fprintf(destination, "%s.%06d ", time_str, (int)now.tv_usec  );
 		fprintf(destination,PTPD_PROGNAME"[%d].%s (%-9s ",
 		getpid(), startupInProgress ? "startup" : rtOpts.ifaceName,
@@ -1492,8 +1492,9 @@ end:
 }
 
 
-/* Whole block of adjtimex() functions starts here - not for Apple */
-#if !defined(__APPLE__)
+/* Whole block of adjtimex() functions starts here - only for systems with sys/timex.h */
+
+#ifdef HAVE_SYS_TIMEX_H
 
 /*
  * Apply a tick / frequency shift to the kernel clock
@@ -1618,11 +1619,11 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 	if (ptpClock->drift_saved && rtOpts->drift_recovery_method > 0 ) {
 		ptpClock->servo.observedDrift = ptpClock->last_saved_drift;
 		if (!rtOpts->noAdjust) {
-#if defined(__APPLE__)
+#ifndef HAVE_SYS_TIMEX_H
 			adjTime(-ptpClock->last_saved_drift);
 #else
 			adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->last_saved_drift);
-#endif /* __APPLE__ */
+#endif /* HAVE_SYS_TIMEX_H */
 		}
 		DBG("loaded cached drift");
 		return;
@@ -1675,9 +1676,9 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	if (reset_offset) {
 		if (!rtOpts->noAdjust)
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 		  adjFreq_wrapper(rtOpts, ptpClock, 0);
-#endif /* __APPLE__ */
+#endif /* HAVE_SYS_TIMEX_H */
 		ptpClock->servo.observedDrift = 0;
 		return;
 	}
@@ -1687,9 +1688,9 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 	ptpClock->drift_saved = TRUE;
 	ptpClock->last_saved_drift = recovered_drift;
 	if (!rtOpts->noAdjust)
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 		adjFreq(-recovered_drift);
-#endif /* __APPLE__ */
+#endif /* HAVE_SYS_TIMEX_H */
 }
 
 #undef DRIFTFORMAT
@@ -1917,6 +1918,6 @@ adjTime(Integer32 nanoseconds)
 
 }
 
-#endif /* __APPLE__ */
+#endif /* HAVE_SYS_TIMEX_H */
 
 

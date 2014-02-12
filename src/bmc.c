@@ -274,9 +274,9 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 			ptpClock->leapSecondPending = FALSE;
 			ptpClock->leapSecondInProgress = FALSE;
 			timerStop(LEAP_SECOND_PAUSE_TIMER, ptpClock->itimer);
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 			unsetTimexFlags(STA_INS | STA_DEL,TRUE);
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 		}
 
 		/*
@@ -288,7 +288,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 		    !ptpClock->leapSecondInProgress ) ||
 		    ((!previousLeap59 && ptpClock->timePropertiesDS.leap59) ||
 		    (!previousLeap61 && ptpClock->timePropertiesDS.leap61)))) {
-#if !defined(__APPLE__)
+#ifdef HAVE_SYS_TIMEX_H
 			WARNING("Leap second pending! Setting kernel to %s "
 				"one second at midnight\n",
 				ptpClock->timePropertiesDS.leap61 ? "add" : "delete");
@@ -302,7 +302,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 			WARNING("Leap second pending! No kernel leap second "
 				"API support - expect a clock jump at "
 				"midnight!\n");
-#endif /* apple */
+#endif /* HAVE_SYS_TIMEX_H */
 			/* only set the flag, the rest happens in doState() */
 			ptpClock->leapSecondPending = TRUE;
 		}
