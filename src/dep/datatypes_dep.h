@@ -9,13 +9,13 @@
 /* FIXME: shouldn't uint32_t and friends be used here? */
 typedef enum {FALSE=0, TRUE} Boolean;
 typedef char Octet;
-typedef signed char Integer8;
-typedef signed short Integer16;
-typedef signed int Integer32;
-typedef unsigned char UInteger8;
-typedef unsigned short UInteger16;
-typedef unsigned int UInteger32;
-typedef unsigned short Enumeration16;
+typedef int8_t Integer8;
+typedef int16_t Integer16;
+typedef int32_t Integer32;
+typedef uint8_t  UInteger8;
+typedef uint16_t UInteger16;
+typedef uint32_t UInteger32;
+typedef uint16_t Enumeration16;
 typedef unsigned char Enumeration8;
 typedef unsigned char Enumeration4;
 typedef unsigned char Enumeration4Upper;
@@ -65,16 +65,32 @@ typedef struct {
 } one_way_delay_filter;
 
 /**
-* \brief Struct used to store network datas
+* \brief Struct containing interface information and capabilities
+ */
+typedef struct {
+        unsigned int flags;
+        int addressFamily;
+        Boolean hasHwAddress;
+        Boolean hasAfAddress;
+        unsigned char hwAddress[14];
+        struct in_addr afAddress;
+} InterfaceInfo;
+
+
+/**
+* \brief Struct describing network transport data
  */
 typedef struct {
 	Integer32 eventSock, generalSock;
 	Integer32 multicastAddr, peerMulticastAddr,unicastAddr;
-	
+
+	/* Interface address and capability descriptor */
+	InterfaceInfo interfaceInfo;
+
 	/* used by IGMP refresh */
 	struct in_addr interfaceAddr;
-	Octet port_uuid_field[PTP_UUID_LENGTH];
-	
+	/* Typically MAC address - outer 6 octers of ClockIdendity */
+	Octet interfaceID[ETHER_ADDR_LEN];
 	/* used for Hybrid mode */
 	Integer32 lastRecvAddr;
 

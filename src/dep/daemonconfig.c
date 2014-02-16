@@ -862,7 +862,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->slaveOnly = FALSE;
 	/* Otherwise default to slave only via the preset */
 	rtOpts->selectedPreset = PTP_PRESET_SLAVEONLY;
-	rtOpts->jobid=FALSE;
+	rtOpts->pidAsClockId = FALSE;
 
 	/* highest possible */
 	rtOpts->logLevel = LOG_ALL;
@@ -1485,8 +1485,8 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 0 = not used.",0,NANOSECONDS_MAX);
 
 
-	CONFIG_MAP_BOOLEAN("ptpengine:pid_as_clock_idendity",rtOpts->jobid,rtOpts->jobid,
-	"Use JobID (PID) for UUID.");
+	CONFIG_MAP_BOOLEAN("ptpengine:pid_as_clock_identity",rtOpts->pidAsClockId,rtOpts->pidAsClockId,
+	"Use PTPd's process ID as the middle part of the PTP clock ID - useful for running multiple instances.");
 
 #ifdef PTPD_NTPDC
 
@@ -2655,7 +2655,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:outbound_latency",      PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:offset_shift",      	PTPD_RESTART_NONE );
 
-        COMPONENT_RESTART_REQUIRED("ptpengine:pid_as_clock_idendity", 	PTPD_RESTART_PROTOCOL );
+        COMPONENT_RESTART_REQUIRED("ptpengine:pid_as_clock_identity", 	PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:ptp_slaveonly",           PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_announce_interval",   PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:announce_receipt_timeout",        PTPD_UPDATE_DATASETS );

@@ -887,7 +887,7 @@ typedef struct {
 #ifdef RUNTIME_DEBUG
 	int debug_level;
 #endif
-	Boolean jobid; /* use jobid aka PID for UUID */
+	Boolean pidAsClockId;
 
 	/**
 	 * This field holds the flags denoting which subsystems

@@ -280,9 +280,8 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
  * -Init network stuff, send and receive datas*/
  /**\{*/
 
-Boolean testInterface(char* ifaceName);
+Boolean testInterface(char* ifaceName, RunTimeOpts* rtOpts);
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
-UInteger32 findIface(Octet * ifaceName, UInteger8 * communicationTechnology, Octet * uuid, NetPath * netPath);
 Boolean netShutdown(NetPath*);
 int netSelect(TimeInternal*,NetPath*,fd_set*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*,int);

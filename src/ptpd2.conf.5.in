@@ -860,11 +860,11 @@ Do not exit panic mode until offset drops below this value (nanoseconds).
 .RE
 .RS 0
 .TP 8
-\fBptpengine:pid_as_clock_idendity [\fIBOOLEAN\fB]\fR
+\fBptpengine:pid_as_clock_identity [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8
 \fBusage\fR
-Use JobID (PID) for UUID.
+Use PTPd's process ID as the middle part of the PTP clock ID - useful for running multiple instances.
 .TP 8
 \fBdefault\fR
 \fIN\fR

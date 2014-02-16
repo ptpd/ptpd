@@ -716,7 +716,7 @@ displayOthers(const PtpClock * ptpClock)
 
 	netPath_display(&ptpClock->netPath);
 	DBGV("mCommunication technology %d \n", ptpClock->port_communication_technology);
-	clockUUID_display(ptpClock->netPath.port_uuid_field);
+	clockUUID_display(ptpClock->netPath.interfaceID);
 	DBGV("\n");
 }
 

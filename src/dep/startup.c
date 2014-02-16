@@ -202,7 +202,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* If the network configuration has changed, check if the interface is OK */
 	if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
 		INFO("Network configuration changed - checking interface\n");
-		if(!testInterface(tmpOpts.ifaceName)) {
+		if(!testInterface(tmpOpts.ifaceName, &tmpOpts)) {
 		    rtOpts->restartSubsystems = -1;
 		    ERROR("Error: Cannot use %s interface\n",tmpOpts.ifaceName);
 		}
@@ -615,7 +615,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	dictionary_del(rtOpts->candidateConfig);
 
 	/* Check network before going into background */
-	if(!testInterface(rtOpts->ifaceName)) {
+	if(!testInterface(rtOpts->ifaceName, rtOpts)) {
 	    ERROR("Error: Cannot use %s interface\n",rtOpts->ifaceName);
 	    *ret = 1;
 	    goto configcheck;

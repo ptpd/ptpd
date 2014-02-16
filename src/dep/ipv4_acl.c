@@ -65,7 +65,7 @@ static int countTokens(const char* text, const char* delim) {
 }
 
 /* Parse a dotted-decimal string into an uint8_t array - return -1 on error */
-static int ipToArray(const char* text, uint8_t dest[], int maxOctets, int isMask)
+static int ipToArray(const char* text, uint8_t dest[], int maxOctets, Boolean isMask)
 {
 
     char* text_;

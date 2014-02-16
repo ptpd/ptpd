@@ -25,6 +25,7 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #include<netinet/in.h>
 #include<net/if.h>
 #include<net/if_arp.h>
+#include <ifaddrs.h>
 #define IFACE_NAME_LENGTH         IF_NAMESIZE
 #define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
 
@@ -38,6 +39,7 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define PTPD_MSBF
 #endif
 #endif /* linux */
+
 
 
 #if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__OpenBSD__)
