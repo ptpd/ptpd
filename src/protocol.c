@@ -1571,7 +1571,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 					       &ptpClock->msgTmp.sync.originTimestamp);
 				updateOffset(&OriginTimestamp,
 					     &ptpClock->sync_receive_time,
-					     &ptpClock->ofm_filt,rtOpts,
+					     ptpClock->ofm_filt,rtOpts,
 					     ptpClock,&correctionField);
 				updateClock(rtOpts,ptpClock);
 				ptpClock->twoStepFlag=FALSE;
@@ -1667,7 +1667,7 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 					recv_time = sync_receive_time (received as CMSG in handleEvent)
 					*/
 					updateOffset(&preciseOriginTimestamp,
-						     &ptpClock->sync_receive_time,&ptpClock->ofm_filt,
+						     &ptpClock->sync_receive_time, ptpClock->ofm_filt,
 						     rtOpts,ptpClock,
 						     &correctionField);
 					updateClock(rtOpts,ptpClock);
@@ -1891,7 +1891,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 					recv_time = requestReceiptTimestamp (received inside delayResp)
 				*/
 
-				updateDelay(&ptpClock->owd_filt,
+				updateDelay(ptpClock->owd_filt,
 					    rtOpts,ptpClock, &correctionField);
 				if (ptpClock->waiting_for_first_delayresp) {
 					ptpClock->waiting_for_first_delayresp = FALSE;
@@ -2092,7 +2092,7 @@ handlePDelayResp(const MsgHeader *header, TimeInternal *tint,
 					ptpClock->pdelay_resp_receive_time.nanoseconds = tint->nanoseconds;
 					
 					integer64_to_internalTime(header->correctionField,&correctionField);
-					updatePeerDelay (&ptpClock->owd_filt,rtOpts,ptpClock,&correctionField,FALSE);
+					updatePeerDelay (ptpClock->owd_filt,rtOpts,ptpClock,&correctionField,FALSE);
 				}
 				ptpClock->recvPDelayRespSequenceId = header->sequenceId;
 				break;
@@ -2181,7 +2181,7 @@ handlePDelayRespFollowUp(const MsgHeader *header, ssize_t length,
 					&correctionField);
 				addTime(&correctionField,&correctionField,
 					&ptpClock->lastPdelayRespCorrectionField);
-				updatePeerDelay (&ptpClock->owd_filt,
+				updatePeerDelay (ptpClock->owd_filt,
 						 rtOpts, ptpClock,
 						 &correctionField,TRUE);
 				break;

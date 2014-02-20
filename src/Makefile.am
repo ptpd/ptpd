@@ -38,6 +38,9 @@ ptpd2_SOURCES =				\
 	dep/iniparser/iniparser.h	\
 	dep/iniparser/dictionary.c	\
 	dep/iniparser/iniparser.c	\
+	dep/libcck/filter/filter.c	\
+	dep/libcck/filter/exponencial_smooth.c \
+	dep/libcck/filter/moving_average.c \
 	dep/daemonconfig.h		\
 	dep/daemonconfig.c		\
 	dep/startup.c			\

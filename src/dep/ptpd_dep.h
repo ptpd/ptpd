@@ -311,10 +311,10 @@ void snmpShutdown();
  /**\{*/
 
 void initClock(RunTimeOpts*,PtpClock*);
-void updatePeerDelay (one_way_delay_filter*, RunTimeOpts*,PtpClock*,TimeInternal*,Boolean);
-void updateDelay (one_way_delay_filter*, RunTimeOpts*, PtpClock*,TimeInternal*);
+void updatePeerDelay (Filter*, RunTimeOpts*,PtpClock*,TimeInternal*,Boolean);
+void updateDelay (Filter*, RunTimeOpts*, PtpClock*,TimeInternal*);
 void updateOffset(TimeInternal*,TimeInternal*,
-  offset_from_master_filter*,RunTimeOpts*,PtpClock*,TimeInternal*);
+  Filter*,RunTimeOpts*,PtpClock*,TimeInternal*);
 void updateClock(RunTimeOpts*,PtpClock*);
 
 void servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock);

@@ -3,6 +3,7 @@
 
 #include <stdio.h> 
 #include <dep/iniparser/dictionary.h>
+#include <dep/libcck/filter/filter.h>
 #ifdef PTPD_STATISTICS
 #include <dep/statistics.h>
 #endif /* PTPD_STATISTICS */
@@ -694,8 +695,8 @@ typedef struct {
 	Boolean  waitingForFollow;
 	Boolean  waitingForDelayResp;
 	
-	offset_from_master_filter  ofm_filt;
-	one_way_delay_filter  owd_filt;
+	Filter * ofm_filt;
+	Filter * owd_filt;
 
 	Boolean message_activity;
 

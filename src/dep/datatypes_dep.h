@@ -43,27 +43,6 @@ typedef struct {
 } Integer64;
 
 /**
-* \brief Struct used to average the offset from master
-*
-* The FIR filtering of the offset from master input is a simple, two-sample average
- */
-typedef struct {
-    Integer32  nsec_prev, y;
-} offset_from_master_filter;
-
-/**
-* \brief Struct used to average the one way delay
-*
-* It is a variable cutoff/delay low-pass, infinite impulse response (IIR) filter.
-*
-*  The one-way delay filter has the difference equation: s*y[n] - (s-1)*y[n-1] = x[n]/2 + x[n-1]/2, where increasing the stiffness (s) lowers the cutoff and increases the delay.
- */
-typedef struct {
-    Integer32  nsec_prev, y;
-    Integer32  s_exp;
-} one_way_delay_filter;
-
-/**
 * \brief Struct containing interface information and capabilities
  */
 typedef struct {

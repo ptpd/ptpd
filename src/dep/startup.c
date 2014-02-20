@@ -478,6 +478,9 @@ ptpdShutdown(PtpClock * ptpClock)
 		dictionary_del(rtOpts.currentConfig);
 	if(rtOpts.cliConfig != NULL)
 		dictionary_del(rtOpts.cliConfig);
+	
+	FilterDestroy(ptpClock->owd_filt);
+	FilterDestroy(ptpClock->ofm_filt);
 
 	free(ptpClock);
 	ptpClock = NULL;
@@ -680,6 +683,9 @@ configcheck:
 			    (int)(rtOpts->max_foreign_records * 
 				  sizeof(ForeignMasterRecord)));
 		}
+		
+		ptpClock->owd_filt = FilterCreate(FILTER_EXPONENTIAL_SMOOTH);
+		ptpClock->ofm_filt = FilterCreate(FILTER_MOVING_AVERAGE);
 	}
 
 	if(rtOpts->statisticsLog.logEnabled)
