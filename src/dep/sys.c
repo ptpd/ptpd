@@ -1510,7 +1510,7 @@ adjFreq(double adj)
 #ifdef HAVE_STRUCT_TIMEX_TICK
 	Integer32 tickAdj = 0;
 
-#ifdef RUNTIME_DEBUG
+#ifdef PTPD_DBG2
 	double oldAdj = adj;
 #endif
 
@@ -1598,7 +1598,7 @@ getAdjFreq(void)
 
 	dFreq = (t.freq + 0.0) / ((1<<16) / 1000.0);
 
-	DBGV("          kernel adj is: %f, kernel freq is: %d",
+	DBGV("          kernel adj is: %f, kernel freq is: %d\n",
 		dFreq, t.freq);
 
 	return(dFreq);

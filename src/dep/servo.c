@@ -79,7 +79,6 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif /* HAVE_SYS_TIMEX_H */
 
 	/* clear vars */
-	ptpClock->owd_filt.s_exp = 0;	/* clears one-way delay filter */
 
 	/* clean more original filter variables */
 	clearTime(&ptpClock->offsetFromMaster);
@@ -88,7 +87,6 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	clearTime(&ptpClock->delayMS);
 
 	ptpClock->ofm_filt.y           = 0;
-	ptpClock->ofm_filt.nsec_prev   = -1; /* AKB: -1 used for non-valid nsec time */
 	ptpClock->ofm_filt.nsec_prev   = 0;
 
 	ptpClock->owd_filt.s_exp       = 0;  /* clears one-way delay filter */
@@ -496,7 +494,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	 * Offset must have been computed at least one time before 
 	 * computing end to end delay
 	 */
-		rtOpts->offset_first_updated = TRUE;
+	rtOpts->offset_first_updated = TRUE;
 }
 
 void

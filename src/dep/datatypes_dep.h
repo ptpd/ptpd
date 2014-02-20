@@ -6,7 +6,6 @@
 * \brief Implementation specific datatype
 
  */
-/* FIXME: shouldn't uint32_t and friends be used here? */
 typedef enum {FALSE=0, TRUE} Boolean;
 typedef char Octet;
 typedef int8_t Integer8;
@@ -31,16 +30,16 @@ typedef unsigned char NibbleLower;
 * \brief Implementation specific of UInteger48 type
  */
 typedef struct {
-	unsigned int lsb;     /* FIXME: shouldn't uint32_t and uint16_t be used here? */
-	unsigned short msb;
+	uint32_t lsb;
+	uint16_t msb;
 } UInteger48;
 
 /**
 * \brief Implementation specific of Integer64 type
  */
 typedef struct {
-	unsigned int lsb;     /* FIXME: shouldn't uint32_t and int32_t be used here? */
-	int msb;
+	uint32_t lsb;
+	int32_t msb;
 } Integer64;
 
 /**

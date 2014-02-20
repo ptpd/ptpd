@@ -1593,11 +1593,11 @@ handleSync(const MsgHeader *header, ssize_t length,
 			ptpClock->counters.discardedMessages++;
 			break;
 		} if (ptpClock->twoStepFlag) {
-			DBGV("HandleSync: going to send followup message\n ");
+			DBGV("HandleSync: going to send followup message\n");
 			processSyncFromSelf(tint, rtOpts, ptpClock, header->sequenceId);
 			break;
 		} else {
-			DBGV("HandleSync: Sync message received from self\n ");
+			DBGV("HandleSync: Sync message received from self\n");
 		}
 	}
 }
