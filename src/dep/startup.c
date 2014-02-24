@@ -684,8 +684,8 @@ configcheck:
 				  sizeof(ForeignMasterRecord)));
 		}
 		
-		ptpClock->owd_filt = FilterCreate(FILTER_EXPONENTIAL_SMOOTH);
-		ptpClock->ofm_filt = FilterCreate(FILTER_MOVING_AVERAGE);
+		ptpClock->owd_filt = FilterCreate(FILTER_EXPONENTIAL_SMOOTH, "owd");
+		ptpClock->ofm_filt = FilterCreate(FILTER_MOVING_AVERAGE, "ofm");
 	}
 
 	if(rtOpts->statisticsLog.logEnabled)

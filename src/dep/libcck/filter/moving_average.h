@@ -11,7 +11,7 @@
 
 #include "filter.h"
 
-Filter * MovingAverageCreate(void);
+Filter * MovingAverageCreate(const char * type, const char * name);
 
 #endif /* _LIBCCK_FILTER_MOVING_AVERAGE_H_ */
 

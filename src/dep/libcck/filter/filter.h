@@ -9,27 +9,33 @@
  * filter API
  */
 
-#define FILTER_EXPONENTIAL_SMOOTH       1
-#define FILTER_MOVING_AVERAGE           2
+#include "../base/ccktypes.h"
+#include "../base/cckobject.h"
+
+#define FILTER_EXPONENTIAL_SMOOTH       "exps"
+#define FILTER_MOVING_AVERAGE           "mav"
 
 typedef struct _Filter Filter;
 
 struct _Filter {
-	double (*feed)(Filter *filter, double val);
+	CCKObject ccko;
+	BOOL (*feed)(Filter *filter, int32_t * value);
 	void (*clear)(Filter *filter);
 	void (*destroy)(Filter *filter);
-	void (*configure)(Filter *filter, const char * parameter, double value);
+	void (*configure)(Filter *filter, const char * parameter, const char * value);
 };
 
 
-Filter * FilterCreate(int type);
+#define CCK_FILTER(obj)		((Filter *)obj)
+
+Filter * FilterCreate(const char * type, const char * name);
 
 void FilterDestroy(Filter * filter);
 
 void FilterClear(Filter * filter);
 
-double FilterFeed(Filter * filter, double val);
+BOOL FilterFeed(Filter * filter, int32_t * value);
 
-void FilterConfigure(Filter *filter, const char * parameter, double value);
+void FilterConfigure(Filter *filter, const char * parameter, const char * value);
 
 #endif /* _LIBCCK_FILTER_FILTER_H_ */

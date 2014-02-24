@@ -1,0 +1,37 @@
+dictionary * d;
+FilterContainer * fc;
+
+Filter * owd_filt;
+Filter * ofm_filr;
+
+int32_t nanoseconds;
+
+/* create new dictionary */
+d = dictionary_new(0);
+   
+/* create filter section example configuration */
+dictionary_set(d, "filter", NULL);
+dictionary_set(d, "filter:owd:type", "exps");
+dictionary_set(d, "filter:ofm:type", "mav");
+dictionary_set(d, "filter:owd:stiffness", "10");
+
+/* create cck container */
+fc = FilterContainerCreate();
+
+/* load dictionary */
+FilterContainerLoad(fc, d);
+
+/* use filters */
+owd_filt = CCK_FILTER(cckContainerGet(fc, "owd"));
+ofm_filt = CCK_FILTER(cckContainerGet(fc, "ofm"));
+
+FilterClear(owd_filt);
+
+nanoseconds = 1000;
+FilterFeed(owd_filt, &nanoseconds);
+
+/* cleanup */
+FilterContainerDestroy(fc);  
+dictionary_del(d);
+d = NULL;
+

@@ -241,8 +241,13 @@ updateDelay(Filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeIn
 #endif /* PTPD_STATISTICS */
 		}
 
-		FilterConfigure(owd_filt, "s", rtOpts->s);
-		ptpClock->meanPathDelay.nanoseconds = FilterFeed(owd_filt, ptpClock->meanPathDelay.nanoseconds);
+		{
+			// TODO: remove hack
+			char s_text[32];
+			sprintf(s_text, "%d", rtOpts->s);
+			FilterConfigure(owd_filt, "stiffness", s_text);
+		}
+		FilterFeed(owd_filt, &ptpClock->meanPathDelay.nanoseconds);
 
 /* Update relevant statistics containers, feed outlier filter thresholds etc. */
 #ifdef PTPD_STATISTICS
@@ -327,8 +332,13 @@ updatePeerDelay(Filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, Ti
 		return;
 	}
 
-	FilterConfigure(owd_filt, "s", rtOpts->s);
-	ptpClock->peerMeanPathDelay.nanoseconds = FilterFeed(owd_filt, ptpClock->peerMeanPathDelay.nanoseconds);
+	{
+		// TODO: remove hack
+		char s_text[32];
+		sprintf(s_text, "%d", rtOpts->s);
+		FilterConfigure(owd_filt, "stiffness", s_text);
+	}
+	FilterFeed(owd_filt, &ptpClock->peerMeanPathDelay.nanoseconds);
 
 	DBGV("delay filter %d\n", ptpClock->peerMeanPathDelay.nanoseconds);
 
@@ -432,7 +442,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 		return;
 	}
 
-	ptpClock->offsetFromMaster.nanoseconds = FilterFeed(ofm_filt, ptpClock->offsetFromMaster.nanoseconds);
+	FilterFeed(ofm_filt, &ptpClock->offsetFromMaster.nanoseconds);
 
 	DBGV("offset filter %d\n", ptpClock->offsetFromMaster.nanoseconds);
 

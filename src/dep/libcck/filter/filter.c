@@ -7,22 +7,29 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "filter.h"
 
 #include "exponencial_smooth.h"
 #include "moving_average.h"
 
-Filter * FilterCreate(int type)
+	/* X(name, constructor) */
+#define FILTER_LIST											\
+	X(FILTER_MOVING_AVERAGE, MovingAverageCreate) 			\
+	X(FILTER_EXPONENTIAL_SMOOTH, ExponencialSmoothCreate)	\
+
+
+Filter * FilterCreate(const char * type, const char * name)
 {
-	switch(type) {
-		case 1:
-			return ExponencialSmoothCreate();
-		case 2:
-			return MovingAverageCreate();
-		default:
-			return NULL;
+#define X(nm, constructor)									\
+	if (strcmp(type, nm) == 0) {							\
+		return constructor(type, name);						\
 	}
+	FILTER_LIST
+#undef X
+
+	return NULL;
 }
 
 void FilterDestroy(Filter * filter)
@@ -35,12 +42,12 @@ void FilterClear(Filter * filter)
 	filter->clear(filter);
 }
 
-double FilterFeed(Filter * filter, double val)
+BOOL FilterFeed(Filter * filter, int32_t * val)
 {
 	return filter->feed(filter, val);
 }
 
-void FilterConfigure(Filter *filter, const char * parameter, double value)
+void FilterConfigure(Filter *filter, const char * parameter, const char * value)
 {
 	return filter->configure(filter, parameter, value);
 }

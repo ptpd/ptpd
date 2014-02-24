@@ -11,7 +11,7 @@
 
 #include "filter.h"
 
-Filter * ExponencialSmoothCreate(void);
+Filter * ExponencialSmoothCreate(const char * type, const char * name);
 
 
 #endif /* _LIBCCK_FILTER_EXPONENCIAL_SMOOTH_H_ */

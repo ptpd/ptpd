@@ -12,6 +12,11 @@
 
 #include "filter.h"
 #include "exponencial_smooth.h"
+#include "../base/parameters.h"
+
+	/* X(var, type, name, default) */
+#define PARAMETER_LIST	\
+	X(s, int, "stiffness", 6)
 
 typedef struct
 {
@@ -33,10 +38,10 @@ static void ExponencialSmoothClear(Filter * filter)
 	esf->s_exp = 0;
 }
 
-static double ExponencialSmoothFeed(Filter * filter, double val)
+static BOOL ExponencialSmoothFeed(Filter * filter, int32_t * value)
 {
 	ExponencialSmooth * esf = (ExponencialSmooth *)filter;
-	int32_t x = (int32_t)(val);
+	int32_t x = *value;
 	int16_t s;
 
 	/* avoid overflowing filter */
@@ -57,16 +62,21 @@ static double ExponencialSmoothFeed(Filter * filter, double val)
 		(x / 2 + esf->x_prev / 2) / esf->s_exp;
 
 	esf->x_prev = x;
-	return esf->y;
+
+	*value = esf->y;
+	return TRUE;
 }
 
-static void ExponencialSmoothConfigure(Filter *filter, const char * parameter, double value)
+static void ExponencialSmoothConfigure(Filter *filter, const char * parameter, const char * value)
 {
 	ExponencialSmooth * esf = (ExponencialSmooth *)filter;
 
-	if (strcmp(parameter, "s") == 0) {
-		esf->s = (int32_t)(value);
+#define X(var, type, name, default) 			\
+	if (strcmp(parameter, name) == 0) {		\
+		esf->var = type##Get(value, default);	\
 	}
+	PARAMETER_LIST
+#undef X
 }
 
 static void ExponencialSmoothDestroy(Filter * filter)
@@ -75,7 +85,7 @@ static void ExponencialSmoothDestroy(Filter * filter)
 	free(esf);
 }
 
-Filter * ExponencialSmoothCreate(void)
+Filter * ExponencialSmoothCreate(const char * type, const char * name)
 {
 	ExponencialSmooth * esf;
 
@@ -85,10 +95,16 @@ Filter * ExponencialSmoothCreate(void)
 		return NULL;
 	}
 
+	cckObjectInit(CCK_OBJECT(esf), type, name);
+
 	esf->filter.feed = ExponencialSmoothFeed;
 	esf->filter.clear = ExponencialSmoothClear;
 	esf->filter.destroy = ExponencialSmoothDestroy;
 	esf->filter.configure = ExponencialSmoothConfigure;
 
+#define X(var, type, name, default) esf->var = default;
+	PARAMETER_LIST
+#undef X
+	
 	return &esf->filter;
 }
