@@ -1,4 +1,0 @@
-# /etc/conf.d/ptpd
-
-# Options to pass to ptpd
-PTPD_OPTS=""
