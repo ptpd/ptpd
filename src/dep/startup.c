@@ -148,9 +148,9 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	NOTIFY("SIGHUP received\n");
 
 #ifdef RUNTIME_DEBUG
-	if(rtOpts->transport == UDP_IPV4 && rtOpts->ip_mode != IPMODE_UNICAST) {
+	if(rtOpts->transport == UDP_IPV4 && rtOpts->transport_mode != TRANSPORTMODE_UNICAST) {
 		DBG("SIGHUP - running an ipv4 multicast based mode, re-sending IGMP joins\n");
-		netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+		netRefresh(rtOpts, ptpClock);
 	}
 #endif /* RUNTIME_DEBUG */
 
@@ -367,12 +367,12 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		if(rtOpts->timingAclEnabled) {
 			INFO("\n\n");
 			INFO("** Timing message ACL:\n");
-			dumpIpv4AccessList(ptpClock->netPath.timingAcl);
+			ptpClock->timingAcl->dump(ptpClock->timingAcl);
 		}
 		if(rtOpts->managementAclEnabled) {
 			INFO("\n\n");
 			INFO("** Management message ACL:\n");
-			dumpIpv4AccessList(ptpClock->netPath.managementAcl);
+			ptpClock->managementAcl->dump(ptpClock->managementAcl);
 		}
 		if(rtOpts->clearCounters) {
 			clearCounters(ptpClock);
@@ -447,15 +447,19 @@ ptpdShutdown(PtpClock * ptpClock)
 
 	extern RunTimeOpts rtOpts;
 
-	netShutdown(&ptpClock->netPath);
+	netShutdown(&rtOpts, ptpClock);
+
+	/* If you call the individual freeCck*** for components, do not call them after this */
+	cckShutdown();
+
 #ifdef PTPD_NTPDC
 	ntpShutdown(&rtOpts.ntpOptions, &ptpClock->ntpControl);
 #endif /* PTPD_NTPDC */
 	free(ptpClock->foreign);
 
 	/* free management messages, they can have dynamic memory allocated */
-	if(ptpClock->msgTmpHeader.messageType == MANAGEMENT)
-		freeManagementTLV(&ptpClock->msgTmp.manage);
+	if(ptpClock->lastMessage != NULL && ptpClock->lastMessage->header.messageType == MANAGEMENT)
+		freeManagementTLV(&ptpClock->lastMessage->body.manage);
 	freeManagementTLV(&ptpClock->outgoingManageTmp);
 
 #ifdef PTPD_SNMP

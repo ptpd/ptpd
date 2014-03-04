@@ -802,6 +802,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->domainNumber = DEFAULT_DOMAIN_NUMBER;
 
 	rtOpts->transport = UDP_IPV4;
+	rtOpts->transportType = CCK_TRANSPORT_UDP_IPV4;
 
 	/* timePropertiesDS */
 	rtOpts->timeProperties.currentUtcOffsetValid = DEFAULT_UTC_VALID;
@@ -811,7 +812,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->timeProperties.frequencyTraceable = FALSE;
 	rtOpts->timeProperties.ptpTimescale = FALSE;
 
-	rtOpts->ip_mode = IPMODE_MULTICAST;
+	rtOpts->transport_mode = TRANSPORTMODE_MULTICAST;
 
 	rtOpts->noAdjust = NO_ADJUST;  // false
 	rtOpts->logStatistics = TRUE;
@@ -831,7 +832,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	 * defaults for new options
 	 */
 	rtOpts->ignore_delayreq_interval_master = FALSE;
-	rtOpts->do_IGMP_refresh = TRUE;
+	rtOpts->refreshTransport = TRUE;
 	rtOpts->useSysLog       = FALSE;
 	rtOpts->announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
 #ifdef RUNTIME_DEBUG
@@ -1142,21 +1143,21 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #ifdef PTPD_PCAP
 	/* ethernet mode - cannot specify IP mode */
-	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:ip_mode",
+	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:transport_mode",
 	 			    rtOpts->transport == IEEE_802_3,
 	 			    "ethernet",
-	 			    "ptpengine:ip_mode");
+	 			    "ptpengine:transport_mode");
 #endif
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:ip_mode", rtOpts->ip_mode, rtOpts->ip_mode,
+	CONFIG_MAP_SELECTVALUE("ptpengine:transport_mode", rtOpts->transport_mode, rtOpts->transport_mode,
 		"IP transmission mode (requires IP transport) - hybrid mode uses\n"
 	"	 multicast for sync and announce, and unicast for delay request and\n"
 	"	 response; unicast mode uses unicast for all transmission.\n"
 	"	 When unicast mode is selected, destination IP must be configured\n"
 	"	(ptpengine:unicast_address).",
-				"multicast", 	IPMODE_MULTICAST,
-				"unicast", 	IPMODE_UNICAST,
-				"hybrid", 	IPMODE_HYBRID
+				"multicast", 	TRANSPORTMODE_MULTICAST,
+				"unicast", 	TRANSPORTMODE_UNICAST,
+				"hybrid", 	TRANSPORTMODE_HYBRID
 				);
 
 #ifdef PTPD_PCAP
@@ -1363,13 +1364,13 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 */
 
 	/* hybrid mode -> should specify delayreq interval: override set in the bottom of this function */
-	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ip_mode == IPMODE_HYBRID,
+	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->transport_mode == TRANSPORTMODE_HYBRID,
     		    "ptpengine:log_delayreq_interval",
 		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in hybrid mode"
 	);
 
 	/* unicast mode -> should specify delayreq interval if we can become a slave */
-	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ip_mode == IPMODE_UNICAST &&
+	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->transport_mode == TRANSPORTMODE_UNICAST &&
 		    rtOpts->clockQuality.clockClass > 127,
 		    "ptpengine:log_delayreq_interval",
 		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in unicast mode"
@@ -1381,8 +1382,8 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 */
 
 	/* unicast mode -> must specify unicast address */
-	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
-				    rtOpts->ip_mode == IPMODE_UNICAST,
+	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:transport_mode",
+				    rtOpts->transport_mode == TRANSPORTMODE_UNICAST,
 				    "unicast",
 				    "ptpengine:unicast_address");
 
@@ -1396,7 +1397,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_BOOLEAN("ptpengine:management_set_enable",rtOpts->managementSetEnable,rtOpts->managementSetEnable,
 	"Accept SET and COMMAND management messages.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:igmp_refresh",rtOpts->do_IGMP_refresh,rtOpts->do_IGMP_refresh,
+	CONFIG_MAP_BOOLEAN("ptpengine:igmp_refresh",rtOpts->refreshTransport,rtOpts->refreshTransport,
 	"Send explicit IGMP joins between engine resets and periodically\n"
 	"	 in master state.");
 
@@ -1901,15 +1902,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 /* ==== Any additional logic should go here ===== */
 
+	CckAcl* acl = createCckAcl(rtOpts->transport,0,"configTestAcl");
+
 	/* Check timing packet ACLs */
 	if(rtOpts->timingAclEnabled) {
 
 		int pResult, dResult;
 
-		if((pResult = maskParser(rtOpts->timingAclPermitText, NULL)) == -1)
+		if((pResult = acl->testAcl(acl, rtOpts->timingAclPermitText)) == -1)
 			ERROR("Error while parsing timing permit access list: \"%s\"\n",
 				rtOpts->timingAclPermitText);
-		if((dResult = maskParser(rtOpts->timingAclDenyText, NULL)) == -1)
+		if((dResult = acl->testAcl(acl, rtOpts->timingAclDenyText)) == -1)
 			ERROR("Error while parsing timing deny access list: \"%s\"\n",
 				rtOpts->timingAclDenyText);
 
@@ -1925,14 +1928,15 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	}
 
 	/* Check management message ACLs */
+
 	if(rtOpts->managementAclEnabled) {
 
 		int pResult, dResult;
 
-		if((pResult = maskParser(rtOpts->managementAclPermitText, NULL)) == -1)
+		if((pResult = acl->testAcl(acl,rtOpts->managementAclPermitText)) == -1)
 			ERROR("Error while parsing management permit access list: \"%s\"\n",
 				rtOpts->managementAclPermitText);
-		if((dResult = maskParser(rtOpts->managementAclDenyText, NULL)) == -1)
+		if((dResult = acl->testAcl(acl,rtOpts->managementAclDenyText)) == -1)
 			ERROR("Error while parsing management deny access list: \"%s\"\n",
 				rtOpts->managementAclDenyText);
 
@@ -1947,6 +1951,9 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		}
 	}
 
+
+	freeCckAcl(&acl);
+
 	/* Scale the maxPPM to PPB */
 	rtOpts->servoMaxPpb *= 1000;
 
@@ -1957,7 +1964,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 * We're in hybrid mode and we haven't specified the delay request interval:
 	 * use override with a default value
 	 */
-	if((rtOpts->ip_mode == IPMODE_HYBRID) &&
+	if((rtOpts->transport_mode == TRANSPORTMODE_HYBRID) &&
 	 !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
 		rtOpts->ignore_delayreq_interval_master=TRUE;
 
@@ -1965,7 +1972,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 * We're in unicast slave-capable mode and we haven't specified the delay request interval:
 	 * use override with a default value
 	 */
-	if((rtOpts->ip_mode == IPMODE_UNICAST && 
+	if((rtOpts->transport_mode == TRANSPORTMODE_UNICAST && 
 	    rtOpts->clockQuality.clockClass > 127) &&
 	    !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
 		rtOpts->ignore_delayreq_interval_master=TRUE;
@@ -2329,13 +2336,13 @@ short_help:
 			break;
 		/* hybrid mode */
 		case 'U':
-			WARN_DEPRECATED('U', 'y', "hybrid", "ptpengine:ptp_ip_mode=hybrid");
+			WARN_DEPRECATED('U', 'y', "hybrid", "ptpengine:ptp_transport_mode=hybrid");
 		case 'y':
-			dictionary_set(dict,"ptpengine:ip_mode", "hybrid");
+			dictionary_set(dict,"ptpengine:transport_mode", "hybrid");
 			break;
 		/* unicast */
 		case 'u':
-			dictionary_set(dict,"ptpengine:ip_mode", "unicast");
+			dictionary_set(dict,"ptpengine:transport_mode", "unicast");
 			dictionary_set(dict,"ptpengine:unicast_address", optarg);
 			break;
 		case 't':
@@ -2501,10 +2508,10 @@ printShortHelp()
 			"-s --slaveonly	 	 	ptpengine:preset=slaveonly	Slave only mode\n"
 			"-m --masterslave 		ptpengine:preset=masterslave	Master, slave when not best GM\n"
 			"-M --masteronly 		ptpengine:preset=masteronly	Master, passive when not best GM\n"
-			"-y --hybrid			ptpengine:ip_mode=hybrid	Hybrid mode (multicast for sync\n"
+			"-y --hybrid			ptpengine:transport_mode=hybrid	Hybrid mode (multicast for sync\n"
 			"								and announce, unicast for delay\n"
 			"								request and response)\n"
-			"-u --unicast [IP]		ptpengine:ip_mode=unicast	Unicast mode (send all messages to [IP])\n"
+			"-u --unicast [IP]		ptpengine:transport_mode=unicast	Unicast mode (send all messages to [IP])\n"
 			"				ptpengine:unicast_address=<IP>\n\n"
 			"-E --e2e			ptpengine:delay_mechanism=E2E	End to end delay detection\n"
 			"-P --p2p			ptpengine:delay_mechanism=P2P	Peer to peer delay detection\n"
@@ -2644,7 +2651,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 
         COMPONENT_RESTART_REQUIRED("ptpengine:interface",     		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:preset",  		PTPD_RESTART_PROTOCOL );
-        COMPONENT_RESTART_REQUIRED("ptpengine:ip_mode",       		PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:transport_mode",       		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:transport",     		PTPD_RESTART_NETWORK );
 #ifdef PTPD_PCAP
         COMPONENT_RESTART_REQUIRED("ptpengine:use_libpcap",   		PTPD_RESTART_NETWORK );

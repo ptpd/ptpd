@@ -42,6 +42,7 @@
 #include <assert.h>
 
 
+
 /*
   list of per-module defines:
 
@@ -181,7 +182,7 @@ void msgPackManagementErrorStatusTLV(Octet *,MsgManagement*,PtpClock*);
 void freeMMErrorStatusTLV(ManagementTLV*);
 void freeMMTLV(ManagementTLV*);
 
-void msgDump(PtpClock *ptpClock);
+void msgDump(PtpMessage* message);
 void msgDebugHeader(MsgHeader *header);
 void msgDebugSync(MsgSync *sync);
 void msgDebugAnnounce(MsgAnnounce *announce);
@@ -279,18 +280,14 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
 /** \name net.c (Unix API dependent)
  * -Init network stuff, send and receive datas*/
  /**\{*/
-
+Boolean addressEmpty(const TransportAddress*);
 Boolean testInterface(char* ifaceName, RunTimeOpts* rtOpts);
-Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
-Boolean netShutdown(NetPath*);
+Boolean netInit(RunTimeOpts*,PtpClock*);
+Boolean netShutdown(RunTimeOpts*, PtpClock*);
+void clearTransportAddress(TransportAddress*);
+Boolean transportAddressEqual(TransportAddress* a, TransportAddress* b, int transportType);
 int netSelect(TimeInternal*,NetPath*,fd_set*);
-ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*,int);
-ssize_t netRecvGeneral(Octet*,NetPath*);
-ssize_t netSendEvent(Octet*,UInteger16,NetPath*,RunTimeOpts*,Integer32,TimeInternal*);
-ssize_t netSendGeneral(Octet*,UInteger16,NetPath*,RunTimeOpts*,Integer32 );
-ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*,RunTimeOpts*);
-ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*,RunTimeOpts*,TimeInternal*);
-Boolean netRefreshIGMP(NetPath *, RunTimeOpts *, PtpClock *);
+Boolean netRefresh(RunTimeOpts *, PtpClock *);
 Boolean hostLookup(const char* hostname, Integer32* addr);
 
 /** \}*/

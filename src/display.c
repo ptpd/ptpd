@@ -111,20 +111,62 @@ clockUUID_display(const Octet * sourceUuid)
 	);
 }
 
+char*
+addressToString(const TransportAddress* addr, int transportType)
+{
+
+	/* just like *toa: convenient but not re-entrant */
+	static char buf[INET6_ADDRSTRLEN+1];
+
+	buf[0]='\0';
+
+	switch(transportType) {
+
+	    case UDP_IPV4:
+
+		if(inet_ntop(AF_INET, (const struct sockaddr*)addr, buf, INET_ADDRSTRLEN) == NULL)
+		    return "-";
+
+		break;
+
+	    case UDP_IPV6:
+
+		if(inet_ntop(AF_INET6, (const struct sockaddr*)addr, buf, INET6_ADDRSTRLEN) == NULL)
+		    return "-";
+
+		break;
+
+
+	    case IEEE_802_3:
+
+		    return ether_ntoa(&addr->etherAddr);
+
+		break;
+
+	    default:
+
+		return "-";
+
+	}
+
+	return buf;
+}
+
 /**\brief Display Network info*/
 void
 netPath_display(const NetPath * net)
 {
-	struct in_addr addr;
 
+// TODO: dump transports
+
+/*
 	DBGV("eventSock : %d \n", net->eventSock);
 	DBGV("generalSock : %d \n", net->generalSock);
-	addr.s_addr = net->multicastAddr;
-	DBGV("multicastAdress : %s \n", inet_ntoa(addr));
-	addr.s_addr = net->peerMulticastAddr;
-	DBGV("peerMulticastAddress : %s \n", inet_ntoa(addr));
-	addr.s_addr = net->unicastAddr;
-	DBGV("unicastAddress : %s \n", inet_ntoa(addr));
+	DBGV("multicastAdress : %s \n", addressToString(&net->multicastAddr, net->transportType));
+	DBGV("peerMulticastAddress : %s \n", addressToString(&net->peerMulticastAddr, net->transportType));
+	if(!transportAddressEmpty(&net->unicastDestination))
+	DBGV("unicastAddress : %s \n", addressToString(&net->unicastDestination, net->transportType));
+*/
 }
 
 /**\brief Display a IntervalTimer Structure*/
@@ -632,8 +674,8 @@ displayForeignMaster(const PtpClock * ptpClock)
 
 			portIdentity_display(&foreign->foreignMasterPortIdentity);
 			DBGV("number of Announce message received : %d \n", foreign->foreignMasterAnnounceMessages);
-			msgHeader_display(&foreign->header);
-			msgAnnounce_display(&foreign->announce);
+			msgHeader_display(&foreign->foreignMasterData.header);
+			msgAnnounce_display(&foreign->foreignMasterData.body.announce);
 
 			foreign++;
 		}
@@ -715,7 +757,6 @@ displayOthers(const PtpClock * ptpClock)
 	}
 
 	netPath_display(&ptpClock->netPath);
-	DBGV("mCommunication technology %d \n", ptpClock->port_communication_technology);
 	clockUUID_display(ptpClock->netPath.interfaceID);
 	DBGV("\n");
 }
@@ -772,7 +813,7 @@ displayBuffer(const PtpClock * ptpClock)
 
 /**\convert port state to string*/
 const char
-*portState_getName(Enumeration8 portState)
+*getPortStateName(Enumeration8 portState)
 {
     static const char *ptpStates[] = {
         [PTP_INITIALIZING] = "PTP_INITIALIZING",
@@ -795,6 +836,35 @@ const char
     }
 
     return(ptpStates[portState]);
+
+}
+
+const char*
+getMessageTypeName(Enumeration8 msgType)
+{
+
+    static const char *messageTypes[] = {
+        [SYNC] = "SYNC",
+        [DELAY_REQ] ="DELAY_REQUEST",
+        [PDELAY_REQ] ="PEER_DELAY_REQUEST",
+        [PDELAY_RESP] ="PEER_DELAY_RESPONSE",
+        [FOLLOW_UP] ="FOLLOW_UP",
+        [DELAY_RESP] ="DELAY_RESPONSE",
+        [PDELAY_RESP_FOLLOW_UP] ="PEER_DELAY_RESPONSE_FOLLOW_UP",
+        [ANNOUNCE] ="ANNOUNCE",
+        [SIGNALING] ="SIGNALING",
+        [MANAGEMENT] ="MANAGEMENT"
+    };
+
+    /* converting to int to avoid compiler warnings when comparing enum*/
+    static const int max = MANAGEMENT;
+    int intType = msgType;
+
+    if( intType < 0 || intType > max ) {
+        return "UNKNOWN";
+    }
+
+    return(messageTypes[msgType]);
 
 }
 

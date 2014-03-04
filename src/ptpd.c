@@ -78,6 +78,8 @@ main(int argc, char **argv)
 	PtpClock *ptpClock;
 	Integer16 ret;
 
+	cckInit();
+
 	startupInProgress = TRUE;
 
 	/* Initialize run time options with command line arguments */
@@ -97,6 +99,8 @@ main(int argc, char **argv)
 	/* forever loop.. */
 
 	ptpdShutdown(ptpClock);
+
+	cckShutdown();
 
 	NOTIFY("Self shutdown, probably due to an error\n");
 

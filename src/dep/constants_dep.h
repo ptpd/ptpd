@@ -21,6 +21,9 @@
 if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.net
 #endif
 
+#include <netdb.h>
+#include <sys/types.h>
+
 #ifdef	linux
 #include<netinet/in.h>
 #include<net/if.h>
@@ -96,14 +99,19 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define PTP_EVENT_PORT    319
 #define PTP_GENERAL_PORT  320
 
-#define DEFAULT_PTP_DOMAIN_ADDRESS     "224.0.1.129"
-#define PEER_PTP_DOMAIN_ADDRESS        "224.0.0.107"
+/* IPv4 addressing */
+#define DEFAULT_PTP_IPV4_ADDRESS     "224.0.1.129"
+#define PEER_PTP_IPV4_ADDRESS        "224.0.0.107"
 
-/* 802.3 Support */
+/* IPv6 addressing */
+#define DEFAULT_PTP_IPV6_ADDRESS     "FF0X:0:0:0:0:0:0:181"
+#define PEER_PTP_IPV6_ADDRESS        "FF02:0:0:0:0:0:0:6B"
 
-#define PTP_ETHER_DST "01:1b:19:00:00:00"
+/* Ethernet addressing */
+#define DEFAULT_PTP_ETHERNRT_ADDRESS "01:1b:19:00:00:00"
+#define PEER_PTP_ETHERNRT_ADDRESS    "01:80:c2:00:00:0E"
+
 #define PTP_ETHER_TYPE 0x88f7
-#define PTP_ETHER_PEER "01:80:c2:00:00:0E"
 
 /* dummy clock driver designation in preparation for generic clock driver API */
 #define DEFAULT_CLOCKDRIVER "kernelclock"
@@ -131,11 +139,11 @@ enum {
 };
 /* IP transmission mode */
 enum {
-	IPMODE_MULTICAST = 0,
-	IPMODE_UNICAST,
-	IPMODE_HYBRID,
+	TRANSPORTMODE_MULTICAST = 0,
+	TRANSPORTMODE_UNICAST,
+	TRANSPORTMODE_HYBRID,
 #if 0
-	IPMODE_UNICAST_SIGNALING
+	TRANSPORTMODE_UNICAST_SIGNALING
 #endif
 };
 

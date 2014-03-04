@@ -80,6 +80,8 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	/* clear vars */
 
+	ptpClock->lastMessage=NULL;
+
 	/* clean more original filter variables */
 	clearTime(&ptpClock->offsetFromMaster);
 	clearTime(&ptpClock->meanPathDelay);
@@ -96,9 +98,9 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	reset_operator_messages(rtOpts, ptpClock);
 
+	clearTransportAddress(&ptpClock->masterAddress);
 	/* For Hybrid mode */
-	ptpClock->masterAddr = 0;
-
+	clearTransportAddress(&ptpClock->masterEventAddress);
 
 }
 
@@ -149,8 +151,8 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				INFO("updateDelay aborted, delay %d.%d greater than 1 second\n",
 				     slave_to_master_delay.seconds,
 				     slave_to_master_delay.nanoseconds);
-				if (rtOpts->displayPackets)
-					msgDump(ptpClock);
+			/*	if (rtOpts->displayPackets)
+					msgDump(ptpClock);*/
 				goto display;
 			}
 
@@ -159,8 +161,8 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				     "administratively set maximum %d\n",
 				     slave_to_master_delay.nanoseconds, 
 				     rtOpts->maxDelay);
-				if (rtOpts->displayPackets)
-					msgDump(ptpClock);
+			/*	if (rtOpts->displayPackets)
+					msgDump(ptpClock);*/
 				goto display;
 			}
 		}
@@ -772,8 +774,8 @@ if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard &&
 		if (ptpClock->offsetFromMaster.seconds && rtOpts->maxReset) {
 			INFO("updateClock aborted, offset greater than 1"
 			     " second.");
-			if (rtOpts->displayPackets)
-				msgDump(ptpClock);
+			/*if (rtOpts->displayPackets)
+				msgDump(ptpClock);*/
 			goto display;
 		}
 
@@ -782,8 +784,8 @@ if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard &&
 			     "administratively set maximum %d\n",
 			     ptpClock->offsetFromMaster.nanoseconds, 
 			     rtOpts->maxReset);
-			if (rtOpts->displayPackets)
-				msgDump(ptpClock);
+			/*if (rtOpts->displayPackets)
+				msgDump(ptpClock);*/
 			goto display;
 		}
 	}

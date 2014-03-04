@@ -26,6 +26,8 @@ AC_SUBST([VERSION_NUMBER])
 AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_LIBTOOL
+AC_SUBST(LIBTOOL_DEPS)
+AC_LTDL_DLLIB
 
 # Check for svnversion, cut and tr
 
@@ -34,7 +36,7 @@ AC_PATH_PROG(trpath, tr)
 
 # Set CODE_REVISION if svnversion found, version is suffixed with "-svn" and code is versioned
 if test -n "$cutpath" && test -n "$trpath"; then
-    ver_prefix=`echo VERSION_NUMBER | $cutpath -s -d- -f2`
+    ver_prefix=`echo VERSION_NUMBER | $cutpath -d- -f2- | $cutpath -d- -f2-`
     AC_PATH_PROG(svnverpath, svnversion)
     if test "$ver_prefix" = "svn" && test -n "$svnverpath"; then
 	svn_rev=`$svnverpath 2>/dev/null | $cutpath -s -d: -f2 | $trpath -d MS`
@@ -478,6 +480,7 @@ AC_CHECK_MEMBERS([struct ether_addr.octet], [], [],
 
 # Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
+
 AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
 AC_FUNC_SELECT_ARGTYPES
@@ -608,8 +611,9 @@ AC_SUBST(PTP_NTPDC)
 AM_CONDITIONAL([NTPDC], [test x$ptp_ntpdc = xyes])
 
 AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([src/libcck/Makefile])
 AC_CONFIG_FILES([src/Makefile])
-AC_CONFIG_FILES([src/ptpd2.8])
-AC_CONFIG_FILES([src/ptpd2.conf.5])
+AC_CONFIG_FILES([src/ptpd.8])
+AC_CONFIG_FILES([src/ptpd.conf.5])
 
 AC_OUTPUT

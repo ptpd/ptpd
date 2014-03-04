@@ -151,8 +151,11 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
                 data->protocolAddress.networkProtocol = 1;
                 XMALLOC(data->protocolAddress.addressField,
                         data->protocolAddress.addressLength);
+
+		struct sockaddr_in* saddr = (struct sockaddr_in*)&(ptpClock->netPath.interfaceInfo.afAddress);
+
                 memcpy(data->protocolAddress.addressField,
-                        &ptpClock->netPath.interfaceAddr.s_addr,
+			  &saddr->sin_addr.s_addr,
                         data->protocolAddress.addressLength);
 		/* manufacturerIdentity OUI */
 		data->manufacturerIdentity0 = MANUFACTURER_ID_OUI0;

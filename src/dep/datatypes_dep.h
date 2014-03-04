@@ -1,10 +1,11 @@
 #ifndef DATATYPES_DEP_H_
 #define DATATYPES_DEP_H_
 
+#include "../libcck/cck.h"
+
 /**
 *\file
 * \brief Implementation specific datatype
-
  */
 typedef enum {FALSE=0, TRUE} Boolean;
 typedef char Octet;
@@ -72,49 +73,35 @@ typedef struct {
         Boolean hasHwAddress;
         Boolean hasAfAddress;
         unsigned char hwAddress[14];
-        struct in_addr afAddress;
+        struct sockaddr afAddress;
 } InterfaceInfo;
 
+/*
+typedef union {
+	struct sockaddr 	inetAddr;
+	struct sockaddr_in	inetAddr4;
+	struct sockaddr_in6	inetAddr6;
+	struct ether_addr	etherAddr;
+	struct sockaddr_ll	llAdr;
+	struct sockaddr_un	unAddr;
+} TransportAddress;
+*/
+
+typedef struct {
+	uint16_t transportType;
+	TransportAddress transportAddress;
+} TransportEndpoint;
 
 /**
 * \brief Struct describing network transport data
  */
 typedef struct {
-	Integer32 eventSock, generalSock;
-	Integer32 multicastAddr, peerMulticastAddr,unicastAddr;
 
+	TransportAddress ownAddress;
 	/* Interface address and capability descriptor */
 	InterfaceInfo interfaceInfo;
-
-	/* used by IGMP refresh */
-	struct in_addr interfaceAddr;
 	/* Typically MAC address - outer 6 octers of ClockIdendity */
 	Octet interfaceID[ETHER_ADDR_LEN];
-	/* used for Hybrid mode */
-	Integer32 lastRecvAddr;
-
-	uint64_t sentPackets;
-	uint64_t receivedPackets;
-
-#ifdef PTPD_PCAP
-	pcap_t *pcapEvent;
-	pcap_t *pcapGeneral;
-	Integer32 pcapEventSock;
-	Integer32 pcapGeneralSock;
-#endif
-	Integer32 headerOffset;
-
-	/* used for tracking the last TTL set */
-	int ttlGeneral;
-	int ttlEvent;
-	struct ether_addr etherDest;
-	struct ether_addr peerEtherDest;
-#ifdef SO_TIMESTAMPING
-	Boolean txTimestampFailure;
-#endif /* SO_TIMESTAMPING */
-
-	Ipv4AccessList* timingAcl;
-	Ipv4AccessList* managementAcl;
 
 } NetPath;
 
@@ -128,6 +115,7 @@ typedef struct {
 	Boolean logEnabled;
 	Boolean truncateOnReopen;
 	Boolean unlinkOnClose;
+	Boolean rotate;
 
 	UInteger32 maxSize;
 	UInteger32 fileSize;

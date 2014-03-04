@@ -11,7 +11,7 @@ PTPD_PIDFILE=${PTPD_PIDFILE:-${PTPD_PIDFILE_DIR}/${RC_SVCNAME}.pid}
 
 extra_commands="checkconfig"
 extra_started_commands="reload"
-command="/usr/sbin/ptpd2"
+command="/usr/sbin/ptpd"
 command_args="--global:lock_file=$PTPD_PIDFILE --global:status_file=$PTPD_STATEFILE -c $PTPD_CONFIGFILE $PTPD_OPTS"
 pidfile="${PTPD_PIDFILE}"
 description="Precise Time Protocol daemon"

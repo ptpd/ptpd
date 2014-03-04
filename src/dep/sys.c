@@ -767,7 +767,7 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 	memset(sbuf, ' ', sizeof(sbuf));
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", prefixMessage);
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", 
-			portState_getName(ptpClock->portState));
+			getPortStateName(ptpClock->portState));
 
 	if (ptpClock->portState >= PTP_MASTER) {
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", Best master: ");
@@ -804,13 +804,13 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, 		STATUSPREFIX"  %s%s\n","Transport", dictionary_get(rtOpts->currentConfig, "ptpengine:transport", ""),
 		(rtOpts->transport==UDP_IPV4 && rtOpts->pcap == TRUE)?" + libpcap":"");
 	if(rtOpts->transport != IEEE_802_3)
-	fprintf(out, 		STATUSPREFIX"  %s\n","IP mode", dictionary_get(rtOpts->currentConfig, "ptpengine:ip_mode", ""));
+	fprintf(out, 		STATUSPREFIX"  %s\n","IP mode", dictionary_get(rtOpts->currentConfig, "ptpengine:transport_mode", ""));
 	fprintf(out, 		STATUSPREFIX"  %s\n","Delay mechanism", dictionary_get(rtOpts->currentConfig, "ptpengine:delay_mechanism", ""));
 	if(ptpClock->portState >= PTP_MASTER) {
 	fprintf(out, 		STATUSPREFIX"  %s\n","Sync mode", ptpClock->twoStepFlag ? "TWO_STEP" : "ONE_STEP");
 	}
 	fprintf(out, 		STATUSPREFIX"  %d\n","PTP domain", rtOpts->domainNumber);
-	fprintf(out, 		STATUSPREFIX"  %s\n","Port state", portState_getName(ptpClock->portState));
+	fprintf(out, 		STATUSPREFIX"  %s\n","Port state", getPortStateName(ptpClock->portState));
 
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_PortIdentity(tmpBuf, sizeof(tmpBuf),
@@ -829,11 +829,11 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 	}
 	if(rtOpts->transport == UDP_IPV4 &&
 	    ptpClock->portState > PTP_MASTER &&
-	    ptpClock->masterAddr) {
+	    !transportAddressEmpty(&ptpClock->masterAddress)) {
 	    {
 	    struct in_addr tmpAddr;
-	    tmpAddr.s_addr = ptpClock->masterAddr;
-	fprintf(out, 		STATUSPREFIX"  %s\n","Best master IP", inet_ntoa(tmpAddr));
+	    tmpAddr.s_addr = ((struct sockaddr_in*)&ptpClock->masterAddress)->sin_addr.s_addr;
+	    fprintf(out, 		STATUSPREFIX"  %s\n","Best master IP", inet_ntoa(tmpAddr));
 	    }
 
 	}

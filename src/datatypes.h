@@ -436,6 +436,35 @@ typedef struct {
 } TimeInternal;
 
 /**
+* \brief Structure describing a PTP message with all information needed to process it
+ */
+typedef struct {
+
+    MsgHeader header;
+
+    TimeInternal*	timeStamp;
+    TransportAddress*   sourceAddress;
+    Boolean		isFromSelf;
+    Boolean		transportFromSelf;
+    Boolean		isUnicast;
+    ssize_t		messageLength;
+    union {
+	    MsgSync 			sync;
+	    MsgFollowUp			follow;
+	    MsgDelayReq 		req;
+	    MsgDelayResp		resp;
+	    MsgPDelayReq 		preq;
+	    MsgPDelayResp 		presp;
+	    MsgPDelayRespFollowUp 	prespfollow;
+	    MsgManagement		manage;
+	    MsgAnnounce			announce;
+	    MsgSignaling		signaling;
+	} body;
+
+} PtpMessage;
+
+
+/**
 * \brief Structure used as a timer
  */
 typedef struct {
@@ -451,10 +480,8 @@ typedef struct
 {
 	PortIdentity foreignMasterPortIdentity;
 	UInteger16 foreignMasterAnnounceMessages;
-
 	//This one is not in the spec
-	MsgAnnounce  announce;
-	MsgHeader    header;
+	PtpMessage	foreignMasterData;
 } ForeignMasterRecord;
 
 /**
@@ -617,7 +644,7 @@ typedef struct {
 	Enumeration8 portState;
 	Integer8 logMinDelayReqInterval;
 	TimeInternal peerMeanPathDelay;
- 
+
 	/*Configurable members*/
 	Integer8 logAnnounceInterval;
 	UInteger8 announceReceiptTimeout;
@@ -638,34 +665,11 @@ typedef struct {
 	UInteger32 random_seed;
 	Boolean  record_update;    /* should we run bmc() after receiving an announce message? */
 
-
-	MsgHeader msgTmpHeader;
-
-	union {
-		MsgSync  sync;
-		MsgFollowUp  follow;
-		MsgDelayReq  req;
-		MsgDelayResp resp;
-		MsgPDelayReq  preq;
-		MsgPDelayResp  presp;
-		MsgPDelayRespFollowUp  prespfollow;
-		MsgManagement  manage;
-		MsgAnnounce  announce;
-		MsgSignaling signaling;
-	} msgTmp;
-
+	PtpMessage* lastMessage;
 	MsgManagement outgoingManageTmp;
 
 	Octet msgObuf[PACKET_SIZE];
 	Octet msgIbuf[PACKET_SIZE];
-
-/*
-	20110630: These variables were deprecated in favor of the ones that appear in the stats log (delayMS and delaySM)
-	
-	TimeInternal  master_to_slave_delay;
-	TimeInternal  slave_to_master_delay;
-
-	*/
 
 	TimeInternal  pdelay_req_receive_time;
 	TimeInternal  pdelay_req_send_time;
@@ -693,7 +697,7 @@ typedef struct {
 	UInteger16  recvPDelayRespSequenceId;
 	Boolean  waitingForFollow;
 	Boolean  waitingForDelayResp;
-	
+
 	offset_from_master_filter  ofm_filt;
 	one_way_delay_filter  owd_filt;
 
@@ -703,15 +707,11 @@ typedef struct {
 
 	NetPath netPath;
 
-	/*Usefull to init network stuff*/
-	UInteger8 port_communication_technology;
-
 	/*Stats header will be re-printed when set to true*/
 	Boolean resetStatisticsLog;
 
 	int resetCount;
 	int announceTimeouts; 
-	int current_init_clock;
 	int can_step_clock;
 	int warned_operator_slow_slewing;
 	int warned_operator_fast_slewing;
@@ -730,10 +730,6 @@ typedef struct {
 	/* user description is max size + 1 to leave space for a null terminator */
 	Octet user_description[USER_DESCRIPTION_MAX + 1];
 
-
-	Integer32 masterAddr;                           // used for hybrid mode, when receiving announces
-	Integer32 LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
-
 	/*
 	 * counters - useful for debugging and monitoring,
 	 * should be exposed through management messages
@@ -748,6 +744,17 @@ typedef struct {
 	Boolean panicMode; /* in panic mode - do not update clock or calculate offsets */
 	Boolean panicOver; /* panic mode is over, we can reset the clock */
 	int panicModeTimeLeft; /* How many 30-second periods left in panic mode */
+
+	TransportAddress	masterAddress;		// Used to display the master address (taken from Announce)
+	TransportAddress	masterEventAddress;	// Used as target for DelayReq in hybrid mode (taken from first Sync)
+	CckAcl*			timingAcl;
+	CckAcl*			managementAcl;
+	CckTransport* 		eventTransport;
+	CckTransport* 		generalTransport;
+	CckTransport* 		peerEventTransport;
+	CckTransport* 		peerGeneralTransport;
+	CckFdSet 		watcher;		// Used to track transport FDs
+
 
 #ifdef	PTPD_STATISTICS
 	/*
@@ -798,7 +805,6 @@ typedef struct {
 	UInteger8 priority1;
 	UInteger8 priority2;
 	UInteger8 domainNumber;
-//	UInteger8 timeSource;
 
 	/*
 	 * For slave state, grace period of n * announceReceiptTimeout
@@ -811,7 +817,7 @@ typedef struct {
 	int announceTimeoutGracePeriod;
 //	Integer16 currentUtcOffset;
 
-	Octet ifaceName[IFACE_NAME_LENGTH];
+	char ifaceName[IFACE_NAME_LENGTH];
 	Boolean	noResetClock;
 #ifdef linux
 	Boolean setRtc;
@@ -861,7 +867,7 @@ typedef struct {
 	int statusFileUpdateInterval;
 
 	Boolean ignore_daemon_lock;
-	Boolean do_IGMP_refresh;
+	Boolean refreshTransport;
 	Boolean  nonDaemon;
 
 	int initial_delayreq;
@@ -883,7 +889,8 @@ typedef struct {
 	Boolean pcap; /* Receive and send packets using libpcap, bypassing the
 			 network stack. */
 	int transport;
-	int ip_mode;
+	int transportType;
+	int transport_mode;
 #ifdef RUNTIME_DEBUG
 	int debug_level;
 #endif
@@ -945,6 +952,8 @@ typedef struct {
 	/* Access list settings */
 	Boolean timingAclEnabled;
 	Boolean managementAclEnabled;
+
+
 	char timingAclPermitText[PATH_MAX];
 	char timingAclDenyText[PATH_MAX];
 	char managementAclPermitText[PATH_MAX];

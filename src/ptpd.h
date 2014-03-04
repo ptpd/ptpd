@@ -45,11 +45,8 @@
 #ifdef HAVE_SYS_TIMEX_H
 #include <sys/timex.h>
 #endif
-#include <sys/socket.h>
-#include <sys/select.h>
-#include <sys/ioctl.h>
+//#include <sys/ioctl.h>
 #include <sys/param.h>
-#include <arpa/inet.h>
 #include <stdarg.h>
 #include <syslog.h>
 #include <limits.h>
@@ -92,7 +89,6 @@
 #include <netinet/if_ether.h>
 #endif /* HAVE_NETINET_IF_ETHER_H */
 
-
 #ifdef PTPD_PCAP
 #ifdef HAVE_PCAP_PCAP_H
 #include <pcap/pcap.h>
@@ -114,7 +110,7 @@
 #include "constants.h"
 #include "limits.h"
 
-#include "dep/ipv4_acl.h"
+#include "libcck/cck.h"
 
 #include "dep/constants_dep.h"
 #include "dep/datatypes_dep.h"
@@ -227,7 +223,7 @@ void m1(const RunTimeOpts *, PtpClock*);
 /**
  * \brief When recommended state is Slave, copy dataset of master into parent and grandmaster dataset
  */
-void s1(MsgHeader*,MsgAnnounce*,PtpClock*, const RunTimeOpts *);
+void s1(PtpMessage*,PtpClock*, const RunTimeOpts *);
 
 
 void p1(PtpClock *ptpClock, const RunTimeOpts *rtOpts);
@@ -334,8 +330,10 @@ void clockQuality_display (const ClockQuality*);
 void PTPText_display(const PTPText*, const PtpClock*);
 void iFaceName_display(const Octet*);
 void unicast_display(const Octet*);
-const char *portState_getName(Enumeration8 portState);
+const char* getPortStateName(Enumeration8 portState);
+const char* getMessageTypeName(Enumeration8 msgType);
 void timestamp_display(const Timestamp * timestamp);
+char* addressToString(const TransportAddress* addr, int transportType);
 
 void displayCounters(const PtpClock*);
 void displayStatistics(const PtpClock*);
@@ -394,6 +392,7 @@ int is_Time_close(const TimeInternal *x, const TimeInternal *b, int nanos);
 int isTimeInternalNegative(const TimeInternal * p);
 double timeInternalToDouble(const TimeInternal * p);
 TimeInternal doubleToTimeInternal(const double d);
+Boolean timeIsZero(TimeInternal* t);
 
 int check_timestamp_is_fresh2(const TimeInternal * timeA, const TimeInternal * timeB);
 int check_timestamp_is_fresh(const TimeInternal * timeA);
@@ -406,5 +405,6 @@ float secondsToMidnight(void);
 float getPauseAfterMidnight(Integer8 announceInterval);
 
 Boolean respectUtcOffset(RunTimeOpts * rtOpts, PtpClock * ptpClock);
+void setPtpUnicastFlags(CckBool isUnicast, CckOctet* buf, CckUInt16 size);
 
 #endif /*PTPD_H_*/

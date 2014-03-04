@@ -3,6 +3,7 @@ ACLOCAL_AMFLAGS = -I m4
 NULL =
 
 SUBDIRS =		\
+	src/libcck	\
 	src		\
 	$(NULL)
 
@@ -13,10 +14,14 @@ EXTRA_DIST =			\
 	doc			\
 	tools			\
 	test			\
-	packagebuild		\
-	src/ptpd2.conf.minimal\
-	src/ptpd2.8\
-	src/ptpd2.conf.5\
+	pkgspec			\
+	src/ptpd.conf.minimal\
+	src/ptpd.8\
+	src/ptpd.conf.5\
+	src/libcck/INSTALL\
+	src/libcck/ChangeLog\
+	src/libcck/README\
+	src/libcck/COPYRIGHT\
 	\
 	$(NULL)
 

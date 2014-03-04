@@ -462,10 +462,12 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 	case PTPBASE_CLOCK_PORT_CURRENT_PEER_ADDRESS_TYPE:
 		/* Only supports IPv4 */
 		return SNMP_INTEGER(SNMP_IPv4);
+/*
 	case PTPBASE_CLOCK_PORT_CURRENT_PEER_ADDRESS:
 		if (snmpPtpClock->netPath.unicastAddr)
 			return SNMP_IPADDR(snmpPtpClock->netPath.unicastAddr);
-		return SNMP_IPADDR(snmpPtpClock->netPath.multicastAddr);
+		return SNMP_IPADDR(((struct sockaddr_in*)&(snmpPtpClock->netPath.multicastAddr))->sin_addr.s_addr);
+*/
 	case PTPBASE_CLOCK_PORT_NUM_ASSOCIATED_PORTS:
 		/* Either we are master and we use multicast and we
 		 * consider we have a session or we are slave and we
@@ -518,15 +520,31 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		return SNMP_INTEGER(0);
 	case PTPBASE_CLOCK_PORT_RUNNING_TX_MODE:
 	case PTPBASE_CLOCK_PORT_RUNNING_RX_MODE:	
-		if (snmpRtOpts->ip_mode == IPMODE_UNICAST)
+		if (snmpRtOpts->transport_mode == TRANSPORTMODE_UNICAST)
 			return SNMP_INTEGER(SNMP_PTP_TX_UNICAST);
-		if (snmpRtOpts->ip_mode == IPMODE_HYBRID)
+		if (snmpRtOpts->transport_mode == TRANSPORTMODE_HYBRID)
 			return SNMP_INTEGER(SNMP_PTP_TX_MULTICAST_MIX);
 		return SNMP_INTEGER(SNMP_PTP_TX_MULTICAST);
 	case PTPBASE_CLOCK_PORT_RUNNING_PACKETS_RECEIVED:
-		return SNMP_COUNTER64(snmpPtpClock->netPath.receivedPackets);
+		{
+		uint64_t pkts = snmpPtpClock->generalTransport->receivedMessages;
+			 pkts += snmpPtpClock->eventTransport->receivedMessages;
+		if(snmpRtOpts->delayMechanism == P2P) {
+			 pkts += snmpPtpClock->peerEventTransport->receivedMessages;
+			 pkts += snmpPtpClock->peerGeneralTransport->receivedMessages;
+		}
+		return SNMP_COUNTER64(pkts);
+		}
 	case PTPBASE_CLOCK_PORT_RUNNING_PACKETS_SENT:
-		return SNMP_COUNTER64(snmpPtpClock->netPath.sentPackets);
+		{
+		uint64_t pkts = snmpPtpClock->generalTransport->sentMessages;
+			 pkts += snmpPtpClock->eventTransport->sentMessages;
+		if(snmpRtOpts->delayMechanism == P2P) {
+			 pkts += snmpPtpClock->peerEventTransport->sentMessages;
+			 pkts += snmpPtpClock->peerGeneralTransport->sentMessages;
+		}
+		return SNMP_COUNTER64(pkts);
+		}
 	}
 
 

@@ -9,7 +9,7 @@
 * and enumeration defined in the spec
  */
 
-#define PTPD_PROGNAME "ptpd2"
+#define PTPD_PROGNAME PACKAGE_NAME
 
 /* FIXME: make these parameterized, either through command-line options or make variables */
  #define MANUFACTURER_ID \
@@ -25,11 +25,11 @@
 #define PRODUCT_DESCRIPTION \
   ";;"
 #define REVISION \
-  ";;2.3"
+  ";;2.4"
 #define USER_VERSION \
   PACKAGE_VERSION
 #define USER_DESCRIPTION \
-  "PTPDv2"
+  PACKAGE_NAME
 #define USER_DESCRIPTION_MAX 128
 
 /* implementation specific constants */
@@ -120,6 +120,7 @@ section 7.6.2.5, page 56:
 #define DELAY_RESP_LENGTH				54
 #define PDELAY_RESP_LENGTH 				54
 #define PDELAY_RESP_FOLLOW_UP_LENGTH  			54
+#define SIGNALING_LENGTH				44
 #define MANAGEMENT_LENGTH				48
 #define TLV_LENGTH					6
 #define TL_LENGTH					4
@@ -323,7 +324,7 @@ enum {
  */
 enum {
 /*
- * Update to portState_getName() is required
+ * Update to getPortStateName() is required
  * (display.c) if changes are made here
  */
   PTP_INITIALIZING=1,  PTP_FAULTY,  PTP_DISABLED,

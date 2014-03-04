@@ -53,8 +53,6 @@
 
 #include "../ptpd.h"
 
-extern RunTimeOpts rtOpts;
-
 #define PACK_SIMPLE( type ) \
 void pack##type( void* from, void* to ) \
 { \
@@ -1342,9 +1340,8 @@ msgPackSync(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentSyncSequenceId);
 	*(UInteger8 *) (buf + 32) = 0x00;
 
-	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
-	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ip_mode == IPMODE_MULTICAST)
-		*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
+	/* Table 24 - the unicast callback will change this if needed */
+	*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
 	memset((buf + 8), 0, 8);
 
 	/* Sync message */
@@ -1387,9 +1384,9 @@ msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
 	*(UInteger16 *) (buf + 2) = flip16(ANNOUNCE_LENGTH);
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentAnnounceSequenceId);
 	*(UInteger8 *) (buf + 32) = 0x05;
-	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
-	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ip_mode == IPMODE_MULTICAST)
-		*(Integer8 *) (buf + 33) = ptpClock->logAnnounceInterval;
+
+	/* Table 24 - the unicast callback will change this if needed */
+	*(Integer8 *) (buf + 33) = ptpClock->logAnnounceInterval;
 
 	/* Announce message */
 	memset((buf + 34), 0, 10);
@@ -1465,9 +1462,8 @@ msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpC
 	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
 	*(UInteger8 *) (buf + 32) = 0x02;
 
-	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
-	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ip_mode == IPMODE_MULTICAST)
-		*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
+	/* Table 24 - the unicast callback will change this if needed */
+	*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
 
 	/* Follow_up message */
 	*(UInteger16 *) (buf + 34) =
@@ -1577,9 +1573,8 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 
 	*(UInteger8 *) (buf + 32) = 0x03;
 
-	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
-	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ip_mode == IPMODE_MULTICAST)
-		*(Integer8 *) (buf + 33) = ptpClock->logMinDelayReqInterval;
+	/* Table 24 - the unicast callback will change this if needed */
+	*(Integer8 *) (buf + 33) = ptpClock->logMinDelayReqInterval;
 
 	/* Pdelay_resp message */
 	*(UInteger16 *) (buf + 34) =
@@ -2049,37 +2044,37 @@ msgUnpackManagement(Octet *buf, MsgManagement * manage, MsgHeader * header, PtpC
  * 
  * @param ptpClock The central clock structure
  */
-void msgDump(PtpClock *ptpClock)
+void msgDump(PtpMessage *message)
 {
 
 #if defined(freebsd)
 	static int dumped = 0;
 #endif /* FreeBSD */
 
-	msgDebugHeader(&ptpClock->msgTmpHeader);
-	switch (ptpClock->msgTmpHeader.messageType) {
+	msgDebugHeader(&message->header);
+	switch (message->header.messageType) {
 	case SYNC:
-		msgDebugSync(&ptpClock->msgTmp.sync);
+		msgDebugSync(&message->body.sync);
 		break;
     
 	case ANNOUNCE:
-		msgDebugAnnounce(&ptpClock->msgTmp.announce);
+		msgDebugAnnounce(&message->body.announce);
 		break;
     
 	case FOLLOW_UP:
-		msgDebugFollowUp(&ptpClock->msgTmp.follow);
+		msgDebugFollowUp(&message->body.follow);
 		break;
     
 	case DELAY_REQ:
-		msgDebugDelayReq(&ptpClock->msgTmp.req);
+		msgDebugDelayReq(&message->body.req);
 		break;
     
 	case DELAY_RESP:
-		msgDebugDelayResp(&ptpClock->msgTmp.resp);
+		msgDebugDelayResp(&message->body.resp);
 		break;
     
 	case MANAGEMENT:
-		msgDebugManagement(&ptpClock->msgTmp.manage);
+		msgDebugManagement(&message->body.manage);
 		break;
     
 	default:

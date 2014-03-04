@@ -8,7 +8,7 @@ The PTP Daemon is known to work on FreeBSD, NetBSD, Mac OS X and Linux systems.
 
 *) Requirements
 
-You will need the following tools and libraries to build ptpd2
+You will need the following tools and libraries to build ptpd
 
 1. GNU autotools (automake, autoconf, libtool etc.)
 2. PCAP libraries
@@ -33,20 +33,20 @@ You will need the following tools and libraries to build ptpd2
 
 4. make
 
-5. Read the manual pages. ptpd2 itself also provides an extensive help:
-   run ptpd2 --help to see the short help
-   run ptpd2 --long-help to see the long help for all settings
-   run ptpd2 -e [key:setting] to display help for a single setting
+5. Read the manual pages. ptpd itself also provides an extensive help:
+   run ptpd --help to see the short help
+   run ptpd --long-help to see the long help for all settings
+   run ptpd -e [key:setting] to display help for a single setting
 
 6. Update test/client-e2e-socket.conf so that its
    "ptpengine:interface = " setting points to a network interface on
    your test machine that can see PTP packets from a grandmaster.
 
-6. Test it in place: ./src/ptpd2 -c test/client-e2e-socket.conf
+6. Test it in place: ./src/ptpd -c test/client-e2e-socket.conf
 
-7. Check the log output of the daemon in /var/run/ptpd2.event.log
-   Check statistics output of the daemon in /var/run/ptpd2.stats.log
-   Check the status file /var/run/ptpd2.status.log
+7. Check the log output of the daemon in /var/run/ptpd.event.log
+   Check statistics output of the daemon in /var/run/ptpd.stats.log
+   Check the status file /var/run/ptpd.status.log
 
 8. If the results look good, make install
 

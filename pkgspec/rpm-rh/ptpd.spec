@@ -60,9 +60,9 @@ mkdir -p $RPM_BUILD_ROOT%{_mandir}/man{5,8}
 mkdir -p $RPM_BUILD_ROOT%{_sbindir}
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/snmp/mibs
 
-install -m 755 src/ptpd2 $RPM_BUILD_ROOT%{_sbindir}
-install -m 644 src/ptpd2.8 $RPM_BUILD_ROOT%{_mandir}/man8/ptpd2.8
-install -m 644 src/ptpd2.conf.5 $RPM_BUILD_ROOT%{_mandir}/man5/ptpd2.conf.5
+install -m 755 src/ptpd $RPM_BUILD_ROOT%{_sbindir}
+install -m 644 src/ptpd.8 $RPM_BUILD_ROOT%{_mandir}/man8/ptpd.8
+install -m 644 src/ptpd.conf.5 $RPM_BUILD_ROOT%{_mandir}/man5/ptpd.conf.5
 install -m 644 doc/PTPBASE-MIB.txt $RPM_BUILD_ROOT%{_datadir}/snmp/mibs/PTPBASE-MIB.txt
 
 { cd $RPM_BUILD_ROOT
@@ -72,7 +72,7 @@ install -m 644 doc/PTPBASE-MIB.txt $RPM_BUILD_ROOT%{_datadir}/snmp/mibs/PTPBASE-
 
   mkdir -p .%{_sysconfdir}/sysconfig
   install -m644 %{SOURCE2} .%{_sysconfdir}/sysconfig/ptpd
-  install -m644 %{SOURCE3} .%{_sysconfdir}/ptpd2.conf
+  install -m644 %{SOURCE3} .%{_sysconfdir}/ptpd.conf
 
 }
 
@@ -140,10 +140,10 @@ fi
 
 %files
 %defattr(-,root,root)
-%{_sbindir}/ptpd2
+%{_sbindir}/ptpd
 %config			%{_initrddir}/ptpd
 %config(noreplace)	%{_sysconfdir}/sysconfig/ptpd
-%config(noreplace)	%{_sysconfdir}/ptpd2.conf
+%config(noreplace)	%{_sysconfdir}/ptpd.conf
 %{_mandir}/man8/*
 %{_mandir}/man5/*
 %{_datadir}/snmp/mibs/*

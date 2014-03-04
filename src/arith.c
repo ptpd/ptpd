@@ -345,3 +345,14 @@ doubleToTimeInternal(const double d)
 	return t;
 
 }
+
+
+Boolean
+timeIsZero(TimeInternal* t)
+{
+
+    if(!t->seconds && !t->nanoseconds)
+	return TRUE;
+
+    return FALSE;
+}
