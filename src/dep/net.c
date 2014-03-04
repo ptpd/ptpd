@@ -260,7 +260,7 @@ end:
    Return 1 on success, 0 when no suitable address available, -1 on failure.
  */
 static int
-getInterfaceAddress(char* ifaceName, int family, struct in_addr* addr) {
+getInterfaceAddress(char* ifaceName, int family, struct sockaddr* addr) {
 
     int ret;
     struct ifaddrs *ifaddr, *ifa;
@@ -276,7 +276,7 @@ getInterfaceAddress(char* ifaceName, int family, struct in_addr* addr) {
 
 	if(!strcmp(ifaceName, ifa->ifa_name) && ifa->ifa_addr->sa_family == family) {
 
-		*addr = ((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
+		memcpy(addr, ifa->ifa_addr, sizeof(struct sockaddr));
     		ret = 1;
     		goto end;
 
@@ -507,10 +507,11 @@ netInitMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 	/* multicast send only on specified interface */
 	imr.imr_multiaddr.s_addr = multicastAddr;
 	imr.imr_interface.s_addr = netPath->interfaceAddr.s_addr;
+
 	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_IF, 
-		       &imr.imr_interface.s_addr, sizeof(struct in_addr)) < 0
+		       &netPath->interfaceAddr, sizeof(struct in_addr)) < 0
 	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_IF, 
-			  &imr.imr_interface.s_addr, sizeof(struct in_addr)) 
+			  &netPath->interfaceAddr, sizeof(struct in_addr)) 
 	    < 0) {
 		PERROR("failed to enable multi-cast on the interface");
 		return FALSE;
@@ -841,7 +842,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	/* No HW address, we'll use the protocol address to form interfaceID -> clockID */
 	if( !netPath->interfaceInfo.hasHwAddress && netPath->interfaceInfo.hasAfAddress ) {
-		uint32_t addr = netPath->interfaceInfo.afAddress.s_addr;
+		uint32_t addr = ((struct sockaddr_in*)&(netPath->interfaceInfo.afAddress))->sin_addr.s_addr;
 		memcpy(netPath->interfaceID, &addr, 2);
 		memcpy(netPath->interfaceID + 4, &addr + 2, 2);
 	/* Initialise interfaceID with hardware address */
@@ -852,7 +853,10 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			    );
 	}
 
-	DBG("Listening on IP: %s\n",inet_ntoa(netPath->interfaceInfo.afAddress));
+	{
+	    struct sockaddr_in* sin = (struct sockaddr_in*)&(netPath->interfaceInfo.afAddress);
+	    DBG("Listening on IP: %s\n",inet_ntoa(sin->sin_addr));
+	}
 
 #ifdef PTPD_PCAP
 	if (rtOpts->pcap == TRUE) {
@@ -929,7 +933,10 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	} else {
 #endif
 		/* save interface address for IGMP refresh */
-		netPath->interfaceAddr = netPath->interfaceInfo.afAddress;
+		{
+		    struct sockaddr_in* sin = (struct sockaddr_in*)&(netPath->interfaceInfo.afAddress);
+		    netPath->interfaceAddr = sin->sin_addr;
+		}
 
 		DBG("Local IP address used : %s \n", inet_ntoa(netPath->interfaceInfo.afAddress));
 
@@ -1743,7 +1750,7 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts 
 		 * we are not using multicast. 
 		 */
 		addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
-		
+
 		ret = sendto(netPath->eventSock, buf, length, 0, 
 			     (struct sockaddr *)&addr, 
 			     sizeof(struct sockaddr_in));

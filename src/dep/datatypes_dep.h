@@ -72,7 +72,7 @@ typedef struct {
         Boolean hasHwAddress;
         Boolean hasAfAddress;
         unsigned char hwAddress[14];
-        struct in_addr afAddress;
+        struct sockaddr afAddress;
 } InterfaceInfo;
 
 
