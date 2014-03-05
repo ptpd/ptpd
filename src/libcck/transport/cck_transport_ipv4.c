@@ -37,8 +37,8 @@
 
 #include "cck_transport_ipv4.h"
 
-static int	cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config);
-static int	cckTransportShutdown_ipv4 (void* _transport);
+static int     cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config);
+static int     cckTransportShutdown_ipv4 (void* _transport);
 static int     cckTransportPushConfig_ipv4 (CckTransport* transport, const CckTransportConfig* config);
 static CckBool cckTransportTestConfig_ipv4 (CckTransport* transport, const CckTransportConfig* config);
 static void    cckTransportRefresh_ipv4 (CckTransport* transport);
@@ -236,7 +236,6 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 
     CckIpv4TransportData* data = NULL;
 
-
     if(transport == NULL) {
 	CCK_ERROR("transport init called for an empty transport\n");
 	return -1;
@@ -284,7 +283,7 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 	transport->isMulticastAddress(&transport->secondaryDestination)) {
 
 	/* ====== MCAST_INIT_BEGIN ======= */
-
+CCK_INFO("mcast %s\n", transport->header.instanceName);
 	struct sockaddr_in sin;
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -301,11 +300,6 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 	    return -1;
 	}
 
-	int tmp = 1;
-	if(setsockopt(transport->fd, SOL_SOCKET, SO_REUSEADDR,
-		&tmp, sizeof(int)) < 0) {
-	    CCK_DBG("Failed to set SO_REUSEADDR\n");
-	}
 
 #if defined(linux) && defined(SO_BINDTODEVICE)
 	if(setsockopt(transport->fd, SOL_SOCKET, SO_BINDTODEVICE,
@@ -330,6 +324,12 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 	addr = &transport->ownAddress.inetAddr4;
     }
 
+	int tmp = 1;
+	if(setsockopt(transport->fd, SOL_SOCKET, SO_REUSEADDR,
+		&tmp, sizeof(int)) < 0) {
+	    CCK_DBG("Failed to set SO_REUSEADDR\n");
+	}
+
     if(bind(transport->fd, (struct sockaddr*)addr,
 		    sizeof(struct sockaddr_in)) < 0) {
         CCK_PERROR("Failed to bind to %s:%d on %s",
@@ -353,7 +353,7 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
     if(config->swTimestamping) {
 
 	if(cckInitSwTimestamping(
-	    transport, &data->timestampCaps)) {
+	    transport, &data->timestampCaps, CCK_FALSE)) {
 		transport->timestamping = CCK_TRUE;
 	} else {
 	    CCK_ERROR("Failed to enable software timestamping on %s\n",
@@ -418,6 +418,71 @@ static CckBool
 cckTransportTestConfig_ipv4 (CckTransport* transport, const CckTransportConfig* config)
 {
 
+    int res = 0;
+    unsigned int flags;
+
+    CckIpv4TransportData* data = NULL;
+
+    if(transport == NULL) {
+	CCK_ERROR("transport testConfig called for an empty transport\n");
+	return CCK_FALSE;
+    }
+
+    if(config == NULL) {
+	CCK_ERROR("transport testCpmfog called with empty config\n");
+	return CCK_FALSE;
+    }
+
+
+
+    strncpy(transport->transportEndpoint, config->transportEndpoint, PATH_MAX);
+
+    /* Get own address first */
+    res = cckGetInterfaceAddress(transport, &transport->ownAddress, AF_INET);
+
+    if(res != 1) {
+	return CCK_FALSE;
+    }
+
+    CCK_DBG("own address: %s\n", transport->addressToString(&transport->ownAddress));
+
+    res = cckGetInterfaceFlags(transport->transportEndpoint, &flags);
+
+    if(res != 1) {
+	CCK_ERROR("Could not query interface flags for %s\n",
+		    transport->transportEndpoint);
+	return CCK_FALSE;
+    }
+
+     if(!(flags & IFF_UP) || !(flags & IFF_RUNNING))
+            CCK_WARNING("Interface %s seems to be down. Transport may not operate correctly until it's up.\n", 
+		    transport->transportEndpoint);
+
+    if(flags & IFF_LOOPBACK)
+            CCK_WARNING("Interface %s is a loopback interface.\n", 
+			transport->transportEndpoint);
+
+    /* One of our destinations is multicast - test multicast operation */
+    if(transport->isMulticastAddress(&config->defaultDestination) ||
+	transport->isMulticastAddress(&config->secondaryDestination)) {
+	    if(!(flags & IFF_MULTICAST)) {
+        	CCK_WARNING("Interface %s is not multicast capable.\n",
+		transport->transportEndpoint);
+	    }
+    }
+
+    CCKCALLOC(data, sizeof(CckIpv4TransportData));
+
+    if(config->swTimestamping) {
+	if(!cckInitSwTimestamping(
+	    transport, &data->timestampCaps, CCK_TRUE)) {
+	    free(data);
+	    return CCK_FALSE;
+	}
+
+    }
+
+    free(data);
     return CCK_TRUE;
 
 }
@@ -426,7 +491,17 @@ static int
 cckTransportPushConfig_ipv4 (CckTransport* transport, const CckTransportConfig* config)
 {
 
-    return 1;
+    CckTransport* testTransport = createCckTransport(transport->transportType, "pushConfigTest");
+
+    if(!testTransport->testConfig(testTransport, config)) {
+	CCK_ERROR("Could not apply new config to transport 0x%08x (\"%s\")\n",
+		    transport->header.serial, transport->header.instanceName);
+	return -1;
+    }
+
+    freeCckTransport(&testTransport);
+
+    return transport->init(transport, config);
 
 }
 
@@ -654,6 +729,7 @@ cckTransportAddressFromString_ipv4 (const char* addrStr, TransportAddress* out)
         ret = CCK_TRUE;
         memcpy(out, info->ai_addr,
     	    sizeof(struct sockaddr));
+	freeaddrinfo(info);
 
     } else {
 
@@ -661,7 +737,6 @@ cckTransportAddressFromString_ipv4 (const char* addrStr, TransportAddress* out)
 
     }
 
-    freeaddrinfo(info);
     return ret;
 
 }

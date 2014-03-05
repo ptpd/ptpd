@@ -833,7 +833,10 @@ typedef struct {
 	Boolean	noAdjust;
 
 	Boolean displayPackets;
+	/* unicast destination */
 	Octet unicastAddress[MAXHOSTNAMELEN];
+	/* specify source address (useful when interface has multiple addresses */
+	Octet sourceAddress[MAXHOSTNAMELEN];
 	Integer16 s;
 	TimeInternal inboundLatency, outboundLatency, ofmShift;
 	Integer16 max_foreign_records;

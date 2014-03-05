@@ -29,9 +29,9 @@
 
 
 /**
- * @file   cck_acl.h
+ * @file   cck_transport.h
  * 
- * @brief  libCCK ACL component to perform matching on TransportAddress.
+ * @brief  libCCK transport component definitions
  *
  */
 
@@ -44,12 +44,24 @@
 
 typedef struct CckTransport CckTransport;
 
-//#include "cck.h"
-//#include "cck_component.h"
+#include "cck.h"
 
 #include "../../config.h"
 
 #include <limits.h>
+
+#ifdef PTPD_PCAP
+#ifdef HAVE_PCAP_PCAP_H
+#include <pcap/pcap.h>
+#else /* !HAVE_PCAP_PCAP_H */
+/* Cases like RHEL5 and others where only pcap.h exists */
+#ifdef HAVE_PCAP_H
+#include <pcap.h>
+#endif /* HAVE_PCAP_H */
+#endif
+#define PCAP_TIMEOUT 1 /* expressed in milliseconds */
+#endif
+
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) && \
   !defined(__APPLE__) && !defined(__OpenBSD__)

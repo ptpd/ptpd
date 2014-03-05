@@ -126,6 +126,7 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #include <unistd.h>
 
 CckBool cckGetHwAddress (const char* ifaceName, TransportAddress* addr);
+int cckGetInterfaceFlags(const char* ifaceName, unsigned int* flags);
 int cckGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr, int addressFamily);
 void cckAddFd(int fd, CckFdSet* set);
 void cckRemoveFd(int fd, CckFdSet* set);

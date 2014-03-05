@@ -92,7 +92,8 @@ static void processPDelayRespFromSelf(const TimeInternal * tint, RunTimeOpts * r
 void addForeign(Octet*,MsgHeader*,PtpClock*);
 
 static const ssize_t getMessageTypeLength(Enumeration8 msgType);
-
+static Boolean isTimingMessage(const PtpMessage* message);
+static Boolean isFromCurrentParent(const PtpClock *ptpClock, const MsgHeader* header);
 
 /* loop forever. doState() has a switch for the actions and events to be
    checked for 'port_state'. the actions and events may or may not change
@@ -1015,6 +1016,24 @@ isFromCurrentParent(const PtpClock *ptpClock, const MsgHeader* header)
 }
 
 /*
+  check if message is of the common timing message type:
+    - not peer*,
+    - not signaling,
+    - not announce
+*/
+static Boolean
+isTimingMessage(const PtpMessage* message)
+{
+
+	int t = message->header.messageType;
+
+	if( t == 0x0 || t == 0x1 || t == 0x8 || t == 0x09 || 0x0a  ) return TRUE;
+
+	return FALSE;
+
+}
+
+/*
     Populate a PtpMessage structure with all information that message handlers
     may need to be interested in, perform all preliminary checks on the message,
     finally call the respective handler.
@@ -1028,13 +1047,12 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 
     /* This is what our data will be unpacked to */
     PtpMessage message;
+    memset(&message, 0, sizeof(PtpMessage));
 
     /* Attach timestamp and transport source to message */
     message.sourceAddress = sourceAddress;
     message.timeStamp = timeStamp;
-
     message.messageLength = length;
-
     message.transportFromSelf =	transport->addressEqual(sourceAddress, &transport->ownAddress);
 
     /* Attach to ptpClock so we can free up TLVs if we are shutting down */
@@ -1080,8 +1098,6 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 	return;
 
     }
-
-
 
     /* packet is not from self, and is from a non-zero source address - check ACLs */
     if(!message.transportFromSelf) {
@@ -1136,9 +1152,29 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
     if((message.header.flagField0 & PTP_UNICAST) == PTP_UNICAST)
 	    message.isUnicast = TRUE;
 
+    /* running unicast mode and we received a multicast message that's not peer, not signaling and not management: ignore it */
+    if(!message.isUnicast && isTimingMessage(&message) &&
+	    (rtOpts->transport_mode == TRANSPORTMODE_UNICAST)) {
+		ptpClock->counters.discardedMessages++;
+	    DBG("Received multicast %s message in unicast-only mode: ignoring it\n",
+		    getMessageTypeName(message.header.messageType));
+	    return;
+    }
+
+    /* running multicast mode and we received a unicast message that's not peer, not signaling and not management: ignore it */
+    if(message.isUnicast && isTimingMessage(&message) &&
+	    (rtOpts->transport_mode == TRANSPORTMODE_MULTICAST)) {
+		ptpClock->counters.discardedMessages++;
+	    DBG("Received unicast %s message in multicast-only mode: ignoring it\n",
+		    getMessageTypeName(message.header.messageType));
+	    return;
+    }
+
 
 #ifdef PTPD_DBG
-    DBG("      ==> %s message received\n", getMessageTypeName(message.header.messageType));
+    DBG("      ==> %s message %sreceived and accepted for processing\n", 
+	    getMessageTypeName(message.header.messageType),
+	    message.isFromSelf ? "from self " : "");
 #endif
 
     /*

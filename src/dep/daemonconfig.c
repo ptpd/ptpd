@@ -2017,7 +2017,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		return target;
 	}
 
-	dictionary_del(target);
+	dictionary_del(&target);
 	return NULL;
 
 
@@ -2043,7 +2043,7 @@ loadConfigFile(dictionary **target, RunTimeOpts *rtOpts)
 	HELP_END();
 
 	dictionary_merge( dict, *target, 0, NULL);
-	dictionary_del(dict);
+	dictionary_del(&dict);
 
 	return TRUE;
 }
@@ -2142,7 +2142,7 @@ printDefaultConfig()
 	/* NULL will always be returned in this mode */
 	parseConfig(dict, &rtOpts);
 	END_SHOWDEFAULT();
-	dictionary_del(dict);
+	dictionary_del(&dict);
 
 	printf("\n; ========= newline required in the end ==========\n\n");
 
@@ -2172,7 +2172,7 @@ printConfigHelp()
 	parseConfig(dict, &rtOpts);
 
 	HELP_END();
-	dictionary_del(dict);
+	dictionary_del(&dict);
 
 }
 
@@ -2202,7 +2202,7 @@ printSettingHelp(char* key)
 	printf("Use -H or --long-help to show help for all settings.\n\n");
 	HELP_END();
 	
-	dictionary_del(dict);
+	dictionary_del(&dict);
 }
 
 /**

@@ -86,6 +86,7 @@ main(int argc, char **argv)
 	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts))) {
 		if (ret != 0 && !rtOpts.checkConfigOnly)
 			ERROR(USER_DESCRIPTION" startup failed\n");
+		cckShutdown();
 		return ret;
 	}
 

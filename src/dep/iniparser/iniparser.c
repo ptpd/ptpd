@@ -677,7 +677,7 @@ dictionary * iniparser_load(const char * ininame)
                     "iniparser: input line too long or no newline in the end in %s (%d)\n",
                     ininame,
                     lineno);
-            dictionary_del(dict);
+            dictionary_del(&dict);
             fclose(in);
             return NULL ;
         }
@@ -728,7 +728,7 @@ dictionary * iniparser_load(const char * ininame)
         }
     }
     if (errs) {
-        dictionary_del(dict);
+        dictionary_del(&dict);
         dict = NULL ;
     }
     fclose(in);
@@ -748,7 +748,7 @@ dictionary * iniparser_load(const char * ininame)
 /*--------------------------------------------------------------------------*/
 void iniparser_freedict(dictionary * d)
 {
-    dictionary_del(d);
+    dictionary_del(&d);
 }
 
 /* vim: set ts=4 et sw=4 tw=75 */

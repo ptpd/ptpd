@@ -163,7 +163,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* Try reloading the config file */
 	NOTIFY("Reloading configuration file: %s\n",rtOpts->configFile);
             if(!loadConfigFile(&tmpConfig, rtOpts)) {
-		dictionary_del(tmpConfig);
+		dictionary_del(&tmpConfig);
 		goto end;
         }
 		dictionary_merge(rtOpts->cliConfig, tmpConfig, 1, "from command line");
@@ -174,7 +174,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* Check the new configuration for errors, fill in the blanks from defaults */
 	if( ( rtOpts->candidateConfig = parseConfig(tmpConfig,&tmpOpts)) == NULL ) {
 	    WARNING("Configuration file has errors, reload aborted\n");
-	    dictionary_del(tmpConfig);
+	    dictionary_del(&tmpConfig);
 	    goto end;
 	}
 
@@ -201,10 +201,10 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	/* If the network configuration has changed, check if the interface is OK */
 	if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
-		INFO("Network configuration changed - checking interface\n");
-		if(!testInterface(tmpOpts.ifaceName, &tmpOpts)) {
+		INFO("Network configuration changed - checking network configuration\n");
+		if(!testNetworkConfig(&tmpOpts)) {
 		    rtOpts->restartSubsystems = -1;
-		    ERROR("Error: Cannot use %s interface\n",tmpOpts.ifaceName);
+		    ERROR("Network configuration has errors\n");
 		}
 
 	}
@@ -293,7 +293,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		 * disable quiet mode to show what went wrong, then die.
 		 */
 		if (rtOpts->currentConfig) {
-			dictionary_del(rtOpts->currentConfig);
+			dictionary_del(&rtOpts->currentConfig);
 		}
 		if ( (rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL) {
 			CRITICAL("************ "PTPD_PROGNAME": parseConfig returned NULL during config commit"
@@ -313,8 +313,8 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* clean up */
 	cleanup:
 
-		dictionary_del(tmpConfig);
-		dictionary_del(rtOpts->candidateConfig);
+		dictionary_del(&tmpConfig);
+		dictionary_del(&rtOpts->candidateConfig);
 
 	end:
 
@@ -479,9 +479,9 @@ ptpdShutdown(PtpClock * ptpClock)
 #endif /* HAVE_SYS_TIMEX_H */
 
 	if (rtOpts.currentConfig != NULL)
-		dictionary_del(rtOpts.currentConfig);
+		dictionary_del(&rtOpts.currentConfig);
 	if(rtOpts.cliConfig != NULL)
-		dictionary_del(rtOpts.cliConfig);
+		dictionary_del(&rtOpts.cliConfig);
 
 	free(ptpClock);
 	ptpClock = NULL;
@@ -604,7 +604,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 */
 	if( ( rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL ) {
 	    *ret = 1;
-	    dictionary_del(rtOpts->candidateConfig);
+	    dictionary_del(&rtOpts->candidateConfig);
 	    goto configcheck;
 	}
 
@@ -616,10 +616,10 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	}
 
 	/* we don't need the candidate config any more */
-	dictionary_del(rtOpts->candidateConfig);
+	dictionary_del(&rtOpts->candidateConfig);
 
 	/* Check network before going into background */
-	if(!testInterface(rtOpts->ifaceName, rtOpts)) {
+	if(!testNetworkConfig(rtOpts)) {
 	    ERROR("Error: Cannot use %s interface\n",rtOpts->ifaceName);
 	    *ret = 1;
 	    goto configcheck;
@@ -636,12 +636,12 @@ configcheck:
 		}
 	    else
 		printf("Configuration OK\n");
-	    return 0;
+	    goto fail;
 	}
 
 	/* Previous errors - exit */
 	if(*ret !=0)
-		return 0;
+		goto fail;
 
 	/* First lock check, just to be user-friendly to the operator */
 	if(!rtOpts->ignore_daemon_lock) {
@@ -649,12 +649,12 @@ configcheck:
 			/* check and create Lock */
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
 			*ret = 3;
-			return 0;
+			goto fail;
 		}
 		/* check for potential conflicts when automatic lock files are used */
 		if(!checkOtherLocks(rtOpts)) {
 			*ret = 3;
-			return 0;
+			goto fail;
 		}
 	}
 
@@ -666,7 +666,7 @@ configcheck:
 	if (!ptpClock) {
 		PERROR("Error: Failed to allocate memory for protocol engine data");
 		*ret = 2;
-		return 0;
+		goto fail;
 	} else {
 		DBG("allocated %d bytes for protocol engine data\n", 
 		    (int)sizeof(PtpClock));
@@ -678,7 +678,7 @@ configcheck:
 			       "master data");
 			*ret = 2;
 			free(ptpClock);
-			return 0;
+			goto fail;
 		} else {
 			DBG("allocated %d bytes for foreign master data\n", 
 			    (int)(rtOpts->max_foreign_records * 
@@ -717,7 +717,7 @@ configcheck:
 		if (daemon(1,0) == -1) {
 			PERROR("Failed to start as daemon");
 			*ret = 3;
-			return 0;
+			goto fail;
 		}
 		INFO("  Info:    Now running as a daemon\n");
 		/*
@@ -739,7 +739,7 @@ configcheck:
 		if(!writeLockFile(rtOpts)){
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
 			*ret = 3;
-			return 0;
+			goto fail;
 		}
 	}
 
@@ -824,6 +824,7 @@ configcheck:
 	return ptpClock;
 	
 fail:
-	dictionary_del(rtOpts->candidateConfig);
+	dictionary_del(&rtOpts->currentConfig);
+	dictionary_del(&rtOpts->candidateConfig);
 	return 0;
 }

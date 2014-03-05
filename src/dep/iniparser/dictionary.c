@@ -140,21 +140,22 @@ dictionary * dictionary_new(int size)
   Deallocate a dictionary object and all memory associated to it.
  */
 /*--------------------------------------------------------------------------*/
-void dictionary_del(dictionary * d)
+void dictionary_del(dictionary ** d)
 {
     int     i ;
 
-    if (d==NULL) return ;
-    for (i=0 ; i<d->size ; i++) {
-        if (d->key[i]!=NULL)
-            free(d->key[i]);
-        if (d->val[i]!=NULL)
-            free(d->val[i]);
+    if (*d==NULL) return ;
+    for (i=0 ; i< (*d)->size ; i++) {
+        if ((*d)->key[i]!=NULL)
+            free((*d)->key[i]);
+        if ((*d)->val[i]!=NULL)
+            free((*d)->val[i]);
     }
-    free(d->val);
-    free(d->key);
-    free(d->hash);
-    free(d);
+    free((*d)->val);
+    free((*d)->key);
+    free((*d)->hash);
+    free(*d);
+    *d = NULL;
     return ;
 }
 
@@ -421,7 +422,7 @@ int main(int argc, char *argv[])
         printf("error deleting values\n");
     }
     printf("deallocating...\n");
-    dictionary_del(d);
+    dictionary_del(&d);
     return 0 ;
 }
 #endif

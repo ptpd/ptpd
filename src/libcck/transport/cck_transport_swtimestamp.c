@@ -70,7 +70,7 @@ cckGetTsInfo(const char* ifName, struct ethtool_ts_info* tsInfo)
 #endif
 
 CckBool
-cckInitSwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps)
+cckInitSwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps, CckBool testingOnly)
 {
 
     int val = 1;
@@ -139,6 +139,11 @@ cckInitSwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps)
 		transport->header.instanceName);
     return CCK_FALSE;
 #endif
+
+    /* we're only probing options - assume setting the SO_ succeeded */
+    if(testingOnly) {
+	return CCK_TRUE;
+    }
 
     if(setsockopt(transport->fd, SOL_SOCKET, caps->socketOption, &val, sizeof(int)) == 0) {
 

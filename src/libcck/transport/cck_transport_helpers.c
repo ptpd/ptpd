@@ -134,6 +134,44 @@ end:
 }
 
 int
+cckGetInterfaceFlags(const char* ifaceName, unsigned int* flags)
+{
+
+    int ret;
+    struct ifaddrs *ifaddr, *ifa;
+
+    if(!strlen(ifaceName)) {
+	CCK_DBG("cckGetInterfaceFlags called for an empty interface!");
+	return 0;
+    }
+
+    if(getifaddrs(&ifaddr) == -1) {
+	CCK_PERROR("cckGetInterfaceFlags: Could not get interface list");
+	ret = -1;
+	goto end;
+
+    }
+
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+
+	if(!strcmp(ifaceName, ifa->ifa_name)) {
+	    *flags = ifa->ifa_flags;
+	    ret = 1;
+	    goto end;
+	}
+
+    }
+
+    ret = 0;
+    CCK_DBG("cckGetInterfaceFlags: Interface not found: %s\n", ifaceName);
+
+end:
+    freeifaddrs(ifaddr);
+    return ret;
+}
+
+
+int
 cckGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr, int addressFamily)
 {
     int ret;

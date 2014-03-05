@@ -237,17 +237,14 @@ cckTransportAddressFromString_ipv6 (const char* addrStr, TransportAddress* out)
         ret = CCK_TRUE;
         memcpy(out, info->ai_addr,
     	    sizeof(struct sockaddr));
-
+	freeaddrinfo(info);
     } else {
 
         CCK_ERROR("Could not encode / resolve IPV6 address %s : %s\n", addrStr, gai_strerror(res));
 
     }
 
-    freeaddrinfo(info);
     return ret;
-
-
 }
 
 static char*

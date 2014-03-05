@@ -129,7 +129,7 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 CckBool cckGetTsInfo(const char* ifName, struct ethtool_ts_info* tsInfo);
 #endif
 
-CckBool cckInitSwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps);
+CckBool cckInitSwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps, CckBool testingOnly);
 CckBool cckGetSwTimestamp(struct cmsghdr* cmsg, CckSocketTimestampCaps* caps, CckTimestamp* timestamp);
 
 #endif /* CCK_TRANSPORT_SWTIMESTAMP_H_ */

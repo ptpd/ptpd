@@ -39,7 +39,7 @@ if test -n "$cutpath" && test -n "$trpath"; then
     ver_prefix=`echo VERSION_NUMBER | $cutpath -d- -f2- | $cutpath -d- -f2-`
     AC_PATH_PROG(svnverpath, svnversion)
     if test "$ver_prefix" = "svn" && test -n "$svnverpath"; then
-	svn_rev=`$svnverpath 2>/dev/null | $cutpath -s -d: -f2 | $trpath -d MS`
+	svn_rev=`$svnverpath 2>/dev/null | $cutpath -d: -f2 | $trpath -d MS`
 	if test -n "$svn_rev"; then
 	    AC_DEFINE_UNQUOTED(CODE_REVISION, ["$svn_rev"], [source code revision])
 	fi

@@ -280,12 +280,9 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
 /** \name net.c (Unix API dependent)
  * -Init network stuff, send and receive datas*/
  /**\{*/
-Boolean addressEmpty(const TransportAddress*);
-Boolean testInterface(char* ifaceName, RunTimeOpts* rtOpts);
+Boolean testNetworkConfig(RunTimeOpts* rtOpts);
 Boolean netInit(RunTimeOpts*,PtpClock*);
 Boolean netShutdown(RunTimeOpts*, PtpClock*);
-void clearTransportAddress(TransportAddress*);
-Boolean transportAddressEqual(TransportAddress* a, TransportAddress* b, int transportType);
 int netSelect(TimeInternal*,NetPath*,fd_set*);
 Boolean netRefresh(RunTimeOpts *, PtpClock *);
 Boolean hostLookup(const char* hostname, Integer32* addr);

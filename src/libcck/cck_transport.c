@@ -36,7 +36,6 @@
  */
 
 #include "cck.h"
-//#include "cck_transport.h"
 
 CckTransport*
 createCckTransport(int transportType, const char* instanceName)
