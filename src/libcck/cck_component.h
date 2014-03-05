@@ -81,11 +81,12 @@ typedef struct {
 
 } CckRegistry;
 
+CckBool cckInitialised(void);
+CckBool cckInit(void);
+CckBool cckShutdown(void);
 
 CckBool cckRegister(void* _comp);
 CckBool cckDeregister(void* _comp);
 
-CckBool cckInit();
-CckBool cckShutdown();
 
 #endif /* CCK_COMPONENT_H_ */

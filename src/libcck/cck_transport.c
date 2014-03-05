@@ -41,8 +41,6 @@ CckTransport*
 createCckTransport(int transportType, const char* instanceName)
 {
 
-    extern CckRegistry* cckRegistry;
-
     CckTransport* transport;
 
     CCKCALLOC(transport, sizeof(CckTransport));
@@ -77,17 +75,10 @@ createCckTransport(int transportType, const char* instanceName)
 /* we 're done with this macro */
 #undef CCK_REGISTER_TRANSPORT
 
-   if(cckRegistry == NULL) {
+    transport->header._next = NULL;
+    transport->header._prev = NULL;
 
-        CCK_DBG("Will not register component - registry not initialised\n");
-
-    } else {
-
-	transport->header._next = NULL;
-	transport->header._prev = NULL;
-        cckRegister(transport);
-
-    }
+    cckRegister(transport);
 
     return transport;
 }

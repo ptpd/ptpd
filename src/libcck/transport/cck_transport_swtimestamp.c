@@ -98,7 +98,7 @@ cckInitSwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps, Cck
 	    caps->socketOption = SO_TIMESTAMPING;
 	    caps->scmType = SO_TIMESTAMPNS;
 	    caps->timestampType = CCK_TIMESPEC;
-	    caps->timestampSize = sizeof(struct timespec);
+	    caps->timestampSize = 3 * sizeof(struct timespec);
 	    methodStr = "SO_TIMESTAMPING";
 	    if(tsInfo.so_timestamping & SOF_TIMESTAMPING_TX_SOFTWARE) { 
 		val |= SOF_TIMESTAMPING_TX_SOFTWARE;

@@ -37,38 +37,79 @@
 #include "cck.h"
 //#include "cck_component.h"
 
-CckRegistry* cckRegistry = NULL;
+static CckRegistry* cckRegistry = NULL;
+static CckBool cckRegistryInitialised = CCK_FALSE;
+
+#if 0
+    static pthread_mutex_t cckRegistryMutex;
+#endif
+
+CckBool cckInitialised(void)
+{
+
+    return cckRegistryInitialised;
+
+}
 
 CckBool
-cckInit()
+cckInit(void)
 {
+
+    CCK_DBG("cckInit() called\n");
+
+    if(cckInitialised()) {
+
+	CCK_NOTICE("cckInit(): libCCK already initialised\n");
+	return CCK_TRUE;
+
+    }
+
+    if(cckRegistry != NULL) {
+
+	CCK_WARNING("cckInit(): registry is not null - will not re-initialise\n");
+	return CCK_FALSE;
+
+    }
+
     CCK_DBG("libCCk version "CCK_VERSION_STRING" (API "CCK_API_VERSION_STRING
 	    ") (c) 2014: Wojciech Owczarek, ptpd project - starting up\n");
+
     CCKCALLOC(cckRegistry,sizeof(CckRegistry));
+
     cckRegistry->_first = NULL;
     cckRegistry->_last = NULL;
+
     CCK_DBG("libCCk version "CCK_VERSION_STRING" succesfully initialised\n");
+
+    cckRegistryInitialised = CCK_TRUE;
     return CCK_TRUE;
 
 }
 
 CckBool
-cckShutdown()
+cckShutdown(void)
 {
 
     CckComponent* marker;
 
     CCK_DBG("cckShutdown() called\n");
 
-    if(cckRegistry == NULL) {
-	CCK_ERROR("LibCCk not initialised - cannot shutdown\n");
+    if(!cckInitialised()) {
+
+	CCK_NOTICE("cckShutdown(): libCCK not initialised\n");
 	return CCK_FALSE;
+
+    }
+
+    if(cckRegistry == NULL) {
+
+	CCK_ERROR("cckShutdown(): registry is null - cannot shutdown\n");
+	return CCK_FALSE;
+
     }
 
     if(cckRegistry->_first == NULL) {
-
 	CCK_DBG("No components registered - instant shutdown\n");
-
     }
 	else
 
@@ -84,7 +125,9 @@ cckShutdown()
     }
 
     free(cckRegistry);
+
     cckRegistry = NULL;
+    cckRegistryInitialised = CCK_FALSE;
 
     return CCK_TRUE;
 
@@ -96,9 +139,11 @@ cckRegister(void* _comp)
 
     CckComponent* component = _comp;
 
-    if(cckRegistry == NULL) {
+    CCK_DBG("cckRegister() called\n");
 
-	CCK_ERROR("Registry not initialised - cannot register component\n");
+    if(!cckInitialised()) {
+
+	CCK_DBG("cckRegister(): Registry not initialised - wil not register component\n");
 	return CCK_FALSE;
 
     }
@@ -109,7 +154,6 @@ cckRegister(void* _comp)
 	cckRegistry->_last = component;
 
     } else if(cckRegistry->_last == NULL) {
-
 	CCK_ERROR("Cannot register component - last component is empty\n");
 	return CCK_FALSE;
 
@@ -140,6 +184,15 @@ cckDeregister(void* _comp)
     CckComponent* component = _comp;
 
     CckComponent *tmpPrev, *tmpNext;
+
+    CCK_DBG("cckDeregister() called\n");
+
+    if(!cckInitialised()) {
+
+	CCK_DBG("cckRegister(): Registry not initialised - wil not deregister component\n");
+	return CCK_FALSE;
+
+    }
 
     if(component == NULL) {
 	CCK_DBG("cckDeregister called for an empty component\n");

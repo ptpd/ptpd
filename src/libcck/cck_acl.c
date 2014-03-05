@@ -43,8 +43,6 @@ CckAcl*
 createCckAcl(int transportType, int processingOrder, const char* instanceName)
 {
 
-    extern CckRegistry* cckRegistry;
-
     CckAcl* acl;
 
     CCKCALLOC(acl, sizeof(CckAcl));
@@ -76,18 +74,9 @@ createCckAcl(int transportType, int processingOrder, const char* instanceName)
     /* we 're done with this macro */
     #undef CCK_REGISTER_ACL
 
-
-    if(cckRegistry == NULL) {
-
-	CCK_DBG("Will not register component - registry not initialised\n");
-
-    } else {
-
-	acl->header._next = NULL;
-	acl->header._prev = NULL;
-	cckRegister(acl);
-
-    }
+    acl->header._next = NULL;
+    acl->header._prev = NULL;
+    cckRegister(acl);
 
     return acl;
 }
