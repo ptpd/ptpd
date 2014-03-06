@@ -1151,11 +1151,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 #endif
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:transport_mode", rtOpts->transport_mode, rtOpts->transport_mode,
-		"IP transmission mode (requires IP transport) - hybrid mode uses\n"
-	"	 multicast for sync and announce, and unicast for delay request and\n"
-	"	 response; unicast mode uses unicast for all transmission.\n"
-	"	 When unicast mode is selected, destination IP must be configured\n"
-	"	(ptpengine:unicast_address).",
+		"Transport mode  - hybrid mode uses multicast for sync and announce,\n"
+	"	  and unicast for delay request and response; unicast mode uses unicast\n"
+	"	  for all communication. When unicast mode is selected, destination address\n"
+	"	  must be configured (ptpengine:unicast_address).\n",
 				"multicast", 	TRANSPORTMODE_MULTICAST,
 				"unicast", 	TRANSPORTMODE_UNICAST,
 				"hybrid", 	TRANSPORTMODE_HYBRID

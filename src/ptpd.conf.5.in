@@ -61,6 +61,49 @@ Network interface to use - eth0, igb0 etc. (\fBrequired\fR).
 .RE
 .RS 0
 .TP 8
+\fBptpengine:transport [\fISELECT\fB]\fR
+.RS 8
+.TP 8
+\fBoptions\fR
+\fIipv4 ipv6 ethernet\fR
+.TP 8
+\fBusage\fR
+Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building with \fIlibpcap\fR.
+.TP 8
+\fBdefault\fR
+\fIipv4\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:transport_mode [\fISELECT\fB]\fR
+.RS 8
+.TP 8
+\fBoptions\fR
+\fImulticast unicast hybrid \fR
+.TP 8
+\fBusage\fR
+Transport mode:
+.RS 12
+.TP 12
+\fImulticast\fR
+uses multicast for all messages
+.TP 12
+\fIhybrid\fR
+uses  multicast for sync and announce, and unicast for delay request and response
+.TP 12
+\fIunicast\fR
+uses unicast for all transmission. When unicast mode is selected, destination address must be configured (\fIptpengine:unicast_address\fR).
+.RE
+.TP 8
+\fBdefault\fR
+\fImulticast\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:preset [\fISELECT\fB]\fR
 .RS 8
 .TP 8
@@ -91,49 +134,6 @@ Full IEEE 1588 implementation: Master, slave when not best master (clock class 1
 \fBNOTE:\fR
 Presets affect the following settings: \fIptpengine:slave_only\fR, \fIclock_no_adjust\fR and \fIptpengine:clock_class\fR (range and default value).
 To see all preset settings, run ptpd2 \fI-H\fR (\fI--long-help\fR)
-
-.RE
-.RE
-.RS 0
-.TP 8
-\fBptpengine:ip_mode [\fISELECT\fB]\fR
-.RS 8
-.TP 8
-\fBoptions\fR
-\fImulticast unicast hybrid \fR
-.TP 8
-\fBusage\fR
-IP transmission mode (requires IP transport):
-.RS 12
-.TP 12
-\fImulticast\fR
-uses multicast for all messages
-.TP 12
-\fIhybrid\fR
-uses  multicast for sync and announce, and unicast for delay request and response
-.TP 12
-\fIunicast\fR
-uses unicast for all transmission. When unicast mode is selected, destination IP must be configured (\fIptpengine:unicast_address\fR).
-.RE
-.TP 8
-\fBdefault\fR
-\fImulticast\fR
-
-.RE
-.RE
-.RS 0
-.TP 8
-\fBptpengine:transport [\fISELECT\fB]\fR
-.RS 8
-.TP 8
-\fBoptions\fR
-\fIipv4 ipv6 ethernet\fR
-.TP 8
-\fBusage\fR
-Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building with \fIlibpcap\fR.
-.TP 8
-\fBdefault\fR
-\fIipv4\fR
 
 .RE
 .RE
