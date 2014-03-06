@@ -1748,6 +1748,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 #ifdef RUNTIME_DEBUG
 	CONFIG_MAP_SELECTVALUE("global:debug_level",rtOpts->debug_level,rtOpts->debug_level,
 	"Specify debug level (if compiled with RUNTIME_DEBUG).",
+				"LOG_INFO", 	LOG_INFO,
 				"LOG_DEBUG", 	LOG_DEBUG,
 				"LOG_DEBUG1", 	LOG_DEBUG1,
 				"LOG_DEBUG2", 	LOG_DEBUG2,
