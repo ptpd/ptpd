@@ -321,7 +321,7 @@ void displayBuffer (const PtpClock*);
 void displayPtpClock (const PtpClock*);
 void timeInternal_display(const TimeInternal*);
 void clockIdentity_display(const ClockIdentity);
-void netPath_display(const NetPath*);
+//void netPath_display(const NetPath*);
 void intervalTimer_display(const IntervalTimer*);
 void integer64_display (const Integer64*);
 void timeInterval_display(const TimeInterval*);

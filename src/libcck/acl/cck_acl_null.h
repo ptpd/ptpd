@@ -50,15 +50,6 @@
 #include "../cck_transport.h"
 #include "../cck_acl.h"
 
-/* NULL transport ACL init */
-void cckAclInit_null (CckAcl* acl);
+void cckAclSetup_null (CckAcl* acl);
 
-/* NULL transport ACL methods */
-int  cckAclTest_null(CckAcl* acl, const char* aclText);
-int  cckAclCompile_null (CckAcl* acl, const char* permitList, const char* denyList);
-int  cckAclShutdown_null (void* component);
-int  cckAclMatchAddress_null (TransportAddress* addr, CckAcl* acl);
-void cckAclClearCounters_null (CckAcl* acl);
-void cckAclDump_null (CckAcl* acl);
-
-#endif /* CCK_ACL_NULL_H_ */
+#endif /* CCK_ACL_H_ */

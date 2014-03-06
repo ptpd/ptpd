@@ -115,11 +115,15 @@ cckShutdown(void)
 
     for (marker=cckRegistry->_last; marker != NULL;) {
 
-	CCK_DBG("Shutting down component serial %08x type 0x%02x name \"%s\"\n", marker->serial, marker->componentType,
-								marker->instanceName);
+	CCK_DBG("Shutting down %s component serial %08x type 0x%02x name \"%s\"\n", 
+	    marker->_dynamic ? "non-persistent" : "persistent",
+	    marker->serial, marker->componentType,
+	    marker->instanceName);
 	marker->shutdown(marker);
 	cckDeregister(marker);
-	free(marker);
+	if(marker->_dynamic) {
+	    free(marker);
+	}
 	marker = cckRegistry->_last;
 
     }
@@ -169,7 +173,9 @@ cckRegister(void* _comp)
 
     cckRegistry->componentCount++;
 
-    CCK_DBG("Registered component serial %08x type 0x%02x name \"%s\"\n", component->serial,
+    CCK_DBG("Registered %s component serial %08x type 0x%02x name \"%s\"\n", 
+	    component->_dynamic ? "non-persistent" : "persistent",
+	    component->serial,
 	    component->componentType, component->instanceName);
 
     return CCK_TRUE;
@@ -218,7 +224,8 @@ cckDeregister(void* _comp)
 
     cckRegistry->componentCount--;
 
-    CCK_DBG("Deregistered component serial %08x type 0x%02x name \"%s\"\n", 
+    CCK_DBG("Deregistered %s component serial %08x type 0x%02x name \"%s\"\n",
+	    component->_dynamic ? "non-persistent" : "persistent",
 	    component->serial, component->componentType, component->instanceName);
 
     return CCK_TRUE;

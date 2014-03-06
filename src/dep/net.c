@@ -102,17 +102,17 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		case UDP_IPV4:
 		    defDest = DEFAULT_PTP_IPV4_ADDRESS;
 		    pDest = PEER_PTP_IPV4_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_UDP_IPV4;
+		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV4;
 		    break;
 		case UDP_IPV6:
 		    defDest = DEFAULT_PTP_IPV6_ADDRESS;
 		    pDest = PEER_PTP_IPV6_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_UDP_IPV6;
+		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV6;
 		    break;
 		case IEEE_802_3:
 		    defDest = DEFAULT_PTP_ETHERNET_ADDRESS;
 		    pDest = PEER_PTP_ETHERNET_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_ETHERNET;
+		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_ETHERNET;
 		    break;
 		default:
 		    ERROR("Unsupported transport: %d\n",
@@ -211,7 +211,7 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* Compile ACLs */
 	if(rtOpts->timingAclEnabled) {
     		freeCckAcl(&ptpClock->timingAcl);
-		ptpClock->timingAcl = createCckAcl(rtOpts->transportType,
+		ptpClock->timingAcl = createCckAcl(ptpClock->eventTransport->aclType,
 						    rtOpts->timingAclOrder, "timingAcl");
 		ptpClock->timingAcl->compileAcl(ptpClock->timingAcl,
 						rtOpts->timingAclPermitText,
@@ -219,7 +219,7 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 	if(rtOpts->managementAclEnabled) {
     		freeCckAcl(&ptpClock->managementAcl);
-		ptpClock->managementAcl = createCckAcl(rtOpts->transportType,
+		ptpClock->managementAcl = createCckAcl(ptpClock->eventTransport->aclType,
 						    rtOpts->managementAclOrder, "managementAcl");
 		ptpClock->managementAcl->compileAcl(ptpClock->managementAcl,
 						rtOpts->managementAclPermitText,
@@ -285,17 +285,17 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 		case UDP_IPV4:
 		    defDest = DEFAULT_PTP_IPV4_ADDRESS;
 		    pDest = PEER_PTP_IPV4_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_UDP_IPV4;
+		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV4;
 		    break;
 		case UDP_IPV6:
 		    defDest = DEFAULT_PTP_IPV6_ADDRESS;
 		    pDest = PEER_PTP_IPV6_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_UDP_IPV6;
+		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV6;
 		    break;
 		case IEEE_802_3:
 		    defDest = DEFAULT_PTP_ETHERNET_ADDRESS;
 		    pDest = PEER_PTP_ETHERNET_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_ETHERNET;
+		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_ETHERNET;
 		    break;
 		default:
 		    ERROR("Unsupported transport: %d\n",
@@ -387,44 +387,9 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 
 }
 
-
-Boolean
-hostLookup(const char* hostname, Integer32* addr)
-{
-	if (hostname[0]) {
-		/* Attempt a DNS lookup first. */
-		struct hostent *host;
-		host = gethostbyname2(hostname, AF_INET);
-                if (host != NULL) {
-			if (host->h_length != 4) {
-				PERROR("unicast host resolved to non ipv4"
-				       "address");
-				return FALSE;
-			}
-			*addr = 
-				*(uint32_t *)host->h_addr_list[0];
-			return TRUE;
-		} else {
-			struct in_addr netAddr;
-			/* Maybe it's a dotted quad. */
-			if (!inet_aton(hostname, &netAddr)) {
-				ERROR("failed to encode unicast address: %s\n",
-				      hostname);
-				return FALSE;
-				*addr = netAddr.s_addr;
-				return TRUE;
-			}
-                }
-	}
-
-return FALSE;
-
-}
-
-
 /*Check if data has been received*/
 int 
-netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
+netSelect(TimeInternal * timeout, fd_set *readfds)
 {
 	int ret = 0;
 #if defined PTPD_SNMP

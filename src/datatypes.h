@@ -705,8 +705,6 @@ typedef struct {
 
 	IntervalTimer  itimer[TIMER_ARRAY_SIZE];
 
-	NetPath netPath;
-
 	/*Stats header will be re-printed when set to true*/
 	Boolean resetStatisticsLog;
 
@@ -959,7 +957,7 @@ typedef struct {
 
 
 	char timingAclPermitText[PATH_MAX];
-	char timingAclDenyText[PATH_MAX];
+	char timingAclDenyText[PATH_MAX ];
 	char managementAclPermitText[PATH_MAX];
 	char managementAclDenyText[PATH_MAX];
 	int timingAclOrder;

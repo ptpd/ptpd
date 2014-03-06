@@ -64,41 +64,6 @@ typedef struct {
     Integer32  s_exp;
 } one_way_delay_filter;
 
-/**
-* \brief Struct containing interface information and capabilities
- */
-typedef struct {
-        unsigned int flags;
-        int addressFamily;
-        Boolean hasHwAddress;
-        Boolean hasAfAddress;
-        unsigned char hwAddress[14];
-        struct sockaddr afAddress;
-} InterfaceInfo;
-
-/*
-typedef union {
-	struct sockaddr 	inetAddr;
-	struct sockaddr_in	inetAddr4;
-	struct sockaddr_in6	inetAddr6;
-	struct ether_addr	etherAddr;
-	struct sockaddr_ll	llAdr;
-	struct sockaddr_un	unAddr;
-} TransportAddress;
-*/
-
-typedef struct {
-	uint16_t transportType;
-	TransportAddress transportAddress;
-} TransportEndpoint;
-
-/**
-* \brief Struct describing network transport data
- */
-typedef struct {
-    int nothing;
-} NetPath;
-
 typedef struct {
 
 	char* logID;

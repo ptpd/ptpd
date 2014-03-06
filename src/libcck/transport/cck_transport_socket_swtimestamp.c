@@ -35,7 +35,7 @@
  *
  */
 
-#include "cck_transport_swtimestamp.h"
+#include "cck_transport_socket_swtimestamp.h"
 
 #if defined(SO_TIMESTAMPING) && defined(ETHTOOL_GET_TS_INFO)
 CckBool

@@ -41,8 +41,8 @@
 #define CCK_H_INSIDE_
 
 /* Version strings */
-#define CCK_VERSION 0.1
-#define CCK_VERSION_STRING "0.1"
+#define CCK_VERSION 0.2
+#define CCK_VERSION_STRING "0.2"
 
 #define CCK_API_VERSION 0.9
 #define CCK_API_VERSION_STRING "0.9"
@@ -72,6 +72,7 @@
 #include "cck_loghandler.h"
 #include "cck_transport.h"
 #include "cck_acl.h"
+#include "cck_dummy.h"
 
 #undef CCK_H_INSIDE_
 

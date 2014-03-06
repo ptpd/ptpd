@@ -153,9 +153,9 @@ addressToString(const TransportAddress* addr, int transportType)
 }
 
 /**\brief Display Network info*/
-void
-netPath_display(const NetPath * net)
-{
+//void
+//netPath_display(const NetPath * net)
+//{
 
 // TODO: dump transports
 
@@ -167,7 +167,7 @@ netPath_display(const NetPath * net)
 	if(!transportAddressEmpty(&net->unicastDestination))
 	DBGV("unicastAddress : %s \n", addressToString(&net->unicastDestination, net->transportType));
 */
-}
+//}
 
 /**\brief Display a IntervalTimer Structure*/
 void
@@ -756,7 +756,7 @@ displayOthers(const PtpClock * ptpClock)
 		DBGV("\n");
 	}
 
-	netPath_display(&ptpClock->netPath);
+//	netPath_display(&ptpClock->netPath);
 	clockUUID_display(ptpClock->transportID);
 	DBGV("\n");
 }

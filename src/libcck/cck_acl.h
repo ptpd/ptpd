@@ -47,22 +47,16 @@ typedef struct CckAcl CckAcl;
 //#include "cck_component.h"
 //#include "cck_transport.h"
 
-/* macro to allow registering component implementations */
-#define CCK_REGISTER_ACL(type,suffix)\
-	if(transportType==type) {\
-	    acl->testAcl = cckAclTest_##suffix; \
-	    acl->compileAcl = cckAclCompile_##suffix;\
-	    acl->shutdown = cckAclShutdown_##suffix;\
-	    acl->header.shutdown = cckAclShutdown_##suffix;\
-	    acl->matchAddress = cckAclMatchAddress_##suffix;\
-	    acl->clearCounters = cckAclClearCounters_##suffix;\
-	    acl->dump = cckAclDump_##suffix;\
-	}\
-	cckAclInit_##suffix(acl);
+enum {
+	CCK_ACL_NULL = 0,
+	CCK_ACL_IPV4,
+	CCK_ACL_IPV6,
+	CCK_ACL_ETHERNET
+};
 
 enum {
-	ACL_PERMIT_DENY,
-	ACL_DENY_PERMIT
+	CCK_ACL_PERMIT_DENY,
+	CCK_ACL_DENY_PERMIT
 };
 
 struct CckAcl {
@@ -70,7 +64,7 @@ struct CckAcl {
     CckComponent header;
 
     /* common */
-    int transportType;
+    int aclType;
     int processingOrder;
 
     uint32_t passedCounter;
@@ -94,7 +88,8 @@ struct CckAcl {
 };
 
 /* component constructor / destructor */
-CckAcl* createCckAcl(int transportType, int processingOrder, const char* instanceName);
+CckAcl* createCckAcl(int aclType, int processingOrder, const char* instanceName);
+void    setupCckAcl(CckAcl* acl, int aclType, int processingOrder, const char* instanceName);
 void	freeCckAcl  (CckAcl** acl);
 
 #include "acl/cck_acl_null.h"

@@ -29,13 +29,13 @@
 
 
 /**
- * @file   cck_transport_helpers.c
+ * @file   cck_transport_socket_common.c
  * 
  * @brief  LibCCK transport helper functions
  *
  */
 
-#include "cck_transport_helpers.h"
+#include "cck_transport_socket_common.h"
 
 CckBool
 cckGetHwAddress (const char* ifaceName, TransportAddress* hwAddr)

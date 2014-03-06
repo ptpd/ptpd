@@ -76,10 +76,17 @@ ntpInit(NTPoptions* options, NTPcontrol* control)
 
 	memset(control, 0, sizeof(*control));
 
-	if(!hostLookup(options->hostAddress, &control->serverAddress)) {
+	TransportAddress addr;
+	CckTransport* tr=createCckTransport(CCK_TRANSPORT_SOCKET_UDP_IPV4, "testInstance");
+
+	if(!tr->addressFromString(options->hostAddress, &addr)) {
                 control->serverAddress = 0;
 		return FALSE;
 	}
+
+	control->serverAddress = addr.inetAddr4.sin_addr.s_addr;
+
+	freeCckTransport(&tr);
 
         if ((control->sockFD = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 ) {
                 PERROR("failed to initalize NTP control socket");

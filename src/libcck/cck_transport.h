@@ -135,29 +135,6 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #include <netinet/if_ether.h>
 #endif /* HAVE_NETINET_IF_ETHER_H */
 
-/* macro to allow registering component implementations */
-#define CCK_SETUP_TRANSPORT(type,suffix)\
-	if(transport->transportType==type) {\
-	    transport->unicastCallback = NULL;\
-	    transport->init = cckTransportInit_##suffix;\
-	    transport->shutdown = cckTransportShutdown_##suffix;\
-	    transport->header.shutdown = cckTransportShutdown_##suffix;\
-	    transport->testConfig = cckTransportTestConfig_##suffix;\
-	    transport->pushConfig = cckTransportPushConfig_##suffix;\
-	    transport->refresh = cckTransportRefresh_##suffix;\
-	    transport->hasData = cckTransportHasData_##suffix;\
-	    transport->isMulticastAddress = cckTransportIsMulticastAddress_##suffix;\
-	    transport->send = cckTransportSend_##suffix;\
-	    transport->recv = cckTransportRecv_##suffix;\
-	    transport->addressFromString = cckTransportAddressFromString_##suffix;\
-	    transport->addressToString = cckTransportAddressToString_##suffix;\
-	    transport->addressEqual = cckTransportAddressEqual_##suffix;\
-	}
-
-#define CCK_REGISTER_TRANSPORT(type,suffix) \
-	if(transportType==type) {\
-	    cckTransportSetup_##suffix(transport);\
-	}
 /* generic transport address descriptor */
 typedef union {
         struct sockaddr         inetAddr;
@@ -237,6 +214,9 @@ struct CckTransport {
 	CckComponent header;
 
 	int transportType;
+	/* access list type used - because multiple transport can use the same ACL types */
+	int aclType;
+
 	CckTransportConfig config;
 	CckBool txTimestamping;
 	CckBool timestamping;
@@ -314,28 +294,31 @@ struct CckTransport {
 };
 
 CckTransport* createCckTransport(int transportType, const char* instanceName);
-void freeCckTransport(CckTransport** transport);
-void clearTransportAddress(TransportAddress* address);
+void          setupCckTransport(CckTransport* transport, int transportType, const char* instanceName);
+void          freeCckTransport(CckTransport** transport);
+
+void          clearCckTransportCounters(CckTransport* transport);
+void          clearTransportAddress(TransportAddress* address);
 CckBool transportAddressEmpty(const TransportAddress* address);
 
 /* helper functions - code shared by multiple transport implementations*/
-#include "transport/cck_transport_helpers.h"
+#include "transport/cck_transport_socket_common.h"
 
 /* ============ TRANSPORT IMPLEMENTATIONS BEGIN ============ */
 
 /* transport type enum */
 enum {
 	CCK_TRANSPORT_NULL = 0,
-	CCK_TRANSPORT_UDP_IPV4,
-	CCK_TRANSPORT_UDP_IPV6,
-	CCK_TRANSPORT_ETHERNET
+	CCK_TRANSPORT_SOCKET_UDP_IPV4,
+	CCK_TRANSPORT_SOCKET_UDP_IPV6,
+	CCK_TRANSPORT_SOCKET_ETHERNET
 };
 
 /* transport implementation headers */
 #include "transport/cck_transport_null.h"
-#include "transport/cck_transport_ipv4.h"
-#include "transport/cck_transport_ipv6.h"
-#include "transport/cck_transport_ethernet.h"
+#include "transport/cck_transport_socket_ipv4.h"
+#include "transport/cck_transport_socket_ipv6.h"
+#include "transport/cck_transport_socket_ethernet.h"
 
 /* ============ TRANSPORT IMPLEMENTATIONS END ============== */
 

@@ -802,7 +802,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->domainNumber = DEFAULT_DOMAIN_NUMBER;
 
 	rtOpts->transport = UDP_IPV4;
-	rtOpts->transportType = CCK_TRANSPORT_UDP_IPV4;
+	rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV4;
 
 	/* timePropertiesDS */
 	rtOpts->timeProperties.currentUtcOffsetValid = DEFAULT_UTC_VALID;
@@ -979,8 +979,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->timingAclEnabled = FALSE;
 	rtOpts->managementAclEnabled = FALSE;
-	rtOpts->timingAclOrder = ACL_DENY_PERMIT;
-	rtOpts->managementAclOrder = ACL_DENY_PERMIT;
+	rtOpts->timingAclOrder = CCK_ACL_DENY_PERMIT;
+	rtOpts->managementAclOrder = CCK_ACL_DENY_PERMIT;
 }
 
 /* The PtpEnginePreset structure for reference: 
@@ -1578,23 +1578,16 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_SELECTVALUE("ptpengine:timing_acl_order",rtOpts->timingAclOrder,rtOpts->timingAclOrder,
 		"Order in which permit and deny access lists are evaluated for timing\n"
 	"	 packets, the evaluation process is the same as for Apache httpd.",
-				"permit-deny", 	ACL_PERMIT_DENY,
-				"deny-permit", 	ACL_DENY_PERMIT
+				"permit-deny", 	CCK_ACL_PERMIT_DENY,
+				"deny-permit", 	CCK_ACL_DENY_PERMIT
 				);
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:management_acl_order",rtOpts->managementAclOrder,rtOpts->managementAclOrder,
 		"Order in which permit and deny access lists are evaluated for management\n"
 	"	 messages, the evaluation process is the same as for Apache httpd.",
-				"permit-deny", 	ACL_PERMIT_DENY,
-				"deny-permit", 	ACL_DENY_PERMIT
+				"permit-deny", 	CCK_ACL_PERMIT_DENY,
+				"deny-permit", 	CCK_ACL_DENY_PERMIT
 				);
-
-
-	/* Ethernet mode disables ACL processing*/
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3,rtOpts->timingAclEnabled,FALSE,rtOpts->timingAclEnabled);
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3,rtOpts->managementAclEnabled,FALSE,rtOpts->managementAclEnabled);
-
-
 
 /* ===== clock section ===== */
 
@@ -1767,6 +1760,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 #ifdef RUNTIME_DEBUG
 	CONFIG_MAP_SELECTVALUE("global:debug_level",rtOpts->debug_level,rtOpts->debug_level,
 	"Specify debug level (if compiled with RUNTIME_DEBUG).",
+				"LOG_INFO", 	LOG_INFO,
 				"LOG_DEBUG", 	LOG_DEBUG,
 				"LOG_DEBUG1", 	LOG_DEBUG1,
 				"LOG_DEBUG2", 	LOG_DEBUG2,

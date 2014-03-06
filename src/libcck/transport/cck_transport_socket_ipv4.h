@@ -29,14 +29,14 @@
 
 
 /**
- * @file   cck_transport_ethernet.h
+ * @file   cck_transport_socket_ipv4.h
  * 
- * @brief  libCCK ethernet transport public method definitions
+ * @brief  libCCK ipv4 transport public method definitions
  *
  */
 
-#ifndef CCK_TRANSPORT_ETHERNET_H_
-#define CCK_TRANSPORT_ETHERNET_H_
+#ifndef CCK_TRANSPORT_SOCKET_IPV4_H_
+#define CCK_TRANSPORT_SOCKET_IPV4_H_
 
 #ifndef CCK_H_INSIDE_
 //#error libCCK component headers should not be uncluded directly - please include cck.h only.
@@ -44,7 +44,14 @@
 
 #include "../cck.h"
 #include "../cck_transport.h"
+#include "cck_transport_socket_swtimestamp.h"
 
-void	cckTransportSetup_ethernet(CckTransport* transport);
+/* implementation-specific transport data */
+typedef struct {
+    int lastTtl;
+    CckSocketTimestampCaps timestampCaps;
+} CckIpv4TransportData;
 
-#endif /* CCK_TRANSPORT_ETHERNET_H_ */
+void    cckTransportSetup_socket_ipv4(CckTransport* transport);
+
+#endif /* CCK_TRANSPORT_SOCKET_IPV4_H_ */

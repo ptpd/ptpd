@@ -30,42 +30,80 @@
 
 #include "cck_acl_ethernet.h"
 
-void cckAclInit_ethernet (CckAcl* acl)
+#define CCK_THIS_TYPE CCK_ACL_ETHERNET
+
+/* interface (public) method definitions */
+static void cckAclInit (CckAcl* acl);
+static int  cckAclTest(CckAcl* acl, const char* aclText);
+static int  cckAclCompile (CckAcl* acl, const char* permitList, const char* denyList);
+static int  cckAclShutdown (void* component);
+static int  cckAclMatchAddress (TransportAddress* addr, CckAcl* acl);
+static void cckAclClearCounters (CckAcl* acl);
+static void cckAclDump (CckAcl* acl);
+
+/* private method definitions (if any) */
+
+/* implementations follow */
+
+void
+cckAclSetup_ethernet(CckAcl* acl)
+{
+	if(acl->aclType==CCK_THIS_TYPE) {
+	    acl->testAcl = cckAclTest;
+	    acl->compileAcl = cckAclCompile;
+	    acl->shutdown = cckAclShutdown;
+	    acl->header.shutdown = cckAclShutdown;
+	    acl->matchAddress = cckAclMatchAddress;
+	    acl->clearCounters = cckAclClearCounters;
+	    acl->dump = cckAclDump;
+
+	    cckAclInit(acl);
+
+	} else {
+	    CCK_WARNING("ACL setup() called for incorrect transport: %02x, expected %02x\n",
+			acl->aclType, CCK_THIS_TYPE);
+	}
+}
+
+static void
+cckAclInit (CckAcl* acl)
 {
 }
 
-int
-cckAclTest_ethernet(CckAcl* acl, const char* aclText)
+static int
+cckAclTest (CckAcl* acl, const char* aclText)
 {
 	return 1;
 }
 
-int 
-cckAclCompile_ethernet (CckAcl* acl, const char* permitList, const char* denyList)
+static int
+cckAclCompile (CckAcl* acl, const char* permitList, const char* denyList)
 {
 	return 1;
 }
 
-int
-cckAclShutdown_ethernet (void* component)
+static int
+cckAclShutdown (void* component)
 {
 	return 1;
 }
 
-int
-cckAclMatchAddress_ethernet (TransportAddress* addr, CckAcl* acl)
+static int
+cckAclMatchAddress (TransportAddress* addr, CckAcl* acl)
 {
 	acl->passedCounter++;
 	return CCK_TRUE;
 }
 
-void
-cckAclClearCounters_ethernet (CckAcl* acl)
+static void
+cckAclClearCounters (CckAcl* acl)
 {
 	acl->passedCounter = 0;
 	acl->droppedCounter = 0;
 }
 
-void cckAclDump_ethernet (CckAcl* acl)
+static void cckAclDump (CckAcl* acl)
 {
 }
+
+#undef CCK_THIS_TYPE

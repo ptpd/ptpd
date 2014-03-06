@@ -30,13 +30,50 @@
 
 #include "cck_acl_ipv4.h"
 
+#define CCK_THIS_TYPE CCK_ACL_IPV4
+
+/* interface (public) method definitions */
+static void cckAclInit (CckAcl* acl);
+static int  cckAclTest(CckAcl* acl, const char* aclText);
+static int  cckAclCompile (CckAcl* acl, const char* permitList, const char* denyList);
+static int  cckAclShutdown (void* component);
+static int  cckAclMatchAddress (TransportAddress* addr, CckAcl* acl);
+static void cckAclClearCounters (CckAcl* acl);
+static void cckAclDump (CckAcl* acl);
+
+/* private method definitions (if any) */
+
+/* implementations follow */
+
+void
+cckAclSetup_ipv4 (CckAcl* acl)
+{
+	if(acl->aclType == CCK_THIS_TYPE) {
+	    acl->testAcl = cckAclTest;
+	    acl->compileAcl = cckAclCompile;
+	    acl->shutdown = cckAclShutdown;
+	    acl->header.shutdown = cckAclShutdown;
+	    acl->matchAddress = cckAclMatchAddress;
+	    acl->clearCounters = cckAclClearCounters;
+	    acl->dump = cckAclDump;
+
+	    cckAclInit(acl);
+
+	} else {
+	    CCK_WARNING("ACL setup() called for incorrect transport: %02x, expected %02x\n",
+			acl->aclType, CCK_THIS_TYPE);
+	}
+}
+
+
 /**
  * strdup + free are used across code using strtok_r, so as to
  * protect the original string, as strtok* modify it.
  */
 
 /* count tokens in string delimited by delim */
-static int countTokens(const char* text, const char* delim) {
+static int
+countTokens(const char* text, const char* delim) {
 
     int count=0;
     char* stash = NULL;
@@ -57,7 +94,8 @@ static int countTokens(const char* text, const char* delim) {
 }
 
 /* Parse a dotted-decimal string into an uint8_t array - return -1 on error */
-static int ipToArray(const char* text, uint8_t dest[], int maxOctets, int isMask)
+static int
+ipToArray (const char* text, uint8_t dest[], int maxOctets, int isMask)
 {
 
     char* text_;
@@ -109,7 +147,8 @@ static int ipToArray(const char* text, uint8_t dest[], int maxOctets, int isMask
 }
 
 /* Parse a single net mask into an AclEntry */
-static int parseIpv4AclEntry(const char* line, Ipv4AclEntry* acl) {
+static int
+parseIpv4AclEntry (const char* line, Ipv4AclEntry* acl) {
 
     int result = 1;
     char* stash;
@@ -181,10 +220,9 @@ static int parseIpv4AclEntry(const char* line, Ipv4AclEntry* acl) {
 
 }
 
-
 /* qsort() compare function for sorting ACL entries */
 static int
-cmpIpv4AclEntry(const void *p1, const void *p2)
+cmpIpv4AclEntry (const void *p1, const void *p2)
 {
 
 	const Ipv4AclEntry *left = p1;
@@ -200,7 +238,7 @@ cmpIpv4AclEntry(const void *p1, const void *p2)
 
 /* Parse an ACL string into an aclEntry table and return number of entries. output can be NULL */
 static int
-ipv4MaskParser(const char* input, Ipv4AclEntry* output)
+ipv4MaskParser (const char* input, Ipv4AclEntry* output)
 {
 
     char* token;
@@ -250,7 +288,7 @@ ipv4MaskParser(const char* input, Ipv4AclEntry* output)
 
 /* Create a maskTable from a text ACL */
 static Ipv4MaskTable*
-createIpv4MaskTable(const char* input)
+createIpv4MaskTable (const char* input)
 {
 	Ipv4MaskTable* ret;
 	int masksFound = ipv4MaskParser(input, NULL);
@@ -267,7 +305,7 @@ createIpv4MaskTable(const char* input)
 
 /* Print the contents of a single mask table */
 static void
-dumpIpv4MaskTable(Ipv4MaskTable* table)
+dumpIpv4MaskTable (Ipv4MaskTable* table)
 {
 	int i;
 	uint32_t network;
@@ -292,7 +330,8 @@ dumpIpv4MaskTable(Ipv4MaskTable* table)
 }
 
 /* Free a MaskTable structure */
-static void freeIpv4MaskTable(Ipv4MaskTable** table)
+static void
+freeIpv4MaskTable (Ipv4MaskTable** table)
 {
     if(*table == NULL)
 	return;
@@ -307,7 +346,7 @@ static void freeIpv4MaskTable(Ipv4MaskTable** table)
 
 /* Match an IP address against a MaskTable */
 static int
-matchIpv4Address(const uint32_t addr, Ipv4MaskTable* table)
+matchIpv4Address (const uint32_t addr, Ipv4MaskTable* table)
 {
 
 	int i;
@@ -325,11 +364,9 @@ matchIpv4Address(const uint32_t addr, Ipv4MaskTable* table)
 
 }
 
-
-
 /* Clear counters in a MaskTable */
 static void
-clearIpv4MaskTableCounters(Ipv4MaskTable* table)
+clearIpv4MaskTableCounters (Ipv4MaskTable* table)
 {
 
 	int i, count;
@@ -343,35 +380,34 @@ clearIpv4MaskTableCounters(Ipv4MaskTable* table)
 
 }
 
-
-void cckAclInit_ipv4 (CckAcl* acl)
+static void cckAclInit (CckAcl* acl)
 {
 /* Nothing special in this implementation */
 }
 
-int
-cckAclTest_ipv4(CckAcl* acl, const char* aclText)
+static int
+cckAclTest (CckAcl* acl, const char* aclText)
 {
 	return ipv4MaskParser(aclText, NULL);
 }
 
-int
-cckAclCompile_ipv4 (CckAcl* acl, const char* permitList, const char* denyList)
+static int
+cckAclCompile (CckAcl* acl, const char* permitList, const char* denyList)
 {
 
 	acl->aclPermitData = createIpv4MaskTable(permitList);
 	acl->aclDenyData = createIpv4MaskTable(denyList);
 
 	if(acl->aclPermitData == NULL || acl->aclDenyData == NULL) {
-		cckAclShutdown_ipv4(acl);
+		cckAclShutdown(acl);
 		return CCK_FALSE;
 	}
 
 	return CCK_TRUE;
 }
 
-int
-cckAclShutdown_ipv4 (void* component)
+static int
+cckAclShutdown (void* component)
 {
 
 	if( component == NULL)
@@ -385,8 +421,8 @@ cckAclShutdown_ipv4 (void* component)
 	return 1;
 }
 
-int
-cckAclMatchAddress_ipv4 (TransportAddress* addr, CckAcl* acl)
+static int
+cckAclMatchAddress (TransportAddress* addr, CckAcl* acl)
 {
 
 	int ret;
@@ -408,7 +444,7 @@ cckAclMatchAddress_ipv4 (TransportAddress* addr, CckAcl* acl)
 						(Ipv4MaskTable*)acl->aclDenyData) > 0;
 
 	switch(acl->processingOrder) {
-		case ACL_PERMIT_DENY:
+		case CCK_ACL_PERMIT_DENY:
 			if(!matchPermit) {
 				ret = 0;
 				break;
@@ -420,7 +456,7 @@ cckAclMatchAddress_ipv4 (TransportAddress* addr, CckAcl* acl)
 			ret = 1;
 			break;
 		default:
-		case ACL_DENY_PERMIT:
+		case CCK_ACL_DENY_PERMIT:
 			if (matchDeny && !matchPermit) {
 				ret = 0;
 				break;
@@ -442,8 +478,8 @@ cckAclMatchAddress_ipv4 (TransportAddress* addr, CckAcl* acl)
 
 }
 
-void
-cckAclClearCounters_ipv4 (CckAcl* acl)
+static void
+cckAclClearCounters (CckAcl* acl)
 {
 	if(acl == NULL)
 	    return;
@@ -453,7 +489,8 @@ cckAclClearCounters_ipv4 (CckAcl* acl)
 	clearIpv4MaskTableCounters((Ipv4MaskTable*)acl->aclDenyData);
 }
 
-void cckAclDump_ipv4 (CckAcl* acl)
+static void
+cckAclDump (CckAcl* acl)
 {
 
 	CCK_INFO("\n\n");
@@ -462,7 +499,7 @@ void cckAclDump_ipv4 (CckAcl* acl)
 		    return;
 	}
 	switch(acl->processingOrder) {
-		case ACL_DENY_PERMIT:
+		case CCK_ACL_DENY_PERMIT:
 		    CCK_INFO("ACL order: deny,permit\n");
 		    CCK_INFO("Passed packets: %d, dropped packets: %d\n",
 				acl->passedCounter, acl->droppedCounter);
@@ -473,7 +510,7 @@ void cckAclDump_ipv4 (CckAcl* acl)
 		    CCK_INFO("Permit list:\n");
 		    dumpIpv4MaskTable((Ipv4MaskTable*)acl->aclPermitData);
 		break;
-		case ACL_PERMIT_DENY:
+		case CCK_ACL_PERMIT_DENY:
 		default:
 		    CCK_INFO("ACL order: permit,deny\n");
 		    CCK_INFO("Passed packets: %d, dropped packets: %d\n",
@@ -488,3 +525,5 @@ void cckAclDump_ipv4 (CckAcl* acl)
 	}
 		    CCK_INFO("\n\n");
 }
+
+#undef CCK_THIS_TYPE

@@ -283,9 +283,8 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
 Boolean testNetworkConfig(RunTimeOpts* rtOpts);
 Boolean netInit(RunTimeOpts*,PtpClock*);
 Boolean netShutdown(RunTimeOpts*, PtpClock*);
-int netSelect(TimeInternal*,NetPath*,fd_set*);
+int netSelect(TimeInternal*,fd_set*);
 Boolean netRefresh(RunTimeOpts *, PtpClock *);
-Boolean hostLookup(const char* hostname, Integer32* addr);
 
 /** \}*/
 

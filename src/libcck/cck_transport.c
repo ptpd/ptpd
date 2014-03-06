@@ -37,6 +37,13 @@
 
 #include "cck.h"
 
+/* Quick shortcut to call the setup function for different implementations */
+#define CCK_REGISTER_TRANSPORT(type,suffix) \
+	if(transportType==type) {\
+	    cckTransportSetup_##suffix(transport);\
+	}
+
+
 CckTransport*
 createCckTransport(int transportType, const char* instanceName)
 {
@@ -44,6 +51,19 @@ createCckTransport(int transportType, const char* instanceName)
     CckTransport* transport;
 
     CCKCALLOC(transport, sizeof(CckTransport));
+
+    transport->header._next = NULL;
+    transport->header._prev = NULL;
+    transport->header._dynamic = CCK_TRUE;
+
+    setupCckTransport(transport, transportType, instanceName);
+
+    return transport;
+}
+
+void
+setupCckTransport(CckTransport* transport, int transportType, const char* instanceName)
+{
 
     transport->transportType = transportType;
 
@@ -57,18 +77,18 @@ createCckTransport(int transportType, const char* instanceName)
 
    CCK_REGISTER_TRANSPORT(TRANSPORT_TYPE, function_name_suffix)
 
-   where suffix is the string all function names are
+   where suffix is the string the setup() function name is
    suffixed with for your implementation, i.e. you
-   need to define cckTransportXXX_bob for your "bob" tansport.
+   need to define cckTransportSetup_bob for your "bob" tansport.
    
 */
 
 /* ============ TRANSPORT IMPLEMENTATIONS BEGIN ============ */
 
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_NULL, null);
-    CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_UDP_IPV4, ipv4);
-    CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_UDP_IPV6, ipv6);
-    CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_ETHERNET, ethernet);
+    CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_SOCKET_UDP_IPV4, socket_ipv4);
+    CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_SOCKET_UDP_IPV6, socket_ipv6);
+    CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_SOCKET_ETHERNET, socket_ethernet);
 
 /* ============ TRANSPORT IMPLEMENTATIONS END ============== */
 
@@ -77,10 +97,8 @@ createCckTransport(int transportType, const char* instanceName)
 
     transport->header._next = NULL;
     transport->header._prev = NULL;
-
     cckRegister(transport);
 
-    return transport;
 }
 
 
@@ -95,9 +113,12 @@ freeCckTransport(CckTransport** transport)
 
     cckDeregister(*transport);
 
-    free(*transport);
+    if((*transport)->header._dynamic) {
 
-    *transport = NULL;
+	free(*transport);
+	*transport = NULL;
+
+    }
 
 }
 
@@ -109,6 +130,15 @@ clearTransportAddress(TransportAddress* address)
 
     memset(address, 0, sizeof(TransportAddress));
 
+}
+
+
+/* Zero out TransportAddress structure */
+void
+clearCckTransportCounters(CckTransport* transport)
+{
+    transport->sentMessages = 0;
+    transport->receivedMessages = 0;
 }
 
 /* Check if TransportAddress is empty */
@@ -124,4 +154,5 @@ transportAddressEmpty(const TransportAddress* addr)
     return CCK_FALSE;
 
 }
+
 

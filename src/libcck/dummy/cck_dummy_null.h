@@ -29,29 +29,22 @@
 
 
 /**
- * @file   cck_transport_ipv4.h
+ * @file   cck_dummy_null.h
  * 
- * @brief  libCCK ipv4 transport public method definitions
+ * @brief  libCCK dummy component null implementation public function definitions
  *
  */
 
-#ifndef CCK_TRANSPORT_IPV4_H_
-#define CCK_TRANSPORT_IPV4_H_
+#ifndef CCK_DUMMY_NULL_H_
+#define CCK_DUMMY_NULL_H_
 
 #ifndef CCK_H_INSIDE_
 //#error libCCK component headers should not be uncluded directly - please include cck.h only.
 #endif
 
 #include "../cck.h"
-#include "../cck_transport.h"
-#include "cck_transport_swtimestamp.h"
+#include "../cck_dummy.h"
 
-/* implementation-specific transport data */
-typedef struct {
-    int lastTtl;
-    CckSocketTimestampCaps timestampCaps;
-} CckIpv4TransportData;
+void    cckDummySetup_null(CckDummy* self);
 
-void    cckTransportSetup_ipv4(CckTransport* transport);
-
-#endif /* CCK_TRANSPORT_IPV4_H_ */
+#endif /* CCK_DUMMY_NULL_H_ */

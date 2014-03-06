@@ -29,62 +29,90 @@
 
 
 /**
- * @file   cck_transport_ipv4.c
+ * @file   cck_transport_socket_ipv6.c
  * 
- * @brief  libCCK ipv4 transport implementation
+ * @brief  libCCK ipv6 transport implementation
  *
  */
 
-#include "cck_transport_ipv4.h"
+#include "cck_transport_socket_ipv6.h"
 
-static int     cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config);
-static int     cckTransportShutdown_ipv4 (void* _transport);
-static int     cckTransportPushConfig_ipv4 (CckTransport* transport, const CckTransportConfig* config);
-static CckBool cckTransportTestConfig_ipv4 (CckTransport* transport, const CckTransportConfig* config);
-static void    cckTransportRefresh_ipv4 (CckTransport* transport);
-static CckBool cckTransportHasData_ipv4 (CckTransport* transport);
-static CckBool cckTransportIsMulticastAddress_ipv4 (const TransportAddress* address);
-static ssize_t cckTransportSend_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size, TransportAddress* dst, CckTimestamp* timestamp);
-static ssize_t cckTransportRecv_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size, TransportAddress* src, CckTimestamp* timestamp, int flags);
-static CckBool cckTransportAddressFromString_ipv4 (const char*, TransportAddress* out);
-static char*   cckTransportAddressToString_ipv4 (const TransportAddress* address);
-static CckBool cckTransportAddressEqual_ipv4 (const TransportAddress* a, const TransportAddress* b);
+#define CCK_THIS_TYPE CCK_TRANSPORT_SOCKET_UDP_IPV6
+
+/* interface (public) method definitions */
+static int     cckTransportInit (CckTransport* transport, const CckTransportConfig* config);
+static int     cckTransportShutdown (void* _transport);
+static int     cckTransportPushConfig (CckTransport* transport, const CckTransportConfig* config);
+static CckBool cckTransportTestConfig (CckTransport* transport, const CckTransportConfig* config);
+static void    cckTransportRefresh (CckTransport* transport);
+static CckBool cckTransportHasData (CckTransport* transport);
+static CckBool cckTransportIsMulticastAddress (const TransportAddress* address);
+static ssize_t cckTransportSend (CckTransport* transport, CckOctet* buf, CckUInt16 size, TransportAddress* dst, CckTimestamp* timestamp);
+static ssize_t cckTransportRecv (CckTransport* transport, CckOctet* buf, CckUInt16 size, TransportAddress* src, CckTimestamp* timestamp, int flags);
+static CckBool cckTransportAddressFromString (const char*, TransportAddress* out);
+static char*   cckTransportAddressToString (const TransportAddress* address);
+static CckBool cckTransportAddressEqual (const TransportAddress* a, const TransportAddress* b);
+
+/* private method definitions (if any) */
+
+/* implementations follow */
 
 void
-cckTransportSetup_ipv4(CckTransport* transport)
+cckTransportSetup_socket_ipv6 (CckTransport* transport)
 {
-    CCK_SETUP_TRANSPORT(CCK_TRANSPORT_UDP_IPV4, ipv4);
+	if(transport->transportType == CCK_THIS_TYPE) {
+
+            transport->aclType = CCK_ACL_IPV6;
+
+	    transport->unicastCallback = NULL;
+	    transport->init = cckTransportInit;
+	    transport->shutdown = cckTransportShutdown;
+	    transport->header.shutdown = cckTransportShutdown;
+	    transport->testConfig = cckTransportTestConfig;
+	    transport->pushConfig = cckTransportPushConfig;
+	    transport->refresh = cckTransportRefresh;
+	    transport->hasData = cckTransportHasData;
+	    transport->isMulticastAddress = cckTransportIsMulticastAddress;
+	    transport->send = cckTransportSend;
+	    transport->recv = cckTransportRecv;
+	    transport->addressFromString = cckTransportAddressFromString;
+	    transport->addressToString = cckTransportAddressToString;
+	    transport->addressEqual = cckTransportAddressEqual;
+	} else {
+	    CCK_WARNING("setup() called for incorrect transport: %02x, expected %02x\n",
+			transport->transportType, CCK_THIS_TYPE);
+	}
 }
 
 static CckBool
 multicastJoin(CckTransport* transport, TransportAddress* mcastAddr)
 {
 
-    struct ip_mreq imr;
+    struct ipv6_mreq imr;
 
-    imr.imr_multiaddr.s_addr = mcastAddr->inetAddr4.sin_addr.s_addr;
-    imr.imr_interface.s_addr = transport->ownAddress.inetAddr4.sin_addr.s_addr;
+    memcpy(imr.ipv6mr_multiaddr.s6_addr, mcastAddr->inetAddr6.sin6_addr.s6_addr, 16);
+    imr.ipv6mr_interface = if_nametoindex(transport->transportEndpoint);
 
-    /* set multicast outbound interface */
-    if (setsockopt(transport->fd, IPPROTO_IP, IP_MULTICAST_IF,
-           &imr.imr_interface, sizeof(struct in_addr)) < 0) {
+    /* multicast send only on specified interface */
+    if (setsockopt(transport->fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
+           &imr.ipv6mr_interface, sizeof(int)) < 0) {
         CCK_PERROR("failed to set multicast outbound interface");
         return CCK_FALSE;
     }
 
     /* drop multicast group on specified interface first */
-    (void)setsockopt(transport->fd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-           &imr, sizeof(struct ip_mreq));
+    (void)setsockopt(transport->fd, IPPROTO_IPV6, IPV6_LEAVE_GROUP,
+           &imr, sizeof(struct ipv6_mreq));
 
     /* join multicast group on specified interface */
-    if (setsockopt(transport->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-           &imr, sizeof(struct ip_mreq)) < 0) {
-	    CCK_PERROR("failed to join multicast address %s: ", transport->addressToString(mcastAddr));
+    if (setsockopt(transport->fd, IPPROTO_IPV6, IPV6_JOIN_GROUP,
+           &imr, sizeof(struct ipv6_mreq)) < 0) {
+	    CCK_PERROR("failed to join multicast group %s: ", transport->addressToString(mcastAddr));
 		    return CCK_FALSE;
     }
 
-    CCK_DBGV("Joined IPV4 multicast group %s on %s\n", transport->addressToString(mcastAddr),
-						    transport->transportEndpoint);
+   CCK_DBGV("Joined IPV6 multicast group %s on %s\n", transport->addressToString(mcastAddr),
+                                                    transport->transportEndpoint);
 
     return CCK_TRUE;
 
@@ -94,21 +122,21 @@ static CckBool
 multicastLeave(CckTransport* transport, TransportAddress* mcastAddr)
 {
 
-    struct ip_mreq imr;
+    struct ipv6_mreq imr;
 
-    imr.imr_multiaddr.s_addr = mcastAddr->inetAddr4.sin_addr.s_addr;
-    imr.imr_interface.s_addr = transport->ownAddress.inetAddr4.sin_addr.s_addr;
+    memcpy(imr.ipv6mr_multiaddr.s6_addr, mcastAddr->inetAddr6.sin6_addr.s6_addr, 16);
+    imr.ipv6mr_interface = if_nametoindex(transport->transportEndpoint);
 
     /* leave multicast group on specified interface */
-    if (setsockopt(transport->fd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-           &imr, sizeof(struct ip_mreq)) < 0) {
+    if (setsockopt(transport->fd, IPPROTO_IPV6, IPV6_LEAVE_GROUP,
+           &imr, sizeof(struct ipv6_mreq)) < 0) {
 	    CCK_PERROR("failed to leave multicast group %s: ", transport->addressToString(mcastAddr));
 		    return CCK_FALSE;
     }
 
-    CCK_DBG("Sent IPv4 multicast leave for %s on %s (transport %s)\n", transport->addressToString(mcastAddr),
-								transport->transportEndpoint,
-								transport->header.instanceName);
+   CCK_DBG("Sent IPv6 multicast leave for %s on %s (transport %s)\n", transport->addressToString(mcastAddr),
+                                                                transport->transportEndpoint,
+                                                                transport->header.instanceName);
 
     return CCK_TRUE;
 
@@ -118,18 +146,20 @@ static CckBool
 setMulticastLoopback(CckTransport* transport, CckBool _value)
 {
 
-	CckUInt8 value = _value ? 1 : 0;
+//	CckUInt8
 
-	if (setsockopt(transport->fd, IPPROTO_IP, IP_MULTICAST_LOOP, 
+	u_int value = _value ? 1 : 0;
+
+	if (setsockopt(transport->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
 	       &value, sizeof(value)) < 0) {
-		CCK_PERROR("Failed to %s IPv4 multicast loopback on %s",
-			    value ? "enable":"disable",
-			    transport->transportEndpoint);
+                CCK_PERROR("Failed to %s IPv6 multicast loopback on %s",
+                            value ? "enable":"disable",
+                            transport->transportEndpoint);
 		return CCK_FALSE;
 	}
 
-	CCK_DBG("Successfully %s IPv4 multicast loopback on %s \n", value ? "enabled":"disabled", 
-		    transport->transportEndpoint);
+        CCK_DBG("Successfully %s IPv6 multicast loopback on %s \n", value ? "enabled":"disabled",
+                    transport->transportEndpoint);
 
 	return CCK_TRUE;
 }
@@ -138,18 +168,20 @@ static CckBool
 setMulticastTtl(CckTransport* transport, int _value)
 {
 
-	CckUInt8 value = _value;
+//        CckUInt8 
 
-	if (setsockopt(transport->fd, IPPROTO_IP, IP_MULTICAST_TTL,
-	       &value, sizeof(value)) < 0) {
-		CCK_PERROR("Failed to set IPv4 multicast TTL to %d on %s",
-			value, transport->transportEndpoint);
-		return CCK_FALSE;
-	}
+int value = _value;
 
-	CCK_DBG("Set IPv4 multicast TTL on %s to %d\n", transport->transportEndpoint, value);
+        if (setsockopt(transport->fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS,
+               &value, sizeof(value)) < 0) {
+               CCK_PERROR("Failed to set IPv6 multicast hop count to %d on %s",
+                        value, transport->transportEndpoint);
+                return CCK_FALSE;
+        }
 
-	return CCK_TRUE;
+        CCK_DBG("Set IPv6 multicast hop count on %s to %d\n", transport->transportEndpoint, value);
+
+        return CCK_TRUE;
 }
 
 static CckBool
@@ -226,33 +258,34 @@ getTxTimestamp(CckTransport* transport, CckOctet* buf, CckUInt16 size, CckTimest
 
 }
 
-static int
-cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config)
+
+int
+cckTransportInit (CckTransport* transport, const CckTransportConfig* config)
 {
     int res = 0;
-    struct sockaddr_in* addr;
+    struct sockaddr_in6* addr;
 
-    CckIpv4TransportData* data = NULL;
+    CckIpv6TransportData* data = NULL;
 
     if(transport == NULL) {
-	CCK_ERROR("IPv4 transport init called for an empty transport\n");
+	CCK_ERROR("IPv6 transport init called for an empty transport\n");
 	return -1;
     }
 
     if(config == NULL) {
-	CCK_ERROR("IPv4 transport init called with empty config\n");
+	CCK_ERROR("IPv6 transport init called with empty config\n");
 	return -1;
     }
 
     /* Shutdown will be called on this object anyway, OK to exit without explicitly freeing this */
-    CCKCALLOC(transport->transportData, sizeof(CckIpv4TransportData));
+    CCKCALLOC(transport->transportData, sizeof(CckIpv6TransportData));
 
-    data = (CckIpv4TransportData*)transport->transportData;
+    data = (CckIpv6TransportData*)transport->transportData;
 
-    transport->fd = socket (PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    transport->fd = socket (PF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 
     if(transport->fd < 0) {
-	CCK_PERROR("Could not create IPv4 socket");
+	CCK_PERROR("Could not create IPv6 socket");
 	return -1;
     }
 
@@ -261,7 +294,7 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
     transport->ownAddress = config->ownAddress;
 
     /* Get own address first - or find the desired one if config was populated with it*/
-    res = cckGetInterfaceAddress(transport, &transport->ownAddress, AF_INET);
+    res = cckGetInterfaceAddress(transport, &transport->ownAddress, AF_INET6);
 
     if(res != 1) {
 	return res;
@@ -269,7 +302,7 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 
     CCK_DBG("own address: %s\n", transport->addressToString(&transport->ownAddress));
 
-    transport->ownAddress.inetAddr4.sin_port = htons(config->sourceId);
+    transport->ownAddress.inetAddr6.sin6_port = htons(config->sourceId);
 
     clearTransportAddress(&transport->hardwareAddress);
 
@@ -279,7 +312,7 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
     } else {
 	CCK_DBGV("%s hardware address: %02x:%02x:%02x:%02x:%02x:%02x\n",
 			transport->transportEndpoint,
-			*((CckUInt16*)&transport->hardwareAddress),
+			*((CckUInt8*)&transport->hardwareAddress),
 			*((CckUInt8*)&transport->hardwareAddress + 1),
 			*((CckUInt8*)&transport->hardwareAddress + 2),
 			*((CckUInt8*)&transport->hardwareAddress + 3),
@@ -291,8 +324,8 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
     transport->defaultDestination = config->defaultDestination;
     transport->secondaryDestination = config->secondaryDestination;
 
-    transport->defaultDestination.inetAddr4.sin_port = htons(config->destinationId);
-    transport->secondaryDestination.inetAddr4.sin_port = htons(config->destinationId);
+    transport->defaultDestination.inetAddr6.sin6_port = htons(config->destinationId);
+    transport->secondaryDestination.inetAddr6.sin6_port = htons(config->destinationId);
 
     /* One of our destinations is multicast - begin multicast initialisation */
     if(transport->isMulticastAddress(&transport->defaultDestination) ||
@@ -300,10 +333,11 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 
 	/* ====== MCAST_INIT_BEGIN ======= */
 
-	struct sockaddr_in sin;
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = INADDR_ANY;
-	sin.sin_port = htons(config->sourceId);
+	struct sockaddr_in6 sin;
+	memset(&sin, 0, sizeof(struct sockaddr_in6));
+	sin.sin6_family = AF_INET6;
+	sin.sin6_addr = in6addr_any;
+	sin.sin6_port = htons(config->sourceId);
 	addr = &sin;
 
 	if(transport->isMulticastAddress(&transport->defaultDestination) &&
@@ -329,7 +363,7 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 	    if (setMulticastTtl(transport, config->param1)) {
 		data->lastTtl = config->param1;
 	    } else {
-		CCK_DBG("Failed to set IPv4 multicast TTL=%d on %s\n",
+		CCK_DBG("Failed to set IPv6 multicast hops=%d on %s\n",
 		    config->param1, transport->transportEndpoint);
 	    }
 	}
@@ -337,7 +371,7 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 	/* ====== MCAST_INIT_END ======= */
 
     } else {
-	addr = &transport->ownAddress.inetAddr4;
+	addr = &transport->ownAddress.inetAddr6;
     }
 
 	int tmp = 1;
@@ -347,7 +381,7 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 	}
 
     if(bind(transport->fd, (struct sockaddr*)addr,
-		    sizeof(struct sockaddr_in)) < 0) {
+		    sizeof(struct sockaddr_in6)) < 0) {
         CCK_PERROR("Failed to bind to %s:%d on %s",
 			transport->addressToString(&transport->ownAddress),
 			config->sourceId, transport->transportEndpoint);
@@ -358,13 +392,16 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 			transport->addressToString(&transport->ownAddress),
 			config->sourceId, transport->transportEndpoint);
 
+    /* TODO: IPV6_TCLASS */
+
     /* set DSCP bits */
+/*
     if(config->param2 && (setsockopt(transport->fd, IPPROTO_IP, IP_TOS,
 		&config->param2, sizeof(int)) < 0)) {
 	CCK_DBG("Failed to set DSCP bits on %s\n",
 		    transport->transportEndpoint);
     }
-
+*/
 
     if(config->swTimestamping) {
 
@@ -399,8 +436,8 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 
 }
 
-static int
-cckTransportShutdown_ipv4 (void* _transport)
+int
+cckTransportShutdown (void* _transport)
 {
 
     if(_transport == NULL)
@@ -410,34 +447,41 @@ cckTransportShutdown_ipv4 (void* _transport)
 
     if(transport->isMulticastAddress(&transport->defaultDestination) &&
 	    !multicastLeave(transport, &transport->defaultDestination)) {
-	CCK_DBG("Error while leaving IPv4 multicast group %s\n",
+	CCK_DBG("Error while leaving IPv6 multicast group %s\n",
 		    transport->addressToString(&transport->defaultDestination));
     }
 
     if(transport->isMulticastAddress(&transport->secondaryDestination) &&
 	    !multicastLeave(transport, &transport->secondaryDestination)) {
-	CCK_DBG("Error while leaving IPv4 multicast group %s\n",
+	CCK_DBG("Error while leaving IPv6 multicast group %s\n",
 		    transport->addressToString(&transport->secondaryDestination));
     }
 
     /* remove fd from watcher set */
     cckRemoveFd(transport->fd, transport->watcher);
 
-    if(transport->transportData != NULL)
+    /* close the fd */
+    close(transport->fd);
+
+    clearCckTransportCounters(transport);
+
+    if(transport->transportData != NULL) {
 	free(transport->transportData);
+	transport->transportData = NULL;
+    }
 
     return 1;
 
 }
 
 static CckBool
-cckTransportTestConfig_ipv4 (CckTransport* transport, const CckTransportConfig* config)
+cckTransportTestConfig (CckTransport* transport, const CckTransportConfig* config)
 {
 
     int res = 0;
     unsigned int flags;
 
-    CckIpv4TransportData* data = NULL;
+    CckIpv6TransportData* data = NULL;
 
     if(transport == NULL) {
 	CCK_ERROR("transport testConfig called for an empty transport\n");
@@ -452,7 +496,7 @@ cckTransportTestConfig_ipv4 (CckTransport* transport, const CckTransportConfig* 
     strncpy(transport->transportEndpoint, config->transportEndpoint, PATH_MAX);
 
     /* Get own address first */
-    res = cckGetInterfaceAddress(transport, &transport->ownAddress, AF_INET);
+    res = cckGetInterfaceAddress(transport, &transport->ownAddress, AF_INET6);
 
     if(res != 1) {
 	return CCK_FALSE;
@@ -485,7 +529,7 @@ cckTransportTestConfig_ipv4 (CckTransport* transport, const CckTransportConfig* 
 	    }
     }
 
-    CCKCALLOC(data, sizeof(CckIpv4TransportData));
+    CCKCALLOC(data, sizeof(CckIpv6TransportData));
 
     if(config->swTimestamping) {
 	if(!cckInitSwTimestamping(
@@ -502,7 +546,7 @@ cckTransportTestConfig_ipv4 (CckTransport* transport, const CckTransportConfig* 
 }
 
 static int
-cckTransportPushConfig_ipv4 (CckTransport* transport, const CckTransportConfig* config)
+cckTransportPushConfig (CckTransport* transport, const CckTransportConfig* config)
 {
 
     CckTransport* testTransport = createCckTransport(transport->transportType, "pushConfigTest");
@@ -515,16 +559,14 @@ cckTransportPushConfig_ipv4 (CckTransport* transport, const CckTransportConfig* 
 
     freeCckTransport(&testTransport);
 
+    clearCckTransportCounters(transport);
+
     return transport->init(transport, config);
 
 }
 
-/*
-    re-join multicast groups. don't leave, just join, so no unnecessary
-    PIM / IGMP snooping movement is generated.
-*/
 static void
-cckTransportRefresh_ipv4 (CckTransport* transport)
+cckTransportRefresh (CckTransport* transport)
 {
 
     if(transport->isMulticastAddress(&transport->defaultDestination)) {
@@ -538,7 +580,7 @@ cckTransportRefresh_ipv4 (CckTransport* transport)
 }
 
 static CckBool
-cckTransportHasData_ipv4 (CckTransport* transport)
+cckTransportHasData (CckTransport* transport)
 {
 
     if(transport->watcher == NULL)
@@ -552,11 +594,11 @@ cckTransportHasData_ipv4 (CckTransport* transport)
 }
 
 static CckBool
-cckTransportIsMulticastAddress_ipv4 (const TransportAddress* address)
+cckTransportIsMulticastAddress (const TransportAddress* address)
 {
 
-    /* If last 4 bits of an address are 0xE (1110), it's multicast */
-    if((ntohl(address->inetAddr4.sin_addr.s_addr) >> 28) == 0x0E)
+    /* First byte is FF - multicast */
+    if((unsigned char)(address->inetAddr6.sin6_addr.s6_addr[0]) == 0xFF)
 	return CCK_TRUE;
     else
 	return CCK_FALSE;
@@ -564,7 +606,7 @@ cckTransportIsMulticastAddress_ipv4 (const TransportAddress* address)
 }
 
 static ssize_t
-cckTransportSend_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
+cckTransportSend (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 			TransportAddress* dst, CckTimestamp* timestamp)
 {
 
@@ -585,7 +627,7 @@ cckTransportSend_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 
     ret = sendto(transport->fd, buf, size, 0,
 		(struct sockaddr *)dst,
-		sizeof(struct sockaddr_in));
+		sizeof(struct sockaddr_in6));
 
 
     /* If the transport can timestamp on TX, try doing it - if we failed, loop back the packet */
@@ -597,29 +639,31 @@ cckTransportSend_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
     if((!isMulticast && !transport->txTimestamping) || txFailure) {
 	if(sendto(transport->fd, buf, size, 0,
 		     (struct sockaddr *)&transport->ownAddress,
-	 sizeof(struct sockaddr_in)) <= 0)
-             CCK_DBG("send() Error looping back IPv4 message on %s (transport \"%s\")\n",
-                        transport->transportEndpoint, transport->header.instanceName);
+	 sizeof(struct sockaddr_in6)) <= 0)
+		CCK_DBG("send() Error looping back IPv6 message on %s (transport \"%s\")\n",
+			transport->transportEndpoint, transport->header.instanceName);
     }
 
     if (ret <= 0)
-           CCK_DBG("send() Error while sending IPv6 message on %s (transport \"%s\")\n",
-                        transport->transportEndpoint, transport->header.instanceName);
+	    CCK_DBG("send() Error while sending IPv6 message on %s (transport \"%s\")\n",
+			transport->transportEndpoint, transport->header.instanceName);
     else
 	transport->sentMessages++;
 
     return ret;
 
+
 }
 
 static ssize_t
-cckTransportRecv_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
+cckTransportRecv (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 			TransportAddress* src, CckTimestamp* timestamp, int flags)
 {
+
     ssize_t ret = 0;
     socklen_t srcLen = sizeof(struct sockaddr);
 
-    CckIpv4TransportData* data = (CckIpv4TransportData*)transport->transportData;
+    CckIpv6TransportData* data = (CckIpv6TransportData*)transport->transportData;
 
     if(data == NULL || transport == NULL)
 	return -1;
@@ -671,13 +715,13 @@ cckTransportRecv_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 	};
 
 	if (msg.msg_flags & MSG_TRUNC) {
-	    CCK_ERROR("IPv4 - Received truncated message on %s\n",
+	    CCK_ERROR("IPv6 - Received truncated message on %s\n",
 		transport->transportEndpoint);
 	    return 0;
 	}
 
 	if (msg.msg_flags & MSG_CTRUNC) {
-	    CCK_ERROR("IPv4 - Received truncated control message on %s\n",
+	    CCK_ERROR("IPv6 - Received truncated control message on %s\n",
 		transport->transportEndpoint);
 	    return 0;
 	}
@@ -686,7 +730,7 @@ cckTransportRecv_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 	    transport->receivedMessages++;
 
 	if (msg.msg_controllen <= 0) {
-	    CCK_ERROR("IPv4 - Received short control message on %s: (%lu/%lu)\n",
+	    CCK_ERROR("IPv6 - Received short control message on %s: (%lu/%lu)\n",
 			transport->transportEndpoint,
 		        (long)msg.msg_controllen, 
 			(long)sizeof(cmsg_un.control));
@@ -701,7 +745,7 @@ cckTransportRecv_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 
 	/* TODO: cckTimestampEmpty() */
 	if (!timestamp->seconds && !timestamp->nanoseconds) {
-	    CCK_DBG("recv() IPv4 - no timestamp received on %s\n",
+	    CCK_DBG("recv() IPv6 - no timestamp received on %s\n",
 		transport->transportEndpoint);
 			return 0;
 	}
@@ -722,10 +766,11 @@ cckTransportRecv_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 	return ret;
 
     }
+
 }
 
 static CckBool
-cckTransportAddressFromString_ipv4 (const char* addrStr, TransportAddress* out)
+cckTransportAddressFromString (const char* addrStr, TransportAddress* out)
 {
 
     CckBool ret = CCK_FALSE;
@@ -735,7 +780,7 @@ cckTransportAddressFromString_ipv4 (const char* addrStr, TransportAddress* out)
     clearTransportAddress(out);
     memset(&hints, 0, sizeof(hints));
 
-    hints.ai_family=AF_INET;
+    hints.ai_family=AF_INET6;
     hints.ai_socktype=SOCK_DGRAM;
 
     res = getaddrinfo(addrStr, NULL, &hints, &info);
@@ -744,40 +789,40 @@ cckTransportAddressFromString_ipv4 (const char* addrStr, TransportAddress* out)
 
         ret = CCK_TRUE;
         memcpy(out, info->ai_addr,
-    	    sizeof(struct sockaddr_in));
+    	    sizeof(struct sockaddr_in6));
 	freeaddrinfo(info);
-
     } else {
 
-        CCK_ERROR("Could not encode / resolve IPV4 address %s : %s\n", addrStr, gai_strerror(res));
+        CCK_ERROR("Could not encode / resolve IPV6 address %s : %s\n", addrStr, gai_strerror(res));
 
     }
 
     return ret;
-
 }
 
 static char*
-cckTransportAddressToString_ipv4 (const TransportAddress* address)
+cckTransportAddressToString (const TransportAddress* address)
 {
-
     /* just like *toa: convenient but not re-entrant */
-    static char buf[INET_ADDRSTRLEN + 1];
+    static char buf[INET6_ADDRSTRLEN + 1];
 
-    memset(buf, 0, INET_ADDRSTRLEN + 1);
+    memset(buf, 0, INET6_ADDRSTRLEN + 1);
 
-    if(inet_ntop(AF_INET, &address->inetAddr4.sin_addr, buf, INET_ADDRSTRLEN) == NULL)
+    if(inet_ntop(AF_INET6, &address->inetAddr6.sin6_addr, buf, INET6_ADDRSTRLEN) == NULL)
         return "-";
 
     return buf;
 
 }
 
+
 static CckBool
-cckTransportAddressEqual_ipv4 (const TransportAddress* a, const TransportAddress* b)
+cckTransportAddressEqual (const TransportAddress* a, const TransportAddress* b)
 {
-	if(a->inetAddr4.sin_addr.s_addr == b->inetAddr4.sin_addr.s_addr)
+	if(!memcmp(&a->inetAddr6.sin6_addr.s6_addr, &b->inetAddr6.sin6_addr.s6_addr, 16))
 	    return CCK_TRUE;
 	else
 	    return CCK_FALSE;
 }
+
+#undef CCK_THIS_TYPE

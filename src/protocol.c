@@ -203,7 +203,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 			if(rtOpts->timingAclEnabled) {
 
-			ptpClock->timingAcl = createCckAcl(rtOpts->transportType,
+			ptpClock->timingAcl = createCckAcl(ptpClock->eventTransport->aclType,
 						    rtOpts->timingAclOrder, "timingAcl");
 			ptpClock->timingAcl->compileAcl(ptpClock->timingAcl,
 						rtOpts->timingAclPermitText,
@@ -211,7 +211,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			}
 			if(rtOpts->managementAclEnabled) {
 
-			ptpClock->managementAcl = createCckAcl(rtOpts->transportType,
+			ptpClock->managementAcl = createCckAcl(ptpClock->eventTransport->aclType,
 						    rtOpts->managementAclOrder, "managementAcl");
 			ptpClock->managementAcl->compileAcl(ptpClock->managementAcl,
 						rtOpts->managementAclPermitText,
@@ -1257,8 +1257,8 @@ static void
 handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
-    CckTransport* evt = ptpClock->eventTransport;
-    CckTransport* gen = ptpClock->generalTransport;
+    CckTransport* evt  = ptpClock->eventTransport;
+    CckTransport* gen  = ptpClock->generalTransport;
     CckTransport* pevt = ptpClock->peerEventTransport;
     CckTransport* pgen = ptpClock->peerGeneralTransport;
 

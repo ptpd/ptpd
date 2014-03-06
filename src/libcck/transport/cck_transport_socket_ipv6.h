@@ -27,66 +27,31 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /**
- * @file   cck_component.h
- *
- * @brief  libCCK base component and registry definition
+ * @file   cck_transport_socket_ipv6.h
+ * 
+ * @brief  libCCK ipv6 transport public method definitions
  *
  */
 
-#ifndef CCK_COMPONENT_H_
-#define CCK_COMPONENT_H_
+#ifndef CCK_TRANSPORT_SOCKET_IPV6_H_
+#define CCK_TRANSPORT_SOCKET_IPV6_H_
 
 #ifndef CCK_H_INSIDE_
-#error libCCK component headers should not be uncluded directly - please include cck.h only.
+//#error libCCK component headers should not be uncluded directly - please include cck.h only.
 #endif
 
+#include "../cck.h"
+#include "../cck_transport.h"
+#include "cck_transport_socket_swtimestamp.h"
 
-typedef struct CckComponent CckComponent;
-
-#include "cck.h"
-
-#define CCK_MAX_INSTANCE_NAME_LEN 15
-
-enum {
-
-	CCK_COMPONENT_NULL = 0,
-	CCK_COMPONENT_LOGHANDLER,
-        CCK_COMPONENT_ACL,
-	CCK_COMPONENT_TRANSPORT,
-	CCK_COMPONENT_DUMMY
-};
-
-struct CckComponent {
-
-	int componentType;
-	CckComponent* _prev;
-	CckComponent* _next;
-	CckBool _dynamic; // dynamic = dynamically allocated
-	CckUInt32 serial;
-	char instanceName[CCK_MAX_INSTANCE_NAME_LEN + 1];
-	CckBool isInitialized;
-	CckBool isShutdown;
-
-	int (*shutdown) (void*);
-
-};
-
+/* implementation-specific transport data */
 typedef struct {
+    int lastTtl;
+    CckSocketTimestampCaps timestampCaps;
+} CckIpv6TransportData;
 
-	CckComponent* _first;
-	CckComponent* _last;
-	CckUInt32 lastSerial;
-	int componentCount;
+void    cckTransportSetup_socket_ipv6(CckTransport* transport);
 
-} CckRegistry;
-
-CckBool cckInitialised(void);
-CckBool cckInit(void);
-CckBool cckShutdown(void);
-
-CckBool cckRegister(void* _comp);
-CckBool cckDeregister(void* _comp);
-
-
-#endif /* CCK_COMPONENT_H_ */
+#endif /* CCK_TRANSPORT_SOCKET_IPV6_H_ */

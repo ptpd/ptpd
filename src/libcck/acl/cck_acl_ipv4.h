@@ -66,16 +66,6 @@ typedef struct {
 	Ipv4AclEntry* entries;
 } Ipv4MaskTable;
 
-
-/* IPV4 transport ACL init */
-void cckAclInit_ipv4 (CckAcl* acl);
-
-/* IPV4 transport ACL methods */
-int  cckAclTest_ipv4(CckAcl* acl, const char* aclText);
-int  cckAclCompile_ipv4 (CckAcl* acl, const char* permitList, const char* denyList);
-int  cckAclShutdown_ipv4 (void* component);
-int  cckAclMatchAddress_ipv4	(TransportAddress* addr, CckAcl* acl);
-void cckAclClearCounters_ipv4 (CckAcl* acl);
-void cckAclDump_ipv4 (CckAcl* acl);
+void cckAclSetup_ipv4 (CckAcl* acl);
 
 #endif /* CCK_ACL_IPV4_H_ */

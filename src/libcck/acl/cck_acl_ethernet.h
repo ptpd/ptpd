@@ -46,15 +46,6 @@
 #include "../cck_transport.h"
 #include "../cck_acl.h"
 
-/* ethernet transport ACL init */
-void cckAclInit_ethernet (CckAcl* acl);
-
-/* ethernet transport ACL methods */
-int  cckAclTest_ethernet(CckAcl* acl, const char* aclText);
-int  cckAclCompile_ethernet (CckAcl* acl, const char* permitList, const char* denyList);
-int  cckAclShutdown_ethernet (void* component);
-int  cckAclMatchAddress_ethernet	(TransportAddress* addr, CckAcl* acl);
-void cckAclClearCounters_ethernet (CckAcl* acl);
-void cckAclDump_ethernet (CckAcl* acl);
+void cckAclSetup_ethernet (CckAcl* acl);
 
 #endif /* CCK_ACL_ETHERNET_H_ */

@@ -29,14 +29,14 @@
 
 
 /**
- * @file   cck_transport_swtimestamp.h
+ * @file   cck_transport_socket_common.h
  * 
- * @brief  common libCCK transport helper function definitions
+ * @brief  common libCCK transport helper function implementations
  *
  */
 
-#ifndef CCK_TRANSPORT_SWTIMESTAMP_H_
-#define CCK_TRANSPORT_SWTIMESTAMP_H_
+#ifndef CCK_TRANSPORT_SOCKET_COMMON_H_
+#define CCK_TRANSPORT_SOCKET_COMMON_H_
 
 #include "../cck.h"
 
@@ -125,11 +125,11 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#if defined(SO_TIMESTAMPING) && defined(ETHTOOL_GET_TS_INFO)
-CckBool cckGetTsInfo(const char* ifName, struct ethtool_ts_info* tsInfo);
-#endif
+CckBool cckGetHwAddress (const char* ifaceName, TransportAddress* addr);
+int cckGetInterfaceFlags(const char* ifaceName, unsigned int* flags);
+int cckGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr, int addressFamily);
+void cckAddFd(int fd, CckFdSet* set);
+void cckRemoveFd(int fd, CckFdSet* set);
+int cckSelect(CckFdSet* set, struct timeval* timeout);
 
-CckBool cckInitSwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps, CckBool testingOnly);
-CckBool cckGetSwTimestamp(struct cmsghdr* cmsg, CckSocketTimestampCaps* caps, CckTimestamp* timestamp);
-
-#endif /* CCK_TRANSPORT_SWTIMESTAMP_H_ */
+#endif /* CCK_TRANSPORT_SOCKET_COMMON_H_ */

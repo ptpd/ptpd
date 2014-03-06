@@ -27,89 +27,104 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /**
- * @file 	   cck_acl.c
+ * @file   cck_dummy.c
  * 
- * @brief  	   constructor and destructor for ACL implementations
- * 
- * 
+ * @brief  constructor and destructor for dummy component, additional helper functions
+ *
  */
 
 #include "cck.h"
 
 /* Quick shortcut to call the setup function for different implementations */
-#define CCK_REGISTER_ACL(type,suffix) \
-	if(aclType==type) {\
-	    cckAclSetup_##suffix(acl);\
+#define CCK_REGISTER_DUMMY(type,suffix) \
+	if(dummyType==type) {\
+	    cckDummySetup_##suffix(dummy);\
 	}
 
-CckLogHandler* cckLogOutput;
 
-CckAcl*
-createCckAcl(int aclType, int processingOrder, const char* instanceName)
+CckDummy*
+createCckDummy(int dummyType, const char* instanceName)
 {
 
-    CckAcl* acl;
+    CckDummy* dummy;
 
-    CCKCALLOC(acl, sizeof(CckAcl));
+    CCKCALLOC(dummy, sizeof(CckDummy));
 
-    acl->header._next = NULL;
-    acl->header._prev = NULL;
-    acl->header._dynamic = CCK_TRUE;
+    dummy->header._next = NULL;
+    dummy->header._prev = NULL;
+    dummy->header._dynamic = CCK_TRUE;
 
-    setupCckAcl(acl, aclType, processingOrder, instanceName);
+    setupCckDummy(dummy, dummyType, instanceName);
 
-    return acl;
+    return dummy;
 }
 
 void
-setupCckAcl(CckAcl* acl, int aclType, int processingOrder, const char* instanceName)
+setupCckDummy(CckDummy* dummy, int dummyType, const char* instanceName)
 {
 
-    acl->header.componentType = CCK_COMPONENT_ACL;
+    dummy->dummyType = dummyType;
 
-    strncpy(acl->header.instanceName, instanceName, CCK_MAX_INSTANCE_NAME_LEN);
+    strncpy(dummy->header.instanceName, instanceName, CCK_MAX_INSTANCE_NAME_LEN);
 
-    acl->aclType = aclType;
-    acl->processingOrder = processingOrder;
+    dummy->header.componentType = CCK_COMPONENT_DUMMY;
 
-/*
-   if you write an ACL handler for a new transport type,
+/* 
+   if you write a new dummy,
    make sure you register it here. Format is:
 
-   CCK_REGISTER_ACL(TRANSPORT_TYPE, function_name_suffix)
+   CCK_REGISTER_DUMMY(DUMMY_TYPE, function_name_suffix)
 
    where suffix is the string the setup() function name is
    suffixed with for your implementation, i.e. you
-   need to define cckAclSetup_bob for your "bob" tansport ACL
+   need to define cckDummySetup_bob for your "bob" dummy.
+
 */
 
-    CCK_REGISTER_ACL(CCK_ACL_NULL, null);
-    CCK_REGISTER_ACL(CCK_ACL_IPV4, ipv4);
-    CCK_REGISTER_ACL(CCK_ACL_IPV6, ipv6);
-    CCK_REGISTER_ACL(CCK_ACL_ETHERNET, ethernet);
+/* ============ DUMMY IMPLEMENTATIONS BEGIN ============ */
+
+    CCK_REGISTER_DUMMY(CCK_DUMMY_NULL, null);
+    CCK_REGISTER_DUMMY(CCK_DUMMY_DUMMY, dummy);
+
+/* ============ DUMMY IMPLEMENTATIONS END ============== */
 
 /* we 're done with this macro */
-#undef CCK_REGISTER_ACL
+#undef CCK_REGISTER_DUMMY
 
-    acl->header._next = NULL;
-    acl->header._prev = NULL;
-    cckRegister(acl);
+    dummy->header._next = NULL;
+    dummy->header._prev = NULL;
+
+    cckRegister(dummy);
 
 }
 
-void freeCckAcl(CckAcl** acl)
+
+void
+freeCckDummy(CckDummy** dummy)
 {
-	if(*acl==NULL)
+
+    if(*dummy==NULL)
 	    return;
 
-	(*acl)->shutdown(*acl);
+    (*dummy)->shutdown(*dummy);
 
-	cckDeregister(*acl);
+    cckDeregister(*dummy);
 
-	if((*acl)->header._dynamic) {
-	    free(*acl);
-	    *acl = NULL;
-	}
+    if((*dummy)->header._dynamic) {
+	free(*dummy);
+	*dummy = NULL;
+    }
+}
+
+
+/* Zero out DummyStruct structure */
+void
+clearDummyStruct(CckDummyStruct* dummyStruct)
+{
+
+    memset(dummyStruct, 0, sizeof(CckDummyStruct));
+
 }
 

@@ -21,6 +21,12 @@ libcck_la_SOURCES = 			\
 	cck_component.c		\
 	cck_transport.h		\
 	cck_transport.c		\
+	cck_dummy.h		\
+	cck_dummy.c		\
+	dummy/cck_dummy_null.h	\
+	dummy/cck_dummy_null.c	\
+	dummy/cck_dummy_dummy.h	\
+	dummy/cck_dummy_dummy.c	\
 	cck_acl.h		\
 	cck_acl.c		\
 	acl/cck_acl_null.h	\
@@ -31,18 +37,18 @@ libcck_la_SOURCES = 			\
 	acl/cck_acl_ipv6.c	\
 	acl/cck_acl_ethernet.h	\
 	acl/cck_acl_ethernet.c	\
-	transport/cck_transport_helpers.h	\
-	transport/cck_transport_helpers.c	\
-	transport/cck_transport_swtimestamp.h	\
-	transport/cck_transport_swtimestamp.c	\
+	transport/cck_transport_socket_common.h	\
+	transport/cck_transport_socket_common.c	\
+	transport/cck_transport_socket_swtimestamp.h	\
+	transport/cck_transport_socket_swtimestamp.c	\
 	transport/cck_transport_null.h	\
 	transport/cck_transport_null.c	\
-	transport/cck_transport_ipv4.h	\
-	transport/cck_transport_ipv4.c	\
-	transport/cck_transport_ipv6.h	\
-	transport/cck_transport_ipv6.c	\
-	transport/cck_transport_ethernet.h	\
-	transport/cck_transport_ethernet.c
+	transport/cck_transport_socket_ipv4.h	\
+	transport/cck_transport_socket_ipv4.c	\
+	transport/cck_transport_socket_ipv6.h	\
+	transport/cck_transport_socket_ipv6.c	\
+	transport/cck_transport_socket_ethernet.h	\
+	transport/cck_transport_socket_ethernet.c
 
 libcck_la_LDFLAGS = -version-info 1:0:1 -static
 libcck_SHORTNAME = cck

@@ -27,66 +27,70 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /**
- * @file   cck_component.h
+ * @file   cck_dummy_null.c
  *
- * @brief  libCCK base component and registry definition
+ * @brief  libCCK dummy component null implementation - stub only
  *
  */
 
-#ifndef CCK_COMPONENT_H_
-#define CCK_COMPONENT_H_
+#include "cck_dummy_null.h"
 
-#ifndef CCK_H_INSIDE_
-#error libCCK component headers should not be uncluded directly - please include cck.h only.
-#endif
+#define CCK_THIS_TYPE CCK_DUMMY_NULL
 
+/* interface (public) method definitions */
+static int     cckDummyInit (CckDummy* self, const CckDummyConfig* config);
+static int     cckDummyShutdown (void* component);
+static CckBool cckDummyDoSomething (CckDummy* self, int param1);
+static CckBool cckDummyDoSomethingWithCallback (CckDummy* self, int param1);
 
-typedef struct CckComponent CckComponent;
+/* implementations follow */
 
-#include "cck.h"
+void
+cckDummySetup_null(CckDummy* self)
+{
+	if(self->dummyType == CCK_THIS_TYPE) {
+	    self->dummyCallback = NULL;
+	    self->init = cckDummyInit;
+	    self->shutdown = cckDummyShutdown;
+	    self->doSomething = cckDummyDoSomething;
+            self->doSomethingWithCallback = cckDummyDoSomethingWithCallback;
+	    self->header.shutdown = cckDummyShutdown;
+	} else {
+	    CCK_WARNING("setup() called for incorrect component implementation: %02x, expected %02x\n",
+			self->dummyType, CCK_THIS_TYPE);
+	}
+}
 
-#define CCK_MAX_INSTANCE_NAME_LEN 15
+static int
+cckDummyInit (CckDummy* self, const CckDummyConfig* config)
+{
+    return 1;
+}
 
-enum {
+static int
+cckDummyShutdown (void* component)
+{
 
-	CCK_COMPONENT_NULL = 0,
-	CCK_COMPONENT_LOGHANDLER,
-        CCK_COMPONENT_ACL,
-	CCK_COMPONENT_TRANSPORT,
-	CCK_COMPONENT_DUMMY
-};
+    return 0;
 
-struct CckComponent {
+}
 
-	int componentType;
-	CckComponent* _prev;
-	CckComponent* _next;
-	CckBool _dynamic; // dynamic = dynamically allocated
-	CckUInt32 serial;
-	char instanceName[CCK_MAX_INSTANCE_NAME_LEN + 1];
-	CckBool isInitialized;
-	CckBool isShutdown;
+static CckBool
+cckDummyDoSomething (CckDummy* self, int param1)
+{
 
-	int (*shutdown) (void*);
+    return CCK_FALSE;
 
-};
+}
 
-typedef struct {
+static CckBool
+cckDummyDoSomethingWithCallback (CckDummy* self, int param1)
+{
 
-	CckComponent* _first;
-	CckComponent* _last;
-	CckUInt32 lastSerial;
-	int componentCount;
+    return CCK_FALSE;
 
-} CckRegistry;
+}
 
-CckBool cckInitialised(void);
-CckBool cckInit(void);
-CckBool cckShutdown(void);
-
-CckBool cckRegister(void* _comp);
-CckBool cckDeregister(void* _comp);
-
-
-#endif /* CCK_COMPONENT_H_ */
+#undef CCK_THIS_TYPE

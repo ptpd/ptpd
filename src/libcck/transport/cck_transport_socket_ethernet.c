@@ -29,19 +29,19 @@
 
 
 /**
- * @file   cck_transport_null.c
+ * @file   cck_transport_socket_ethernet.c
  * 
- * @brief  libCCK null transport implementation
+ * @brief  libCCK ethernet transport implementation
  *
  */
 
-#include "cck_transport_null.h"
+#include "cck_transport_socket_ethernet.h"
 
-#define CCK_THIS_TYPE CCK_TRANSPORT_NULL
+#define CCK_THIS_TYPE CCK_TRANSPORT_SOCKET_ETHERNET
 
 /* interface (public) method definitions */
 static int     cckTransportInit (CckTransport* transport, const CckTransportConfig* config);
-static int     cckTransportShutdown (void* component);
+static int     cckTransportShutdown (void* _transport);
 static CckBool cckTransportTestConfig (CckTransport* transport, const CckTransportConfig* config);
 static int     cckTransportPushConfig (CckTransport* transport, const CckTransportConfig* config);
 static void    cckTransportRefresh (CckTransport* transport);
@@ -50,7 +50,7 @@ static CckBool cckTransportIsMulticastAddress (const TransportAddress* address);
 static ssize_t cckTransportSend (CckTransport* transport, CckOctet* buf, CckUInt16 size, TransportAddress* dst, CckTimestamp* timestamp);
 static ssize_t cckTransportRecv (CckTransport* transport, CckOctet* buf, CckUInt16 size, TransportAddress* src, CckTimestamp* timestamp, int flags);
 static CckBool cckTransportAddressFromString (const char*, TransportAddress* out);
-static char*    cckTransportAddressToString (const TransportAddress* address);
+static char*   cckTransportAddressToString (const TransportAddress* address);
 static CckBool cckTransportAddressEqual (const TransportAddress* a, const TransportAddress* b);
 
 /* private method definitions (if any) */
@@ -58,11 +58,11 @@ static CckBool cckTransportAddressEqual (const TransportAddress* a, const Transp
 /* implementations follow */
 
 void
-cckTransportSetup_null(CckTransport* transport)
+cckTransportSetup_socket_ethernet(CckTransport* transport)
 {
 	if(transport->transportType == CCK_THIS_TYPE) {
 
-            transport->aclType = CCK_ACL_NULL;
+	    transport->aclType = CCK_ACL_ETHERNET;
 
 	    transport->unicastCallback = NULL;
 	    transport->init = cckTransportInit;
@@ -91,8 +91,15 @@ cckTransportInit (CckTransport* transport, const CckTransportConfig* config)
 }
 
 static int
-cckTransportShutdown (void* transport)
+cckTransportShutdown (void* _transport)
 {
+
+    CckTransport* transport = (CckTransport*)_transport;
+
+    clearCckTransportCounters(transport);
+
+    if(transport->transportData != NULL)
+	free(transport->transportData);
 
     return 0;
 
@@ -109,6 +116,8 @@ cckTransportTestConfig (CckTransport* transport, const CckTransportConfig* confi
 static int
 cckTransportPushConfig (CckTransport* transport, const CckTransportConfig* config)
 {
+
+    clearCckTransportCounters(transport);
 
     return 1;
 
@@ -134,7 +143,11 @@ static CckBool
 cckTransportIsMulticastAddress (const TransportAddress* address)
 {
 
-    return CCK_FALSE;
+    /* last bit of first byte is lit == multicast */
+    if( (*(unsigned char*)address & (unsigned char)1) == 1)
+	return CCK_TRUE;
+    else
+	return CCK_FALSE;
 
 }
 
@@ -159,21 +172,44 @@ cckTransportRecv (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 static CckBool
 cckTransportAddressFromString (const char* addrStr, TransportAddress* out)
 {
-    return CCK_TRUE;
+
+    struct ether_addr* eth;
+
+    clearTransportAddress(out);
+
+    if(!ether_hostton(addrStr, (struct ether_addr*)out)) {
+	return CCK_TRUE;
+    }
+
+    if((eth=ether_aton(addrStr)) != NULL) {
+	memcpy(out, eth,
+	    sizeof(struct ether_addr));
+	return CCK_TRUE;
+    }
+
+    CCK_PERROR("Could not resolve / encode Ethernet address: %s",
+		addrStr);
+
+    return CCK_FALSE;
+
 }
 
 static char*
 cckTransportAddressToString (const TransportAddress* address)
 {
-    return "-";
+
+    return ether_ntoa(&address->etherAddr);
+
 }
 
 static CckBool
 cckTransportAddressEqual (const TransportAddress* a, const TransportAddress* b)
 {
 
-    return CCK_TRUE;
-
+	if(!memcmp(&a->etherAddr, &b->etherAddr, ETHER_ADDR_LEN))
+	    return CCK_TRUE;
+	else
+	    return CCK_FALSE;
 }
 
 #undef CCK_THIS_TYPE
