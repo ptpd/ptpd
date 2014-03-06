@@ -819,6 +819,9 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* Deep display of all packets seen by the daemon */
 	rtOpts->displayPackets = FALSE;
 	// rtOpts->unicastAddress
+	// rtOpts->sourceAddress
+
+	rtOpts->ipv6Scope = DEFAULT_IPV6_SCOPE;
 
 	rtOpts->s = DEFAULT_DELAY_S;
 	rtOpts->inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
@@ -1135,9 +1138,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_SELECTVALUE("ptpengine:transport",rtOpts->transport,rtOpts->transport,
 		"Transport type for PTP packets. Ethernet transport requires libpcap support.",
 				"ipv4",		UDP_IPV4,
-#if 0
 				"ipv6",		UDP_IPV6,
-#endif
 				"ethernet", 	IEEE_802_3
 				);
 
@@ -1390,6 +1391,24 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_CHARARRAY("ptpengine:unicast_address",rtOpts->unicastAddress,rtOpts->unicastAddress,
 		"Specify unicast destination for unicast master mode (in unicast slave mode,\n"
 	"	 overrides delay request destination).");
+
+	CONFIG_MAP_CHARARRAY("ptpengine:source_address",rtOpts->sourceAddress,rtOpts->sourceAddress,
+		"Specify interface source address to use (if multiple addresses present).");
+
+	CONFIG_MAP_SELECTVALUE("ptpengine:ipv6_scope",rtOpts->ipv6Scope,rtOpts->ipv6Scope,
+		"Multicast address scope for IPv6 transport - 4-bit scope identifier\n"
+	"	 (third digit of the IPv6 address) - numeric values are: 1 = interface-local\n"
+	"	 2 = link-local, 3 = ipv4-local, 4 = admin-local, 5 = site-local, 8 = org-local\n"
+	"	 and e = global. Does not apply to peer messages which are always link-local.",
+				"interface-local",	0x01,
+				"link-local",		0x02,
+				"ipv4-local",		0x03,
+				"admin-local",		0x04,
+				"site-local",		0x05,
+				"org-local",		0x08,
+				"global",		0x0e
+				);
+
 
 	CONFIG_MAP_BOOLEAN("ptpengine:management_enable",rtOpts->managementEnabled,rtOpts->managementEnabled,
 	"Enable handling of PTP management messages.");
@@ -2088,7 +2107,7 @@ loadCommandLineKeys(dictionary* dict, int argc,char** argv)
 			strncpy(val,argv[i+1],PATH_MAX);
 			argv[i+1]="";
 		    }
-		
+
 		}
 
 	    }
@@ -2262,10 +2281,11 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	    {"explain",		required_argument, 0, 'e'},
 	    {"default-config",  optional_argument, 0, 'O'},
 	    {"unicast",		required_argument, 0, 'u'},
+	    {"source-address",	required_argument, 0, 'o'},
 	    {0,			0		 , 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHhe:Y:tOLEPAaR:l:p", long_options, &opt_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:o:nf:S:r:DvCVHhe:Y:tOLEPAaR:l:p", long_options, &opt_index)) != -1) {
 	    switch(c) {
 /* non-config options first */
 
@@ -2344,6 +2364,9 @@ short_help:
 		case 'u':
 			dictionary_set(dict,"ptpengine:transport_mode", "unicast");
 			dictionary_set(dict,"ptpengine:unicast_address", optarg);
+			break;
+		case 'o':
+			dictionary_set(dict,"ptpengine:source_address", optarg);
 			break;
 		case 't':
 			WARN_DEPRECATED('t', 'n', "noadjust", "clock:no_adjust");
@@ -2693,6 +2716,8 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:require_utc_offset_valid", PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:announce_receipt_grace_period", PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:unicast_address",   	PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:source_address",   	PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:ipv6_scope",   	PTPD_RESTART_NETWORK );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:management_enable",         	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:management_set_enable",         	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:igmp_refresh",         	PTPD_RESTART_NONE );

@@ -92,17 +92,42 @@ Boolean
 netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 
+	char* defDest = NULL;
+	char* pDest = NULL;
+
 	CckTransportConfig config;
+
+	switch(rtOpts->transport) {
+
+		case UDP_IPV4:
+		    defDest = DEFAULT_PTP_IPV4_ADDRESS;
+		    pDest = PEER_PTP_IPV4_ADDRESS;
+		    rtOpts->transportType = CCK_TRANSPORT_UDP_IPV4;
+		    break;
+		case UDP_IPV6:
+		    defDest = DEFAULT_PTP_IPV6_ADDRESS;
+		    pDest = PEER_PTP_IPV6_ADDRESS;
+		    rtOpts->transportType = CCK_TRANSPORT_UDP_IPV6;
+		    break;
+		case IEEE_802_3:
+		    defDest = DEFAULT_PTP_ETHERNET_ADDRESS;
+		    pDest = PEER_PTP_ETHERNET_ADDRESS;
+		    rtOpts->transportType = CCK_TRANSPORT_ETHERNET;
+		    break;
+		default:
+		    ERROR("Unsupported transport: %d\n",
+			    rtOpts->transport);
+	}
 
 	memset(&config, 0, sizeof(CckTransportConfig));
 
-	config.transportType = CCK_TRANSPORT_UDP_IPV4;
+	config.transportType = rtOpts->transportType;
 	strncpy(config.transportEndpoint, rtOpts->ifaceName, IFACE_NAME_LENGTH);
 
 	/* create standard transports */
 
-	ptpClock->eventTransport = createCckTransport(CCK_TRANSPORT_UDP_IPV4, "event");
-	ptpClock->generalTransport = createCckTransport(CCK_TRANSPORT_UDP_IPV4, "general");
+	ptpClock->eventTransport = createCckTransport(rtOpts->transportType, "event");
+	ptpClock->generalTransport = createCckTransport(rtOpts->transportType, "general");
 
 	ptpClock->eventTransport->unicastCallback = setPtpUnicastFlags;
 	ptpClock->generalTransport->unicastCallback = setPtpUnicastFlags;
@@ -119,16 +144,22 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	config.param2 = rtOpts->dscpValue;
 
 	if(strlen(rtOpts->sourceAddress)>0) {
-		if (!(ptpClock->eventTransport->addressFromString(rtOpts->sourceAddress, &config.ownAddress)))
+		if (!(ptpClock->eventTransport->addressFromString(rtOpts->sourceAddress,
+					    &config.ownAddress)))
 		    return FALSE;
 	}
 
 	if(strlen(rtOpts->unicastAddress)>0) {
-		if (!(ptpClock->eventTransport->addressFromString(rtOpts->unicastAddress, &config.defaultDestination)))
+		if (!(ptpClock->eventTransport->addressFromString(rtOpts->unicastAddress,
+				    &config.defaultDestination)))
 		    return FALSE;
 	} else {
-		if (!(ptpClock->eventTransport->addressFromString(DEFAULT_PTP_IPV4_ADDRESS, &config.defaultDestination)))
+		if (!(ptpClock->eventTransport->addressFromString(defDest,
+				    &config.defaultDestination)))
 		return FALSE;
+
+		if(rtOpts->transport == UDP_IPV6)
+		    config.defaultDestination.inetAddr6.sin6_addr.s6_addr[1] = rtOpts->ipv6Scope;
 	}
 
 	if((ptpClock->eventTransport->init(ptpClock->eventTransport, &config)) < 1)
@@ -145,10 +176,11 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* init P2P transports */
 	if(rtOpts->delayMechanism == P2P) {
 
-	    ptpClock->peerEventTransport = createCckTransport(CCK_TRANSPORT_UDP_IPV4, "peerEvent");
-	    ptpClock->peerGeneralTransport = createCckTransport(CCK_TRANSPORT_UDP_IPV4, "peerGeneral");
-	    ptpClock->eventTransport->unicastCallback = setPtpUnicastFlags;
-	    ptpClock->generalTransport->unicastCallback = setPtpUnicastFlags;
+	    ptpClock->peerEventTransport = createCckTransport(rtOpts->transportType, "peerEvent");
+	    ptpClock->peerGeneralTransport = createCckTransport(rtOpts->transportType, "peerGeneral");
+
+	    ptpClock->peerEventTransport->unicastCallback = setPtpUnicastFlags;
+	    ptpClock->peerGeneralTransport->unicastCallback = setPtpUnicastFlags;
 	    ptpClock->peerEventTransport->watcher = &ptpClock->watcher;
 	    ptpClock->peerGeneralTransport->watcher = &ptpClock->watcher;
 
@@ -158,8 +190,8 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	    config.swTimestamping = CCK_TRUE;
 	    config.param1 = 1;
 
-	    if (!(ptpClock->peerEventTransport->addressFromString(PEER_PTP_IPV4_ADDRESS,
-							    &config.defaultDestination)))
+	    if (!(ptpClock->peerEventTransport->addressFromString(pDest,
+				    &config.defaultDestination)))
 		return FALSE;
 	    if((ptpClock->peerEventTransport->init(ptpClock->peerEventTransport, &config)) < 1)
 		return FALSE;
@@ -168,8 +200,8 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	    config.destinationId = PTP_GENERAL_PORT;
 	    config.swTimestamping = CCK_FALSE;
 
-	    if (!(ptpClock->peerGeneralTransport->addressFromString(PEER_PTP_IPV4_ADDRESS,
-							    &config.defaultDestination)))
+	    if (!(ptpClock->peerGeneralTransport->addressFromString(PEER_PTP_IPV6_ADDRESS,
+				    &config.defaultDestination)))
 		return FALSE;
 	    if((ptpClock->peerGeneralTransport->init(ptpClock->peerGeneralTransport, &config)) < 1)
 		return FALSE;
@@ -194,6 +226,45 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 						rtOpts->managementAclDenyText);
 	}
 
+
+	/* Try to init transport ID */
+
+        /* No HW address, we'll use the protocol address to form interfaceID -> clockID */
+        if(transportAddressEmpty(&ptpClock->eventTransport->hardwareAddress)) {
+	    Octet* addr = NULL;
+	    switch(rtOpts->transport) {
+		case UDP_IPV4:
+		    addr=(Octet*)&(ptpClock->eventTransport->ownAddress.inetAddr4.sin_addr.s_addr);
+		    memcpy(ptpClock->transportID, addr, 2);
+		    memcpy(ptpClock->transportID + 4, addr + 2, 2);
+		    break;
+		case UDP_IPV6:
+		    addr=(Octet*)&(ptpClock->eventTransport->ownAddress.inetAddr6.sin6_addr.s6_addr);
+		    memcpy(ptpClock->transportID , addr + 9, 2);
+		    memcpy(ptpClock->transportID + 3, addr + 12, 2);
+		    break;
+		/*
+		    Other transport types supported by PTP are L2 based,
+		    so we shouldn't be here if we don't have one.
+		*/
+		default:
+		    ERROR("Cannot run layer 2 transport with no hardware address \n");
+		    return FALSE;
+	    }
+
+	       CCK_DBGV("Transport ID generated for %s:  %02x:%02x:%02x:%02x:%02x:%02x\n",
+                        rtOpts->ifaceName,
+                        *((CckUInt8*)&ptpClock->transportID),
+                        *((CckUInt8*)&ptpClock->transportID + 1),
+                        *((CckUInt8*)&ptpClock->transportID + 2),
+                        *((CckUInt8*)&ptpClock->transportID + 3),
+                        *((CckUInt8*)&ptpClock->transportID + 4),
+                        *((CckUInt8*)&ptpClock->transportID + 5));
+        /* Initialise interfaceID with hardware address */
+        } else {
+                memcpy(ptpClock->transportID, &ptpClock->eventTransport->hardwareAddress, 6);
+        }
+
 	return TRUE;
 }
 
@@ -202,16 +273,41 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 
 	INFO("Testing network configuration\n");
 
+	char* defDest = NULL;
+	char* pDest = NULL;
+
 	Boolean ret = FALSE;
 
 	CckTransportConfig config;
+
+	switch(rtOpts->transport) {
+
+		case UDP_IPV4:
+		    defDest = DEFAULT_PTP_IPV4_ADDRESS;
+		    pDest = PEER_PTP_IPV4_ADDRESS;
+		    rtOpts->transportType = CCK_TRANSPORT_UDP_IPV4;
+		    break;
+		case UDP_IPV6:
+		    defDest = DEFAULT_PTP_IPV6_ADDRESS;
+		    pDest = PEER_PTP_IPV6_ADDRESS;
+		    rtOpts->transportType = CCK_TRANSPORT_UDP_IPV6;
+		    break;
+		case IEEE_802_3:
+		    defDest = DEFAULT_PTP_ETHERNET_ADDRESS;
+		    pDest = PEER_PTP_ETHERNET_ADDRESS;
+		    rtOpts->transportType = CCK_TRANSPORT_ETHERNET;
+		    break;
+		default:
+		    ERROR("Unsupported transport: %d\n",
+			    rtOpts->transport);
+	}
 
 	/* create test transport */
 	CckTransport* transport = createCckTransport(rtOpts->transportType, "testNetworkConfig");
 
 	memset(&config, 0, sizeof(CckTransportConfig));
 
-	config.transportType = CCK_TRANSPORT_UDP_IPV4;
+	config.transportType = rtOpts->transportType;
 	strncpy(config.transportEndpoint, rtOpts->ifaceName, IFACE_NAME_LENGTH);
 
 	/* test event transport */
@@ -229,9 +325,16 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 	if(strlen(rtOpts->unicastAddress)>0) {
 		if (!(transport->addressFromString(rtOpts->unicastAddress, &config.defaultDestination)))
 		    goto end;
+		if(transport->isMulticastAddress(&config.defaultDestination)) {
+			ERROR("Configured unicast destination is a multicast address\n");
+			goto end;
+		}
 	} else {
-		if (!(transport->addressFromString(DEFAULT_PTP_IPV4_ADDRESS, &config.defaultDestination)))
+		if (!(transport->addressFromString(defDest, &config.defaultDestination)))
 		goto end;
+
+		if(rtOpts->transport == UDP_IPV6)
+		    config.defaultDestination.inetAddr6.sin6_addr.s6_addr[1] = rtOpts->ipv6Scope;
 	}
 
 	if((transport->testConfig(transport, &config)) < 1)
@@ -255,9 +358,10 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 	    config.swTimestamping = CCK_TRUE;
 	    config.param1 = 1;
 
-	    if (!(transport->addressFromString(PEER_PTP_IPV4_ADDRESS,
+	    if (!(transport->addressFromString(pDest,
 							    &config.defaultDestination)))
 		goto end;
+
 
 	    if((transport->testConfig(transport, &config)) < 1)
 		goto end;

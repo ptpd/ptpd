@@ -754,7 +754,7 @@ typedef struct {
 	CckTransport* 		peerEventTransport;
 	CckTransport* 		peerGeneralTransport;
 	CckFdSet 		watcher;		// Used to track transport FDs
-
+	Octet			transportID[6];		// Used to form the clock ID
 
 #ifdef	PTPD_STATISTICS
 	/*
@@ -834,9 +834,10 @@ typedef struct {
 
 	Boolean displayPackets;
 	/* unicast destination */
-	Octet unicastAddress[MAXHOSTNAMELEN];
+	Octet unicastAddress[MAXHOSTNAMELEN+1];
 	/* specify source address (useful when interface has multiple addresses */
-	Octet sourceAddress[MAXHOSTNAMELEN];
+	Octet sourceAddress[MAXHOSTNAMELEN+1];
+	UInteger8 ipv6Scope;
 	Integer16 s;
 	TimeInternal inboundLatency, outboundLatency, ofmShift;
 	Integer16 max_foreign_records;

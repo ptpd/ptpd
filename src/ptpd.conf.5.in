@@ -127,7 +127,7 @@ uses unicast for all transmission. When unicast mode is selected, destination IP
 .RS 8
 .TP 8
 \fBoptions\fR
-\fIipv4 ethernet\fR
+\fIipv4 ipv6 ethernet\fR
 .TP 8
 \fBusage\fR
 Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building with \fIlibpcap\fR.
@@ -564,6 +564,63 @@ Specify unicast destination for unicast master mode (in unicast slave mode,
 .TP 8
 \fBdefault\fR
 \fI[none]\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:source_address [\fISTRING\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Specify interface source address to use (if multiple addresses present). 
+if not specified, the first address is used.
+.TP 8
+\fBdefault\fR
+\fI[none]\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:ipv6_scope [\fISELECT\fB]\fR
+.RS 8
+.TP 8
+
+\fBoptions\fR
+\fIinterface-local link-local ipv4-local admin-local site-local org-local global \fR
+.TP 8
+\fBusage\fR
+Multicast address scope for IPv6 transport - 4-bit scope identifier (third digit of the IPv6 address). 
+Values:
+.RS 12
+.TP 12
+\fIinterface-local\fR
+\fBNumeric value \fI1\fR. Loopback range - does not leave the host
+.TP 12
+\fIlink-local\fR
+\fBNumeric value \fI2\fR. Not routable (equivalent of IPv4 224.0.0.0/24 range)
+.TP 12
+\fIipv4-local\fR
+\fBNumeric value \fI3\fR. Equivalent of the 239.255.0.0/16 IPv4 range
+.TP 12
+\fIadmin-local\fR
+\fBNumeric value \fI4\fR. Smallest administratively configured scope
+.TP 12
+\fIsite-local\fR
+\fBNumeric value \fI5\fR. Limited to local (physical) network
+\fIorg-local\fR
+\fBNumeric value \fI8\fR. Limited to one organisation
+.TP 12
+\fIglobal\fR
+\fBNumeric value \fIe\fR. Global, publicly routable (equivalent of IPv4 224.0.1.0 .. 238.255.255.255)
+.RE
+.TP 8
+\fBdefault\fR
+\fIglobal\fR
+.TP 8
+\fBNOTE:\fR
+The \fIipv6_scope\fR setting does not apply to peer messages, which are always link-local.
 
 .RE
 .RE

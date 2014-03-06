@@ -144,7 +144,7 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
                 data->physicalAddress.addressLength = PTP_UUID_LENGTH;
                 XMALLOC(data->physicalAddress.addressField, PTP_UUID_LENGTH);
                 memcpy(data->physicalAddress.addressField,
-                        ptpClock->netPath.interfaceID,
+                        ptpClock->transportID,
                         PTP_UUID_LENGTH);
 		/* protocol address */
                 data->protocolAddress.addressLength = 4;
@@ -152,7 +152,7 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
                 XMALLOC(data->protocolAddress.addressField,
                         data->protocolAddress.addressLength);
 
-		struct sockaddr_in* saddr = (struct sockaddr_in*)&(ptpClock->netPath.interfaceInfo.afAddress);
+		struct sockaddr_in* saddr = (struct sockaddr_in*)&(ptpClock->eventTransport->ownAddress);
 
                 memcpy(data->protocolAddress.addressField,
 			  &saddr->sin_addr.s_addr,

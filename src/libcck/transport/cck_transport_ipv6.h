@@ -44,6 +44,13 @@
 
 #include "../cck.h"
 #include "../cck_transport.h"
+#include "cck_transport_swtimestamp.h"
+
+/* implementation-specific transport data */
+typedef struct {
+    int lastTtl;
+    CckSocketTimestampCaps timestampCaps;
+} CckIpv6TransportData;
 
 void    cckTransportSetup_ipv6(CckTransport* transport);
 

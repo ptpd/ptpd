@@ -48,7 +48,6 @@
 
 /* implementation-specific transport data */
 typedef struct {
-    /* used for tracking last TTL used */
     int lastTtl;
     CckSocketTimestampCaps timestampCaps;
 } CckIpv4TransportData;

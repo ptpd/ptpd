@@ -65,7 +65,7 @@ multicastJoin(CckTransport* transport, TransportAddress* mcastAddr)
     imr.imr_multiaddr.s_addr = mcastAddr->inetAddr4.sin_addr.s_addr;
     imr.imr_interface.s_addr = transport->ownAddress.inetAddr4.sin_addr.s_addr;
 
-    /* multicast send only on specified interface */
+    /* set multicast outbound interface */
     if (setsockopt(transport->fd, IPPROTO_IP, IP_MULTICAST_IF,
            &imr.imr_interface, sizeof(struct in_addr)) < 0) {
         CCK_PERROR("failed to set multicast outbound interface");
@@ -83,7 +83,7 @@ multicastJoin(CckTransport* transport, TransportAddress* mcastAddr)
 		    return CCK_FALSE;
     }
 
-    CCK_DBGV("Joined multicast group %s on %s\n", transport->addressToString(mcastAddr),
+    CCK_DBGV("Joined IPV4 multicast group %s on %s\n", transport->addressToString(mcastAddr),
 						    transport->transportEndpoint);
 
     return CCK_TRUE;
@@ -96,23 +96,21 @@ multicastLeave(CckTransport* transport, TransportAddress* mcastAddr)
 
     struct ip_mreq imr;
 
-    /* multicast send only on specified interface */
     imr.imr_multiaddr.s_addr = mcastAddr->inetAddr4.sin_addr.s_addr;
     imr.imr_interface.s_addr = transport->ownAddress.inetAddr4.sin_addr.s_addr;
 
-    /* leave multicast group (for receiving) on specified interface */
+    /* leave multicast group on specified interface */
     if (setsockopt(transport->fd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
            &imr, sizeof(struct ip_mreq)) < 0) {
-	    CCK_PERROR("failed to leave multicast address %s: ", transport->addressToString(mcastAddr));
+	    CCK_PERROR("failed to leave multicast group %s: ", transport->addressToString(mcastAddr));
 		    return CCK_FALSE;
     }
 
-    CCK_DBG("Sent multicast leave for %s on %s (transport %s)\n", transport->addressToString(mcastAddr),
+    CCK_DBG("Sent IPv4 multicast leave for %s on %s (transport %s)\n", transport->addressToString(mcastAddr),
 								transport->transportEndpoint,
 								transport->header.instanceName);
 
     return CCK_TRUE;
-
 
 }
 
@@ -124,13 +122,13 @@ setMulticastLoopback(CckTransport* transport, CckBool _value)
 
 	if (setsockopt(transport->fd, IPPROTO_IP, IP_MULTICAST_LOOP, 
 	       &value, sizeof(value)) < 0) {
-		CCK_PERROR("Failed to %s multicast loopback on %s",
+		CCK_PERROR("Failed to %s IPv4 multicast loopback on %s",
 			    value ? "enable":"disable",
 			    transport->transportEndpoint);
 		return CCK_FALSE;
 	}
 
-	CCK_DBG("Successfully %s multicast loopback on %s \n", value ? "enabled":"disabled", 
+	CCK_DBG("Successfully %s IPv4 multicast loopback on %s \n", value ? "enabled":"disabled", 
 		    transport->transportEndpoint);
 
 	return CCK_TRUE;
@@ -144,12 +142,12 @@ setMulticastTtl(CckTransport* transport, int _value)
 
 	if (setsockopt(transport->fd, IPPROTO_IP, IP_MULTICAST_TTL,
 	       &value, sizeof(value)) < 0) {
-		CCK_PERROR("Failed to set multicast TTL to %d on %s",
+		CCK_PERROR("Failed to set IPv4 multicast TTL to %d on %s",
 			value, transport->transportEndpoint);
 		return CCK_FALSE;
 	}
 
-	CCK_DBG("Set multicast TTL on %s to %d\n", transport->transportEndpoint, value);
+	CCK_DBG("Set IPv4 multicast TTL on %s to %d\n", transport->transportEndpoint, value);
 
 	return CCK_TRUE;
 }
@@ -237,12 +235,12 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
     CckIpv4TransportData* data = NULL;
 
     if(transport == NULL) {
-	CCK_ERROR("transport init called for an empty transport\n");
+	CCK_ERROR("IPv4 transport init called for an empty transport\n");
 	return -1;
     }
 
     if(config == NULL) {
-	CCK_ERROR("transport init called with empty config\n");
+	CCK_ERROR("IPv4 transport init called with empty config\n");
 	return -1;
     }
 
@@ -254,13 +252,15 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
     transport->fd = socket (PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
     if(transport->fd < 0) {
-	CCK_PERROR("Could not create socket");
+	CCK_PERROR("Could not create IPv4 socket");
 	return -1;
     }
 
     strncpy(transport->transportEndpoint, config->transportEndpoint, PATH_MAX);
 
-    /* Get own address first */
+    transport->ownAddress = config->ownAddress;
+
+    /* Get own address first - or find the desired one if config was populated with it*/
     res = cckGetInterfaceAddress(transport, &transport->ownAddress, AF_INET);
 
     if(res != 1) {
@@ -270,6 +270,22 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
     CCK_DBG("own address: %s\n", transport->addressToString(&transport->ownAddress));
 
     transport->ownAddress.inetAddr4.sin_port = htons(config->sourceId);
+
+    clearTransportAddress(&transport->hardwareAddress);
+
+    if(!cckGetHwAddress(transport->transportEndpoint, &transport->hardwareAddress)) {
+	CCK_DBGV("No suitable hardware adddress found on %s\n",
+			transport->transportEndpoint);
+    } else {
+	CCK_DBGV("%s hardware address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			transport->transportEndpoint,
+			*((CckUInt16*)&transport->hardwareAddress),
+			*((CckUInt8*)&transport->hardwareAddress + 1),
+			*((CckUInt8*)&transport->hardwareAddress + 2),
+			*((CckUInt8*)&transport->hardwareAddress + 3),
+			*((CckUInt8*)&transport->hardwareAddress + 4),
+			*((CckUInt8*)&transport->hardwareAddress + 5));
+    }
 
     /* Assign default destinations */
     transport->defaultDestination = config->defaultDestination;
@@ -283,10 +299,10 @@ cckTransportInit_ipv4 (CckTransport* transport, const CckTransportConfig* config
 	transport->isMulticastAddress(&transport->secondaryDestination)) {
 
 	/* ====== MCAST_INIT_BEGIN ======= */
-CCK_INFO("mcast %s\n", transport->header.instanceName);
+
 	struct sockaddr_in sin;
 	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
+	sin.sin_addr.s_addr = INADDR_ANY;
 	sin.sin_port = htons(config->sourceId);
 	addr = &sin;
 
@@ -313,7 +329,7 @@ CCK_INFO("mcast %s\n", transport->header.instanceName);
 	    if (setMulticastTtl(transport, config->param1)) {
 		data->lastTtl = config->param1;
 	    } else {
-		CCK_DBG("Failed to set multicast TTL=%d on %s\n",
+		CCK_DBG("Failed to set IPv4 multicast TTL=%d on %s\n",
 		    config->param1, transport->transportEndpoint);
 	    }
 	}
@@ -394,13 +410,13 @@ cckTransportShutdown_ipv4 (void* _transport)
 
     if(transport->isMulticastAddress(&transport->defaultDestination) &&
 	    !multicastLeave(transport, &transport->defaultDestination)) {
-	CCK_DBG("Error while leaving multicast group %s\n",
+	CCK_DBG("Error while leaving IPv4 multicast group %s\n",
 		    transport->addressToString(&transport->defaultDestination));
     }
 
     if(transport->isMulticastAddress(&transport->secondaryDestination) &&
 	    !multicastLeave(transport, &transport->secondaryDestination)) {
-	CCK_DBG("Error while leaving multicast group %s\n",
+	CCK_DBG("Error while leaving IPv4 multicast group %s\n",
 		    transport->addressToString(&transport->secondaryDestination));
     }
 
@@ -432,8 +448,6 @@ cckTransportTestConfig_ipv4 (CckTransport* transport, const CckTransportConfig* 
 	CCK_ERROR("transport testCpmfog called with empty config\n");
 	return CCK_FALSE;
     }
-
-
 
     strncpy(transport->transportEndpoint, config->transportEndpoint, PATH_MAX);
 
@@ -584,11 +598,13 @@ cckTransportSend_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 	if(sendto(transport->fd, buf, size, 0,
 		     (struct sockaddr *)&transport->ownAddress,
 	 sizeof(struct sockaddr_in)) <= 0)
-		CCK_DBG("send() Error looping back message\n");
+             CCK_DBG("send() Error looping back IPv4 message on %s (transport \"%s\")\n",
+                        transport->transportEndpoint, transport->header.instanceName);
     }
 
     if (ret <= 0)
-	CCK_DBG("send() Error sending message\n");
+           CCK_DBG("send() Error while sending IPv6 message on %s (transport \"%s\")\n",
+                        transport->transportEndpoint, transport->header.instanceName);
     else
 	transport->sentMessages++;
 
@@ -655,13 +671,13 @@ cckTransportRecv_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 	};
 
 	if (msg.msg_flags & MSG_TRUNC) {
-	    CCK_ERROR("Received truncated message on %s\n",
+	    CCK_ERROR("IPv4 - Received truncated message on %s\n",
 		transport->transportEndpoint);
 	    return 0;
 	}
 
 	if (msg.msg_flags & MSG_CTRUNC) {
-	    CCK_ERROR("Received truncated control message on %s\n",
+	    CCK_ERROR("IPv4 - Received truncated control message on %s\n",
 		transport->transportEndpoint);
 	    return 0;
 	}
@@ -670,7 +686,7 @@ cckTransportRecv_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 	    transport->receivedMessages++;
 
 	if (msg.msg_controllen <= 0) {
-	    CCK_ERROR("Received short control message on %s: (%ld/%ld)\n",
+	    CCK_ERROR("IPv4 - Received short control message on %s: (%lu/%lu)\n",
 			transport->transportEndpoint,
 		        (long)msg.msg_controllen, 
 			(long)sizeof(cmsg_un.control));
@@ -685,7 +701,7 @@ cckTransportRecv_ipv4 (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 
 	/* TODO: cckTimestampEmpty() */
 	if (!timestamp->seconds && !timestamp->nanoseconds) {
-	    CCK_DBG("recv() - no timestamp received on %s\n",
+	    CCK_DBG("recv() IPv4 - no timestamp received on %s\n",
 		transport->transportEndpoint);
 			return 0;
 	}
@@ -728,7 +744,7 @@ cckTransportAddressFromString_ipv4 (const char* addrStr, TransportAddress* out)
 
         ret = CCK_TRUE;
         memcpy(out, info->ai_addr,
-    	    sizeof(struct sockaddr));
+    	    sizeof(struct sockaddr_in));
 	freeaddrinfo(info);
 
     } else {

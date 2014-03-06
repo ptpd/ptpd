@@ -757,7 +757,7 @@ displayOthers(const PtpClock * ptpClock)
 	}
 
 	netPath_display(&ptpClock->netPath);
-	clockUUID_display(ptpClock->netPath.interfaceID);
+	clockUUID_display(ptpClock->transportID);
 	DBGV("\n");
 }
 

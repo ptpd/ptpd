@@ -194,11 +194,14 @@ cckGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr, in
 			continue;
 
 		/* If we have no output pointer, we won't copy but we'll still return true */
-		if(addr!=NULL)
-		    memcpy(addr, ifa->ifa_addr, sizeof(struct sockaddr));
 
+		if(addr!=NULL)
+		    memcpy(addr, ifa->ifa_addr, (addressFamily == AF_INET6) ? 
+						sizeof(struct sockaddr_in6) :
+						sizeof(struct sockaddr_in));
     		ret = 1;
     		goto end;
+
 
 	}
 

@@ -104,12 +104,14 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define PEER_PTP_IPV4_ADDRESS        "224.0.0.107"
 
 /* IPv6 addressing */
-#define DEFAULT_PTP_IPV6_ADDRESS     "FF0X:0:0:0:0:0:0:181"
+#define DEFAULT_PTP_IPV6_ADDRESS     "FF03:0:0:0:0:0:0:181"
 #define PEER_PTP_IPV6_ADDRESS        "FF02:0:0:0:0:0:0:6B"
 
+#define DEFAULT_IPV6_SCOPE           0x0e
+
 /* Ethernet addressing */
-#define DEFAULT_PTP_ETHERNRT_ADDRESS "01:1b:19:00:00:00"
-#define PEER_PTP_ETHERNRT_ADDRESS    "01:80:c2:00:00:0E"
+#define DEFAULT_PTP_ETHERNET_ADDRESS "01:1b:19:00:00:00"
+#define PEER_PTP_ETHERNET_ADDRESS    "01:80:c2:00:00:0E"
 
 #define PTP_ETHER_TYPE 0x88f7
 

@@ -58,6 +58,7 @@ static void doState(RunTimeOpts*,PtpClock*);
 static Boolean receiveData(RunTimeOpts* rtOpts, PtpClock* ptpClock, CckTransport* transport);
 static void handle(RunTimeOpts*,PtpClock*);
 
+/* Message handlers */
 static void handleAnnounce(PtpMessage*, RunTimeOpts*,PtpClock*);
 static void handleSync(PtpMessage*, RunTimeOpts*,PtpClock*);
 static void handleFollowUp(PtpMessage*, RunTimeOpts*,PtpClock*);
@@ -68,8 +69,10 @@ static void handleDelayResp(PtpMessage*, RunTimeOpts*,PtpClock*);
 static void handlePDelayRespFollowUp(PtpMessage*, RunTimeOpts*,PtpClock*);
 static void handleManagement(PtpMessage*, RunTimeOpts*,PtpClock*);
 static void handleSignaling(PtpMessage*, RunTimeOpts*,PtpClock*);
+
 static void updateDatasets(PtpClock* ptpClock, RunTimeOpts* rtOpts);
 
+/* Message generators */
 static void issueAnnounce(RunTimeOpts*,PtpClock*);
 static void issueSync(RunTimeOpts*,PtpClock*);
 static void issueFollowup(const TimeInternal*,RunTimeOpts*,PtpClock*, const UInteger16);
@@ -336,7 +339,7 @@ void
 toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	ptpClock->message_activity = TRUE;
-	
+
 	/* leaving state tasks */
 	switch (ptpClock->portState)
 	{
@@ -346,10 +349,10 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer); 
 		timerStop(MASTER_NETREFRESH_TIMER, ptpClock->itimer); 
 		break;
-		
+
 	case PTP_SLAVE:
 		timerStop(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer);
-		
+
 		if (ptpClock->delayMechanism == E2E)
 			timerStop(DELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
 		else if (ptpClock->delayMechanism == P2P)
@@ -371,20 +374,20 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(PANIC_MODE_TIMER, ptpClock->itimer);
 		initClock(rtOpts, ptpClock); 
 		break;
-		
+
 	case PTP_PASSIVE:
 		timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
 		timerStop(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer);
 		break;
-		
+
 	case PTP_LISTENING:
 		timerStop(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer);
 		break;
-		
+
 	default:
 		break;
 	}
-	
+
 	/* entering state tasks */
 
 	ptpClock->counters.stateTransitions++;
@@ -410,28 +413,28 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 * No need of PRE_MASTER state because of only ordinary clock
 	 * implementation.
 	 */
-	
+
 	switch (state)
 	{
 	case PTP_INITIALIZING:
 		ptpClock->portState = PTP_INITIALIZING;
 		break;
-		
+
 	case PTP_FAULTY:
 		ptpClock->portState = PTP_FAULTY;
 		break;
-		
+
 	case PTP_DISABLED:
 		ptpClock->portState = PTP_DISABLED;
 		break;
-		
+
 	case PTP_LISTENING:
 		/* in Listening mode, make sure we don't send anything. Instead we just expect/wait for announces (started below) */
 		timerStop(SYNC_INTERVAL_TIMER,      ptpClock->itimer);
 		timerStop(ANNOUNCE_INTERVAL_TIMER,  ptpClock->itimer);
 		timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
 		timerStop(DELAYREQ_INTERVAL_TIMER,  ptpClock->itimer);
-		
+
 		/*
 		 *  Count how many _unique_ timeouts happen to us.
 		 *  If we were already in Listen mode, then do not count this as a seperate reset, but stil do a new IGMP refresh
@@ -576,16 +579,16 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 		clearTime(&ptpClock->pdelay_req_receive_time);
 		clearTime(&ptpClock->pdelay_resp_send_time);
 		clearTime(&ptpClock->pdelay_resp_receive_time);
-		
+
 		timerStart(OPERATOR_MESSAGES_TIMER,
 			   OPERATOR_MESSAGES_INTERVAL,
 			   ptpClock->itimer);
-		
+
 		timerStart(ANNOUNCE_RECEIPT_TIMER,
 			   (ptpClock->announceReceiptTimeout) * 
 			   (pow(2,ptpClock->logAnnounceInterval)), 
 			   ptpClock->itimer);
-		
+
 		/*
 		 * Previously, this state transition would start the
 		 * delayreq timer immediately.  However, if this was
@@ -688,7 +691,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 #endif /* HAVE_SYS_TIMEX_H */
 	m1(rtOpts, ptpClock );
 	msgPackHeader(ptpClock->msgObuf, ptpClock);
-	
+
 	toState(PTP_LISTENING, rtOpts, ptpClock);
 
 	if(rtOpts->statusLog.logEnabled)
@@ -703,9 +706,9 @@ static void
 doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	UInteger8 state;
-	
+
 	ptpClock->message_activity = FALSE;
-	
+
 	/* Process record_update (BMC algorithm) before everything else */
 	switch (ptpClock->portState)
 	{
@@ -730,12 +733,12 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				toState(state, rtOpts, ptpClock);
 		}
 		break;
-		
+
 	default:
 		break;
 	}
-	
-	
+
+
 	switch (ptpClock->portState)
 	{
 	case PTP_FAULTY:
@@ -743,14 +746,14 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		DBG("event FAULT_CLEARED\n");
 		toState(PTP_INITIALIZING, rtOpts, ptpClock);
 		return;
-		
+
 	case PTP_LISTENING:
 	case PTP_UNCALIBRATED:
 	case PTP_SLAVE:
 	// passive mode behaves like the SLAVE state, in order to wait for the announce timeout of the current active master
 	case PTP_PASSIVE:
 		handle(rtOpts, ptpClock);
-		
+
 		/*
 		 * handle SLAVE timers:
 		 *   - No Announce message was received
@@ -965,7 +968,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	case PTP_DISABLED:
 		handle(rtOpts, ptpClock);
 		break;
-		
+
 	default:
 		DBG("(doState) do unrecognized state\n");
 		break;
@@ -1317,7 +1320,7 @@ handleAnnounce(PtpMessage* message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			ptpClock->counters.ignoredAnnounce++;
 			return;
 		}
-		
+
 		/*
 		 * Valid announce message is received : BMC algorithm
 		 * will be executed 
@@ -1473,7 +1476,7 @@ handleAnnounce(PtpMessage* message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 		break;
 
-		
+
 	case PTP_MASTER:
 	case PTP_LISTENING:           /* listening mode still causes timeouts in order to call network refresh */
 	default :
@@ -1508,7 +1511,7 @@ handleSync(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		DBGV("HandleSync : disregard\n");
 		ptpClock->counters.discardedMessages++;
 		return;
-		
+
 	case PTP_UNCALIBRATED:
 	case PTP_SLAVE:
 		if (message->isFromSelf) {
@@ -1633,7 +1636,7 @@ handleFollowUp(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		DBGV("Handfollowup : disregard\n");
 		ptpClock->counters.discardedMessages++;
 		return;
-		
+
 	case PTP_UNCALIBRATED:	
 	case PTP_SLAVE:
 		if (isFromCurrentParent(ptpClock, &message->header)) {
@@ -1881,7 +1884,7 @@ handleDelayResp(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 					// collect new value indicated from the Master
 					ptpClock->logMinDelayReqInterval = message->header.logMessageInterval;
-					
+
 					/* FIXME: the actual rearming of this timer with the new value only happens later in doState()/issueDelayReq() */
 				} else {
 
@@ -1973,7 +1976,7 @@ processPDelayReqFromSelf(const TimeInternal * tint, RunTimeOpts * rtOpts, PtpClo
 	 */
 	ptpClock->pdelay_req_send_time.seconds = tint->seconds;
 	ptpClock->pdelay_req_send_time.nanoseconds = tint->nanoseconds;
-			
+
 	/*Add latency*/
 	addTime(&ptpClock->pdelay_req_send_time,
 		&ptpClock->pdelay_req_send_time,
@@ -2039,7 +2042,7 @@ handlePDelayResp(PtpMessage *message,
 					/*Store t4 (Fig 35)*/
 					ptpClock->pdelay_resp_receive_time.seconds = message->timeStamp->seconds;
 					ptpClock->pdelay_resp_receive_time.nanoseconds = message->timeStamp->nanoseconds;
-					
+
 					integer64_to_internalTime(message->header.correctionField,&correctionField);
 					updatePeerDelay (&ptpClock->owd_filt,rtOpts,ptpClock,&correctionField,FALSE);
 				}
@@ -2791,7 +2794,7 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 	Boolean found = FALSE;
 
 	j = ptpClock->foreign_record_best;
-	
+
 	/*Check if Foreign master is already known*/
 	for (i=0;i<ptpClock->number_foreign_records;i++) {
 		if (!memcmp(header->sourcePortIdentity.clockIdentity,
@@ -2808,7 +2811,7 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 			msgUnpackAnnounce(buf,&ptpClock->foreign[j].foreignMasterData.body.announce);
 			break;
 		}
-	
+
 		j = (j+1)%ptpClock->number_foreign_records;
 	}
 
@@ -2819,14 +2822,14 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 			ptpClock->number_foreign_records++;
 		}
 		j = ptpClock->foreign_record_i;
-		
+
 		/*Copy new foreign master data set from Announce message*/
 		copyClockIdentity(ptpClock->foreign[j].foreignMasterPortIdentity.clockIdentity,
 		       header->sourcePortIdentity.clockIdentity);
 		ptpClock->foreign[j].foreignMasterPortIdentity.portNumber = 
 			header->sourcePortIdentity.portNumber;
 		ptpClock->foreign[j].foreignMasterAnnounceMessages = 0;
-		
+
 		/*
 		 * header and announce field of each Foreign Master are
 		 * usefull to run Best Master Clock Algorithm
@@ -2834,7 +2837,7 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 		msgUnpackHeader(buf,&ptpClock->foreign[j].foreignMasterData.header);
 		msgUnpackAnnounce(buf,&ptpClock->foreign[j].foreignMasterData.body.announce);
 		DBGV("New foreign Master added \n");
-		
+
 		ptpClock->foreign_record_i = 
 			(ptpClock->foreign_record_i+1) % 
 			ptpClock->max_foreign_records;	

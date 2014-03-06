@@ -250,6 +250,8 @@ struct CckTransport {
 	int fd;
 	/* container for implementation-specific data */
 	void* transportData;
+	/* hardware address, if any */
+	TransportAddress hardwareAddress;
 	/* own address, useful for verifying if data is from self, looping data, etc. */
 	TransportAddress ownAddress;
 	/* decondary source identifier - port for UDP, ethertype for Ethernet, etc. */

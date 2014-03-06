@@ -96,13 +96,7 @@ typedef struct {
 * \brief Struct describing network transport data
  */
 typedef struct {
-
-	TransportAddress ownAddress;
-	/* Interface address and capability descriptor */
-	InterfaceInfo interfaceInfo;
-	/* Typically MAC address - outer 6 octers of ClockIdendity */
-	Octet interfaceID[ETHER_ADDR_LEN];
-
+    int nothing;
 } NetPath;
 
 typedef struct {
