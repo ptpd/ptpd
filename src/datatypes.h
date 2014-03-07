@@ -965,6 +965,6 @@ typedef struct {
 
 } RunTimeOpts;
 
-
+typedef void ( *PtpMessageHandler )( PtpMessage*, RunTimeOpts*, PtpClock* );
 
 #endif /*DATATYPES_H_*/

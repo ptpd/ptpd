@@ -88,7 +88,7 @@ setupCckTransport(CckTransport* transport, int transportType, const char* instan
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_NULL, null);
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_SOCKET_UDP_IPV4, socket_ipv4);
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_SOCKET_UDP_IPV6, socket_ipv6);
-    CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_SOCKET_ETHERNET, socket_ethernet);
+    CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_PCAP_ETHERNET, pcap_ethernet);
 
 /* ============ TRANSPORT IMPLEMENTATIONS END ============== */
 
@@ -105,6 +105,9 @@ setupCckTransport(CckTransport* transport, int transportType, const char* instan
 void
 freeCckTransport(CckTransport** transport)
 {
+
+    if(transport==NULL)
+	    return;
 
     if(*transport==NULL)
 	    return;

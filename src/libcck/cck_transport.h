@@ -234,7 +234,7 @@ struct CckTransport {
 	TransportAddress hardwareAddress;
 	/* own address, useful for verifying if data is from self, looping data, etc. */
 	TransportAddress ownAddress;
-	/* decondary source identifier - port for UDP, ethertype for Ethernet, etc. */
+	/* secondary source identifier - port for UDP, ethertype for Ethernet, etc. */
 	CckUInt16 ownSourceId;
 	/* destination data is sent to if not specified in send() */
 	TransportAddress defaultDestination;
@@ -311,14 +311,14 @@ enum {
 	CCK_TRANSPORT_NULL = 0,
 	CCK_TRANSPORT_SOCKET_UDP_IPV4,
 	CCK_TRANSPORT_SOCKET_UDP_IPV6,
-	CCK_TRANSPORT_SOCKET_ETHERNET
+	CCK_TRANSPORT_PCAP_ETHERNET
 };
 
 /* transport implementation headers */
 #include "transport/cck_transport_null.h"
 #include "transport/cck_transport_socket_ipv4.h"
 #include "transport/cck_transport_socket_ipv6.h"
-#include "transport/cck_transport_socket_ethernet.h"
+#include "transport/cck_transport_pcap_ethernet.h"
 
 /* ============ TRANSPORT IMPLEMENTATIONS END ============== */
 

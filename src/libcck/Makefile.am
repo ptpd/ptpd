@@ -47,8 +47,8 @@ libcck_la_SOURCES = 			\
 	transport/cck_transport_socket_ipv4.c	\
 	transport/cck_transport_socket_ipv6.h	\
 	transport/cck_transport_socket_ipv6.c	\
-	transport/cck_transport_socket_ethernet.h	\
-	transport/cck_transport_socket_ethernet.c
+	transport/cck_transport_pcap_ethernet.h	\
+	transport/cck_transport_pcap_ethernet.c
 
 libcck_la_LDFLAGS = -version-info 1:0:1 -static
 libcck_SHORTNAME = cck

@@ -1030,7 +1030,7 @@ isTimingMessage(const PtpMessage* message)
 
 	int t = message->header.messageType;
 
-	if( t == 0x0 || t == 0x1 || t == 0x8 || t == 0x09 || 0x0a  ) return TRUE;
+	if( t == SYNC || t == DELAY_REQ || t == FOLLOW_UP || t == DELAY_RESP || ANNOUNCE ) return TRUE;
 
 	return FALSE;
 
@@ -1047,6 +1047,21 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 {
 
     Boolean isFromSelf;
+
+    /* static const table of message handlers */
+    static const PtpMessageHandler messageHandlers[] = {
+        [SYNC] = handleSync,
+        [DELAY_REQ] = handleDelayReq,
+        [PDELAY_REQ] = handlePDelayReq,
+        [PDELAY_RESP] = handlePDelayResp,
+        [FOLLOW_UP] = handleFollowUp,
+        [DELAY_RESP] = handleDelayResp,
+        [PDELAY_RESP_FOLLOW_UP] = handlePDelayRespFollowUp,
+        [ANNOUNCE] = handleAnnounce,
+	[SIGNALING] = handleSignaling,
+        [MANAGEMENT] = handleManagement
+    };
+
 
     /* This is what our data will be unpacked to */
     PtpMessage message;
@@ -1180,54 +1195,25 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 	    message.isFromSelf ? "from self " : "");
 #endif
 
-    /*
-     * Message has passed all checks and all information has been collected.
-     * Call the message handler. This could be offloaded to an array of function pointers,
-     * since all message handlers take the exact same arguments now.
-     */
 
-    switch(message.header.messageType)
-    {
-    case ANNOUNCE:
-	handleAnnounce(&message, rtOpts, ptpClock);
-	break;
-    case SYNC:
-	handleSync(&message, rtOpts, ptpClock);
-	break;
-    case FOLLOW_UP:
-	handleFollowUp(&message, rtOpts, ptpClock);
-	break;
-    case DELAY_REQ:
-	handleDelayReq(&message, rtOpts, ptpClock);
-	break;
-    case PDELAY_REQ:
-	handlePDelayReq(&message, rtOpts, ptpClock);
-	break;  
-    case DELAY_RESP:
-	handleDelayResp(&message, rtOpts, ptpClock);
-	break;
-    case PDELAY_RESP:
-	handlePDelayResp(&message, rtOpts, ptpClock);
-	break;
-    case PDELAY_RESP_FOLLOW_UP:
-	handlePDelayRespFollowUp(&message, rtOpts, ptpClock);
-	break;
-    case MANAGEMENT:
-	handleManagement(&message, rtOpts, ptpClock);
-	break;
-    case SIGNALING:
-	handleSignaling(&message, rtOpts, ptpClock);
-	break;
-    default:
-	DBG("handle: unrecognized message\n");
-	ptpClock->counters.discardedMessages++;
-	ptpClock->counters.unknownMessages++;
-	break;
+    /* check if we have a handler for the message */
+    if ((message.header.messageType > MANAGEMENT) ||
+	    (messageHandlers[message.header.messageType] == 0)) {
+	    DBG("handle: unrecognized message\n");
+	    ptpClock->counters.discardedMessages++;
+	    ptpClock->counters.unknownMessages++;
+
+    } else {
+
+	    /*
+    	     * Message has passed all checks and all information has been collected.
+    	     * Call the message handler.
+	     */
+	    messageHandlers[message.header.messageType](&message, rtOpts, ptpClock);
     }
 
     if (rtOpts->displayPackets)
 	msgDump(&message);
-
 
 }
 
@@ -1637,7 +1623,7 @@ handleFollowUp(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->counters.discardedMessages++;
 		return;
 
-	case PTP_UNCALIBRATED:	
+	case PTP_UNCALIBRATED:
 	case PTP_SLAVE:
 		if (isFromCurrentParent(ptpClock, &message->header)) {
 			ptpClock->counters.followUpMessagesReceived++;
@@ -1791,11 +1777,11 @@ processDelayReqFromSelf(const TimeInternal * tint, RunTimeOpts * rtOpts, PtpCloc
 	addTime(&ptpClock->delay_req_send_time,
 		&ptpClock->delay_req_send_time,
 		&rtOpts->outboundLatency);
-	
+
 	DBGV("processDelayReqFromSelf: %s %d\n",
 	    dump_TimeInternal(&ptpClock->delay_req_send_time),
 	    rtOpts->outboundLatency);
-	
+
 }
 
 static void

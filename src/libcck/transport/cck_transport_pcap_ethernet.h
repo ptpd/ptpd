@@ -29,14 +29,14 @@
 
 
 /**
- * @file   cck_transport_socket_ethernet.h
+ * @file   cck_transport_pcap_ethernet.h
  * 
  * @brief  libCCK ethernet transport public method definitions
  *
  */
 
-#ifndef CCK_TRANSPORT_SOCKET_ETHERNET_H_
-#define CCK_TRANSPORT_SOCKET_ETHERNET_H_
+#ifndef CCK_TRANSPORT_PCAP_ETHERNET_H_
+#define CCK_TRANSPORT_PCAP_ETHERNET_H_
 
 #ifndef CCK_H_INSIDE_
 //#error libCCK component headers should not be uncluded directly - please include cck.h only.
@@ -45,6 +45,19 @@
 #include "../cck.h"
 #include "../cck_transport.h"
 
-void	cckTransportSetup_socket_ethernet(CckTransport* transport);
+#include <sys/socket.h>
+#include <netpacket/packet.h>
+#include <net/ethernet.h>
 
-#endif /* CCK_TRANSPORT_SOCKET_ETHERNET_H_ */
+typedef struct {
+
+    int     bufSize;
+    int     socket;
+    pcap_t* sender;
+    pcap_t* receiver;
+
+} CckPcapEndpoint;
+
+void	cckTransportSetup_pcap_ethernet(CckTransport* transport);
+
+#endif /* CCK_TRANSPORT_PCAP_ETHERNET_H_ */

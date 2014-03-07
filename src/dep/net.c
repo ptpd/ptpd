@@ -68,17 +68,28 @@
 #endif
 
 
-/* shut down network transports */
+/* shut down network transports and ACLs - simple. no errors are reported here */
 Boolean 
 netShutdown(RunTimeOpts* rtOpts, PtpClock* ptpClock)
 {
 
-	freeCckTransport(&ptpClock->generalTransport);
+	/* libCCK free** functions call shutdown() and de-register components for us */
+
+	/* TODO: walk-and-shutdown from registry by component type, don't do it with individual instances! */
+
 	freeCckTransport(&ptpClock->eventTransport);
 
+	/* when running Ethernet transport, this is a pointer to the above */
+	if(rtOpts->transport != IEEE_802_3) {
+	    freeCckTransport(&ptpClock->generalTransport);
+	}
+
 	if(rtOpts->delayMechanism == P2P) {
-	    freeCckTransport(&ptpClock->peerGeneralTransport);
 	    freeCckTransport(&ptpClock->peerEventTransport);
+	    /* when running Ethernet transport, this is a pointer to the above */
+	    if(rtOpts->transport != IEEE_802_3) {
+		freeCckTransport(&ptpClock->peerGeneralTransport);
+	    }
 	}
 
 	freeCckAcl(&ptpClock->timingAcl);
@@ -87,7 +98,7 @@ netShutdown(RunTimeOpts* rtOpts, PtpClock* ptpClock)
 	return TRUE;
 }
 
-/* start up network transports */
+/* prepare start up network transports, return false on error */
 Boolean
 netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
@@ -95,8 +106,10 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	char* defDest = NULL;
 	char* pDest = NULL;
 
+	/* glorified constructor argument list I suppose */
 	CckTransportConfig config;
 
+	/* init protocol addresses depending on transport type */
 	switch(rtOpts->transport) {
 
 		case UDP_IPV4:
@@ -112,10 +125,10 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		case IEEE_802_3:
 		    defDest = DEFAULT_PTP_ETHERNET_ADDRESS;
 		    pDest = PEER_PTP_ETHERNET_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_ETHERNET;
+		    rtOpts->transportType = CCK_TRANSPORT_PCAP_ETHERNET;
 		    break;
 		default:
-		    ERROR("Unsupported transport: %d\n",
+		    ERROR("Unsupported transport: %02x\n",
 			    rtOpts->transport);
 	}
 
@@ -127,88 +140,139 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* create standard transports */
 
 	ptpClock->eventTransport = createCckTransport(rtOpts->transportType, "event");
-	ptpClock->generalTransport = createCckTransport(rtOpts->transportType, "general");
-
 	ptpClock->eventTransport->unicastCallback = setPtpUnicastFlags;
-	ptpClock->generalTransport->unicastCallback = setPtpUnicastFlags;
-
 	ptpClock->eventTransport->watcher = &ptpClock->watcher;
-	ptpClock->generalTransport->watcher = &ptpClock->watcher;
 
-	/* init event transport */
+	/* PTP over Ethernet effectively uses one none-peer transport */
+	if(rtOpts->transport != IEEE_802_3) {
+	    ptpClock->generalTransport = createCckTransport(rtOpts->transportType, "general");
+	    ptpClock->generalTransport->unicastCallback = setPtpUnicastFlags;
+	    ptpClock->generalTransport->watcher = &ptpClock->watcher;
+	} else {
+	    ptpClock->generalTransport = ptpClock->eventTransport;
+	}
 
-	config.sourceId = PTP_EVENT_PORT;
-	config.destinationId = PTP_EVENT_PORT;
+
+	/* prepare event transport */
+
+	/* libCCK Ethernet transport uses source/destid to set ethertype */
+	if(rtOpts->transport == IEEE_802_3) {
+	    config.sourceId = PTP_ETHER_TYPE;
+	    config.destinationId = PTP_ETHER_TYPE;
+	    config.param1 = PACKET_SIZE;
+	} else {
+	    config.sourceId = PTP_EVENT_PORT;
+	    config.destinationId = PTP_EVENT_PORT;
+	    config.param1 = rtOpts->ttl;
+	}
+
 	config.swTimestamping = CCK_TRUE;
-	config.param1 = rtOpts->ttl;
 	config.param2 = rtOpts->dscpValue;
 
+	/* populate config with source address if set - transport will try to bind to this source */
 	if(strlen(rtOpts->sourceAddress)>0) {
 		if (!(ptpClock->eventTransport->addressFromString(rtOpts->sourceAddress,
 					    &config.ownAddress)))
 		    return FALSE;
 	}
 
+	/* set unicast destination if provided */
 	if(strlen(rtOpts->unicastAddress)>0) {
 		if (!(ptpClock->eventTransport->addressFromString(rtOpts->unicastAddress,
 				    &config.defaultDestination)))
 		    return FALSE;
+	/* otherwise use default destination for both transports, but set scope if IPv6 */
 	} else {
 		if (!(ptpClock->eventTransport->addressFromString(defDest,
 				    &config.defaultDestination)))
 		return FALSE;
-
 		if(rtOpts->transport == UDP_IPV6)
 		    config.defaultDestination.inetAddr6.sin6_addr.s6_addr[1] = rtOpts->ipv6Scope;
 	}
 
+	/* showtime - start up event transport */
 	if((ptpClock->eventTransport->init(ptpClock->eventTransport, &config)) < 1)
 	    return FALSE;
 
-	/* init general transport */
-	config.sourceId = PTP_GENERAL_PORT;
-	config.destinationId = PTP_GENERAL_PORT;
-	config.swTimestamping = CCK_FALSE;
+	/* PTP over Ethernet not use separate event / general transports, just one non-peer and one peer */
+	if(rtOpts->transport != IEEE_802_3) {
 
-	if((ptpClock->generalTransport->init(ptpClock->generalTransport, &config)) < 1)
-	    return FALSE;
+		/* prepare general transport - it shares most settings with event transport */
+		config.sourceId = PTP_GENERAL_PORT;
+		config.destinationId = PTP_GENERAL_PORT;
+		config.swTimestamping = CCK_FALSE;
 
-	/* init P2P transports */
+		/* showtime - start up general transport */
+		if((ptpClock->generalTransport->init(ptpClock->generalTransport, &config)) < 1)
+			return FALSE;
+	}
+
+	/* init P2P transport(s)*/
+
 	if(rtOpts->delayMechanism == P2P) {
 
+	    /* create peer transports */
 	    ptpClock->peerEventTransport = createCckTransport(rtOpts->transportType, "peerEvent");
-	    ptpClock->peerGeneralTransport = createCckTransport(rtOpts->transportType, "peerGeneral");
-
 	    ptpClock->peerEventTransport->unicastCallback = setPtpUnicastFlags;
-	    ptpClock->peerGeneralTransport->unicastCallback = setPtpUnicastFlags;
 	    ptpClock->peerEventTransport->watcher = &ptpClock->watcher;
-	    ptpClock->peerGeneralTransport->watcher = &ptpClock->watcher;
 
-	    /* peer event transport config - ttl 1 */
-	    config.sourceId = PTP_EVENT_PORT;
-	    config.destinationId = PTP_EVENT_PORT;
+	    /* PTP over Ethernet effectively uses one peer transport */
+	    if(rtOpts->transport != IEEE_802_3) {
+		ptpClock->peerGeneralTransport = createCckTransport(rtOpts->transportType, "peerGeneral");
+		ptpClock->peerGeneralTransport->unicastCallback = setPtpUnicastFlags;
+		ptpClock->peerGeneralTransport->watcher = &ptpClock->watcher;
+	    } else {
+		ptpClock->peerGeneralTransport = ptpClock->peerEventTransport;
+	    }
+
+	    /* prepare peer event transport */
+
+
 	    config.swTimestamping = CCK_TRUE;
-	    config.param1 = 1;
 
+	    /* libCCK Ethernet transport uses source/destid to set ethertype */
+	    if(rtOpts->transport == IEEE_802_3) {
+		config.sourceId = PTP_ETHER_TYPE;
+		config.destinationId = PTP_ETHER_TYPE;
+		config.param1 = PACKET_SIZE;
+	    } else {
+		config.sourceId = PTP_EVENT_PORT;
+		config.destinationId = PTP_EVENT_PORT;
+		/* peer transport config - ttl 1 */
+		config.param1 = 1;
+	    }
+
+	    /* only the peer destination is used for p2p - correct? */
 	    if (!(ptpClock->peerEventTransport->addressFromString(pDest,
 				    &config.defaultDestination)))
 		return FALSE;
+
+	    /* showtime - start up peer event transport */
 	    if((ptpClock->peerEventTransport->init(ptpClock->peerEventTransport, &config)) < 1)
 		return FALSE;
 
-	    config.sourceId = PTP_GENERAL_PORT;
-	    config.destinationId = PTP_GENERAL_PORT;
-	    config.swTimestamping = CCK_FALSE;
+	    /* PTP over Ethernet not use separate event / general transports, just one non-peer and one peer */
+	    if(rtOpts->transport != IEEE_802_3) {
 
-	    if (!(ptpClock->peerGeneralTransport->addressFromString(PEER_PTP_IPV6_ADDRESS,
+		    /* prepare peer general transport */
+
+		    config.sourceId = PTP_GENERAL_PORT;
+		    config.destinationId = PTP_GENERAL_PORT;
+		    config.swTimestamping = CCK_FALSE;
+
+	    /* only the peer destination is used for p2p - correct? */
+		    if (!(ptpClock->peerGeneralTransport->addressFromString(pDest,
 				    &config.defaultDestination)))
-		return FALSE;
-	    if((ptpClock->peerGeneralTransport->init(ptpClock->peerGeneralTransport, &config)) < 1)
-		return FALSE;
+			return FALSE;
 
+		    /* showtime - start up peer general transport */
+		    if((ptpClock->peerGeneralTransport->init(ptpClock->peerGeneralTransport, &config)) < 1)
+			return FALSE;
+	    }
 	}
 
-	/* Compile ACLs */
+	/* Compile ACLs corresponding to transport types*/
+
 	if(rtOpts->timingAclEnabled) {
     		freeCckAcl(&ptpClock->timingAcl);
 		ptpClock->timingAcl = createCckAcl(ptpClock->eventTransport->aclType,
@@ -217,6 +281,7 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 						rtOpts->timingAclPermitText,
 						rtOpts->timingAclDenyText);
 	}
+
 	if(rtOpts->managementAclEnabled) {
     		freeCckAcl(&ptpClock->managementAcl);
 		ptpClock->managementAcl = createCckAcl(ptpClock->eventTransport->aclType,
@@ -227,11 +292,14 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 
-	/* Try to init transport ID */
+	/* Try to init transport ID - our transports should have collected the hardware address already */
 
-        /* No HW address, we'll use the protocol address to form interfaceID -> clockID */
         if(transportAddressEmpty(&ptpClock->eventTransport->hardwareAddress)) {
+
+    	    /* No HW address, we'll use the protocol address to form interfaceID -> clockID. Not 1588 compliant, but allows to use any interface */
+
 	    Octet* addr = NULL;
+	    /* stick the outer octets of the L3 address into the outer octers of the "fake MAC" address */
 	    switch(rtOpts->transport) {
 		case UDP_IPV4:
 		    addr=(Octet*)&(ptpClock->eventTransport->ownAddress.inetAddr4.sin_addr.s_addr);
@@ -244,15 +312,16 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		    memcpy(ptpClock->transportID + 3, addr + 12, 2);
 		    break;
 		/*
-		    Other transport types supported by PTP are L2 based,
-		    so we shouldn't be here if we don't have one.
+		    Other transport types supported by PTP are all Ethernet based,
+		    so we shouldn't be here if we don't have a MAC address
 		*/
 		default:
 		    ERROR("Cannot run layer 2 transport with no hardware address \n");
 		    return FALSE;
 	    }
 
-	       CCK_DBGV("Transport ID generated for %s:  %02x:%02x:%02x:%02x:%02x:%02x\n",
+	    /* meh.... */
+	    CCK_DBGV("Transport ID generated for %s: %02x:%02x:%02x:%02x:%02x:%02x\n",
                         rtOpts->ifaceName,
                         *((CckUInt8*)&ptpClock->transportID),
                         *((CckUInt8*)&ptpClock->transportID + 1),
@@ -260,7 +329,8 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
                         *((CckUInt8*)&ptpClock->transportID + 3),
                         *((CckUInt8*)&ptpClock->transportID + 4),
                         *((CckUInt8*)&ptpClock->transportID + 5));
-        /* Initialise interfaceID with hardware address */
+
+        /* Otherwise initialise interfaceID with hardware address */
         } else {
                 memcpy(ptpClock->transportID, &ptpClock->eventTransport->hardwareAddress, 6);
         }
@@ -268,7 +338,7 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	return TRUE;
 }
 
-/* test network configuration - like a netInit dry run */
+/* test network configuration - like a netInit dry run, minus actual transport startup. return false on error */
 Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 
 	INFO("Testing network configuration\n");
@@ -279,6 +349,8 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 	Boolean ret = FALSE;
 
 	CckTransportConfig config;
+
+	memset(&config, 0, sizeof(CckTransportConfig));
 
 	switch(rtOpts->transport) {
 
@@ -295,33 +367,45 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 		case IEEE_802_3:
 		    defDest = DEFAULT_PTP_ETHERNET_ADDRESS;
 		    pDest = PEER_PTP_ETHERNET_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_ETHERNET;
+		    rtOpts->transportType = CCK_TRANSPORT_PCAP_ETHERNET;
+		    config.param1 = PACKET_SIZE;
 		    break;
 		default:
 		    ERROR("Unsupported transport: %d\n",
 			    rtOpts->transport);
 	}
 
-	/* create test transport */
+	/* create a test transport */
 	CckTransport* transport = createCckTransport(rtOpts->transportType, "testNetworkConfig");
 
-	memset(&config, 0, sizeof(CckTransportConfig));
+
 
 	config.transportType = rtOpts->transportType;
+
 	strncpy(config.transportEndpoint, rtOpts->ifaceName, IFACE_NAME_LENGTH);
 
-	/* test event transport */
-	config.sourceId = PTP_EVENT_PORT;
-	config.destinationId = PTP_EVENT_PORT;
+	/* set up test transport with event transport settings */
+
+	/* libCCK Ethernet transport uses source/destid to set ethertype */
+	if(rtOpts->transport == IEEE_802_3) {
+	    config.sourceId = PTP_ETHER_TYPE;
+	    config.destinationId = PTP_ETHER_TYPE;
+	} else {
+	    config.sourceId = PTP_EVENT_PORT;
+	    config.destinationId = PTP_EVENT_PORT;
+	}
+
 	config.swTimestamping = CCK_TRUE;
 	config.param1 = rtOpts->ttl;
 	config.param2 = rtOpts->dscpValue;
 
+	/* init source address if provided */
 	if(strlen(rtOpts->sourceAddress)>0) {
 		if (!(transport->addressFromString(rtOpts->sourceAddress, &config.ownAddress)))
 		    goto end;
 	}
 
+	/*  init unicast destination - do not accept a multicast address as unicast dest - those are restricted by IEEE 1588 */
 	if(strlen(rtOpts->unicastAddress)>0) {
 		if (!(transport->addressFromString(rtOpts->unicastAddress, &config.defaultDestination)))
 		    goto end;
@@ -330,42 +414,23 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 			goto end;
 		}
 	} else {
+		/* default destination */
 		if (!(transport->addressFromString(defDest, &config.defaultDestination)))
 		goto end;
 
+		/* ipv6 multicast scope - luckily the PTP multicast IPv6 addresses have zeros in third nibble */
 		if(rtOpts->transport == UDP_IPV6)
 		    config.defaultDestination.inetAddr6.sin6_addr.s6_addr[1] = rtOpts->ipv6Scope;
 	}
 
+	/* showtime - test event transport settings */
 	if((transport->testConfig(transport, &config)) < 1)
 	    goto end;
 
-	/* test general transport */
-	config.sourceId = PTP_GENERAL_PORT;
-	config.destinationId = PTP_GENERAL_PORT;
-	config.swTimestamping = CCK_FALSE;
+	/* PTP over Ethernet not use separate event / general transports, just one non-peer and one peer */
+	if(rtOpts->transport != IEEE_802_3) {
 
-	if((transport->testConfig(transport, &config)) < 1)
-	    goto end;
-
-
-	/* test P2P transports */
-	if(rtOpts->delayMechanism == P2P) {
-
-	    /* peer event transport config - ttl 1 */
-	    config.sourceId = PTP_EVENT_PORT;
-	    config.destinationId = PTP_EVENT_PORT;
-	    config.swTimestamping = CCK_TRUE;
-	    config.param1 = 1;
-
-	    if (!(transport->addressFromString(pDest,
-							    &config.defaultDestination)))
-		goto end;
-
-
-	    if((transport->testConfig(transport, &config)) < 1)
-		goto end;
-
+	    /* test general transport */
 	    config.sourceId = PTP_GENERAL_PORT;
 	    config.destinationId = PTP_GENERAL_PORT;
 	    config.swTimestamping = CCK_FALSE;
@@ -373,8 +438,52 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 	    if((transport->testConfig(transport, &config)) < 1)
 		goto end;
 
+	}
+
+	/* test P2P transports */
+	if(rtOpts->delayMechanism == P2P) {
+
+	    /* set up test peer event transport config */
+
+	    /* ttl 1 for the transports that respect this*/
+	    config.param1 = 1;
+
+	    /* libCCK Ethernet transport uses source/destid to set ethertype */
+	    if(rtOpts->transport == IEEE_802_3) {
+		config.sourceId = PTP_ETHER_TYPE;
+		config.destinationId = PTP_ETHER_TYPE;
+	    } else {
+		config.sourceId = PTP_EVENT_PORT;
+		config.destinationId = PTP_EVENT_PORT;
+	    }
+
+	    config.swTimestamping = CCK_TRUE;
+
+	    if (!(transport->addressFromString(pDest,
+			    &config.defaultDestination)))
+		goto end;
+
+	    /* showtime - test peer event transport settings */
+	    if((transport->testConfig(transport, &config)) < 1)
+		goto end;
+
+	    /* PTP over Ethernet not use separate event / general transports, just one non-peer and one peer */
+	    if(rtOpts->transport != IEEE_802_3) {
+
+		/* set up test peer general transport config */
+		config.sourceId = PTP_GENERAL_PORT;
+		config.destinationId = PTP_GENERAL_PORT;
+    		config.swTimestamping = CCK_FALSE;
+
+		/* showtime - test peer general transport settings */
+		if((transport->testConfig(transport, &config)) < 1)
+		    goto end;
+
+	    }
 
 	}
+
+	/* note that we don't test ACLs here, should we ? this is done separately during config test stage - good, bad? */
 
 	ret = TRUE;
 
@@ -431,6 +540,7 @@ if (rtOpts.snmp_enabled) {
 	return ret;
 }
 
+/* re-join multicast groups. don't leve groups so as not to generate unnecessary PIM / IGMP snooping / MLD churn */
 Boolean
 netRefresh(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
