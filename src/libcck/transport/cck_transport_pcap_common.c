@@ -27,42 +27,13 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /**
- * @file   cck_loghandler.h
+ * @file   cck_transport_pcap_common.c
  * 
- * @brief  libCCK log handler component definition
+ * @brief  LibCCK transport helper functions
  *
  */
 
-#ifndef CCK_LOGHANDLER_H_
-#define CCK_LOGHANDLER_H_
+#include "cck_transport_pcap_common.h"
 
-#include <syslog.h>
-
-#define CCK_DEBUG
-
-#define CCK_EMERGENCY(x, ...) printf("LibCCK EMERG   : "x, ##__VA_ARGS__)
-#define CCK_ALERT(x, ...)     printf("LibCCK ALERT   : "x, ##__VA_ARGS__)
-#define CCK_CRITICAL(x, ...)  printf("LibCCK CRIT    : "x, ##__VA_ARGS__)
-#define CCK_ERROR(x, ...)     printf("LibCCK ERR     : "x, ##__VA_ARGS__)
-#define CCK_PERROR(x, ...)    printf("LibCCK ERR     : "x "      (strerror: %m)\n", ##__VA_ARGS__)
-#define CCK_WARNING(x, ...)   printf("LibCCK WARNING : "x, ##__VA_ARGS__)
-#define CCK_NOTIFY(x, ...)    printf("LibCCK NOTICE  : "x, ##__VA_ARGS__)
-#define CCK_NOTICE(x, ...)    printf("LibCCK NOTICE  : "x, ##__VA_ARGS__)
-#define CCK_INFO(x, ...)      printf("LibCCK INFO    : "x, ##__VA_ARGS__)
-
-#ifdef CCK_DEBUG
-
-#define CCK_DBG(x, ...)       printf("LibCCK DBG     : "x, ##__VA_ARGS__)
-#define CCK_DBG2(x, ...)      printf("LibCCK DBG2    : "x, ##__VA_ARGS__)
-#define CCK_DBGV(x, ...)      printf("LibCCK DBGV    : "x, ##__VA_ARGS__)
-
-#else
-
-#define CCK_DBG(x, ...)
-#define CCK_DBG2(x, ...)
-#define CCK_DBGV(x, ...)
-
-#endif
-
-#endif /* CCK_LOGHANDLER_H_ */

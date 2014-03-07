@@ -41,6 +41,8 @@ libcck_la_SOURCES = 			\
 	transport/cck_transport_socket_common.c	\
 	transport/cck_transport_socket_swtimestamp.h	\
 	transport/cck_transport_socket_swtimestamp.c	\
+	transport/cck_transport_pcap_common.h	\
+	transport/cck_transport_pcap_common.c	\
 	transport/cck_transport_null.h	\
 	transport/cck_transport_null.c	\
 	transport/cck_transport_socket_ipv4.h	\

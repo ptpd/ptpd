@@ -1142,14 +1142,6 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"ethernet", 	IEEE_802_3
 				);
 
-#ifdef PTPD_PCAP
-	/* ethernet mode - cannot specify IP mode */
-	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:transport_mode",
-	 			    rtOpts->transport == IEEE_802_3,
-	 			    "ethernet",
-	 			    "ptpengine:transport_mode");
-#endif
-
 	CONFIG_MAP_SELECTVALUE("ptpengine:transport_mode", rtOpts->transport_mode, rtOpts->transport_mode,
 		"Transport mode  - hybrid mode uses multicast for sync and announce,\n"
 	"	  and unicast for delay request and response; unicast mode uses unicast\n"

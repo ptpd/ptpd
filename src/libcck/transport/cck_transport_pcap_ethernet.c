@@ -88,23 +88,31 @@ static CckBool
 multicastJoin(CckTransport* transport, TransportAddress* mcastAddr)
 {
 
-    struct packet_mreq pmr;
+    struct ifreq ifr;
+    int fd;
 
-    pmr.mr_ifindex = if_nametoindex(transport->transportEndpoint);
-    pmr.mr_type = PACKET_MR_MULTICAST;
-    pmr.mr_alen = ETHER_ADDR_LEN;
-    memcpy(&pmr.mr_address, &mcastAddr->etherAddr, ETHER_ADDR_LEN);
-
-    /* join multicast group on specified interface */
-    if (setsockopt(transport->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
-           &pmr, sizeof(struct packet_mreq)) < 0) {
-	CCK_PERROR("failed to join multicast address %s: ", transport->addressToString(mcastAddr));
+    if((fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+	CCK_DBG("Failed to open test socket when adding ethernet multicast membership %s on %s: %s\n",
+		transport->addressToString(mcastAddr), transport->transportEndpoint, strerror(errno));
         return CCK_FALSE;
     }
 
-    CCK_DBGV("Joined ethernet multicast group %s on %s\n", transport->addressToString(mcastAddr),
-						    transport->transportEndpoint);
+    memset(&ifr, 0, sizeof(struct ifreq));
 
+    strncpy(ifr.ifr_name, transport->transportEndpoint, IFNAMSIZ -1);
+    memcpy(&ifr.ifr_hwaddr.sa_data, mcastAddr, ETHER_ADDR_LEN);
+
+    /* join multicast group on specified interface */
+    if ((ioctl(fd, SIOCADDMULTI, &ifr)) < 0 ) {
+	CCK_DBG("Failed to add ethernet multicast membership %s on  %s: %s\n",
+		transport->addressToString(mcastAddr), transport->transportEndpoint, strerror(errno));
+	close(fd);
+        return CCK_FALSE;
+    }
+
+    CCK_DBG("Added ethernet membership %s on %s\n", transport->addressToString(mcastAddr),
+						    transport->transportEndpoint);
+    close(fd);
     return CCK_TRUE;
 
 }
@@ -113,23 +121,31 @@ static CckBool
 multicastLeave(CckTransport* transport, TransportAddress* mcastAddr)
 {
 
-    struct packet_mreq pmr;
+    struct ifreq ifr;
+    int fd;
 
-    pmr.mr_ifindex = if_nametoindex(transport->transportEndpoint);
-    pmr.mr_type = PACKET_MR_MULTICAST;
-    pmr.mr_alen = ETHER_ADDR_LEN;
-    memcpy(&pmr.mr_address, &mcastAddr->etherAddr, ETHER_ADDR_LEN);
-
-    /* leave multicast group on specified interface */
-    if (setsockopt(transport->fd, SOL_PACKET, PACKET_DROP_MEMBERSHIP,
-           &pmr, sizeof(struct packet_mreq)) < 0) {
-	CCK_PERROR("failed to leave multicast address %s: ", transport->addressToString(mcastAddr));
+    if((fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+	CCK_DBG("Failed to open test socket when adding ethernet multicast membership %s on %s: %s\n",
+		transport->addressToString(mcastAddr), transport->transportEndpoint, strerror(errno));
         return CCK_FALSE;
     }
 
-    CCK_DBGV("Left ethernet multicast group %s on %s\n", transport->addressToString(mcastAddr),
-						    transport->transportEndpoint);
+    memset(&ifr, 0, sizeof(struct ifreq));
 
+    strncpy(ifr.ifr_name, transport->transportEndpoint, IFNAMSIZ -1);
+    memcpy(&ifr.ifr_hwaddr.sa_data, mcastAddr, ETHER_ADDR_LEN);
+
+    /* leave multicast group on specified interface */
+    if ((ioctl(fd, SIOCDELMULTI, &ifr)) < 0 ) {
+	CCK_DBG("Failed to drop ethernet multicast membership %s on  %s: %s\n",
+		transport->addressToString(mcastAddr), transport->transportEndpoint, strerror(errno));
+	close(fd);
+        return CCK_FALSE;
+    }
+
+    CCK_DBG("Dropped ethernet membership %s on %s\n", transport->addressToString(mcastAddr),
+						    transport->transportEndpoint);
+    close(fd);
     return CCK_TRUE;
 
 }
@@ -139,7 +155,12 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
 {
 
     struct bpf_program program;
-    char errbuf[PCAP_ERRBUF_SIZE];
+    char   errbuf[PCAP_ERRBUF_SIZE];
+    char   filter[PATH_MAX];
+    int    promisc = 0;
+    int	   len = 0;
+
+    memset(filter, 0, PATH_MAX);
 
     CckPcapEndpoint* handle = NULL;
 
@@ -177,7 +198,45 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
     transport->defaultDestination = config->defaultDestination;
     transport->secondaryDestination = config->secondaryDestination;
 
-    handle->receiver = pcap_open_live(transport->transportEndpoint, handle->bufSize , 1, 1, errbuf);
+    /* format the pcap filter */
+    len += snprintf(filter, PATH_MAX, "ether proto 0x%04x and (ether host %s ",
+		transport->destinationId,
+		transport->addressToString(&transport->ownAddress));
+
+    if(!transportAddressEmpty(&transport->defaultDestination)) {
+    len += snprintf(filter + len, PATH_MAX - len, "or ether host %s ",
+		transport->addressToString(&transport->defaultDestination));
+    }
+
+    if(!transportAddressEmpty(&transport->secondaryDestination)) {
+    len += snprintf(filter + len, PATH_MAX - len, "or ether host %s ",
+		transport->addressToString(&transport->secondaryDestination));
+    }
+
+    len += snprintf(filter + len, PATH_MAX - len, ")");
+
+    CCK_DBGV("pcap ethernet transport \"%s\" using filter: %s\n",
+		transport->header.instanceName, filter);
+
+    /*
+       One of our destinations is multicast - try adding memberships,
+       go promisc if failed.
+    */
+
+    if(transport->isMulticastAddress(&transport->defaultDestination) &&
+        !multicastJoin(transport, &transport->defaultDestination)) {
+	CCK_DBGV("Could not add multicast membership - going promiscuous\n");
+        promisc = 1;
+    }
+
+    if(transport->isMulticastAddress(&transport->secondaryDestination) &&
+        !multicastJoin(transport, &transport->secondaryDestination)) {
+	CCK_DBGV("Could not add multicast membership - going promiscuous\n");
+        promisc = 1;
+    }
+
+    /* open the reader pcap handle */
+    handle->receiver = pcap_open_live(transport->transportEndpoint, handle->bufSize , promisc, 1, errbuf);
 
     if(handle->receiver == NULL) {
 	CCK_PERROR("Could not open pcap reader on %s",
@@ -188,7 +247,8 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
 		    transport->header.instanceName);
     }
 
-    handle->sender =  pcap_open_live(transport->transportEndpoint, handle->bufSize , 1, 1, errbuf);
+    /* open the writer pcap handle */
+    handle->sender =  pcap_open_live(transport->transportEndpoint, handle->bufSize , promisc, 1, errbuf);
 
     if(handle->sender == NULL) {
 	CCK_PERROR("Could not open pcap writer on %s",
@@ -199,8 +259,8 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
 		    transport->header.instanceName);
     }
 
-    if (pcap_compile(handle->receiver, &program, "ether proto 0x88f7", 1, 0) < 0) {
-	    CCK_PERROR("Could not compile pcap event filter for %s transport on %s",
+    if (pcap_compile(handle->receiver, &program, filter, 1, 0) < 0) {
+	    CCK_PERROR("Could not compile pcap filter for %s transport on %s",
 			    transport->header.instanceName,
 			    transport->transportEndpoint);
 	    pcap_perror(handle->receiver, transport->transportEndpoint);
@@ -226,25 +286,6 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
     }
 
 
-    /* One of our destinations is multicast - begin multicast initialisation */
-    if(transport->isMulticastAddress(&transport->defaultDestination) ||
-	transport->isMulticastAddress(&transport->secondaryDestination)) {
-
-	/* ====== MCAST_INIT_BEGIN ======= */
-/*
-	if(transport->isMulticastAddress(&transport->defaultDestination) &&
-	    !multicastJoin(transport, &transport->defaultDestination)) {
-	    return -1;
-	}
-
-	if(transport->isMulticastAddress(&transport->secondaryDestination) &&
-	    !multicastJoin(transport, &transport->secondaryDestination)) {
-	    return -1;
-	}
-*/
-	/* ====== MCAST_INIT_END ======= */
-
-    } 
 
     /* everything succeeded, so we can add the transport's fd to the fd set */
     cckAddFd(transport->fd, transport->watcher);
@@ -307,70 +348,101 @@ static CckBool
 cckTransportTestConfig(CckTransport* transport, const CckTransportConfig* config)
 {
 
-    int res = 0;
-    unsigned int flags;
-return CCK_TRUE;
-    CckIpv4TransportData* data = NULL;
+    struct bpf_program program;
+    char   errbuf[PCAP_ERRBUF_SIZE];
+    char   filter[PATH_MAX];
+    int    promisc = 0;
+    int	   len = 0;
+
+    memset(filter, 0, PATH_MAX);
+
+    CckPcapEndpoint handle;
 
     if(transport == NULL) {
-	CCK_ERROR("transport testConfig called for an empty transport\n");
+	CCK_ERROR("Ethernet transport test called for an empty transport\n");
 	return CCK_FALSE;
     }
 
     if(config == NULL) {
-	CCK_ERROR("transport testCpmfog called with empty config\n");
+	CCK_ERROR("Ethernet transport test called with empty config\n");
 	return CCK_FALSE;
     }
 
+    handle.bufSize = config->param1;
+
+    transport->destinationId = config->destinationId;
     strncpy(transport->transportEndpoint, config->transportEndpoint, PATH_MAX);
 
-    /* Get own address first */
-    res = cckGetInterfaceAddress(transport, &transport->ownAddress, AF_INET);
-
-    if(res != 1) {
-	return CCK_FALSE;
+    /* Get own address first - or find the desired one if config was populated with it*/
+    if(!cckGetHwAddress(transport->transportEndpoint, &transport->ownAddress)) {
+	    CCK_ERROR("No suitable Ethernet address found on %s - transport not usable\n",
+			    transport->transportEndpoint);
+	    CCK_FALSE;
     }
 
     CCK_DBG("own address: %s\n", transport->addressToString(&transport->ownAddress));
 
-    res = cckGetInterfaceFlags(transport->transportEndpoint, &flags);
+    memcpy(&transport->hardwareAddress, &transport->ownAddress, ETHER_ADDR_LEN);
 
-    if(res != 1) {
-	CCK_ERROR("Could not query interface flags for %s\n",
-		    transport->transportEndpoint);
+
+    /* format the pcap filter */
+    len += snprintf(filter, PATH_MAX, "ether proto 0x%04x and (ether host %s ",
+		transport->destinationId,
+		transport->addressToString(&transport->ownAddress));
+
+    if(!transportAddressEmpty(&config->defaultDestination)) {
+    len += snprintf(filter + len, PATH_MAX - len, "or ether host %s ",
+		transport->addressToString(&config->defaultDestination));
+    }
+
+    if(!transportAddressEmpty(&config->secondaryDestination)) {
+    len += snprintf(filter + len, PATH_MAX - len, "or ether host %s ",
+		transport->addressToString(&config->secondaryDestination));
+    }
+
+    len += snprintf(filter + len, PATH_MAX - len, ")");
+
+    CCK_DBGV("pcap ethernet transport \"%s\" test using filter: %s\n",
+		transport->header.instanceName, filter);
+
+    /* open the reader pcap handle */
+    handle.receiver = pcap_open_live(transport->transportEndpoint, handle.bufSize , promisc, 1, errbuf);
+
+    if(handle.receiver == NULL) {
+	CCK_PERROR("Could not open test pcap reader on %s",
+	transport->transportEndpoint);
 	return CCK_FALSE;
+    } else {
+	CCK_DBG("pcap reader endpoint for transport \"%s\" OK\n",
+		    transport->header.instanceName);
     }
 
-     if(!(flags & IFF_UP) || !(flags & IFF_RUNNING))
-            CCK_WARNING("Interface %s seems to be down. Transport may not operate correctly until it's up.\n", 
-		    transport->transportEndpoint);
-
-    if(flags & IFF_LOOPBACK)
-            CCK_WARNING("Interface %s is a loopback interface.\n", 
-			transport->transportEndpoint);
-
-    /* One of our destinations is multicast - test multicast operation */
-    if(transport->isMulticastAddress(&config->defaultDestination) ||
-	transport->isMulticastAddress(&config->secondaryDestination)) {
-	    if(!(flags & IFF_MULTICAST)) {
-        	CCK_WARNING("Interface %s is not multicast capable.\n",
-		transport->transportEndpoint);
-	    }
-    }
-
-    CCKCALLOC(data, sizeof(CckIpv4TransportData));
-
-    if(config->swTimestamping) {
-	if(!cckInitSwTimestamping(
-	    transport, &data->timestampCaps, CCK_TRUE)) {
-	    free(data);
+    if (pcap_compile(handle.receiver, &program, filter, 1, 0) < 0) {
+	    CCK_PERROR("Could not compile pcap test filter for %s transport on %s",
+			    transport->header.instanceName,
+			    transport->transportEndpoint);
+	    pcap_perror(handle.receiver, transport->transportEndpoint);
+	    pcap_close(handle.receiver);
+	    pcap_freecode(&program);
 	    return CCK_FALSE;
-	}
-
     }
 
-    free(data);
-    return CCK_TRUE;
+    pcap_freecode(&program);
+
+    /* open the writer pcap handle */
+    handle.sender =  pcap_open_live(transport->transportEndpoint, handle.bufSize , promisc, 1, errbuf);
+
+    if(handle.sender == NULL) {
+	CCK_PERROR("Could not open pcap writer on %s",
+	transport->transportEndpoint);
+	return CCK_FALSE;
+    } else {
+	CCK_DBG("pcap writer endpoint for transport \"%s\" OK\n",
+		    transport->header.instanceName);
+	pcap_close(handle.sender);
+    }
+
+    return 1;
 
 }
 
@@ -443,18 +515,24 @@ cckTransportSend(CckTransport* transport, CckOctet* buf, CckUInt16 size,
 			TransportAddress* dst, CckTimestamp* timestamp)
 {
 
-    ssize_t ret;
+    ssize_t ret = 0;
     CckOctet etherData[ETHER_HDR_LEN + size];
     CckPcapEndpoint* handle = NULL;
 
     if(dst == NULL)
 	dst = &transport->defaultDestination;
 
+    /* first 6 bytes - ethernet destination */
     memcpy(etherData, &dst->etherAddr, ETHER_ADDR_LEN);
+    /* next 6 bytes - my own ethernet address */
     memcpy(etherData + ETHER_ADDR_LEN, &transport->ownAddress.etherAddr, ETHER_ADDR_LEN);
+    /* next 2 bytes - ethertype */
     *((short *)&etherData[2 * ETHER_ADDR_LEN]) = htons(transport->destinationId);
+
+    /* rest - data */
     memcpy(etherData + ETHER_HDR_LEN, buf, size);
 
+    /* retrieve the pcap sender handle and send data */
     if(transport->transportData != NULL) {
         handle = (CckPcapEndpoint*)transport->transportData;
 	ret = pcap_inject(handle->sender, etherData, ETHER_HDR_LEN + size);
@@ -477,12 +555,12 @@ cckTransportRecv(CckTransport* transport, CckOctet* buf, CckUInt16 size,
 			TransportAddress* src, CckTimestamp* timestamp, int flags)
 {
     ssize_t ret = 0;
-
     CckUInt16 etherType = 0;
     CckPcapEndpoint* handle = NULL;
     struct pcap_pkthdr* header;
     const u_char* 	data;
 
+    /* clear the timestamp, so it's empty if we didn't get one */
     timestamp->seconds = 0;
     timestamp->nanoseconds = 0;
 
@@ -495,6 +573,7 @@ cckTransportRecv(CckTransport* transport, CckOctet* buf, CckUInt16 size,
 
     if (ret <= 0 ) {
 
+	/* could we have been interrupted by a signal? */
 	if (errno == EAGAIN || errno == EINTR) {
 	    return 0;
 	}
@@ -506,6 +585,7 @@ cckTransportRecv(CckTransport* transport, CckOctet* buf, CckUInt16 size,
 
     etherType = *(CckUInt16*)(data + 2 * ETHER_ADDR_LEN);
 
+    /* should not happen! */
     if(ntohs(etherType) != transport->destinationId) {
 	CCK_DBG("transport \"%s\" on %s Received Ethernet data with incorrect etherType: %04x - expected %04x\n",
 		    transport->header.instanceName, transport->transportEndpoint, etherType, transport->destinationId);
@@ -516,14 +596,15 @@ cckTransportRecv(CckTransport* transport, CckOctet* buf, CckUInt16 size,
 
     /* if we have more data than buffer size, read only so much */
     if(ret > size) {
-
 	ret = size;
-
     }
 
+    /* retrieve source address */
     memcpy(src, data, ETHER_ADDR_LEN);
+    /* retrieve data */
     memcpy(buf, data + ETHER_HDR_LEN, ret);
 
+    /* get the timestamp */
     timestamp->seconds = header->ts.tv_sec;
     timestamp->nanoseconds = header->ts.tv_usec * 1000;
 
@@ -531,9 +612,6 @@ cckTransportRecv(CckTransport* transport, CckOctet* buf, CckUInt16 size,
 		    transport->header.instanceName, transport->transportEndpoint,
 		    timestamp->seconds, timestamp->nanoseconds
 		    );
-
-    fflush(NULL);
-
     return ret;
 
 }
@@ -563,11 +641,19 @@ cckTransportAddressFromString(const char* addrStr, TransportAddress* out)
 
 }
 
+/* nicer looking than ether_ntoa, but also non-reentrant */
 static char*
 cckTransportAddressToString(const TransportAddress* address)
 {
 
-    return ether_ntoa(&address->etherAddr);
+    /* 'XX:' times six - last ':' is null termination */
+    static char buf[3 * ETHER_ADDR_LEN];
+    CckUInt8* addr = (CckUInt8*)&address->etherAddr;
+
+    snprintf(buf, 3 * ETHER_ADDR_LEN, "%02x:%02x:%02x:%02x:%02x:%02x",
+    *(addr), *(addr+1), *(addr+2), *(addr+3), *(addr+4), *(addr+5));
+
+    return buf;
 
 }
 

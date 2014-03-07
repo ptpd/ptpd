@@ -44,19 +44,12 @@
 
 #include "../cck.h"
 #include "../cck_transport.h"
+#include "cck_transport_pcap_common.h"
 
 #include <sys/socket.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 
-typedef struct {
-
-    int     bufSize;
-    int     socket;
-    pcap_t* sender;
-    pcap_t* receiver;
-
-} CckPcapEndpoint;
 
 void	cckTransportSetup_pcap_ethernet(CckTransport* transport);
 
