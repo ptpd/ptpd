@@ -164,8 +164,10 @@ typedef struct {
 	CckUInt16 destinationId;
 	/* generic int type transport specific parameter #1 - ttl for IP transports */
 	int param1;
-	/* generic int type transport specific parameter #1 - DSCP bits for IP transports */
+	/* generic int type transport specific parameter #2 - DSCP bits for IP transports */
 	int param2;
+	/* generic int type transport specific parameter #3 - snaplen for pcap transports */
+	int param3;
 	/* software timestamping required - init() / test() will fail if none available */
 	CckBool swTimestamping;
 	/* hardware timestamping required - init() / test() will fail if none available */
@@ -311,6 +313,8 @@ enum {
 	CCK_TRANSPORT_NULL = 0,
 	CCK_TRANSPORT_SOCKET_UDP_IPV4,
 	CCK_TRANSPORT_SOCKET_UDP_IPV6,
+	CCK_TRANSPORT_PCAP_UDP_IPV4,
+	CCK_TRANSPORT_PCAP_UDP_IPV6,
 	CCK_TRANSPORT_PCAP_ETHERNET
 };
 
@@ -318,6 +322,8 @@ enum {
 #include "transport/cck_transport_null.h"
 #include "transport/cck_transport_socket_ipv4.h"
 #include "transport/cck_transport_socket_ipv6.h"
+#include "transport/cck_transport_pcap_ipv4.h"
+#include "transport/cck_transport_pcap_ipv6.h"
 #include "transport/cck_transport_pcap_ethernet.h"
 
 /* ============ TRANSPORT IMPLEMENTATIONS END ============== */

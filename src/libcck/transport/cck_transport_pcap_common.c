@@ -37,3 +37,67 @@
 
 #include "cck_transport_pcap_common.h"
 
+int
+cckPcapGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr, int addressFamily)
+{
+    int ret;
+    char errbuf[PCAP_ERRBUF_SIZE];
+
+    pcap_if_t *pall, *pdev;
+
+    pcap_addr_t *paddr;
+
+    if(pcap_findalldevs(&pall, errbuf) == -1) {
+	CCK_PERROR("pcap_findalldevs: could not get interface list: %s",
+	errbuf);
+	ret = -1;
+	goto end;
+
+    }
+
+    for (pdev = pall; pdev != NULL; pdev = pdev->next) {
+
+	CCK_DBGV("Interface: %s desc: %s\n",
+		    pdev->name, pdev->description);
+
+	if(!strcmp(transport->transportEndpoint, pdev->name))  {
+
+	    for(paddr = pdev->addresses; paddr != NULL; paddr = paddr->next) {
+
+		if(paddr->addr->sa_family == addressFamily) {
+
+		    /* If address was specified on input, find that address, otherwise get the first one */
+		    if(!transportAddressEmpty(addr) &&
+			!transport->addressEqual(addr, (TransportAddress*)paddr->addr))
+			    continue;
+
+		    /* If we have no output pointer, we won't copy but we'll still return true */
+		    if(addr!=NULL)
+			memcpy(addr, paddr->addr, (addressFamily == AF_INET6) ? 
+						sizeof(struct sockaddr_in6) :
+						sizeof(struct sockaddr_in));
+    		    ret = 1;
+    		    goto end;
+		}
+
+	    }
+	}
+
+    }
+
+    ret = 0;
+
+    if(!transportAddressEmpty(addr)) {
+	CCK_ERROR("Could not find address %s on interface %s\n.",
+			transport->addressToString(addr),
+			transport->transportEndpoint);
+    } else {
+	CCK_ERROR("Interface not found: %s\n", transport->transportEndpoint);
+    }
+
+end:
+
+    pcap_freealldevs(pall);
+    return ret;
+}
+

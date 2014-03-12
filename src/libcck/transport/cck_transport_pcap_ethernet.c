@@ -178,7 +178,7 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
     CCKCALLOC(transport->transportData, sizeof(CckPcapEndpoint));
     handle = (CckPcapEndpoint*)transport->transportData;
 
-    handle->bufSize = config->param1;
+    handle->bufSize = config->param3;
 
     transport->destinationId = config->destinationId;
     strncpy(transport->transportEndpoint, config->transportEndpoint, PATH_MAX);
@@ -197,23 +197,6 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
     /* Assign default destinations */
     transport->defaultDestination = config->defaultDestination;
     transport->secondaryDestination = config->secondaryDestination;
-
-    /* format the pcap filter */
-    len += snprintf(filter, PATH_MAX, "ether proto 0x%04x and (ether host %s ",
-		transport->destinationId,
-		transport->addressToString(&transport->ownAddress));
-
-    if(!transportAddressEmpty(&transport->defaultDestination)) {
-    len += snprintf(filter + len, PATH_MAX - len, "or ether host %s ",
-		transport->addressToString(&transport->defaultDestination));
-    }
-
-    if(!transportAddressEmpty(&transport->secondaryDestination)) {
-    len += snprintf(filter + len, PATH_MAX - len, "or ether host %s ",
-		transport->addressToString(&transport->secondaryDestination));
-    }
-
-    len += snprintf(filter + len, PATH_MAX - len, ")");
 
     CCK_DBGV("pcap ethernet transport \"%s\" using filter: %s\n",
 		transport->header.instanceName, filter);
@@ -258,6 +241,23 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
 	CCK_DBG("Opened pcap writer endpoint for transport \"%s\"\n",
 		    transport->header.instanceName);
     }
+
+    /* format the pcap filter */
+    len += snprintf(filter, PATH_MAX, "ether proto 0x%04x and (ether host %s ",
+		transport->destinationId,
+		transport->addressToString(&transport->ownAddress));
+
+    if(!transportAddressEmpty(&transport->defaultDestination)) {
+    len += snprintf(filter + len, PATH_MAX - len, "or ether host %s ",
+		transport->addressToString(&transport->defaultDestination));
+    }
+
+    if(!transportAddressEmpty(&transport->secondaryDestination)) {
+    len += snprintf(filter + len, PATH_MAX - len, "or ether host %s ",
+		transport->addressToString(&transport->secondaryDestination));
+    }
+
+    len += snprintf(filter + len, PATH_MAX - len, ")");
 
     if (pcap_compile(handle->receiver, &program, filter, 1, 0) < 0) {
 	    CCK_PERROR("Could not compile pcap filter for %s transport on %s",
@@ -368,7 +368,7 @@ cckTransportTestConfig(CckTransport* transport, const CckTransportConfig* config
 	return CCK_FALSE;
     }
 
-    handle.bufSize = config->param1;
+    handle.bufSize = config->param3;
 
     transport->destinationId = config->destinationId;
     strncpy(transport->transportEndpoint, config->transportEndpoint, PATH_MAX);

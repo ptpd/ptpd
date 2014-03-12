@@ -108,6 +108,7 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	/* glorified constructor argument list I suppose */
 	CckTransportConfig config;
+	memset(&config, 0, sizeof(CckTransportConfig));
 
 	/* init protocol addresses depending on transport type */
 	switch(rtOpts->transport) {
@@ -115,12 +116,18 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		case UDP_IPV4:
 		    defDest = DEFAULT_PTP_IPV4_ADDRESS;
 		    pDest = PEER_PTP_IPV4_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV4;
+		    if(rtOpts->pcap)
+			rtOpts->transportType = CCK_TRANSPORT_PCAP_UDP_IPV4;
+		    else
+			rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV4;
 		    break;
 		case UDP_IPV6:
 		    defDest = DEFAULT_PTP_IPV6_ADDRESS;
 		    pDest = PEER_PTP_IPV6_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV6;
+		    if(rtOpts->pcap)
+			rtOpts->transportType = CCK_TRANSPORT_PCAP_UDP_IPV6;
+		    else
+			rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV6;
 		    break;
 		case IEEE_802_3:
 		    defDest = DEFAULT_PTP_ETHERNET_ADDRESS;
@@ -132,7 +139,7 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			    rtOpts->transport);
 	}
 
-	memset(&config, 0, sizeof(CckTransportConfig));
+	config.param3 = PACKET_SIZE;
 
 	config.transportType = rtOpts->transportType;
 	strncpy(config.transportEndpoint, rtOpts->ifaceName, IFACE_NAME_LENGTH);
@@ -159,7 +166,6 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if(rtOpts->transport == IEEE_802_3) {
 	    config.sourceId = PTP_ETHER_TYPE;
 	    config.destinationId = PTP_ETHER_TYPE;
-	    config.param1 = PACKET_SIZE;
 	} else {
 	    config.sourceId = PTP_EVENT_PORT;
 	    config.destinationId = PTP_EVENT_PORT;
@@ -234,7 +240,6 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	    if(rtOpts->transport == IEEE_802_3) {
 		config.sourceId = PTP_ETHER_TYPE;
 		config.destinationId = PTP_ETHER_TYPE;
-		config.param1 = PACKET_SIZE;
 	    } else {
 		config.sourceId = PTP_EVENT_PORT;
 		config.destinationId = PTP_EVENT_PORT;
@@ -357,28 +362,33 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 		case UDP_IPV4:
 		    defDest = DEFAULT_PTP_IPV4_ADDRESS;
 		    pDest = PEER_PTP_IPV4_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV4;
+		    if(rtOpts->pcap)
+			rtOpts->transportType = CCK_TRANSPORT_PCAP_UDP_IPV4;
+		    else
+			rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV4;
 		    break;
 		case UDP_IPV6:
 		    defDest = DEFAULT_PTP_IPV6_ADDRESS;
 		    pDest = PEER_PTP_IPV6_ADDRESS;
-		    rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV6;
+		    if(rtOpts->pcap)
+			rtOpts->transportType = CCK_TRANSPORT_PCAP_UDP_IPV6;
+		    else
+			rtOpts->transportType = CCK_TRANSPORT_SOCKET_UDP_IPV6;
 		    break;
 		case IEEE_802_3:
 		    defDest = DEFAULT_PTP_ETHERNET_ADDRESS;
 		    pDest = PEER_PTP_ETHERNET_ADDRESS;
 		    rtOpts->transportType = CCK_TRANSPORT_PCAP_ETHERNET;
-		    config.param1 = PACKET_SIZE;
 		    break;
 		default:
-		    ERROR("Unsupported transport: %d\n",
+		    ERROR("Unsupported transport: %02x\n",
 			    rtOpts->transport);
 	}
 
+	config.param3 = PACKET_SIZE;
+
 	/* create a test transport */
 	CckTransport* transport = createCckTransport(rtOpts->transportType, "testNetworkConfig");
-
-
 
 	config.transportType = rtOpts->transportType;
 

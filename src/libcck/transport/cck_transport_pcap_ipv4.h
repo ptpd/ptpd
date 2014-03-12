@@ -29,33 +29,22 @@
 
 
 /**
- * @file   cck_transport_pcap_common.h
+ * @file   cck_transport_pcap_ipv4.h
  * 
- * @brief  common libCCK transport helper function implementations
+ * @brief  libCCK ipv4 transport public method definitions
  *
  */
 
-#ifndef CCK_TRANSPORT_PCAP_COMMON_H_
-#define CCK_TRANSPORT_PCAP_COMMON_H_
+#ifndef CCK_TRANSPORT_PCAP_IPV4_H_
+#define CCK_TRANSPORT_PCAP_IPV4_H_
+
+#ifndef CCK_H_INSIDE_
+//#error libCCK component headers should not be uncluded directly - please include cck.h only.
+#endif
 
 #include "../cck.h"
+#include "../cck_transport.h"
 
-#include "../../../config.h"
+void    cckTransportSetup_pcap_ipv4(CckTransport* transport);
 
-#include <limits.h>
-
-typedef struct {
-
-    int     bufSize;
-    int     socket;
-    pcap_t* sender;
-    pcap_t* receiver;
-
-} CckPcapEndpoint;
-
-#define CCK_PCAP_ENDPOINT(transport) \
-	((*CckPcapEndpoint)(##transport->transportData))
-
-int cckPcapGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr, int addressFamily);
-
-#endif /* CCK_TRANSPORT_PCAP_COMMON_H_ */
+#endif /* CCK_TRANSPORT_PCAP_IPV4_H_ */
