@@ -198,9 +198,6 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
     transport->defaultDestination = config->defaultDestination;
     transport->secondaryDestination = config->secondaryDestination;
 
-    CCK_DBGV("pcap ethernet transport \"%s\" using filter: %s\n",
-		transport->header.instanceName, filter);
-
     /*
        One of our destinations is multicast - try adding memberships,
        go promisc if failed.
@@ -258,6 +255,9 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
     }
 
     len += snprintf(filter + len, PATH_MAX - len, ")");
+
+    CCK_DBGV("pcap ethernet transport \"%s\" using filter: %s\n",
+		transport->header.instanceName, filter);
 
     if (pcap_compile(handle->receiver, &program, filter, 1, 0) < 0) {
 	    CCK_PERROR("Could not compile pcap filter for %s transport on %s",

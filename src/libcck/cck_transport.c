@@ -41,6 +41,7 @@
 #define CCK_REGISTER_TRANSPORT(type,suffix) \
 	if(transportType==type) {\
 	    cckTransportSetup_##suffix(transport);\
+	    done = CCK_TRUE;\
 	}
 
 
@@ -64,6 +65,8 @@ createCckTransport(int transportType, const char* instanceName)
 void
 setupCckTransport(CckTransport* transport, int transportType, const char* instanceName)
 {
+
+    CckBool done = CCK_FALSE;
 
     transport->transportType = transportType;
 
@@ -90,11 +93,21 @@ setupCckTransport(CckTransport* transport, int transportType, const char* instan
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_SOCKET_UDP_IPV6, socket_ipv6);
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_PCAP_UDP_IPV4, pcap_ipv4);
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_PCAP_UDP_IPV6, pcap_ipv6);
+    CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_PCAP_ETHERNET, pcap_ethernet);
 
 /* ============ TRANSPORT IMPLEMENTATIONS END ============== */
 
+
+    if(!done) {
+	CCK_REGISTER_TRANSPORT(transportType, null);
+	CCK_ERROR("Attempt to create unknown transport %02x - aborting\n",
+		    transportType);
+	abort();
+    }
+
 /* we 're done with this macro */
 #undef CCK_REGISTER_TRANSPORT
+
 
     transport->header._next = NULL;
     transport->header._prev = NULL;
