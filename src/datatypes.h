@@ -816,6 +816,7 @@ typedef struct {
 //	Integer16 currentUtcOffset;
 
 	char ifaceName[IFACE_NAME_LENGTH];
+	Boolean hwTimestamping;
 	Boolean	noResetClock;
 #ifdef linux
 	Boolean setRtc;

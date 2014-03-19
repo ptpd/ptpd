@@ -176,6 +176,7 @@ cckGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr, in
 {
     int ret;
     struct ifaddrs *ifaddr, *ifa;
+    CckBool found = CCK_FALSE;
 
     if(getifaddrs(&ifaddr) == -1) {
 	CCK_PERROR("Could not get interface list");
@@ -185,24 +186,22 @@ cckGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr, in
     }
 
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-
-	if(!strcmp(transport->transportEndpoint, ifa->ifa_name) && ifa->ifa_addr->sa_family == addressFamily) {
-
+	if(!strcmp(transport->transportEndpoint, ifa->ifa_name)) {
+	    /* interface may exist but not have the address type we want */
+	    found = CCK_TRUE;
+	    if(ifa->ifa_addr->sa_family == addressFamily) {
 		/* If address was specified on input, find that address, otherwise get the first one */
 		if(!transportAddressEmpty(addr) &&
 		    !transport->addressEqual(addr, (TransportAddress*)ifa->ifa_addr))
 			continue;
-
 		/* If we have no output pointer, we won't copy but we'll still return true */
-
 		if(addr!=NULL)
 		    memcpy(addr, ifa->ifa_addr, (addressFamily == AF_INET6) ? 
 						sizeof(struct sockaddr_in6) :
 						sizeof(struct sockaddr_in));
     		ret = 1;
     		goto end;
-
-
+	    }
 	}
 
     }
@@ -210,9 +209,14 @@ cckGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr, in
     ret = 0;
 
     if(!transportAddressEmpty(addr)) {
-	CCK_ERROR("Could not find address %s on interface %s\n.",
+	CCK_ERROR("Could not find address %s on interface %s\n",
 			transport->addressToString(addr),
 			transport->transportEndpoint);
+    } else if(found) {
+	CCK_ERROR("Could not find %saddress on interface %s\n",
+		    addressFamily == AF_INET ? "IPv4 " :
+		    addressFamily == AF_INET6 ? "IPv6 " : "",
+		    transport->transportEndpoint);
     } else {
 	CCK_ERROR("Interface not found: %s\n", transport->transportEndpoint);
     }

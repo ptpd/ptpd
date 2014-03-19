@@ -103,12 +103,16 @@ Boolean
 netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 
-	char* defDest = NULL;
-	char* pDest = NULL;
+	char *defDest = NULL;
+	char *pDest = NULL;
+
+	CckBool *tsMethod;
 
 	/* glorified constructor argument list I suppose */
 	CckTransportConfig config;
 	memset(&config, 0, sizeof(CckTransportConfig));
+
+	tsMethod = (rtOpts->hwTimestamping) ? &config.hwTimestamping : &config.swTimestamping;
 
 	/* init protocol addresses depending on transport type */
 	switch(rtOpts->transport) {
@@ -172,7 +176,7 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	    config.param1 = rtOpts->ttl;
 	}
 
-	config.swTimestamping = CCK_TRUE;
+	*tsMethod = CCK_TRUE;
 	config.param2 = rtOpts->dscpValue;
 
 	/* populate config with source address if set - transport will try to bind to this source */
@@ -206,7 +210,7 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		/* prepare general transport - it shares most settings with event transport */
 		config.sourceId = PTP_GENERAL_PORT;
 		config.destinationId = PTP_GENERAL_PORT;
-		config.swTimestamping = CCK_FALSE;
+		*tsMethod = CCK_FALSE;
 
 		/* showtime - start up general transport */
 		if((ptpClock->generalTransport->init(ptpClock->generalTransport, &config)) < 1)
@@ -233,8 +237,7 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	    /* prepare peer event transport */
 
-
-	    config.swTimestamping = CCK_TRUE;
+	    *tsMethod = CCK_TRUE;
 
 	    /* libCCK Ethernet transport uses source/destid to set ethertype */
 	    if(rtOpts->transport == IEEE_802_3) {
@@ -263,7 +266,7 @@ netInit(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		    config.sourceId = PTP_GENERAL_PORT;
 		    config.destinationId = PTP_GENERAL_PORT;
-		    config.swTimestamping = CCK_FALSE;
+		    *tsMethod = CCK_FALSE;
 
 	    /* only the peer destination is used for p2p - correct? */
 		    if (!(ptpClock->peerGeneralTransport->addressFromString(pDest,
@@ -353,9 +356,13 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 
 	Boolean ret = FALSE;
 
+	CckBool *tsMethod;
+
 	CckTransportConfig config;
 
 	memset(&config, 0, sizeof(CckTransportConfig));
+
+	tsMethod = (rtOpts->hwTimestamping) ? &config.hwTimestamping : &config.swTimestamping;
 
 	switch(rtOpts->transport) {
 
@@ -405,7 +412,7 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 	    config.destinationId = PTP_EVENT_PORT;
 	}
 
-	config.swTimestamping = CCK_TRUE;
+	*tsMethod  = CCK_TRUE;
 	config.param1 = rtOpts->ttl;
 	config.param2 = rtOpts->dscpValue;
 
@@ -443,7 +450,7 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 	    /* test general transport */
 	    config.sourceId = PTP_GENERAL_PORT;
 	    config.destinationId = PTP_GENERAL_PORT;
-	    config.swTimestamping = CCK_FALSE;
+	    *tsMethod = CCK_FALSE;
 
 	    if((transport->testConfig(transport, &config)) < 1)
 		goto end;
@@ -467,7 +474,7 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 		config.destinationId = PTP_EVENT_PORT;
 	    }
 
-	    config.swTimestamping = CCK_TRUE;
+	    *tsMethod = CCK_TRUE;
 
 	    if (!(transport->addressFromString(pDest,
 			    &config.defaultDestination)))
@@ -483,7 +490,7 @@ Boolean testNetworkConfig(RunTimeOpts* rtOpts) {
 		/* set up test peer general transport config */
 		config.sourceId = PTP_GENERAL_PORT;
 		config.destinationId = PTP_GENERAL_PORT;
-    		config.swTimestamping = CCK_FALSE;
+		*tsMethod = CCK_FALSE;
 
 		/* showtime - test peer general transport settings */
 		if((transport->testConfig(transport, &config)) < 1)

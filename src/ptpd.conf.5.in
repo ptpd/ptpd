@@ -77,6 +77,21 @@ Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building
 .RE
 .RS 0
 .TP 8
+\fBptpengine:hw_timestamping [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Use hardware timestamping on the configured interface.
+If enabled, network transport will fail to start if the interface is not compatible
+with a supported hardware timestamping method and required hardware timestamping options.
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:transport_mode [\fISELECT\fB]\fR
 .RS 8
 .TP 8

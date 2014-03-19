@@ -1190,9 +1190,10 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 
 
 #ifdef PTPD_DBG
-    DBG("      ==> %s message %sreceived and accepted for processing\n", 
+    DBG("      ==> %s message %sreceived and accepted for processing (seq %d)\n", 
 	    getMessageTypeName(message.header.messageType),
-	    message.isFromSelf ? "from self " : "");
+	    message.isFromSelf ? "from self " : "",
+	    message.header.sequenceId);
 #endif
 
 
@@ -2483,7 +2484,7 @@ issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		DBGV("Sync MSG sent ! \n");
 
 		if(!timeIsZero(&internalTime)) {
-			INFO("Got Sync TX timestamp!\n");
+			DBGV("Got Sync TX timestamp!\n");
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}
@@ -2556,7 +2557,7 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		DBGV("DelayReq MSG sent ! \n");
 
 		if(!timeIsZero(&internalTime)) {
-			INFO("Got DelayReq TX timestamp!\n");
+			DBGV("Got DelayReq TX timestamp!\n");
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}
@@ -2603,7 +2604,7 @@ issuePDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 		/* if time is non-zero, we managed to get a TX timestamp into internalTime*/
 		if(!timeIsZero(&internalTime)) {
-			INFO("Got PDelayReq TX timestamp!\n");
+			DBGV("Got PDelayReq TX timestamp!\n");
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}
@@ -2640,7 +2641,7 @@ issuePDelayResp( PtpMessage* request,RunTimeOpts *rtOpts,
 
 		/* if time is non-zero, we managed to get a TX timestamp into txTimestamp*/
 		if(!timeIsZero(&txTimestamp)) {
-			INFO("Got PdelayResp TX timestamp!\n");
+			DBGV("Got PdelayResp TX timestamp!\n");
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				txTimestamp.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}

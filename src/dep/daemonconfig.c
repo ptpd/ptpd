@@ -981,6 +981,11 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->managementAclEnabled = FALSE;
 	rtOpts->timingAclOrder = CCK_ACL_DENY_PERMIT;
 	rtOpts->managementAclOrder = CCK_ACL_DENY_PERMIT;
+
+/* Settings coming from LibCCK */
+
+	rtOpts->hwTimestamping = FALSE;
+
 }
 
 /* The PtpEnginePreset structure for reference: 
@@ -1134,13 +1139,18 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	ptpPreset = getPtpPreset(rtOpts->selectedPreset, rtOpts);
 
-
 	CONFIG_MAP_SELECTVALUE("ptpengine:transport",rtOpts->transport,rtOpts->transport,
 		"Transport type for PTP packets. Ethernet transport requires libpcap support.",
 				"ipv4",		UDP_IPV4,
 				"ipv6",		UDP_IPV6,
 				"ethernet", 	IEEE_802_3
 				);
+
+	CONFIG_MAP_BOOLEAN("ptpengine:hw_timestamping",rtOpts->hwTimestamping,rtOpts->hwTimestamping,
+		"Use hardware timestamping on the configured interface. \n"
+	"	 If enabled, network transport will fail to start if the interface\n"
+	"	 is not compatible with a supported hardware timestamping method\n"
+	"	 and required hardware timestamping options.\n");
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:transport_mode", rtOpts->transport_mode, rtOpts->transport_mode,
 		"Transport mode  - hybrid mode uses multicast for sync and announce,\n"
@@ -1175,6 +1185,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	     "to use Ethernet transport. "PTPD_PROGNAME" was built with no libpcap support.\n");
 
 #endif /* PTPD_PCAP */
+
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:delay_mechanism",rtOpts->delayMechanism,rtOpts->delayMechanism,
 		 "Delay detection mode used - use DELAY_DISABLED for syntonisation only\n"
@@ -2658,6 +2669,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
  */
 
         COMPONENT_RESTART_REQUIRED("ptpengine:interface",     		PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:hw_timestamping",     		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:preset",  		PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:transport_mode",       		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:transport",     		PTPD_RESTART_NETWORK );

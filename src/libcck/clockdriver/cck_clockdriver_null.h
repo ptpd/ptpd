@@ -27,66 +27,24 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /**
- * @file   cck_component.h
- *
- * @brief  libCCK base component and registry definition
+ * @file   cck_dummy_null.h
+ * 
+ * @brief  libCCK dummy component null implementation public function definitions
  *
  */
 
-#ifndef CCK_COMPONENT_H_
-#define CCK_COMPONENT_H_
+#ifndef CCK_CLOCKDRIVER_NULL_H_
+#define CCK_CLOCKDRIVER_NULL_H_
 
 #ifndef CCK_H_INSIDE_
-#error libCCK component headers should not be uncluded directly - please include cck.h only.
+//#error libCCK component headers should not be uncluded directly - please include cck.h only.
 #endif
 
+#include "../cck.h"
+#include "../cck_clockdriver.h"
 
-typedef struct CckComponent CckComponent;
+void    cckClockDriverSetup_null(CckClockDriver* self);
 
-#include "cck.h"
-
-#define CCK_MAX_INSTANCE_NAME_LEN 15
-
-enum {
-	CCK_COMPONENT_NULL = 0,
-	CCK_COMPONENT_LOGHANDLER,
-        CCK_COMPONENT_ACL,
-	CCK_COMPONENT_TRANSPORT,
-	CCK_COMPONENT_CLOCKDRIVER,
-	CCK_COMPONENT_DUMMY
-};
-
-struct CckComponent {
-
-	int componentType;
-	CckComponent* _prev;
-	CckComponent* _next;
-	CckBool _dynamic; // dynamic = dynamically allocated
-	CckUInt32 serial;
-	char instanceName[CCK_MAX_INSTANCE_NAME_LEN + 1];
-	CckBool isInitialized;
-	CckBool isShutdown;
-
-	int (*shutdown) (void*);
-
-};
-
-typedef struct {
-
-	CckComponent* _first;
-	CckComponent* _last;
-	CckUInt32 lastSerial;
-	int componentCount;
-
-} CckRegistry;
-
-CckBool cckInitialised(void);
-CckBool cckInit(void);
-CckBool cckShutdown(void);
-
-CckBool cckRegister(void* _comp);
-CckBool cckDeregister(void* _comp);
-
-
-#endif /* CCK_COMPONENT_H_ */
+#endif /* CCK_CLOCKDRIVER_NULL_H_ */

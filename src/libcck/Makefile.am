@@ -21,6 +21,12 @@ libcck_la_SOURCES = 			\
 	cck_component.c		\
 	cck_transport.h		\
 	cck_transport.c		\
+	cck_clockdriver.h	\
+	cck_clockdriver.c	\
+	clockdriver/cck_clockdriver_null.h	\
+	clockdriver/cck_clockdriver_null.c	\
+	clockdriver/cck_clockdriver_unix.h	\
+	clockdriver/cck_clockdriver_unix.c	\
 	cck_dummy.h		\
 	cck_dummy.c		\
 	dummy/cck_dummy_null.h	\
@@ -41,6 +47,8 @@ libcck_la_SOURCES = 			\
 	transport/cck_transport_socket_common.c	\
 	transport/cck_transport_socket_swtimestamp.h	\
 	transport/cck_transport_socket_swtimestamp.c	\
+	transport/cck_transport_socket_hwtimestamp.h	\
+	transport/cck_transport_socket_hwtimestamp.c	\
 	transport/cck_transport_pcap_common.h	\
 	transport/cck_transport_pcap_common.c	\
 	transport/cck_transport_null.h	\

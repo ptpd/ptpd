@@ -71,6 +71,7 @@
 /* libCCK components */
 #include "cck_loghandler.h"
 #include "cck_transport.h"
+#include "cck_clockdriver.h"
 #include "cck_acl.h"
 #include "cck_dummy.h"
 

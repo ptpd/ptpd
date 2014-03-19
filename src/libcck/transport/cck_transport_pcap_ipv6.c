@@ -361,6 +361,9 @@ cckTransportInit (CckTransport* transport, const CckTransportConfig* config)
     if(config->swTimestamping) {
 	/* pcap transport always timestamps on receive */
 	transport->timestamping = CCK_TRUE;
+    } else if(config->hwTimestamping) {
+	CCK_ERROR("libpcap based transport do not directly support hardware timestamping\n");
+	return -1;
     }
 
     /* open the reader pcap handle */
@@ -518,6 +521,11 @@ cckTransportTestConfig (CckTransport* transport, const CckTransportConfig* confi
     res = cckPcapGetInterfaceAddress(transport, &transport->ownAddress, AF_INET6);
 
     if(res != 1) {
+	return CCK_FALSE;
+    }
+
+    if(config->hwTimestamping) {
+	CCK_ERROR("libpcap based transport do not directly support hardware timestamping\n");
 	return CCK_FALSE;
     }
 

@@ -197,21 +197,18 @@ getTxTimestamp(CckTransport* transport, CckOctet* buf, CckUInt16 size, CckTimest
     }
 
 #if defined(SO_TIMESTAMPING) && defined(HAVE_DECL_MSG_ERRQUEUE) && HAVE_DECL_MSG_ERRQUEUE
-    int i = 0;
+
     int ret = 0;
     TransportAddress src;
     ssize_t length;
     fd_set tmpSet;
-    struct timeval timeOut = {0,0};
+    struct timeval timeOut = {0,100};
 
     FD_ZERO(&tmpSet);
     FD_SET(transport->fd, &tmpSet);
 
-    /* try up to two times on errors / timeouts */
-    for(ret = 0; ret <= 0 && i < 2; i++) {
-	/* timeout is zero - should return immediately */
-	ret = select(transport->fd + 1, &tmpSet, NULL, NULL, &timeOut);
-    }
+    ret = select(transport->fd + 1, &tmpSet, NULL, NULL, &timeOut);
+
 
     if(ret > 0) {
 
@@ -220,21 +217,21 @@ getTxTimestamp(CckTransport* transport, CckOctet* buf, CckUInt16 size, CckTimest
 	    length = transport->recv(transport, buf, size, &src, timeStamp, MSG_ERRQUEUE);
 
 	    if(length < 0) {
-		CCK_DBG("getTxTimestamp SO_TIMESTAMPING Error while getting TX timestamp via MSG_ERRQUEUE");
+		CCK_DBG("getTxTimestamp SO_TIMESTAMPING Error while getting TX timestamp via MSG_ERRQUEUE\n");
 		return CCK_FALSE;
 	    }
 
 	    if(length == 0) {
-		CCK_DBG("getTxTimestamp SO_TIMESTAMPING Received no data while getting TX timestamp via MSG_ERRQUEUE");
+		CCK_DBG("getTxTimestamp SO_TIMESTAMPING Received no data while getting TX timestamp via MSG_ERRQUEUE\n");
 		return CCK_FALSE;
 	    }
 
 	    if(!timeStamp->seconds && !timeStamp->nanoseconds) {
-		CCK_DBG("getTxTimestamp SO_TIMESTAMPING Received no TX timestamp via MSG_ERRQUEUE");
+		CCK_DBG("getTxTimestamp SO_TIMESTAMPING Received no TX timestamp via MSG_ERRQUEUE\n");
 		return CCK_FALSE;
 	    }
 
-    	    CCK_DBG("getTxTimestamp SO_TIMESTAMPING TX timestamp %d.%d\n",
+	    CCK_DBG("getTxTimestamp SO_TIMESTAMPING TX timestamp %d.%d\n",
 		    timeStamp->seconds, timeStamp->nanoseconds);
 	    return CCK_TRUE;
 
@@ -408,20 +405,36 @@ cckTransportInit (CckTransport* transport, const CckTransportConfig* config)
 	if(cckInitSwTimestamping(
 	    transport, &data->timestampCaps, CCK_FALSE)) {
 		transport->timestamping = CCK_TRUE;
+		transport->txTimestamping = data->timestampCaps.txTimestamping;
 	} else {
 	    CCK_ERROR("Failed to enable software timestamping on %s\n",
 		    transport->transportEndpoint);
 	    return -1;
 	}
 
+    } else if(config->hwTimestamping) {
+	if(cckInitHwTimestamping(
+	    transport, &data->timestampCaps, CCK_FALSE)) {
+		transport->timestamping = CCK_TRUE;
+		transport->txTimestamping = data->timestampCaps.txTimestamping;
+	} else {
+	    CCK_ERROR("Failed to enable hardware timestamping on %s\n",
+		    transport->transportEndpoint);
+	    return -1;
+	}
     }
 
-    /* One of our destinations is multicast - set loopback if we have no TX timestamping */
-    if(transport->timestamping && !transport->txTimestamping && (
-	transport->isMulticastAddress(&transport->defaultDestination) ||
-	transport->isMulticastAddress(&transport->secondaryDestination)) &&
-	!setMulticastLoopback(transport, CCK_TRUE)) {
-	    CCK_ERROR("Failed to set multicast loopback on socket\n");
+    /*
+       One of our destinations is multicast - enable loopback if we have no TX timestamping,
+       AND DISABLE IT if we don't - some OSes default to multicast loopback.
+     */
+    CckBool loopback = transport->timestamping && !transport->txTimestamping && 
+			( transport->isMulticastAddress(&transport->defaultDestination) ||
+			transport->isMulticastAddress(&transport->secondaryDestination));
+
+    if(!setMulticastLoopback(transport, loopback)) {
+	    CCK_ERROR("Failed to %s multicast loopback on socket\n",
+			loopback ? "enable" : "disable");
 	    return -1;
     }
 
@@ -538,6 +551,13 @@ cckTransportTestConfig (CckTransport* transport, const CckTransportConfig* confi
 	    return CCK_FALSE;
 	}
 
+    } else if(config->hwTimestamping) {
+	if(!cckInitHwTimestamping(
+	    transport, &data->timestampCaps, CCK_TRUE)) {
+	    free(data);
+	    return CCK_FALSE;
+	}
+
     }
 
     free(data);
@@ -612,11 +632,9 @@ cckTransportSend (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 
     ssize_t ret;
 
-    CckBool txFailure = CCK_FALSE;
-
-    if(dst==NULL)
-
-    dst = &transport->defaultDestination;
+    if(dst==NULL) {
+	dst = &transport->defaultDestination;
+    }
 
     CckBool isMulticast = transport->isMulticastAddress(dst);
 
@@ -631,17 +649,17 @@ cckTransportSend (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 
 
     /* If the transport can timestamp on TX, try doing it - if we failed, loop back the packet */
-    if(transport->txTimestamping && !getTxTimestamp(transport, buf, size, timestamp)) {
-	txFailure = CCK_TRUE;
+    if(transport->txTimestamping) {
+	getTxTimestamp(transport, buf, size, timestamp);
     }
 
-    /* destination is unicast and we have no TX timestamping, or TX timestamping failed - loop back the packet */
-    if((!isMulticast && !transport->txTimestamping) || txFailure) {
+    /* destination is unicast and we have no TX timestamping, - loop back the packet */
+    if(!isMulticast && !transport->txTimestamping) {
 	if(sendto(transport->fd, buf, size, 0,
 		     (struct sockaddr *)&transport->ownAddress,
 	 sizeof(struct sockaddr_in6)) <= 0)
-		CCK_DBG("send() Error looping back IPv6 message on %s (transport \"%s\")\n",
-			transport->transportEndpoint, transport->header.instanceName);
+             CCK_DBG("send() Error looping back IPv6 message on %s (transport \"%s\")\n",
+                        transport->transportEndpoint, transport->header.instanceName);
     }
 
     if (ret <= 0)
@@ -704,9 +722,11 @@ cckTransportRecv (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 	msg.msg_controllen = sizeof(cmsg_un.control);
 	msg.msg_flags = 0;
 
-	ret = recvmsg(transport->fd, &msg, MSG_DONTWAIT | flags);
+//      if(!flags) flags = MSG_DONTWAIT;
 
-	if (ret <= 0) {
+	ret = recvmsg(transport->fd, &msg, flags | MSG_DONTWAIT);
+
+	if (!flags && ret <= 0) {
 	    if (errno == EAGAIN || errno == EINTR) {
 		return 0;
 	    } else {
@@ -714,31 +734,36 @@ cckTransportRecv (CckTransport* transport, CckOctet* buf, CckUInt16 size,
 	    }
 	};
 
-	if (msg.msg_flags & MSG_TRUNC) {
-	    CCK_ERROR("IPv6 - Received truncated message on %s\n",
-		transport->transportEndpoint);
-	    return 0;
-	}
+	if(flags != MSG_ERRQUEUE ) {
 
-	if (msg.msg_flags & MSG_CTRUNC) {
-	    CCK_ERROR("IPv6 - Received truncated control message on %s\n",
-		transport->transportEndpoint);
-	    return 0;
-	}
+	    if (msg.msg_flags & MSG_TRUNC) {
+		CCK_ERROR("IPv6 - Received truncated message on %s\n",
+		    transport->transportEndpoint);
+		return 0;
+	    }
 
-	if(!flags)
-	    transport->receivedMessages++;
+	    if (msg.msg_flags & MSG_CTRUNC) {
+		CCK_ERROR("IPv6 - Received truncated control message on %s\n",
+		    transport->transportEndpoint);
+		return 0;
+	    }
 
-	if (msg.msg_controllen <= 0) {
-	    CCK_ERROR("IPv6 - Received short control message on %s: (%lu/%lu)\n",
+	    if (msg.msg_controllen <= 0) {
+		CCK_ERROR("IPv6 - Received short control message on %s (transport %s): (%lu/%lu)\n",
 			transport->transportEndpoint,
+			transport->header.instanceName,
 		        (long)msg.msg_controllen, 
 			(long)sizeof(cmsg_un.control));
 			return 0;
+	    }
+
+	    transport->receivedMessages++;
+
 	}
 
+	/* control message looks OK - let's try to grab the timestamp */
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-	    if (cmsg->cmsg_level == SOL_SOCKET && cckGetSwTimestamp(cmsg, &data->timestampCaps, timestamp)) {
+	    if ((cmsg->cmsg_level == SOL_SOCKET) && cckGetSwTimestamp(cmsg, &data->timestampCaps, timestamp)) {
 		break;
 	    }
 	}
@@ -759,6 +784,7 @@ cckTransportRecv (CckTransport* transport, CckOctet* buf, CckUInt16 size,
     /* === no timestamp needed - standard recvfrom */
 
 	ret = recvfrom(transport->fd, buf, size, MSG_DONTWAIT, (struct sockaddr*)src, &srcLen);
+
 	if (ret <= 0 ) {
 	    if (errno == EAGAIN || errno == EINTR)
 		return 0;

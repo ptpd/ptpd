@@ -72,9 +72,12 @@ typedef int32_t 		CckInt32;
 /* different timestamp container types */
 typedef enum {
 
+	/* software timestamping methods */
 	CCK_TIMESPEC = 1,
 	CCK_TIMEVAL,
 	CCK_BINTIME,
+	/* hardware timestamping methods */
+	CCK_SCMTIMESTAMPING
 
 } CckTimestampType;
 

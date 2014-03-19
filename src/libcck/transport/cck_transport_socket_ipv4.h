@@ -45,6 +45,7 @@
 #include "../cck.h"
 #include "../cck_transport.h"
 #include "cck_transport_socket_swtimestamp.h"
+#include "cck_transport_socket_hwtimestamp.h"
 
 /* implementation-specific transport data */
 typedef struct {

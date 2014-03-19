@@ -27,66 +27,49 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 /**
- * @file   cck_component.h
+ * @file   cck_clockdriver_null.c
  *
- * @brief  libCCK base component and registry definition
+ * @brief  libCCK clockDriver component null implementation - stub only
  *
  */
 
-#ifndef CCK_COMPONENT_H_
-#define CCK_COMPONENT_H_
+#include "cck_clockdriver_null.h"
 
-#ifndef CCK_H_INSIDE_
-#error libCCK component headers should not be uncluded directly - please include cck.h only.
-#endif
+#define CCK_THIS_TYPE CCK_CLOCKDRIVER_NULL
 
+/* interface (public) method definitions */
+static int     cckClockDriverInit (CckClockDriver* self, const CckClockDriverConfig* config);
+static int     cckClockDriverShutdown (void* component);
 
-typedef struct CckComponent CckComponent;
+/* implementations follow */
 
-#include "cck.h"
+void
+cckClockDriverSetup_null(CckClockDriver* self)
+{
+	if(self->clockDriverType == CCK_THIS_TYPE) {
+	    self->init = cckClockDriverInit;
+	    self->shutdown = cckClockDriverShutdown;
+	    self->header.shutdown = cckClockDriverShutdown;
+	} else {
+	    CCK_WARNING("setup() called for incorrect component implementation: %02x, expected %02x\n",
+			self->clockDriverType, CCK_THIS_TYPE);
+	}
+}
 
-#define CCK_MAX_INSTANCE_NAME_LEN 15
+static int
+cckClockDriverInit (CckClockDriver* self, const CckClockDriverConfig* config)
+{
+    return 1;
+}
 
-enum {
-	CCK_COMPONENT_NULL = 0,
-	CCK_COMPONENT_LOGHANDLER,
-        CCK_COMPONENT_ACL,
-	CCK_COMPONENT_TRANSPORT,
-	CCK_COMPONENT_CLOCKDRIVER,
-	CCK_COMPONENT_DUMMY
-};
+static int
+cckClockDriverShutdown (void* component)
+{
 
-struct CckComponent {
+    return 0;
 
-	int componentType;
-	CckComponent* _prev;
-	CckComponent* _next;
-	CckBool _dynamic; // dynamic = dynamically allocated
-	CckUInt32 serial;
-	char instanceName[CCK_MAX_INSTANCE_NAME_LEN + 1];
-	CckBool isInitialized;
-	CckBool isShutdown;
+}
 
-	int (*shutdown) (void*);
-
-};
-
-typedef struct {
-
-	CckComponent* _first;
-	CckComponent* _last;
-	CckUInt32 lastSerial;
-	int componentCount;
-
-} CckRegistry;
-
-CckBool cckInitialised(void);
-CckBool cckInit(void);
-CckBool cckShutdown(void);
-
-CckBool cckRegister(void* _comp);
-CckBool cckDeregister(void* _comp);
-
-
-#endif /* CCK_COMPONENT_H_ */
+#undef CCK_THIS_TYPE

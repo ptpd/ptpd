@@ -42,6 +42,7 @@ cckPcapGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr
 {
     int ret;
     char errbuf[PCAP_ERRBUF_SIZE];
+    CckBool found = CCK_FALSE;
 
     pcap_if_t *pall, *pdev;
 
@@ -61,6 +62,9 @@ cckPcapGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr
 		    pdev->name, pdev->description);
 
 	if(!strcmp(transport->transportEndpoint, pdev->name))  {
+
+	    /* interface may exist but not have the address type we're looking for */
+	    found = CCK_TRUE;
 
 	    for(paddr = pdev->addresses; paddr != NULL; paddr = paddr->next) {
 
@@ -88,9 +92,14 @@ cckPcapGetInterfaceAddress(const CckTransport* transport, TransportAddress* addr
     ret = 0;
 
     if(!transportAddressEmpty(addr)) {
-	CCK_ERROR("Could not find address %s on interface %s\n.",
+	CCK_ERROR("Could not find address %s on interface %s\n",
 			transport->addressToString(addr),
 			transport->transportEndpoint);
+    } else if(found) {
+	CCK_ERROR("Could not find %saddress on interface %s\n",
+		    addressFamily == AF_INET ? "IPv4 " :
+		    addressFamily == AF_INET6 ? "IPv6 " : "",
+		    transport->transportEndpoint);
     } else {
 	CCK_ERROR("Interface not found: %s\n", transport->transportEndpoint);
     }

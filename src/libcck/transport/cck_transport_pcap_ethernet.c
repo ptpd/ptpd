@@ -285,10 +285,13 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
 	    return -1;
     }
 
-
-
     /* everything succeeded, so we can add the transport's fd to the fd set */
     cckAddFd(transport->fd, transport->watcher);
+
+    if(config->hwTimestamping) {
+	CCK_ERROR("libpcap based transport do not directly support hardware timestamping\n");
+	return -1;
+    }
 
     CCK_DBG("Successfully started pcap transport serial %08x (%s) on endpoint %s\n",
 		transport->header.serial, transport->header.instanceName,
@@ -440,6 +443,11 @@ cckTransportTestConfig(CckTransport* transport, const CckTransportConfig* config
 	CCK_DBG("pcap writer endpoint for transport \"%s\" OK\n",
 		    transport->header.instanceName);
 	pcap_close(handle.sender);
+    }
+
+    if(config->hwTimestamping) {
+	CCK_ERROR("libpcap based transport do not directly support hardware timestamping\n");
+	return -1;
     }
 
     return 1;

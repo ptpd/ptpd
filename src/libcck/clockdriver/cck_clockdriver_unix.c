@@ -29,92 +29,87 @@
 
 
 /**
- * @file   cck_dummy_dummy.c
+ * @file   cck_clockdriver_unix.c
  *
- * @brief  libCCK dummy component dummy implementation - full implementatione example
+ * @brief  libCCK clockDriver component clockDriver implementation - full implementatione example
  *
  */
 
-#include "cck_dummy_dummy.h"
+#include "cck_clockdriver_unix.h"
 
-#define CCK_THIS_TYPE CCK_DUMMY_DUMMY
+#define CCK_THIS_TYPE CCK_CLOCKDRIVER_UNIX
 
 /* interface (public) method definitions */
-static int     cckDummyInit (CckDummy* self, const CckDummyConfig* config);
-static int     cckDummyShutdown (void* component);
-static CckBool cckDummyDoSomething (CckDummy* self, int param1);
-static CckBool cckDummyDoSomethingWithCallback (CckDummy* self, int param1);
+static int     cckClockDriverInit (CckClockDriver* self, const CckClockDriverConfig* config);
+static int     cckClockDriverShutdown (void* component);
 
 /* private method definitions (if any) */
-static int     private1(CckDummy* dummy, int* param1);
+
 
 /* implementations follow */
 
 void
-cckDummySetup_dummy(CckDummy* self)
+cckClockDriverSetup_unix(CckClockDriver* self)
 {
-	if(self->dummyType == CCK_THIS_TYPE) {
-            self->dummyCallback = NULL;
-	    self->init = cckDummyInit;
-	    self->shutdown = cckDummyShutdown;
-	    self->doSomething = cckDummyDoSomething;
-	    self->doSomethingWithCallback = cckDummyDoSomethingWithCallback;
-	    self->header.shutdown = cckDummyShutdown;
+	if(self->clockDriverType == CCK_THIS_TYPE) {
+            self->clockDriverCallback = NULL;
+	    self->init = cckClockDriverInit;
+	    self->shutdown = cckClockDriverShutdown;
+	    self->header.shutdown = cckClockDriverShutdown;
 	} else {
 	    CCK_WARNING("setup() called for incorrect component implementation: %02x, expected %02x\n",
-			self->dummyType, CCK_THIS_TYPE);
+			self->clockDriverType, CCK_THIS_TYPE);
 	}
 }
 
 static int
-cckDummyInit (CckDummy* self, const CckDummyConfig* config)
+cckClockDriverInit (CckClockDriver* self, const CckClockDriverConfig* config)
 {
 
     /* implementation-specific data */
-    CckDummyDummyData* data = NULL;
+    CckClockDriverClockDriverData* data = NULL;
 
     if(self == NULL) {
-	CCK_ERROR("Dummy Dummy init called for an empty dummy\n");
+	CCK_ERROR("ClockDriver ClockDriver init called for an empty clockDriver\n");
 	return -1;
     }
 
     if(config == NULL) {
-	CCK_ERROR("Dummy Dummy init called with empty config\n");
+	CCK_ERROR("ClockDriver ClockDriver init called with empty config\n");
 	return -1;
     }
 
     /* Shutdown will be called on self object anyway, OK to exit without explicitly freeing self */
-    CCKCALLOC(self->dummyData, sizeof(CckDummyDummyData));
+    CCKCALLOC(self->clockDriverData, sizeof(CckClockDriverClockDriverData));
 
-    data = (CckDummyDummyData*)self->dummyData;
+    data = (CckClockDriverClockDriverData*)self->clockDriverData;
 
-    data->param1 = 42;
-
-    self->param1 = config->param1;
 
     return 1;
 }
 
 static int
-cckDummyShutdown (void* component)
+cckClockDriverShutdown (void* component)
 {
 
     if(component == NULL)
 	return -1;
 
-    CckDummy* self = (CckDummy*)component;
+    CckClockDriver* self = (CckClockDriver*)component;
 
-    if(self->dummyData != NULL) {
-	free(self->dummyData);
-	self->dummyData = NULL;
+    if(self->clockDriverData != NULL) {
+	free(self->clockDriverData);
+	self->clockDriverData = NULL;
     }
 
     return 1;
 
 }
 
+/*
+
 static CckBool
-cckDummyDoSomething (CckDummy* self, int param1)
+cckClockDriverDoSomething (CckClockDriver* self, int param1)
 {
 
     if(private1(self, &param1)) {
@@ -129,13 +124,13 @@ cckDummyDoSomething (CckDummy* self, int param1)
 
 
 static CckBool
-cckDummyDoSomethingWithCallback (CckDummy* self, int param1)
+cckClockDriverDoSomethingWithCallback (CckClockDriver* self, int param1)
 {
 
 
-    if(self->dummyCallback != NULL) {
+    if(self->clockDriverCallback != NULL) {
 
-	self->dummyCallback(CCK_FALSE, &param1);
+	self->clockDriverCallback(CCK_FALSE, &param1);
 	return CCK_TRUE;
 
     }
@@ -145,7 +140,7 @@ cckDummyDoSomethingWithCallback (CckDummy* self, int param1)
 }
 
 static int
-private1(CckDummy* self, int* param1)
+private1(CckClockDriver* self, int* param1)
 {
 
     self->param1 = 42;
@@ -153,6 +148,6 @@ private1(CckDummy* self, int* param1)
     return -1;
 
 }
-
+*/
 
 #undef CCK_THIS_TYPE
