@@ -1287,10 +1287,24 @@ allows to preserve observed drift if servo cannot stabilise.
 .RS 8
 .TP 8
 \fBusage\fR
-Do not update one-way delay if slave to master delay (delaySM from Delay Response) is greater than this value (nanoseconds). 0 = not used.
+Do accept master to slave delay (delayMS - from Sync message) or slave to master delay (delaySM - from Delay Response message) 
+if greater than this value (nanoseconds). 0 = not used.
 .TP 8
 \fBdefault\fR
 \fI0\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBservo:max_delay_stable_only [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+If \fBservo:max_delay\fR is set, perform the check only if clock servo has stabilised.
+.TP 8
+\fBdefault\fR
+\fIN\fR
 
 .RE
 .RE

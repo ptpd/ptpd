@@ -120,14 +120,23 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	ptpClock->char_last_msg = 'D';
 
 	{
+
+#ifdef PTPD_STATISTICS
+		/* if maxDelayStableOnly configured, only check once servo is stable */
+		Boolean checkThreshold = rtOpts-> maxDelayStableOnly ?
+		    (ptpClock->servo.isStable && rtOpts->maxDelay) :
+		    (rtOpts->maxDelay);
+#else
+		Boolean checkThreshold = rtOpts->maxDelay;
+#endif
 		//perform basic checks, using local variables only
 		TimeInternal slave_to_master_delay;
-	
+
 		/* calc 'slave_to_master_delay' */
 		subTime(&slave_to_master_delay, &ptpClock->delay_req_receive_time,
 			&ptpClock->delay_req_send_time);
 
-		if (rtOpts->maxDelay && /* If maxDelay is 0 then it's OFF */
+		if (checkThreshold && /* If maxDelay is 0 then it's OFF */
 		    rtOpts->offset_first_updated) {
 
 			if ((slave_to_master_delay.nanoseconds < 0) &&
@@ -145,8 +154,8 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				goto display;
 			}
 
-			if (slave_to_master_delay.seconds && rtOpts->maxDelay) {
-				INFO("updateDelay aborted, delay %d.%d greater than 1 second\n",
+			if (slave_to_master_delay.seconds && checkThreshold) {
+				INFO("updateDelay aborted, slave to master delay %d.%d greater than 1 second\n",
 				     slave_to_master_delay.seconds,
 				     slave_to_master_delay.nanoseconds);
 				if (rtOpts->displayPackets)
@@ -155,7 +164,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			}
 
 			if (slave_to_master_delay.nanoseconds > rtOpts->maxDelay) {
-				INFO("updateDelay aborted, delay %d greater than "
+				INFO("updateDelay aborted, slave to master delay %d greater than "
 				     "administratively set maximum %d\n",
 				     slave_to_master_delay.nanoseconds, 
 				     rtOpts->maxDelay);
@@ -397,22 +406,32 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	DBGV("==> updateOffset\n");
 
 	{
+
+#ifdef PTPD_STATISTICS
+		/* if maxDelayStableOnly configured, only check once servo is stable */
+		Boolean checkThreshold = rtOpts-> maxDelayStableOnly ?
+		    (ptpClock->servo.isStable && rtOpts->maxDelay) :
+		    (rtOpts->maxDelay);
+#else
+		Boolean checkThreshold = rtOpts->maxDelay;
+#endif
+
 	//perform basic checks, using only local variables
 	TimeInternal master_to_slave_delay;
 
 	/* calc 'master_to_slave_delay' */
 	subTime(&master_to_slave_delay, recv_time, send_time);
 
-	if (rtOpts->maxDelay) { /* If maxDelay is 0 then it's OFF */
-		if (master_to_slave_delay.seconds && rtOpts->maxDelay) {
-			INFO("updateOffset aborted, delay greater than 1"
+	if (checkThreshold) { /* If maxDelay is 0 then it's OFF */
+		if (master_to_slave_delay.seconds && checkThreshold) {
+			INFO("updateOffset aborted, master to slave delay greater than 1"
 			     " second.\n");
 			/* msgDump(ptpClock); */
 			return;
 		}
 
-		if (master_to_slave_delay.nanoseconds > rtOpts->maxDelay) {
-			INFO("updateOffset aborted, delay %d greater than "
+		if (abs(master_to_slave_delay.nanoseconds) > rtOpts->maxDelay) {
+			INFO("updateOffset aborted, master to slave delay %d greater than "
 			     "administratively set maximum %d\n",
 			     master_to_slave_delay.nanoseconds, 
 			     rtOpts->maxDelay);

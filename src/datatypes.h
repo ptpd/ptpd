@@ -928,6 +928,8 @@ typedef struct {
 	int servoStabilityTimeout;
 	int servoStabilityPeriod;
 
+	Boolean maxDelayStableOnly;
+
 #endif
 
 	Boolean enablePanicMode;

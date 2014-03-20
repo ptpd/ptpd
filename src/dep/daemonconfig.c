@@ -913,6 +913,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->servoStabilityTimeout = 10;
 	/* How many statsUpdateInterval periods to wait for one-way delay prefiltering */
 	rtOpts->calibrationDelay = 0;
+	/* if set to TRUE and maxDelay is defined, only check against threshold if servo is stable */
+	rtOpts->maxDelayStableOnly = FALSE;
 
 #endif
 
@@ -1678,9 +1680,14 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 #endif
 
 	CONFIG_MAP_INT_RANGE("servo:max_delay",rtOpts->maxDelay,rtOpts->maxDelay,
-		"Do not update one-way delay if slave to master delay (delaySM - from Delay Response)\n"
-	"	 is greater than this value (nanoseconds). 0 = not used."
+		"Do accept master to slave delay (delayMS - from Sync message) or slave to master delay\n"
+	"	 (delaySM - from Delay messages) if greater than this value (nanoseconds). 0 = not used."
 	,0,NANOSECONDS_MAX);
+
+#ifdef PTPD_STATISTICS
+	CONFIG_MAP_BOOLEAN("servo:max_delay_stable_only",rtOpts->maxDelayStableOnly,rtOpts->maxDelayStableOnly,
+		"If servo:max_delay is set, perform the check only if clock servo has stabilised.\n");
+#endif
 
 	CONFIG_MAP_INT_RANGE("servo:max_offset",rtOpts->maxReset,rtOpts->maxReset,
 		"Do not reset the clock if offset from master is greater\n"
@@ -2697,8 +2704,6 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("global:enable_snmp",       	PTPD_RESTART_DAEMON );
 #endif /* PTPD_SNMP */
 
-
-
 #ifdef PTPD_STATISTICS
         COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_enable",     PTPD_RESTART_PEIRCE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_action",    	PTPD_RESTART_NONE );
@@ -2714,15 +2719,16 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_weight",  	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:calibration_delay",  	PTPD_RESTART_NONE );
 
+//        COMPONENT_RESTART_REQUIRED("servo:max_delay_stable_only",    	PTPD_RESTART_NONE );
+
+#endif /* PTPD_STATISTICS */
+
 	COMPONENT_RESTART_REQUIRED("ptpengine:timing_acl_permit",		PTPD_RESTART_ACLS);
 	COMPONENT_RESTART_REQUIRED("ptpengine:timing_acl_deny",			PTPD_RESTART_ACLS);
 	COMPONENT_RESTART_REQUIRED("ptpengine:management_acl_permit",		PTPD_RESTART_ACLS);
 	COMPONENT_RESTART_REQUIRED("ptpengine:management_acl_deny",		PTPD_RESTART_ACLS);
 	COMPONENT_RESTART_REQUIRED("ptpengine:timing_acl_order",		PTPD_RESTART_ACLS);
 	COMPONENT_RESTART_REQUIRED("ptpengine:management_acl_order",		PTPD_RESTART_ACLS);
-
-
-#endif /* PTPD_STATISTICS */
 
 //        COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode",  	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode_duration",  	PTPD_RESTART_NONE );
@@ -2741,7 +2747,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("servo:ki",   			PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:dt_method",			PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:max_delay",    		PTPD_RESTART_NONE );
-//        COMPONENT_RESTART_REQUIRED("servo:max_delay",    		PTPD_RESTART_NONE );
+
 //        COMPONENT_RESTART_REQUIRED("servo:max_offset",   		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("global:use_syslog", 		PTPD_RESTART_LOGGING );
 
