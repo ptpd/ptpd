@@ -853,11 +853,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			    );
 	}
 
-	{
-//	    struct sockaddr_in* sin = ((struct sockaddr_in*)&(netPath->interfaceInfo.afAddress))->sin_addr
-	    DBG("Listening on IP: %s\n",inet_ntoa(
+	DBG("Listening on IP: %s\n",inet_ntoa(
 		((struct sockaddr_in*)&(netPath->interfaceInfo.afAddress))->sin_addr));
-	}
 
 #ifdef PTPD_PCAP
 	if (rtOpts->pcap == TRUE) {
