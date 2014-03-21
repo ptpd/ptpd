@@ -139,6 +139,13 @@ enum {
 #endif
 };
 
+/* log timestamp mode */
+enum {
+	TIMESTAMP_DATETIME,
+	TIMESTAMP_UNIX,
+	TIMESTAMP_BOTH
+};
+
 /* servo dT calculation mode */
 enum {
 	DT_NONE,

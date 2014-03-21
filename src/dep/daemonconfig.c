@@ -815,6 +815,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->noAdjust = NO_ADJUST;  // false
 	rtOpts->logStatistics = TRUE;
+	rtOpts->statisticsTimestamp = TIMESTAMP_DATETIME;
+
 	/* Deep display of all packets seen by the daemon */
 	rtOpts->displayPackets = FALSE;
 	// rtOpts->unicastAddress
@@ -1845,8 +1847,20 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	}
 
 	/* If this is processed after verbose_foreground, we can still control logStatistics */
-	CONFIG_MAP_BOOLEAN("global:log_statistics",rtOpts->logStatistics,rtOpts->logStatistics,
-		"Log timing statistics for every PTP packet received");
+	CONFIG_MAP_BOOLEAN("global:log_statistics", rtOpts->logStatistics, rtOpts->logStatistics,
+		"Log timing statistics for every PTP packet received\n");
+
+	CONFIG_MAP_SELECTVALUE("global:statistics_timestamp_format", rtOpts->statisticsTimestamp, rtOpts->statisticsTimestamp,
+		"Timestamp format used when logging timing statistics\n"
+	"        (when global:log_statistics is enabled):\n"
+	"        datetime - formatttted date and time: YYYY-MM-DD hh:mm:ss.uuuuuu\n"
+	"        unix - Unix timestamp with nanoseconds: s.ns\n"
+	"        both - Formatted date and time, followed by unix timestamp\n"
+	"               (adds one extra field  to the log)\n",
+		"datetime",	TIMESTAMP_DATETIME,
+		"unix",		TIMESTAMP_UNIX,
+		"both",		TIMESTAMP_BOTH
+		);
 
 	/* If statistics file is enabled but logStatistics isn't, disable logging to file */
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->statisticsLog.logEnabled && !rtOpts->logStatistics,
@@ -2780,7 +2794,8 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("global:statistics_file_truncate",		PTPD_RESTART_LOGGING );
 //        COMPONENT_RESTART_REQUIRED("global:statistics_file_max_files",		PTPD_RESTART_LOGGING );
 //        COMPONENT_RESTART_REQUIRED("global:statistics_log_interval",		PTPD_RESTART_NONE );
-//        COMPONENT_RESTART_REQUIRED("global:log_stats",			PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("global:log_statistics",			PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("global:statistics_timestamp_format",		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("global:dump_packets",		PTPD_RESTART_NONE );
 #ifdef PTPD_STATISTICS
 //		COMPONENT_RESTART_REQUIRED("global:statistics_update_interval", PTPD_RESTART_NONE );

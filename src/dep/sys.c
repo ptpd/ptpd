@@ -609,13 +609,13 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if (ptpClock->resetStatisticsLog) {
 		ptpClock->resetStatisticsLog = FALSE;
-		fprintf(destination,"# Timestamp, State, Clock ID, One Way Delay, "
+		fprintf(destination,"# %s, State, Clock ID, One Way Delay, "
 		       "Offset From Master, Slave to Master, "
 		       "Master to Slave, Observed Drift, Last packet Received"
 #ifdef PTPD_STATISTICS
 			", One Way Delay Mean, One Way Delay Std Dev, Offset From Master Mean, Offset From Master Std Dev, Observed Drift Mean, Observed Drift Std Dev"
 #endif
-			"\n");
+			"\n", (rtOpts->statisticsTimestamp == TIMESTAMP_BOTH) ? "Timestamp, Unix timestamp" : "Timestamp");
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
 
@@ -649,10 +649,23 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 
 	time_s = now.seconds;
-	strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&time_s));
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s.%06d, %s, ",
+
+	/* output date-time timestamp if configured */
+	if (rtOpts->statisticsTimestamp == TIMESTAMP_DATETIME ||
+	    rtOpts->statisticsTimestamp == TIMESTAMP_BOTH) {
+	    strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&time_s));
+	    len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s.%06d, %s, ",
 		       time_str, (int)now.nanoseconds/1000, /* Timestamp */
 		       translatePortState(ptpClock)); /* State */
+	}
+
+	/* output unix timestamp s.ns if configured */
+	if (rtOpts->statisticsTimestamp == TIMESTAMP_UNIX ||
+	    rtOpts->statisticsTimestamp == TIMESTAMP_BOTH) {
+	    len += snprintf(sbuf + len, sizeof(sbuf) - len, "%d.%06d, %s,",
+		       now.seconds, now.nanoseconds, /* Timestamp */
+		       translatePortState(ptpClock)); /* State */
+	}
 
 	if (ptpClock->portState == PTP_SLAVE) {
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,

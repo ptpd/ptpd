@@ -854,6 +854,7 @@ typedef struct {
 	LogFileHandler statusLog;
 
 	Boolean logStatistics;
+	int statisticsTimestamp;
 
 	int logLevel;
 	int statisticsLogInterval;

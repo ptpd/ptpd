@@ -64,7 +64,6 @@ Network interface to use - eth0, igb0 etc. (\fBrequired\fR).
 \fBptpengine:preset [\fISELECT\fB]\fR
 .RS 8
 .TP 8
-
 \fBoptions\fR
 \fInone slaveonly masteronly masterslave \fR
 .TP 8
@@ -1640,7 +1639,7 @@ Truncate the statistics file every time it is (re) opened: startup and SIGHUP.
 .RS 8
 .TP 8
 \fBusage\fR
-Dump the contents of every PTP packet
+Dump the contents of every PTP packet.
 .TP 8
 \fBdefault\fR
 \fIN\fR
@@ -1667,7 +1666,7 @@ Run in foreground with statistics and all messages logged to stdout. Overrides l
 .RS 8
 .TP 8
 \fBusage\fR
-Run in foreground - ignored when global:verbose_foreground is set
+Run in foreground - ignored when global:verbose_foreground is set.
 .TP 8
 \fBdefault\fR
 \fIN\fR
@@ -1680,10 +1679,38 @@ Run in foreground - ignored when global:verbose_foreground is set
 .RS 8
 .TP 8
 \fBusage\fR
-Log timing statistics for every PTP packet received
+Log timing statistics for every PTP packet received. Output is in CSV format and field headers
+are always printed when starting or refreshing the statistics log.
 .TP 8
 \fBdefault\fR
 \fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBglobal:statistics:timestamp_format [\fISELECT\fB]\fR
+.RS 8
+.TP 8
+\fBoptions\fR
+\fIdatetime unix both \fR
+.TP 8
+\fBusage\fR
+Timestamp format used when logging timing statistics (when \fBglobal:log_statistics\fR is enabled):
+.RS 12
+.TP 12
+\fIdatetime\fR
+Formatted date and time: \fBYYYY-MM-DD hh:mm:ss.uuuuuu\fR
+.TP 12
+\fIunix\fR
+Unix timestamp with nanoseconds: \fBs.ns\fR
+.TP 12
+\fIboth\fR
+Formatted date and time followed by unix timestamp (adds one extra field  to the log)
+.RE
+.TP 8
+\fBdefault\fR
+\fIdatetime\fR
 
 .RE
 .RE
