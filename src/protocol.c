@@ -2255,6 +2255,8 @@ handleManagement(MsgHeader *header,
         {
                 DBGV("handleManagement: The management message was not accepted");
 		ptpClock->counters.discardedMessages++;
+                /* cleanup msgTmp managementTLV */
+                freeManagementTLV(&ptpClock->msgTmp.manage);
                 return;
         }
 
@@ -2263,6 +2265,8 @@ handleManagement(MsgHeader *header,
 	    ptpClock->msgTmp.manage.actionField == COMMAND)) {
 		DBGV("Dropping SET/COMMAND management message - read-only mode enabled");
 		ptpClock->counters.discardedMessages++;
+                /* cleanup msgTmp managementTLV */
+                freeManagementTLV(&ptpClock->msgTmp.manage);
 		return;
 	}
 
@@ -2286,6 +2290,8 @@ handleManagement(MsgHeader *header,
 		/* do nothing, implemention specific handling */
 		DBGV("handleManagement: Currently unsupported management TLV type\n");
 		ptpClock->counters.discardedMessages++;
+                /* cleanup msgTmp managementTLV */
+                freeManagementTLV(&ptpClock->msgTmp.manage);
 		return;
 	}
 
