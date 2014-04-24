@@ -1,5 +1,6 @@
 # Makefile for ptpd2
 
+AUTOMAKE_OPTIONS = subdir-objects
 lib_LTLIBRARIES = $(LIBPTPD2_LIBS_LA)
 sbin_PROGRAMS = ptpd2
 man_MANS = ptpd2.8 ptpd2.conf.5
