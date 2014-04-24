@@ -936,7 +936,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		    netPath->interfaceAddr = sin->sin_addr;
 		}
 
-		DBG("Local IP address used : %s \n", inet_ntoa(netPath->interfaceInfo.afAddress));
+		DBG("Local IP address used : %s \n", inet_ntoa(netPath->interfaceAddr));
 
 		temp = 1;			/* allow address reuse */
 		if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_REUSEADDR, 
