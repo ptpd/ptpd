@@ -47,30 +47,44 @@ require(zoo) # Time series objects
 ptpLogRead <- function(file) {
 
     # Attempt to read log files from version 2.3 first.
-    tryCatch({
-        log = read.table(file, fill=TRUE, sep=",",
-            col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "drift", "packet"),
-            colClasses=c("timestamp"="POSIXct"),
-            blank.lines.skip=TRUE, header=FALSE, skip=100)
-    }, warning = function(w) {
-        print(paste("File is not new style, trying old style.", file))
-    }, error = function(e) {
-        print(paste("File is not new style, trying old style.", file))
-    }, finally = { # If that fails try to read the old style
-        log = read.table(file, fill=TRUE, sep=",",
-            col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "steering", "drift", "packet"),
-            colClasses=c("timestamp"="POSIXct"),
-            blank.lines.skip=TRUE, header=FALSE, skip=100)
-    } # and if this fails we really error out.
-             )
+    try( {
+      data = read.table(file, fill=TRUE, sep=",",
+        col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "drift", "packet"),
+        colClasses=c("timestamp"="POSIXct"),
+        blank.lines.skip=TRUE, header=FALSE, skip=100)
+    } ,silent=TRUE)
+    
+    if (is.na(data$packet[1])) {
+      print(paste("File is not new style, trying old style.", file))
+      try( {
+        data = read.table(file, fill=TRUE, sep=",",
+          col.names=c("timestamp", "state", "clockID", "delay", "offset", "master.to.slave", "slave.to.master", "steering", "drift", "packet"),
+          colClasses=c("timestamp"="POSIXct"),
+          blank.lines.skip=TRUE, header=FALSE, skip=100)
+      }, silent=TRUE)
+      
+    }
 
-    offset = zoo(log$offset, log$timestamp)
-    delay = zoo(log$delay, log$timestamp)
-    master.to.slave = zoo(log$master.to.slave, log$timestamp)
-    slave.to.master = zoo(log$slave.to.master, log$timestamp)
+    if (is.na(data$packet[1])) {
+      print(paste("File is not old style, trying SolarFlare style.", file))
+    tryCatch( {
+      data = read.table(file, fill=FALSE, sep=",",
+        col.names=c("timestamp", "offset", "freq-adj", "in-sync", "delay",
+          "iterm", "clockID"), 
+        colClasses=c("timestamp"="POSIXct"),
+        blank.lines.skip=TRUE, header=FALSE, skip=100)
+    }, finally = { # Nothing to print here
+      
+    } )
+  }
+
+    offset = zoo(data$offset, data$timestamp)
+    delay = zoo(data$delay, data$timestamp)
+    master.to.slave = zoo(data$master.to.slave, data$timestamp)
+    slave.to.master = zoo(data$slave.to.master, data$timestamp)
     ts = merge(offset, delay, master.to.slave, slave.to.master)
 
-    return (list(log=log, ts=ts, offset=offset, delay=delay,
+    return (list(data=data, ts=ts, offset=offset, delay=delay,
                  master.to.slave=master.to.slave,
                  slave.to.master=slave.to.master))
 }
