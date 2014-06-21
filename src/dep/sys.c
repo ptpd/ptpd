@@ -1655,6 +1655,8 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 				PERROR("Could not load saved offset from drift file - using current kernel frequency offset");
 			} else {
 
+			if(recovered_drift == 0)
+				recovered_drift = 0;
 
 			fclose(driftFP);
 			if(quiet)
@@ -1671,6 +1673,10 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 		case DRIFT_KERNEL:
 
 			recovered_drift = -getAdjFreq();
+
+			if(recovered_drift == 0)
+				recovered_drift = 0;
+
 			if (quiet)
 				DBGV("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
 					recovered_drift);

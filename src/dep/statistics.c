@@ -230,8 +230,8 @@ feedIntMovingStdDev(IntMovingStdDev* container, int32_t sample)
 
 		container->squareSum = 0;
 		for(i = 0; i < container->meanContainer->count; i++) {
-			container->squareSum += ( sample - container->meanContainer->mean ) *
-						( sample - container->meanContainer->mean );
+			container->squareSum += ( container->meanContainer->samples[i] - container->meanContainer->mean ) *
+						( container->meanContainer->samples[i] - container->meanContainer->mean );
 		}
 
 		container->stdDev = sqrt ( container->squareSum /
@@ -370,8 +370,8 @@ feedDoubleMovingStdDev(DoubleMovingStdDev* container, double sample)
 
 		container->squareSum = 0.0;
 		for(i = 0; i < container->meanContainer->count; i++) {
-			container->squareSum += ( sample - container->meanContainer->mean ) *
-						( sample - container->meanContainer->mean );
+			container->squareSum += ( container->meanContainer->samples[i] - container->meanContainer->mean ) *
+						( container->meanContainer->samples[i] - container->meanContainer->mean );
 		}
 
 		container->stdDev = sqrt ( container->squareSum /
