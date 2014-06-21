@@ -427,6 +427,34 @@ typedef struct {
 	ManagementTLV* tlv;
 }MsgManagement;
 
+
+typedef union {
+	MMAnnounceReceiptTimeout	announceReceiptTimeout;
+	MMClockAccuracy			clockAccuracy;
+	MMClockDescription		clockDescription;
+	MMCurrentDataSet		currentDataSet;
+	MMDefaultDataSet		defaultDataSet;
+	MMDelayMechanism		delayMechanism;
+	MMDomain			domain;
+	MMErrorStatus			errorStatus;
+	MMInitialize			initialize;
+	MMLogAnnounceInterval		logAnnounceInterval;
+	MMLogMinPdelayReqInterval	logMinPdelayReqInterval;
+	MMLogSyncInterval		logSyncInterval;
+	MMParentDataSet			parentDataSet;
+	MMPortDataSet			portDataSet;
+	MMPriority1			priority1;
+	MMPriority2			priority2;
+	MMSlaveOnly			slaveOnly;
+	MMTime				time;
+	MMTimePropertiesDataSet		timePropertiesDataSet;
+	MMTraceabilityProperties	traceabilityProperties;
+	MMUserDescription		userDescription;
+	MMUtcProperties			utcProperties;
+	MMVersionNumber			versionNumber;
+} PtpManagementMessage;
+
+
 /**
 * \brief Time structure to handle Linux time information
  */

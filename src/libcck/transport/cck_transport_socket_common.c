@@ -105,11 +105,10 @@ end:
     strncpy(ifr.ifr_name, ifaceName, IFACE_NAME_LENGTH);
 
     if (ioctl(sockfd, SIOCGIFHWADDR, &ifr) < 0) {
-            CCK_DBG("failed to request hardware address for %s", ifaceName);
+            CCK_DBG("failed to request hardware address for %s\n", ifaceName);
 	    ret = -1;
 	    goto end;
     }
-
 
     int af = ifr.ifr_hwaddr.sa_family;
 

@@ -184,13 +184,13 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
     strncpy(transport->transportEndpoint, config->transportEndpoint, PATH_MAX);
 
     /* Get own address first - or find the desired one if config was populated with it*/
-    if(!cckGetHwAddress(transport->transportEndpoint, &transport->ownAddress)) {
-	    CCK_ERROR("No suitable Ethernet address found on %s - cannot start ethernet transport\n",
+    if(cckGetHwAddress(transport->transportEndpoint, &transport->ownAddress) != 1) {
+	    CCK_ERROR("No suitable Ethernet address found on %s - cannot start ethernet transport (%m)\n",
 			    transport->transportEndpoint);
 	    return -1;
+    } else {
+	    CCK_DBG("own address: %s\n", transport->addressToString(&transport->ownAddress));
     }
-
-    CCK_DBG("own address: %s\n", transport->addressToString(&transport->ownAddress));
 
     memcpy(&transport->hardwareAddress, &transport->ownAddress, ETHER_ADDR_LEN);
 
@@ -377,13 +377,13 @@ cckTransportTestConfig(CckTransport* transport, const CckTransportConfig* config
     strncpy(transport->transportEndpoint, config->transportEndpoint, PATH_MAX);
 
     /* Get own address first - or find the desired one if config was populated with it*/
-    if(!cckGetHwAddress(transport->transportEndpoint, &transport->ownAddress)) {
-	    CCK_ERROR("No suitable Ethernet address found on %s - transport not usable\n",
+    if(cckGetHwAddress(transport->transportEndpoint, &transport->ownAddress) != 1) {
+	    CCK_ERROR("No suitable Ethernet address found on %s - transport not usable (%m)\n",
 			    transport->transportEndpoint);
-	    CCK_FALSE;
+	    return CCK_FALSE;
+    } else {
+	CCK_DBG("own address: %s\n", transport->addressToString(&transport->ownAddress));
     }
-
-    CCK_DBG("own address: %s\n", transport->addressToString(&transport->ownAddress));
 
     memcpy(&transport->hardwareAddress, &transport->ownAddress, ETHER_ADDR_LEN);
 
