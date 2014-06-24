@@ -1694,8 +1694,8 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 	}
 
 	if (reset_offset) {
-		if (!rtOpts->noAdjust)
 #ifdef HAVE_SYS_TIMEX_H
+		if (!rtOpts->noAdjust)
 		  adjFreq_wrapper(rtOpts, ptpClock, 0);
 #endif /* HAVE_SYS_TIMEX_H */
 		ptpClock->servo.observedDrift = 0;
@@ -1706,8 +1706,9 @@ restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
 
 	ptpClock->drift_saved = TRUE;
 	ptpClock->last_saved_drift = recovered_drift;
-	if (!rtOpts->noAdjust)
+
 #ifdef HAVE_SYS_TIMEX_H
+	if (!rtOpts->noAdjust)
 		adjFreq(-recovered_drift);
 #endif /* HAVE_SYS_TIMEX_H */
 }

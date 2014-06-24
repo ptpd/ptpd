@@ -939,7 +939,7 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 #endif /* PTPD_STATISTICS */
 
 #ifndef HAVE_SYS_TIMEX_H
-			adjTime(ptpClock->offsetFromMaster.nanoseconds);
+	adjTime(-ptpClock->offsetFromMaster.nanoseconds);
 #else
 
 #ifdef PTPD_STATISTICS
