@@ -2375,7 +2375,7 @@ short_help:
 			break;
 		/* Override delay request interval from master */
 		case 'a':
-			dictionary_set(dict,"global:log_delayreq_override", "Y");
+			dictionary_set(dict,"ptpengine:log_delayreq_override", "Y");
 			break;
 		/* Delay request interval - needed for hybrid mode */
 		case 'Y':
