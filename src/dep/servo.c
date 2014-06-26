@@ -99,6 +99,7 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* For Hybrid mode */
 	ptpClock->masterAddr = 0;
 
+	ptpClock->maxDelayRejected = 0;
 
 }
 
@@ -164,13 +165,27 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			}
 
 			if (slave_to_master_delay.nanoseconds > rtOpts->maxDelay) {
-				INFO("updateDelay aborted, slave to master delay %d greater than "
+				ptpClock->counters.maxDelayDrops++;
+				DBG("updateDelay aborted, slave to master delay %d greater than "
 				     "administratively set maximum %d\n",
 				     slave_to_master_delay.nanoseconds, 
 				     rtOpts->maxDelay);
+				if(rtOpts->maxDelayMaxRejected) {
+				    /* if we blocked maxDelayMaxRejected samples, reset the slave to unblock the filter */
+				    if(++ptpClock->maxDelayRejected > rtOpts->maxDelayMaxRejected) {
+					    WARNING("%d consecutive measurements above %d threshold - resetting slave\n",
+							rtOpts->maxDelayMaxRejected, slave_to_master_delay.nanoseconds);
+					    toState(PTP_LISTENING, rtOpts, ptpClock);
+
+				    }
+
+				}
+
 				if (rtOpts->displayPackets)
 					msgDump(ptpClock);
 				goto display;
+			} else {
+				ptpClock->maxDelayRejected=0;
 			}
 		}
 	}
@@ -431,15 +446,32 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 		}
 
 		if (abs(master_to_slave_delay.nanoseconds) > rtOpts->maxDelay) {
-			INFO("updateOffset aborted, master to slave delay %d greater than "
+			ptpClock->counters.maxDelayDrops++;
+			DBG("updateOffset aborted, master to slave delay %d greater than "
 			     "administratively set maximum %d\n",
 			     master_to_slave_delay.nanoseconds, 
 			     rtOpts->maxDelay);
-			/* msgDump(ptpClock); */
+				if(rtOpts->maxDelayMaxRejected) {
+				    /* if we blocked maxDelayMaxRejected samples, reset the slave to unblock the filter */
+				    if(++ptpClock->maxDelayRejected > rtOpts->maxDelayMaxRejected) {
+					    WARNING("%d consecutive delay measurements above %d threshold - resetting slave\n",
+							rtOpts->maxDelayMaxRejected, master_to_slave_delay.nanoseconds);
+					    toState(PTP_LISTENING, rtOpts, ptpClock);
+
+				    }
+
+			    } else {
+				ptpClock->maxDelayRejected=0;
+			    }
+
+				if (rtOpts->displayPackets)
+					msgDump(ptpClock);
+
+
+
 			return;
 		}
-	}
-	}
+	}}
 
 	// used for stats feedback 
 	ptpClock->char_last_msg='S';

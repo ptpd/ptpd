@@ -527,6 +527,8 @@ typedef struct
 	uint32_t delayMSOutliersFound;	  /* Number of outliers found by the delayMS filter */
 	uint32_t delaySMOutliersFound;	  /* Number of outliers found by the delaySM filter */
 #endif /* PTPD_STATISTICS */
+	uint32_t maxDelayDrops; /* number of samples dropped due to maxDelay threshold */
+
 
 } PtpdCounters;
 
@@ -715,6 +717,10 @@ typedef struct {
 	int can_step_clock;
 	int warned_operator_slow_slewing;
 	int warned_operator_fast_slewing;
+	int maxDelayRejected;
+
+	Boolean runningBackupInterface;
+
 
 	char char_last_msg;                             /* representation of last message processed by servo */
 
@@ -811,7 +817,12 @@ typedef struct {
 	int announceTimeoutGracePeriod;
 //	Integer16 currentUtcOffset;
 
-	Octet ifaceName[IFACE_NAME_LENGTH];
+//	Octet ifaceName[IFACE_NAME_LENGTH];
+	Octet* ifaceName;
+	Octet primaryIfaceName[IFACE_NAME_LENGTH];
+	Octet backupIfaceName[IFACE_NAME_LENGTH];
+	Boolean backupIfaceEnabled;
+
 	Boolean	noResetClock;
 #ifdef linux
 	Boolean setRtc;
@@ -941,6 +952,8 @@ typedef struct {
 	Boolean panicModeNtp;
 	NTPoptions ntpOptions;
 #endif
+
+	int maxDelayMaxRejected;
 
 	Boolean managementEnabled;
 	Boolean managementSetEnable;

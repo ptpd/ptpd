@@ -789,6 +789,7 @@ return FALSE;
 Boolean 
 netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
+
 	int temp;
 	struct sockaddr_in addr;
 
@@ -831,8 +832,25 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		return FALSE;
 	}
 
-	if(!testInterface(rtOpts->ifaceName, rtOpts))
-		return FALSE;
+	/* let's see if we have another interface left before we die */
+	if(!testInterface(rtOpts->ifaceName, rtOpts)) {
+
+		/* backup not enabled - exit */
+		if(!rtOpts->backupIfaceEnabled)
+		    return FALSE;
+
+		/* backup enabled - try the other interface */
+		ptpClock->runningBackupInterface = !ptpClock->runningBackupInterface;
+
+		rtOpts->ifaceName = (ptpClock->runningBackupInterface)?rtOpts->backupIfaceName : rtOpts->primaryIfaceName;
+
+		NOTICE("Last resort - attempting to switch to %s interface\n", ptpClock->runningBackupInterface ? "backup" : "primary");
+		/* if this fails, we have no reason to live */
+		if(!testInterface(rtOpts->ifaceName, rtOpts)) {
+		    return FALSE;
+		}
+	}
+
 
 	netPath->interfaceInfo.addressFamily = AF_INET;
 

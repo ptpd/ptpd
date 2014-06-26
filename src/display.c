@@ -898,6 +898,9 @@ displayCounters(const PtpClock * ptpClock)
 		ptpClock->counters.sequenceMismatchErrors);
 	INFO("           delayModeMismatchErrors : %d\n",
 		ptpClock->counters.delayModeMismatchErrors);
+	INFO("           maxDelayDrops : %d\n",
+		ptpClock->counters.maxDelayDrops);
+
 
 #ifdef PTPD_STATISTICS
 	INFO("Outlier filter hits:\n");

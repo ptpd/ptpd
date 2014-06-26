@@ -201,11 +201,16 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	/* If the network configuration has changed, check if the interface is OK */
 	if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
-		INFO("Network configuration changed - checking interface\n");
-		if(!testInterface(tmpOpts.ifaceName, &tmpOpts)) {
+		INFO("Network configuration changed - checking interface(s)\n");
+		if(!testInterface(tmpOpts.primaryIfaceName, &tmpOpts)) {
 		    rtOpts->restartSubsystems = -1;
-		    ERROR("Error: Cannot use %s interface\n",tmpOpts.ifaceName);
+		    ERROR("Error: Cannot use %s interface\n",tmpOpts.primaryIfaceName);
 		}
+		if(!testInterface(tmpOpts.backupIfaceName, &tmpOpts)) {
+		    rtOpts->restartSubsystems = -1;
+		    ERROR("Error: Cannot use %s interface\n",tmpOpts.backupIfaceName);
+		}
+
 
 	}
 
@@ -615,11 +620,17 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	dictionary_del(rtOpts->candidateConfig);
 
 	/* Check network before going into background */
-	if(!testInterface(rtOpts->ifaceName, rtOpts)) {
-	    ERROR("Error: Cannot use %s interface\n",rtOpts->ifaceName);
+	if(!testInterface(rtOpts->primaryIfaceName, rtOpts)) {
+	    ERROR("Error: Cannot use %s interface\n",rtOpts->primaryIfaceName);
 	    *ret = 1;
 	    goto configcheck;
 	}
+	if(rtOpts->backupIfaceEnabled && !testInterface(rtOpts->backupIfaceName, rtOpts)) {
+	    ERROR("Error: Cannot use %s interface as backup\n",rtOpts->backupIfaceName);
+	    *ret = 1;
+	    goto configcheck;
+	}
+
 
 configcheck:
 	/*

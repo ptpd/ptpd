@@ -174,6 +174,9 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			    ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
 			    ptpClock->slaveOnly = rtOpts->slaveOnly;
 
+			    /* Move back to primary interface only during configuration changes. */
+			    ptpClock->runningBackupInterface = FALSE;
+
 			    toState(PTP_INITIALIZING, rtOpts, ptpClock);
 		    } else {
 		    /* Nothing happens here for now - SIGHUP handler does this anyway */
@@ -640,6 +643,17 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		MANUFACTURER_ID_OUI2);
 	/* initialize networking */
 	netShutdown(&ptpClock->netPath);
+
+	if(rtOpts->backupIfaceEnabled &&
+		ptpClock->runningBackupInterface) {
+		rtOpts->ifaceName = rtOpts->backupIfaceName;
+	} else {
+		rtOpts->ifaceName = rtOpts->primaryIfaceName;
+	}
+
+
+
+
 	if (!netInit(&ptpClock->netPath, rtOpts, ptpClock)) {
 		ERROR("failed to initialize network\n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -797,15 +811,38 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					WARNING("No active masters present. Resetting port.\n");
 					ptpClock->number_foreign_records = 0;
 					ptpClock->foreign_record_i = 0;
-					toState(PTP_LISTENING, rtOpts, ptpClock);
+
+					/* if flipping between primary and backup interface, a full nework re-init is required */
+					if(rtOpts->backupIfaceEnabled) {
+						ptpClock->runningBackupInterface = !ptpClock->runningBackupInterface;
+						toState(PTP_INITIALIZING, rtOpts, ptpClock);
+						NOTICE("Now switching to %s interface\n", ptpClock->runningBackupInterface ? 
+							    "backup":"primary");
+					    } else {
+
+						toState(PTP_LISTENING, rtOpts, ptpClock);
+					    }
+
 					}
 			} else {
+
+				    /* if flipping between primary and backup interface, a full nework re-init is required */
+				    if(rtOpts->backupIfaceEnabled) {
+					ptpClock->runningBackupInterface = !ptpClock->runningBackupInterface;
+					toState(PTP_INITIALIZING, rtOpts, ptpClock);
+					NOTICE("Now switching to %s interface\n", ptpClock->runningBackupInterface ? 
+						"backup":"primary");
+
+				    } else {
 				/*
 				 *  Force a reset when getting a timeout in state listening, that will lead to an IGMP reset
 				 *  previously this was not the case when we were already in LISTENING mode
 				 */
 				    toState(PTP_LISTENING, rtOpts, ptpClock);
+				    }
                                 }
+
+
                 }
 
 #ifdef PTPD_NTPDC

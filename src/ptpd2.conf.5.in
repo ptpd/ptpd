@@ -61,6 +61,20 @@ Network interface to use - eth0, igb0 etc. (\fBrequired\fR).
 .RE
 .RS 0
 .TP 8
+\fBptpengine:backup_interface [\fISTRING\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Backup network interface to use - eth0, igb0 etc. When no GM available,
+slave will keep alternating between primary and secondary until a GM is found.
+.TP 8
+\fBdefault\fR
+\fI[none]\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:preset [\fISELECT\fB]\fR
 .RS 8
 .TP 8
@@ -1286,8 +1300,22 @@ allows to preserve observed drift if servo cannot stabilise.
 .RS 8
 .TP 8
 \fBusage\fR
-Do accept master to slave delay (delayMS - from Sync message) or slave to master delay (delaySM - from Delay Response message) 
+Do not accept master to slave delay (delayMS - from Sync message) or slave to master delay (delaySM - from Delay Response message) 
 if greater than this value (nanoseconds). 0 = not used.
+.TP 8
+\fBdefault\fR
+\fI0\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBservo:max_delay_max_rejected [\fIINT\fB: min: 0 ]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Maximum number of consecutive rejected delay measurements exceeding the maxDelay threshold (\fIservo:max_delay\fR),
+before slave is reset. 0 = not checked.
 .TP 8
 \fBdefault\fR
 \fI0\fR

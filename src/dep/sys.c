@@ -811,8 +811,10 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 	    DBG("writeStatusFile: ftruncate() failed\n");
 	}
 	rewind(out);
-
-	fprintf(out, 		STATUSPREFIX"  %s\n","Interface", dictionary_get(rtOpts->currentConfig, "ptpengine:interface", ""));
+// dictionary_get(rtOpts->currentConfig, "ptpengine:interface", ""),
+	fprintf(out, 		STATUSPREFIX"  %s%s\n","Interface", rtOpts->ifaceName,
+		(rtOpts->backupIfaceEnabled && ptpClock->runningBackupInterface) ? " (backup)" : (rtOpts->backupIfaceEnabled)?
+		    " (primary)" : "");
 	fprintf(out, 		STATUSPREFIX"  %s\n","Preset", dictionary_get(rtOpts->currentConfig, "ptpengine:preset", ""));
 	fprintf(out, 		STATUSPREFIX"  %s%s\n","Transport", dictionary_get(rtOpts->currentConfig, "ptpengine:transport", ""),
 		(rtOpts->transport==UDP_IPV4 && rtOpts->pcap == TRUE)?" + libpcap":"");

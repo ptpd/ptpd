@@ -917,7 +917,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->calibrationDelay = 0;
 	/* if set to TRUE and maxDelay is defined, only check against threshold if servo is stable */
 	rtOpts->maxDelayStableOnly = FALSE;
-
+	/* if set to non-zero, reset slave if more than this amount of consecutive delay measurements was above maxDelay */
+	rtOpts->maxDelayMaxRejected = 0;
 #endif
 
 	/* status file options */
@@ -1114,8 +1115,14 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_KEY_REQUIRED("ptpengine:interface");
 
-	CONFIG_MAP_CHARARRAY("ptpengine:interface",rtOpts->ifaceName,rtOpts->ifaceName,
+	CONFIG_MAP_CHARARRAY("ptpengine:interface",rtOpts->primaryIfaceName,rtOpts->primaryIfaceName,
 	"Network interface to use - eth0, igb0 etc. (required).");
+
+	CONFIG_MAP_CHARARRAY("ptpengine:backup_interface",rtOpts->backupIfaceName,rtOpts->backupIfaceName,
+		"Backup network interface to use - eth0, igb0 etc. When no GM available, \n"
+	"	 slave will keep alternating between primary and secondary until a GM is found.\n");
+
+	CONFIG_KEY_TRIGGER("ptpengine:backup_interface",rtOpts->backupIfaceEnabled,TRUE,FALSE);
 
 	/* Preset option names have to be mapped to defined presets - no free strings here */
 	CONFIG_MAP_SELECTVALUE("ptpengine:preset",rtOpts->selectedPreset,rtOpts->selectedPreset,
@@ -1686,6 +1693,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 (delaySM - from Delay messages) if greater than this value (nanoseconds). 0 = not used."
 	,0,NANOSECONDS_MAX);
 
+	CONFIG_MAP_INT_MIN("servo:max_delay_max_rejected",rtOpts->maxDelayMaxRejected,rtOpts->maxDelayMaxRejected,
+		"Maximum number of consecutive delay measurements exceeding maxDelay threshold,\n"
+	"	 before slave is reset.", 0);
+
+
+
 #ifdef PTPD_STATISTICS
 	CONFIG_MAP_BOOLEAN("servo:max_delay_stable_only",rtOpts->maxDelayStableOnly,rtOpts->maxDelayStableOnly,
 		"If servo:max_delay is set, perform the check only if clock servo has stabilised.\n");
@@ -1922,6 +1935,8 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 /* ============== END CONFIG MAPPINGS, TRIGGERS AND DEPENDENCIES =========== */
 
 /* ==== Any additional logic should go here ===== */
+
+	rtOpts->ifaceName = rtOpts->primaryIfaceName;
 
 	/* Check timing packet ACLs */
 	if(rtOpts->timingAclEnabled) {
@@ -2665,6 +2680,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
  */
 
         COMPONENT_RESTART_REQUIRED("ptpengine:interface",     		PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:backup_interface",     	PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:preset",  		PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:ip_mode",       		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:transport",     		PTPD_RESTART_NETWORK );
@@ -2734,6 +2750,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:calibration_delay",  	PTPD_RESTART_NONE );
 
 //        COMPONENT_RESTART_REQUIRED("servo:max_delay_stable_only",    	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("servo:max_delay_max_rejected",    	PTPD_RESTART_NONE );
 
 #endif /* PTPD_STATISTICS */
 
