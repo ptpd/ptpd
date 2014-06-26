@@ -655,7 +655,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 
 	if (!netInit(&ptpClock->netPath, rtOpts, ptpClock)) {
-		ERROR("failed to initialize network\n");
+		ERROR("Failed to initialize network\n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 		return FALSE;
 	}
