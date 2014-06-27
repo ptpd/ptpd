@@ -69,8 +69,8 @@ ptpLogRead <- function(file) {
       print(paste("File is not old style, trying SolarFlare style.", file))
     tryCatch( {
       data = read.table(file, fill=FALSE, sep=",",
-        col.names=c("timestamp", "offset", "freq-adj", "in-sync", "delay",
-          "iterm", "clockID"), 
+        col.names=c("timestamp", "offset", "freq-adj", "in-sync", "delay"),
+#          "iterm", "clockID"), 
         colClasses=c("timestamp"="POSIXct"),
         blank.lines.skip=TRUE, header=FALSE, skip=100)
     }, finally = { # Nothing to print here
@@ -299,6 +299,7 @@ ptpQualityGraphCompare <- function(diffA, diffB, output) {
 # Functions for deriving various statistics over a PTP log
 
 ptpStats <- function(log, start, end) {
+    cat("Measurements: ", length(log$offset))
     cat("Offset",
         "\nmin:", min(log$offset, na.rm=TRUE),
         " max: ", max(log$offset, na.rm=TRUE),
@@ -327,6 +328,19 @@ ptpStats <- function(log, start, end) {
         " mean: ", mean(log$slave.to.master, na.rm=TRUE),
         "\nstd dev: ", sd(log$slave.to.master, na.rm=TRUE),
         " variance: ", var(log$slave.to.master, na.rm=TRUE), "\n")
+}
+
+ptpOffsetStats <- function(log, start, end, boundary = 1000) {
+    cat("Measurements: ", length(log$offset))
+    cat("\nOffset",
+        "\nmin:", min(log$offset, na.rm=TRUE),
+        " max: ", max(log$offset, na.rm=TRUE),
+        " median: ", median(log$offset, na.rm=TRUE),
+        " mean: ", mean(log$offset, na.rm=TRUE),
+        "\nstd dev: ", sd(log$offset, na.rm=TRUE),
+        " variance: ", var(log$offset, na.rm=TRUE), "\n")
+    cat("\nOutside Boundary: ", sum(log$offset > boundary) + sum(log$offset < -boundary),
+        "Percentage: ", (sum(log$offset > boundary) + sum(log$offset < -boundary)) / length(log$offset), "\n")
 }
 
 ptpQualityStats <- function(difference) {
