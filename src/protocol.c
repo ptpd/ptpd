@@ -588,6 +588,7 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 		ptpClock->announceTimeouts = 0;
 		ptpClock->portState = PTP_SLAVE;
 		displayStatus(ptpClock, "Now in state: ");
+		ptpClock->followUpGap = 0;
 
 #ifdef PTPD_STATISTICS
 		resetDoubleMovingStdDev(ptpClock->delayMSRawStats);
@@ -1165,8 +1166,9 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 	st = "Unk";
 	break;
     }
-    DBG("      ==> %s received\n", st);
+    DBG("      ==> %s received, sequence %d\n", st, ptpClock->msgTmpHeader.sequenceId);
 #endif
+
 
     /*
      *  on the table below, note that only the event messsages are passed the local time,
@@ -1572,7 +1574,19 @@ handleSync(const MsgHeader *header, ssize_t length,
 					timerStart(PDELAYREQ_INTERVAL_TIMER,
 						   pow(2,ptpClock->logMinPdelayReqInterval),
 						   ptpClock->itimer);
-			}
+			} else if ( (((UInteger16)(ptpClock->recvSyncSequenceId + 32768)) >
+					(header->sequenceId + 32767)) || 
+				    (((UInteger16)(ptpClock->recvSyncSequenceId + 1)) >
+					(header->sequenceId)))  {
+					DBG("HandleSync : sequence mismatch - "
+					    "received: %d, expected %d or greater\n",
+					    header->sequenceId,
+					    (UInteger16)(ptpClock->recvSyncSequenceId + 1)
+					    );
+					ptpClock->counters.discardedMessages++;
+					ptpClock->counters.sequenceMismatchErrors++;
+					break;
+				}
 
 			ptpClock->logSyncInterval = header->logMessageInterval;
 
@@ -1584,9 +1598,18 @@ handleSync(const MsgHeader *header, ssize_t length,
 			if ((header->flagField0 & PTP_TWO_STEP) == PTP_TWO_STEP) {
 				DBG2("HandleSync: waiting for follow-up \n");
 				ptpClock->twoStepFlag=TRUE;
+				if(ptpClock->waitingForFollow) {
+				    ptpClock->followUpGap++;
+				    if(ptpClock->followUpGap < MAX_FOLLOWUP_GAP) {
+					DBG("Received Sync while waiting for follow-up - "
+					    "will wait for another %d messages\n",
+					    MAX_FOLLOWUP_GAP - ptpClock->followUpGap);
+					    break;		    
+				    }
+					DBG("No follow-up for %d sync - waiting for new follow-up\n",
+					    ptpClock->followUpGap);
+				}
 				ptpClock->waitingForFollow = TRUE;
-				ptpClock->recvSyncSequenceId = 
-					header->sequenceId;
 				/*Save correctionField of Sync message*/
 				integer64_to_internalTime(
 					header->correctionField,
@@ -1595,8 +1618,12 @@ handleSync(const MsgHeader *header, ssize_t length,
 					correctionField.seconds;
 				ptpClock->lastSyncCorrectionField.nanoseconds =
 					correctionField.nanoseconds;
+				ptpClock->recvSyncSequenceId = 
+					header->sequenceId;
 				break;
 			} else {
+				ptpClock->recvSyncSequenceId = 
+					header->sequenceId;
 				msgUnpackSync(ptpClock->msgIbuf,
 					      &ptpClock->msgTmp.sync);
 				integer64_to_internalTime(
@@ -1689,6 +1716,7 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 			if (ptpClock->waitingForFollow)	{
 				if (ptpClock->recvSyncSequenceId == 
 				     header->sequenceId) {
+					ptpClock->followUpGap = 0;
 					msgUnpackFollowUp(ptpClock->msgIbuf,
 							  &ptpClock->msgTmp.follow);
 					ptpClock->waitingForFollow = FALSE;
@@ -1709,9 +1737,14 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 						     &correctionField);
 					updateClock(rtOpts,ptpClock);
 					break;
-				} else
-					INFO("Ignored followup, SequenceID doesn't match with "
-					     "last Sync message \n");
+				} else {
+					    DBG("HandleFollowUp : sequence mismatch - "
+					    "last Sync: %d, this FollowUp: %d\n",
+					    ptpClock->recvSyncSequenceId,
+					    header->sequenceId);
+					    ptpClock->counters.sequenceMismatchErrors++;
+					    ptpClock->counters.discardedMessages++;
+					}
 			} else {
 				DBG2("Ignored followup, Slave was not waiting a follow up "
 				     "message \n");

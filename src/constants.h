@@ -91,10 +91,11 @@ section 7.6.2.5, page 56:
 
 
 /* page 238:  τ, see 7.6.3.2: The default initialization value shall be 1.0 s.  */
-#define DEFAULT_CLOCK_VARIANCE 	        28768 /* To be determined in 802.1AS. */
-                                             
+//#define DEFAULT_CLOCK_VARIANCE 	        28768 /* To be determined in 802.1AS. */
+#define DEFAULT_CLOCK_VARIANCE			0xFFFF                                             
 
 
+#define MAX_FOLLOWUP_GAP 3
 #define DEFAULT_MAX_FOREIGN_RECORDS  	5
 #define DEFAULT_PARENTS_STATS			FALSE
 

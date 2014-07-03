@@ -827,6 +827,11 @@ configcheck:
 	}
 #endif
 
+		ptpClock->netPath.pcapEventSock = -1;
+		ptpClock->netPath.pcapGeneralSock = -1;
+		ptpClock->netPath.generalSock = -1;
+		ptpClock->netPath.eventSock = -1;
+ 
 	*ret = 0;
 	return ptpClock;
 	

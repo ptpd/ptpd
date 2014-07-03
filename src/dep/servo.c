@@ -315,7 +315,8 @@ statistics:
 
 		DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
 	} else {
-		INFO("Ignoring delayResp because we didn't receive any sync yet\n");
+		DBG("Ignoring delayResp because we didn't receive any sync yet\n");
+		ptpClock->counters.discardedMessages++;
 	}
 
 

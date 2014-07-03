@@ -661,6 +661,8 @@ typedef struct {
 	Octet msgObuf[PACKET_SIZE];
 	Octet msgIbuf[PACKET_SIZE];
 
+	int followUpGap;
+
 /*
 	20110630: These variables were deprecated in favor of the ones that appear in the stats log (delayMS and delaySM)
 	
