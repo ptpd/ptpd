@@ -348,7 +348,7 @@ int writeMessage(FILE* destination, int priority, const char * format, va_list a
 		strftime(time_str, MAXTIMESTR, "%F %X", localtime((time_t*)&now.tv_sec));
 		fprintf(destination, "%s.%06d ", time_str, (int)now.tv_usec  );
 		fprintf(destination,PTPD_PROGNAME"[%d].%s (%-9s ",
-		getpid(), startupInProgress ? "startup" : rtOpts.ifaceName,
+		(int)getpid(), startupInProgress ? "startup" : rtOpts.ifaceName,
 		priority == LOG_EMERG   ? "emergency)" :
 		priority == LOG_ALERT   ? "alert)" :
 		priority == LOG_CRIT    ? "critical)" :

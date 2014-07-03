@@ -307,7 +307,7 @@ getHwAddress (char* ifaceName, unsigned char* hwAddr, int hwAddrSize)
 	return 0;
 
 /* BSD* - AF_LINK gives us access to the hw address via struct sockaddr_dl */
-#ifdef AF_LINK
+#if defined(AF_LINK) && !defined(__sun)
 
     struct ifaddrs *ifaddr, *ifa;
 
@@ -347,9 +347,9 @@ end:
     freeifaddrs(ifaddr);
     return ret;
 
-/* Linux, basically */
-#else
 
+#else
+/* Linux and Solaris family which also have SIOCGIFHWADDR/SIOCGLIFHWADDR */
     int sockfd;
     struct ifreq ifr;
 
@@ -360,7 +360,7 @@ end:
 	return -1;
     }
 
-    memset(&ifr, 0, sizeof(struct ifreq));
+    memset(&ifr, 0, sizeof(ifr));
 
     strncpy(ifr.ifr_name, ifaceName, IFACE_NAME_LENGTH);
 
@@ -370,8 +370,11 @@ end:
 	    goto end;
     }
 
-
+#ifdef HAVE_STRUCT_IFREQ_IFR_HWADDR
     int af = ifr.ifr_hwaddr.sa_family;
+#else
+    int af = ifr.ifr_addr.sa_family;
+#endif /* HAVE_STRUCT_IFREQ_IFR_HWADDR */
 
     if (    af == ARPHRD_ETHER
 	 || af == ARPHRD_IEEE802
@@ -379,7 +382,12 @@ end:
 	 || af == ARPHRD_INFINIBAND
 #endif
 	) {
+#ifdef HAVE_STRUCT_IFREQ_IFR_HWADDR
 	    memcpy(hwAddr, ifr.ifr_hwaddr.sa_data, hwAddrSize);
+#else
+    	    memcpy(hwAddr, ifr.ifr_addr.sa_data, hwAddrSize);
+#endif /* HAVE_STRUCT_IFREQ_IFR_HWADDR */
+
 	    ret = 1;
 	} else {
 	    DBGV("Unsupported hardware address family on %s\n", ifaceName);
@@ -575,7 +583,7 @@ netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
 static Boolean
 netSetMulticastTTL(int sockfd, int ttl) {
 
-#ifdef __OpenBSD__
+#if defined(__OpenBSD__) || defined(__sun)
 	uint8_t temp = (uint8_t) ttl;
 #else
 	int temp = ttl;
@@ -591,7 +599,7 @@ netSetMulticastTTL(int sockfd, int ttl) {
 
 static Boolean
 netSetMulticastLoopback(NetPath * netPath, Boolean value) {
-#ifdef __OpenBSD__
+#if defined(__OpenBSD__) || defined(__sun)
 	uint8_t temp = value ? 1 : 0;
 #else
 	int temp = value ? 1 : 0;
@@ -749,7 +757,12 @@ hostLookup(const char* hostname, Integer32* addr)
 	if (hostname[0]) {
 		/* Attempt a DNS lookup first. */
 		struct hostent *host;
+#ifdef HAVE_GETHOSTBYNAME2
 		host = gethostbyname2(hostname, AF_INET);
+#else
+		host = getipnodebyname(hostname, AF_INET, AI_DEFAULT, &errno);
+#endif /* HAVE_GETHOSTBYNAME2 */
+
                 if (host != NULL) {
 			if (host->h_length != 4) {
 				PERROR("unicast host resolved to non ipv4"

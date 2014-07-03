@@ -23,14 +23,26 @@
 #endif /* HAVE_CONFIG_H */
 
 #ifdef linux
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif /* _GNU_SOURCE */
-#endif /* linux */
+#	ifndef _GNU_SOURCE
+#		define _GNU_SOURCE
+	#endif /* _GNU_SOURCE */
+#endif
+
+#ifdef __sun
+#	ifndef _XOPEN_SOURCE
+#		define _XOPEN_SOURCE 500
+#	endif /* _XOPEN_SOURCE */
+#	ifndef __EXTENSIONS__
+#		define __EXTENSIONS__
+#	endif /* __EXTENSIONS */
+#endif /* __sun */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif /* HAVE_STRINGS_H */
 #include <unistd.h>
 #include <math.h>
 #include <errno.h>

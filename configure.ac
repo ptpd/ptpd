@@ -368,7 +368,12 @@ AC_CHECK_LIB([rt], [clock_gettime])
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h linux/rtc.h sys/timex.h])
+
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h ifaddrs.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h linux/rtc.h sys/timex.h])
+
+AC_CHECK_HEADERS([endian.h machine/endian.h sys/isa_defs.h])
+
+AC_CHECK_HEADERS([math.h],[],[AC_MSG_ERROR([math.h is required to compile PTPd])],[])
 
 # MUST chck for cpuset AFTER the check for param as the latter needs 
 # the former to pass the compile check.
@@ -456,6 +461,9 @@ m4_version_prereq(2.60,[
 # Check for tick in the timex structure
 AC_CHECK_MEMBERS([struct timex.tick], [], [], [[#include <sys/timex.h>]])
 
+# Check for ifr_hwaddr in the ifreq structure
+AC_CHECK_MEMBERS([struct ifreq.ifr_hwaddr], [], [], [[#include <net/if.h>]])
+
 # ether_add: octet vs. ether_addr_octet - FreeBSD, any others?
 AC_CHECK_MEMBERS([struct ether_addr.octet], [], [],
 [
@@ -484,7 +492,7 @@ AC_FUNC_SELECT_ARGTYPES
 AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent])
+AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal])
 
 AC_CHECK_DECLS([MSG_ERRQUEUE], [], [], [[#include <sys/socket.h>]])
 

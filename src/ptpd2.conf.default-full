@@ -1,5 +1,5 @@
 ; ========================================
-; PTPDv2 version 2.3.0 default configuration
+; PTPDv2 version 2.3.1-rc2 default configuration
 ; ========================================
 
 ; NOTE: the following settings are affected by ptpengine:preset selection:
@@ -10,6 +10,11 @@
 
 ; Network interface to use - eth0, igb0 etc. (required).
 ptpengine:interface = 
+
+; Backup network interface to use - eth0, igb0 etc. When no GM available, 
+; slave will keep alternating between primary and secondary until a GM is found.
+; 
+ptpengine:backup_interface = 
 
 ; PTP engine preset:
 ; none	     = Defaults, no clock class restrictions
@@ -22,6 +27,10 @@ ptpengine:interface =
 ; Options: none slaveonly masteronly masterslave 
 ptpengine:preset = slaveonly
 
+; Transport type for PTP packets. Ethernet transport requires libpcap support.
+; Options: ipv4 ethernet 
+ptpengine:transport = ipv4
+
 ; IP transmission mode (requires IP transport) - hybrid mode uses
 ; multicast for sync and announce, and unicast for delay request and
 ; response; unicast mode uses unicast for all transmission.
@@ -30,16 +39,12 @@ ptpengine:preset = slaveonly
 ; Options: multicast unicast hybrid 
 ptpengine:ip_mode = multicast
 
-; Transport type for PTP packets.
-; Options: ipv4 ethernet 
-ptpengine:transport = ipv4
-
 ; Use libpcap for sending and receiving traffic (automatically enabled
 ; in Ethernet mode).
 ptpengine:use_libpcap = N
 
 ; Delay detection mode used - use DELAY_DISABLED for syntonisation only
-; (no synchronisation).
+; (no full synchronisation).
 ; Options: E2E P2P DELAY_DISABLED 
 ptpengine:delay_mechanism = E2E
 
@@ -118,7 +123,7 @@ ptpengine:log_peer_delayreq_interval = 1
 ptpengine:foreignrecord_capacity = 5
 
 ; Specify Allan variance announced in master state.
-ptpengine:ptp_allan_variance = 28768
+ptpengine:ptp_allan_variance = 65535
 
 ; Clock accuracy range announced in master state.
 ; Options: ACC_25NS ACC_100NS ACC_250NS ACC_1US ACC_2.5US ACC_10US ACC_25US ACC_100US ACC_250US ACC_1MS ACC_2.5MS ACC_10MS ACC_25MS ACC_100MS ACC_250MS ACC_1S ACC_10S ACC_10SPLUS ACC_UNKNOWN 
@@ -254,8 +259,8 @@ ptpengine:panic_mode_duration = 2
 ; 0 = not used.
 ptpengine:panic_mode_exit_threshold = 0
 
-; Use JobID (PID) for UUID.
-ptpengine:pid_as_clock_idendity = N
+; Use PTPd's process ID as the middle part of the PTP clock ID - useful for running multiple instances.
+ptpengine:pid_as_clock_identity = N
 
 ; Fail over to NTP when PTP time sync not available - requires
 ; ntpengine:enabled, but does not require the rest of NTP configuration:
@@ -275,8 +280,7 @@ ptpengine:prefer_ntp = N
 ; configuration - will warn instead of failing over if it cannot control ntpd.
 ptpengine:panic_mode_ntp = N
 
-; When compiled with --enable-sigusr2=counters, clear counters after dumping
-; all counter values.
+; Clear counters after dumping all counter values on SIGUSR2.
 ptpengine:sigusr2_clears_counters = N
 
 ; Permit access control list for timing packets. Format is a series of 
@@ -387,9 +391,17 @@ servo:stability_period = 3
 ; 
 servo:stability_timeout = 10
 
-; Do not update one-way delay if slave to master delay (delaySM - from Delay Response)
-; is greater than this value (nanoseconds). 0 = not used.
+; Do accept master to slave delay (delayMS - from Sync message) or slave to master delay
+; (delaySM - from Delay messages) if greater than this value (nanoseconds). 0 = not used.
 servo:max_delay = 0
+
+; Maximum number of consecutive delay measurements exceeding maxDelay threshold,
+; before slave is reset.
+servo:max_delay_max_rejected = 0
+
+; If servo:max_delay is set, perform the check only if clock servo has stabilised.
+; 
+servo:max_delay_stable_only = N
 
 ; Do not reset the clock if offset from master is greater
 ; than this value (nanoseconds). 0 = not used.
@@ -493,11 +505,22 @@ global:verbose_foreground = N
 global:foreground = N
 
 ; Log timing statistics for every PTP packet received
+; 
 global:log_statistics = N
+
+; Timestamp format used when logging timing statistics
+; (when global:log_statistics is enabled):
+; datetime - formatttted date and time: YYYY-MM-DD hh:mm:ss.uuuuuu
+; unix - Unix timestamp with nanoseconds: s.ns
+; both - Formatted date and time, followed by unix timestamp
+; (adds one extra field  to the log)
+; 
+; Options: datetime unix both 
+global:statistics_timestamp_format = datetime
 
 ; Bind ptpd2 process to a selected CPU core number.
 ; 0 = first CPU core, etc. -1 = do not bind to a single core.
-global:cpuaffinity_cpucore = 0
+global:cpuaffinity_cpucore = -1
 
 ; Clock synchronisation statistics update interval in seconds
 ; 

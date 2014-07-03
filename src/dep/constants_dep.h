@@ -16,7 +16,7 @@
 /* platform dependent */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) && \
-  !defined(__APPLE__) && !defined(__OpenBSD__)
+  !defined(__APPLE__) && !defined(__OpenBSD__) && !defined(__sun)
 #error PTPD hasn't been ported to this OS - should be possible \
 if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.net
 #endif
@@ -32,19 +32,14 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define IFCONF_LENGTH 10
 
 #define octet ether_addr_octet
-#include<endian.h>
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define PTPD_LSBF
-#elif __BYTE_ORDER == __BIG_ENDIAN
-#define PTPD_MSBF
-#endif
 #endif /* linux */
 
-
-
-#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__OpenBSD__) || defined(__sun)
 # include <sys/types.h>
 # include <sys/socket.h>
+#ifdef HAVE_SYS_SOCKIO_H
+#include <sys/sockio.h>
+#endif /* HAVE_SYS_SOCKIO_H */
 # include <netinet/in.h>
 # include <net/if.h>
 # include <net/if_dl.h>
@@ -58,21 +53,43 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #ifdef HAVE_NET_ETHERNET_H
 #  include <net/ethernet.h>
 #endif
-#  include <ifaddrs.h>
+#include <ifaddrs.h>
 # define IFACE_NAME_LENGTH         IF_NAMESIZE
 # define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
+
+#if !defined(ETHER_ADDR_LEN) && defined(ETHERADDRL)
+#	define ETHER_ADDR_LEN ETHERADDRL
+#endif /* ETHER_ADDR_LEN && ETHERADDRL */
+
+#ifndef ETHER_HDR_LEN
+#	define ETHER_HDR_LEN sizeof (struct ether_header)
+#endif /* ETHER_ADDR_LEN && ETHERADDRL */
+
 
 # define IFCONF_LENGTH 10
 
 # define adjtimex ntp_adjtime
 
-# include <machine/endian.h>
-# if BYTE_ORDER == LITTLE_ENDIAN
+
+#endif
+
+#ifdef HAVE_MACHINE_ENDIAN_H
+#	include <machine/endian.h>
+#endif /* HAVE_MACHINE_ENDIAN_H */
+
+#ifdef HAVE_ENDIAN_H
+#	include <endian.h>
+#endif /* HAVE_ENDIAN_H */
+
+#ifdef HAVE_SYS_ISA_DEFS_H
+#	include <sys/isa_defs.h>
+#endif /* HAVE_SYS_ISA_DEFS_H */
+
+# if BYTE_ORDER == LITTLE_ENDIAN || defined(_LITTLE_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
 #   define PTPD_LSBF
-# elif BYTE_ORDER == BIG_ENDIAN
+# elif BYTE_ORDER == BIG_ENDIAN || defined(_BIG_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN)
 #   define PTPD_MSBF
 # endif
-#endif
 
 #define CLOCK_IDENTITY_LENGTH 8
 #define ADJ_FREQ_MAX 500000

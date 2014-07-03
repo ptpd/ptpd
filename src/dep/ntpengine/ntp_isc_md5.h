@@ -51,6 +51,10 @@
 #ifndef ISC_MD5_H
 #define ISC_MD5_H 1
 
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif /* HAVE_STRINGS_H */
+
 #define ISC_MD5_DIGESTLENGTH 16U
 
 

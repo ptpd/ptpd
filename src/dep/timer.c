@@ -77,13 +77,22 @@ initTimer(void)
 
 	DBG("initTimer\n");
 
+#ifdef __sun
+	sigset(SIGALRM, SIG_IGN);
+#else
 	signal(SIGALRM, SIG_IGN);
+#endif /* __sun */
 
 	elapsed = 0;
 	itimer.it_value.tv_sec = itimer.it_interval.tv_sec = 0;
-	itimer.it_value.tv_usec = itimer.it_interval.tv_usec = US_TIMER_INTERVAL;
+	itimer.it_value.tv_usec = itimer.it_interval.tv_usec = 
+	    US_TIMER_INTERVAL;
 
+#ifdef __sun
+	sigset(SIGALRM, catch_alarm);
+#else	
 	signal(SIGALRM, catch_alarm);
+#endif /* __sun */
 	setitimer(ITIMER_REAL, &itimer, 0);
 }
 
