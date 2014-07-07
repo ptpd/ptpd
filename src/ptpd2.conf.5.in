@@ -13,11 +13,11 @@ as a command line parameter \fB(\fI--section:key=value\fB)\fR. Quotation marks a
 \fBNOTE:\fR the configuration file must end with a newline.
 
 .SH RELOADING CONFIGURATION
-Only a small number of configuration file settings (SNMP, lock file configuration) requires PTPd
-restart to take effect. All other settings can be changed while ptpd is running - configuration file
+Only a small number of configuration file settings (SNMP, lock file configuration) requires a restart
+of the PTPd process to take effect. All other settings can be changed while ptpd is running - configuration file
 is reloaded and checked for changes when PTPd receives the SIGHUP signal. When reloading configuration,
 PTPd will always attempt to test settings before applying them and once running, will never exit as
-a result of configuration errors.
+a result of configuration errors. If it does exit during config refresh, this is most likely a bug.
 
 .SH PRIORITY
 Any setting passed as a command line parameter will always take priority over the configuration file,
@@ -143,7 +143,8 @@ uses unicast for all transmission. When unicast mode is selected, destination IP
 \fIipv4 ethernet\fR
 .TP 8
 \fBusage\fR
-Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building with \fIlibpcap\fR.
+Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building with \fIlibpcap\fR and is not supported on Solaris as of 2.3.1,
+and cannot be enabled on those systems unless ptpd is compiled with \fB--enable-experimental-options\fR.
 .TP 8
 \fBdefault\fR
 \fIipv4\fR
@@ -157,7 +158,8 @@ Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building
 .TP 8
 \fBusage\fR
 Use libpcap for sending and receiving traffic (automatically enabled in Ethernet mode).
-Requires building with libpcap - builds made with --disable-pcap cannot use this feature.
+Requires building with libpcap - builds made with \fB--disable-pcap\fR cannot use this feature, and as of 2.3.1, Solaris systems will
+not attempt to use libpcap unless compiled with \fB--enable-experimental-options\fR
 .TP 8
 \fBdefault\fR
 \fIN\fR
@@ -808,6 +810,35 @@ Sync outlier weight: if an outlier is detected, this value determines the
 .TP 8
 \fBdefault\fR
 \fI1.000000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_sequence_checking [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+When enabled, Sync messages will only be accepted if sequence ID is increasing.
+\fBnote:\fR This can cause the slave to lock up if GM restarts before announce timeout.
+Use in combination with \fIptpengine:clock_update_timeout\fR to reset the slave.
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:clock_update_timeout [\fIINT\fB: 0 .. 3600]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+If set to non-zero, time (seconds) before slave is reset back into PTP_LISTENING, if thetre
+were no clock updates 
+.TP 8
+\fBdefault\fR
+\fI0\fR
 
 .RE
 .RE
@@ -1717,7 +1748,7 @@ are always printed when starting or refreshing the statistics log.
 .RE
 .RS 0
 .TP 8
-\fBglobal:statistics:timestamp_format [\fISELECT\fB]\fR
+\fBglobal:statistics_timestamp_format [\fISELECT\fB]\fR
 .RS 8
 .TP 8
 \fBoptions\fR
@@ -1841,7 +1872,10 @@ setting to take effect.
 .SH BUGS
 Configuration file support has only been introduced in version 2.3. There may still be some inconsistencies
 in the way some settings are parsed and while order should not make any difference, for some complex behaviours
-it may still be the case. Please report any bugs using the bug tracker on the SourceForge page:
+it may still be the case. As of ptpd 2.3.1, the Solaris OS family is supported, but libpcap functionality is
+currently broken - IPv4/pcap and Ethernet transports cannot be used on those systems.
+
+Please report any bugs using the bug tracker on the SourceForge page:
 http://sourceforge.net/projects/ptpd/
 
 .SH SEE ALSO

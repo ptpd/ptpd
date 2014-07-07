@@ -335,7 +335,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		
 	case PTP_SLAVE:
 		timerStop(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer);
-		
+
 		if (ptpClock->delayMechanism == E2E)
 			timerStop(DELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
 		else if (ptpClock->delayMechanism == P2P)
@@ -417,7 +417,10 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(ANNOUNCE_INTERVAL_TIMER,  ptpClock->itimer);
 		timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
 		timerStop(DELAYREQ_INTERVAL_TIMER,  ptpClock->itimer);
-		
+
+		/* This is (re) started on clock updates only */
+                timerStop(CLOCK_UPDATE_TIMER, ptpClock->itimer);
+
 		/*
 		 *  Count how many _unique_ timeouts happen to us.
 		 *  If we were already in Listen mode, then do not count this as a seperate reset, but stil do a new IGMP refresh
@@ -520,7 +523,8 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 
 	case PTP_SLAVE:
-
+		if(rtOpts->clockUpdateTimeout > 0)
+			timerStart(CLOCK_UPDATE_TIMER, rtOpts->clockUpdateTimeout, ptpClock->itimer);
 #ifdef PTPD_NTPDC
 		/* about to go into SLAVE state from another state - make sure we check NTPd clock control (quietly)*/
 		if (ptpClock->portState != PTP_SLAVE && rtOpts->ntpOptions.enableEngine) {
@@ -845,6 +849,14 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 
                 }
+
+		/* Reset the slave if clock update timeout configured */
+		if ( (rtOpts->clockUpdateTimeout > 0) &&
+		    timerExpired(CLOCK_UPDATE_TIMER, ptpClock->itimer)) {
+			WARNING("No clock updates in %d seconds - resetting slave\n",
+				rtOpts->clockUpdateTimeout);
+			toState(PTP_LISTENING, rtOpts, ptpClock);
+		}
 
 #ifdef PTPD_NTPDC
 		if(rtOpts->ntpOptions.enableEngine) {
@@ -1574,10 +1586,11 @@ handleSync(const MsgHeader *header, ssize_t length,
 					timerStart(PDELAYREQ_INTERVAL_TIMER,
 						   pow(2,ptpClock->logMinPdelayReqInterval),
 						   ptpClock->itimer);
-			} else if ( (((UInteger16)(ptpClock->recvSyncSequenceId + 32768)) >
-					(header->sequenceId + 32767)) || 
+			} else if ( rtOpts->syncSequenceChecking && 
+				    ( (((UInteger16)(ptpClock->recvSyncSequenceId + 32768)) >
+					(header->sequenceId + 32767)) ||
 				    (((UInteger16)(ptpClock->recvSyncSequenceId + 1)) >
-					(header->sequenceId)))  {
+					(header->sequenceId)) )  )  {
 					DBG("HandleSync : sequence mismatch - "
 					    "received: %d, expected %d or greater\n",
 					    header->sequenceId,

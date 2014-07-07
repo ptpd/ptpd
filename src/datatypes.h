@@ -934,6 +934,21 @@ typedef struct {
 	Boolean delaySMOutlierFilterDiscard;
 	double delaySMOutlierWeight;
 
+	/**
+	 *  When enabled, ptpd ensures that Sync message sequence numbers
+	 *  are increasing (consecutive sync is not lower than last).
+	 *  This can prevent reordered sequences, but can also lock the slave
+         *  up if, say, GM restarted and reset sequencing.
+	 */
+	Boolean syncSequenceChecking;
+
+	/**
+	  * (seconds) - if set to non-zero, slave will reset if no clock updates
+	  * after this amount of time. Used to "unclog" slave stuck on offset filter
+	  * threshold or after GM reset the Sync sequence number
+          */
+	int clockUpdateTimeout;
+
 	int calibrationDelay;
 
 	int statsUpdateInterval;

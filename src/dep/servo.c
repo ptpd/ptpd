@@ -988,6 +988,13 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 #endif /* HAVE_SYS_TIMEX_H */
 	}
 
+/* Clock has been updated - or was eligible for an update - restart the timeout timer*/
+if(rtOpts->clockUpdateTimeout > 0) {
+	    DBG("Restarted clock update timeout timer\n");
+            timerStart(CLOCK_UPDATE_TIMER,rtOpts->clockUpdateTimeout,ptpClock->itimer);
+}
+
+
 /* Update relevant statistics containers, feed outlier filter thresholds etc. */
 #ifdef PTPD_STATISTICS
 statistics:

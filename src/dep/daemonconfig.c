@@ -982,6 +982,11 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->managementAclEnabled = FALSE;
 	rtOpts->timingAclOrder = ACL_DENY_PERMIT;
 	rtOpts->managementAclOrder = ACL_DENY_PERMIT;
+
+	// by default we don't check Sync message sequence continuity
+	rtOpts->syncSequenceChecking = FALSE;
+	rtOpts->clockUpdateTimeout = 0;
+
 }
 
 /* The PtpEnginePreset structure for reference: 
@@ -1170,19 +1175,37 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"hybrid", 	IPMODE_HYBRID
 				);
 
-#ifdef PTPD_PCAP
+#if defined(PTPD_PCAP) && defined(__sun) && !defined(PTPD_EXPERIMENTAL)
+	if(CONFIG_ISTRUE("ptpengine:use_libpcap"))
+	INFO("Libpcap support is currently marked broken/experimental on Solaris platforms.\n"
+	     "To test it, please build with --enable-experimental-options\n");
+
+	CONFIG_MAP_BOOLEAN("ptpengine:use_libpcap",rtOpts->pcap,FALSE,
+		"Use libpcap for sending and receiving traffic (automatically enabled\n"
+	"	 in Ethernet mode).");
+
+	/* cannot set ethernet transport without libpcap */
+	CONFIG_KEY_VALUE_FORBIDDEN("ptpengine:transport",
+				    rtOpts->transport == IEEE_802_3,
+				    "ethernet",
+	    "Libpcap support is currently marked broken/experimental on Solaris platforms.\n"
+	    "To test it and use the Ethernet transport, please build with --enable-experimental-options\n");
+#elif defined(PTPD_PCAP)
 	CONFIG_MAP_BOOLEAN("ptpengine:use_libpcap",rtOpts->pcap,rtOpts->pcap,
 		"Use libpcap for sending and receiving traffic (automatically enabled\n"
 	"	 in Ethernet mode).");
 
 	/* in ethernet mode, activate pcap and overwrite previous setting */
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport==IEEE_802_3,rtOpts->pcap,TRUE,rtOpts->pcap);
-
 #else
 	if(CONFIG_ISTRUE("ptpengine:use_libpcap"))
 	INFO("Libpcap support disabled or not available. Please install libpcap,\n"
 	     "build without --disable-pcap, or try building with ---with-pcap-config\n"
 	     " to use ptpengine:use_libpcap.\n");
+
+	CONFIG_MAP_BOOLEAN("ptpengine:use_libpcap",rtOpts->pcap,FALSE,
+		"Use libpcap for sending and receiving traffic (automatically enabled\n"
+	"	 in Ethernet mode).");
 
 	/* cannot set ethernet transport without libpcap */
 	CONFIG_KEY_VALUE_FORBIDDEN("ptpengine:transport",
@@ -1698,11 +1721,21 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 before slave is reset.", 0);
 
 
-
 #ifdef PTPD_STATISTICS
 	CONFIG_MAP_BOOLEAN("servo:max_delay_stable_only",rtOpts->maxDelayStableOnly,rtOpts->maxDelayStableOnly,
 		"If servo:max_delay is set, perform the check only if clock servo has stabilised.\n");
 #endif
+
+
+	rtOpts->syncSequenceChecking = FALSE;
+	rtOpts->clockUpdateTimeout = 0;
+
+	CONFIG_MAP_BOOLEAN("ptpengine:sync_sequence_checking",rtOpts->syncSequenceChecking,rtOpts->syncSequenceChecking,
+		"When enabled, Sync messages will only be accepted if sequence ID is increasing.\n");
+
+	CONFIG_MAP_INT_RANGE("ptpengine:clock_update_timeout",rtOpts->clockUpdateTimeout,rtOpts->clockUpdateTimeout,
+		"If set to non-zero, timeout in seconds, after which the slave resets if no clock updates made. \n",
+		0, 3600);
 
 	CONFIG_MAP_INT_RANGE("servo:max_offset",rtOpts->maxReset,rtOpts->maxReset,
 		"Do not reset the clock if offset from master is greater\n"
@@ -2814,6 +2847,10 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("global:log_statistics",			PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("global:statistics_timestamp_format",		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("global:dump_packets",		PTPD_RESTART_NONE );
+
+//        COMPONENT_RESTART_REQUIRED("ptpengine:sync_sequence_checking",	PTPD_RESTART_NONE );
+        COMPONENT_RESTART_REQUIRED("ptpengine:clock_update_timeout",		PTPD_RESTART_PROTOCOL );
+
 #ifdef PTPD_STATISTICS
 //		COMPONENT_RESTART_REQUIRED("global:statistics_update_interval", PTPD_RESTART_NONE );
 #endif

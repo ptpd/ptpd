@@ -32,7 +32,7 @@ and Mac OS X and runs on multiple CPU architectures, 32-bit and 64-bit, includin
 .SH COMMAND-LINE CONFIGURATION
 As of version 2.3.0, configuration file is the preferred mechanism for configuring PTPd, therefore
 the options available as short (\fI-x\fR) and long options (\fI--xxxxx\fR) mostly provide basic control
-over the daemon operation, and only provide the very basic PTP protocol settings. The rest of the settings (see \fBptpd.conf(5)\fR)
+over the daemon operation, and only provide the very basic PTP protocol settings. The rest of the settings (see \fBptpd2.conf(5)\fR)
 can also be specified as command-line options, but they take the long \fI--key:section="value"\fR form.
 
 .SH BASIC DAEMON OPTIONS
@@ -198,6 +198,92 @@ DISABLED
 \fI? (unk)\fR
 UNKNOWN state
 .RE
+
+.SH STATISTICS LOG FILE FORMAT
+
+When the statistics log is enabled (\fIptpengine:log_statistics\fR, verbose foreground mode or log file - \fIptpengine:statistics_file\fR),
+a PTPd slave will log clock sync information upon the receipt of every Sync and Delay Response message.
+When PTPd starts up or flushes the log, a comment line (starting with #) will be logged, containing the names
+of all columns. The format of this log is a series of comma-separated values (CSV) and can be easily
+imported into statistics tools and most spreadsheet software packages for analysis and graphing.
+This log can get very large when running PTPd for longer periods of time and with high message rates, therefore to reduce
+the number of messages logged, the \fIglobal:statistics_log_interval\fR setting can be used, to limit the log output
+to one message per configured interval only. The size and maximum number of the statistics
+log can also be controlled - (see \fBptpd2.conf(5)\fR).
+.TP
+The meaning of the columns is as follows:
+.RS 8
+.TP 8
+\fBTimestamp\fR
+Time when message received. This can take the form of text date / time or Unix timestamp (with fractional seconds),
+or both (in which case an exra field is added), depending onthe \fIglobal:statistics_timestamp_format\fR setting (see \fBptpd2.conf(5)\fR).
+When importing the log into plotting software, if the software can understand Unix time, it is best to
+set the timestamp format to unix or both, as some software will not properly deal with the fractional part of the second when converting
+the date and time from text.
+.TP 8
+\fBState\fR
+Port state (see \fBPTP PORT STATES\fR).
+.TP 8
+\fBClock ID\fR
+Port identity of the current best master, as defined by IEEE 1588. This will be the local clock's ID if
+the local clock is the best master. Displayed as \fIclock_id/port(host)\fR 
+Port is the PTP clock port number, not to be confused with UDP ports. The clock ID is an EUI-64 64-bit
+ID, usually converted from the 48-bit MAC address, by inserting 0xfffe between the lower and upper
+half of the MAC address. PTPd will attempt to convert the clock ID back to MAC address and look up
+the hostname from \fI/etc/ethers\fR (see \fBethers(5)\fR). Populating the ethers file will help the
+administrator recognise the masters by familiar hostnames.
+.TP 8
+\fBOne Way Delay\fR
+Current value of one-way delay (or mean path delay) in seconds, calculated by PTPd in slave state
+from the Delay Request - Delay Response message exchange. \fINote:\fR if this value remains at zero,
+this usually means that no Delay Response messages are being received, likely due to a network issue.
+.TP 8
+\fBOffset From Master\fR
+Current value of offset from master in seconds - this is the main output of the PTP engine in slave
+state, which is the input of the clock servo for clock corrections. This is the value typically
+observed when estimating the slave performance.
+.TP 8
+\fBSlave to Master\fR
+Intermediate offset value (seconds) extracted from the Delay Request - Delay Response message exchange, used for
+computing one-way delay. If the last value was rejected by a filter, the previous value will
+be shown in the log. This value will also be zero if no Delay Response messages are being received.
+.TP 8
+\fBMaster to Slave\fR
+Intermediate offset value (seconds) extracted from the Sync messages, used for computing the offset from master.
+If the last value was rejected by a filter, the previous value will be shown in the log.
+.TP 8
+\fBObserved Drift\fR
+The integral accumulator of the clock control PI servo model - frequency difference between the slave clock and
+master clock. This value becomes stable when the clock offset has stabilised, and can be used (and is) to detect
+clock stability.
+.TP 8
+\fBLast Packet Received\fR
+This field shows what message was received last - this will be S for Sync and D for Delay Response. If a slave
+logs no D entries, this means it's not receiving Delay Response messages, which could be a network issue.
+.TP 8
+\fBOne Way Delay Mean\fR
+One-way delay mean computed over the last sampling window.
+.TP 8
+\fBOne Way Delay Std Dev\fR
+One-way delay standard deviation computed over the last sampling window.
+.TP 8
+\fBOffset From Master Mean\fR
+Offset from master mean computed over the last sampling window.
+.TP 8
+\fBOffset From Master Std Dev\fR
+Offset from master standard deviation computed over the last sampling window.
+.TP 8
+\fBObserved Drift Mean\fR
+Observed drift / local clock frequency adjustment mean computed over the last sampling window.
+.TP 8
+\fBObserved Drift Std Dev\fR
+Observed drift / local clock frequency adjustment standard deviation computed over the last sampling window.
+The lower the value, the less aggressively the clock is being controlled and therefore the more stable it is.
+.RE
+
+\fBNOTE:\fR All the statistical measures (mean and std dev) will only be computed and displayed if PTPd was
+built with --enable-statistics. The duration of the sampling period is controlled with the
+\fIglobal:statistics_update_interval\fR setting - (see \fBptpd2.conf(5)\fR).
 
 .SH HANDLED SIGNALS
 .TP
