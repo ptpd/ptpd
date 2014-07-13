@@ -920,20 +920,6 @@ typedef struct {
 	double servoKI;
 	int servoDtMethod;
 
-#ifdef	PTPD_STATISTICS
-
-	Boolean delayMSOutlierFilterEnabled;
-	int delayMSOutlierFilterCapacity;
-	double delayMSOutlierFilterThreshold;
-	Boolean delayMSOutlierFilterDiscard;
-	double delayMSOutlierWeight;
-
-	Boolean delaySMOutlierFilterEnabled;
-	int delaySMOutlierFilterCapacity;
-	double delaySMOutlierFilterThreshold;
-	Boolean delaySMOutlierFilterDiscard;
-	double delaySMOutlierWeight;
-
 	/**
 	 *  When enabled, ptpd ensures that Sync message sequence numbers
 	 *  are increasing (consecutive sync is not lower than last).
@@ -948,6 +934,21 @@ typedef struct {
 	  * threshold or after GM reset the Sync sequence number
           */
 	int clockUpdateTimeout;
+
+#ifdef	PTPD_STATISTICS
+
+	Boolean delayMSOutlierFilterEnabled;
+	int delayMSOutlierFilterCapacity;
+	double delayMSOutlierFilterThreshold;
+	Boolean delayMSOutlierFilterDiscard;
+	double delayMSOutlierWeight;
+
+	Boolean delaySMOutlierFilterEnabled;
+	int delaySMOutlierFilterCapacity;
+	double delaySMOutlierFilterThreshold;
+	Boolean delaySMOutlierFilterDiscard;
+	double delaySMOutlierWeight;
+
 
 	int calibrationDelay;
 

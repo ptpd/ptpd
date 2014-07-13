@@ -403,6 +403,14 @@ servo:max_delay_max_rejected = 0
 ; 
 servo:max_delay_stable_only = N
 
+; When enabled, Sync messages will only be accepted if sequence ID is increasing.
+; 
+ptpengine:sync_sequence_checking = N
+
+; If set to non-zero, timeout in seconds, after which the slave resets if no clock updates made. 
+; 
+ptpengine:clock_update_timeout = 0
+
 ; Do not reset the clock if offset from master is greater
 ; than this value (nanoseconds). 0 = not used.
 servo:max_offset = 0
