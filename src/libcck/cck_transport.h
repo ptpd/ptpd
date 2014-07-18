@@ -4,7 +4,7 @@
  * Copyright (c) 2014 Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,7 +30,7 @@
 
 /**
  * @file   cck_transport.h
- * 
+ *
  * @brief  libCCK transport component definitions
  *
  */
@@ -46,7 +46,7 @@ typedef struct CckTransport CckTransport;
 
 #include "cck.h"
 
-#include "../../config.h"
+#include <config.h>
 
 #include <limits.h>
 
@@ -260,7 +260,7 @@ struct CckTransport {
 	    This is mainly useful for the PTP protocol that has a unicast flag
 	    in the message header, but may otherwise be useful as well. Transport
 	    user doesn't care if the destination it's sending to is multicast
-	    or unicast, but if it has to know or act upon it, it has 
+	    or unicast, but if it has to know or act upon it, it has
 	    isMulticastAddress(), and this callback.
 	*/
 	void (*unicastCallback) (CckBool, CckOctet*, CckUInt16);
@@ -322,9 +322,11 @@ enum {
 #include "transport/cck_transport_null.h"
 #include "transport/cck_transport_socket_ipv4.h"
 #include "transport/cck_transport_socket_ipv6.h"
+#ifdef PTPD_PCAP
 #include "transport/cck_transport_pcap_ipv4.h"
 #include "transport/cck_transport_pcap_ipv6.h"
 #include "transport/cck_transport_pcap_ethernet.h"
+#endif
 
 /* ============ TRANSPORT IMPLEMENTATIONS END ============== */
 

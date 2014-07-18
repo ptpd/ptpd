@@ -1,25 +1,25 @@
 /*-
  * Copyright (c) 2012-2013 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -28,7 +28,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -120,7 +120,7 @@ char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *s
 
 
 
-int 
+int
 snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
 {
 	int len = 0;
@@ -181,7 +181,7 @@ translatePortState(PtpClock *ptpClock)
 }
 
 
-int 
+int
 snprint_ClockIdentity(char *s, int max_len, const ClockIdentity id)
 {
 	int len = 0;
@@ -238,12 +238,12 @@ int ether_ntohost_cache(char *hostname, struct ether_addr *addr)
 	static char buf[BUF_SIZE];
 
 #ifdef HAVE_STRUCT_ETHER_ADDR_OCTET
-	if (memcmp(addr->octet, &prev_addr, 
+	if (memcmp(addr->octet, &prev_addr,
 		  sizeof(struct ether_addr )) != 0) {
 		valid = 0;
 	}
 #else
-	if (memcmp(addr->ether_addr_octet, &prev_addr, 
+	if (memcmp(addr->ether_addr_octet, &prev_addr,
 		  sizeof(struct ether_addr )) != 0) {
 		valid = 0;
 	}
@@ -297,14 +297,14 @@ snprint_ClockIdentity_ntohost(char *s, int max_len, const ClockIdentity id)
 }
 
 
-int 
+int
 snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 {
 	int len = 0;
 
 #ifdef PRINT_MAC_ADDRESSES
 	len += snprint_ClockIdentity_mac(&s[len], max_len - len, id->clockIdentity);
-#else	
+#else
 	len += snprint_ClockIdentity(&s[len], max_len - len, id->clockIdentity);
 #endif
 
@@ -315,9 +315,8 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 }
 
 /* Write a formatted string to file pointer */
-int writeMessage(FILE* destination, int priority, const char * format, va_list ap) {
+int writeMessage(FILE* destination, int priority, RunTimeOpts* rtOpts, const char * format, va_list ap) {
 
-	extern RunTimeOpts rtOpts;
 	extern Boolean startupInProgress;
 
 	int written;
@@ -331,13 +330,13 @@ int writeMessage(FILE* destination, int priority, const char * format, va_list a
 		return -1;
 
 	/* If we're starting up as daemon, only print <= WARN */
-	if ((destination == stderr) && 
-		!rtOpts.nonDaemon && startupInProgress &&
+	if ((destination == stderr) &&
+		!rtOpts->nonDaemon && startupInProgress &&
 		(priority > LOG_WARNING)){
 		    return 1;
 		}
 	/* Print timestamps and prefixes only if we're running in foreground or logging to file*/
-	if( rtOpts.nonDaemon || destination != stderr) {
+	if( rtOpts->nonDaemon || destination != stderr) {
 
 		/*
 		 * select debug tagged with timestamps. This will slow down PTP itself if you send a lot of messages!
@@ -348,7 +347,7 @@ int writeMessage(FILE* destination, int priority, const char * format, va_list a
 		strftime(time_str, MAXTIMESTR, "%F %X", localtime((time_t*)&now.tv_sec));
 		fprintf(destination, "%s.%06d ", time_str, (int)now.tv_usec  );
 		fprintf(destination,PTPD_PROGNAME"[%d].%s (%-9s ",
-		getpid(), startupInProgress ? "startup" : rtOpts.ifaceName,
+		getpid(), startupInProgress ? "startup" : rtOpts->ifaceName,
 		priority == LOG_EMERG   ? "emergency)" :
 		priority == LOG_ALERT   ? "alert)" :
 		priority == LOG_CRIT    ? "critical)" :
@@ -394,25 +393,25 @@ updateLogSize(LogFileHandler* handler)
 void
 logMessage(int priority, const char * format, ...)
 {
-	extern RunTimeOpts rtOpts;
+	extern RunTimeOpts* G_rtOpts;
 	extern Boolean startupInProgress;
 	va_list ap;
 	va_start(ap, format);
 
 #ifdef RUNTIME_DEBUG
-	if ((priority >= LOG_DEBUG) && (priority > rtOpts.debug_level)) {
+	if ((priority >= LOG_DEBUG) && (priority > G_rtOpts->debug_level)) {
 		goto end;
 	}
 #endif
 
 	/* log level filter */
-	if(priority > rtOpts.logLevel)
+	if(priority > G_rtOpts->logLevel)
 	    goto end;
 
 	/* If we're using a log file and the message has been written OK, we're done*/
-	if(rtOpts.eventLog.logEnabled && rtOpts.eventLog.logFP != NULL) {
-	    if(writeMessage(rtOpts.eventLog.logFP, priority, format, ap) > 0) {
-		maintainLogSize(&rtOpts.eventLog);
+	if(G_rtOpts->eventLog.logEnabled && G_rtOpts->eventLog.logFP != NULL) {
+           if(writeMessage(G_rtOpts->eventLog.logFP, priority, G_rtOpts, format, ap) > 0) {
+               maintainLogSize(&(G_rtOpts->eventLog));
 		if(!startupInProgress)
 		    goto end;
 		else
@@ -425,8 +424,8 @@ logMessage(int priority, const char * format, ...)
 	 * If we're running in background and we're starting up, also log first
 	 * messages to syslog to at least leave a trace.
 	 */
-	if (rtOpts.useSysLog ||
-	    (!rtOpts.nonDaemon && startupInProgress)) {
+	if (G_rtOpts->useSysLog ||
+	    (!G_rtOpts->nonDaemon && startupInProgress)) {
 		static Boolean syslogOpened;
 #ifdef RUNTIME_DEBUG
 		/*
@@ -451,7 +450,7 @@ logMessage(int priority, const char * format, ...)
 std_err:
 	va_start(ap, format);
 	/* Either all else failed or we're running in foreground - or we also log to stderr */
-	writeMessage(stderr, priority, format, ap);
+	writeMessage(stderr, priority, G_rtOpts, format, ap);
 
 end:
 	va_end(ap);
@@ -587,7 +586,7 @@ restartLogging(RunTimeOpts* rtOpts)
 
 }
 
-void 
+void
 logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	static char sbuf[SCREEN_BUFSZ];
@@ -626,7 +625,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 */
 
 	if ((ptpClock->portState == PTP_SLAVE) && (rtOpts->statisticsLogInterval)) {
-			
+
 		switch(ptpClock->char_last_msg) {
 			case 'S':
 			if((now.seconds - prev_now_sync.seconds) < rtOpts->statisticsLogInterval){
@@ -658,11 +657,11 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 			 &ptpClock->parentPortIdentity); /* Clock ID */
 
-		/* 
+		/*
 		 * if grandmaster ID differs from parent port ID then
-		 * also print GM ID 
+		 * also print GM ID
 		 */
-		if (memcmp(ptpClock->grandmasterIdentity, 
+		if (memcmp(ptpClock->grandmasterIdentity,
 			   ptpClock->parentPortIdentity.clockIdentity,
 			   CLOCK_IDENTITY_LENGTH)) {
 			len += snprint_ClockIdentity(sbuf + len,
@@ -687,7 +686,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		/* print MS and SM with sign */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
-			
+
 		if(rtOpts->delayMechanism == E2E) {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 							&(ptpClock->delaySM));
@@ -724,7 +723,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 			len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 				 &ptpClock->parentPortIdentity);
-							 
+
 			//len += snprintf(sbuf + len, sizeof(sbuf) - len, ")");
 		}
 
@@ -735,7 +734,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 						     " %d ", ptpClock->resetCount);
 		}
 	}
-	
+
 	/* add final \n in normal status lines */
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
 
@@ -757,7 +756,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 }
 
-void 
+void
 displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 {
 
@@ -766,7 +765,7 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 
 	memset(sbuf, ' ', sizeof(sbuf));
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", prefixMessage);
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", 
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s",
 			getPortStateName(ptpClock->portState));
 
 	if (ptpClock->portState >= PTP_MASTER) {
@@ -838,7 +837,7 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 
 	}
 	if(ptpClock->portState == PTP_SLAVE) {
-	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d\n","GM info", 
+	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d\n","GM info",
 	ptpClock->grandmasterPriority1, ptpClock->grandmasterPriority2, ptpClock->grandmasterClockQuality.clockClass);
 	}
 
@@ -852,7 +851,7 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, 		STATUSPREFIX"  ","UTC properties");
 	fprintf(out, "UTC valid: %s", ptpClock->timePropertiesDS.currentUtcOffsetValid ? "Y" : "N");
 	fprintf(out, ", UTC offset: %d",ptpClock->timePropertiesDS.currentUtcOffset);
-	fprintf(out, "%s",ptpClock->timePropertiesDS.leap61 ? 
+	fprintf(out, "%s",ptpClock->timePropertiesDS.leap61 ?
 			", LEAP61 pending" : ptpClock->timePropertiesDS.leap59 ? ", LEAP59 pending" : "");
 	fprintf(out, "%s", rtOpts->preferUtcValid ? ", prefer UTC" : "");
 	fprintf(out, "%s", rtOpts->requireUtcValid ? ", require UTC" : "");
@@ -1020,7 +1019,7 @@ else {
 	fprintf(out, "\n");
 
 #ifdef PTPD_NTPDC
-	
+
 	if(rtOpts->ntpOptions.enableEngine) {
 		fprintf(out, 		STATUSPREFIX"  ","NTP control status ");
 
@@ -1118,8 +1117,8 @@ else {
 	fflush(out);
 }
 
-void 
-displayPortIdentity(PortIdentity *port, const char *prefixMessage) 
+void
+displayPortIdentity(PortIdentity *port, const char *prefixMessage)
 {
 	static char sbuf[SCREEN_BUFSZ];
 	int len = 0;
@@ -1136,7 +1135,7 @@ void
 recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time)
 {
 	if (rtOpts->recordLog.logEnabled && rtOpts->recordLog.logFP != NULL) {
-		fprintf(rtOpts->recordLog.logFP, "%d %llu\n", sequenceId, 
+		fprintf(rtOpts->recordLog.logFP, "%d %llu\n", sequenceId,
 		  ((time->seconds * 1000000000ULL) + time->nanoseconds)
 		);
 		maintainLogSize(&rtOpts->recordLog);
@@ -1295,7 +1294,7 @@ cleanup:
 #endif /* HAVE_LINUX_RTC_H */
 
 /* returns a double beween 0.0 and 1.0 */
-double 
+double
 getRand(void)
 {
 	return ((rand() * 1.0) / RAND_MAX);
@@ -1314,7 +1313,7 @@ lockFile(int fd)
         return(fcntl(fd, F_SETLK, &fl));
 }
 
-/* 
+/*
  * Check if a file descriptor's lock flags match specified flags,
  * do not acquire lock - just query. If the flags match, populate
  * lockPid with the PID of the process already holding the lock(s)
@@ -1340,7 +1339,7 @@ int checkLockStatus(int fd, short lockType, int *lockPid) {
 
 }
 
-/* 
+/*
  * Check if it's possible to acquire lock on a file - if already locked,
  * populate lockPid with the PID currently holding the write lock.
  */
@@ -1386,7 +1385,7 @@ int matches = 0, counter = 0;
 		!rtOpts->autoLockFile)
 			return TRUE;
 
-    /* 
+    /*
      * Try to discover if we can run in desired mode
      * based on the presence of other lock files
      * and them being lockable
@@ -1504,7 +1503,7 @@ Boolean
 adjFreq(double adj)
 {
 
-	extern RunTimeOpts rtOpts;
+	extern RunTimeOpts* G_rtOpts;
 	struct timex t;
 
 #ifdef HAVE_STRUCT_TIMEX_TICK
@@ -1519,10 +1518,10 @@ adjFreq(double adj)
 	memset(&t, 0, sizeof(t));
 
 	/* Clamp to max PPM */
-	if (adj > rtOpts.servoMaxPpb){
-		adj = rtOpts.servoMaxPpb;
-	} else if (adj < -rtOpts.servoMaxPpb){
-		adj = -rtOpts.servoMaxPpb;
+	if (adj > G_rtOpts->servoMaxPpb){
+		adj = G_rtOpts->servoMaxPpb;
+	} else if (adj < -G_rtOpts->servoMaxPpb){
+		adj = -G_rtOpts->servoMaxPpb;
 	}
 
 /* Y U NO HAVE TICK? */
@@ -1579,7 +1578,7 @@ adjFreq(double adj)
 	DBG2("adjFreq: oldadj: %.09f, newadj: %.09f, tick: %d, tickadj: %d\n", oldAdj, adj,t.tick,tickAdj);
 #endif /* HAVE_STRUCT_TIMEX_TICK */
 	DBG2("        adj is %.09f;  t freq is %d       (float: %.09f)\n", adj, t.freq,  dFreq);
-	
+
 	return !adjtimex(&t);
 }
 
@@ -1753,7 +1752,7 @@ setTimexFlags(int flags, Boolean quiet)
 	tmx.modes = MOD_STATUS;
 
 	tmx.status = getTimexFlags();
-	if(tmx.status == -1) 
+	if(tmx.status == -1)
 		return;
 	/* unset all read-only flags */
 	tmx.status &= ~STA_RONLY;
@@ -1804,7 +1803,7 @@ informClockSource(PtpClock* ptpClock)
 
 
 void
-unsetTimexFlags(int flags, Boolean quiet) 
+unsetTimexFlags(int flags, Boolean quiet)
 {
 	struct timex tmx;
 	int ret;
@@ -1814,7 +1813,7 @@ unsetTimexFlags(int flags, Boolean quiet)
 	tmx.modes = MOD_STATUS;
 
 	tmx.status = getTimexFlags();
-	if(tmx.status == -1) 
+	if(tmx.status == -1)
 		return;
 	/* unset all read-only flags */
 	tmx.status &= ~STA_RONLY;
@@ -1867,7 +1866,7 @@ Boolean
 checkTimexFlags(int flags) {
 	int tflags = getTimexFlags();
 
-	if (tflags == -1) 
+	if (tflags == -1)
 		return FALSE;
 	return ((tflags & flags) == flags);
 }

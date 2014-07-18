@@ -1,25 +1,25 @@
 /*-
  * Copyright (c) 2013-2014 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -28,7 +28,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -45,10 +45,10 @@
 /**
  * @file   protocol.c
  * @date   Wed Jun 23 09:40:39 2010
- * 
+ *
  * @brief  The code that handles the IEEE-1588 protocol and state machine
- * 
- * 
+ *
+ *
  */
 
 #include "ptpd.h"
@@ -102,7 +102,7 @@ static Boolean isFromCurrentParent(const PtpClock *ptpClock, const MsgHeader* he
    checked for 'port_state'. the actions and events may or may not change
    'port_state' by calling toState(), but once they are done we loop around
    again and perform the actions required for the new 'port_state'. */
-void 
+void
 protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBG("event POWERUP\n");
@@ -112,7 +112,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		writeStatusFile(ptpClock, rtOpts, TRUE);
 
 #ifdef PTPD_NTPDC
-	/* 
+	/*
 	 * The deamon is just starting - if NTP failover enabled, start the timers now,
 	 * so that if we haven't found a master, we will fail over.
 	 */
@@ -152,7 +152,9 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	for (;;)
 	{
-		/* 20110701: this main loop was rewritten to be more clear */
+                if( rtOpts->useTimerThread && !rtOpts->run ) {
+                   break;
+                }
 
 		if (ptpClock->portState == PTP_INITIALIZING) {
 			if (!doInit(rtOpts, ptpClock)) {
@@ -260,7 +262,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ntpShutdown(&rtOpts->ntpOptions, &ptpClock->ntpControl);
 		if(rtOpts->ntpOptions.enableEngine) {
                         NOTIFY("Starting NTP control subsystem\n");
-		    if(!(ptpClock->ntpControl.operational = 
+		    if(!(ptpClock->ntpControl.operational =
 		        ntpInit(&rtOpts->ntpOptions, &ptpClock->ntpControl))) {
 
 			NOTICE("Could not start NTP control subsystem");
@@ -335,7 +337,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 
 /* perform actions required when leaving 'port_state' and entering 'state' */
-void 
+void
 toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	ptpClock->message_activity = TRUE;
@@ -344,10 +346,10 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	switch (ptpClock->portState)
 	{
 	case PTP_MASTER:
-		timerStop(SYNC_INTERVAL_TIMER, ptpClock->itimer);  
+		timerStop(SYNC_INTERVAL_TIMER, ptpClock->itimer);
 		timerStop(ANNOUNCE_INTERVAL_TIMER, ptpClock->itimer);
-		timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer); 
-		timerStop(MASTER_NETREFRESH_TIMER, ptpClock->itimer); 
+		timerStop(PDELAYREQ_INTERVAL_TIMER, ptpClock->itimer);
+		timerStop(MASTER_NETREFRESH_TIMER, ptpClock->itimer);
 		break;
 
 	case PTP_SLAVE:
@@ -372,7 +374,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->panicMode = FALSE;
 		ptpClock->panicOver = FALSE;
 		timerStop(PANIC_MODE_TIMER, ptpClock->itimer);
-		initClock(rtOpts, ptpClock); 
+		initClock(rtOpts, ptpClock);
 		break;
 
 	case PTP_PASSIVE:
@@ -395,13 +397,13 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	DBG("state %s\n",getPortStateName(state));
 
 #ifdef PTPD_NTPDC
-	/* 
+	/*
 	 * Keep the NTP control container informed. Depending on config,
 	 * we may be going between SLAVE when NTP should not be running
 	 * and MASTER when it should
 	 */
 	if(rtOpts->ntpOptions.enableEngine && !ptpClock->ntpControl.isFailOver) {
-		ptpClock->ntpControl.isRequired = 
+		ptpClock->ntpControl.isRequired =
 		rtOpts->ntpOptions.ntpInControl;
 		if(!ntpdControl(&rtOpts->ntpOptions, &ptpClock->ntpControl, TRUE)) {
 			DBG("NTPdControl() fail during state change\n");
@@ -451,9 +453,9 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			netRefresh(rtOpts, ptpClock);
 		}
 
-		timerStart(ANNOUNCE_RECEIPT_TIMER, 
-			   (ptpClock->announceReceiptTimeout) * 
-			   (pow(2,ptpClock->logAnnounceInterval)), 
+		timerStart(ANNOUNCE_RECEIPT_TIMER,
+			   (ptpClock->announceReceiptTimeout) *
+			   (pow(2,ptpClock->logAnnounceInterval)),
 			   ptpClock->itimer);
 		ptpClock->announceTimeouts = 0;
 /* We've entered LISTENING state from SLAVE - start NTP failover actions */
@@ -468,8 +470,8 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				/* We have a timeout defined */
 				if(rtOpts->ntpOptions.failoverTimeout) {
 					INFO("NTP failover timer started\n");
-					timerStart(NTPD_FAILOVER_TIMER, 
-						    rtOpts->ntpOptions.failoverTimeout, 
+					timerStart(NTPD_FAILOVER_TIMER,
+						    rtOpts->ntpOptions.failoverTimeout,
 						    ptpClock->itimer);
 				/* Fail over to NTP straight away */
 				} else {
@@ -483,7 +485,7 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 #endif /* PTPD_NTPDC */
 
-		/* 
+		/*
 		 * Log status update only once - condition must be checked before we write the new state,
 		 * but the new state must be eritten before the log message...
 		 */
@@ -497,32 +499,32 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 
 	case PTP_MASTER:
-		timerStart(SYNC_INTERVAL_TIMER, 
+		timerStart(SYNC_INTERVAL_TIMER,
 			   pow(2,ptpClock->logSyncInterval), ptpClock->itimer);
 		DBG("SYNC INTERVAL TIMER : %f \n",
 		    pow(2,ptpClock->logSyncInterval));
-		timerStart(ANNOUNCE_INTERVAL_TIMER, 
-			   pow(2,ptpClock->logAnnounceInterval), 
+		timerStart(ANNOUNCE_INTERVAL_TIMER,
+			   pow(2,ptpClock->logAnnounceInterval),
 			   ptpClock->itimer);
-		timerStart(PDELAYREQ_INTERVAL_TIMER, 
-			   pow(2,ptpClock->logMinPdelayReqInterval), 
+		timerStart(PDELAYREQ_INTERVAL_TIMER,
+			   pow(2,ptpClock->logMinPdelayReqInterval),
 			   ptpClock->itimer);
 		if( rtOpts->refreshTransport &&
 		    rtOpts->masterRefreshInterval > 9 )
-			timerStart(MASTER_NETREFRESH_TIMER, 
-			   rtOpts->masterRefreshInterval, 
+			timerStart(MASTER_NETREFRESH_TIMER,
+			   rtOpts->masterRefreshInterval,
 			   ptpClock->itimer);
 		ptpClock->portState = PTP_MASTER;
 		displayStatus(ptpClock, "Now in state: ");
 		break;
 
 	case PTP_PASSIVE:
-		timerStart(PDELAYREQ_INTERVAL_TIMER, 
-			   pow(2,ptpClock->logMinPdelayReqInterval), 
+		timerStart(PDELAYREQ_INTERVAL_TIMER,
+			   pow(2,ptpClock->logMinPdelayReqInterval),
 			   ptpClock->itimer);
-		timerStart(ANNOUNCE_RECEIPT_TIMER, 
-			   (ptpClock->announceReceiptTimeout) * 
-			   (pow(2,ptpClock->logAnnounceInterval)), 
+		timerStart(ANNOUNCE_RECEIPT_TIMER,
+			   (ptpClock->announceReceiptTimeout) *
+			   (pow(2,ptpClock->logAnnounceInterval)),
 			   ptpClock->itimer);
 		ptpClock->portState = PTP_PASSIVE;
 		p1(ptpClock, rtOpts);
@@ -585,8 +587,8 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 			   ptpClock->itimer);
 
 		timerStart(ANNOUNCE_RECEIPT_TIMER,
-			   (ptpClock->announceReceiptTimeout) * 
-			   (pow(2,ptpClock->logAnnounceInterval)), 
+			   (ptpClock->announceReceiptTimeout) *
+			   (pow(2,ptpClock->logAnnounceInterval)),
 			   ptpClock->itimer);
 
 		/*
@@ -621,11 +623,11 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 
 #ifdef HAVE_SYS_TIMEX_H
 
-		/* 
-		 * leap second pending in kernel but no leap second 
+		/*
+		 * leap second pending in kernel but no leap second
 		 * info from GM - withdraw kernel leap second
-		 * if the flags have disappeared but we're past 
-		 * leap second event, do nothing - kernel flags 
+		 * if the flags have disappeared but we're past
+		 * leap second event, do nothing - kernel flags
 		 * will be unset in handleAnnounce()
 		 */
 		if((!ptpClock->timePropertiesDS.leap59 && !ptpClock->timePropertiesDS.leap61) &&
@@ -647,7 +649,7 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 }
 
 
-Boolean 
+Boolean
 doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBG("manufacturerIdentity: %s\n", MANUFACTURER_ID);
@@ -667,7 +669,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	ntpShutdown(&rtOpts->ntpOptions, &ptpClock->ntpControl);
 	if(rtOpts->ntpOptions.enableEngine) {
-		if(!(ptpClock->ntpControl.operational = 
+		if(!(ptpClock->ntpControl.operational =
 			ntpInit(&rtOpts->ntpOptions, &ptpClock->ntpControl))) {
 			NOTICE("Could not start NTP control subsystem");
 		}
@@ -681,7 +683,13 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	/* initialize other stuff */
 	initData(rtOpts, ptpClock);
-	initTimer();
+
+        if( rtOpts->useTimerThread ) {
+           initThreadedTimer();
+        } else {
+           initSignaledTimer();
+        }
+
 	initClock(rtOpts, ptpClock);
 	setupPIservo(&ptpClock->servo, rtOpts);
 #ifdef HAVE_SYS_TIMEX_H
@@ -702,7 +710,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 }
 
 /* handle actions and events for 'port_state' */
-static void 
+static void
 doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	UInteger8 state;
@@ -723,7 +731,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		 * or we received a SET management message that
 		 * changed an attribute in ptpClock,
 		 * then run the BMC algorithm
-		 */ 
+		 */
 		if(ptpClock->record_update)
 		{
 			DBG2("event STATE_DECISION_EVENT\n");
@@ -763,7 +771,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		{
 			DBG("event ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES\n");
 
-			if(!ptpClock->slaveOnly && 
+			if(!ptpClock->slaveOnly &&
 			   ptpClock->clockQuality.clockClass != SLAVE_ONLY_CLOCK_CLASS) {
 				ptpClock->number_foreign_records = 0;
 				ptpClock->foreign_record_i = 0;
@@ -826,7 +834,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 #ifdef PTPD_NTPDC
 		if(rtOpts->ntpOptions.enableEngine) {
-			if( (rtOpts->ntpOptions.enableFailover || (rtOpts->panicModeNtp && ptpClock->panicMode ))&& 
+			if( (rtOpts->ntpOptions.enableFailover || (rtOpts->panicModeNtp && ptpClock->panicMode ))&&
 				timerExpired(NTPD_FAILOVER_TIMER, ptpClock->itimer)) {
 				NOTICE("NTP failover triggered\n");
 				/* make sure we show errors if needed */
@@ -866,35 +874,35 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			/* FIXME: Path delay should also rearm its timer with the value received from the Master */
 		}
 
-                if (ptpClock->timePropertiesDS.leap59 || ptpClock->timePropertiesDS.leap61) 
+                if (ptpClock->timePropertiesDS.leap59 || ptpClock->timePropertiesDS.leap61)
                         DBGV("seconds to midnight: %.3f\n",secondsToMidnight());
 
                 /* leap second period is over */
                 if(timerExpired(LEAP_SECOND_PAUSE_TIMER,ptpClock->itimer) &&
                     ptpClock->leapSecondInProgress) {
-                            /* 
+                            /*
                              * do not unpause offset calculation just
                              * yet, just indicate and it will be
                              * unpaused in handleAnnounce()
                             */
                             ptpClock->leapSecondPending = FALSE;
                             timerStop(LEAP_SECOND_PAUSE_TIMER,ptpClock->itimer);
-                    } 
+                    }
 		/* check if leap second is near and if we should pause updates */
 		if( ptpClock->leapSecondPending &&
 		    !ptpClock->leapSecondInProgress &&
-		    (secondsToMidnight() <= 
+		    (secondsToMidnight() <=
 		    getPauseAfterMidnight(ptpClock->logAnnounceInterval))) {
                             WARNING("Leap second event imminent - pausing "
 				    "clock and offset updates\n");
                             ptpClock->leapSecondInProgress = TRUE;
 #ifdef HAVE_SYS_TIMEX_H
-                            if(!checkTimexFlags(ptpClock->timePropertiesDS.leap61 ? 
+                            if(!checkTimexFlags(ptpClock->timePropertiesDS.leap61 ?
 						STA_INS : STA_DEL)) {
                                     WARNING("Kernel leap second flags have "
 					    "been unset - attempting to set "
 					    "again");
-                                    setTimexFlags(ptpClock->timePropertiesDS.leap61 ? 
+                                    setTimexFlags(ptpClock->timePropertiesDS.leap61 ?
 						  STA_INS : STA_DEL, FALSE);
                             }
 #endif /* HAVE_SYS_TIMEX_H */
@@ -904,8 +912,8 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			     * a leap second
 			     */
 			    timerStart(LEAP_SECOND_PAUSE_TIMER,
-				       secondsToMidnight() + 
-				       (int)ptpClock->timePropertiesDS.leap61 + 
+				       secondsToMidnight() +
+				       (int)ptpClock->timePropertiesDS.leap61 +
 				       getPauseAfterMidnight(ptpClock->logAnnounceInterval),
 				       ptpClock->itimer);
 		}
@@ -1012,7 +1020,7 @@ isFromCurrentParent(const PtpClock *ptpClock, const MsgHeader* header)
 	return(!memcmp(
 		ptpClock->parentPortIdentity.clockIdentity,
 		header->sourcePortIdentity.clockIdentity,
-		CLOCK_IDENTITY_LENGTH)	&& 
+		CLOCK_IDENTITY_LENGTH)	&&
 		(ptpClock->parentPortIdentity.portNumber ==
 		 header->sourcePortIdentity.portNumber));
 
@@ -1162,7 +1170,7 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 
     /*
      * subtract the inbound latency adjustment if it is not a loop
-     *  back and the time stamp seems reasonable 
+     *  back and the time stamp seems reasonable
      */
     if (!isFromSelf && timeStamp->seconds > 0)
 	subTime(timeStamp, timeStamp, &rtOpts->inboundLatency);
@@ -1190,7 +1198,7 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 
 
 #ifdef PTPD_DBG
-    DBG("      ==> %s message %sreceived and accepted for processing (seq %d)\n", 
+    DBG("      ==> %s message %sreceived and accepted for processing (seq %d)\n",
 	    getMessageTypeName(message.header.messageType),
 	    message.isFromSelf ? "from self " : "",
 	    message.header.sequenceId);
@@ -1251,8 +1259,23 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
     int ret;
 
+    struct timeval timeout;
+
     if (!ptpClock->message_activity) {
-	ret = cckSelect(&ptpClock->watcher, NULL);
+        /*
+         * In a threaded environemnt, a timeout must be used.  When not threaded
+         * (the default daemon use-case), the alarm signal interrupts select to
+         * prevent it from blocking indefinitely.
+         */
+        if( rtOpts->useTimerThread ) {
+            timeout.tv_sec = 0;
+            timeout.tv_usec = US_TIMER_INTERVAL;
+            ret = cckSelect(&ptpClock->watcher, &timeout);
+
+        } else {
+            ret = cckSelect(&ptpClock->watcher, NULL);
+        }
+
 	if (ret < 0) {
 	    PERROR("failed to poll sockets");
 	    ptpClock->counters.messageRecvErrors++;
@@ -1285,7 +1308,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 }
 
 /*spec 9.5.3*/
-static void 
+static void
 handleAnnounce(PtpMessage* message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
@@ -1310,7 +1333,7 @@ handleAnnounce(PtpMessage* message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		/*
 		 * Valid announce message is received : BMC algorithm
-		 * will be executed 
+		 * will be executed
 		 */
 		ptpClock->counters.announceMessagesReceived++;
 		ptpClock->record_update = TRUE;
@@ -1351,8 +1374,8 @@ handleAnnounce(PtpMessage* message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			DBG2("___ Announce: received Announce from current Master, so reset the Announce timer\n");
 	   		/*Reset Timer handling Announce receipt timeout*/
 	   		timerStart(ANNOUNCE_RECEIPT_TIMER,
-				   (ptpClock->announceReceiptTimeout) * 
-				   (pow(2,ptpClock->logAnnounceInterval)), 
+				   (ptpClock->announceReceiptTimeout) *
+				   (pow(2,ptpClock->logAnnounceInterval)),
 				   ptpClock->itimer);
 
 #ifdef PTPD_STATISTICS
@@ -1380,7 +1403,7 @@ handleAnnounce(PtpMessage* message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 			}
 
-			// remember the GM address 
+			// remember the GM address
 			memcpy(&ptpClock->masterAddress, message->sourceAddress, sizeof(TransportAddress));
 
 			break;
@@ -1411,7 +1434,7 @@ handleAnnounce(PtpMessage* message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	/*
 	 * Passive case: previously, this was handled in the default, just like the master case.
-	 * This the announce would call addForeign(), but NOT reset the timer, so after 12s it would expire and we would come alive periodically 
+	 * This the announce would call addForeign(), but NOT reset the timer, so after 12s it would expire and we would come alive periodically
 	 *
 	 * This code is now merged with the slave case to reset the timer, and call addForeign() if it's a third master
 	 *
@@ -1485,7 +1508,7 @@ handleAnnounce(PtpMessage* message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 }
 
 
-static void 
+static void
 handleSync(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	TimeInternal OriginTimestamp;
@@ -1535,13 +1558,13 @@ handleSync(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				DBG2("HandleSync: waiting for follow-up \n");
 				ptpClock->twoStepFlag=TRUE;
 				ptpClock->waitingForFollow = TRUE;
-				ptpClock->recvSyncSequenceId = 
+				ptpClock->recvSyncSequenceId =
 					message->header.sequenceId;
 				/*Save correctionField of Sync message*/
 				integer64_to_internalTime(
 					message->header.correctionField,
 					&correctionField);
-				ptpClock->lastSyncCorrectionField.seconds = 
+				ptpClock->lastSyncCorrectionField.seconds =
 					correctionField.seconds;
 				ptpClock->lastSyncCorrectionField.nanoseconds =
 					correctionField.nanoseconds;
@@ -1599,7 +1622,7 @@ processSyncFromSelf(const TimeInternal * tint, RunTimeOpts * rtOpts, PtpClock * 
 }
 
 
-static void 
+static void
 handleFollowUp(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBGV("Handlefollowup : Follow up message received \n");
@@ -1630,7 +1653,7 @@ handleFollowUp(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			ptpClock->counters.followUpMessagesReceived++;
 			ptpClock->logSyncInterval = message->header.logMessageInterval;
 			if (ptpClock->waitingForFollow)	{
-				if (ptpClock->recvSyncSequenceId == 
+				if (ptpClock->recvSyncSequenceId ==
 				     message->header.sequenceId) {
 					msgUnpackFollowUp(ptpClock->msgIbuf,
 							  &message->body.follow);
@@ -1809,7 +1832,7 @@ handleDelayResp(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			if ((memcmp(ptpClock->portIdentity.clockIdentity,
 				    message->body.resp.requestingPortIdentity.clockIdentity,
 				    CLOCK_IDENTITY_LENGTH) == 0) &&
-			    (ptpClock->portIdentity.portNumber == 
+			    (ptpClock->portIdentity.portNumber ==
 			     message->body.resp.requestingPortIdentity.portNumber)
 			    && isFromCurrentParent(ptpClock, &message->header)) {
 				DBG("==> Handle DelayResp (%d)\n",
@@ -1838,9 +1861,9 @@ handleDelayResp(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 				toInternalTime(&requestReceiptTimestamp,
 					       &message->body.resp.receiveTimestamp);
-				ptpClock->delay_req_receive_time.seconds = 
+				ptpClock->delay_req_receive_time.seconds =
 					requestReceiptTimestamp.seconds;
-				ptpClock->delay_req_receive_time.nanoseconds = 
+				ptpClock->delay_req_receive_time.nanoseconds =
 					requestReceiptTimestamp.nanoseconds;
 
 				integer64_to_internalTime(
@@ -1934,7 +1957,7 @@ handlePDelayReq(PtpMessage *message,
 /* WOJ: check this */
 /*				msgUnpackHeader(ptpClock->msgIbuf,
 						&ptpClock->PdelayReqHeader);*/
-				issuePDelayResp(message, rtOpts, 
+				issuePDelayResp(message, rtOpts,
 						ptpClock);
 				break;
 			}
@@ -1998,7 +2021,7 @@ handlePDelayResp(PtpMessage *message,
 			msgUnpackPDelayResp(ptpClock->msgIbuf,
 					    &message->body.presp);
 
-			if (ptpClock->sentPDelayReqSequenceId != 
+			if (ptpClock->sentPDelayReqSequenceId !=
 			       ((UInteger16)(message->header.sequenceId + 1))) {
 				    DBG("PDelayResp: sequence mismatch - sent: %d, received: %d\n",
 					    ptpClock->sentPDelayReqSequenceId,
@@ -2069,8 +2092,8 @@ processPDelayRespFromSelf(const TimeInternal * tint, RunTimeOpts * rtOpts, PtpCl
 		rtOpts, ptpClock, sequenceId);
 }
 
-static void 
-handlePDelayRespFollowUp(PtpMessage *message, RunTimeOpts *rtOpts, 
+static void
+handlePDelayRespFollowUp(PtpMessage *message, RunTimeOpts *rtOpts,
 			 PtpClock *ptpClock)
 {
 
@@ -2102,9 +2125,9 @@ handlePDelayRespFollowUp(PtpMessage *message, RunTimeOpts *rtOpts,
 				toInternalTime(
 					&responseOriginTimestamp,
 					&message->body.prespfollow.responseOriginTimestamp);
-				ptpClock->pdelay_resp_send_time.seconds = 
+				ptpClock->pdelay_resp_send_time.seconds =
 					responseOriginTimestamp.seconds;
-				ptpClock->pdelay_resp_send_time.nanoseconds = 
+				ptpClock->pdelay_resp_send_time.nanoseconds =
 					responseOriginTimestamp.nanoseconds;
 				integer64_to_internalTime(
 					message->header.correctionField,
@@ -2140,7 +2163,7 @@ handlePDelayRespFollowUp(PtpMessage *message, RunTimeOpts *rtOpts,
 	}
 }
 
-/* Only accept the management message if it satisfies 15.3.1 Table 36 */ 
+/* Only accept the management message if it satisfies 15.3.1 Table 36 */
 int
 acceptManagementMessage(PortIdentity thisPort, PortIdentity targetPort)
 {
@@ -2430,7 +2453,7 @@ handleManagement(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 }
 
-static void 
+static void
 handleSignaling(PtpMessage* message, RunTimeOpts* rtOpts, PtpClock* ptpClock)
 {
 
@@ -2439,7 +2462,7 @@ handleSignaling(PtpMessage* message, RunTimeOpts* rtOpts, PtpClock* ptpClock)
 }
 
 /*Pack and send on general multicast ip adress an Announce message*/
-static void 
+static void
 issueAnnounce(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	msgPackAnnounce(ptpClock->msgObuf,ptpClock);
@@ -2504,7 +2527,7 @@ issueFollowup(const TimeInternal *tint,RunTimeOpts *rtOpts,PtpClock *ptpClock, U
 	Timestamp preciseOriginTimestamp;
 	fromInternalTime(tint,&preciseOriginTimestamp);
 
-	msgPackFollowUp(ptpClock->msgObuf,&preciseOriginTimestamp,ptpClock,sequenceId);	
+	msgPackFollowUp(ptpClock->msgObuf,&preciseOriginTimestamp,ptpClock,sequenceId);
 
 	if(!ptpClock->generalTransport->send(ptpClock->generalTransport,
 					(CckOctet*)ptpClock->msgObuf, FOLLOW_UP_LENGTH, NULL, NULL)) {
@@ -2701,7 +2724,7 @@ issuePDelayRespFollowUp(const TimeInternal *tint, MsgHeader *header,
 }
 
 #if 0
-static void 
+static void
 issueManagement(MsgHeader *header,MsgManagement *manage,RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
@@ -2711,7 +2734,7 @@ issueManagement(MsgHeader *header,MsgManagement *manage,RunTimeOpts *rtOpts,
 }
 #endif
 
-static void 
+static void
 issueManagementRespOrAck(PtpMessage* incoming, MsgManagement *outgoing, RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
@@ -2786,12 +2809,12 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 	for (i=0;i<ptpClock->number_foreign_records;i++) {
 		if (!memcmp(header->sourcePortIdentity.clockIdentity,
 			    ptpClock->foreign[j].foreignMasterPortIdentity.clockIdentity,
-			    CLOCK_IDENTITY_LENGTH) && 
-		    (header->sourcePortIdentity.portNumber == 
+			    CLOCK_IDENTITY_LENGTH) &&
+		    (header->sourcePortIdentity.portNumber ==
 		     ptpClock->foreign[j].foreignMasterPortIdentity.portNumber))
 		{
 			/*Foreign Master is already in Foreignmaster data set*/
-			ptpClock->foreign[j].foreignMasterAnnounceMessages++; 
+			ptpClock->foreign[j].foreignMasterAnnounceMessages++;
 			found = TRUE;
 			DBGV("addForeign : AnnounceMessage incremented \n");
 			msgUnpackHeader(buf,&ptpClock->foreign[j].foreignMasterData.header);
@@ -2804,7 +2827,7 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 
 	/*New Foreign Master*/
 	if (!found) {
-		if (ptpClock->number_foreign_records < 
+		if (ptpClock->number_foreign_records <
 		    ptpClock->max_foreign_records) {
 			ptpClock->number_foreign_records++;
 		}
@@ -2813,7 +2836,7 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 		/*Copy new foreign master data set from Announce message*/
 		copyClockIdentity(ptpClock->foreign[j].foreignMasterPortIdentity.clockIdentity,
 		       header->sourcePortIdentity.clockIdentity);
-		ptpClock->foreign[j].foreignMasterPortIdentity.portNumber = 
+		ptpClock->foreign[j].foreignMasterPortIdentity.portNumber =
 			header->sourcePortIdentity.portNumber;
 		ptpClock->foreign[j].foreignMasterAnnounceMessages = 0;
 
@@ -2825,9 +2848,9 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 		msgUnpackAnnounce(buf,&ptpClock->foreign[j].foreignMasterData.body.announce);
 		DBGV("New foreign Master added \n");
 
-		ptpClock->foreign_record_i = 
-			(ptpClock->foreign_record_i+1) % 
-			ptpClock->max_foreign_records;	
+		ptpClock->foreign_record_i =
+			(ptpClock->foreign_record_i+1) %
+			ptpClock->max_foreign_records;
 	}
 }
 
@@ -2844,21 +2867,21 @@ updateDatasets(PtpClock* ptpClock, RunTimeOpts* rtOpts)
 			ptpClock->delayMechanism = rtOpts->delayMechanism;
 			ptpClock->versionNumber = VERSION_PTP;
 
-			ptpClock->clockQuality.clockAccuracy = 
+			ptpClock->clockQuality.clockAccuracy =
 				rtOpts->clockQuality.clockAccuracy;
 			ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
-			ptpClock->clockQuality.offsetScaledLogVariance = 
+			ptpClock->clockQuality.offsetScaledLogVariance =
 				rtOpts->clockQuality.offsetScaledLogVariance;
 			ptpClock->priority1 = rtOpts->priority1;
 			ptpClock->priority2 = rtOpts->priority2;
 
-			ptpClock->grandmasterClockQuality.clockAccuracy = 
+			ptpClock->grandmasterClockQuality.clockAccuracy =
 				ptpClock->clockQuality.clockAccuracy;
-			ptpClock->grandmasterClockQuality.clockClass = 
+			ptpClock->grandmasterClockQuality.clockClass =
 				ptpClock->clockQuality.clockClass;
-			ptpClock->grandmasterClockQuality.offsetScaledLogVariance = 
+			ptpClock->grandmasterClockQuality.offsetScaledLogVariance =
 				ptpClock->clockQuality.offsetScaledLogVariance;
-			ptpClock->clockQuality.clockAccuracy = 
+			ptpClock->clockQuality.clockAccuracy =
 			ptpClock->grandmasterPriority1 = ptpClock->priority1;
 			ptpClock->grandmasterPriority2 = ptpClock->priority2;
 			ptpClock->timePropertiesDS.currentUtcOffsetValid = rtOpts->timeProperties.currentUtcOffsetValid;
@@ -2882,10 +2905,10 @@ updateDatasets(PtpClock* ptpClock, RunTimeOpts* rtOpts)
 			ptpClock->numberPorts = NUMBER_PORTS;
 			ptpClock->delayMechanism = rtOpts->delayMechanism;
 			ptpClock->versionNumber = VERSION_PTP;
-			ptpClock->clockQuality.clockAccuracy = 
+			ptpClock->clockQuality.clockAccuracy =
 				rtOpts->clockQuality.clockAccuracy;
 			ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
-			ptpClock->clockQuality.offsetScaledLogVariance = 
+			ptpClock->clockQuality.offsetScaledLogVariance =
 				rtOpts->clockQuality.offsetScaledLogVariance;
 			ptpClock->priority1 = rtOpts->priority1;
 			ptpClock->priority2 = rtOpts->priority2;

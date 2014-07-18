@@ -2,25 +2,25 @@
  * Copyright (c) 2012-2013 George V. Neville-Neil,
  *                         Wojciech Owczarek
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -29,7 +29,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -46,9 +46,9 @@
 /**
  * @file   startup.c
  * @date   Wed Jun 23 09:33:27 2010
- * 
+ *
  * @brief  Code to handle daemon startup, including command line args
- * 
+ *
  * The function in this file are called when the daemon starts up
  * and include the getopt() command line argument parsing.
  */
@@ -129,19 +129,21 @@ void catchSignals(int sig)
 void
 do_signal_close(PtpClock * ptpClock)
 {
-	ptpdShutdown(ptpClock);
+	extern RunTimeOpts* G_rtOpts;
+
+        ptpdShutdown(ptpClock, G_rtOpts);
 
 	NOTIFY("Shutdown on close signal\n");
 	exit(0);
 }
 
-/** 
+/**
  * Signal handler for HUP which tells us to swap the log file
  * and reload configuration file if specified
  *
- * @param sig 
+ * @param sig
  */
-void 
+void
 do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 
@@ -388,14 +390,14 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 void enable_runtime_debug(void )
 {
 	extern RunTimeOpts rtOpts;
-	
+
 	rtOpts.debug_level = max(LOG_DEBUGV, rtOpts.debug_level);
 }
 
 void disable_runtime_debug(void )
 {
 	extern RunTimeOpts rtOpts;
-	
+
 	rtOpts.debug_level = LOG_INFO;
 }
 #endif
@@ -441,25 +443,24 @@ writeLockFile(RunTimeOpts * rtOpts)
 
 }
 
-void 
-ptpdShutdown(PtpClock * ptpClock)
+void
+ptpdShutdown(PtpClock * ptpClock, RunTimeOpts* rtOpts)
 {
 
-	extern RunTimeOpts rtOpts;
-
-	netShutdown(&rtOpts, ptpClock);
+	netShutdown(rtOpts, ptpClock);
 
 	/* If you call the individual freeCck*** for components, do not call them after this */
 	cckShutdown();
 
 #ifdef PTPD_NTPDC
-	ntpShutdown(&rtOpts.ntpOptions, &ptpClock->ntpControl);
+	ntpShutdown(rtOpts->ntpOptions, &ptpClock->ntpControl);
 #endif /* PTPD_NTPDC */
 	free(ptpClock->foreign);
 
 	/* free management messages, they can have dynamic memory allocated */
-	if(ptpClock->lastMessage != NULL && ptpClock->lastMessage->header.messageType == MANAGEMENT)
-		freeManagementTLV(&ptpClock->lastMessage->body.manage);
+	if(ptpClock->lastMessage != NULL && ptpClock->lastMessage->header.messageType == MANAGEMENT) {
+           freeManagementTLV(&ptpClock->lastMessage->body.manage);
+        }
 	freeManagementTLV(&ptpClock->outgoingManageTmp);
 
 #ifdef PTPD_SNMP
@@ -469,19 +470,23 @@ ptpdShutdown(PtpClock * ptpClock)
 #ifdef HAVE_SYS_TIMEX_H
 #ifndef PTPD_STATISTICS
 	/* Not running statistics code - write observed drift to driftfile if enabled, inform user */
-	if(ptpClock->slaveOnly && !ptpClock->servo.runningMaxOutput)
-		saveDrift(ptpClock, &rtOpts, FALSE);
+	if(ptpClock->slaveOnly && !ptpClock->servo.runningMaxOutput) {
+           saveDrift(ptpClock, rtOpts, FALSE);
+        }
 #else
 	/* We are running statistics code - save drift on exit only if we're not monitoring servo stability */
-	if(!rtOpts.servoStabilityDetection && !ptpClock->servo.runningMaxOutput)
-		saveDrift(ptpClock, &rtOpts, FALSE);
+	if(!rtOpts->servoStabilityDetection && !ptpClock->servo.runningMaxOutput) {
+           saveDrift(ptpClock, rtOpts, FALSE);
+        }
 #endif /* PTPD_STATISTICS */
 #endif /* HAVE_SYS_TIMEX_H */
 
-	if (rtOpts.currentConfig != NULL)
-		dictionary_del(&rtOpts.currentConfig);
-	if(rtOpts.cliConfig != NULL)
-		dictionary_del(&rtOpts.cliConfig);
+	if (rtOpts->currentConfig != NULL) {
+           dictionary_del(&(rtOpts->currentConfig));
+        }
+	if(rtOpts->cliConfig != NULL) {
+           dictionary_del(&(rtOpts->cliConfig));
+        }
 
 	free(ptpClock);
 	ptpClock = NULL;
@@ -490,16 +495,16 @@ ptpdShutdown(PtpClock * ptpClock)
 	G_ptpClock = NULL;
 
 	/* properly clean lockfile (eventough new deaemons can acquire the lock after we die) */
-	if(!rtOpts.ignore_daemon_lock && G_lockFilePointer != NULL) {
+	if(!rtOpts->ignore_daemon_lock && G_lockFilePointer != NULL) {
 	    fclose(G_lockFilePointer);
 	}
-	unlink(rtOpts.lockFile);
+	unlink(rtOpts->lockFile);
 
-	if(rtOpts.statusLog.logEnabled) {
+	if(rtOpts->statusLog.logEnabled) {
 		/* close and remove the status file */
-		if(rtOpts.statusLog.logFP != NULL)
-			fclose(rtOpts.statusLog.logFP);
-		unlink(rtOpts.statusLog.logPath);
+		if(rtOpts->statusLog.logFP != NULL)
+			fclose(rtOpts->statusLog.logFP);
+		unlink(rtOpts->statusLog.logPath);
 	}
 
 }
@@ -511,7 +516,7 @@ void dump_command_line_parameters(int argc, char **argv)
 	char sbuf[1000];
 	char *st = sbuf;
 	int len = 0;
-	
+
 	*st = '\0';
 	for(i=0; i < argc; i++){
 		if(strcmp(argv[i],"") == 0)
@@ -525,20 +530,13 @@ void dump_command_line_parameters(int argc, char **argv)
 
 
 
-PtpClock *
-ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
+/*
+ * Returns FALSE if ptpd should NOT continue, TRUE otherwise.
+ */
+Boolean setRTOptsFromCommandLine(int argc, char** argv, Integer16* ret, RunTimeOpts* rtOpts)
 {
-	PtpClock * ptpClock;
-	int i = 0;
 
-	/* 
-	 * Set the default mode for all newly created files - previously
-	 * this was not the case for log files. This adds consistency
-	 * and allows to use FILE* vs. fds everywhere
-	 */
-	umask(~DEFAULT_FILE_PERMS);
-
-	/** 
+	/**
 	 * If a required setting, such as interface name, or a setting
 	 * requiring a range check is to be set via getopts_long,
 	 * the respective currentConfig dictionary entry should be set,
@@ -551,15 +549,6 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * 	4. Defaults and any rtOpts fields set in the getopt_long loop
 	**/
 
-	/**
-	 * Load defaults. Any options set here and further inside loadCommandLineOptions()
-	 * by setting rtOpts fields, will be considered the defaults
-	 * for config file and section:key long options.
-	 */
-	loadDefaultSettings(rtOpts);
-	/* initialise the config dictionary */
-	rtOpts->candidateConfig = dictionary_new(0);
-	rtOpts->cliConfig = dictionary_new(0);
 	/* parse all long section:key options and clean up argv for getopt */
 	loadCommandLineKeys(rtOpts->cliConfig,argc,argv);
 	/* parse the normal short and long option, exit on error */
@@ -604,7 +593,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 */
 	if( ( rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL ) {
 	    *ret = 1;
-	    dictionary_del(&rtOpts->candidateConfig);
+	    dictionary_del(&(rtOpts->candidateConfig));
 	    goto configcheck;
 	}
 
@@ -616,7 +605,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	}
 
 	/* we don't need the candidate config any more */
-	dictionary_del(&rtOpts->candidateConfig);
+	dictionary_del(&(rtOpts->candidateConfig));
 
 	/* Check network before going into background */
 	if(!testNetworkConfig(rtOpts)) {
@@ -639,9 +628,25 @@ configcheck:
 	    goto fail;
 	}
 
-	/* Previous errors - exit */
-	if(*ret !=0)
-		goto fail;
+        return TRUE;
+fail:
+        return FALSE;
+}
+
+
+
+PtpClock *
+ptpdStartup(Integer16 * ret, RunTimeOpts * rtOpts)
+{
+	PtpClock * ptpClock;
+	int i = 0;
+
+	/*
+	 * Set the default mode for all newly created files - previously
+	 * this was not the case for log files. This adds consistency
+	 * and allows to use FILE* vs. fds everywhere
+	 */
+	umask(~DEFAULT_FILE_PERMS);
 
 	/* First lock check, just to be user-friendly to the operator */
 	if(!rtOpts->ignore_daemon_lock) {
@@ -649,12 +654,12 @@ configcheck:
 			/* check and create Lock */
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
 			*ret = 3;
-			goto fail;
+			return 0;
 		}
 		/* check for potential conflicts when automatic lock files are used */
 		if(!checkOtherLocks(rtOpts)) {
 			*ret = 3;
-			goto fail;
+			return 0;
 		}
 	}
 
@@ -666,22 +671,22 @@ configcheck:
 	if (!ptpClock) {
 		PERROR("Error: Failed to allocate memory for protocol engine data");
 		*ret = 2;
-		goto fail;
+		return 0;
 	} else {
-		DBG("allocated %d bytes for protocol engine data\n", 
+		DBG("allocated %d bytes for protocol engine data\n",
 		    (int)sizeof(PtpClock));
 		ptpClock->foreign = (ForeignMasterRecord *)
-			calloc(rtOpts->max_foreign_records, 
+			calloc(rtOpts->max_foreign_records,
 			       sizeof(ForeignMasterRecord));
 		if (!ptpClock->foreign) {
 			PERROR("failed to allocate memory for foreign "
 			       "master data");
 			*ret = 2;
 			free(ptpClock);
-			goto fail;
+			return 0;
 		} else {
-			DBG("allocated %d bytes for foreign master data\n", 
-			    (int)(rtOpts->max_foreign_records * 
+			DBG("allocated %d bytes for foreign master data\n",
+			    (int)(rtOpts->max_foreign_records *
 				  sizeof(ForeignMasterRecord)));
 		}
 	}
@@ -696,10 +701,10 @@ configcheck:
 	/* Init user_description */
 	memset(ptpClock->user_description, 0, sizeof(ptpClock->user_description));
 	memcpy(ptpClock->user_description, &USER_DESCRIPTION, sizeof(USER_DESCRIPTION));
-	
+
 	/* Init outgoing management message */
 	ptpClock->outgoingManageTmp.tlv = NULL;
-	
+
 
 	/*  DAEMON */
 #ifdef PTPD_NO_DAEMON
@@ -709,7 +714,7 @@ configcheck:
 #endif
 
 	if(!rtOpts->nonDaemon){
-		/* 
+		/*
 		 * fork to daemon - nochdir non-zero to preserve the working directory:
 		 * allows relative paths to be used for log files, config files etc.
 		 * Always redirect stdout/err to /dev/null
@@ -717,7 +722,7 @@ configcheck:
 		if (daemon(1,0) == -1) {
 			PERROR("Failed to start as daemon");
 			*ret = 3;
-			goto fail;
+                        return 0;
 		}
 		INFO("  Info:    Now running as a daemon\n");
 		/*
@@ -739,7 +744,7 @@ configcheck:
 		if(!writeLockFile(rtOpts)){
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
 			*ret = 3;
-			goto fail;
+                        return 0;
 		}
 	}
 
@@ -778,13 +783,15 @@ configcheck:
 	}
 #endif /* HAVE_SYS_CPUSET_H */
 
-	/* use new synchronous signal handlers */
-	signal(SIGINT,  catchSignals);
-	signal(SIGTERM, catchSignals);
-	signal(SIGHUP,  catchSignals);
+        /* use new synchronous signal handlers only if not running in a threaded environment */
+        if( !rtOpts->useTimerThread ) {
+           signal(SIGINT,  catchSignals);
+           signal(SIGTERM, catchSignals);
+           signal(SIGHUP,  catchSignals);
 
-	signal(SIGUSR1, catchSignals);
-	signal(SIGUSR2, catchSignals);
+           signal(SIGUSR1, catchSignals);
+           signal(SIGUSR2, catchSignals);
+        }
 
 #if defined PTPD_SNMP
 	/* Start SNMP subsystem */
@@ -822,9 +829,22 @@ configcheck:
 
 	*ret = 0;
 	return ptpClock;
-	
-fail:
-	dictionary_del(&rtOpts->currentConfig);
-	dictionary_del(&rtOpts->candidateConfig);
-	return 0;
+}
+
+
+/*
+ * This was derived from the XMALLOC macro.
+ */
+void* ensureMalloc( size_t size, PtpClock* ptpClock ) {
+
+   extern RunTimeOpts* G_rtOpts;
+   void* ptr = malloc( size );
+
+   if( ptr == NULL ) {
+      PERROR("failed to allocate memory");
+      ptpdShutdown(ptpClock, G_rtOpts);
+      exit(1);
+   }
+
+   return ptr;
 }

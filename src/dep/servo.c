@@ -1,25 +1,25 @@
 /*-
  * Copyright (c) 2012-2013 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -28,7 +28,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -45,10 +45,10 @@
 /**
  * @file   servo.c
  * @date   Tue Jul 20 16:19:19 2010
- * 
+ *
  * @brief  Code which implements the clock servo in software.
- * 
- * 
+ *
+ *
  */
 
 #include "../ptpd.h"
@@ -124,7 +124,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	{
 		//perform basic checks, using local variables only
 		TimeInternal slave_to_master_delay;
-	
+
 		/* calc 'slave_to_master_delay' */
 		subTime(&slave_to_master_delay, &ptpClock->delay_req_receive_time,
 			&ptpClock->delay_req_send_time);
@@ -159,7 +159,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			if (slave_to_master_delay.nanoseconds > rtOpts->maxDelay) {
 				INFO("updateDelay aborted, delay %d greater than "
 				     "administratively set maximum %d\n",
-				     slave_to_master_delay.nanoseconds, 
+				     slave_to_master_delay.nanoseconds,
 				     rtOpts->maxDelay);
 			/*	if (rtOpts->displayPackets)
 					msgDump(ptpClock);*/
@@ -184,10 +184,10 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 		DBG("==> UpdateDelay():   %s\n",
 			dump_TimeInternal2("Req_RECV:", &ptpClock->delay_req_receive_time,
 			"Req_SENT:", &ptpClock->delay_req_send_time));
-		
+
 #ifdef PTPD_STATISTICS
 	if (rtOpts->delaySMOutlierFilterEnabled) {
-		subTime(&ptpClock->rawDelaySM, &ptpClock->delay_req_receive_time, 
+		subTime(&ptpClock->rawDelaySM, &ptpClock->delay_req_receive_time,
 			&ptpClock->delay_req_send_time);
 		if(!isDoublePeircesOutlier(ptpClock->delaySMRawStats, timeInternalToDouble(&ptpClock->rawDelaySM), rtOpts->delaySMOutlierFilterThreshold)) {
 			ptpClock->delaySM = ptpClock->rawDelaySM;
@@ -202,29 +202,29 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			}
 		}
 	} else {
-		subTime(&ptpClock->delaySM, &ptpClock->delay_req_receive_time, 
+		subTime(&ptpClock->delaySM, &ptpClock->delay_req_receive_time,
 			&ptpClock->delay_req_send_time);
 	}
 #else
-		subTime(&ptpClock->delaySM, &ptpClock->delay_req_receive_time, 
+		subTime(&ptpClock->delaySM, &ptpClock->delay_req_receive_time,
 			&ptpClock->delay_req_send_time);
 #endif
 		/* update 'one_way_delay' */
-		addTime(&ptpClock->meanPathDelay, &ptpClock->delaySM, 
+		addTime(&ptpClock->meanPathDelay, &ptpClock->delaySM,
 			&ptpClock->delayMS);
 
 		/* Substract correctionField */
-		subTime(&ptpClock->meanPathDelay, &ptpClock->meanPathDelay, 
+		subTime(&ptpClock->meanPathDelay, &ptpClock->meanPathDelay,
 			correctionField);
 
 		/* Compute one-way delay */
 		div2Time(&ptpClock->meanPathDelay);
-		
+
 		if (ptpClock->meanPathDelay.seconds) {
 			DBG("update delay: cannot filter with large OFM, "
 				"clearing filter\n");
 			INFO("Servo: Ignoring delayResp because of large OFM\n");
-			
+
 			owd_filt->s_exp = owd_filt->nsec_prev = 0;
 			/* revert back to previous value */
 			ptpClock->meanPathDelay = prev_meanPathDelay;
@@ -263,7 +263,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 		float fy =
 			(double)((owd_filt->s_exp - 1.0) *
 			owd_filt->y / (owd_filt->s_exp + 0.0) +
-			(ptpClock->meanPathDelay.nanoseconds / 2.0 + 
+			(ptpClock->meanPathDelay.nanoseconds / 2.0 +
 			 owd_filt->nsec_prev / 2.0) / (owd_filt->s_exp + 0.0));
 
 		owd_filt->nsec_prev = ptpClock->meanPathDelay.nanoseconds;
@@ -283,7 +283,7 @@ statistics:
                             DBG("DelaySM outlier: %.09f\n", dDelaySM);
 			    if((rtOpts->calibrationDelay<1) || ptpClock->isCalibrated)
                             dDelaySM = ptpClock->delaySMRawStats->meanContainer->mean + rtOpts->delaySMOutlierWeight * ( dDelaySM - ptpClock->delaySMRawStats->meanContainer->mean);
-                            } 
+                            }
                                         feedDoubleMovingStdDev(ptpClock->delaySMRawStats, dDelaySM);
                                         feedDoubleMovingMean(ptpClock->delaySMFiltered, timeInternalToDouble(&ptpClock->delaySM));
                                 }
@@ -314,24 +314,24 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 
 	DBGV("updatePeerDelay\n");
 
-	ptpClock->char_last_msg = 'P';	
+	ptpClock->char_last_msg = 'P';
 
 	if (twoStep) {
 		/* calc 'slave_to_master_delay' */
-		subTime(&ptpClock->pdelayMS, 
-			&ptpClock->pdelay_resp_receive_time, 
+		subTime(&ptpClock->pdelayMS,
+			&ptpClock->pdelay_resp_receive_time,
 			&ptpClock->pdelay_resp_send_time);
-		subTime(&ptpClock->pdelaySM, 
-			&ptpClock->pdelay_req_receive_time, 
+		subTime(&ptpClock->pdelaySM,
+			&ptpClock->pdelay_req_receive_time,
 			&ptpClock->pdelay_req_send_time);
 
 		/* update 'one_way_delay' */
-		addTime(&ptpClock->peerMeanPathDelay, 
-			&ptpClock->pdelayMS, 
+		addTime(&ptpClock->peerMeanPathDelay,
+			&ptpClock->pdelayMS,
 			&ptpClock->pdelaySM);
 
 		/* Substract correctionField */
-		subTime(&ptpClock->peerMeanPathDelay, 
+		subTime(&ptpClock->peerMeanPathDelay,
 			&ptpClock->peerMeanPathDelay, correctionField);
 
 		/* Compute one-way delay */
@@ -339,12 +339,12 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 	} else {
 		/* One step clock */
 
-		subTime(&ptpClock->peerMeanPathDelay, 
-			&ptpClock->pdelay_resp_receive_time, 
+		subTime(&ptpClock->peerMeanPathDelay,
+			&ptpClock->pdelay_resp_receive_time,
 			&ptpClock->pdelay_req_send_time);
 
 		/* Substract correctionField */
-		subTime(&ptpClock->peerMeanPathDelay, 
+		subTime(&ptpClock->peerMeanPathDelay,
 			&ptpClock->peerMeanPathDelay, correctionField);
 
 		/* Compute one-way delay */
@@ -370,9 +370,9 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 		owd_filt->s_exp = 1 << s;
 
 	/* filter 'meanPathDelay' */
-	owd_filt->y = (owd_filt->s_exp - 1) * 
+	owd_filt->y = (owd_filt->s_exp - 1) *
 		owd_filt->y / owd_filt->s_exp +
-		(ptpClock->peerMeanPathDelay.nanoseconds / 2 + 
+		(ptpClock->peerMeanPathDelay.nanoseconds / 2 +
 		 owd_filt->nsec_prev / 2) / owd_filt->s_exp;
 
 	owd_filt->nsec_prev = ptpClock->peerMeanPathDelay.nanoseconds;
@@ -382,7 +382,7 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 
 //display:
 	if(ptpClock->portState == PTP_SLAVE)
-		logStatistics(rtOpts, ptpClock);	
+		logStatistics(rtOpts, ptpClock);
 }
 
 void
@@ -390,7 +390,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
     offset_from_master_filter * ofm_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
-	DBGV("UTCOffset: %d | leap 59: %d |  leap61: %d\n", 
+	DBGV("UTCOffset: %d | leap 59: %d |  leap61: %d\n",
 	     ptpClock->timePropertiesDS.currentUtcOffset,ptpClock->timePropertiesDS.leap59,ptpClock->timePropertiesDS.leap61);
         /* updates paused, leap second pending - do nothing */
         if(ptpClock->leapSecondInProgress)
@@ -416,7 +416,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 		if (master_to_slave_delay.nanoseconds > rtOpts->maxDelay) {
 			INFO("updateOffset aborted, delay %d greater than "
 			     "administratively set maximum %d\n",
-			     master_to_slave_delay.nanoseconds, 
+			     master_to_slave_delay.nanoseconds,
 			     rtOpts->maxDelay);
 			/* msgDump(ptpClock); */
 			return;
@@ -424,7 +424,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	}
 	}
 
-	// used for stats feedback 
+	// used for stats feedback
 	ptpClock->char_last_msg='S';
 
 	/*
@@ -461,15 +461,15 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 
 	/* update 'offsetFromMaster' */
 	if (ptpClock->delayMechanism == P2P) {
-		subTime(&ptpClock->offsetFromMaster, 
-			&ptpClock->delayMS, 
+		subTime(&ptpClock->offsetFromMaster,
+			&ptpClock->delayMS,
 			&ptpClock->peerMeanPathDelay);
 	/* (End to End mode or disabled - if disabled, meanpath delay is zero) */
 	} else if (ptpClock->delayMechanism == E2E ||
 	    ptpClock->delayMechanism == DELAY_DISABLED ) {
 
-		subTime(&ptpClock->offsetFromMaster, 
-			&ptpClock->delayMS, 
+		subTime(&ptpClock->offsetFromMaster,
+			&ptpClock->delayMS,
 			&ptpClock->meanPathDelay);
 	}
 
@@ -481,7 +481,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	}
 
 	/* filter 'offsetFromMaster' */
-	ofm_filt->y = ptpClock->offsetFromMaster.nanoseconds / 2 + 
+	ofm_filt->y = ptpClock->offsetFromMaster.nanoseconds / 2 +
 		ofm_filt->nsec_prev / 2;
 	ofm_filt->nsec_prev = ptpClock->offsetFromMaster.nanoseconds;
 	ptpClock->offsetFromMaster.nanoseconds = ofm_filt->y;
@@ -493,7 +493,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	DBGV("offset filter %d\n", ofm_filt->y);
 
 	/*
-	 * Offset must have been computed at least one time before 
+	 * Offset must have been computed at least one time before
 	 * computing end to end delay
 	 */
 	rtOpts->offset_first_updated = TRUE;
@@ -511,6 +511,17 @@ servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/*No need to reset the frequency offset: if we're far off, it will quickly get back to a high value */
 	getTime(&oldTime);
 	subTime(&newTime, &oldTime, &ptpClock->offsetFromMaster);
+
+        /*
+         * If the client has registered an alternate clock adjustment routine,
+         * run it here and bypass all other default clock adjustment actions.
+         */
+        if( rtOpts->clientClockAdjustFunc != NULL ) {
+           rtOpts->clientClockAdjustFunc( oldTime.seconds, oldTime.nanoseconds,
+                                          newTime.seconds, newTime.nanoseconds,
+                                          rtOpts->clientClockAdjustData );
+           return;
+        }
 
 	setTime(&newTime);
 
@@ -725,7 +736,7 @@ warn_operator_slow_slewing(RunTimeOpts * rtOpts, PtpClock * ptpClock )
 			ptpClock->offsetFromMaster.seconds,
 			estimated
 		);
-		
+
 	}
 }
 
@@ -762,8 +773,23 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if(ptpClock->panicMode) {
 	    DBG("Panic mode - skipping updateClock");
-	}
 
+	} else {
+           /*
+            * If the client has registered an alternate clock adjustment routine,
+            * run it here and bypass all other default clock adjustment actions.
+            */
+           if( rtOpts->clientClockAdjustFunc != NULL ) {
+              TimeInternal oldTime, newTime;
+
+              getTime( &oldTime );
+              subTime( &newTime, &oldTime, &ptpClock->offsetFromMaster );
+              rtOpts->clientClockAdjustFunc( oldTime.seconds, oldTime.nanoseconds,
+                                             newTime.seconds, newTime.nanoseconds,
+                                             rtOpts->clientClockAdjustData );
+              return;
+           }
+        }
 
 
 /*
@@ -782,7 +808,7 @@ if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard &&
 		if (ptpClock->offsetFromMaster.nanoseconds > rtOpts->maxReset) {
 			INFO("updateClock aborted, offset %d greater than "
 			     "administratively set maximum %d\n",
-			     ptpClock->offsetFromMaster.nanoseconds, 
+			     ptpClock->offsetFromMaster.nanoseconds,
 			     rtOpts->maxReset);
 			/*if (rtOpts->displayPackets)
 				msgDump(ptpClock);*/
@@ -792,8 +818,8 @@ if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard &&
 
 	if (ptpClock->offsetFromMaster.seconds) {
 		/* if secs, reset clock or set freq adjustment to max */
-		
-		/* 
+
+		/*
 		  if offset from master seconds is non-zero, then this is a "big jump:
 		  in time.  Check Run Time options to see if we will reset the clock or
 		  set frequency adjustment to max to adjust the time
@@ -891,7 +917,7 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 	} else {
 
 	    /* If we're in panic mode, either exit if no threshold configured, or exit if we're outside the exit threshold */
-	    if(rtOpts->enablePanicMode && 
+	    if(rtOpts->enablePanicMode &&
 		((ptpClock->panicMode && ( rtOpts->panicModeExitThreshold == 0 || ((rtOpts->panicModeExitThreshold > 0) &&  ((ptpClock->offsetFromMaster.seconds == 0) && (ptpClock->offsetFromMaster.nanoseconds < rtOpts->panicModeExitThreshold))))   ) || ptpClock->panicOver)) {
 		    ptpClock->panicMode = FALSE;
 		    ptpClock->panicOver = FALSE;
@@ -946,7 +972,7 @@ statistics:
                         	if(ptpClock->delayMSoutlier) {
 				/* Allow [weight] * [deviation from mean] to influence std dev in the next outlier checks */
                         		DBG("DelayMS Outlier: %.09f\n", dDelayMS);
-                        		dDelayMS = ptpClock->delayMSRawStats->meanContainer->mean + 
+                        		dDelayMS = ptpClock->delayMSRawStats->meanContainer->mean +
 						    rtOpts->delayMSOutlierWeight * ( dDelayMS - ptpClock->delayMSRawStats->meanContainer->mean);
                         	}
                                 feedDoubleMovingStdDev(ptpClock->delayMSRawStats, dDelayMS);
@@ -968,16 +994,16 @@ display:
 
 	if (ptpClock->delayMechanism == P2P) {
 		DBGV("one-way delay averaged (P2P):  %10ds %11dns\n",
-		    ptpClock->peerMeanPathDelay.seconds, 
+		    ptpClock->peerMeanPathDelay.seconds,
 		    ptpClock->peerMeanPathDelay.nanoseconds);
 	} else if (ptpClock->delayMechanism == E2E) {
 		DBGV("one-way delay averaged (E2E):  %10ds %11dns\n",
-		    ptpClock->meanPathDelay.seconds, 
+		    ptpClock->meanPathDelay.seconds,
 		    ptpClock->meanPathDelay.nanoseconds);
 	}
 
 	DBGV("offset from master:      %10ds %11dns\n",
-	    ptpClock->offsetFromMaster.seconds, 
+	    ptpClock->offsetFromMaster.seconds,
 	    ptpClock->offsetFromMaster.nanoseconds);
 	DBGV("observed drift:          %10d\n", ptpClock->servo.observedDrift);
 }

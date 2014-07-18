@@ -2,7 +2,7 @@
  * Copyright (c) 2013 Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -28,13 +28,13 @@
 /**
  * @file   daemonconfig.c
  * @date   Sun May 27 00:45:32 2013
- * 
+ *
  * @brief  Code to handle configuration file and default settings
- * 
+ *
  * Functions in this file deal with config file parsing, reloading,
  * loading default parameters, parsing command-line options, printing
  * help output, etc.
- * 
+ *
  */
 
 #include "../ptpd.h"
@@ -94,7 +94,7 @@
 	(iniparser_getboolean(dict,key,FALSE)==TRUE)
 
 
-/* 
+/*
  * Macros controlling the behaviour of parseConfig - using "hidden" keys.
  * Thanks to this, a single line in parseConfig can map settings and print help.
  * the SET_QUIET / END_QUIET macros suppress info and error output of parseConfig
@@ -311,7 +311,7 @@
 	}\
 	}
 
-/* 
+/*
  * Config mapping macros - effectively functions turned into macros. Because of
  * the use of varargs and argument counting, it made sense to make at least some
  * of them macros.  To make parseConfig more consistent, all the mapping is done
@@ -963,6 +963,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->eventLog.truncateOnReopen = FALSE;
 	rtOpts->eventLog.unlinkOnClose = FALSE;
 	rtOpts->eventLog.maxSize = 0;
+	rtOpts->eventLog.logEnabled = FALSE;
 
 	rtOpts->statusLog.logID = "status";
 	rtOpts->statusLog.openMode = "w";
@@ -986,9 +987,13 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->hwTimestamping = FALSE;
 
+        rtOpts->useTimerThread = FALSE;
+        rtOpts->run = FALSE;
+        rtOpts->clientClockAdjustFunc = NULL;
+        rtOpts->clientClockAdjustData = NULL;
 }
 
-/* The PtpEnginePreset structure for reference: 
+/* The PtpEnginePreset structure for reference:
 
 typedef struct {
 
@@ -1087,10 +1092,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
  */
 
  /*-
-  * WARNING: for ease of use, a limited number of keys is set 
+  * WARNING: for ease of use, a limited number of keys is set
   * via getopt in loadCommanLineOptions(). When renaming settings, make sure
   * you check it  for inconsistencies. If we decide to
-  * drop all short options in favour of section:key only, 
+  * drop all short options in favour of section:key only,
   * this warning can be removed.
   */
 	/**
@@ -1190,7 +1195,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_SELECTVALUE("ptpengine:delay_mechanism",rtOpts->delayMechanism,rtOpts->delayMechanism,
 		 "Delay detection mode used - use DELAY_DISABLED for syntonisation only\n"
 	"	 (no full synchronisation).",
-				"E2E",		E2E,	
+				"E2E",		E2E,
 				"P2P",		P2P,
 				"DELAY_DISABLED", DELAY_DISABLED
 				);
@@ -1361,7 +1366,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		"Priority 2 announced in master state, used for Best Master\n"
 	"	 Clock selection.",0,248);
 
-	/* 
+	/*
 	 * TODO: in unicast and hybrid mode, automativally override master delayreq interval with a default,
 	 * rather than require setting it manually.
 	 */
@@ -1378,7 +1383,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		    "ptpengine:log_delayreq_interval",
 		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in unicast mode"
 	);
-	/* 
+	/*
 	 * TODO: this should only be required in master mode - in unicast slave mode,
 	 * we should be sending delay requests to the IP of the current master, just
 	 * like in hybrid mode. Setting this in slave mode should override the master IP
@@ -1454,7 +1459,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 standard deviation. When set below 1.0, filter is tighter, when set above\n"
 	"	 1.0, filter is looser than standard Peirce's test.", 0.001, 1000.0);
 
-	
+
 	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_weight",rtOpts->delaySMOutlierWeight,rtOpts->delaySMOutlierWeight,
 		"Delay Response outlier weight: if an outlier is detected, determines\n"
 	"	 the amount of its deviation from mean that is used to build the standard\n"
@@ -1520,7 +1525,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_DEPENDENCY("ptpengine:ntp_failover", "ntpengine:enabled");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:ntp_failover_timeout",rtOpts->ntpOptions.failoverTimeout,
-								rtOpts->ntpOptions.failoverTimeout,	
+								rtOpts->ntpOptions.failoverTimeout,
 		"NTP failover timeout in seconds: time between PTP slave going into\n"
 	"	 LISTENING state, and failing over to NTP. 0 = fail over immediately.", 0, 1800);
 
@@ -1639,7 +1644,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 * clock should pass this information to any master PTP engines, unless
 	 * we override this. here. For now we just supply this to RtOpts.
 	 */
-	 
+
 
 /* ===== servo section ===== */
 
@@ -1839,7 +1844,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		rtOpts->statisticsLog.logEnabled = FALSE;
 	}
 
-	/* 
+	/*
 	 * this HAS to be executed after the verbose_foreground mapping because of the same
 	 * default field used for both. verbose_foreground triggers nonDaemon which is OK,
 	 * but we don't want foreground=y to switch on verbose_foreground if not set.
@@ -1987,7 +1992,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 * We're in unicast slave-capable mode and we haven't specified the delay request interval:
 	 * use override with a default value
 	 */
-	if((rtOpts->transport_mode == TRANSPORTMODE_UNICAST && 
+	if((rtOpts->transport_mode == TRANSPORTMODE_UNICAST &&
 	    rtOpts->clockQuality.clockClass > 127) &&
 	    !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
 		rtOpts->ignore_delayreq_interval_master=TRUE;
@@ -2114,7 +2119,7 @@ loadCommandLineKeys(dictionary* dict, int argc,char** argv)
 		val[0] = '\0';
 		key[0] = '\0';
 	}
-	
+
 	if(strlen(key) > 0) {
 		DBGV("setting loaded from command line: %s = %s\n",key,val);
 		dictionary_set(dict, key, val);
@@ -2211,12 +2216,12 @@ printSettingHelp(char* key)
 	printf("\n");
 	/* NULL will always be returned in this mode */
 	parseConfig(dict, &rtOpts);
-	
+
 	if(!HELP_ITEM_FOUND())
 	    printf("Unknown setting: %s\n\n", key);
 	printf("Use -H or --long-help to show help for all settings.\n\n");
 	HELP_END();
-	
+
 	dictionary_del(&dict);
 }
 
@@ -2280,6 +2285,15 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	    {"source-address",	required_argument, 0, 'o'},
 	    {0,			0		 , 0, 0}
 	};
+
+        /*
+         * Reset the getopts_long() starting index, since a prior call to
+         * getopts_long() may have been made elsewhere. For instance, if libptp
+         * is used in a larger project which calls getopt_long() for its own
+         * purposes, then calls loadCommandLineOptions() (indirectly or
+         * otherwise) to set up rtOpts using argc & argv.
+         */
+        optind = 1;
 
 	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:o:nf:S:r:DvCVHhe:Y:tOLEPAaR:l:p", long_options, &opt_index)) != -1) {
 	    switch(c) {
@@ -2624,7 +2638,7 @@ printLongHelp()
 }
 
 
-/* 
+/*
  * Iterate through every key in newDict and compare to oldDict,
  * return TRUE if both equal, otherwise FALSE;
  */

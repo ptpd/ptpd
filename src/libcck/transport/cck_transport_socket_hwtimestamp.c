@@ -4,7 +4,7 @@
  * Copyright (c) 2014 Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,7 +30,7 @@
 
 /**
  * @file   cck_transport_hwtimestamp.c
- * 
+ *
  * @brief  LibCCK software timestamping helper funcion implementations
  *
  */
@@ -102,7 +102,6 @@ cckSetTsConfig(int sockFd, const char* ifName, struct hwtstamp_config* tsConfig)
 CckBool
 cckInitHwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps, CckBool testingOnly)
 {
-
     int val = 1;
     const char* methodStr;
 
@@ -131,7 +130,7 @@ cckInitHwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps, Cck
 	    caps->timestampType = CCK_SCMTIMESTAMPING;
 	    caps->timestampSize = 3 * sizeof(struct timespec);
 	    methodStr = "SO_TIMESTAMPING";
-	    if(tsInfo.so_timestamping & SOF_TIMESTAMPING_TX_HARDWARE) { 
+	    if(tsInfo.so_timestamping & SOF_TIMESTAMPING_TX_HARDWARE) {
 		val |= SOF_TIMESTAMPING_TX_HARDWARE;
 		caps->txTimestamping = CCK_TRUE;
 	    } else {
@@ -207,7 +206,7 @@ CCK_ERROR("Hardware timestamping not supported on this platform\n");
 
 #endif
 
-
+ return CCK_FALSE;
 }
 
 CckBool

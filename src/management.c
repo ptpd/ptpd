@@ -1,24 +1,24 @@
 /*-
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -27,7 +27,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -77,7 +77,7 @@ void initOutgoingMsgManagement(MsgManagement* incoming, MsgManagement* outgoing,
         outgoing->actionField = 0; /* set default action, avoid uninitialized value */
 
 	/* init managementTLV */
-	XMALLOC(outgoing->tlv, sizeof(ManagementTLV));
+	outgoing->tlv = ensureMalloc( sizeof(ManagementTLV), ptpClock );
 	outgoing->tlv->dataField = NULL;
 	outgoing->tlv->lengthField = 0;
 }
@@ -126,7 +126,7 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
 		DBGV(" GET action \n");
 		/* Table 38 */
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof( MMClockDescription));
+		outgoing->tlv->dataField = ensureMalloc( sizeof( MMClockDescription), ptpClock );
 		data = (MMClockDescription*)outgoing->tlv->dataField;
 		memset(data, 0, sizeof( MMClockDescription));
 		/* GET actions */
@@ -135,22 +135,22 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
 		data->clockType1 = 0x00;
 		/* physical layer protocol */
                 data->physicalLayerProtocol.lengthField = sizeof(PROTOCOL) - 1;
-                XMALLOC(data->physicalLayerProtocol.textField,
-                                data->physicalLayerProtocol.lengthField);
+                data->physicalLayerProtocol.textField = \
+                   ensureMalloc( data->physicalLayerProtocol.lengthField, ptpClock );
                 memcpy(data->physicalLayerProtocol.textField,
                         &PROTOCOL,
                         data->physicalLayerProtocol.lengthField);
 		/* physical address */
                 data->physicalAddress.addressLength = PTP_UUID_LENGTH;
-                XMALLOC(data->physicalAddress.addressField, PTP_UUID_LENGTH);
+                data->physicalAddress.addressField = ensureMalloc( PTP_UUID_LENGTH, ptpClock );
                 memcpy(data->physicalAddress.addressField,
                         ptpClock->transportID,
                         PTP_UUID_LENGTH);
 		/* protocol address */
                 data->protocolAddress.addressLength = 4;
                 data->protocolAddress.networkProtocol = 1;
-                XMALLOC(data->protocolAddress.addressField,
-                        data->protocolAddress.addressLength);
+                data->protocolAddress.addressField = \
+                   ensureMalloc( data->protocolAddress.addressLength, ptpClock );
 
 		struct sockaddr_in* saddr = (struct sockaddr_in*)&(ptpClock->eventTransport->ownAddress);
 
@@ -165,22 +165,22 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
 		data->reserved = 0;
 		/* product description */
                 data->productDescription.lengthField = sizeof(PRODUCT_DESCRIPTION) - 1;
-                XMALLOC(data->productDescription.textField,
-                                        data->productDescription.lengthField);
+                data->productDescription.textField = \
+                   ensureMalloc( data->productDescription.lengthField, ptpClock );
                 memcpy(data->productDescription.textField,
                         &PRODUCT_DESCRIPTION,
                         data->productDescription.lengthField);
 		/* revision data */
                 data->revisionData.lengthField = sizeof(REVISION) - 1;
-                XMALLOC(data->revisionData.textField,
-                                        data->revisionData.lengthField);
+                data->revisionData.textField = \
+                   ensureMalloc( data->revisionData.lengthField, ptpClock );
                 memcpy(data->revisionData.textField,
                         &REVISION,
                         data->revisionData.lengthField);
 		/* user description */
                 data->userDescription.lengthField = strlen(ptpClock->user_description);
-                XMALLOC(data->userDescription.textField,
-                                        data->userDescription.lengthField);
+                data->userDescription.textField = \
+                   ensureMalloc( data->userDescription.lengthField, ptpClock );
                 memcpy(data->userDescription.textField,
                         ptpClock->user_description,
                         data->userDescription.lengthField);
@@ -227,7 +227,7 @@ void handleMMSlaveOnly(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 	case GET:
 		DBGV(" GET action \n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMSlaveOnly));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMSlaveOnly), ptpClock );
 		data = (MMSlaveOnly*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->so = ptpClock->slaveOnly;
@@ -271,13 +271,13 @@ void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, P
 	case GET:
 		DBGV(" GET action \n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof( MMUserDescription));
+		outgoing->tlv->dataField = ensureMalloc( sizeof( MMUserDescription), ptpClock );
 		data = (MMUserDescription*)outgoing->tlv->dataField;
 		memset(data, 0, sizeof(MMUserDescription));
 		/* GET actions */
                 data->userDescription.lengthField = strlen(ptpClock->user_description);
-                XMALLOC(data->userDescription.textField,
-                                        data->userDescription.lengthField);
+                data->userDescription.textField = \
+                   ensureMalloc( data->userDescription.lengthField, ptpClock );
                 memcpy(data->userDescription.textField,
                         ptpClock->user_description,
                         data->userDescription.lengthField);
@@ -358,7 +358,7 @@ void handleMMInitialize(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 	case COMMAND:
 		DBGV(" COMMAND action\n");
 		outgoing->actionField = ACKNOWLEDGE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMInitialize));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMInitialize), ptpClock );
 		incomingData = (MMInitialize*)incoming->tlv->dataField;
 		outgoingData = (MMInitialize*)outgoing->tlv->dataField;
 		/* Table 45 - INITIALIZATION_KEY enumeration */
@@ -403,7 +403,7 @@ void handleMMDefaultDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMDefaultDataSet));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMDefaultDataSet), ptpClock );
 		data = (MMDefaultDataSet*)outgoing->tlv->dataField;
 		/* GET actions */
 		/* get bit and align for slave only */
@@ -453,7 +453,7 @@ void handleMMCurrentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof( MMCurrentDataSet));
+		outgoing->tlv->dataField = ensureMalloc( sizeof( MMCurrentDataSet), ptpClock );
 		data = (MMCurrentDataSet*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->stepsRemoved = ptpClock->stepsRemoved;
@@ -499,7 +499,7 @@ void handleMMParentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMParentDataSet));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMParentDataSet), ptpClock );
 		data = (MMParentDataSet*)outgoing->tlv->dataField;
 		/* GET actions */
 		copyPortIdentity(&data->parentPortIdentity, &ptpClock->parentPortIdentity);
@@ -548,7 +548,7 @@ void handleMMTimePropertiesDataSet(MsgManagement* incoming, MsgManagement* outgo
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMTimePropertiesDataSet));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMTimePropertiesDataSet), ptpClock );
 		data = (MMTimePropertiesDataSet*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->currentUtcOffset = ptpClock->timePropertiesDS.currentUtcOffset;
@@ -590,7 +590,7 @@ void handleMMPortDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMPortDataSet));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMPortDataSet), ptpClock );
 		data = (MMPortDataSet*)outgoing->tlv->dataField;
 		copyPortIdentity(&data->portIdentity, &ptpClock->portIdentity);
 		data->portState = ptpClock->portState;
@@ -645,7 +645,7 @@ void handleMMPriority1(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMPriority1));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMPriority1), ptpClock );
 		data = (MMPriority1*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->priority1 = ptpClock->priority1;
@@ -687,7 +687,7 @@ void handleMMPriority2(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMPriority2));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMPriority2), ptpClock );
 		data = (MMPriority2*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->priority2 = ptpClock->priority2;
@@ -729,7 +729,7 @@ void handleMMDomain(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* 
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMDomain));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMDomain), ptpClock );
 		data = (MMDomain*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->domainNumber = ptpClock->domainNumber;
@@ -771,7 +771,7 @@ void handleMMLogAnnounceInterval(MsgManagement* incoming, MsgManagement* outgoin
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMLogAnnounceInterval));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMLogAnnounceInterval), ptpClock );
 		data = (MMLogAnnounceInterval*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->logAnnounceInterval = ptpClock->logAnnounceInterval;
@@ -813,7 +813,7 @@ void handleMMAnnounceReceiptTimeout(MsgManagement* incoming, MsgManagement* outg
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMAnnounceReceiptTimeout));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMAnnounceReceiptTimeout), ptpClock );
 		data = (MMAnnounceReceiptTimeout*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->announceReceiptTimeout = ptpClock->announceReceiptTimeout;
@@ -855,7 +855,7 @@ void handleMMLogSyncInterval(MsgManagement* incoming, MsgManagement* outgoing, P
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMLogSyncInterval));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMLogSyncInterval), ptpClock );
 		data = (MMLogSyncInterval*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->logSyncInterval = ptpClock->logSyncInterval;
@@ -897,7 +897,7 @@ void handleMMVersionNumber(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMVersionNumber));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMVersionNumber), ptpClock );
 		data = (MMVersionNumber*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->reserved0 = 0x0;
@@ -1000,7 +1000,7 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMTime));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMTime), ptpClock );
 		data = (MMTime*)outgoing->tlv->dataField;
 		/* GET actions */
 		TimeInternal internalTime;
@@ -1047,7 +1047,7 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMClockAccuracy));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMClockAccuracy), ptpClock );
 		data = (MMClockAccuracy*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->clockAccuracy = ptpClock->clockQuality.clockAccuracy;
@@ -1093,7 +1093,7 @@ void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMUtcProperties));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMUtcProperties), ptpClock );
 		data = (MMUtcProperties*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->currentUtcOffset = ptpClock->timePropertiesDS.currentUtcOffset;
@@ -1140,7 +1140,7 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMTraceabilityProperties));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMTraceabilityProperties), ptpClock );
 		data = (MMTraceabilityProperties*)outgoing->tlv->dataField;
 		/* GET actions */
 		Octet ftra = SET_FIELD(ptpClock->timePropertiesDS.frequencyTraceable, FTRA);
@@ -1184,7 +1184,7 @@ void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, Pt
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMDelayMechanism));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMDelayMechanism), ptpClock );
 		data = (MMDelayMechanism*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->delayMechanism = ptpClock->delayMechanism;
@@ -1226,7 +1226,7 @@ void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* out
 	case GET:
 		DBGV(" GET action\n");
 		outgoing->actionField = RESPONSE;
-		XMALLOC(outgoing->tlv->dataField, sizeof(MMLogMinPdelayReqInterval));
+		outgoing->tlv->dataField = ensureMalloc( sizeof(MMLogMinPdelayReqInterval), ptpClock );
 		data = (MMLogMinPdelayReqInterval*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->logMinPdelayReqInterval = ptpClock->logMinPdelayReqInterval;
@@ -1276,7 +1276,7 @@ void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement *outgoi
 		outgoing->actionField = 0;
 	}
 
-	XMALLOC(outgoing->tlv->dataField, sizeof( MMErrorStatus));
+	outgoing->tlv->dataField = ensureMalloc( sizeof( MMErrorStatus), ptpClock );
 	MMErrorStatus *data = (MMErrorStatus*)outgoing->tlv->dataField;
 	/* set managementId */
 	data->managementId = mgmtId;

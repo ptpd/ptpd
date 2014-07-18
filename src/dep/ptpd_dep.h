@@ -1,9 +1,9 @@
 /**
  * @file   ptpd_dep.h
- * 
+ *
  * @brief  External definitions for inclusion elsewhere.
- * 
- * 
+ *
+ *
  */
 
 #ifndef PTPD_DEP_H_
@@ -53,7 +53,7 @@
 
 
 
-// enable this line to show debug numbers in nanoseconds instead of microseconds 
+// enable this line to show debug numbers in nanoseconds instead of microseconds
 // #define DEBUG_IN_NS
 
 #define DBG_UNIT_US (1000)
@@ -317,10 +317,12 @@ void servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 /** \name startup.c (Unix API dependent)
  * -Handle with runtime options*/
  /**\{*/
+void* ensureMalloc( size_t size, PtpClock* ptpClock );
 int logToFile(RunTimeOpts * rtOpts);
 int recordToFile(RunTimeOpts * rtOpts);
-PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
-void ptpdShutdown(PtpClock * ptpClock);
+Boolean setRTOptsFromCommandLine(int argc, char** argv, Integer16* ret, RunTimeOpts* rtOpts);
+PtpClock * ptpdStartup(Integer16*,RunTimeOpts*);
+void ptpdShutdown(PtpClock * ptpClock, RunTimeOpts* rtOpts);
 
 void checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
@@ -394,7 +396,8 @@ void setKernelUtcOffset(int utc_offset);
 /** \name timer.c (Unix API dependent)
  * -Handle with timers*/
  /**\{*/
-void initTimer(void);
+void initThreadedTimer(void);
+void initSignaledTimer(void);
 void timerUpdate(IntervalTimer*);
 void timerStop(UInteger16,IntervalTimer*);
 

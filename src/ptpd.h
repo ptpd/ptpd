@@ -1,16 +1,16 @@
 /**
  * @file   ptpd.h
  * @mainpage Ptpd v2 Documentation
- * @authors Martin Burnicki, Alexandre van Kempen, Steven Kreuzer, 
+ * @authors Martin Burnicki, Alexandre van Kempen, Steven Kreuzer,
  *          George Neville-Neil
  * @version 2.0
  * @date   Fri Aug 27 10:22:19 2010
- * 
+ *
  * @section implementation Implementation
  * PTTdV2 is not a full implementation of 1588 - 2008 standard.
  * It is implemented only with use of Transparent Clock and Peer delay
  * mechanism, according to 802.1AS requierements.
- * 
+ *
  * This header file includes all others headers.
  * It defines functions which are not dependant of the operating system.
  */
@@ -130,14 +130,6 @@
 #include "dep/iniparser/dictionary.h"
 #include "dep/iniparser/iniparser.h"
 #include "dep/daemonconfig.h"
-
-/* NOTE: this macro can be refactored into a function */
-#define XMALLOC(ptr,size) \
-	if(!((ptr)=malloc(size))) { \
-		PERROR("failed to allocate memory"); \
-		ptpdShutdown(ptpClock); \
-		exit(1); \
-	}
 
 #define IS_SET(data, bitpos) \
 	((data & ( 0x1 << bitpos )) == (0x1 << bitpos))

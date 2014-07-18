@@ -45,6 +45,8 @@
 #define LEAP_SECOND_PAUSE_PERIOD        2      /* how long before/after leap */
                                                /* second event we pause offset */
                                                /* calculation */
+#define US_TIMER_INTERVAL (62500)
+
 
 /* Master mode operates in ARB (UTC) timescale, without TAI+leap seconds */
 #define DEFAULT_UTC_OFFSET           	0
@@ -58,10 +60,6 @@
 #define DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT 6     /* 3 by default */
 
 
-
-
-
-
 #define DEFAULT_QUALIFICATION_TIMEOUT	2
 #define DEFAULT_FOREIGN_MASTER_TIME_WINDOW 4
 #define DEFAULT_FOREIGN_MASTER_THRESHOLD 2
@@ -71,7 +69,7 @@
 section 7.6.2.4, page 55:
 248     Default. This clockClass shall be used if none of the other clockClass definitions apply.
 13      Shall designate a clock that is synchronized to an application-specific source of time. The timescale distributed
-        shall be ARB. A clockClass 13 clock shall not be a slave to another clock in the domain. 
+        shall be ARB. A clockClass 13 clock shall not be a slave to another clock in the domain.
 */
 #define DEFAULT_CLOCK_CLASS					248
 #define DEFAULT_CLOCK_CLASS__APPLICATION_SPECIFIC_TIME_SOURCE	13
@@ -86,13 +84,12 @@ section 7.6.2.5, page 56:
 */
 #define DEFAULT_CLOCK_ACCURACY		0xFE
 
-#define DEFAULT_PRIORITY1		128        
+#define DEFAULT_PRIORITY1		128
 #define DEFAULT_PRIORITY2		128        /* page 238, default priority is the midpoint, to allow easy control of the BMC algorithm */
 
 
 /* page 238:  τ, see 7.6.3.2: The default initialization value shall be 1.0 s.  */
-#define DEFAULT_CLOCK_VARIANCE 	        28768 /* To be determined in 802.1AS. */
-                                             
+#define DEFAULT_CLOCK_VARIANCE 	        0xFFFF     /* 0xFFFF means uncomputed */
 
 
 #define DEFAULT_MAX_FOREIGN_RECORDS  	5
@@ -126,6 +123,7 @@ section 7.6.2.5, page 56:
 #define TL_LENGTH					4
 /** \}*/
 
+
 /*Enumeration defined in tables of the spec*/
 
 /**
@@ -146,7 +144,6 @@ enum {
 enum {
 	ATOMIC_CLOCK=0x10,GPS=0x20,TERRESTRIAL_RADIO=0x30,PTP=0x40,NTP=0x50,HAND_SET=0x60,OTHER=0x90,INTERNAL_OSCILLATOR=0xA0
 };
-
 
 /**
  * \brief Delay mechanism (Table 9 in the spec)*/

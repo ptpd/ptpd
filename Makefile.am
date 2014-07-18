@@ -29,12 +29,12 @@ CLEANFILES =
 #DISTCLEANFILES = .gcc-warning
 
 BUILT_SOURCES =				\
-	libtool				\
+	$(LIBTOOL)				\
 	$(NULL)
 
 #dist-hook:
 #	@find $(distdir) -type d -name SCCS -print | xargs rm -rf
 
-libtool: $(LIBTOOL_DEPS)
+$(LIBTOOL): $(LIBTOOL_DEPS)
 	./config.status --recheck
 

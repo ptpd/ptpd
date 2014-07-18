@@ -329,7 +329,7 @@ case "$try_snmp" in
 		;;
 	esac
 	;;
-     *) 
+     *)
 	# This case can't be triggered - we won't get here unless we
 	# have an absolute path to net-snmp-config.
 	AC_MSG_WARN([Cannot build with SNMP support - net-snmp-config cannot be found])
@@ -372,7 +372,7 @@ AC_CHECK_LIB([rt], [clock_gettime])
 AC_HEADER_STDC
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h linux/rtc.h sys/timex.h])
 
-# MUST chck for cpuset AFTER the check for param as the latter needs 
+# MUST chck for cpuset AFTER the check for param as the latter needs
 # the former to pass the compile check.
 AC_CHECK_HEADERS([sys/cpuset.h], [], [],
 [#ifdef HAVE_SYS_PARAM_H
@@ -481,7 +481,22 @@ AC_CHECK_MEMBERS([struct ether_addr.octet], [], [],
 # Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
 
-AC_FUNC_MALLOC
+AC_ARG_ENABLE(
+    [gnu_malloc_check],
+    [AS_HELP_STRING(
+	[--disable-gnu-malloc-check],
+	[assume malloc conforms to GNU libc malloc standards]
+    )],
+    [ptp_gnu_malloc_check=$enableval],
+    [ptp_gnu_malloc_check=yes]
+)
+AC_MSG_RESULT([$ptp_gnu_malloc_check])
+case "$ptp_gnu_malloc_check" in
+ yes)
+    AC_FUNC_MALLOC
+    ;;
+esac
+
 AC_FUNC_MEMCMP
 AC_FUNC_SELECT_ARGTYPES
 AC_TYPE_SIGNAL
@@ -506,7 +521,7 @@ case "$ptp_runtime" in
  yes)
     PTP_DBL="-DRUNTIME_DEBUG"
     ;;
- *) 
+ *)
     AC_MSG_CHECKING([for (old-style) debug message level])
     AC_ARG_ENABLE(
         [debug-level],

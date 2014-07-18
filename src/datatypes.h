@@ -1,7 +1,7 @@
 #ifndef DATATYPES_H_
 #define DATATYPES_H_
 
-#include <stdio.h> 
+#include <stdio.h>
 #include <dep/iniparser/dictionary.h>
 #ifdef PTPD_STATISTICS
 #include <dep/statistics.h>
@@ -586,6 +586,10 @@ typedef struct{
 #endif /* PTPD_STATISTICS */
 } PIservo;
 
+typedef void (*ClockAdjustFunc)(Integer32 oldSeconds, Integer32 oldNanoseconds,
+                                Integer32 newSeconds, Integer32 newNanoseconds,
+                                void* clientData);
+
 /**
  * \struct PtpClock
  * \brief Main program data structure
@@ -709,7 +713,7 @@ typedef struct {
 	Boolean resetStatisticsLog;
 
 	int resetCount;
-	int announceTimeouts; 
+	int announceTimeouts;
 	int can_step_clock;
 	int warned_operator_slow_slewing;
 	int warned_operator_fast_slewing;
@@ -879,14 +883,14 @@ typedef struct {
 
 	Boolean autoLockFile; /* mode and interface specific lock files are used
 				    * when set to TRUE */
-	char lockDirectory[PATH_MAX]; /* Directory to store lock files 
+	char lockDirectory[PATH_MAX]; /* Directory to store lock files
 				       * When automatic lock files used */
 	char lockFile[PATH_MAX]; /* lock file location */
 	char driftFile[PATH_MAX]; /* drift file location */
-	int drift_recovery_method; /* how the observed drift is managed 
+	int drift_recovery_method; /* how the observed drift is managed
 				      between restarts */
 
-	Boolean snmp_enabled; /* SNMP subsystem enabled / disabled even if 
+	Boolean snmp_enabled; /* SNMP subsystem enabled / disabled even if
 				 compiled in */
 
 	Boolean pcap; /* Receive and send packets using libpcap, bypassing the
@@ -963,6 +967,22 @@ typedef struct {
 	char managementAclDenyText[PATH_MAX];
 	int timingAclOrder;
 	int managementAclOrder;
+
+        /*
+         * TODO: Consider having the configure script determine if the code will
+         * use a timer thread instead of a boolean and runtime conditionals
+         * (ie. make it a build-time configuration and not a runtime one).
+         */
+        Boolean useTimerThread;
+
+        Boolean run;
+
+        /*
+         * TODO: consider a separate struct for client callback-related members,
+         * possibly added to PtpSession instead.
+         */
+        ClockAdjustFunc clientClockAdjustFunc;
+        void* clientClockAdjustData;
 
 } RunTimeOpts;
 

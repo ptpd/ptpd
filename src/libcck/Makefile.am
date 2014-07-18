@@ -49,20 +49,24 @@ libcck_la_SOURCES = 			\
 	transport/cck_transport_socket_swtimestamp.c	\
 	transport/cck_transport_socket_hwtimestamp.h	\
 	transport/cck_transport_socket_hwtimestamp.c	\
-	transport/cck_transport_pcap_common.h	\
-	transport/cck_transport_pcap_common.c	\
-	transport/cck_transport_null.h	\
-	transport/cck_transport_null.c	\
 	transport/cck_transport_socket_ipv4.h	\
 	transport/cck_transport_socket_ipv4.c	\
 	transport/cck_transport_socket_ipv6.h	\
 	transport/cck_transport_socket_ipv6.c	\
+	transport/cck_transport_null.h	\
+	transport/cck_transport_null.c
+
+if PCAP
+libcck_la_SOURCES += \
+	transport/cck_transport_pcap_common.h	\
+	transport/cck_transport_pcap_common.c	\
 	transport/cck_transport_pcap_ethernet.h	\
 	transport/cck_transport_pcap_ethernet.c \
 	transport/cck_transport_pcap_ipv4.h	\
 	transport/cck_transport_pcap_ipv4.c	\
 	transport/cck_transport_pcap_ipv6.h	\
-	transport/cck_transport_pcap_ipv6.c	
+	transport/cck_transport_pcap_ipv6.c
+endif
 
 libcck_la_LDFLAGS = -version-info 1:0:1 -static
 libcck_SHORTNAME = cck

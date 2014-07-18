@@ -1,24 +1,24 @@
 /*-
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -27,7 +27,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -167,7 +167,7 @@ void
 unpackMMSlaveOnly( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
 	int offset = 0;
-	XMALLOC(m->tlv->dataField, sizeof(MMSlaveOnly));
+	m->tlv->dataField = ensureMalloc( sizeof(MMSlaveOnly), ptpClock );
 	MMSlaveOnly* data = (MMSlaveOnly*)m->tlv->dataField;
 	/* see src/def/README for a note on this X-macro */
 	#define OPERATE( name, size, type ) \
@@ -201,7 +201,7 @@ void
 unpackMMClockDescription( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
 	int offset = 0;
-	XMALLOC(m->tlv->dataField, sizeof(MMClockDescription));
+	m->tlv->dataField = ensureMalloc( sizeof(MMClockDescription), ptpClock );
 	MMClockDescription* data = (MMClockDescription*)m->tlv->dataField;
 	memset(data, 0, sizeof(MMClockDescription));
 	#define OPERATE( name, size, type ) \
@@ -251,7 +251,7 @@ void
 unpackMMUserDescription( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
 	int offset = 0;
-	XMALLOC(m->tlv->dataField, sizeof(MMUserDescription));
+	m->tlv->dataField = ensureMalloc( sizeof(MMUserDescription), ptpClock );
 	MMUserDescription* data = (MMUserDescription*)m->tlv->dataField;
 	memset(data, 0, sizeof(MMUserDescription));
 	#define OPERATE( name, size, type ) \
@@ -299,7 +299,7 @@ freeMMUserDescription( MMUserDescription* data)
 void unpackMMInitialize( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMInitialize));
+        m->tlv->dataField = ensureMalloc( sizeof(MMInitialize), ptpClock );
         MMInitialize* data = (MMInitialize*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -330,7 +330,7 @@ packMMInitialize( MsgManagement* m, Octet *buf)
 void unpackMMDefaultDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMDefaultDataSet));
+        m->tlv->dataField = ensureMalloc( sizeof(MMDefaultDataSet), ptpClock );
         MMDefaultDataSet* data = (MMDefaultDataSet*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -361,7 +361,7 @@ packMMDefaultDataSet( MsgManagement* m, Octet *buf)
 void unpackMMCurrentDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMCurrentDataSet));
+        m->tlv->dataField = ensureMalloc( sizeof(MMCurrentDataSet), ptpClock );
         MMCurrentDataSet* data = (MMCurrentDataSet*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -392,7 +392,7 @@ packMMCurrentDataSet( MsgManagement* m, Octet *buf)
 void unpackMMParentDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMParentDataSet));
+        m->tlv->dataField = ensureMalloc( sizeof(MMParentDataSet), ptpClock );
         MMParentDataSet* data = (MMParentDataSet*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -423,7 +423,7 @@ packMMParentDataSet( MsgManagement* m, Octet *buf)
 void unpackMMTimePropertiesDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMTimePropertiesDataSet));
+        m->tlv->dataField = ensureMalloc( sizeof(MMTimePropertiesDataSet), ptpClock );
         MMTimePropertiesDataSet* data = (MMTimePropertiesDataSet*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -454,7 +454,7 @@ packMMTimePropertiesDataSet( MsgManagement* m, Octet *buf)
 void unpackMMPortDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMPortDataSet));
+        m->tlv->dataField = ensureMalloc( sizeof(MMPortDataSet), ptpClock );
         MMPortDataSet* data = (MMPortDataSet*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -485,7 +485,7 @@ packMMPortDataSet( MsgManagement* m, Octet *buf)
 void unpackMMPriority1( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMPriority1));
+        m->tlv->dataField = ensureMalloc( sizeof(MMPriority1), ptpClock );
         MMPriority1* data = (MMPriority1*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -516,7 +516,7 @@ packMMPriority1( MsgManagement* m, Octet *buf)
 void unpackMMPriority2( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMPriority2));
+        m->tlv->dataField = ensureMalloc( sizeof(MMPriority2), ptpClock );
         MMPriority2* data = (MMPriority2*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -547,7 +547,7 @@ packMMPriority2( MsgManagement* m, Octet *buf)
 void unpackMMDomain( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMDomain));
+        m->tlv->dataField = ensureMalloc( sizeof(MMDomain), ptpClock );
         MMDomain* data = (MMDomain*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -578,7 +578,7 @@ packMMDomain( MsgManagement* m, Octet *buf)
 void unpackMMLogAnnounceInterval( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMLogAnnounceInterval));
+        m->tlv->dataField = ensureMalloc( sizeof(MMLogAnnounceInterval), ptpClock );
         MMLogAnnounceInterval* data = (MMLogAnnounceInterval*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -609,7 +609,7 @@ packMMLogAnnounceInterval( MsgManagement* m, Octet *buf)
 void unpackMMAnnounceReceiptTimeout( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField,sizeof(MMAnnounceReceiptTimeout));
+        m->tlv->dataField = ensureMalloc(sizeof(MMAnnounceReceiptTimeout), ptpClock );
         MMAnnounceReceiptTimeout* data = (MMAnnounceReceiptTimeout*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -640,7 +640,7 @@ packMMAnnounceReceiptTimeout( MsgManagement* m, Octet *buf)
 void unpackMMLogSyncInterval( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMLogSyncInterval));
+        m->tlv->dataField = ensureMalloc( sizeof(MMLogSyncInterval), ptpClock );
         MMLogSyncInterval* data = (MMLogSyncInterval*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -671,7 +671,7 @@ packMMLogSyncInterval( MsgManagement* m, Octet *buf)
 void unpackMMVersionNumber( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMVersionNumber));
+        m->tlv->dataField = ensureMalloc( sizeof(MMVersionNumber), ptpClock );
         MMVersionNumber* data = (MMVersionNumber*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -702,7 +702,7 @@ packMMVersionNumber( MsgManagement* m, Octet *buf)
 void unpackMMTime( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMTime));
+        m->tlv->dataField = ensureMalloc( sizeof(MMTime), ptpClock );
         MMTime* data = (MMTime*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -733,7 +733,7 @@ packMMTime( MsgManagement* m, Octet *buf)
 void unpackMMClockAccuracy( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMClockAccuracy));
+        m->tlv->dataField = ensureMalloc( sizeof(MMClockAccuracy), ptpClock );
         MMClockAccuracy* data = (MMClockAccuracy*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -764,7 +764,7 @@ packMMClockAccuracy( MsgManagement* m, Octet *buf)
 void unpackMMUtcProperties( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMUtcProperties));
+        m->tlv->dataField = ensureMalloc( sizeof(MMUtcProperties), ptpClock );
         MMUtcProperties* data = (MMUtcProperties*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -795,7 +795,7 @@ packMMUtcProperties( MsgManagement* m, Octet *buf)
 void unpackMMTraceabilityProperties( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMTraceabilityProperties));
+        m->tlv->dataField = ensureMalloc( sizeof(MMTraceabilityProperties), ptpClock );
         MMTraceabilityProperties* data = (MMTraceabilityProperties*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -826,7 +826,7 @@ packMMTraceabilityProperties( MsgManagement* m, Octet *buf)
 void unpackMMDelayMechanism( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMDelayMechanism));
+        m->tlv->dataField = ensureMalloc( sizeof(MMDelayMechanism), ptpClock );
         MMDelayMechanism* data = (MMDelayMechanism*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -857,7 +857,7 @@ packMMDelayMechanism( MsgManagement* m, Octet *buf)
 void unpackMMLogMinPdelayReqInterval( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMLogMinPdelayReqInterval));
+        m->tlv->dataField = ensureMalloc( sizeof(MMLogMinPdelayReqInterval), ptpClock );
         MMLogMinPdelayReqInterval* data = (MMLogMinPdelayReqInterval*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -888,7 +888,7 @@ packMMLogMinPdelayReqInterval( MsgManagement* m, Octet *buf)
 void unpackMMErrorStatus( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
-        XMALLOC(m->tlv->dataField, sizeof(MMErrorStatus));
+        m->tlv->dataField = ensureMalloc( sizeof(MMErrorStatus), ptpClock );
         MMErrorStatus* data = (MMErrorStatus*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
@@ -1075,7 +1075,7 @@ unpackPortAddress( Octet *buf, PortAddress *p, PtpClock *ptpClock)
 	unpackEnumeration16( buf, &p->networkProtocol, ptpClock);
 	unpackUInteger16( buf+2, &p->addressLength, ptpClock);
 	if(p->addressLength) {
-		XMALLOC(p->addressField, p->addressLength);
+           p->addressField = ensureMalloc( p->addressLength, ptpClock );
 		memcpy( p->addressField, buf+4, p->addressLength);
 	} else {
 		p->addressField = NULL;
@@ -1106,7 +1106,7 @@ unpackPTPText( Octet *buf, PTPText *s, PtpClock *ptpClock)
 {
 	unpackUInteger8( buf, &s->lengthField, ptpClock);
 	if(s->lengthField) {
-		XMALLOC(s->textField, s->lengthField);
+           s->textField = ensureMalloc( s->lengthField, ptpClock );
 		memcpy( s->textField, buf+1, s->lengthField);
 	} else {
 		s->textField = NULL;
@@ -1136,7 +1136,7 @@ unpackPhysicalAddress( Octet *buf, PhysicalAddress *p, PtpClock *ptpClock)
 {
 	unpackUInteger16( buf, &p->addressLength, ptpClock);
 	if(p->addressLength) {
-		XMALLOC(p->addressField, p->addressLength);
+           p->addressField = ensureMalloc( p->addressLength, ptpClock );
 		memcpy( p->addressField, buf+2, p->addressLength);
 	} else {
 		p->addressField = NULL;
@@ -1205,7 +1205,7 @@ void
 unpackManagementTLV(Octet *buf, MsgManagement *m, PtpClock* ptpClock)
 {
 	int offset = 0;
-	XMALLOC(m->tlv, sizeof(ManagementTLV));
+	m->tlv = ensureMalloc( sizeof(ManagementTLV), ptpClock );
 	/* read the management TLV */
 	#define OPERATE( name, size, type ) \
 		unpack##type( buf + MANAGEMENT_LENGTH + offset, &m->tlv->name, ptpClock ); \
@@ -1327,7 +1327,7 @@ void
 msgPackSync(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -1373,7 +1373,7 @@ void
 msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
 {
 	UInteger16 stepsRemoved;
-	
+
 	msgPackHeader(buf, ptpClock);
 
 	/* changes in header */
@@ -1420,7 +1420,7 @@ void
 msgUnpackAnnounce(Octet * buf, MsgAnnounce * announce)
 {
 	UInteger16 stepsRemoved;
-	
+
 	announce->originTimestamp.secondsField.msb =
 		flip16(*(UInteger16 *) (buf + 34));
 	announce->originTimestamp.secondsField.lsb =
@@ -1452,7 +1452,7 @@ void
 msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -1496,7 +1496,7 @@ void
 msgPackPDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -1548,11 +1548,11 @@ msgPackDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 }
 
 /*pack delayResp message into OUT buffer of ptpClock*/
-void 
+void
 msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -1587,11 +1587,11 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 }
 
 /*pack PdelayResp message into OUT buffer of ptpClock*/
-void 
+void
 msgPackPDelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -1700,11 +1700,11 @@ msgUnpackPDelayResp(Octet * buf, MsgPDelayResp * presp)
 }
 
 /*pack PdelayRespfollowup message into OUT buffer of ptpClock*/
-void 
+void
 msgPackPDelayRespFollowUp(Octet * buf, MsgHeader * header, Timestamp * responseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -2039,9 +2039,9 @@ msgUnpackManagement(Octet *buf, MsgManagement * manage, MsgHeader * header, PtpC
 
 }
 
-/** 
+/**
  * Dump the most recent packet in the daemon
- * 
+ *
  * @param ptpClock The central clock structure
  */
 void msgDump(PtpMessage *message)
@@ -2056,27 +2056,27 @@ void msgDump(PtpMessage *message)
 	case SYNC:
 		msgDebugSync(&message->body.sync);
 		break;
-    
+
 	case ANNOUNCE:
 		msgDebugAnnounce(&message->body.announce);
 		break;
-    
+
 	case FOLLOW_UP:
 		msgDebugFollowUp(&message->body.follow);
 		break;
-    
+
 	case DELAY_REQ:
 		msgDebugDelayReq(&message->body.req);
 		break;
-    
+
 	case DELAY_RESP:
 		msgDebugDelayResp(&message->body.resp);
 		break;
-    
+
 	case MANAGEMENT:
 		msgDebugManagement(&message->body.manage);
 		break;
-    
+
 	default:
 		NOTIFY("msgDump:unrecognized message\n");
 		break;
@@ -2084,15 +2084,15 @@ void msgDump(PtpMessage *message)
 
 #if defined(freebsd)
 	/* Only dump the first time, after that just do a message. */
-	if (dumped != 0) 
+	if (dumped != 0)
 		return;
 
 	dumped++;
-	NOTIFY("msgDump: core file created.\n");    
+	NOTIFY("msgDump: core file created.\n");
 
 	switch(rfork(RFFDG|RFPROC|RFNOWAIT)) {
 	case -1:
-		NOTIFY("could not fork to core dump! errno: %s", 
+		NOTIFY("could not fork to core dump! errno: %s",
 		       strerror(errno));
 		break;
 	case 0:
@@ -2104,9 +2104,9 @@ void msgDump(PtpMessage *message)
 #endif /* FreeBSD */
 }
 
-/** 
+/**
  * Dump a PTP message header
- * 
+ *
  * @param header a pre-filled msg header structure
  */
 
@@ -2116,31 +2116,31 @@ void msgDebugHeader(MsgHeader *header)
 	NOTIFY("msgDebugHeader: versionPTP %d\n", header->versionPTP);
 	NOTIFY("msgDebugHeader: messageLength %d\n", header->messageLength);
 	NOTIFY("msgDebugHeader: domainNumber %d\n", header->domainNumber);
-	NOTIFY("msgDebugHeader: flags %02hhx %02hhx\n", 
+	NOTIFY("msgDebugHeader: flags %02hhx %02hhx\n",
 	       header->flagField0, header->flagField1);
 	NOTIFY("msgDebugHeader: correctionfield %d\n", header->correctionField);
 	NOTIFY("msgDebugHeader: sourcePortIdentity.clockIdentity "
 	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx%02hhx:%02hhx\n",
-	       header->sourcePortIdentity.clockIdentity[0], 
-	       header->sourcePortIdentity.clockIdentity[1], 
-	       header->sourcePortIdentity.clockIdentity[2], 
-	       header->sourcePortIdentity.clockIdentity[3], 
-	       header->sourcePortIdentity.clockIdentity[4], 
-	       header->sourcePortIdentity.clockIdentity[5], 
-	       header->sourcePortIdentity.clockIdentity[6], 
+	       header->sourcePortIdentity.clockIdentity[0],
+	       header->sourcePortIdentity.clockIdentity[1],
+	       header->sourcePortIdentity.clockIdentity[2],
+	       header->sourcePortIdentity.clockIdentity[3],
+	       header->sourcePortIdentity.clockIdentity[4],
+	       header->sourcePortIdentity.clockIdentity[5],
+	       header->sourcePortIdentity.clockIdentity[6],
 	       header->sourcePortIdentity.clockIdentity[7]);
 	NOTIFY("msgDebugHeader: sourcePortIdentity.portNumber %d\n",
 	       header->sourcePortIdentity.portNumber);
 	NOTIFY("msgDebugHeader: sequenceId %d\n", header->sequenceId);
 	NOTIFY("msgDebugHeader: controlField %d\n", header->controlField);
-	NOTIFY("msgDebugHeader: logMessageIntervale %d\n", 
+	NOTIFY("msgDebugHeader: logMessageIntervale %d\n",
 	       header->logMessageInterval);
 
 }
 
-/** 
+/**
  * Dump the contents of a sync packet
- * 
+ *
  * @param sync A pre-filled MsgSync structure
  */
 
@@ -2152,9 +2152,9 @@ void msgDebugSync(MsgSync *sync)
 	       sync->originTimestamp.nanosecondsField);
 }
 
-/** 
+/**
  * Dump the contents of a announce packet
- * 
+ *
  * @param sync A pre-filled MsgAnnounce structure
  */
 
@@ -2164,9 +2164,9 @@ void msgDebugAnnounce(MsgAnnounce *announce)
 	       announce->originTimestamp.secondsField);
 	NOTIFY("msgDebugAnnounce: originTimestamp.nanoseconds %d\n",
 	       announce->originTimestamp.nanosecondsField);
-	NOTIFY("msgDebugAnnounce: currentUTCOffset %d\n", 
+	NOTIFY("msgDebugAnnounce: currentUTCOffset %d\n",
 	       announce->currentUtcOffset);
-	NOTIFY("msgDebugAnnounce: grandmasterPriority1 %d\n", 
+	NOTIFY("msgDebugAnnounce: grandmasterPriority1 %d\n",
 	       announce->grandmasterPriority1);
 	NOTIFY("msgDebugAnnounce: grandmasterClockQuality.clockClass %d\n",
 	       announce->grandmasterClockQuality.clockClass);
@@ -2175,34 +2175,34 @@ void msgDebugAnnounce(MsgAnnounce *announce)
 	NOTIFY("msgDebugAnnounce: "
 	       "grandmasterClockQuality.offsetScaledLogVariance %d\n",
 	       announce->grandmasterClockQuality.offsetScaledLogVariance);
-	NOTIFY("msgDebugAnnounce: grandmasterPriority2 %d\n", 
+	NOTIFY("msgDebugAnnounce: grandmasterPriority2 %d\n",
 	       announce->grandmasterPriority2);
 	NOTIFY("msgDebugAnnounce: grandmasterClockIdentity "
 	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx%02hhx:%02hhx\n",
-	       announce->grandmasterIdentity[0], 
-	       announce->grandmasterIdentity[1], 
-	       announce->grandmasterIdentity[2], 
-	       announce->grandmasterIdentity[3], 
-	       announce->grandmasterIdentity[4], 
-	       announce->grandmasterIdentity[5], 
-	       announce->grandmasterIdentity[6], 
+	       announce->grandmasterIdentity[0],
+	       announce->grandmasterIdentity[1],
+	       announce->grandmasterIdentity[2],
+	       announce->grandmasterIdentity[3],
+	       announce->grandmasterIdentity[4],
+	       announce->grandmasterIdentity[5],
+	       announce->grandmasterIdentity[6],
 	       announce->grandmasterIdentity[7]);
-	NOTIFY("msgDebugAnnounce: stepsRemoved %d\n", 
+	NOTIFY("msgDebugAnnounce: stepsRemoved %d\n",
 	       announce->stepsRemoved);
-	NOTIFY("msgDebugAnnounce: timeSource %d\n", 
+	NOTIFY("msgDebugAnnounce: timeSource %d\n",
 	       announce->timeSource);
 }
 
-/** 
+/**
  * NOT IMPLEMENTED
- * 
- * @param req 
+ *
+ * @param req
  */
 void msgDebugDelayReq(MsgDelayReq *req) {}
 
-/** 
+/**
  * Dump the contents of a followup packet
- * 
+ *
  * @param follow A pre-fille MsgFollowUp structure
  */
 void msgDebugFollowUp(MsgFollowUp *follow)
@@ -2213,9 +2213,9 @@ void msgDebugFollowUp(MsgFollowUp *follow)
 	       follow->preciseOriginTimestamp.nanosecondsField);
 }
 
-/** 
+/**
  * Dump the contents of a delay response packet
- * 
+ *
  * @param resp a pre-filled MsgDelayResp structure
  */
 void msgDebugDelayResp(MsgDelayResp *resp)
@@ -2226,21 +2226,21 @@ void msgDebugDelayResp(MsgDelayResp *resp)
 	       resp->receiveTimestamp.nanosecondsField);
 	NOTIFY("msgDebugDelayResp: requestingPortIdentity.clockIdentity "
 	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx%02hhx:%02hhx\n",
-	       resp->requestingPortIdentity.clockIdentity[0], 
-	       resp->requestingPortIdentity.clockIdentity[1], 
-	       resp->requestingPortIdentity.clockIdentity[2], 
-	       resp->requestingPortIdentity.clockIdentity[3], 
-	       resp->requestingPortIdentity.clockIdentity[4], 
-	       resp->requestingPortIdentity.clockIdentity[5], 
-	       resp->requestingPortIdentity.clockIdentity[6], 
+	       resp->requestingPortIdentity.clockIdentity[0],
+	       resp->requestingPortIdentity.clockIdentity[1],
+	       resp->requestingPortIdentity.clockIdentity[2],
+	       resp->requestingPortIdentity.clockIdentity[3],
+	       resp->requestingPortIdentity.clockIdentity[4],
+	       resp->requestingPortIdentity.clockIdentity[5],
+	       resp->requestingPortIdentity.clockIdentity[6],
 	       resp->requestingPortIdentity.clockIdentity[7]);
 	NOTIFY("msgDebugDelayResp: requestingPortIdentity.portNumber %d\n",
 	       resp->requestingPortIdentity.portNumber);
 }
 
-/** 
+/**
  * Dump the contents of management packet
- * 
+ *
  * @param manage a pre-filled MsgManagement structure
  */
 
@@ -2248,13 +2248,13 @@ void msgDebugManagement(MsgManagement *manage)
 {
 	NOTIFY("msgDebugDelayManage: targetPortIdentity.clockIdentity "
 	       "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
-	       manage->targetPortIdentity.clockIdentity[0], 
-	       manage->targetPortIdentity.clockIdentity[1], 
-	       manage->targetPortIdentity.clockIdentity[2], 
-	       manage->targetPortIdentity.clockIdentity[3], 
-	       manage->targetPortIdentity.clockIdentity[4], 
-	       manage->targetPortIdentity.clockIdentity[5], 
-	       manage->targetPortIdentity.clockIdentity[6], 
+	       manage->targetPortIdentity.clockIdentity[0],
+	       manage->targetPortIdentity.clockIdentity[1],
+	       manage->targetPortIdentity.clockIdentity[2],
+	       manage->targetPortIdentity.clockIdentity[3],
+	       manage->targetPortIdentity.clockIdentity[4],
+	       manage->targetPortIdentity.clockIdentity[5],
+	       manage->targetPortIdentity.clockIdentity[6],
 	       manage->targetPortIdentity.clockIdentity[7]);
 	NOTIFY("msgDebugDelayManage: targetPortIdentity.portNumber %d\n",
 	       manage->targetPortIdentity.portNumber);

@@ -1,24 +1,24 @@
 /*-
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -27,7 +27,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -44,17 +44,21 @@
 /**
  * @file   timer.c
  * @date   Wed Jun 23 09:41:26 2010
- * 
+ *
  * @brief  The timers which run the state machine.
- * 
- * Timers in the PTP daemon are run off of the signal system.  
+ *
  */
+
+#include <unistd.h>
+#include <pthread.h>
 
 #include "../ptpd.h"
 
-#define US_TIMER_INTERVAL (62500)
 volatile unsigned int elapsed;
 
+/*
+ * TODO: update this comment to include information about the "timer" thread too.
+ */
 /*
  * original code calls sigalarm every fixed 1ms. This highly pollutes the debug_log, and causes more interrupted instructions
  * This was later modified to have a fixed granularity of 1s.
@@ -63,19 +67,40 @@ volatile unsigned int elapsed;
  * Timers must now be explicitelly canceled with timerStop (instead of timerStart(0.0))
  */
 
-void 
+static pthread_t timerIntervalThread;
+
+void
 catch_alarm(int sig)
 {
-	elapsed++;
+   elapsed++;
 	/* be sure to NOT call DBG in asynchronous handlers! */
 }
 
-void 
-initTimer(void)
+static void*
+incrElapsed( void* arg )
+{
+   /*
+    * TODO: add a function to properly stop this loop when cleaning up prior to exit.
+    */
+   while(1){
+      usleep(US_TIMER_INTERVAL);
+      elapsed++;
+   }
+   return NULL;
+}
+
+void
+initThreadedTimer(void)
+{
+   pthread_create( &timerIntervalThread, NULL, &incrElapsed, NULL );
+}
+
+void
+initSignaledTimer(void)
 {
 	struct itimerval itimer;
 
-	DBG("initTimer\n");
+	DBG("initSignaledTimer\n");
 
 	signal(SIGALRM, SIG_IGN);
 
@@ -87,7 +112,7 @@ initTimer(void)
 	setitimer(ITIMER_REAL, &itimer, 0);
 }
 
-void 
+void
 timerUpdate(IntervalTimer * itimer)
 {
 
@@ -110,7 +135,7 @@ timerUpdate(IntervalTimer * itimer)
 	 *  b) have their expiration latched until timerExpired() is called
 	 */
 	for (i = 0; i < TIMER_ARRAY_SIZE; ++i) {
-		if ((itimer[i].interval) > 0 && ((itimer[i].left) -= delta) 
+		if ((itimer[i].interval) > 0 && ((itimer[i].left) -= delta)
 		    <= 0) {
 			itimer[i].left = itimer[i].interval;
 			itimer[i].expire = TRUE;
@@ -120,7 +145,7 @@ timerUpdate(IntervalTimer * itimer)
 
 }
 
-void 
+void
 timerStop(UInteger16 index, IntervalTimer * itimer)
 {
 	if (index >= TIMER_ARRAY_SIZE)
@@ -130,7 +155,7 @@ timerStop(UInteger16 index, IntervalTimer * itimer)
 	DBG2("timerStop:      Stopping timer %d.   (New interval: %d; New left: %d)\n", index, itimer[index].left , itimer[index].interval);
 }
 
-void 
+void
 timerStart(UInteger16 index, float interval, IntervalTimer * itimer)
 {
 	if (index >= TIMER_ARRAY_SIZE)
@@ -149,7 +174,7 @@ timerStart(UInteger16 index, float interval, IntervalTimer * itimer)
 		/*
 		 * the interval is too small, raise it to 1 to make sure it expires ASAP
 		 * Timer cancelation is done explicitelly with stopTimer()
-		 */ 
+		 */
 		itimer[index].left = 1;
 
 		static int operator_warned_interval_too_small = 0;
@@ -170,7 +195,7 @@ timerStart(UInteger16 index, float interval, IntervalTimer * itimer)
 			DBG("Timer would be issued immediatly. Please raise dep/timer.c:US_TIMER_INTERVAL to hold %.2fs\n",
 				interval
 			);
-			
+
 		}
 	}
 	itimer[index].interval = itimer[index].left;
@@ -187,21 +212,21 @@ timerStart(UInteger16 index, float interval, IntervalTimer * itimer)
  * PTPv1 algorithm was:
  *    ptpClock->R = getRand(&ptpClock->random_seed) % (PTP_DELAY_REQ_INTERVAL - 2) + 2;
  *    R is the number of Syncs to be received, before sending a new request
- * 
- */ 
+ *
+ */
 void timerStart_random(UInteger16 index, float interval, IntervalTimer * itimer)
 {
 	float new_value;
 
 	new_value = getRand() * interval * 2.0;
 	DBG2(" timerStart_random: requested %.2f, got %.2f\n", interval, new_value);
-	
+
 	timerStart(index, new_value, itimer);
 }
 
 
 
-Boolean 
+Boolean
 timerExpired(UInteger16 index, IntervalTimer * itimer)
 {
 	timerUpdate(itimer);
@@ -220,7 +245,7 @@ timerExpired(UInteger16 index, IntervalTimer * itimer)
 	return TRUE;
 }
 
-Boolean 
+Boolean
 timerStopped(UInteger16 index, IntervalTimer * itimer)
 {
 	timerUpdate(itimer);
@@ -237,7 +262,7 @@ timerStopped(UInteger16 index, IntervalTimer * itimer)
 
 }
 
-Boolean 
+Boolean
 timerRunning(UInteger16 index, IntervalTimer * itimer)
 {
 	timerUpdate(itimer);
@@ -254,4 +279,3 @@ timerRunning(UInteger16 index, IntervalTimer * itimer)
 	return FALSE;
 
 }
-

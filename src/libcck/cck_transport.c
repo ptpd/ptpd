@@ -4,7 +4,7 @@
  * Copyright (c) 2014 Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,7 +30,7 @@
 
 /**
  * @file   cck_transport.c
- * 
+ *
  * @brief  constructor and destructor for transport component, additional helper functions
  *
  */
@@ -74,7 +74,7 @@ setupCckTransport(CckTransport* transport, int transportType, const char* instan
 
     transport->header.componentType = CCK_COMPONENT_TRANSPORT;
 
-/* 
+/*
    if you write a new transport,
    make sure you register it here. Format is:
 
@@ -83,7 +83,7 @@ setupCckTransport(CckTransport* transport, int transportType, const char* instan
    where suffix is the string the setup() function name is
    suffixed with for your implementation, i.e. you
    need to define cckTransportSetup_bob for your "bob" tansport.
-   
+
 */
 
 /* ============ TRANSPORT IMPLEMENTATIONS BEGIN ============ */
@@ -91,9 +91,11 @@ setupCckTransport(CckTransport* transport, int transportType, const char* instan
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_NULL, null);
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_SOCKET_UDP_IPV4, socket_ipv4);
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_SOCKET_UDP_IPV6, socket_ipv6);
+#ifdef PTPD_PCAP
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_PCAP_UDP_IPV4, pcap_ipv4);
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_PCAP_UDP_IPV6, pcap_ipv6);
     CCK_REGISTER_TRANSPORT(CCK_TRANSPORT_PCAP_ETHERNET, pcap_ethernet);
+#endif
 
 /* ============ TRANSPORT IMPLEMENTATIONS END ============== */
 
@@ -171,5 +173,3 @@ transportAddressEmpty(const TransportAddress* addr)
     return CCK_FALSE;
 
 }
-
-
