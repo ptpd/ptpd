@@ -25,6 +25,9 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
+#include <errno.h>
+
 #include "ptpd.h"
 #include "ptp_api.h"
 
@@ -56,11 +59,20 @@ Boolean startupInProgress;
 int
 ptp_initializeSession( void** session )
 {
-   /* FIXME: assert session not NULL */
-   PtpSession* ptpSess = (PtpSession*) malloc( sizeof( PtpSession ) );
-   /* FIXME: check malloc */
+   PtpSession* ptpSess = NULL;
+
+   assert( session != NULL );
+
+   ptpSess = (PtpSession*) malloc( sizeof( PtpSession ) );
+   if( ptpSess == NULL ) {
+      return ENOMEM;
+   }
+
    ptpSess->rtOpts = (RunTimeOpts*) malloc( sizeof( RunTimeOpts ) );
-   /* FIXME: check malloc */
+   if( ptpSess->rtOpts == NULL ) {
+      return ENOMEM;
+   }
+
    ptpSess->ptpClock = NULL;
 
    loadDefaultSettings( ptpSess->rtOpts );
@@ -69,6 +81,7 @@ ptp_initializeSession( void** session )
    ptpSess->rtOpts->cliConfig = dictionary_new(0);
 
    *session = ptpSess;
+
    return 0;
 }
 
@@ -76,11 +89,12 @@ ptp_initializeSession( void** session )
 int
 ptp_deleteSession( void* session )
 {
-   /* FIXME: assert session not NULL */
-   /* FIXME: assert rtOpts not NULL */
    PtpSession* ptpSess = (PtpSession*) session;
 
-   /* FIXME: stop clock, etc. */
+   assert( ptpSess != NULL );
+   assert( ptpSess->rtOpts != NULL );
+
+   /* TODO: stop clock, etc. */
    dictionary_del( &(ptpSess->rtOpts->currentConfig) );
    dictionary_del( &(ptpSess->rtOpts->candidateConfig) );
    dictionary_del( &(ptpSess->rtOpts->cliConfig) );
@@ -101,13 +115,14 @@ ptp_setOptsFromCommandLine( void* session,
                             int argc, char** argv,
                             int* shouldRun )
 {
-   /* FIXME: assert session not NULL */
-   /* FIXME: assert rtOpts not NULL */
    PtpSession* ptpSess = (PtpSession*) session;
    Integer16 retCode;
 
+   assert( ptpSess != NULL );
+   assert( ptpSess->rtOpts != NULL );
+
    /*
-    * FIXME: setRTOptsFromCommandLine() calls functions that require G_rtOpts to
+    * TODO: setRTOptsFromCommandLine() calls functions that require G_rtOpts to
     * be set - that needs to be fixed.
     */
    G_rtOpts = ptpSess->rtOpts;
@@ -122,9 +137,10 @@ ptp_setOptsFromCommandLine( void* session,
 int
 ptp_checkConfigOnly( void* session )
 {
-   /* FIXME: assert session not NULL */
-   /* FIXME: assert rtOpts not NULL */
    PtpSession* ptpSess = (PtpSession*) session;
+
+   assert( ptpSess != NULL );
+   assert( ptpSess->rtOpts != NULL );
 
    return (ptpSess->rtOpts->checkConfigOnly == TRUE);
 }
@@ -133,13 +149,12 @@ ptp_checkConfigOnly( void* session )
 int
 ptp_run( void* session )
 {
-   /* FIXME: assert session not NULL */
-   /* FIXME: assert rtOpts not NULL */
    PtpSession* ptpSess = (PtpSession*) session;
-
-   /* FIXME: assert ptpClock *is* NULL */
-
    Integer16 returnVal = 0;
+
+   assert( ptpSess != NULL );
+   assert( ptpSess->rtOpts != NULL );
+   assert( ptpSess->ptpClock == NULL );
 
    cckInit();
 
@@ -176,9 +191,10 @@ ptp_run( void* session )
 int
 ptp_stop( void* session )
 {
-   /* FIXME: assert session not NULL */
-   /* FIXME: assert rtOpts not NULL */
    PtpSession* ptpSess = (PtpSession*) session;
+
+   assert( ptpSess != NULL );
+   assert( ptpSess->rtOpts != NULL );
 
    /*
     * This function only applies when the thread-based timer is used.  When the
@@ -192,16 +208,17 @@ ptp_stop( void* session )
       return 0;
    }
 
-   return 1;
+   return EOPNOTSUPP;
 }
 
 
 int
 ptp_enableTimerThread( void* session )
 {
-   /* FIXME: assert session not NULL */
-   /* FIXME: assert rtOpts not NULL */
    PtpSession* ptpSess = (PtpSession*) session;
+
+   assert( ptpSess != NULL );
+   assert( ptpSess->rtOpts != NULL );
 
    ptpSess->rtOpts->useTimerThread = TRUE;
    ptpSess->rtOpts->run = TRUE;
@@ -214,9 +231,10 @@ int
 ptp_setClockAdjustFunc( void* session,
                         ClockAdjustFunc clientClockAdjustFunc, void* clientData )
 {
-   /* FIXME: assert session not NULL */
-   /* FIXME: assert rtOpts not NULL */
    PtpSession* ptpSess = (PtpSession*) session;
+
+   assert( ptpSess != NULL );
+   assert( ptpSess->rtOpts != NULL );
 
    /*
     * Only allow the function to be changed once after rtOpts init to prevent
@@ -224,10 +242,11 @@ ptp_setClockAdjustFunc( void* session,
     * running.
     */
    if( ptpSess->rtOpts->clientClockAdjustFunc != NULL ) {
-      return 1;
+      return EBUSY;
    }
    ptpSess->rtOpts->clientClockAdjustFunc = clientClockAdjustFunc;
    ptpSess->rtOpts->clientClockAdjustData = clientData;
+
    return 0;
 }
 
@@ -247,8 +266,9 @@ int
 ptp_getGrandmasterClockQuality( void* session,
                                 ClockQuality* gmClockQuality )
 {
-   /* FIXME: assert session not NULL */
    PtpSession* ptpSess = (PtpSession*) session;
+
+   assert( ptpSess != NULL );
 
    if( ptpSess->ptpClock != NULL ) {
       gmClockQuality->clockClass = ptpSess->ptpClock->grandmasterClockQuality.clockClass;
@@ -257,7 +277,8 @@ ptp_getGrandmasterClockQuality( void* session,
 
       return 0;
    }
-   return 1;
+
+   return ENOPROTOOPT;
 }
 
 
@@ -265,15 +286,17 @@ int
 ptp_getPortState( void* session,
                   Enumeration8* portState )
 {
-   /* FIXME: assert session not NULL */
    PtpSession* ptpSess = (PtpSession*) session;
+
+   assert( ptpSess != NULL );
 
    if( ptpSess->ptpClock != NULL ) {
       *portState = ptpSess->ptpClock->portState;
 
       return 0;
    }
-   return 1;
+
+   return ENOPROTOOPT;
 }
 
 

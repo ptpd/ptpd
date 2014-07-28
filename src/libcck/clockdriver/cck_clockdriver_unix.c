@@ -4,7 +4,7 @@
  * Copyright (c) 2014 Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -66,8 +66,12 @@ static int
 cckClockDriverInit (CckClockDriver* self, const CckClockDriverConfig* config)
 {
 
-    /* implementation-specific data */
+    /*
+     * implementation-specific data - commented out to prevent compiler warning
+     * with -Wunused-but-set-variable
+     *
     CckClockDriverClockDriverData* data = NULL;
+     */
 
     if(self == NULL) {
 	CCK_ERROR("ClockDriver ClockDriver init called for an empty clockDriver\n");
@@ -82,8 +86,9 @@ cckClockDriverInit (CckClockDriver* self, const CckClockDriverConfig* config)
     /* Shutdown will be called on self object anyway, OK to exit without explicitly freeing self */
     CCKCALLOC(self->clockDriverData, sizeof(CckClockDriverClockDriverData));
 
+    /*
     data = (CckClockDriverClockDriverData*)self->clockDriverData;
-
+    */
 
     return 1;
 }

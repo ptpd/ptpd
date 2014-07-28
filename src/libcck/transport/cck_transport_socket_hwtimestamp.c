@@ -102,12 +102,13 @@ cckSetTsConfig(int sockFd, const char* ifName, struct hwtstamp_config* tsConfig)
 CckBool
 cckInitHwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps, CckBool testingOnly)
 {
-    int val = 1;
-    const char* methodStr;
 
     memset(caps, 0, sizeof(CckSocketTimestampCaps));
 
 #if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS) && defined(ETHTOOL_GET_TS_INFO)
+
+    int val = 1;
+    const char* methodStr;
 
     struct ethtool_ts_info tsInfo;
     struct hwtstamp_config tsConfig;
