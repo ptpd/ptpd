@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2014      Wojciech Owczarek,
  * Copyright (c) 2012-2013 George V. Neville-Neil,
  *                         Wojciech Owczarek
  * Copyright (c) 2011-2012 George V. Neville-Neil,
@@ -808,23 +809,10 @@ configcheck:
 	ptpClock->resetStatisticsLog = TRUE;
 
 #ifdef PTPD_STATISTICS
-	if (rtOpts->delayMSOutlierFilterEnabled) {
-		ptpClock->delayMSRawStats = createDoubleMovingStdDev(rtOpts->delayMSOutlierFilterCapacity);
-		strncpy(ptpClock->delayMSRawStats->identifier, "delayMS", 10);
-		ptpClock->delayMSFiltered = createDoubleMovingMean(rtOpts->delayMSOutlierFilterCapacity);
-	} else {
-		ptpClock->delayMSRawStats = NULL;
-		ptpClock->delayMSFiltered = NULL;
-	}
 
-	if (rtOpts->delaySMOutlierFilterEnabled) {
-		ptpClock->delaySMRawStats = createDoubleMovingStdDev(rtOpts->delaySMOutlierFilterCapacity);
-		strncpy(ptpClock->delaySMRawStats->identifier, "delaySM", 10);
-		ptpClock->delaySMFiltered = createDoubleMovingMean(rtOpts->delaySMOutlierFilterCapacity);
-	} else {
-		ptpClock->delaySMRawStats = NULL;
-		ptpClock->delaySMFiltered = NULL;
-	}
+	oFilterInit(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts, "Sync");
+	oFilterInit(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts, "Delay");
+
 #endif
 
 		ptpClock->netPath.pcapEventSock = -1;

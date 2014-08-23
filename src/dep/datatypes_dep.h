@@ -107,6 +107,7 @@ typedef struct {
 	/* used for tracking the last TTL set */
 	int ttlGeneral;
 	int ttlEvent;
+	Boolean joinedMulticast;
 	struct ether_addr etherDest;
 	struct ether_addr peerEtherDest;
 #ifdef SO_TIMESTAMPING

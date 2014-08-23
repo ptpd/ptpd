@@ -549,13 +549,19 @@ netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
 	struct in_addr netAddr;
 	char addrStr[NET_ADDRESS_LENGTH+1];
 
-	
+	/* do not join multicast in unicast mode */
+	if(rtOpts->ip_mode == IPMODE_UNICAST)
+		return TRUE;
+
 	/* Init General multicast IP address */
 	strncpy(addrStr, DEFAULT_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
 	if (!inet_aton(addrStr, &netAddr)) {
 		ERROR("failed to encode multicast address: %s\n", addrStr);
 		return FALSE;
 	}
+
+	/* this allows for leaving groups only if joined */
+	netPath->joinedMulticast = TRUE;
 
 	netPath->multicastAddr = netAddr.s_addr;
 	if(!netInitMulticastIPv4(netPath, netPath->multicastAddr)) {
@@ -710,13 +716,22 @@ netInitTimestamping(NetPath * netPath, RunTimeOpts * rtOpts)
 #endif /* ETHTOOL_GET_TS_INFO */
 #endif /* PTPD_EXPERIMENTAL */
 
-	if((val==1 && (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0)) ||
-		(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(int)) < 0)) {
-		PERROR("netInitTimestamping: failed to enable SO_TIMESTAMP%s",(val==1)?"NS":"ING");
-		result = FALSE;
+	if(val == 1) {
+	    if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
+		    PERROR("netInitTimestamping: failed to enable SO_TIMESTAMPNS");
+		    result = FALSE;
+	    }
 	} else {
-	DBG("SO_TIMESTAMP%s initialised\n",(val==1)?"NS":"ING");
+	    if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(int)) < 0) {
+		    PERROR("netInitTimestamping: failed to enable SO_TIMESTAMPING");
+		    result = FALSE;
+	    }
 	}
+
+	if (result == TRUE) {
+	    DBG("SO_TIMESTAMP%s initialised\n",(val==1)?"NS":"ING");
+	}
+
 #elif defined(SO_TIMESTAMPNS) /* Linux, Apple */
 	DBG("netInitTimestamping: trying to use SO_TIMESTAMPNS\n");
 	
@@ -1858,7 +1873,8 @@ netRefreshIGMP(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	DBG("netRefreshIGMP\n");
 	
-	netShutdownMulticast(netPath);
+	if(netPath->joinedMulticast)
+	    netShutdownMulticast(netPath);
 	
 	/* suspend process 100 milliseconds, to make sure the kernel sends the IGMP_leave properly */
 	usleep(100*1000);

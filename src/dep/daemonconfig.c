@@ -892,16 +892,26 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 #ifdef PTPD_STATISTICS
 
-	rtOpts->delayMSOutlierFilterEnabled = FALSE;
-	rtOpts->delayMSOutlierFilterDiscard = FALSE;
-	rtOpts->delayMSOutlierFilterCapacity = 20;
-	rtOpts->delayMSOutlierFilterThreshold = 1.0;
-	rtOpts->delayMSOutlierWeight = 1;
-	rtOpts->delaySMOutlierFilterEnabled = FALSE;
-	rtOpts->delaySMOutlierFilterDiscard = FALSE;
-	rtOpts->delaySMOutlierFilterCapacity = 20;
-	rtOpts->delaySMOutlierFilterThreshold = 1.0;
-	rtOpts->delaySMOutlierWeight = 1;
+	rtOpts->oFilterMSOpts.enabled = FALSE;
+	rtOpts->oFilterMSOpts.discard = FALSE;
+	rtOpts->oFilterMSOpts.autoTune = FALSE;	
+	rtOpts->oFilterMSOpts.capacity = 20;
+	rtOpts->oFilterMSOpts.threshold = 1.0;
+	rtOpts->oFilterMSOpts.weight = 1;
+	rtOpts->oFilterMSOpts.minPercentage = 20;
+	rtOpts->oFilterMSOpts.maxPercentage = 95;
+	rtOpts->oFilterMSOpts.step = 0.1;
+
+	rtOpts->oFilterSMOpts.enabled = FALSE;
+	rtOpts->oFilterSMOpts.discard = FALSE;
+	rtOpts->oFilterMSOpts.autoTune = FALSE;	
+	rtOpts->oFilterSMOpts.capacity = 20;
+	rtOpts->oFilterSMOpts.threshold = 1.0;
+	rtOpts->oFilterSMOpts.weight = 1;
+	rtOpts->oFilterSMOpts.minPercentage = 20;
+	rtOpts->oFilterSMOpts.maxPercentage = 95;
+	rtOpts->oFilterSMOpts.step = 0.1;
+
 
 	/* How often refresh statistics (seconds) */
 	rtOpts->statsUpdateInterval = 5;
@@ -1449,48 +1459,81 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #ifdef PTPD_STATISTICS
 
-	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_enable",rtOpts->delaySMOutlierFilterEnabled,rtOpts->delaySMOutlierFilterEnabled,
+	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_enable",rtOpts->oFilterSMOpts.enabled,rtOpts->oFilterSMOpts.enabled,
 		 "Enable outlier filter for the Delay Response component in slave state");
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:delay_outlier_filter_action",rtOpts->delaySMOutlierFilterDiscard,rtOpts->delaySMOutlierFilterDiscard,
+	CONFIG_MAP_SELECTVALUE("ptpengine:delay_outlier_filter_action",rtOpts->oFilterSMOpts.discard,rtOpts->oFilterSMOpts.discard,
 		"Delay Response outlier filter action. If set to 'filter', outliers are\n"
 	"	 replaced with moving average.",
 	"discard", TRUE,
 	"filter", FALSE);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_capacity",rtOpts->delaySMOutlierFilterCapacity,rtOpts->delaySMOutlierFilterCapacity,
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_capacity",rtOpts->oFilterSMOpts.capacity,rtOpts->oFilterSMOpts.capacity,
 		"Number of samples in the Delay Response outlier filter buffer",4,STATCONTAINER_MAX_SAMPLES);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_threshold",rtOpts->delaySMOutlierFilterThreshold,rtOpts->delaySMOutlierFilterThreshold,
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_threshold",rtOpts->oFilterSMOpts.threshold,rtOpts->oFilterSMOpts.threshold,
 		"Delay Response outlier filter threshold: multiplier for Peirce's maximum\n"
 	"	 standard deviation. When set below 1.0, filter is tighter, when set above\n"
 	"	 1.0, filter is looser than standard Peirce's test.", 0.001, 1000.0);
 
-	
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_weight",rtOpts->delaySMOutlierWeight,rtOpts->delaySMOutlierWeight,
+	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_autotune_enable",rtOpts->oFilterSMOpts.autoTune,rtOpts->oFilterSMOpts.autoTune,
+		"Enable automatic threshold control for Delay Response outlier filter.");
+
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_autotune_minpercent",rtOpts->oFilterSMOpts.minPercentage,rtOpts->oFilterSMOpts.minPercentage,
+		"Delay Response outlier filter autotune low watermark - minimum percentage\n"
+	"	 of discarded samples in the update period before filter is tightened\n"
+	"	 by the autotune step value.",0,99);
+
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_autotune_maxpercent",rtOpts->oFilterSMOpts.maxPercentage,rtOpts->oFilterSMOpts.maxPercentage,
+		"Delay Response outlier filter autotune high watermark - maximum percentage\n"
+	"	 of discarded samples in the update period before filter is loosened\n"
+	"	 by the autotune step value.",1,100);
+
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_autotune_step",rtOpts->oFilterSMOpts.step,rtOpts->oFilterSMOpts.step,
+		"Value the Delay Response outlier filter threshold is increased\n"
+	"	 or decreased by when auto-tuning.",0.01,10.0);
+
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_weight",rtOpts->oFilterSMOpts.weight,rtOpts->oFilterSMOpts.weight,
 		"Delay Response outlier weight: if an outlier is detected, determines\n"
 	"	 the amount of its deviation from mean that is used to build the standard\n"
 	"	 deviation statistics and influence further outlier detection.\n"
 	"	 When set to 1.0, the outlier is used as is.", 0.01, 2.0);
 
-    CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_enable",rtOpts->delayMSOutlierFilterEnabled,rtOpts->delayMSOutlierFilterEnabled,
+    CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_enable",rtOpts->oFilterMSOpts.enabled,rtOpts->oFilterMSOpts.enabled,
 		"Enable outlier filter for the Sync component in slave state.");
 
-    CONFIG_MAP_SELECTVALUE("ptpengine:sync_outlier_filter_action",rtOpts->delayMSOutlierFilterDiscard,rtOpts->delayMSOutlierFilterDiscard,
+    CONFIG_MAP_SELECTVALUE("ptpengine:sync_outlier_filter_action",rtOpts->oFilterMSOpts.discard,rtOpts->oFilterMSOpts.discard,
 		"Sync outlier filter action. If set to 'filter', outliers are replaced\n"
 	"	 with moving average.",
      "discard", TRUE,
      "filter", FALSE);
 
-     CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_capacity",rtOpts->delayMSOutlierFilterCapacity,rtOpts->delayMSOutlierFilterCapacity,
+     CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_capacity",rtOpts->oFilterMSOpts.capacity,rtOpts->oFilterMSOpts.capacity,
     "Number of samples in the Sync outlier filter buffer.",4,STATCONTAINER_MAX_SAMPLES);
 
-    CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_threshold",rtOpts->delayMSOutlierFilterThreshold,rtOpts->delayMSOutlierFilterThreshold,
+    CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_threshold",rtOpts->oFilterMSOpts.threshold,rtOpts->oFilterMSOpts.threshold,
 		"Sync outlier filter threshold: multiplier for the Peirce's maximum standard\n"
 	"	 deviation. When set below 1.0, filter is tighter, when set above 1.0,\n"
 	"	 filter is looser than standard Peirce's test.", 0.001, 1000.0);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_weight",rtOpts->delaySMOutlierWeight,rtOpts->delaySMOutlierWeight,
+	CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_autotune_enable",rtOpts->oFilterMSOpts.autoTune,rtOpts->oFilterMSOpts.autoTune,
+		"Enable automatic threshold control for Sync outlier filter.");
+
+	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_autotune_minpercent",rtOpts->oFilterMSOpts.minPercentage,rtOpts->oFilterMSOpts.minPercentage,
+		"Sync outlier filter autotune low watermark - minimum percentage\n"
+	"	 of discarded samples in the update period before filter is tightened\n"
+	"	 by the autotune step value.",0,99);
+
+	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_autotune_maxpercent",rtOpts->oFilterMSOpts.maxPercentage,rtOpts->oFilterMSOpts.maxPercentage,
+		"Sync outlier filter autotune high watermark - maximum percentage\n"
+	"	 of discarded samples in the update period before filter is loosened\n"
+	"	 by the autotune step value.",1,100);
+
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_autotune_step",rtOpts->oFilterMSOpts.step,rtOpts->oFilterMSOpts.step,
+		"Value the Sync outlier filter threshold is increased\n"
+	"	 or decreased by when auto-tuning.",0.01,10.0);
+
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_weight",rtOpts->oFilterSMOpts.weight,rtOpts->oFilterSMOpts.weight,
 		"Sync outlier weight: if an outlier is detected, this value determines the\n"
 	"	 amount of its deviation from mean that is used to build the standard \n"
 	"	 deviation statistics and influence further outlier detection.\n"
@@ -2772,6 +2815,10 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_action",    	PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_capacity",  	PTPD_RESTART_PEIRCE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_threshold",  PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_enable",  PTPD_RESTART_PEIRCE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_minpercent",  PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_maxpercent",  PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_step",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_weight",  PTPD_RESTART_NONE );
 
 
@@ -2780,6 +2827,13 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_capacity",  	PTPD_RESTART_PEIRCE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_threshold",  	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_weight",  	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_enable",  PTPD_RESTART_PEIRCE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_minpercent",  PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_maxpercent",  PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_step",  PTPD_RESTART_NONE );
+
+
+
 //        COMPONENT_RESTART_REQUIRED("ptpengine:calibration_delay",  	PTPD_RESTART_NONE );
 
 //        COMPONENT_RESTART_REQUIRED("servo:max_delay_stable_only",    	PTPD_RESTART_NONE );

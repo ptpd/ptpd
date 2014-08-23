@@ -561,6 +561,40 @@ typedef struct{
 #endif /* PTPD_STATISTICS */
 } PIservo;
 
+
+#ifdef PTPD_STATISTICS
+	typedef struct {
+
+	    Boolean enabled;
+	    Boolean discard;
+	    Boolean autoTune;
+
+	    int capacity;
+	    double threshold;
+	    double weight;
+
+	    int minPercentage;
+	    int maxPercentage;
+	    double step;
+
+	} OutlierFilterOptions;
+
+
+	typedef struct {
+
+	    DoubleMovingStdDev* rawStats;
+	    DoubleMovingMean* filteredStats;
+	    Boolean lastOutlier;
+	    double threshold;
+	    int autoTuneSamples;
+	    int autoTuneOutliers;
+	    int autoTuneScore;
+
+	} OutlierFilter;
+
+#endif /* PTPD_STATISTICS */
+
+
 /**
  * \struct PtpClock
  * \brief Main program data structure
@@ -770,12 +804,9 @@ typedef struct {
 	TimeInternal	rawDelaySM;
 	TimeInternal	rawPdelayMS;
 	TimeInternal	rawPdelaySM;
-	DoubleMovingStdDev* delayMSRawStats;
-	DoubleMovingStdDev* delaySMRawStats;
-	DoubleMovingMean* delaySMFiltered;
-	DoubleMovingMean* delayMSFiltered;
-	Boolean delayMSoutlier;
-	Boolean delaySMoutlier;
+
+	OutlierFilter 	oFilterMS;
+	OutlierFilter	oFilterSM;
 
 	Integer32 lastSyncCounter;
 
@@ -937,18 +968,8 @@ typedef struct {
 
 #ifdef	PTPD_STATISTICS
 
-	Boolean delayMSOutlierFilterEnabled;
-	int delayMSOutlierFilterCapacity;
-	double delayMSOutlierFilterThreshold;
-	Boolean delayMSOutlierFilterDiscard;
-	double delayMSOutlierWeight;
-
-	Boolean delaySMOutlierFilterEnabled;
-	int delaySMOutlierFilterCapacity;
-	double delaySMOutlierFilterThreshold;
-	Boolean delaySMOutlierFilterDiscard;
-	double delaySMOutlierWeight;
-
+	OutlierFilterOptions oFilterMSOpts;
+	OutlierFilterOptions oFilterSMOpts;
 
 	int calibrationDelay;
 

@@ -1,26 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Harlan Stenn,
- *                         George N. Neville-Neil,
- *                         Wojciech Owczarek,
- *                         Jan Breuer.
- * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
- *                         Jan Breuer,
- *                         Wojciech Owczarek,
- *                         Gael Mace, 
- *                         Alexandre Van Kempen,
- *                         Inaqui Delgado,
- *                         Rick Ratzel,
- *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
- *                         Jan Breuer,
- *                         Gael Mace, 
- *                         Alexandre Van Kempen
- *
- * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ * Copyright (c) 2014      Wojciech Owczarek,
  *
  * All Rights Reserved
  * 
@@ -45,3 +24,16 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/**
+ * @file   outlierfilter.h
+ * @date   Fri Aug 22 16:18:33 2014
+ * 
+ * @brief  Function definitions for the outlier filter
+ * 
+ */
+
+void oFilterInit(OutlierFilter *filter, OutlierFilterOptions *options, const char *id);
+void oFilterReset(OutlierFilter *filter, OutlierFilterOptions *options);
+void oFilterDestroy(OutlierFilter *filter);
+void oFilterTune(OutlierFilter *filter, OutlierFilterOptions *options);

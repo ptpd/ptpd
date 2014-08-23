@@ -206,19 +206,25 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 		DBG("==> UpdateDelay():   %s\n",
 			dump_TimeInternal2("Req_RECV:", &ptpClock->delay_req_receive_time,
 			"Req_SENT:", &ptpClock->delay_req_send_time));
-		
+
+
 #ifdef PTPD_STATISTICS
-	if (rtOpts->delaySMOutlierFilterEnabled) {
+
+	ptpClock->oFilterSM.autoTuneSamples++;
+
+	if (!ptpClock->servo.runningMaxOutput && rtOpts->oFilterSMOpts.enabled) {
 		subTime(&ptpClock->rawDelaySM, &ptpClock->delay_req_receive_time, 
 			&ptpClock->delay_req_send_time);
-		if(!isDoublePeircesOutlier(ptpClock->delaySMRawStats, timeInternalToDouble(&ptpClock->rawDelaySM), rtOpts->delaySMOutlierFilterThreshold)) {
+		if(!isDoublePeircesOutlier(ptpClock->oFilterSM.rawStats, timeInternalToDouble(&ptpClock->rawDelaySM), ptpClock->oFilterSM.threshold)) {
 			ptpClock->delaySM = ptpClock->rawDelaySM;
-			ptpClock->delaySMoutlier = FALSE;
+			ptpClock->oFilterSM.lastOutlier = FALSE;
 		} else {
-			ptpClock->delaySMoutlier = TRUE;
+			ptpClock->oFilterSM.lastOutlier = TRUE;
 			ptpClock->counters.delaySMOutliersFound++;
-			if (!rtOpts->delaySMOutlierFilterDiscard)  {
-				ptpClock->delaySM = doubleToTimeInternal(ptpClock->delaySMFiltered->mean);
+                        ptpClock->oFilterSM.autoTuneOutliers++;
+			
+			if (!rtOpts->oFilterSMOpts.discard)  {
+				ptpClock->delaySM = doubleToTimeInternal(ptpClock->oFilterSM.filteredStats->mean);
 			} else {
 				    goto statistics;
 			}
@@ -297,17 +303,17 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 /* Update relevant statistics containers, feed outlier filter thresholds etc. */
 #ifdef PTPD_STATISTICS
 statistics:
-                        if (rtOpts->delaySMOutlierFilterEnabled) {
+                        if (!ptpClock->servo.runningMaxOutput && rtOpts->oFilterSMOpts.enabled) {
                             double dDelaySM = timeInternalToDouble(&ptpClock->rawDelaySM);
                             /* If this is an outlier, bring it by a factor closer to mean before allowing to influence stdDev */
-                            if(ptpClock->delaySMoutlier) {
+                            if(ptpClock->oFilterSM.lastOutlier) {
 				/* Allow [weight] * [deviation from mean] to influence std dev in the next outlier checks */
                             DBG("DelaySM outlier: %.09f\n", dDelaySM);
 			    if((rtOpts->calibrationDelay<1) || ptpClock->isCalibrated)
-                            dDelaySM = ptpClock->delaySMRawStats->meanContainer->mean + rtOpts->delaySMOutlierWeight * ( dDelaySM - ptpClock->delaySMRawStats->meanContainer->mean);
+                            dDelaySM = ptpClock->oFilterSM.rawStats->meanContainer->mean + rtOpts->oFilterSMOpts.weight * ( dDelaySM - ptpClock->oFilterSM.rawStats->meanContainer->mean);
                             } 
-                                        feedDoubleMovingStdDev(ptpClock->delaySMRawStats, dDelaySM);
-                                        feedDoubleMovingMean(ptpClock->delaySMFiltered, timeInternalToDouble(&ptpClock->delaySM));
+                                        feedDoubleMovingStdDev(ptpClock->oFilterSM.rawStats, dDelaySM);
+                                        feedDoubleMovingMean(ptpClock->oFilterSM.filteredStats, timeInternalToDouble(&ptpClock->delaySM));
                                 }
                         feedDoublePermanentStdDev(&ptpClock->slaveStats.owdStats, timeInternalToDouble(&ptpClock->meanPathDelay));
 #endif
@@ -483,16 +489,21 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	 *   - calculate a new filtered OFM
 	 */
 #ifdef PTPD_STATISTICS
-	if (rtOpts->delayMSOutlierFilterEnabled) {
+
+ptpClock->oFilterMS.autoTuneSamples++;
+
+	if (!ptpClock->servo.runningMaxOutput && rtOpts->oFilterMSOpts.enabled) {
 		subTime(&ptpClock->rawDelayMS, recv_time, send_time);
-		if(!isDoublePeircesOutlier(ptpClock->delayMSRawStats, timeInternalToDouble(&ptpClock->rawDelayMS), rtOpts->delayMSOutlierFilterThreshold)) {
-			ptpClock->delayMSoutlier = FALSE;
+		if(!isDoublePeircesOutlier(ptpClock->oFilterMS.rawStats, timeInternalToDouble(&ptpClock->rawDelayMS), ptpClock->oFilterMS.threshold)) {
+			ptpClock->oFilterMS.lastOutlier = FALSE;
 			ptpClock->delayMS = ptpClock->rawDelayMS;
 		} else {
-			ptpClock->delayMSoutlier = TRUE;
+			ptpClock->oFilterMS.lastOutlier = TRUE;
+			ptpClock->oFilterMS.autoTuneOutliers++;
 			ptpClock->counters.delayMSOutliersFound++;
-			if(!rtOpts->delayMSOutlierFilterDiscard)
-			ptpClock->delayMS = doubleToTimeInternal(ptpClock->delayMSFiltered->mean);
+			if(!rtOpts->oFilterMSOpts.discard)
+			ptpClock->delayMS = doubleToTimeInternal(ptpClock->oFilterMS.filteredStats->mean);
+			    else return;
 		}
 	} else {
 		subTime(&ptpClock->delayMS, recv_time, send_time);
@@ -502,7 +513,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	subTime(&ptpClock->delayMS, recv_time, send_time);
 #endif
 
-	/* Take care about correctionField */
+	/* Take care of correctionField */
 	subTime(&ptpClock->delayMS,
 		&ptpClock->delayMS, correctionField);
 
@@ -795,8 +806,6 @@ adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
 	// call original adjtime
 	DBG2("     adjFreq2: call adjfreq to %.09f us \n", adj / DBG_UNIT);
 	adjFreq(adj);
-
-	warn_operator_fast_slewing(rtOpts, ptpClock, adj);
 }
 
 #endif /* HAVE_SYS_TIMEX_H */
@@ -814,10 +823,12 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	    DBG("Panic mode - skipping updateClock");
 	}
 
-
+#ifdef PTPD_STATISTICS
+if(ptpClock->oFilterMS.lastOutlier) goto statistics;
+#endif
 
 /*
-if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard && ptpClock->delayMSoutlier)
+if(rtOpts->oFilterMSOpts.enabled && rtOpts->oFilterMSOpts.discard && ptpClock->oFilterMS.lastOutlier)
 	    goto display;
 */
 	if (rtOpts->maxReset) { /* If maxReset is 0 then it's OFF */
@@ -967,7 +978,7 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 
 /* If the last delayMS was an outlier and filter action is discard, skip servo run */
 #ifdef PTPD_STATISTICS
-	if(rtOpts->delayMSOutlierFilterEnabled && rtOpts->delayMSOutlierFilterDiscard && ptpClock->delayMSoutlier)
+	if(rtOpts->oFilterMSOpts.enabled && rtOpts->oFilterMSOpts.discard && ptpClock->oFilterMS.lastOutlier)
 		goto statistics;
 #endif /* PTPD_STATISTICS */
 
@@ -981,6 +992,7 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 #endif /*PTPD_STATISTICS */
 		/* Adjust the clock first -> the PI controller runs here */
 		adjFreq_wrapper(rtOpts, ptpClock, runPIservo(&ptpClock->servo, ptpClock->offsetFromMaster.nanoseconds));
+		warn_operator_fast_slewing(rtOpts, ptpClock, ptpClock->servo.observedDrift);
 		/* Unset STA_UNSYNC */
 		unsetTimexFlags(STA_UNSYNC, TRUE);
 		/* "Tell" the clock about maxerror, esterror etc. */
@@ -998,16 +1010,16 @@ if(rtOpts->clockUpdateTimeout > 0) {
 /* Update relevant statistics containers, feed outlier filter thresholds etc. */
 #ifdef PTPD_STATISTICS
 statistics:
-                        if (rtOpts->delayMSOutlierFilterEnabled) {
+                        if (rtOpts->oFilterMSOpts.enabled) {
                         	double dDelayMS = timeInternalToDouble(&ptpClock->rawDelayMS);
-                        	if(ptpClock->delayMSoutlier) {
+                        	if(ptpClock->oFilterMS.lastOutlier) {
 				/* Allow [weight] * [deviation from mean] to influence std dev in the next outlier checks */
                         		DBG("DelayMS Outlier: %.09f\n", dDelayMS);
-                        		dDelayMS = ptpClock->delayMSRawStats->meanContainer->mean + 
-						    rtOpts->delayMSOutlierWeight * ( dDelayMS - ptpClock->delayMSRawStats->meanContainer->mean);
+                        		dDelayMS = ptpClock->oFilterMS.rawStats->meanContainer->mean + 
+						    rtOpts->oFilterMSOpts.weight * ( dDelayMS - ptpClock->oFilterMS.rawStats->meanContainer->mean);
                         	}
-                                feedDoubleMovingStdDev(ptpClock->delayMSRawStats, dDelayMS);
-                                feedDoubleMovingMean(ptpClock->delayMSFiltered, timeInternalToDouble(&ptpClock->delayMS));
+                                feedDoubleMovingStdDev(ptpClock->oFilterMS.rawStats, dDelayMS);
+                                feedDoubleMovingMean(ptpClock->oFilterMS.filteredStats, timeInternalToDouble(&ptpClock->delayMS));
                         }
                         feedDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats, timeInternalToDouble(&ptpClock->offsetFromMaster));
                         feedDoublePermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
@@ -1118,10 +1130,20 @@ runPIservo(PIservo* servo, const Integer32 input)
 	if(servo->observedDrift >= servo->maxOutput) {
 		servo->observedDrift = servo->maxOutput;
 		servo->runningMaxOutput = TRUE;
+#ifdef PTPD_STATISTICS
+		servo->stableCount = 0;
+		servo->updateCount = 0;
+		servo->isStable = FALSE;
+#endif /* PTPD_STATISTICS */
 	}
 	else if(servo->observedDrift <= -servo->maxOutput) {
 		servo->observedDrift = -servo->maxOutput;
 		servo->runningMaxOutput = TRUE;
+#ifdef PTPD_STATISTICS
+		servo->stableCount = 0;
+		servo->updateCount = 0;
+		servo->isStable = FALSE;
+#endif /* PTPD_STATISTICS */
 	} else {
 		servo->runningMaxOutput = FALSE;
 	}
@@ -1212,6 +1234,9 @@ updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts)
 			}
 
                         DBG("servo stablecount: %d\n",ptpClock->servo.stableCount);
+
+			oFilterTune(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts);
+			oFilterTune(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts);
 
                         resetDoublePermanentStdDev(&ptpClock->slaveStats.owdStats);
                         resetDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats);

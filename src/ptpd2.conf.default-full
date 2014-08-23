@@ -211,6 +211,23 @@ ptpengine:delay_outlier_filter_capacity = 20
 ; 1.0, filter is looser than standard Peirce's test.
 ptpengine:delay_outlier_filter_threshold = 1.000000
 
+; Enable automatic threshold control for Delay Response outlier filter.
+ptpengine:delay_outlier_filter_autotune_enable = N
+
+; Delay Response outlier filter autotune low watermark - minimum percentage
+; of discarded samples in the update period before filter is tightened
+; by the autotune step value.
+ptpengine:delay_outlier_filter_autotune_minpercent = 20
+
+; Delay Response outlier filter autotune high watermark - maximum percentage
+; of discarded samples in the update period before filter is loosened
+; by the autotune step value.
+ptpengine:delay_outlier_filter_autotune_maxpercent = 95
+
+; Value the Delay Response outlier filter threshold is increased
+; or decreased by when auto-tuning.
+ptpengine:delay_outlier_autotune_step = 0.100000
+
 ; Delay Response outlier weight: if an outlier is detected, determines
 ; the amount of its deviation from mean that is used to build the standard
 ; deviation statistics and influence further outlier detection.
@@ -232,6 +249,23 @@ ptpengine:sync_outlier_filter_capacity = 20
 ; deviation. When set below 1.0, filter is tighter, when set above 1.0,
 ; filter is looser than standard Peirce's test.
 ptpengine:sync_outlier_filter_threshold = 1.000000
+
+; Enable automatic threshold control for Sync outlier filter.
+ptpengine:sync_outlier_filter_autotune_enable = N
+
+; Sync outlier filter autotune low watermark - minimum percentage
+; of discarded samples in the update period before filter is tightened
+; by the autotune step value.
+ptpengine:sync_outlier_filter_autotune_minpercent = 20
+
+; Sync outlier filter autotune high watermark - maximum percentage
+; of discarded samples in the update period before filter is loosened
+; by the autotune step value.
+ptpengine:sync_outlier_filter_autotune_maxpercent = 95
+
+; Value the Sync outlier filter threshold is increased
+; or decreased by when auto-tuning.
+ptpengine:sync_outlier_autotune_step = 0.100000
 
 ; Sync outlier weight: if an outlier is detected, this value determines the
 ; amount of its deviation from mean that is used to build the standard 
