@@ -119,7 +119,7 @@ char *id = filter->rawStats->identifier;
 
 	INFO("%s outlier filter info:\n",
 	    id);
-	INFO("            %s.threshold : %d\n",
+	INFO("            %s.threshold : %.02f\n",
 	    id, filter->threshold);
 	INFO("             %s.autotune : %s\n",
 	    id, (options->autoTune) ? "Y" : "N");

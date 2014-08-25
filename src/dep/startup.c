@@ -823,8 +823,11 @@ configcheck:
 
 #endif
 
+#ifdef PTPD_PCAP
 		ptpClock->netPath.pcapEventSock = -1;
 		ptpClock->netPath.pcapGeneralSock = -1;
+#endif /* PTPD_PCAP */
+
 		ptpClock->netPath.generalSock = -1;
 		ptpClock->netPath.eventSock = -1;
  

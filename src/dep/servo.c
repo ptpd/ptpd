@@ -315,7 +315,11 @@ statistics:
                                         feedDoubleMovingStdDev(ptpClock->oFilterSM.rawStats, dDelaySM);
                                         feedDoubleMovingMean(ptpClock->oFilterSM.filteredStats, timeInternalToDouble(&ptpClock->delaySM));
                                 }
-                        feedDoublePermanentStdDev(&ptpClock->slaveStats.owdStats, timeInternalToDouble(&ptpClock->meanPathDelay));
+			/* don't churn on stats containers with the old value if we've discarded an outlier */
+			if(!(rtOpts->oFilterSMOpts.enabled && rtOpts->oFilterSMOpts.discard && ptpClock->oFilterSM.lastOutlier)) {
+			    feedDoublePermanentStdDev(&ptpClock->slaveStats.owdStats, timeInternalToDouble(&ptpClock->meanPathDelay));
+			}
+
 #endif
 
 
@@ -1023,6 +1027,12 @@ statistics:
                                 feedDoubleMovingStdDev(ptpClock->oFilterMS.rawStats, dDelayMS);
                                 feedDoubleMovingMean(ptpClock->oFilterMS.filteredStats, timeInternalToDouble(&ptpClock->delayMS));
                         }
+
+			
+			/* don't churn on stats containers with the old value if we've discarded an outlier */
+			if(rtOpts->oFilterMSOpts.enabled && rtOpts->oFilterMSOpts.discard && ptpClock->oFilterMS.lastOutlier) {
+			    goto display;
+			}
                         feedDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats, timeInternalToDouble(&ptpClock->offsetFromMaster));
                         feedDoublePermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
 #endif /* PTPD_STATISTICS */
@@ -1193,9 +1203,8 @@ updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts)
                                 if((ptpClock->counters.syncMessagesReceived - ptpClock->lastSyncCounter) == 0)
                                     ptpClock->servo.stableCount = 0;
                                 else
-                                    ++ptpClock->servo.stableCount;
-                            } else
-                            ++ptpClock->servo.stableCount;
+                                    ptpClock->servo.stableCount++;
+                            }
                             ptpClock->lastSyncCounter = ptpClock->counters.syncMessagesReceived;
                         } else
                             ptpClock->servo.stableCount = 0;
