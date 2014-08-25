@@ -37,3 +37,4 @@ void oFilterInit(OutlierFilter *filter, OutlierFilterOptions *options, const cha
 void oFilterReset(OutlierFilter *filter, OutlierFilterOptions *options);
 void oFilterDestroy(OutlierFilter *filter);
 void oFilterTune(OutlierFilter *filter, OutlierFilterOptions *options);
+void oFilterDisplay(OutlierFilter *filter, OutlierFilterOptions *options);

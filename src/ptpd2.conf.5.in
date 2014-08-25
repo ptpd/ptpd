@@ -725,6 +725,89 @@ Delay Response outlier filter threshold: multiplier for Peirce's maximum
 .RE
 .RS 0
 .TP 8
+\fBptpengine:delay_outlier_filter_autotune_enable [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Enable automatic threshold control for Delay Response outlier filter.
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_outlier_filter_autotune_minpercent [\fIINT\fB: 0 .. 99]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Delay Response outlier filter autotune low watermark - minimum percentage
+of discarded samples in the update period before filter is tightened
+by the autotune step value
+.TP 8
+\fBdefault\fR
+\fI20\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_outlier_filter_autotune_maxpercent [\fIINT\fB: 1 .. 100]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Delay Response outlier filter autotune high watermark - maximum percentage
+of discarded samples in the update period before filter is loosened
+by the autotune step value
+.TP 8
+\fBdefault\fR
+\fI95\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_outlier_filter_autotune_step [\fIFLOAT\fB: 0.010000 .. 10.000000]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+The value the Delay Response outlier filter threshold is increased
+or decreased by when auto-tuning
+.TP 8
+\fBdefault\fR
+\fI0.100000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_outlier_filter_autotune_minthreshold [\fIFLOAT\fB: 0.010000 .. 10.000000]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Minimum Delay Response filter threshold value used when auto-tuning
+.TP 8
+\fBdefault\fR
+\fI0.100000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_outlier_filter_autotune_maxthreshold [\fIFLOAT\fB: 0.010000 .. 10.000000]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Maximum Delay Response filter threshold value used when auto-tuning
+.TP 8
+\fBdefault\fR
+\fI5.000000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:delay_outlier_weight [\fIFLOAT\fB: 0.010000 .. 2.000000]\fR
 .RS 8
 .TP 8
@@ -794,6 +877,89 @@ Sync outlier filter threshold: multiplier for the Peirce's maximum standard
 .TP 8
 \fBdefault\fR
 \fI1.000000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_autotune_enable [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Enable automatic threshold control for Sync outlier filter.
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_autotune_minpercent [\fIINT\fB: 0 .. 99]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Sync outlier filter autotune low watermark - minimum percentage
+of discarded samples in the update period before filter is tightened
+by the autotune step value
+.TP 8
+\fBdefault\fR
+\fI20\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_autotune_maxpercent [\fIINT\fB: 1 .. 100]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Sync outlier filter autotune high watermark - maximum percentage
+of discarded samples in the update period before filter is loosened
+by the autotune step value
+.TP 8
+\fBdefault\fR
+\fI95\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_autotune_step [\fIFLOAT\fB: 0.010000 .. 10.000000]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+The value the Sync outlier filter threshold is increased
+or decreased by when auto-tuning
+.TP 8
+\fBdefault\fR
+\fI0.100000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_autotune_minthreshold [\fIFLOAT\fB: 0.010000 .. 10.000000]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Minimum Sync filter threshold value used when auto-tuning
+.TP 8
+\fBdefault\fR
+\fI0.100000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_autotune_maxthreshold [\fIFLOAT\fB: 0.010000 .. 10.000000]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Maximum Sync filter threshold value used when auto-tuning
+.TP 8
+\fBdefault\fR
+\fI5.000000\fR
 
 .RE
 .RE
@@ -1256,7 +1422,7 @@ How servo update interval (delta t) is calculated:
 servo not corrected for update interval (dt always 1),
 .TP 12
 \fIconstant\fR
-constant value (target servo update rate - sync interval for PTP,
+constant value (target servo update rate) - sync interval for PTP,
 .TP 12
 \fImeasured\fR
 servo measures how often it's updated and uses this interval.
@@ -1264,6 +1430,20 @@ servo measures how often it's updated and uses this interval.
 .TP 8
 \fBdefault\fR
 \fIconstant\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBservo:dt_max [\fIFLOAT\fB: 1.500000 .. 100.000000]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Maximum servo update interval (delta t) when using measured servo update interval
+(\fIservo:dt_method\fR = \fBmeasured\fR), specified as sync interval multiplier
+.TP 8
+\fBdefault\fR
+\fI5.000000\fR
 
 .RE
 .RE
@@ -1894,4 +2074,4 @@ Wojciech Owczarek <wojciech@owczarek.co.uk>
 .PP
 Alexandre Van Kempen
 
-\fBptpd2.conf(5)\fR man page written by Wojciech Owczarek for ptpd 2.3.0 in November 2013
+\fBptpd2.conf(5)\fR man page first written by Wojciech Owczarek for ptpd 2.3.0 in November 2013

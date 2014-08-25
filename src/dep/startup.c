@@ -384,6 +384,14 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			clearCounters(ptpClock);
 			NOTIFY("PTP engine counters cleared\n");
 		}
+#ifdef PTPD_STATISTICS
+		if(rtOpts->oFilterSMOpts.enabled) {
+			oFilterDisplay(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts);
+		}
+		if(rtOpts->oFilterMSOpts.enabled) {
+			oFilterDisplay(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts);
+		}
+#endif /* PTPD_STATISTICS */
 		sigusr2_received = 0;
 	}
 

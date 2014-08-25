@@ -547,6 +547,7 @@ typedef struct{
     Boolean runningMaxOutput;
     int dTmethod;
     int logdT;
+    int maxdT;
 #ifdef PTPD_STATISTICS
     int updateCount;
     int stableCount;
@@ -573,9 +574,12 @@ typedef struct{
 	    double threshold;
 	    double weight;
 
-	    int minPercentage;
-	    int maxPercentage;
+	    int minPercent;
+	    int maxPercent;
 	    double step;
+
+	    double minThreshold;
+	    double maxThreshold;
 
 	} OutlierFilterOptions;
 
@@ -950,6 +954,7 @@ typedef struct {
 	double servoKP;
 	double servoKI;
 	int servoDtMethod;
+	double servoMaxdT;
 
 	/**
 	 *  When enabled, ptpd ensures that Sync message sequence numbers

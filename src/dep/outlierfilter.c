@@ -76,21 +76,29 @@ oFilterDestroy(OutlierFilter *filter) {
 
 void oFilterTune(OutlierFilter *filter, OutlierFilterOptions *options) {
 
-	if(!options->autoTune) {
+	if(!options->autoTune || (filter->autoTuneSamples < 1)) {
 	    return;
 	}
 
 	filter->autoTuneScore = round(((filter->autoTuneOutliers + 0.0)  / (filter->autoTuneSamples + 0.0)) * 100.0);
 
-	if(filter->autoTuneScore < options->minPercentage) {
+	if(filter->autoTuneScore < options->minPercent) {
 
 				filter->threshold -= options->step;
 
-				if(filter->threshold <= 0.0) {
-				    filter->threshold = options->step;
+				if(filter->threshold < options->minThreshold) {
+				    filter->threshold = options->minThreshold;
 				}
 			}
 
+	if(filter->autoTuneScore > options->maxPercent) {
+
+				filter->threshold += options->step;
+
+				if(filter->threshold > options->maxThreshold) {
+				    filter->threshold = options->maxThreshold;
+				}
+			}
 
 	DBG("%s filter autotune: samples %d, outliers, %d percentage %d, threshold %.02f\n",
 		filter->rawStats->identifier,
@@ -104,3 +112,29 @@ void oFilterTune(OutlierFilter *filter, OutlierFilterOptions *options) {
 
 }
 
+
+void oFilterDisplay(OutlierFilter *filter, OutlierFilterOptions *options) {
+
+char *id = filter->rawStats->identifier;
+
+	INFO("%s outlier filter info:\n",
+	    id);
+	INFO("            %s.threshold : %d\n",
+	    id, filter->threshold);
+	INFO("             %s.autotune : %s\n",
+	    id, (options->autoTune) ? "Y" : "N");
+
+	if(!options->autoTune) {
+	    return;
+	}
+
+	INFO("              %s.percent : %d\n",
+	    id, filter->autoTuneScore);
+	INFO("         %s.minThreshold : %.02f\n",
+	    id, options->minThreshold);
+	INFO("         %s.maxThreshold : %.02f\n",
+	    id, options->maxThreshold);
+	INFO("                 %s.step : %.02f\n",
+	    id, options->step);
+
+}

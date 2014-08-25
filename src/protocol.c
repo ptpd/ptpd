@@ -2976,6 +2976,13 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 		    ptpClock->max_foreign_records) {
 			ptpClock->number_foreign_records++;
 		}
+		
+		/* Preserve best master record from overwriting (sf FR #22) - use next slot*/
+		if (ptpClock->foreign_record_i == ptpClock->foreign_record_best) {
+			ptpClock->foreign_record_i++;
+			ptpClock->foreign_record_i %= ptpClock->number_foreign_records;
+		}
+		
 		j = ptpClock->foreign_record_i;
 		
 		/*Copy new foreign master data set from Announce message*/

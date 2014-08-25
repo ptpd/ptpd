@@ -973,8 +973,10 @@ if(rtOpts->ntpOptions.enableEngine && rtOpts->panicModeNtp) {
 
 	/* Servo dT is the log sync interval */
 	/* TODO: if logsyincinterval is 127 [unicast], switch to measured */
-	if(rtOpts->servoDtMethod == DT_CONSTANT)
-		ptpClock->servo.logdT = ptpClock->logSyncInterval;
+	/* if(rtOpts->servoDtMethod == DT_CONSTANT) */
+	
+	ptpClock->servo.logdT = ptpClock->logSyncInterval;
+	ptpClock->servo.maxdT = rtOpts->servoMaxdT;
 
 /* If the last delayMS was an outlier and filter action is discard, skip servo run */
 #ifdef PTPD_STATISTICS
@@ -1097,9 +1099,9 @@ runPIservo(PIservo* servo, const Integer32 input)
                         dt = delta.nanoseconds / 1E9;
                 }
 
-                /* Don't use dT > 2 * target update interval */
-                if(dt > 2 * pow(2, servo->logdT))
-                        dt = 2 * pow(2, servo->logdT);
+                /* Don't use dT longer then max target update interval multiplier*/
+                if(dt > (servo->maxdT * pow(2, servo->logdT)))
+                        dt = servo->maxdT * pow(2, servo->logdT);
 
                 break;
 

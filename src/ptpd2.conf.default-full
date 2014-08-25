@@ -224,9 +224,15 @@ ptpengine:delay_outlier_filter_autotune_minpercent = 20
 ; by the autotune step value.
 ptpengine:delay_outlier_filter_autotune_maxpercent = 95
 
-; Value the Delay Response outlier filter threshold is increased
+; The value the Delay Response outlier filter threshold is increased
 ; or decreased by when auto-tuning.
 ptpengine:delay_outlier_autotune_step = 0.100000
+
+; Minimum Delay Response filter threshold value used when auto-tuning
+ptpengine:delay_outlier_filter_autotune_minthreshold = 0.100000
+
+; Maximum Delay Response filter threshold value used when auto-tuning
+ptpengine:delay_outlier_filter_autotune_maxthreshold = 5.000000
 
 ; Delay Response outlier weight: if an outlier is detected, determines
 ; the amount of its deviation from mean that is used to build the standard
@@ -266,6 +272,12 @@ ptpengine:sync_outlier_filter_autotune_maxpercent = 95
 ; Value the Sync outlier filter threshold is increased
 ; or decreased by when auto-tuning.
 ptpengine:sync_outlier_autotune_step = 0.100000
+
+; Minimum Sync outlier filter threshold value used when auto-tuning
+ptpengine:sync_outlier_filter_autotune_minthreshold = 0.100000
+
+; Maximum Sync outlier filter threshold value used when auto-tuning
+ptpengine:sync_outlier_filter_autotune_maxthreshold = 5.000000
 
 ; Sync outlier weight: if an outlier is detected, this value determines the
 ; amount of its deviation from mean that is used to build the standard 
@@ -403,6 +415,10 @@ servo:ki = 0.001000
 ; measured: servo measures how often it's updated and uses this interval.
 ; Options: none constant measured 
 servo:dt_method = constant
+
+; Maximum servo update interval (delta t) when using measured servo update interval
+; (servo:dt_method = measured), specified as sync interval multiplier.
+servo:dt_max = 5.000000
 
 ; Enable clock synchronisation servo stability detection
 ; (based on standard deviation of the observed drift value)
