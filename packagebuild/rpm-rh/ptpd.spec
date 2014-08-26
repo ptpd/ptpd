@@ -16,7 +16,7 @@ Release: 0.99.rc2%{distver}
 License: distributable
 Group: System Environment/Daemons
 Vendor: PTPd project team
-Source0: ptpd-2.3.1.rc2.tar.gz
+Source0: ptpd-2.3.1-rc2.tar.gz
 Source1: ptpd.init
 Source2: ptpd.sysconfig
 Source3: ptpd.conf
@@ -42,7 +42,7 @@ time synchronised via the PTP protocol.
 
 %prep 
 
-%setup -n ptpd-2.3.1
+%setup -n ptpd-2.3.1-rc2
 
 %build
 

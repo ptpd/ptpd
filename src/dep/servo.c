@@ -1031,6 +1031,8 @@ statistics:
 			
 			/* don't churn on stats containers with the old value if we've discarded an outlier */
 			if(rtOpts->oFilterMSOpts.enabled && rtOpts->oFilterMSOpts.discard && ptpClock->oFilterMS.lastOutlier) {
+			    /* shift stability measuremet period */
+			    ptpClock->lastSyncCounter++;
 			    goto display;
 			}
                         feedDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats, timeInternalToDouble(&ptpClock->offsetFromMaster));
@@ -1249,9 +1251,13 @@ updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts)
 			oFilterTune(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts);
 			oFilterTune(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts);
 
-                        resetDoublePermanentStdDev(&ptpClock->slaveStats.owdStats);
-                        resetDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats);
-                        resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
+			if(ptpClock->slaveStats.owdStats.meanContainer.count >= 10.0)
+				resetDoublePermanentStdDev(&ptpClock->slaveStats.owdStats);
+			if(ptpClock->slaveStats.ofmStats.meanContainer.count >= 10.0)
+				resetDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats);
+			if(ptpClock->servo.driftStats.meanContainer.count >= 10.0)
+				resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
+
 
 }
 

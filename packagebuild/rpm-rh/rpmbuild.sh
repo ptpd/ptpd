@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# ptpd RPM building script
+# (c) 2013-2014: Wojciech Owczarek, PTPd project
+
 PWD=`pwd`
 BUILDDIR=`mktemp -d $PWD/tmpbuild.XXXXXXXXX`
 SPEC=ptpd.spec
