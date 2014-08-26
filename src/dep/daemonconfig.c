@@ -1431,7 +1431,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	/* unicast mode -> must specify unicast address */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
-				    rtOpts->ip_mode == IPMODE_UNICAST,
+				     rtOpts->clockQuality.clockClass <= 127 && rtOpts->ip_mode == IPMODE_UNICAST,
 				    "unicast",
 				    "ptpengine:unicast_address");
 

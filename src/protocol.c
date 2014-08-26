@@ -2711,9 +2711,13 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	Integer32 dst = 0;
 
-	if (rtOpts->ip_mode == IPMODE_HYBRID) {
-		dst = ptpClock->masterAddr;
-	}
+	  /* in hybrid mode, or unicast mode when no master specified,
+              send delayReq to current master */
+        if (rtOpts->ip_mode == IPMODE_HYBRID ||
+            (rtOpts->ip_mode == IPMODE_UNICAST && !ptpClock->netPath.unicastAddr)) {
+    		dst = ptpClock->masterAddr;
+        }
+
 
 	if (!netSendEvent(ptpClock->msgObuf,DELAY_REQ_LENGTH,
 			  &ptpClock->netPath, rtOpts, dst, &internalTime)) {

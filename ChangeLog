@@ -1,3 +1,48 @@
+2013-09-01  Wojciech Owczarek <wojciech@owczarek.co.uk>
+
+	* 2.3.1 release
+
+	* New features since 2.3.0: 
+
+	- simple failover mechanism - ptpengine:backup_interface
+	- ptpengine:max_delay_max_rejected setting to unblock ptpd
+	  rejecting all messages when max_delay set
+	- ptpengine:max_delay_stable to only use max_dely when clock
+	  is stable
+	- selectable log timestamp format (unix or datetime)
+	- ptpd now compiles and runs out of he box on NetBSD, OpenBSD, FreeBSD,
+	  OSX and Solaris and its derivatives (OpenIndiana, OmniOS etc.)
+	- major rework of the ACL code
+	- outlier filter auto-tune to improve operation in noisy environments(high PDV)
+	- added ptpengine:clock_update_timeout setting to reset slave
+	  if no clock updates for a period of time
+	- when running slave-only in unicast mode, unicast address
+	  does not have to be specified   
+
+	* Bug fixes / improvements since 2.3.0:
+
+	- ptpd now usable on systems with no adjtimex() call like OSX,
+	  OpenBSD and LynxOS ()
+	- moving standard deviation algorithm fix improving the outlier
+	  filters
+	- network code cleanup
+	- fixed bug #66 - Ethernet interfaces no longer need IP addresses
+	  to run PTP Ethernet transport
+	- fixed bug / feature request #21: timestamping initialisation on
+	  PHC kernels (like RHEL6.5 - likely fixed 100% CPU usage issue)
+	- fixed bug / feature request #22: prevent FMR from overwriting
+	   best master
+	- improved servo stability detection: servo no longer reporting
+	  stable when discarding most samples or heavily slewing
+	- ptpd will now join and leave multicast groups only when running
+	  multicast or hybrid: allows running unicast and multicast
+	  independently
+	- ptpd will now ignore unicast packets in multicast-only mode
+	  and vice versa. In hybrid mode, only unicast Delay Request /
+	  response is accepted; multicast management messages are always
+	  accepted
+	- other minor bugs fixed
+
 2013-11-22  George Neville-Neil  <gnn@neville-neil.com>, Wojciech Owczarek <wojciech@owczarek.co.uk>
 
 	* 2.3.0 release
