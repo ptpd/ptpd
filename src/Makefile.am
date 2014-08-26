@@ -60,6 +60,8 @@ endif
 if STATISTICS
 ptpd2_SOURCES += dep/statistics.h
 ptpd2_SOURCES += dep/statistics.c
+ptpd2_SOURCES += dep/outlierfilter.h
+ptpd2_SOURCES += dep/outlierfilter.c
 endif
 
 # NTP control

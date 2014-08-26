@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2014      Wojciech Owczarek,
  * Copyright (c) 2012-2013 George V. Neville-Neil,
  *                         Wojciech Owczarek
  * Copyright (c) 2011-2012 George V. Neville-Neil,
@@ -383,6 +384,14 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			clearCounters(ptpClock);
 			NOTIFY("PTP engine counters cleared\n");
 		}
+#ifdef PTPD_STATISTICS
+		if(rtOpts->oFilterSMOpts.enabled) {
+			oFilterDisplay(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts);
+		}
+		if(rtOpts->oFilterMSOpts.enabled) {
+			oFilterDisplay(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts);
+		}
+#endif /* PTPD_STATISTICS */
 		sigusr2_received = 0;
 	}
 
@@ -808,27 +817,17 @@ configcheck:
 	ptpClock->resetStatisticsLog = TRUE;
 
 #ifdef PTPD_STATISTICS
-	if (rtOpts->delayMSOutlierFilterEnabled) {
-		ptpClock->delayMSRawStats = createDoubleMovingStdDev(rtOpts->delayMSOutlierFilterCapacity);
-		strncpy(ptpClock->delayMSRawStats->identifier, "delayMS", 10);
-		ptpClock->delayMSFiltered = createDoubleMovingMean(rtOpts->delayMSOutlierFilterCapacity);
-	} else {
-		ptpClock->delayMSRawStats = NULL;
-		ptpClock->delayMSFiltered = NULL;
-	}
 
-	if (rtOpts->delaySMOutlierFilterEnabled) {
-		ptpClock->delaySMRawStats = createDoubleMovingStdDev(rtOpts->delaySMOutlierFilterCapacity);
-		strncpy(ptpClock->delaySMRawStats->identifier, "delaySM", 10);
-		ptpClock->delaySMFiltered = createDoubleMovingMean(rtOpts->delaySMOutlierFilterCapacity);
-	} else {
-		ptpClock->delaySMRawStats = NULL;
-		ptpClock->delaySMFiltered = NULL;
-	}
+	oFilterInit(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts, "Sync");
+	oFilterInit(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts, "Delay");
+
 #endif
 
+#ifdef PTPD_PCAP
 		ptpClock->netPath.pcapEventSock = -1;
 		ptpClock->netPath.pcapGeneralSock = -1;
+#endif /* PTPD_PCAP */
+
 		ptpClock->netPath.generalSock = -1;
 		ptpClock->netPath.eventSock = -1;
  

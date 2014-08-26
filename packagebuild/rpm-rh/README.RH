@@ -1,7 +1,7 @@
 ====================== Building PTPd RPMs ===================
 
 - The rpmbuild.sh included in this directory should perform
-  a full RPM build for RHEL systems (and probably CentOS + FC).
+  a full RPM build for RHEL systems (and CentOS and probably FC).
   This was used to build the RPMs starting with 2.3.0 RC2.
   The script was successfully used to build under RHEL 5.5
   and 6.2, but should build on any RHEL5+ system, CentOS,

@@ -210,30 +210,13 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
                     if(rtOpts->restartSubsystems & PTPD_RESTART_PEIRCE) {
                                 NOTIFY("Applying outlier filter configuration: re-initialising filters\n");
 
-                                if(ptpClock->delayMSRawStats != NULL )
-                                        freeDoubleMovingStdDev(&ptpClock->delayMSRawStats);
-                                if(ptpClock->delayMSFiltered != NULL )
-                                        freeDoubleMovingMean(&ptpClock->delayMSFiltered);
+				oFilterDestroy(&ptpClock->oFilterMS);
+				oFilterDestroy(&ptpClock->oFilterSM);
 
-                                if(ptpClock->delaySMRawStats != NULL )
-                                        freeDoubleMovingStdDev(&ptpClock->delaySMRawStats);
-                                if(ptpClock->delaySMFiltered != NULL )
-                                        freeDoubleMovingMean(&ptpClock->delaySMFiltered);
+				oFilterInit(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts, "Sync");
+				oFilterInit(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts, "Delay");
 
-                                if (rtOpts->delayMSOutlierFilterEnabled) {
-                                        ptpClock->delayMSRawStats = createDoubleMovingStdDev(rtOpts->delayMSOutlierFilterCapacity);
-                                        strncpy(ptpClock->delayMSRawStats->identifier, "delayMS", 10);
-                                        ptpClock->delayMSFiltered = createDoubleMovingMean(rtOpts->delayMSOutlierFilterCapacity);
-                                }
-
-                                if (rtOpts->delaySMOutlierFilterEnabled) {
-                                        ptpClock->delaySMRawStats = createDoubleMovingStdDev(rtOpts->delaySMOutlierFilterCapacity);
-                                        strncpy(ptpClock->delaySMRawStats->identifier, "delaySM", 10);
-                                        ptpClock->delaySMFiltered = createDoubleMovingMean(rtOpts->delaySMOutlierFilterCapacity);
-                                }
-
-
-                }
+        	}
 #endif /* PTPD_STATISTICS */
 
 #ifdef PTPD_NTPDC
@@ -595,13 +578,9 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 		ptpClock->followUpGap = 0;
 
 #ifdef PTPD_STATISTICS
-		resetDoubleMovingStdDev(ptpClock->delayMSRawStats);
-		resetDoubleMovingMean(ptpClock->delayMSFiltered);
-		resetDoubleMovingStdDev(ptpClock->delaySMRawStats);
-		resetDoubleMovingMean(ptpClock->delaySMFiltered);
+		oFilterReset(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts);
+		oFilterReset(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts);
 		clearPtpEngineSlaveStats(&ptpClock->slaveStats);
-		ptpClock->delayMSoutlier = FALSE;
-		ptpClock->delaySMoutlier = FALSE;
 		ptpClock->servo.driftMean = 0;
 		ptpClock->servo.driftStdDev = 0;
 		ptpClock->servo.isStable = FALSE;
@@ -1127,6 +1106,30 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 	ptpClock->counters.discardedMessages++;
 	ptpClock->counters.domainMismatchErrors++;
 	return;
+    }
+
+    if(rtOpts->transport != IEEE_802_3) {
+
+	/* received a UNICAST message */
+        if((ptpClock->msgTmpHeader.flagField0 & PTP_UNICAST) == PTP_UNICAST) {
+    	/* in multicast mode, accept only management unicast messages, in hybrid mode accept only unicast delay messages */
+    	    if((rtOpts->ip_mode == IPMODE_MULTICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) ||
+    		(rtOpts->ip_mode == IPMODE_HYBRID && ptpClock->msgTmpHeader.messageType != DELAY_REQ && 
+		    ptpClock->msgTmpHeader.messageType != DELAY_RESP)) {
+			DBG("ignord unicast message in multicast mode%d\n");
+			ptpClock->counters.discardedMessages++;
+			return;
+	    }
+	    /* received a MULTICAST message */
+	} else {
+	/* in unicast mode, accept only management multicast messages */
+		if(rtOpts->ip_mode == IPMODE_UNICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) {
+		    DBG("ignord multicast message in unicast mode%d\n");
+		    ptpClock->counters.discardedMessages++;
+		    return;
+		}
+	}
+
     }
 
     /*Spec 9.5.2.2*/
@@ -2708,9 +2711,13 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	Integer32 dst = 0;
 
-	if (rtOpts->ip_mode == IPMODE_HYBRID) {
-		dst = ptpClock->masterAddr;
-	}
+	  /* in hybrid mode, or unicast mode when no master specified,
+              send delayReq to current master */
+        if (rtOpts->ip_mode == IPMODE_HYBRID ||
+            (rtOpts->ip_mode == IPMODE_UNICAST && !ptpClock->netPath.unicastAddr)) {
+    		dst = ptpClock->masterAddr;
+        }
+
 
 	if (!netSendEvent(ptpClock->msgObuf,DELAY_REQ_LENGTH,
 			  &ptpClock->netPath, rtOpts, dst, &internalTime)) {
@@ -2973,6 +2980,13 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock)
 		    ptpClock->max_foreign_records) {
 			ptpClock->number_foreign_records++;
 		}
+		
+		/* Preserve best master record from overwriting (sf FR #22) - use next slot*/
+		if (ptpClock->foreign_record_i == ptpClock->foreign_record_best) {
+			ptpClock->foreign_record_i++;
+			ptpClock->foreign_record_i %= ptpClock->number_foreign_records;
+		}
+		
 		j = ptpClock->foreign_record_i;
 		
 		/*Copy new foreign master data set from Announce message*/

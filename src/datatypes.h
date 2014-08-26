@@ -547,6 +547,7 @@ typedef struct{
     Boolean runningMaxOutput;
     int dTmethod;
     int logdT;
+    int maxdT;
 #ifdef PTPD_STATISTICS
     int updateCount;
     int stableCount;
@@ -560,6 +561,43 @@ typedef struct{
     DoublePermanentStdDev driftStats;
 #endif /* PTPD_STATISTICS */
 } PIservo;
+
+
+#ifdef PTPD_STATISTICS
+	typedef struct {
+
+	    Boolean enabled;
+	    Boolean discard;
+	    Boolean autoTune;
+
+	    int capacity;
+	    double threshold;
+	    double weight;
+
+	    int minPercent;
+	    int maxPercent;
+	    double step;
+
+	    double minThreshold;
+	    double maxThreshold;
+
+	} OutlierFilterOptions;
+
+
+	typedef struct {
+
+	    DoubleMovingStdDev* rawStats;
+	    DoubleMovingMean* filteredStats;
+	    Boolean lastOutlier;
+	    double threshold;
+	    int autoTuneSamples;
+	    int autoTuneOutliers;
+	    int autoTuneScore;
+
+	} OutlierFilter;
+
+#endif /* PTPD_STATISTICS */
+
 
 /**
  * \struct PtpClock
@@ -770,12 +808,9 @@ typedef struct {
 	TimeInternal	rawDelaySM;
 	TimeInternal	rawPdelayMS;
 	TimeInternal	rawPdelaySM;
-	DoubleMovingStdDev* delayMSRawStats;
-	DoubleMovingStdDev* delaySMRawStats;
-	DoubleMovingMean* delaySMFiltered;
-	DoubleMovingMean* delayMSFiltered;
-	Boolean delayMSoutlier;
-	Boolean delaySMoutlier;
+
+	OutlierFilter 	oFilterMS;
+	OutlierFilter	oFilterSM;
 
 	Integer32 lastSyncCounter;
 
@@ -919,6 +954,7 @@ typedef struct {
 	double servoKP;
 	double servoKI;
 	int servoDtMethod;
+	double servoMaxdT;
 
 	/**
 	 *  When enabled, ptpd ensures that Sync message sequence numbers
@@ -937,18 +973,8 @@ typedef struct {
 
 #ifdef	PTPD_STATISTICS
 
-	Boolean delayMSOutlierFilterEnabled;
-	int delayMSOutlierFilterCapacity;
-	double delayMSOutlierFilterThreshold;
-	Boolean delayMSOutlierFilterDiscard;
-	double delayMSOutlierWeight;
-
-	Boolean delaySMOutlierFilterEnabled;
-	int delaySMOutlierFilterCapacity;
-	double delaySMOutlierFilterThreshold;
-	Boolean delaySMOutlierFilterDiscard;
-	double delaySMOutlierWeight;
-
+	OutlierFilterOptions oFilterMSOpts;
+	OutlierFilterOptions oFilterSMOpts;
 
 	int calibrationDelay;
 

@@ -147,6 +147,10 @@
 #include "dep/iniparser/iniparser.h"
 #include "dep/daemonconfig.h"
 
+#ifdef PTPD_STATISTICS
+#include "dep/outlierfilter.h"
+#endif
+
 /* NOTE: this macro can be refactored into a function */
 #define XMALLOC(ptr,size) \
 	if(!((ptr)=malloc(size))) { \
