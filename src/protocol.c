@@ -348,8 +348,12 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		
 	case PTP_LISTENING:
 		timerStop(ANNOUNCE_RECEIPT_TIMER, ptpClock->itimer);
+		/* we're leaving LISTENING - reset counter */
+                if(state != PTP_LISTENING) {
+                    ptpClock->listenCount = 0;
+                }
 		break;
-		
+
 	default:
 		break;
 	}
@@ -410,16 +414,28 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		 */
 		if (ptpClock->portState != PTP_LISTENING) {
 			ptpClock->resetCount++;
-		}
+		} else {
+                        ptpClock->listenCount++;
+                        if( ptpClock->listenCount >= rtOpts->maxListen ) {
+                            WARNING("Stilll in LISTENING after x restarts - will do a full network reset\n");
+                            toState(PTP_FAULTY, rtOpts, ptpClock);
+                            ptpClock->listenCount = 0;
+                            break;
+                        }
+                }
 
 		/* Revert to the original DelayReq interval, and ignore the one for the last master */
 		ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
 
 		/* force a IGMP refresh per reset */
 		if (rtOpts->ip_mode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
-			netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+		    /* if multicast refresh failed, restart network - helps recover after driver reloads and such */
+                    if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
+                            WARNING("Error while refreshing multicast - will do a full network reset\n");
+                            toState(PTP_FAULTY, rtOpts, ptpClock);
+                            break;
+                    }
 		}
-		
 
 		timerStart(ANNOUNCE_RECEIPT_TIMER, 
 			   (ptpClock->announceReceiptTimeout) * 
@@ -779,7 +795,12 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				}
 
 				if (rtOpts->ip_mode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
-					netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+				/* if multicast refresh failed, restart network - helps recover after driver reloads and such */
+                		    if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
+                        		WARNING("Error while refreshing multicast - will do a full network reset\n");
+                        		toState(PTP_FAULTY, rtOpts, ptpClock);
+                        		break;
+                		    }
 				}
 
 /*
@@ -963,8 +984,12 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    timerExpired(MASTER_NETREFRESH_TIMER, ptpClock->itimer)) {
 				DBGV("Master state periodic IGMP refresh - next in %d seconds...\n",
 				rtOpts->masterRefreshInterval);
-			       netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
-
+				/* if multicast refresh failed, restart network - helps recover after driver reloads and such */
+                		    if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
+                        		WARNING("Error while refreshing multicast - will do a full network reset\n");
+                        		toState(PTP_FAULTY, rtOpts, ptpClock);
+                        		break;
+                		    }
 		}
 
 		if (timerExpired(SYNC_INTERVAL_TIMER, ptpClock->itimer)) {

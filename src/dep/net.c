@@ -521,7 +521,8 @@ netInitMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_IF, 
 			  &netPath->interfaceAddr, sizeof(struct in_addr)) 
 	    < 0) {
-		PERROR("failed to enable multi-cast on the interface");
+		PERROR("error while setting outgoig multicast interface "
+			"(IP_MULTICAST_IF)");
 		return FALSE;
 	}
 	/* join multicast group (for receiving) on specified interface */
@@ -529,7 +530,7 @@ netInitMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 		       &imr, sizeof(struct ip_mreq)) < 0
 	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
 			  &imr, sizeof(struct ip_mreq)) < 0) {
-		PERROR("failed to join the multi-cast group");
+		PERROR("failed to join the multicast group");
 		return FALSE;
 	}
 	return TRUE;
@@ -574,7 +575,7 @@ netInitMulticast(NetPath * netPath,  RunTimeOpts * rtOpts)
 	/* Init Peer multicast IP address */
 	strncpy(addrStr, PEER_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
 	if (!inet_aton(addrStr, &netAddr)) {
-		ERROR("failed to encode multi-cast address: %s\n", addrStr);
+		ERROR("failed to encode multicast address: %s\n", addrStr);
 		return FALSE;
 	}
 	netPath->peerMulticastAddr = netAddr.s_addr;
@@ -993,7 +994,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		}
 		/* bind sockets */
 		/*
-		 * need INADDR_ANY to allow receipt of multi-cast and uni-cast
+		 * need INADDR_ANY to allow receipt of multicast and uni-cast
 		 * messages
 		 */
 
@@ -1717,7 +1718,7 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpt
 			netPath->pcapGeneral);
 
 		if (ret <= 0) 
-			DBG("error sending ether multi-cast general message\n");
+			DBG("error sending ether multicast general message\n");
 	} else if (netPath->unicastAddr)
 #else
 	if (netPath->unicastAddr)
@@ -1772,7 +1773,7 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, RunTimeOpts 
 			netPath->pcapGeneral);
 
 		if (ret <= 0) 
-			DBG("error sending ether multi-cast general message\n");
+			DBG("error sending ether multicast general message\n");
 	} else if (netPath->unicastAddr)
 #else
 	if (netPath->unicastAddr)

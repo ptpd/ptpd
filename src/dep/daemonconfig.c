@@ -944,6 +944,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->panicModeDuration = 2;
 	rtOpts->panicModeExitThreshold = 0;
 
+	/* full network reset after 5 times in listening */
+	rtOpts->maxListen = 5;
 
 #ifdef PTPD_NTPDC
 	rtOpts->panicModeNtp = FALSE;
@@ -1405,6 +1407,9 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT_RANGE("ptpengine:priority2",rtOpts->priority2,rtOpts->priority2,
 		"Priority 2 announced in master state, used for Best Master\n"
 	"	 Clock selection.",0,248);
+
+	CONFIG_MAP_INT_MIN( "ptpengine:max_listen",rtOpts->maxListen,rtOpts->maxListen,
+		 "Number of consecutive resets to LISTENING before full network reset\n",1);
 
 	/* 
 	 * TODO: in unicast and hybrid mode, automativally override master delayreq interval with a default,
@@ -2830,7 +2835,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:clock_class",       	PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:priority1",         	PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:priority2",         	PTPD_UPDATE_DATASETS );
-        COMPONENT_RESTART_REQUIRED("ptpengine:priority2",         	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:max_listen",         	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:always_respect_utc_offset", PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:prefer_utc_offset_valid", PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:require_utc_offset_valid", PTPD_RESTART_NONE );
@@ -2851,7 +2856,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_action",    	PTPD_RESTART_NONE );
           COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_capacity",  	PTPD_RESTART_PEIRCE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_threshold",  PTPD_RESTART_NONE );
-//        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_enable",  PTPD_RESTART_PEIRCE );
+          COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_enable",  PTPD_RESTART_PEIRCE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_minpercent",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_maxpercent",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_step",  PTPD_RESTART_NONE );
@@ -2865,7 +2870,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
           COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_capacity",  	PTPD_RESTART_PEIRCE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_threshold",  	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_weight",  	PTPD_RESTART_NONE );
-//        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_enable",  PTPD_RESTART_PEIRCE );
+          COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_enable",  PTPD_RESTART_PEIRCE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_minpercent",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_maxpercent",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_minthreshold",  PTPD_RESTART_NONE );

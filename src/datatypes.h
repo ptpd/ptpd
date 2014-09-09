@@ -751,6 +751,7 @@ typedef struct {
 	/*Stats header will be re-printed when set to true*/
 	Boolean resetStatisticsLog;
 
+	int listenCount; // number of consecutive resets to listening
 	int resetCount;
 	int announceTimeouts; 
 	int current_init_clock;
@@ -998,6 +999,9 @@ typedef struct {
 #endif
 
 	int maxDelayMaxRejected;
+
+	/* max reset cycles in LISTENING before full network restart */
+	int maxListen;
 
 	Boolean managementEnabled;
 	Boolean managementSetEnable;

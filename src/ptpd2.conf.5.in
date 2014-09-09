@@ -570,6 +570,19 @@ Priority 2 announced in master state, used for Best Master
 .RE
 .RS 0
 .TP 8
+\fBptpengine:max_listen [\fIINT\fB: min: 1 ]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Number of consecutive protocol resets to LISTENING before full network reset.
+.TP 8
+\fBdefault\fR
+\fI5\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:unicast_address [\fISTRING\fB]\fR
 .RS 8
 .TP 8
