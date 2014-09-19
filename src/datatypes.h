@@ -669,7 +669,6 @@ typedef struct {
 	UInteger32 random_seed;
 	Boolean  record_update;    /* should we run bmc() after receiving an announce message? */
 
-	PtpMessage* lastMessage;
 	MsgManagement outgoingManageTmp;
 
 	Octet msgObuf[PACKET_SIZE];

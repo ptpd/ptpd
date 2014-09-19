@@ -71,25 +71,36 @@ int main( int argc, char **argv ) {
 
    ptp_initializeSession( &ptpSess );
 
+   /*
+    * TODO: Refactor processing the command line settings to exclude
+    * applying side effects of those processed settings inside the same
+    * function. The side effects of the settings can be applied separately.
+    * This would simplify the logic required to determine whether the daemon
+    * should run, exit early, or provide information to the user.
+    */
    retVal = ptp_setOptsFromCommandLine( ptpSess, argc, argv, &shouldRun );
 
    if( !shouldRun ) {
-      if( (retVal != 0) && ptp_checkConfigOnly( ptpSess ) ) {
+      if( ( retVal != 0 ) && !ptp_checkConfigOnly( ptpSess ) ) {
          ptp_logError( "startup failed\n" );
       }
       return retVal;
    }
 
-   /*
-    * TODO: consider setting and returning the return val of ptp_run()
-    * appropriately so the log message can definitively say whether this is
-    * shutting down due to an error or not.
-    */
-   ptp_run( ptpSess );
+   retVal = ptp_testNetworkConfig( ptpSess );
 
-   ptp_logNotify( "Self shutdown, probably due to an error\n" );
+   if( retVal != 0 ) {
+      ptp_logError( "startup failed due to a network config error\n" );
+      return retVal;
+   }
+
+   retVal = ptp_run( ptpSess );
+
+   if( retVal != 0 ) {
+      ptp_logError( "Shutdown due to an error\n" );
+   }
 
    ptp_deleteSession( ptpSess );
 
-   return 1;
+   return retVal;
 }

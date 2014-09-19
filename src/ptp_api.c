@@ -27,9 +27,14 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "ptpd.h"
 #include "ptp_api.h"
+
+
+#define USEC_PER_MSEC 1000
+#define STOP_TIMEOUT_MSEC 10000  /* 10 seconds */
 
 /*
  * A PtpSession consists of a PtpClock and the corresponding RunTimeOpts.
@@ -41,6 +46,7 @@
 typedef struct {
    PtpClock* ptpClock;
    RunTimeOpts* rtOpts;
+   Boolean protocolIsRunning;
 } PtpSession;
 
 
@@ -54,6 +60,24 @@ typedef struct {
 PtpClock *G_ptpClock = NULL;
 RunTimeOpts *G_rtOpts = NULL;
 Boolean startupInProgress;
+
+
+static void
+_deleteConfigDictionaries( PtpSession* ptpSess )
+{
+   dictionary_del( &(ptpSess->rtOpts->currentConfig) );
+   dictionary_del( &(ptpSess->rtOpts->candidateConfig) );
+   dictionary_del( &(ptpSess->rtOpts->cliConfig) );
+}
+
+
+static void
+_createConfigDictionaries( PtpSession* ptpSess )
+{
+   /* currentConfig is created during setRTOptsFromCommandLine() */
+   ptpSess->rtOpts->candidateConfig = dictionary_new( 0 );
+   ptpSess->rtOpts->cliConfig = dictionary_new( 0 );
+}
 
 
 int
@@ -70,15 +94,16 @@ ptp_initializeSession( void** session )
 
    ptpSess->rtOpts = (RunTimeOpts*) malloc( sizeof( RunTimeOpts ) );
    if( ptpSess->rtOpts == NULL ) {
+      free( ptpSess );
       return ENOMEM;
    }
 
    ptpSess->ptpClock = NULL;
+   ptpSess->protocolIsRunning = FALSE;
 
    loadDefaultSettings( ptpSess->rtOpts );
 
-   ptpSess->rtOpts->candidateConfig = dictionary_new(0);
-   ptpSess->rtOpts->cliConfig = dictionary_new(0);
+   _createConfigDictionaries( ptpSess );
 
    *session = ptpSess;
 
@@ -95,9 +120,7 @@ ptp_deleteSession( void* session )
    assert( ptpSess->rtOpts != NULL );
 
    /* TODO: stop clock, etc. */
-   dictionary_del( &(ptpSess->rtOpts->currentConfig) );
-   dictionary_del( &(ptpSess->rtOpts->candidateConfig) );
-   dictionary_del( &(ptpSess->rtOpts->cliConfig) );
+   _deleteConfigDictionaries( ptpSess );
 
    free( ptpSess->rtOpts ); ptpSess->rtOpts = NULL;
    /*
@@ -122,6 +145,17 @@ ptp_setOptsFromCommandLine( void* session,
    assert( ptpSess->rtOpts != NULL );
 
    /*
+    * Remove the config dictionaries if they exist from a prior call in order to
+    * allow additional config settings to be applied to rtOpts.  The most recent
+    * rtOpts settings will then be reflected in rtOpts->currentConfig once this
+    * call completes.
+    */
+   if( ptpSess->rtOpts->currentConfig != NULL ) {
+      _deleteConfigDictionaries( ptpSess );
+      _createConfigDictionaries( ptpSess );
+   }
+
+   /*
     * TODO: setRTOptsFromCommandLine() calls functions that require G_rtOpts to
     * be set - that needs to be fixed.
     */
@@ -131,6 +165,22 @@ ptp_setOptsFromCommandLine( void* session,
       (setRTOptsFromCommandLine( argc, argv, &retCode, ptpSess->rtOpts ) == TRUE) ? 1 : 0;
 
    return (int) retCode;
+}
+
+
+int
+ptp_testNetworkConfig( void* session )
+{
+   PtpSession* ptpSess = (PtpSession*) session;
+
+   assert( ptpSess != NULL );
+   assert( ptpSess->rtOpts != NULL );
+
+   if( testNetworkConfig( ptpSess->rtOpts ) ) {
+      return 0;
+   } else {
+      return -1;
+   }
 }
 
 
@@ -147,36 +197,78 @@ ptp_checkConfigOnly( void* session )
 
 
 int
+ptp_dumpConfig( void* session, FILE* out )
+{
+   PtpSession* ptpSess = (PtpSession*) session;
+
+   assert( ptpSess != NULL );
+   assert( out != NULL );
+   assert( ptpSess->rtOpts != NULL );
+
+   if( ptpSess->rtOpts->currentConfig != NULL ) {
+      dictionary_dump( ptpSess->rtOpts->currentConfig, out );
+      return 0;
+   }
+
+   return EOPNOTSUPP;
+}
+
+
+int
 ptp_run( void* session )
 {
    PtpSession* ptpSess = (PtpSession*) session;
-   Integer16 returnVal = 0;
+   Integer16 ptpdStartupReturnVal = 0;
+   Boolean cckInitSucceeded = FALSE;
+   Boolean protocolSucceeded = FALSE;
+
+   /*
+    * TODO: Refactor internal ptpd functions to use the same return code scheme
+    * as the ptp_api. The ptp_api returns an int (0 on success and non-zero on
+    * error). Some internal ptpd functions like ptpdStartup return an int (0 on
+    * success and either 2 or 3 on error). While others, like protocol(),
+    * return a boolean (TRUE on success and FALSE on failure). So we're forced
+    * to convert error codes. The next logical error codes to return are 4 and
+    * 5 when cckInit() or protocol() returns false.
+    */
+   #define CCK_INIT_FAILED 4
+   #define PROTOCOL_FAILED 5
 
    assert( ptpSess != NULL );
    assert( ptpSess->rtOpts != NULL );
    assert( ptpSess->ptpClock == NULL );
 
-   cckInit();
+   cckInitSucceeded = cckInit();
+
+   /*
+    * Convert cckInit's error to an unused error code.
+    */
+   if( !cckInitSucceeded ) {
+      return CCK_INIT_FAILED;
+   }
 
    /*
     * TODO: move this global into the PtpClock struct.
     */
    startupInProgress = TRUE;
 
-   if( !(ptpSess->ptpClock = ptpdStartup( &returnVal, ptpSess->rtOpts )) ) {
+   if( !(ptpSess->ptpClock = ptpdStartup( &ptpdStartupReturnVal, ptpSess->rtOpts )) ) {
       cckShutdown();
-      return returnVal;
+      return ptpdStartupReturnVal;
    }
 
    startupInProgress = FALSE;
+   ptpSess->rtOpts->run = TRUE;
 
-   /* global variable for message(), please see comment on top of this file */
    G_ptpClock = ptpSess->ptpClock;
    G_rtOpts = ptpSess->rtOpts;
 
-   /* do the protocol engine */
-   protocol( ptpSess->rtOpts, ptpSess->ptpClock );
-   /* forever loop.. */
+   /*
+    * protocol() does not return until the "rtOpts->run" flag is set FALSE
+    */
+   ptpSess->protocolIsRunning = TRUE;
+   protocolSucceeded = protocol( ptpSess->rtOpts, ptpSess->ptpClock );
+   ptpSess->protocolIsRunning = FALSE;
 
    /*
     * This frees ptpSess->ptpClock
@@ -184,7 +276,14 @@ ptp_run( void* session )
    ptpdShutdown( ptpSess->ptpClock, ptpSess->rtOpts );
    cckShutdown();
 
-   return (int) returnVal;
+   /*
+    * Convert protocol's error to an unused error code.
+    */
+   if ( !protocolSucceeded ) {
+      return PROTOCOL_FAILED;
+   }
+
+   return 0;
 }
 
 
@@ -192,6 +291,7 @@ int
 ptp_stop( void* session )
 {
    PtpSession* ptpSess = (PtpSession*) session;
+   int timeoutCount = 0;
 
    assert( ptpSess != NULL );
    assert( ptpSess->rtOpts != NULL );
@@ -201,11 +301,20 @@ ptp_stop( void* session )
     * signal-based timer is used, ptpd is stopped by sending a signal.
     */
    if( ptpSess->rtOpts->useTimerThread ) {
+
       ptpSess->rtOpts->run = FALSE;
+
+      while( ptpSess->protocolIsRunning && (timeoutCount < STOP_TIMEOUT_MSEC) ) {
+         usleep( USEC_PER_MSEC ); /* 1ms */
+         timeoutCount++;
+      }
+
       /*
-       * TODO: join the thread
+       * Stop the timer thread started in timer.c
        */
-      return 0;
+      stopThreadedTimer();
+
+      return (timeoutCount < STOP_TIMEOUT_MSEC) ? 0 : EBUSY;
    }
 
    return EOPNOTSUPP;
@@ -221,7 +330,6 @@ ptp_enableTimerThread( void* session )
    assert( ptpSess->rtOpts != NULL );
 
    ptpSess->rtOpts->useTimerThread = TRUE;
-   ptpSess->rtOpts->run = TRUE;
 
    return 0;
 }
@@ -236,12 +344,7 @@ ptp_setClockAdjustFunc( void* session,
    assert( ptpSess != NULL );
    assert( ptpSess->rtOpts != NULL );
 
-   /*
-    * Only allow the function to be changed once after rtOpts init to prevent
-    * this from being changed (possibly in a separate thread) while ptpd is
-    * running.
-    */
-   if( ptpSess->rtOpts->clientClockAdjustFunc != NULL ) {
+   if( ptpSess->protocolIsRunning ) {
       return EBUSY;
    }
    ptpSess->rtOpts->clientClockAdjustFunc = clientClockAdjustFunc;
@@ -299,6 +402,23 @@ ptp_getPortState( void* session,
    return ENOPROTOOPT;
 }
 
+
+int
+ptp_getInterfaceName( void* session,
+                      char** interface )
+{
+   PtpSession* ptpSess = (PtpSession*) session;
+
+   assert( ptpSess != NULL );
+
+   if( ptpSess->rtOpts != NULL && ptpSess->rtOpts->ifaceName != NULL ) {
+      *interface = ptpSess->rtOpts->ifaceName;
+
+      return 0;
+   }
+
+   return ENODATA;
+}
 
 void
 ptp_logError( const char* msg )

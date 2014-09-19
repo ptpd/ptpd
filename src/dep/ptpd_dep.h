@@ -397,6 +397,7 @@ void setKernelUtcOffset(int utc_offset);
  * -Handle with timers*/
  /**\{*/
 void initThreadedTimer(void);
+void stopThreadedTimer(void);
 void initSignaledTimer(void);
 void timerUpdate(IntervalTimer*);
 void timerStop(UInteger16,IntervalTimer*);

@@ -234,7 +234,7 @@ void initData(RunTimeOpts*,PtpClock*);
  * \brief Protocol engine
  */
 /* protocol.c */
-void protocol(RunTimeOpts*,PtpClock*);
+Boolean protocol(RunTimeOpts*,PtpClock*);
 /** \}*/
 
 /** \name management.c

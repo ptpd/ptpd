@@ -78,10 +78,6 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	ptpClock->servo.observedDrift = 0;
 #endif /* HAVE_SYS_TIMEX_H */
 
-	/* clear vars */
-
-	ptpClock->lastMessage=NULL;
-
 	/* clean more original filter variables */
 	clearTime(&ptpClock->offsetFromMaster);
 	clearTime(&ptpClock->meanPathDelay);

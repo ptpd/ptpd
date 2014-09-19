@@ -67,7 +67,11 @@ volatile unsigned int elapsed;
  * Timers must now be explicitelly canceled with timerStop (instead of timerStart(0.0))
  */
 
+/*
+ * TODO: Make the timerIntervalThread variables instance specific
+*/
 static pthread_t timerIntervalThread;
+static Boolean runTimerIntervalThread = FALSE;
 
 void
 catch_alarm(int sig)
@@ -79,10 +83,7 @@ catch_alarm(int sig)
 static void*
 incrElapsed( void* arg )
 {
-   /*
-    * TODO: add a function to properly stop this loop when cleaning up prior to exit.
-    */
-   while(1){
+   while(runTimerIntervalThread){
       usleep(US_TIMER_INTERVAL);
       elapsed++;
    }
@@ -92,7 +93,15 @@ incrElapsed( void* arg )
 void
 initThreadedTimer(void)
 {
+   runTimerIntervalThread = TRUE;
    pthread_create( &timerIntervalThread, NULL, &incrElapsed, NULL );
+}
+
+void
+stopThreadedTimer(void)
+{
+   runTimerIntervalThread = FALSE;
+   pthread_join( timerIntervalThread, NULL );
 }
 
 void

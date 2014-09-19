@@ -102,7 +102,7 @@ static Boolean isFromCurrentParent(const PtpClock *ptpClock, const MsgHeader* he
    checked for 'port_state'. the actions and events may or may not change
    'port_state' by calling toState(), but once they are done we loop around
    again and perform the actions required for the new 'port_state'. */
-void
+Boolean
 protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBG("event POWERUP\n");
@@ -152,13 +152,14 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	for (;;)
 	{
-                if( rtOpts->useTimerThread && !rtOpts->run ) {
-                   break;
+                /* Stop the protocol when the run flag is reset */
+                if( !rtOpts->run ) {
+                   return TRUE;
                 }
 
 		if (ptpClock->portState == PTP_INITIALIZING) {
 			if (!doInit(rtOpts, ptpClock)) {
-				return;
+				return FALSE;
 			}
 		} else {
 			doState(rtOpts, ptpClock);
@@ -1070,7 +1071,6 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
         [MANAGEMENT] = handleManagement
     };
 
-
     /* This is what our data will be unpacked to */
     PtpMessage message;
     memset(&message, 0, sizeof(PtpMessage));
@@ -1080,9 +1080,6 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
     message.timeStamp = timeStamp;
     message.messageLength = length;
     message.transportFromSelf =	transport->addressEqual(sourceAddress, &transport->ownAddress);
-
-    /* Attach to ptpClock so we can free up TLVs if we are shutting down */
-    ptpClock->lastMessage = &message;
 
     /*
      * make sure we use the TAI to UTC offset specified, if the
@@ -2202,18 +2199,22 @@ handleManagement(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		return;
 	}
 
-        if(!acceptManagementMessage(ptpClock->portIdentity, message->body.manage.targetPortIdentity))
-        {
-                DBGV("handleManagement: The management message was not accepted");
+	if(!acceptManagementMessage(ptpClock->portIdentity, message->body.manage.targetPortIdentity))
+	{
+		DBGV("handleManagement: The management message was not accepted");
 		ptpClock->counters.discardedMessages++;
-                return;
-        }
+		/* cleanup msgTmp managementTLV */
+		freeManagementTLV(&message->body.manage);
+		return;
+	}
 
 	if(!rtOpts->managementSetEnable &&
 	    (message->body.manage.actionField == SET ||
 	    message->body.manage.actionField == COMMAND)) {
 		DBGV("Dropping SET/COMMAND management message - read-only mode enabled");
 		ptpClock->counters.discardedMessages++;
+		/* cleanup msgTmp managementTLV */
+		freeManagementTLV(&message->body.manage);
 		return;
 	}
 
@@ -2237,6 +2238,8 @@ handleManagement(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		/* do nothing, implemention specific handling */
 		DBGV("handleManagement: Currently unsupported management TLV type\n");
 		ptpClock->counters.discardedMessages++;
+		/* cleanup msgTmp managementTLV */
+		freeManagementTLV(&message->body.manage);
 		return;
 	}
 

@@ -28,6 +28,8 @@
 #ifndef PTPAPI_H_
 #define PTPAPI_H_
 
+#include <stdio.h>
+
 /*
  * Include guard for ptpd types - if ptpd.h was included before, do not
  * redeclare these types.
@@ -58,6 +60,13 @@ typedef void (*ClockAdjustFunc)( Integer32 oldSeconds, Integer32 oldNanoseconds,
                                  void* clientData );
 
 #endif /* PTPD_H_ */
+
+
+/*
+ * TODO: Reconcile the return code convention across all of ptpd when
+ * int is the return type. The ptp_api functions return 0 on success while
+ * the internal ptpd functions return 1 on success and 0 or -1 on failure.
+ */
 
 
 /*
@@ -99,10 +108,28 @@ int ptp_setOptsFromCommandLine( void* session,
 
 
 /*
+ * Test that the network configuration is valid
+ *
+ * Returns 0 on success and non-zero on failure.
+ */
+int ptp_testNetworkConfig( void* session );
+
+
+/*
  * Return 1 if the ptpd session was configured to check the configuration
  * options only, and 0 if configured to run the PTP protocol.
  */
 int ptp_checkConfigOnly( void* session );
+
+
+/*
+ * Prints the current configuration of the ptpd session pointed to by "session"
+ * to the open file handle "out".  stdio and stderr are acceptable file handles.
+ *
+ * Returns 0 on successful write and EOPNOTSUPP if the configuration could not
+ * be written.
+ */
+int ptp_dumpConfig( void* session, FILE* out );
 
 
 /*
@@ -124,7 +151,9 @@ int ptp_run( void* session );
  *
  * Return 0 on successful stop of the protocol, and EOPNOTSUPP (Operation not
  * supported) if the ptpd session was not configured to run the event timer in a
- * separate thread.
+ * separate thread.  If the ptpd session is running the event timer in a
+ * separate thread and the protocol has not stopped after 10 seconds, EBUSY is
+ * returned.
  */
 int ptp_stop( void* session );
 
@@ -196,6 +225,17 @@ int ptp_getGrandmasterClockQuality( void* session,
  */
 int ptp_getPortState( void* session,
                       Enumeration8* portState );
+
+
+/*
+ * Gets the network interface name using the ptpd session pointed to by
+ * "session".
+ *
+ * Returns 0 if successfully set and ENODATA (No data available) if the
+ * ptpd session does not have it available.
+ */
+int ptp_getInterfaceName( void* session,
+                          char** interface );
 
 
 /*

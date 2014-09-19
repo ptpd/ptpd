@@ -124,17 +124,13 @@ void catchSignals(int sig)
 }
 
 /*
- * exit the program cleanly
+ * Exit cleanly - protocol() loops until run is set to "FALSE"
  */
 void
-do_signal_close(PtpClock * ptpClock)
+do_signal_close(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
-	extern RunTimeOpts* G_rtOpts;
-
-        ptpdShutdown(ptpClock, G_rtOpts);
-
 	NOTIFY("Shutdown on close signal\n");
-	exit(0);
+	rtOpts->run = FALSE;
 }
 
 /**
@@ -346,7 +342,7 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 */
 
 	if(sigint_received || sigterm_received){
-		do_signal_close(ptpClock);
+		do_signal_close(rtOpts, ptpClock);
 	}
 
 	if(sighup_received){
@@ -389,16 +385,16 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 /* These functions are useful to temporarily enable Debug around parts of code, similar to bash's "set -x" */
 void enable_runtime_debug(void )
 {
-	extern RunTimeOpts rtOpts;
+	extern RunTimeOpts* G_rtOpts;
 
-	rtOpts.debug_level = max(LOG_DEBUGV, rtOpts.debug_level);
+	G_rtOpts->debug_level = max(LOG_DEBUGV, G_rtOpts->debug_level);
 }
 
 void disable_runtime_debug(void )
 {
-	extern RunTimeOpts rtOpts;
+	extern RunTimeOpts* G_rtOpts;
 
-	rtOpts.debug_level = LOG_INFO;
+	G_rtOpts->debug_level = LOG_INFO;
 }
 #endif
 
@@ -456,12 +452,6 @@ ptpdShutdown(PtpClock * ptpClock, RunTimeOpts* rtOpts)
 	ntpShutdown(rtOpts->ntpOptions, &ptpClock->ntpControl);
 #endif /* PTPD_NTPDC */
 	free(ptpClock->foreign);
-
-	/* free management messages, they can have dynamic memory allocated */
-	if(ptpClock->lastMessage != NULL && ptpClock->lastMessage->header.messageType == MANAGEMENT) {
-           freeManagementTLV(&ptpClock->lastMessage->body.manage);
-        }
-	freeManagementTLV(&ptpClock->outgoingManageTmp);
 
 #ifdef PTPD_SNMP
 	snmpShutdown();
@@ -607,18 +597,23 @@ Boolean setRTOptsFromCommandLine(int argc, char** argv, Integer16* ret, RunTimeO
 	/* we don't need the candidate config any more */
 	dictionary_del(&(rtOpts->candidateConfig));
 
-	/* Check network before going into background */
-	if(!testNetworkConfig(rtOpts)) {
-	    ERROR("Error: Cannot use %s interface\n",rtOpts->ifaceName);
-	    *ret = 1;
-	    goto configcheck;
-	}
-
 configcheck:
 	/*
 	 * We've been told to check config only - clean exit before checking locks
 	 */
 	if(rtOpts->checkConfigOnly) {
+	    /*
+             * Only test the network config when checkConfigOnly is enabled.
+             * The normal startup sequence will check the network config after
+             * the default and configuration file settings are applied.
+             */
+	    if(*ret == 0) {
+		if(!testNetworkConfig(rtOpts)) {
+		    ERROR("Error: Cannot use interface %s.\n",rtOpts->ifaceName);
+		    *ret = 1;
+		}
+	    }
+
 	    if(*ret != 0) {
 		printf("Configuration has errors\n");
 		*ret = 1;
@@ -632,7 +627,6 @@ configcheck:
 fail:
         return FALSE;
 }
-
 
 
 PtpClock *
@@ -837,14 +831,14 @@ ptpdStartup(Integer16 * ret, RunTimeOpts * rtOpts)
  */
 void* ensureMalloc( size_t size, PtpClock* ptpClock ) {
 
-   extern RunTimeOpts* G_rtOpts;
-   void* ptr = malloc( size );
+	extern RunTimeOpts* G_rtOpts;
+	void* ptr = malloc( size );
 
-   if( ptr == NULL ) {
-      PERROR("failed to allocate memory");
-      ptpdShutdown(ptpClock, G_rtOpts);
-      exit(1);
-   }
+	if( ptr == NULL ) {
+		PERROR("failed to allocate memory");
+		ptpdShutdown(ptpClock, G_rtOpts);
+		exit(1);
+	}
 
-   return ptr;
+	return ptr;
 }

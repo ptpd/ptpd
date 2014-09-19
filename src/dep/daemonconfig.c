@@ -1122,7 +1122,14 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 /* ===== ptpengine section ===== */
 
-	CONFIG_KEY_REQUIRED("ptpengine:interface");
+        /*
+         * Enforce specification of an interface only if one has not been set
+         * before. This allows parseConfig() to more easily be called multiple
+         * times to conditionally apply config options from multiple sources.
+         */
+        if(!strlen(rtOpts->ifaceName)) {
+           CONFIG_KEY_REQUIRED("ptpengine:interface");
+        }
 
 	CONFIG_MAP_CHARARRAY("ptpengine:interface",rtOpts->ifaceName,rtOpts->ifaceName,
 	"Network interface to use - eth0, igb0 etc. (required).");
@@ -1754,7 +1761,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 startup and SIGHUP.");
 
 	/* if status file specified, enable status logging*/
-	CONFIG_KEY_TRIGGER("global:status_file",rtOpts->statusLog.logEnabled,TRUE,FALSE);
+	CONFIG_KEY_TRIGGER("global:status_file",rtOpts->statusLog.logEnabled,TRUE,rtOpts->statusLog.logEnabled);
 	CONFIG_MAP_CHARARRAY("global:status_file",rtOpts->statusLog.logPath,rtOpts->statusLog.logPath,
 	"File used to log "PTPD_PROGNAME" status information.");
 	/* status file can be disabled even if specified */
@@ -2271,6 +2278,7 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	    {"lock-directory",	required_argument, 0, 'R'},
 	    {"log-file",	required_argument, 0, 'f'},
 	    {"statistics-file",	required_argument, 0, 'S'},
+	    {"status-file",	required_argument, 0, 'T'},
 	    {"delay-interval",	required_argument, 0, 'r'},
 	    {"delay-override",	no_argument, 	   0, 'a'},
 	    {"debug",		no_argument,	   0, 'D'},
@@ -2295,7 +2303,7 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
          */
         optind = 1;
 
-	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:o:nf:S:r:DvCVHhe:Y:tOLEPAaR:l:p", long_options, &opt_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:o:nf:S:T:r:DvCVHhe:Y:tOLEPAaR:l:p", long_options, &opt_index)) != -1) {
 	    switch(c) {
 /* non-config options first */
 
@@ -2390,6 +2398,10 @@ short_help:
 		/* statistics file */
 		case 'S':
 			dictionary_set(dict,"global:statistics_file", optarg);
+			break;
+		/* status file */
+		case 'T':
+			dictionary_set(dict,"global:status_file", optarg);
 			break;
 		/* Override delay request interval from master */
 		case 'a':
@@ -2516,49 +2528,49 @@ printShortHelp()
 			"\n"
 			"Basic options: \n"
 			"\n"
-			"-c --config-file [path] 	Configuration file\n"
-			"-k --check-config		Check configuration and exit\n"
-			"-v --version			Print version string\n"
-			"-h --help			Show this help screen\n"
-			"-H --long-help			Show detailed help for all settings and behaviours\n"
-			"-e --explain [section:key]	Show help for a single setting\n"
-			"-O --default-config		Output default configuration (usable as config file)\n"
-			"-L --ignore-lock		Skip lock file checks and locking\n"
-			"-A --auto-lock			Use preset / port mode specific lock files\n"
-			"-l --lockfile [path]		Specify path to lock file\n"
-			"-p --print-lockfile		Print path to lock file and exit (useful for init scripts)\n"
-			"-R --lock-directory [path]	Directory to store lock files\n"
-			"-f --log-file [path]		global:log_file=[path]		Log file\n"
-			"-S --statistics-file [path]	global:statistics_file=[path]	Statistics file\n"
+			"-c --config-file [path]      Configuration file\n"
+			"-k --check-config            Check configuration and exit\n"
+			"-v --version                 Print version string\n"
+			"-h --help                    Show this help screen\n"
+			"-H --long-help               Show detailed help for all settings and behaviours\n"
+			"-e --explain [section:key]   Show help for a single setting\n"
+			"-O --default-config          Output default configuration (usable as config file)\n"
+			"-L --ignore-lock             Skip lock file checks and locking\n"
+			"-A --auto-lock               Use preset / port mode specific lock files\n"
+			"-l --lockfile [path]         Specify path to lock file\n"
+			"-p --print-lockfile          Print path to lock file and exit (useful for init scripts)\n"
+			"-R --lock-directory [path]   Directory to store lock files\n"
+			"-f --log-file [path]         global:log_file=[path]           Log file\n"
+			"-S --statistics-file [path]  global:statistics_file=[path]    Statistics file\n"
+			"-T --status-file [path]      global:status_file=[path]        Status file\n"
 			"\n"
 			"Basic PTP protocol and daemon configuration options: \n"
 			"\n"
-			"Command-line option		Config key			Description\n"
+			"Command-line option          Config key                       Description\n"
 			"------------------------------------------------------------------------------------\n"
 
-			"-i --interface [dev]		ptpengine:interface=<dev>	Interface to use (required)\n"
-			"-d --domain [n] 		ptpengine:domain=<n>		PTP domain number\n"
-			"-s --slaveonly	 	 	ptpengine:preset=slaveonly	Slave only mode\n"
-			"-m --masterslave 		ptpengine:preset=masterslave	Master, slave when not best GM\n"
-			"-M --masteronly 		ptpengine:preset=masteronly	Master, passive when not best GM\n"
-			"-y --hybrid			ptpengine:transport_mode=hybrid	Hybrid mode (multicast for sync\n"
-			"								and announce, unicast for delay\n"
-			"								request and response)\n"
-			"-u --unicast [IP]		ptpengine:transport_mode=unicast	Unicast mode (send all messages to [IP])\n"
-			"				ptpengine:unicast_address=<IP>\n\n"
-			"-E --e2e			ptpengine:delay_mechanism=E2E	End to end delay detection\n"
-			"-P --p2p			ptpengine:delay_mechanism=P2P	Peer to peer delay detection\n"
+			"-i --interface [dev]         ptpengine:interface=<dev>        Interface to use (required)\n"
+			"-d --domain [n]              ptpengine:domain=<n>             PTP domain number\n"
+			"-s --slaveonly               ptpengine:preset=slaveonly       Slave only mode\n"
+			"-m --masterslave             ptpengine:preset=masterslave     Master, slave when not best GM\n"
+			"-M --masteronly              ptpengine:preset=masteronly      Master, passive when not best GM\n"
+			"-y --hybrid                  ptpengine:transport_mode=hybrid  Hybrid mode (multicast for sync\n"
+			"                                                              and announce, unicast for delay\n"
+			"                                                              request and response)\n"
+			"-u --unicast [IP]            ptpengine:transport_mode=unicast Unicast mode (send all messages to [IP])\n"
+			"                             ptpengine:unicast_address=<IP>\n\n"
+			"-E --e2e                     ptpengine:delay_mechanism=E2E    End to end delay detection\n"
+			"-P --p2p                     ptpengine:delay_mechanism=P2P    Peer to peer delay detection\n"
 			"\n"
-			"-a --delay-override 		ptpengine:log_delayreq_override Override delay request interval\n"
-			"                                                               announced by master\n"
-			"-r --delay-interval [n] 	ptpengine:log_delayreq_interval=<n>	Delay request interval\n"
-			"									(log 2)\n"
+			"-a --delay-override          ptpengine:log_delayreq_override  Override delay request interval\n"
+			"                                                              announced by master\n"
+			"-r --delay-interval [n]      ptpengine:log_delayreq_interval=<n> Delay request interval (log 2)\n"
 			"\n"
-			"-n --noadjust			clock:no_adjust			Do not adjust the clock\n"
-			"-D<DD...> --debug		global:debug_level=<level>	Debug level\n"
-			"-C --foreground			global:foreground=<Y/N>		Don't run in background\n"
-			"-V --verbose			global:verbose_foreground=<Y/N>	Run in foreground, log all\n"
-			"								messages to standard output\n"
+			"-n --noadjust                clock:no_adjust                  Do not adjust the clock\n"
+			"-D<DD...> --debug            global:debug_level=<level>       Debug level\n"
+			"-C --foreground              global:foreground=<Y/N>          Don't run in background\n"
+			"-V --verbose                 global:verbose_foreground=<Y/N>  Run in foreground, log all\n"
+			"                                                              messages to standard output\n"
 			"\n"
 			"------------------------------------------------------------------------------------\n"
 			"\n"
@@ -2581,14 +2593,14 @@ printShortHelp()
 			"\n"
 			USER_DESCRIPTION" compatibility options for migration from versions below 2.3.0:\n"
 			"\n"
-			"-b [dev]			Network interface to use\n"
-			"-i [n]				PTP domain number\n"
-			"-g				Slave only mode (ptpengine:preset=slaveonly)\n"
-			"-G				'Master mode with NTP' (ptpengine:preset=masteronly)\n"
-			"-W				'Master mode without NTP' (ptpengine:preset=masterslave) \n"
-			"-U				Hybrid mode\n"
-			"-Y [n]				Delay request interval (log 2)\n"
-			"-t 				Do not adjust the clock\n"
+			"-b [dev]                     Network interface to use\n"
+			"-i [n]                       PTP domain number\n"
+			"-g                           Slave only mode (ptpengine:preset=slaveonly)\n"
+			"-G                           'Master mode with NTP' (ptpengine:preset=masteronly)\n"
+			"-W                           'Master mode without NTP' (ptpengine:preset=masterslave) \n"
+			"-U                           Hybrid mode\n"
+			"-Y [n]                       Delay request interval (log 2)\n"
+			"-t                           Do not adjust the clock\n"
 			"\n"
 			"Note: the above parameters are deprecated and their use will issue a warning.\n"
 			"\n\n"
@@ -2625,15 +2637,15 @@ printLongHelp()
 		"  SIGHUP         Reload configuration file and close / re-open log files\n"
 		"  SIGUSR1        Manually step clock to current OFM value\n"
 		"                 (overides clock:no_reset, but honors clock:no_adjust)\n"
-		"  SIGUSR2	  Dump all PTP protocol counters to current log target\n"
+		"  SIGUSR2        Dump all PTP protocol counters to current log target\n"
 		"                 (and clear if ptpengine:sigusr2_clears_counters set)\n"
 		"\n"
 		"  SIGINT|SIGTERM Close open files, remove lock file and exit cleanly\n"
 		"  SIGKILL        Force an unclean exit\n"
-				"\n"
+		"\n"
 		"BMC Algorithm defaults:\n"
 		"  Software:   P1(128) > Class(13|248) > Accuracy(\"unk\"/0xFE)   > Variance(65536) > P2(128)\n"
-		    );
+		);
 
 }
 
