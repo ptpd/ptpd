@@ -358,6 +358,20 @@ Override the Delay Request interval announced by best master.
 .RE
 .RS 0
 .TP 8
+\fBptpengine:log_delayreq_auto [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Automatically override the Delay Request interval (with \fI ptpengine:log_delayreq_interval\fR)
+if the received value is 127 (0X7F), such as in unicast messages
+.TP 8
+\fBdefault\fR
+\fIY\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:log_delayreq_interval_initial [\fIINT\fB: -7 .. 7]\fR
 .RS 8
 .TP 8

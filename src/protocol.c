@@ -417,7 +417,8 @@ toState(UInteger8 state, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		} else {
                         ptpClock->listenCount++;
                         if( ptpClock->listenCount >= rtOpts->maxListen ) {
-                            WARNING("Stilll in LISTENING after x restarts - will do a full network reset\n");
+                            WARNING("Still in LISTENING after %d restarts - will do a full network reset\n",
+				    rtOpts->maxListen);
                             toState(PTP_FAULTY, rtOpts, ptpClock);
                             ptpClock->listenCount = 0;
                             break;
@@ -2012,18 +2013,26 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 				if (rtOpts->ignore_delayreq_interval_master == 0) {
 					DBGV("current delay_req: %d  new delay req: %d \n",
 						ptpClock->logMinDelayReqInterval,
-						header->logMessageInterval);
+					header->logMessageInterval);
+                        	    if (ptpClock->logMinDelayReqInterval != header->logMessageInterval) {
+			
+                    			if(header->logMessageInterval == UNICAST_MESSAGEINTERVAL &&
+						rtOpts->autoDelayReqInterval) {
+						NOTICE("Received %d Delay Interval from master - overriding with %d\n",
+							header->logMessageInterval, rtOpts->subsequent_delayreq);
+						ptpClock->logMinDelayReqInterval = rtOpts->subsequent_delayreq;
 
-					/* Accept new DelayReq value from the Master */
-					if (ptpClock->logMinDelayReqInterval != header->logMessageInterval) {
+					} else {
+						/* Accept new DelayReq value from the Master */
+
 						NOTICE("Received new Delay Request interval %d from Master (was: %d)\n",
 							 header->logMessageInterval, ptpClock->logMinDelayReqInterval );
-					}
 
-					// collect new value indicated from the Master
-					ptpClock->logMinDelayReqInterval = header->logMessageInterval;
-					
+						// collect new value indicated from the Master
+						ptpClock->logMinDelayReqInterval = header->logMessageInterval;
+					}
 					/* FIXME: the actual rearming of this timer with the new value only happens later in doState()/issueDelayReq() */
+				    }
 				} else {
 
 					if (ptpClock->logMinDelayReqInterval != rtOpts->subsequent_delayreq) {
@@ -3082,6 +3091,12 @@ updateDatasets(PtpClock* ptpClock, RunTimeOpts* rtOpts)
 		 * by m1() if we go master - basically update the fields affecting BMC only
 		 */
 		case PTP_SLAVE:
+                    	if(ptpClock->logMinDelayReqInterval == UNICAST_MESSAGEINTERVAL &&
+				rtOpts->autoDelayReqInterval) {
+					NOTICE("Running at %d Delay Interval - overriding with %d\n",
+					ptpClock->logMinDelayReqInterval, rtOpts->subsequent_delayreq);
+					ptpClock->logMinDelayReqInterval = rtOpts->subsequent_delayreq;
+				}
 		case PTP_PASSIVE:
 			ptpClock->numberPorts = NUMBER_PORTS;
 			ptpClock->delayMechanism = rtOpts->delayMechanism;

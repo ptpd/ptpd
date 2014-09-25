@@ -1,5 +1,5 @@
 ; ========================================
-; PTPDv2 version 2.3.1-rc2 default configuration
+; PTPDv2 version 2.3.1-rc3 default configuration
 ; ========================================
 
 ; NOTE: the following settings are affected by ptpengine:preset selection:
@@ -105,6 +105,11 @@ ptpengine:log_sync_interval = 0
 ; Override the Delay Request interval announced by best master.
 ptpengine:log_delayreq_override = N
 
+; Automatically override the Delay Request interval
+; if the announced value is 127 (0X7F), such as in
+; unicast messages,
+ptpengine:log_delayreq_auto = Y
+
 ; Delay request interval used before receiving first delay response
 ; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_delayreq_interval_initial = 0
@@ -167,6 +172,10 @@ ptpengine:priority1 = 128
 ; Priority 2 announced in master state, used for Best Master
 ; Clock selection.
 ptpengine:priority2 = 128
+
+; Number of consecutive resets to LISTENING before full network reset
+; 
+ptpengine:max_listen = 5
 
 ; Specify unicast destination for unicast master mode (in unicast slave mode,
 ; overrides delay request destination).
@@ -371,11 +380,18 @@ ptpengine:timing_acl_order = deny-permit
 ; Options: permit-deny deny-permit 
 ptpengine:management_acl_order = deny-permit
 
-; Do not adjust the clock.
+; Do not adjust the clock
 clock:no_adjust = N
 
-; Do not reset the clock - only slew.
+; Do not step the clock - only slew
 clock:no_reset = N
+
+; Force clock step on first sync after startup regardless of offset and clock:no_reset
+clock:step_startup_force = N
+
+; Step clock on startup if offset >= 1 second, ignoring
+; panic mode and clock:no_reset
+clock:step_startup = N
 
 ; Attempt setting the RTC when stepping clock (Linux only - FreeBSD does 
 ; this for us. WARNING: this will always set the RTC to OS clock time,

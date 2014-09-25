@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Wojciech Owczarek,
+ * Copyright (c) 2013-2014 Wojciech Owczarek,
  *
  * All Rights Reserved
  * 
@@ -842,6 +842,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->ttl = 64;
 	rtOpts->delayMechanism   = DEFAULT_DELAY_MECHANISM;
 	rtOpts->noResetClock     = DEFAULT_NO_RESET_CLOCK;
+	rtOpts->stepOnce	 = FALSE;
+	rtOpts->stepForce	 = FALSE;
 #ifdef HAVE_LINUX_RTC_H
 	rtOpts->setRtc		 = FALSE;
 #endif /* HAVE_LINUX_RTC_H */
@@ -851,7 +853,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
 	rtOpts->subsequent_delayreq = DEFAULT_DELAYREQ_INTERVAL;      // this will be updated if -g is given
-
+	rtOpts->autoDelayReqInterval = TRUE;
 	rtOpts->masterRefreshInterval = 60;
 
 	rtOpts->drift_recovery_method = DRIFT_KERNEL;
@@ -896,7 +898,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->oFilterMSOpts.enabled = FALSE;
 	rtOpts->oFilterMSOpts.discard = FALSE;
-	rtOpts->oFilterMSOpts.autoTune = FALSE;	
+	rtOpts->oFilterMSOpts.autoTune = FALSE;
 	rtOpts->oFilterMSOpts.capacity = 20;
 	rtOpts->oFilterMSOpts.threshold = 1.0;
 	rtOpts->oFilterMSOpts.weight = 1;
@@ -1302,6 +1304,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	rtOpts->ignore_delayreq_interval_master,
 		 "Override the Delay Request interval announced by best master.");
 
+	CONFIG_MAP_BOOLEAN("ptpengine:log_delayreq_auto", rtOpts->autoDelayReqInterval,
+	rtOpts->autoDelayReqInterval,
+		 "Automatically override the Delay Request interval\n"
+	"         if the announced value is 127 (0X7F), such as in\n"
+	"         unicast messages,");
+
 	CONFIG_MAP_INT_RANGE("ptpengine:log_delayreq_interval_initial",rtOpts->initial_delayreq,rtOpts->initial_delayreq,
 		"Delay request interval used before receiving first delay response\n"
 	"	"LOG2_HELP,-7,7);
@@ -1695,10 +1703,18 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 /* ===== clock section ===== */
 
 	CONFIG_MAP_BOOLEAN("clock:no_adjust",rtOpts->noAdjust,ptpPreset.noAdjust,
-	"Do not adjust the clock.");
+	"Do not adjust the clock");
 
 	CONFIG_MAP_BOOLEAN("clock:no_reset",rtOpts->noResetClock,rtOpts->noResetClock,
-	"Do not reset the clock - only slew.");
+	"Do not step the clock - only slew");
+
+	CONFIG_MAP_BOOLEAN("clock:step_startup_force",rtOpts->stepForce,rtOpts->stepForce,
+	"Force clock step on first sync after startup regardless of offset and clock:no_reset");
+
+	CONFIG_MAP_BOOLEAN("clock:step_startup",rtOpts->stepOnce,rtOpts->stepOnce,
+		"Step clock on startup if offset >= 1 second, ignoring\n"
+	"        panic mode and clock:no_reset");
+
 
 #ifdef HAVE_LINUX_RTC_H
 	CONFIG_MAP_BOOLEAN("clock:set_rtc_on_step",rtOpts->setRtc,rtOpts->setRtc,
@@ -2823,6 +2839,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 
         COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_interval",   PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_override",   PTPD_UPDATE_DATASETS );
+        COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_auto",   	PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:foreignrecord_capacity", 	PTPD_RESTART_DAEMON );
         COMPONENT_RESTART_REQUIRED("ptpengine:ptp_allan_variance",    	PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:ptp_clock_accuracy",    	PTPD_UPDATE_DATASETS );
@@ -2897,6 +2914,9 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 
 //        COMPONENT_RESTART_REQUIRED("clock:no_adjust",    		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:no_reset",     		PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("clock:step_startup_force",     		PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("clock:step_startup",     		PTPD_RESTART_NONE );
+
 #ifdef HAVE_LINUX_RTC_H
 //        COMPONENT_RESTART_REQUIRED("clock:set_rtc_on_step",  		PTPD_RESTART_NONE );
 #endif /* HAVE_LINUX_RTC_H */

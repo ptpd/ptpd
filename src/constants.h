@@ -13,7 +13,7 @@
 
 /* FIXME: make these parameterized, either through command-line options or make variables */
  #define MANUFACTURER_ID \
-  "ptpd.sf.net;2.3.0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+  "ptpd.sf.net;2.3.1\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 #define MANUFACTURER_ID_OUI0 \
   0xFF
 #define MANUFACTURER_ID_OUI1 \
@@ -94,7 +94,7 @@ section 7.6.2.5, page 56:
 //#define DEFAULT_CLOCK_VARIANCE 	        28768 /* To be determined in 802.1AS. */
 #define DEFAULT_CLOCK_VARIANCE			0xFFFF                                             
 
-
+#define UNICAST_MESSAGEINTERVAL 0x7F
 #define MAX_FOLLOWUP_GAP 3
 #define DEFAULT_MAX_FOREIGN_RECORDS  	5
 #define DEFAULT_PARENTS_STATS			FALSE

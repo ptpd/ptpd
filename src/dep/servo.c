@@ -827,14 +827,20 @@ updateClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	    DBG("Panic mode - skipping updateClock");
 	}
 
+	if(!ptpClock->pastStartup && (
+	    rtOpts->stepForce || (rtOpts->stepOnce && ptpClock->offsetFromMaster.seconds)
+	    )) {
+	    if(rtOpts->stepForce) WARNING("First clock update - will step the clock\n");
+	    if(rtOpts->stepOnce) WARNING("First clock update and offset >= 1 second - will step the clock\n");
+	    servo_perform_clock_step(rtOpts, ptpClock);
+	    ptpClock->pastStartup = TRUE;
+	    goto display;
+	}
+
 #ifdef PTPD_STATISTICS
 if(ptpClock->oFilterMS.lastOutlier) goto statistics;
 #endif
 
-/*
-if(rtOpts->oFilterMSOpts.enabled && rtOpts->oFilterMSOpts.discard && ptpClock->oFilterMS.lastOutlier)
-	    goto display;
-*/
 	if (rtOpts->maxReset) { /* If maxReset is 0 then it's OFF */
 		if (ptpClock->offsetFromMaster.seconds && rtOpts->maxReset) {
 			INFO("updateClock aborted, offset greater than 1"
@@ -857,6 +863,10 @@ if(rtOpts->oFilterMSOpts.enabled && rtOpts->oFilterMSOpts.discard && ptpClock->o
 
 	if (ptpClock->offsetFromMaster.seconds) {
 		/* if secs, reset clock or set freq adjustment to max */
+
+		if(rtOpts->stepOnce && !ptpClock->pastStartup) {
+		    
+		}
 		
 		/* 
 		  if offset from master seconds is non-zero, then this is a "big jump:
@@ -1011,6 +1021,8 @@ if(rtOpts->clockUpdateTimeout > 0) {
 	    DBG("Restarted clock update timeout timer\n");
             timerStart(CLOCK_UPDATE_TIMER,rtOpts->clockUpdateTimeout,ptpClock->itimer);
 }
+
+    ptpClock->pastStartup = TRUE;
 
 
 /* Update relevant statistics containers, feed outlier filter thresholds etc. */

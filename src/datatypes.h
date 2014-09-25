@@ -1,7 +1,7 @@
 #ifndef DATATYPES_H_
 #define DATATYPES_H_
 
-#include <stdio.h> 
+#include <stdio.h>
 #include <dep/iniparser/dictionary.h>
 #ifdef PTPD_STATISTICS
 #include <dep/statistics.h>
@@ -769,6 +769,8 @@ typedef struct {
 	int waiting_for_first_delayresp;                /* Just for information purposes */
 	Boolean startup_in_progress;
 
+	Boolean pastStartup;				/* we've set the clock already, at least once */
+
 	uint32_t init_timestamp;                        /* When the clock was last initialised */
 	Integer32 stabilisation_time;                   /* How long (seconds) it took to stabilise the clock */
 	double last_saved_drift;                     /* Last observed drift value written to file */
@@ -861,7 +863,9 @@ typedef struct {
 	Octet backupIfaceName[IFACE_NAME_LENGTH];
 	Boolean backupIfaceEnabled;
 
-	Boolean	noResetClock;
+	Boolean	noResetClock; // don't step the clock if offset > 1s
+	Boolean stepForce; // force clock step on first sync after startup
+	Boolean stepOnce; // only step clock on first sync after startup
 #ifdef linux
 	Boolean setRtc;
 #endif /* linux */
@@ -917,6 +921,7 @@ typedef struct {
 	int initial_delayreq;
 	int subsequent_delayreq;
 	Boolean ignore_delayreq_interval_master;
+	Boolean autoDelayReqInterval;
 
 	Boolean autoLockFile; /* mode and interface specific lock files are used
 				    * when set to TRUE */
