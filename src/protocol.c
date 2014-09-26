@@ -637,7 +637,7 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 Boolean 
 doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	static char* filterMask = FILTER_MASK;
+	char filterMask[200];
 
 	DBG("manufacturerIdentity: %s\n", MANUFACTURER_ID);
 	DBG("manufacturerOUI: %02hhx:%02hhx:%02hhx \n",
@@ -662,7 +662,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		return FALSE;
 	}
 
-	filterMask[0]=0;
+	strncpy(filterMask,FILTER_MASK,199);
 
 #ifdef PTPD_NTPDC
 
@@ -2008,7 +2008,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 				updateDelay(&ptpClock->owd_filt,
 					    rtOpts,ptpClock, &correctionField);
 				if (ptpClock->waiting_for_first_delayresp) {
-					ptpClock->waiting_for_first_delayresp = FALSE;
+
 					NOTICE("Received first Delay Response from Master\n");
 				}
 
@@ -2020,8 +2020,10 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 			
                     			if(header->logMessageInterval == UNICAST_MESSAGEINTERVAL &&
 						rtOpts->autoDelayReqInterval) {
-						NOTICE("Received %d Delay Interval from master - overriding with %d\n",
+						if(ptpClock->waiting_for_first_delayresp) {
+							NOTICE("Received %d Delay Interval from master (unicast) - overriding with %d\n",
 							header->logMessageInterval, rtOpts->subsequent_delayreq);
+						}
 						ptpClock->logMinDelayReqInterval = rtOpts->subsequent_delayreq;
 
 					} else {
@@ -2048,6 +2050,8 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 				ptpClock->counters.discardedMessages++;
 				break;
 			}
+			
+			ptpClock->waiting_for_first_delayresp = FALSE;		
 		}
 	} else if (ptpClock->delayMechanism == P2P) { /* (Peer to Peer mode) */
 		DBG("Delay messages are disregarded in Peer to Peer mode \n");
@@ -3095,7 +3099,7 @@ updateDatasets(PtpClock* ptpClock, RunTimeOpts* rtOpts)
 		case PTP_SLAVE:
                     	if(ptpClock->logMinDelayReqInterval == UNICAST_MESSAGEINTERVAL &&
 				rtOpts->autoDelayReqInterval) {
-					NOTICE("Running at %d Delay Interval - overriding with %d\n",
+					NOTICE("Running at %d Delay Interval (unicast) - overriding with %d\n",
 					ptpClock->logMinDelayReqInterval, rtOpts->subsequent_delayreq);
 					ptpClock->logMinDelayReqInterval = rtOpts->subsequent_delayreq;
 				}
