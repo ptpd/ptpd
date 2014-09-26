@@ -1323,6 +1323,34 @@ Do not reset the clock - only slew.
 .RE
 .RS 0
 .TP 8
+\fBclock:step_startup_force [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Force clock step on first sync after startup regardless of offset and 
+\fIclock:no_reset\fR
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBclock:step_startup [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Step clock on startup only if offset >= 1 second, ignoring
+panic mode and \fIclock:no_reset\fR
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBclock:set_rtc_on_step [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8

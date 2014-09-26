@@ -637,6 +637,8 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 Boolean 
 doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
+	static char* filterMask = FILTER_MASK;
+
 	DBG("manufacturerIdentity: %s\n", MANUFACTURER_ID);
 	DBG("manufacturerOUI: %02hhx:%02hhx:%02hhx \n",
 		MANUFACTURER_ID_OUI0,
@@ -654,13 +656,13 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 
 
-
 	if (!netInit(&ptpClock->netPath, rtOpts, ptpClock)) {
 		ERROR("Failed to initialize network\n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 		return FALSE;
 	}
-	
+
+	filterMask[0]=0;
 
 #ifdef PTPD_NTPDC
 
