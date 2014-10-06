@@ -8,6 +8,22 @@
 
 #include "../ptpd.h"
 
+static int cmpInt32 (const void *vA, const void *vB) {
+
+	int32_t a = *(int32_t*)vA;
+	int32_t b = *(int32_t*)vB;
+
+	return ((a < b) ? -1 : (a > b) ? 1 : 0);
+}
+
+static int cmpDouble (const void *vA, const void *vB) {
+
+	double a = *(double*)vA;
+	double b = *(double*)vB;
+
+	return ((a < b) ? -1 : (a > b) ? 1 : 0);
+}
+
 void
 resetIntPermanentMean(IntPermanentMean* container) {
 
@@ -380,6 +396,152 @@ feedDoubleMovingStdDev(DoubleMovingStdDev* container, double sample)
 	}
 
 	return container->stdDev;
+
+}
+
+IntMovingMedian* createIntMovingMedian(int capacity)
+{
+
+	IntMovingMedian* container;
+	if ( !(container = calloc (1, sizeof(IntMovingMedian))) ) {
+		return NULL;
+	}
+
+	if((container->meanContainer = createIntMovingMean(capacity))
+		== NULL) {
+		free(container);
+		return NULL;
+	}
+
+	return container;
+
+}
+
+void
+freeIntMovingMedian(IntMovingMedian** container)
+{
+
+	freeIntMovingMean(&((*container)->meanContainer));
+	free(*container);
+	*container = NULL;
+
+}
+
+void
+resetIntMovingMedian(IntMovingMedian* container)
+{
+
+	if(container == NULL)
+	    return;
+	resetIntMovingMean(container->meanContainer);
+	container->median = 0;
+
+}
+
+int32_t
+feedIntMovingMedian(IntMovingMedian* container, int32_t sample)
+{
+
+	if(container == NULL)
+		return 0;
+
+	feedIntMovingMean(container->meanContainer, sample);
+
+	int count = container->meanContainer->count;
+
+	int32_t sortedSamples[count];
+
+	Boolean odd = ((count %2 ) == 1);
+	
+	memcpy(sortedSamples, container->meanContainer->samples, count * sizeof(sample));
+
+	qsort(sortedSamples, count, sizeof(sample), cmpInt32);
+
+	if(odd) {
+
+		container->median = sortedSamples[(count / 2)];
+
+	} else {
+
+		container->median = (sortedSamples[(count / 2) - 1] + sortedSamples[(count / 2)]) / 2;
+
+	}
+
+	return container->median;
+
+}
+
+DoubleMovingMedian* createDoubleMovingMedian(int capacity)
+{
+
+	DoubleMovingMedian* container;
+	if ( !(container = calloc (1, sizeof(DoubleMovingMedian))) ) {
+		return NULL;
+	}
+
+	if((container->meanContainer = createDoubleMovingMean(capacity))
+		== NULL) {
+		free(container);
+		return NULL;
+	}
+
+	return container;
+
+}
+
+void
+freeDoubleMovingMedian(DoubleMovingMedian** container)
+{
+
+	freeDoubleMovingMean(&((*container)->meanContainer));
+	free(*container);
+	*container = NULL;
+
+}
+
+void
+resetDoubleMovingMedian(DoubleMovingMedian* container)
+{
+
+	if(container == NULL)
+	    return;
+	resetDoubleMovingMean(container->meanContainer);
+	container->median = 0;
+
+}
+
+double
+feedDoubleMovingMedian(DoubleMovingMedian* container, double sample)
+{
+
+	if(container == NULL)
+		return 0;
+
+	feedDoubleMovingMean(container->meanContainer, sample);
+
+	int count = container->meanContainer->count;
+
+	double sortedSamples[count];
+
+	Boolean odd = ((count %2 ) == 1);
+
+	memcpy(sortedSamples, container->meanContainer->samples, count * sizeof(sample));
+
+	qsort(sortedSamples, count, sizeof(sample), cmpDouble);
+
+	if(odd) {
+
+		container->median = sortedSamples[(count / 2)];
+
+	} else {
+
+		container->median = (sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2;
+
+	}
+
+	DBGV("Median sample %.09f median %.09f\n", sample, container->median);
+
+	return container->median;
 
 }
 

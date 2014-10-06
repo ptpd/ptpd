@@ -815,6 +815,8 @@ typedef struct {
 	OutlierFilter 	oFilterMS;
 	OutlierFilter	oFilterSM;
 
+	DoubleMovingMedian *filterMS;
+
 	Integer32 lastSyncCounter;
 
 	int statsUpdates;
@@ -981,6 +983,9 @@ typedef struct {
 
 	OutlierFilterOptions oFilterMSOpts;
 	OutlierFilterOptions oFilterSMOpts;
+
+	Boolean medianFilter;
+	int medianFilterCapacity;
 
 	int calibrationDelay;
 

@@ -97,6 +97,24 @@ typedef struct {
 
 } DoubleMovingStdDev;
 
+typedef struct {
+
+	IntMovingMean* meanContainer;
+	int32_t median;
+	int32_t* sortedSamples;
+	char* identifier[10];
+
+} IntMovingMedian;
+
+typedef struct {
+
+	DoubleMovingMean* meanContainer;
+	double median;
+	double* sortedSamples;
+	char* identifier[10];
+
+} DoubleMovingMedian;
+
 IntMovingMean* createIntMovingMean(int capacity);
 void freeIntMovingMean(IntMovingMean** container);
 void resetIntMovingMean(IntMovingMean* container);
@@ -107,7 +125,6 @@ void freeIntMovingStdDev(IntMovingStdDev** container);
 void resetIntMovingStdDev(IntMovingStdDev* container);
 int32_t feedIntMovingStdDev(IntMovingStdDev* container, int32_t sample);
 
-
 DoubleMovingMean* createDoubleMovingMean(int capacity);
 void freeDoubleMovingMean(DoubleMovingMean** container);
 void resetDoubleMovingMean(DoubleMovingMean* container);
@@ -117,6 +134,16 @@ DoubleMovingStdDev* createDoubleMovingStdDev(int capacity);
 void freeDoubleMovingStdDev(DoubleMovingStdDev** container);
 void resetDoubleMovingStdDev(DoubleMovingStdDev* container);
 double feedDoubleMovingStdDev(DoubleMovingStdDev* container, double sample);
+
+IntMovingMedian* createIntMovingMedian(int capacity);
+void freeIntMovingMedian(IntMovingMedian** container);
+void resetIntMovingMedian(IntMovingMedian* container);
+int32_t feedIntMovingMedian(IntMovingMedian* container, int32_t sample);
+
+DoubleMovingMedian* createDoubleMovingMedian(int capacity);
+void freeDoubleMovingMedian(DoubleMovingMedian** container);
+void resetDoubleMovingMedian(DoubleMovingMedian* container);
+double feedDoubleMovingMedian(DoubleMovingMedian* container, double sample);
 
 void intStatsTest(int32_t sample);
 void doubleStatsTest(double sample);

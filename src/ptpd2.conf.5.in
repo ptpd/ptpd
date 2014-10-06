@@ -694,6 +694,32 @@ this option is not used. Use 46 for Expedited Forwarding (0x2e).
 .RE
 .RS 0
 .TP 8
+\fBptpengine:sync_median_filter_enable [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Enable median filtering (smoothing filter) for Sync messages
+.TP 8
+\fBdefault\fR
+\fIY\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_median_filter_samples [\fIINT\fB: 3 .. 100]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Number of samples to take median from when filtering Sync messages
+.TP 8
+\fBdefault\fR
+\fI3\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:delay_outlier_filter_enable [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8

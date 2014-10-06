@@ -920,6 +920,9 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->oFilterSMOpts.minThreshold = 0.1;
 	rtOpts->oFilterSMOpts.maxThreshold = 5.0;
 
+	rtOpts->medianFilter = TRUE;
+	rtOpts->medianFilterCapacity = 3;
+
 	/* How often refresh statistics (seconds) */
 	rtOpts->statsUpdateInterval = 5;
 	/* Servo stability detection settings follow */
@@ -1476,6 +1479,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 this option is not used. Use 46 for Expedited Forwarding (0x2e).",0,63);
 
 #ifdef PTPD_STATISTICS
+
+	CONFIG_MAP_BOOLEAN("ptpengine:sync_median_filter_enable",rtOpts->medianFilter,rtOpts->medianFilter,
+		 "Enable median filtering / smoothing filter for Sync messages.");
+
+	CONFIG_MAP_INT_RANGE("ptpengine:sync_median_filter_samples",rtOpts->medianFilterCapacity,rtOpts->medianFilterCapacity,
+		"Number of samples to take median from when filtering Sync messages.",3,100);
 
 	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_enable",rtOpts->oFilterSMOpts.enabled,rtOpts->oFilterSMOpts.enabled,
 		 "Enable outlier filter for the Delay Response component in slave state");
@@ -2869,6 +2878,9 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 #endif /* PTPD_SNMP */
 
 #ifdef PTPD_STATISTICS
+
+          COMPONENT_RESTART_REQUIRED("ptpengine:sync_median_filter_enable",     PTPD_RESTART_PEIRCE );
+          COMPONENT_RESTART_REQUIRED("ptpengine:sync_median_filter_samples",     PTPD_RESTART_PEIRCE );
           COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_enable",     PTPD_RESTART_PEIRCE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_action",    	PTPD_RESTART_NONE );
           COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_capacity",  	PTPD_RESTART_PEIRCE );

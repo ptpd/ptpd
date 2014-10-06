@@ -213,8 +213,14 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				oFilterDestroy(&ptpClock->oFilterMS);
 				oFilterDestroy(&ptpClock->oFilterSM);
 
+                                freeDoubleMovingMedian(&ptpClock->filterMS);
+
 				oFilterInit(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts, "Sync");
 				oFilterInit(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts, "Delay");
+
+				if(rtOpts->medianFilter) {
+					ptpClock->filterMS = createDoubleMovingMedian(rtOpts->medianFilterCapacity);
+				}
 
         	}
 #endif /* PTPD_STATISTICS */
@@ -597,6 +603,9 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 #ifdef PTPD_STATISTICS
 		oFilterReset(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts);
 		oFilterReset(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts);
+		if(rtOpts->medianFilter) {
+            	    resetDoubleMovingMedian(ptpClock->filterMS);
+		}
 		clearPtpEngineSlaveStats(&ptpClock->slaveStats);
 		ptpClock->servo.driftMean = 0;
 		ptpClock->servo.driftStdDev = 0;

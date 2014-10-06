@@ -821,6 +821,10 @@ configcheck:
 	oFilterInit(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts, "Sync");
 	oFilterInit(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts, "Delay");
 
+	if(rtOpts->medianFilter) {
+    	    ptpClock->filterMS = createDoubleMovingMedian(rtOpts->medianFilterCapacity);
+	}
+
 #endif
 
 #ifdef PTPD_PCAP

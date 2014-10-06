@@ -522,6 +522,10 @@ ptpClock->oFilterMS.autoTuneSamples++;
 		&ptpClock->delayMS, correctionField);
 
 #ifdef PTPD_STATISTICS
+	if(rtOpts->medianFilter) {
+	    feedDoubleMovingMedian(ptpClock->filterMS, timeInternalToDouble(&ptpClock->delayMS));
+	    ptpClock->delayMS = doubleToTimeInternal(ptpClock->filterMS->median);
+	}
 #endif
 
 	/* update 'offsetFromMaster' */
