@@ -150,7 +150,7 @@ fi
 
 
 %changelog
-* Tue Sep 09 25 2014 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc3
+* Tue Oct 07 2014 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc3
 * Fri Jul 25 2014 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc2
 * Thu Jun 26 2014 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc1
 * Thu Nov 21 2013 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.0-1
