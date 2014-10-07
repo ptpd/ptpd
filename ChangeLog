@@ -1,4 +1,4 @@
-2013-09-01  Wojciech Owczarek <wojciech@owczarek.co.uk>
+2013-10-10  Wojciech Owczarek <wojciech@owczarek.co.uk>
 
 	* 2.3.1 release
 
@@ -17,7 +17,12 @@
 	- added ptpengine:clock_update_timeout setting to reset slave
 	  if no clock updates for a period of time
 	- when running slave-only in unicast mode, unicast address
-	  does not have to be specified   
+	  does not have to be specified - ptpd will wait for a GM and latch onto it
+	- added median filter for the delayMS component (Sync) to further improve
+	  performance under high packet delay variation
+	- automatic Delay Request override for Hybrid and Unicast modes
+	- added options allowing to step the clock on startup
+	- improved sequence and re-ordering checks
 
 	* Bug fixes / improvements since 2.3.0:
 
@@ -41,6 +46,8 @@
 	  and vice versa. In hybrid mode, only unicast Delay Request /
 	  response is accepted; multicast management messages are always
 	  accepted
+	- ptpd will now recover even from critical network failures,
+	  such as reloading drivers
 	- other minor bugs fixed
 
 2013-11-22  George Neville-Neil  <gnn@neville-neil.com>, Wojciech Owczarek <wojciech@owczarek.co.uk>

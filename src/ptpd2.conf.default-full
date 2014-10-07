@@ -204,6 +204,12 @@ ptpengine:multicast_ttl = 64
 ; this option is not used. Use 46 for Expedited Forwarding (0x2e).
 ptpengine:ip_dscp = 0
 
+; Enable median filtering / smoothing filter for Sync messages.
+ptpengine:sync_median_filter_enable = Y
+
+; Number of samples to take median from when filtering Sync messages.
+ptpengine:sync_median_filter_samples = 3
+
 ; Enable outlier filter for the Delay Response component in slave state
 ptpengine:delay_outlier_filter_enable = N
 
