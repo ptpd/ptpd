@@ -435,6 +435,7 @@ writeLockFile(RunTimeOpts * rtOpts)
 	return(1);
 	failure:
 	fclose(G_lockFilePointer);
+        G_lockFilePointer = NULL;
 	return(0);
 
 }
@@ -479,7 +480,6 @@ ptpdShutdown(PtpClock * ptpClock, RunTimeOpts* rtOpts)
         }
 
 	free(ptpClock);
-	ptpClock = NULL;
 
 	extern PtpClock* G_ptpClock;
 	G_ptpClock = NULL;
@@ -487,13 +487,16 @@ ptpdShutdown(PtpClock * ptpClock, RunTimeOpts* rtOpts)
 	/* properly clean lockfile (eventough new deaemons can acquire the lock after we die) */
 	if(!rtOpts->ignore_daemon_lock && G_lockFilePointer != NULL) {
 	    fclose(G_lockFilePointer);
+            G_lockFilePointer = NULL;
 	}
 	unlink(rtOpts->lockFile);
 
 	if(rtOpts->statusLog.logEnabled) {
 		/* close and remove the status file */
-		if(rtOpts->statusLog.logFP != NULL)
+		if(rtOpts->statusLog.logFP != NULL) {
 			fclose(rtOpts->statusLog.logFP);
+                        rtOpts->statusLog.logFP = NULL;
+                }
 		unlink(rtOpts->statusLog.logPath);
 	}
 

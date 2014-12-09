@@ -68,7 +68,7 @@ libptp_SOURCES += dep/ntpengine/ntpdcontrol.h
 endif
 
 #
-# FIXME: in order to create a single ptp lib, add the libcck sources as well.
+# TODO: in order to create a single ptp lib, add the libcck sources as well.
 # Is this better than just exposing libcck and making clients link to 2 libs?
 # Why does libcck need to be a separate lib anyway?
 #
@@ -76,6 +76,7 @@ libcck_la_SOURCES = 			\
 	libcck/cck_types.h		\
 	libcck/cck.h			\
 	libcck/cck_loghandler.h		\
+	libcck/cck_loghandler.c		\
 	libcck/cck_component.h		\
 	libcck/cck_component.c		\
 	libcck/cck_transport.h		\

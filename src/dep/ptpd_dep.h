@@ -396,8 +396,8 @@ void setKernelUtcOffset(int utc_offset);
 /** \name timer.c (Unix API dependent)
  * -Handle with timers*/
  /**\{*/
-void initThreadedTimer(void);
-void stopThreadedTimer(void);
+int startOrRestartThreadedTimer(void);
+int stopThreadedTimer(void);
 void initSignaledTimer(void);
 void timerUpdate(IntervalTimer*);
 void timerStop(UInteger16,IntervalTimer*);

@@ -17,6 +17,7 @@ libcck_la_SOURCES = 			\
 	cck_types.h		\
 	cck.h			\
 	cck_loghandler.h		\
+	cck_loghandler.c	\
 	cck_component.h		\
 	cck_component.c		\
 	cck_transport.h		\

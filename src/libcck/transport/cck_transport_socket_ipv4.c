@@ -4,7 +4,7 @@
  * Copyright (c) 2014 Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,7 +30,7 @@
 
 /**
  * @file   cck_transport_socket_ipv4.c
- * 
+ *
  * @brief  libCCK ipv4 transport implementation
  *
  */
@@ -148,7 +148,7 @@ setMulticastLoopback(CckTransport* transport, CckBool _value)
 
 	CckUInt8 value = _value ? 1 : 0;
 
-	if (setsockopt(transport->fd, IPPROTO_IP, IP_MULTICAST_LOOP, 
+	if (setsockopt(transport->fd, IPPROTO_IP, IP_MULTICAST_LOOP,
 	       &value, sizeof(value)) < 0) {
 		CCK_PERROR("Failed to %s IPv4 multicast loopback on %s",
 			    value ? "enable":"disable",
@@ -156,7 +156,7 @@ setMulticastLoopback(CckTransport* transport, CckBool _value)
 		return CCK_FALSE;
 	}
 
-	CCK_DBG("Successfully %s IPv4 multicast loopback on %s \n", value ? "enabled":"disabled", 
+	CCK_DBG("Successfully %s IPv4 multicast loopback on %s \n", value ? "enabled":"disabled",
 		    transport->transportEndpoint);
 
 	return CCK_TRUE;
@@ -418,7 +418,7 @@ cckTransportInit(CckTransport* transport, const CckTransportConfig* config)
        One of our destinations is multicast - enable loopback if we have no TX timestamping,
        AND DISABLE IT if we don't - some OSes default to multicast loopback.
      */
-    CckBool loopback = transport->timestamping && !transport->txTimestamping && 
+    CckBool loopback = transport->timestamping && !transport->txTimestamping &&
 			( transport->isMulticastAddress(&transport->defaultDestination) ||
 			transport->isMulticastAddress(&transport->secondaryDestination));
 
@@ -516,11 +516,11 @@ cckTransportTestConfig(CckTransport* transport, const CckTransportConfig* config
     }
 
      if(!(flags & IFF_UP) || !(flags & IFF_RUNNING))
-            CCK_WARNING("Interface %s seems to be down. Transport may not operate correctly until it's up.\n", 
+            CCK_WARNING("Interface %s seems to be down. Transport may not operate correctly until it's up.\n",
 		    transport->transportEndpoint);
 
     if(flags & IFF_LOOPBACK)
-            CCK_WARNING("Interface %s is a loopback interface.\n", 
+            CCK_WARNING("Interface %s is a loopback interface.\n",
 			transport->transportEndpoint);
 
     /* One of our destinations is multicast - test multicast operation */
@@ -637,9 +637,15 @@ cckTransportSend(CckTransport* transport, CckOctet* buf, CckUInt16 size,
 	transport->unicastCallback(!isMulticast, buf, size);
     }
 
-    ret = sendto(transport->fd, buf, size, 0,
-		(struct sockaddr *)dst,
-		sizeof(struct sockaddr_in));
+    if((ret = sendto(transport->fd, buf, size, 0, (struct sockaddr *)dst,
+             		sizeof(struct sockaddr_in))) != size) {
+       CCK_WARNING("sendto() Error while sending IPv4 message on %s (transport \"%s\"): %s\n",
+                        transport->transportEndpoint, transport->header.instanceName, strerror(errno));
+       return ret;
+    }
+    else {
+       transport->sentMessages++;
+    }
 
     /* If the transport can timestamp on TX, try doing it - if we failed, loop back the packet */
     if(transport->txTimestamping) {
@@ -648,18 +654,12 @@ cckTransportSend(CckTransport* transport, CckOctet* buf, CckUInt16 size,
 
     /* destination is unicast and we have no TX timestamping, - loop back the packet */
     if(!isMulticast && !transport->txTimestamping) {
-	if(sendto(transport->fd, buf, size, 0,
-		     (struct sockaddr *)&transport->ownAddress,
-	 sizeof(struct sockaddr_in)) <= 0)
-             CCK_DBG("send() Error looping back IPv4 message on %s (transport \"%s\")\n",
-                        transport->transportEndpoint, transport->header.instanceName);
+	   if((ret = sendto(transport->fd, buf, size, 0, (struct sockaddr *)&transport->ownAddress,
+      	           sizeof(struct sockaddr_in))) != size) {
+         CCK_WARNING("sendto() Error looping back IPv4 message on %s (transport \"%s\"): %s\n",
+                        transport->transportEndpoint, transport->header.instanceName, strerror(errno));
+      }
     }
-
-    if (ret <= 0)
-           CCK_DBG("send() Error while sending IPv4 message on %s (transport \"%s\")\n",
-                        transport->transportEndpoint, transport->header.instanceName);
-    else
-	transport->sentMessages++;
 
     return ret;
 
@@ -718,7 +718,8 @@ cckTransportRecv(CckTransport* transport, CckOctet* buf, CckUInt16 size,
 	ret = recvmsg(transport->fd, &msg, flags | MSG_DONTWAIT);
 
 	if (!flags && ret <= 0) {
-	    if (errno == EAGAIN || errno == EINTR) {
+	    if (errno == EAGAIN || errno == EINTR || errno == ENOMSG) {
+                CCK_DBGV("Ignoring recvmsg error. %m (%d)\n", errno);
 		return 0;
 	    } else {
 		return ret;
@@ -743,7 +744,7 @@ cckTransportRecv(CckTransport* transport, CckOctet* buf, CckUInt16 size,
 		CCK_ERROR("IPv4 - Received short control message on %s (transport %s): (%lu/%lu)\n",
 			transport->transportEndpoint,
 			transport->header.instanceName,
-		        (long)msg.msg_controllen, 
+		        (long)msg.msg_controllen,
 			(long)sizeof(cmsg_un.control));
 			return 0;
 	    }
@@ -773,9 +774,10 @@ cckTransportRecv(CckTransport* transport, CckOctet* buf, CckUInt16 size,
     /* === no timestamp needed - standard recvfrom */
 
 	ret = recvfrom(transport->fd, buf, size, MSG_DONTWAIT, (struct sockaddr*)src, &srcLen);
-	
+
 	if (ret <= 0 ) {
-	    if (errno == EAGAIN || errno == EINTR)
+	    if (errno == EAGAIN || errno == EINTR || errno == ENOMSG)
+                CCK_DBGV("Ignoring recvfrom error. %m (%d)\n", errno);
 		return 0;
 	}
 	return ret;

@@ -43,11 +43,11 @@
  * startupInProgress) still limits this to 1 PtpSession per process - this will
  * hopefully change soon.
 */
-typedef struct {
+struct PtpSession {
    PtpClock* ptpClock;
    RunTimeOpts* rtOpts;
    Boolean protocolIsRunning;
-} PtpSession;
+};
 
 
 /*
@@ -65,6 +65,9 @@ Boolean startupInProgress;
 static void
 _deleteConfigDictionaries( PtpSession* ptpSess )
 {
+   if( ptpSess == NULL ) { return; }
+   if( ptpSess->rtOpts == NULL ) { return; }
+
    dictionary_del( &(ptpSess->rtOpts->currentConfig) );
    dictionary_del( &(ptpSess->rtOpts->candidateConfig) );
    dictionary_del( &(ptpSess->rtOpts->cliConfig) );
@@ -80,49 +83,57 @@ _createConfigDictionaries( PtpSession* ptpSess )
 }
 
 
-int
-ptp_initializeSession( void** session )
+static void
+_deletePtpRTOpts( PtpSession* ptpSess )
 {
-   PtpSession* ptpSess = NULL;
+   if( ptpSess == NULL ) { return; }
 
-   assert( session != NULL );
+   _deleteConfigDictionaries( ptpSess );
+   free( ptpSess->rtOpts ); ptpSess->rtOpts = NULL;
+}
 
-   ptpSess = (PtpSession*) malloc( sizeof( PtpSession ) );
-   if( ptpSess == NULL ) {
+
+int
+ptp_initializeSession( PtpSession** ptpSess )
+{
+   PtpSession* newPtpSess = NULL;
+
+   assert( ptpSess != NULL );
+
+   newPtpSess = (PtpSession*) malloc( sizeof( PtpSession ) );
+   if( newPtpSess == NULL ) {
       return ENOMEM;
    }
 
-   ptpSess->rtOpts = (RunTimeOpts*) malloc( sizeof( RunTimeOpts ) );
-   if( ptpSess->rtOpts == NULL ) {
-      free( ptpSess );
+   newPtpSess->rtOpts = (RunTimeOpts*) malloc( sizeof( RunTimeOpts ) );
+   if( newPtpSess->rtOpts == NULL ) {
+      free( newPtpSess );
       return ENOMEM;
    }
 
-   ptpSess->ptpClock = NULL;
-   ptpSess->protocolIsRunning = FALSE;
+   newPtpSess->ptpClock = NULL;
+   newPtpSess->protocolIsRunning = FALSE;
 
-   loadDefaultSettings( ptpSess->rtOpts );
+   loadDefaultSettings( newPtpSess->rtOpts );
 
-   _createConfigDictionaries( ptpSess );
+   _createConfigDictionaries( newPtpSess );
 
-   *session = ptpSess;
+   *ptpSess = newPtpSess;
 
    return 0;
 }
 
 
 int
-ptp_deleteSession( void* session )
+ptp_deleteSession( PtpSession* ptpSess )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
-
-   assert( ptpSess != NULL );
-   assert( ptpSess->rtOpts != NULL );
-
+   if( ptpSess == NULL ) {
+      return EINVAL;
+   }
    /* TODO: stop clock, etc. */
-   _deleteConfigDictionaries( ptpSess );
 
-   free( ptpSess->rtOpts ); ptpSess->rtOpts = NULL;
+   _deletePtpRTOpts( ptpSess );
+
    /*
     * ptpSess->ptpClock should have already been free'd and set to NULL by
     * ptpdShutdown().
@@ -134,11 +145,10 @@ ptp_deleteSession( void* session )
 
 
 int
-ptp_setOptsFromCommandLine( void* session,
+ptp_setOptsFromCommandLine( PtpSession* ptpSess,
                             int argc, char** argv,
                             int* shouldRun )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
    Integer16 retCode;
 
    assert( ptpSess != NULL );
@@ -169,10 +179,8 @@ ptp_setOptsFromCommandLine( void* session,
 
 
 int
-ptp_testNetworkConfig( void* session )
+ptp_testNetworkConfig( PtpSession* ptpSess )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
-
    assert( ptpSess != NULL );
    assert( ptpSess->rtOpts != NULL );
 
@@ -185,10 +193,8 @@ ptp_testNetworkConfig( void* session )
 
 
 int
-ptp_checkConfigOnly( void* session )
+ptp_checkConfigOnly( PtpSession* ptpSess )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
-
    assert( ptpSess != NULL );
    assert( ptpSess->rtOpts != NULL );
 
@@ -197,10 +203,8 @@ ptp_checkConfigOnly( void* session )
 
 
 int
-ptp_dumpConfig( void* session, FILE* out )
+ptp_dumpConfig( PtpSession* ptpSess, FILE* out )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
-
    assert( ptpSess != NULL );
    assert( out != NULL );
    assert( ptpSess->rtOpts != NULL );
@@ -215,9 +219,95 @@ ptp_dumpConfig( void* session, FILE* out )
 
 
 int
-ptp_run( void* session )
+ptp_duplicateConfig( PtpSession* ptpSess, PtpDictionary** configDict )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
+   assert( ptpSess != NULL );
+   assert( configDict != NULL );
+   assert( ptpSess->rtOpts != NULL );
+
+   if( ptpSess->rtOpts->currentConfig == NULL ) {
+      return ENODATA;
+   }
+
+   dictionary_del( configDict );
+   if( (*configDict = dictionary_new( 0 )) == NULL ) {
+      return ENOMEM;
+   }
+
+   /*
+    * Pass 0 to indicate that no warning messages should be generated about vars
+    * being clobbered and pass NULL as the warning string.
+    */
+   if( dictionary_merge( ptpSess->rtOpts->currentConfig, *configDict,
+                         0, (const char*) NULL ) != 0 ) {
+      /*
+       * TODO: dictionary_merge() returns non-zero for internal errors (invalid
+       * pointers, etc.) as well as "no memory" errors.
+       */
+      return ENOMEM;
+   }
+
+   return 0;
+}
+
+
+int
+ptp_deleteConfigObject( PtpDictionary* configDict )
+{
+   if( configDict != NULL ) {
+      dictionary_del( &configDict );
+      return 0;
+   }
+
+   return EINVAL;
+}
+
+
+int
+ptp_applyConfigObject( PtpSession* ptpSess, PtpDictionary* configDict )
+{
+   assert( ptpSess != NULL );
+   assert( configDict != NULL );
+
+   if( ptpSess->protocolIsRunning ) {
+      return EBUSY;
+   }
+
+   /*
+    * Cleanup any existing dictionaries since they are no longer needed: of the
+    * 3 dictionaries, cliConfig and candidateConfig are only needed for
+    * command-line parsing, and currentConfig is re-created in parseConfig()
+    */
+   _deletePtpRTOpts( ptpSess );
+
+   /*
+    * Recreate rtOpts with all default values before applying the new config.
+    *
+    * TODO: Look into using only loadDefaultSettings() instead - delete/malloc
+    * will guarantee the RT opts are in a known state, but may not be necessary.
+    */
+   ptpSess->rtOpts = (RunTimeOpts*) malloc( sizeof( RunTimeOpts ) );
+   if( ptpSess->rtOpts == NULL ) {
+      return ENOMEM;
+   }
+   loadDefaultSettings( ptpSess->rtOpts );
+
+   /*
+    * Map all options from the config dictionary to corresponding rtOpts fields,
+    * using existing rtOpts fields as defaults.  This returns a pointer to a new
+    * set of resulting options in rtOpts, which should be assigned to
+    * currentConfig.
+    */
+   ptpSess->rtOpts->currentConfig = parseConfig( configDict, ptpSess->rtOpts );
+
+   return 0;
+}
+
+
+
+int
+ptp_run( PtpSession* ptpSess )
+{
    Integer16 ptpdStartupReturnVal = 0;
    Boolean cckInitSucceeded = FALSE;
    Boolean protocolSucceeded = FALSE;
@@ -271,9 +361,11 @@ ptp_run( void* session )
    ptpSess->protocolIsRunning = FALSE;
 
    /*
-    * This frees ptpSess->ptpClock
+    * This frees ptpSess->ptpClock and sets G_ptpClock to NULL
     */
    ptpdShutdown( ptpSess->ptpClock, ptpSess->rtOpts );
+   ptpSess->ptpClock = NULL;
+
    cckShutdown();
 
    /*
@@ -288,44 +380,42 @@ ptp_run( void* session )
 
 
 int
-ptp_stop( void* session )
+ptp_stop( PtpSession* ptpSess )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
    int timeoutCount = 0;
 
-   assert( ptpSess != NULL );
-   assert( ptpSess->rtOpts != NULL );
+   if( ptpSess == NULL ) { return EINVAL; }
+   if( ptpSess->rtOpts == NULL ) { return EINVAL; }
 
    /*
-    * This function only applies when the thread-based timer is used.  When the
-    * signal-based timer is used, ptpd is stopped by sending a signal.
+    * This function only applies when the thread-based timer is used and when
+    * the protocol is currently running.  When the signal-based timer is used,
+    * ptpd is stopped by sending a signal.
     */
-   if( ptpSess->rtOpts->useTimerThread ) {
+   if( !ptpSess->rtOpts->useTimerThread ) { return EOPNOTSUPP; }
+   if( !ptpSess->rtOpts->run ) { return EAGAIN; }
 
-      ptpSess->rtOpts->run = FALSE;
+   ptpSess->rtOpts->run = FALSE;
 
-      while( ptpSess->protocolIsRunning && (timeoutCount < STOP_TIMEOUT_MSEC) ) {
-         usleep( USEC_PER_MSEC ); /* 1ms */
-         timeoutCount++;
-      }
-
-      /*
-       * Stop the timer thread started in timer.c
-       */
-      stopThreadedTimer();
-
-      return (timeoutCount < STOP_TIMEOUT_MSEC) ? 0 : EBUSY;
+   while( ptpSess->protocolIsRunning && (timeoutCount < STOP_TIMEOUT_MSEC) ) {
+      usleep( USEC_PER_MSEC ); /* 1ms */
+      timeoutCount++;
    }
 
-   return EOPNOTSUPP;
+   if( timeoutCount >= STOP_TIMEOUT_MSEC ) {
+      return EBUSY;
+   }
+
+   /*
+    * Stop the timer thread started in timer.c
+    */
+   return stopThreadedTimer();
 }
 
 
 int
-ptp_enableTimerThread( void* session )
+ptp_enableTimerThread( PtpSession* ptpSess )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
-
    assert( ptpSess != NULL );
    assert( ptpSess->rtOpts != NULL );
 
@@ -336,11 +426,9 @@ ptp_enableTimerThread( void* session )
 
 
 int
-ptp_setClockAdjustFunc( void* session,
+ptp_setClockAdjustFunc( PtpSession* ptpSess,
                         ClockAdjustFunc clientClockAdjustFunc, void* clientData )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
-
    assert( ptpSess != NULL );
    assert( ptpSess->rtOpts != NULL );
 
@@ -355,7 +443,7 @@ ptp_setClockAdjustFunc( void* session,
 
 
 int
-ptp_setClockQuality( void* session,
+ptp_setClockQuality( PtpSession* ptpSess,
                      ClockQuality* newClockQuality )
 {
    /*
@@ -366,11 +454,9 @@ ptp_setClockQuality( void* session,
 
 
 int
-ptp_getGrandmasterClockQuality( void* session,
+ptp_getGrandmasterClockQuality( PtpSession* ptpSess,
                                 ClockQuality* gmClockQuality )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
-
    assert( ptpSess != NULL );
 
    if( ptpSess->ptpClock != NULL ) {
@@ -386,11 +472,9 @@ ptp_getGrandmasterClockQuality( void* session,
 
 
 int
-ptp_getPortState( void* session,
+ptp_getPortState( PtpSession* ptpSess,
                   Enumeration8* portState )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
-
    assert( ptpSess != NULL );
 
    if( ptpSess->ptpClock != NULL ) {
@@ -404,11 +488,9 @@ ptp_getPortState( void* session,
 
 
 int
-ptp_getInterfaceName( void* session,
+ptp_getInterfaceName( PtpSession* ptpSess,
                       char** interface )
 {
-   PtpSession* ptpSess = (PtpSession*) session;
-
    assert( ptpSess != NULL );
 
    if( ptpSess->rtOpts != NULL && ptpSess->rtOpts->ifaceName != NULL ) {

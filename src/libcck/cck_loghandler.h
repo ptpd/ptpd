@@ -2,6 +2,8 @@
  * libCCK - Clock Construction Kit
  *
  * Copyright (c) 2014 Wojciech Owczarek,
+ *                    Eric Satterness,
+ *                    National Instruments,
  *
  * All Rights Reserved
  * 
@@ -38,24 +40,38 @@
 #define CCK_LOGHANDLER_H_
 
 #include <syslog.h>
+#include <stdarg.h>
 
-#define CCK_DEBUG
 
-#define CCK_EMERGENCY(x, ...) printf("LibCCK EMERG   : "x, ##__VA_ARGS__)
-#define CCK_ALERT(x, ...)     printf("LibCCK ALERT   : "x, ##__VA_ARGS__)
-#define CCK_CRITICAL(x, ...)  printf("LibCCK CRIT    : "x, ##__VA_ARGS__)
-#define CCK_ERROR(x, ...)     printf("LibCCK ERR     : "x, ##__VA_ARGS__)
-#define CCK_PERROR(x, ...)    printf("LibCCK ERR     : "x "      (strerror: %m)\n", ##__VA_ARGS__)
-#define CCK_WARNING(x, ...)   printf("LibCCK WARNING : "x, ##__VA_ARGS__)
-#define CCK_NOTIFY(x, ...)    printf("LibCCK NOTICE  : "x, ##__VA_ARGS__)
-#define CCK_NOTICE(x, ...)    printf("LibCCK NOTICE  : "x, ##__VA_ARGS__)
-#define CCK_INFO(x, ...)      printf("LibCCK INFO    : "x, ##__VA_ARGS__)
+void setCckLogLevel(int logLevel);
+#ifdef RUNTIME_DEBUG
+void setCckDebugLevel(int debugLevel);
+#endif
+void logCckMessage(int priority, const char * format, ...);
 
-#ifdef CCK_DEBUG
+// Syslog ordering. We define extra debug levels above LOG_DEBUG for internal use
+// extended from <sys/syslog.h>
+#define LOG_CCK_DEBUG1   7
+#define LOG_CCK_DEBUG2   8
+#define LOG_CCK_DEBUGV   9
 
-#define CCK_DBG(x, ...)       printf("LibCCK DBG     : "x, ##__VA_ARGS__)
-#define CCK_DBG2(x, ...)      printf("LibCCK DBG2    : "x, ##__VA_ARGS__)
-#define CCK_DBGV(x, ...)      printf("LibCCK DBGV    : "x, ##__VA_ARGS__)
+
+#define CCK_EMERGENCY(x, ...) logCckMessage(LOG_EMERG, "LibCCK EMERG   : "x, ##__VA_ARGS__)
+#define CCK_ALERT(x, ...)     logCckMessage(LOG_ALERT, "LibCCK ALERT   : "x, ##__VA_ARGS__)
+#define CCK_CRITICAL(x, ...)  logCckMessage(LOG_CRIT, "LibCCK CRIT    : "x, ##__VA_ARGS__)
+#define CCK_ERROR(x, ...)     logCckMessage(LOG_ERR, "LibCCK ERR     : "x, ##__VA_ARGS__)
+#define CCK_PERROR(x, ...)    logCckMessage(LOG_ERR, "LibCCK ERR     : "x "      (strerror: %m)\n", ##__VA_ARGS__)
+#define CCK_WARNING(x, ...)   logCckMessage(LOG_WARNING, "LibCCK WARNING : "x, ##__VA_ARGS__)
+#define CCK_NOTIFY(x, ...)    logCckMessage(LOG_NOTICE, "LibCCK NOTICE  : "x, ##__VA_ARGS__)
+#define CCK_NOTICE(x, ...)    logCckMessage(LOG_NOTICE, "LibCCK NOTICE  : "x, ##__VA_ARGS__)
+#define CCK_INFO(x, ...)      logCckMessage(LOG_INFO, "LibCCK INFO    : "x, ##__VA_ARGS__)
+
+
+#ifdef RUNTIME_DEBUG
+
+#define CCK_DBG(x, ...)       logCckMessage(LOG_CCK_DEBUG1, "LibCCK DBG     : "x, ##__VA_ARGS__)
+#define CCK_DBG2(x, ...)      logCckMessage(LOG_CCK_DEBUG2, "LibCCK DBG2    : "x, ##__VA_ARGS__)
+#define CCK_DBGV(x, ...)      logCckMessage(LOG_CCK_DEBUGV, "LibCCK DBGV    : "x, ##__VA_ARGS__)
 
 #else
 

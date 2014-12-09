@@ -1,14 +1,14 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-m4_include([m4/version.m4])
+m4_include([m4/pkg_info.m4])
 AC_PREREQ(2.59)
 AC_INIT(
-    [ptpd],
+    [NAME],
     [VERSION_NUMBER],
-    [ptpd-bugs@nwtime.org],
-    [],
-    [PTPD_URL]dnl
+    [BUGREPORT],
+    [TARNAME],
+    [URL]dnl
 )
 AC_CONFIG_SRCDIR([src/arith.c])
 AC_CONFIG_HEADER([config.h])

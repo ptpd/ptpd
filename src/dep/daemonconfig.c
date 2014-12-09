@@ -1,4 +1,6 @@
 /*-
+ * Copyright (c) 2014 Eric Satterness,
+ *                    National Instruments.
  * Copyright (c) 2013 Wojciech Owczarek,
  *
  * All Rights Reserved
@@ -872,7 +874,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->logLevel = LOG_ALL;
 
 	/* ADJ_FREQ_MAX by default */
-	rtOpts->servoMaxPpb = ADJ_FREQ_MAX / 1000;
+	rtOpts->servoMaxPpb = ADJ_FREQ_MAX;
+
 	/* kP and kI are scaled to 10000 and are gains now - values same as originally */
 	rtOpts->servoKP = 0.1;
 	rtOpts->servoKI = 0.001;
@@ -1636,13 +1639,25 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"Specify drift file");
 
 #ifdef HAVE_STRUCT_TIMEX_TICK
-	/* This really is clock specific - different clocks may allow different ranges */
-	CONFIG_MAP_INT_RANGE("clock:max_offset_ppm",rtOpts->servoMaxPpb,rtOpts->servoMaxPpb,
+	/*
+         * This really is clock specific - different clocks may allow different ranges.
+         * Read in and compare a PPM value based on the internal PPB value.
+         *
+         * Compare /1000 here so that initialization in loadDefaultSettings will
+         * store a PPB value without relying on parseConfig to properly
+         * scale. While normal use-case is to run them sequentially, that may
+         * not always be the case.
+         */
+	CONFIG_MAP_INT_RANGE("clock:max_offset_ppm",rtOpts->servoMaxPpb,(rtOpts->servoMaxPpb/1000),
 		"Maximum absolute frequency shift which can be applied to the clock servo\n"
 	"	 when slewing the clock. Expressed in parts per million (1 ppm = shift of\n"
 	"	 1 us per second. Values above 512 will use the tick duration correction\n"
 	"	 to allow even faster slewing. Default maximum is 512 without using tick.",
 	ADJ_FREQ_MAX/1000,ADJ_FREQ_MAX/500);
+
+	/* Scale the new PPM value to PPB. */
+	rtOpts->servoMaxPpb *= 1000;
+
 #endif /* HAVE_STRUCT_TIMEX_TICK */
 
 	/*
@@ -1929,6 +1944,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 /* ==== Any additional logic should go here ===== */
 
+        setCckLogLevel(rtOpts->logLevel);
+#ifdef RUNTIME_DEBUG
+        setCckDebugLevel(rtOpts->debug_level);
+#endif
 	CckAcl* acl = createCckAcl(rtOpts->transport,0,"configTestAcl");
 
 	/* Check timing packet ACLs */
@@ -1980,9 +1999,6 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 
 	freeCckAcl(&acl);
-
-	/* Scale the maxPPM to PPB */
-	rtOpts->servoMaxPpb *= 1000;
 
 	/* Shift DSCP to accept the 6-bit value */
 	rtOpts->dscpValue = rtOpts->dscpValue << 2;

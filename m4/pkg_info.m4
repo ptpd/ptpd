@@ -1,0 +1,6 @@
+m4_define([NAME],[ptpd])
+m4_define([VERSION_NUMBER],[2.4.0-natinst-svn])
+m4_define([BUGREPORT],[ptpd-bugs@nwtime.org])
+m4_define([TARNAME],[])
+m4_define([URL],[http://ptpd.sourceforge.net])
+m4_define([RELEASE_DATE],[July, 2014])

@@ -84,6 +84,13 @@ initClock(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	clearTime(&ptpClock->delaySM);
 	clearTime(&ptpClock->delayMS);
 
+	clearTime(&ptpClock->delay_req_send_time);
+	clearTime(&ptpClock->delay_req_receive_time);
+	clearTime(&ptpClock->pdelay_req_send_time);
+	clearTime(&ptpClock->pdelay_req_receive_time);
+	clearTime(&ptpClock->pdelay_resp_send_time);
+	clearTime(&ptpClock->pdelay_resp_receive_time);
+
 	ptpClock->ofm_filt.y           = 0;
 	ptpClock->ofm_filt.nsec_prev   = 0;
 

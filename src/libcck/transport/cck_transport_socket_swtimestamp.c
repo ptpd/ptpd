@@ -2,6 +2,8 @@
  * libCCK - Clock Construction Kit
  *
  * Copyright (c) 2014 Wojciech Owczarek,
+ *                    Eric Satterness,
+ *                    National Instruments,
  *
  * All Rights Reserved
  * 
@@ -74,7 +76,12 @@ cckInitSwTimestamping(CckTransport* transport, CckSocketTimestampCaps* caps, Cck
 {
 
     int val = 1;
-    const char* methodStr;
+    /*
+     * methodStr produces an "unused variable" warning on release builds because it
+     * is only used in debug print statements. Add the unused attribute to tell gcc
+     * not to print the warning.
+     */
+    const char* methodStr __attribute__ ((unused));
 
     memset(caps, 0, sizeof(CckSocketTimestampCaps));
 

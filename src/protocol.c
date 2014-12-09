@@ -575,13 +575,6 @@ if(!rtOpts->panicModeNtp || !ptpClock->panicMode)
 		ptpClock->statsUpdates = 0;
 		ptpClock->isCalibrated = FALSE;
 #endif /* PTPD_STATISTICS */
-		// FIXME: clear these vars inside initclock
-		clearTime(&ptpClock->delay_req_send_time);
-		clearTime(&ptpClock->delay_req_receive_time);
-		clearTime(&ptpClock->pdelay_req_send_time);
-		clearTime(&ptpClock->pdelay_req_receive_time);
-		clearTime(&ptpClock->pdelay_resp_send_time);
-		clearTime(&ptpClock->pdelay_resp_receive_time);
 
 		timerStart(OPERATOR_MESSAGES_TIMER,
 			   OPERATOR_MESSAGES_INTERVAL,
@@ -686,7 +679,9 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	initData(rtOpts, ptpClock);
 
         if( rtOpts->useTimerThread ) {
-           initThreadedTimer();
+           if( startOrRestartThreadedTimer() != 0 ) {
+		return FALSE;
+           }
         } else {
            initSignaledTimer();
         }
@@ -871,8 +866,6 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				DBGV("event PDELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
 				issuePDelayReq(rtOpts,ptpClock);
 			}
-
-			/* FIXME: Path delay should also rearm its timer with the value received from the Master */
 		}
 
                 if (ptpClock->timePropertiesDS.leap59 || ptpClock->timePropertiesDS.leap61)
@@ -1892,7 +1885,7 @@ handleDelayResp(PtpMessage *message, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					// collect new value indicated from the Master
 					ptpClock->logMinDelayReqInterval = message->header.logMessageInterval;
 
-					/* FIXME: the actual rearming of this timer with the new value only happens later in doState()/issueDelayReq() */
+					/* NOTE: the actual rearming of this timer with the new value only happens later in doState()/issueDelayReq() */
 				} else {
 
 					if (ptpClock->logMinDelayReqInterval != rtOpts->subsequent_delayreq) {
@@ -2470,8 +2463,8 @@ issueAnnounce(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	msgPackAnnounce(ptpClock->msgObuf,ptpClock);
 
-	if(!ptpClock->generalTransport->send(ptpClock->generalTransport,
-					(CckOctet*)ptpClock->msgObuf,ANNOUNCE_LENGTH, NULL, NULL)) {
+	if(ptpClock->generalTransport->send(ptpClock->generalTransport,
+					(CckOctet*)ptpClock->msgObuf,ANNOUNCE_LENGTH, NULL, NULL) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("Announce message can't be sent -> FAULTY state \n");
@@ -2500,9 +2493,9 @@ issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	clearTime(&internalTime);
 
-	if(!ptpClock->eventTransport->send(ptpClock->eventTransport,
+	if(ptpClock->eventTransport->send(ptpClock->eventTransport,
 					(CckOctet*)ptpClock->msgObuf,
-					SYNC_LENGTH, NULL, (CckTimestamp*)&internalTime)) {
+					SYNC_LENGTH, NULL, (CckTimestamp*)&internalTime) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("Sync message can't be sent -> FAULTY state \n");
@@ -2532,8 +2525,8 @@ issueFollowup(const TimeInternal *tint,RunTimeOpts *rtOpts,PtpClock *ptpClock, U
 
 	msgPackFollowUp(ptpClock->msgObuf,&preciseOriginTimestamp,ptpClock,sequenceId);
 
-	if(!ptpClock->generalTransport->send(ptpClock->generalTransport,
-					(CckOctet*)ptpClock->msgObuf, FOLLOW_UP_LENGTH, NULL, NULL)) {
+	if(ptpClock->generalTransport->send(ptpClock->generalTransport,
+					(CckOctet*)ptpClock->msgObuf, FOLLOW_UP_LENGTH, NULL, NULL) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("FollowUp message can't be sent -> FAULTY state \n");
@@ -2573,9 +2566,9 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	}
 
 	clearTime(&internalTime);
-	if(!ptpClock->eventTransport->send(ptpClock->eventTransport,
+	if(ptpClock->eventTransport->send(ptpClock->eventTransport,
 					(CckOctet*)ptpClock->msgObuf,
-					DELAY_REQ_LENGTH, dst, (CckTimestamp*)&internalTime)) {
+					DELAY_REQ_LENGTH, dst, (CckTimestamp*)&internalTime) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("delayReq message can't be sent -> FAULTY state \n");
@@ -2619,9 +2612,9 @@ issuePDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	clearTime(&internalTime);
 
-	if(!ptpClock->peerEventTransport->send(ptpClock->peerEventTransport,
+	if(ptpClock->peerEventTransport->send(ptpClock->peerEventTransport,
 					(CckOctet*)ptpClock->msgObuf,
-					PDELAY_REQ_LENGTH, NULL, (CckTimestamp*)&internalTime)) {
+					PDELAY_REQ_LENGTH, NULL, (CckTimestamp*)&internalTime) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("PdelayReq message can't be sent -> FAULTY state \n");
@@ -2656,9 +2649,9 @@ issuePDelayResp( PtpMessage* request,RunTimeOpts *rtOpts,
 
 	clearTime(&txTimestamp);
 
-	if(!ptpClock->peerEventTransport->send(ptpClock->peerEventTransport,
+	if(ptpClock->peerEventTransport->send(ptpClock->peerEventTransport,
 					(CckOctet*)ptpClock->msgObuf,
-					PDELAY_RESP_LENGTH, NULL, (CckTimestamp*)&txTimestamp)) {
+					PDELAY_RESP_LENGTH, NULL, (CckTimestamp*)&txTimestamp) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("PdelayResp message can't be sent -> FAULTY state \n");
@@ -2694,8 +2687,8 @@ issueDelayResp(PtpMessage* request, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	if ( request->isUnicast && rtOpts->transport_mode == TRANSPORTMODE_HYBRID )
 		dst = request->sourceAddress;
 
-	if(!ptpClock->generalTransport->send(ptpClock->generalTransport,
-					(CckOctet*)ptpClock->msgObuf, DELAY_RESP_LENGTH, dst, NULL)) {
+	if(ptpClock->generalTransport->send(ptpClock->generalTransport,
+					(CckOctet*)ptpClock->msgObuf, DELAY_RESP_LENGTH, dst, NULL) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("delayResp message can't be sent -> FAULTY state \n");
@@ -2715,8 +2708,8 @@ issuePDelayRespFollowUp(const TimeInternal *tint, MsgHeader *header,
 
 	msgPackPDelayRespFollowUp(ptpClock->msgObuf,header,
 				  &responseOriginTimestamp,ptpClock, sequenceId);
-	if(!ptpClock->peerGeneralTransport->send(ptpClock->peerGeneralTransport,
-					(CckOctet*)ptpClock->msgObuf, PDELAY_RESP_FOLLOW_UP_LENGTH, NULL, NULL)) {
+	if(ptpClock->peerGeneralTransport->send(ptpClock->peerGeneralTransport,
+		(CckOctet*)ptpClock->msgObuf, PDELAY_RESP_FOLLOW_UP_LENGTH, NULL, NULL) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
 		DBGV("PdelayRespFollowUp message can't be sent -> FAULTY state \n");
@@ -2757,8 +2750,8 @@ issueManagementRespOrAck(PtpMessage* incoming, MsgManagement *outgoing, RunTimeO
 	if (incoming->isUnicast)
 		dst = incoming->sourceAddress;
 
-	if(!ptpClock->generalTransport->send(ptpClock->generalTransport,
-					(CckOctet*)ptpClock->msgObuf, outgoing->header.messageLength, dst, NULL)) {
+	if(ptpClock->generalTransport->send(ptpClock->generalTransport,
+		(CckOctet*)ptpClock->msgObuf, outgoing->header.messageLength, dst, NULL) == -1) {
 		DBGV("Management response/acknowledge can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -2788,8 +2781,8 @@ issueManagementErrorStatus(PtpMessage* incoming, MsgManagement *outgoing, RunTim
 	if (incoming->isUnicast)
 		dst = incoming->sourceAddress;
 
-	if(!ptpClock->generalTransport->send(ptpClock->generalTransport,
-					(CckOctet*)ptpClock->msgObuf, outgoing->header.messageLength, dst, NULL)) {
+	if(ptpClock->generalTransport->send(ptpClock->generalTransport,
+		(CckOctet*)ptpClock->msgObuf, outgoing->header.messageLength, dst, NULL) == -1) {
 		DBGV("Management error status can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);

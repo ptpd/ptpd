@@ -132,12 +132,10 @@ ntpSend(NTPcontrol* control, Octet * buf, UInteger16 length)
 
                 addr.sin_addr.s_addr = control->serverAddress;
 
-                ret = sendto(control->sockFD, buf, length, 0,
-                             (struct sockaddr *)&addr,
-                             sizeof(struct sockaddr_in));
-                if (ret <= 0)
-                        INFO("error sending NTP control message\n");
-
+                if( (ret = sendto(control->sockFD, buf, length, 0, (struct sockaddr *)&addr,
+                             sizeof(struct sockaddr_in))) != length) {
+                        WARNING("error sending NTP control message: %s\n", strerror(errno));
+                }
         }
         return ret;
 }
@@ -206,7 +204,7 @@ get_systime(
         /*
          * Renormalize to seconds past 1900 and fraction.
          */
-                                                     
+
 //        dtemp += sys_residual;
         if (dtemp >= 1) {
                 dtemp -= 1;
@@ -278,7 +276,7 @@ NTPDCrequest(
 	maclen = MD5authencrypt(key, (void *)&qpkt, reqsize,options->keyId);
 	free(key);
 	if (!maclen || (maclen != (16 + sizeof(keyid_t))))
-	 {  
+	 {
 		ERROR("Error while computing NTP MD5 hash\n");
 		return 1;
 	}
@@ -403,7 +401,7 @@ NTPDCresponse(
 		tvo = tvout;
 	else
 		tvo = tvsout;
-	
+
 	FD_SET(control->sockFD, &fds);
 	n = select(control->sockFD+1, &fds, (fd_set *)0, (fd_set *)0, &tvo);
 
@@ -535,7 +533,7 @@ NTPDCresponse(
 	size = INFO_ITEMSIZE(rpkt.mbz_itemsize);
 	if (esize > size)
 		pad = esize - size;
-	else 
+	else
 		pad = 0;
 	datasize = items * size;
 
@@ -596,7 +594,7 @@ NTPDCresponse(
 		*rdata = ntpdc_pktdata; /* might have been realloced ! */
 		datap = ntpdc_pktdata + offset;
 	}
-	/* 
+	/*
 	 * We now move the pointer along according to size and number of
 	 * items.  This is so we can play nice with older implementations
 	 */
@@ -672,7 +670,7 @@ again:
 	 * send a request
 	 */
 	res = NTPDCrequest(options, control, reqcode, auth, qitems, qsize, qdata);
-	if (res <= 0) { 
+	if (res <= 0) {
 		return res;
 	}
 	/*
@@ -744,7 +742,7 @@ ntpdControlFlags(NTPoptions* options, NTPcontrol* control, int req, int flags)
 	case INFO_ERR_AUTH:
 
 		if(!control->requestFailed) ERROR("NTP permission denied: check key id, password and NTP configuration\n");
-		break;		
+		break;
 
 	case ERR_TIMEOUT:
 
@@ -809,10 +807,10 @@ ntpdInControl(NTPoptions* options, NTPcontrol* control)
 
 	if (!checkitemsize(itemsize, sizeof(struct info_sys)) &&
 	    !checkitemsize(itemsize, v4sizeof(struct info_sys))) {
-	
+
 	    res=INFO_ERR_EMPTY;
 	    goto end;
-	}	
+	}
 
 	if (is->flags & INFO_FLAG_NTP) DBGV("NTP flag seen: ntp\n");
 	if (is->flags & INFO_FLAG_KERNEL) DBGV("NTP flag seen: kernel\n");
@@ -854,7 +852,7 @@ ntpdInControl(NTPoptions* options, NTPcontrol* control)
 	case INFO_ERR_AUTH:
 
 		DBG("NTP permission denied: check NTP key id, key and if key is trusted and is a request key\n");
-		break;		
+		break;
 
 	default:
 	ERROR("NTP protocol error\n");

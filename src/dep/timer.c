@@ -55,6 +55,7 @@
 #include "../ptpd.h"
 
 volatile unsigned int elapsed;
+pthread_mutex_t elapsedLock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * TODO: update this comment to include information about the "timer" thread too.
@@ -76,32 +77,61 @@ static Boolean runTimerIntervalThread = FALSE;
 void
 catch_alarm(int sig)
 {
-   elapsed++;
+	elapsed++;
 	/* be sure to NOT call DBG in asynchronous handlers! */
 }
 
 static void*
 incrElapsed( void* arg )
 {
-   while(runTimerIntervalThread){
-      usleep(US_TIMER_INTERVAL);
-      elapsed++;
-   }
-   return NULL;
+	while(runTimerIntervalThread){
+		usleep(US_TIMER_INTERVAL);
+		pthread_mutex_lock(&elapsedLock);
+		elapsed++;
+		pthread_mutex_unlock(&elapsedLock);
+	}
+	elapsed = 0;
+	return NULL;
 }
 
-void
+int
 initThreadedTimer(void)
 {
-   runTimerIntervalThread = TRUE;
-   pthread_create( &timerIntervalThread, NULL, &incrElapsed, NULL );
+	int rc;
+	rc = pthread_create( &timerIntervalThread, NULL, &incrElapsed, NULL );
+        if(rc == 0) {
+		runTimerIntervalThread = TRUE;
+	} else {
+		PERROR("Could not create timerIntervalThread - \
+                        pthread_create() returned value: %d", rc);
+	}
+	return rc;
 }
 
-void
+int
 stopThreadedTimer(void)
 {
-   runTimerIntervalThread = FALSE;
-   pthread_join( timerIntervalThread, NULL );
+	int rc = 0;
+	if( runTimerIntervalThread == TRUE ) {
+                runTimerIntervalThread = FALSE;
+		rc = pthread_join( timerIntervalThread, NULL );
+		if( rc != 0 ) {
+			PERROR("Could not join timerIntervalThread - \
+                                pthread_join() returned value: %d", rc);
+		}
+	}
+	return rc;
+}
+
+int
+startOrRestartThreadedTimer(void)
+{
+	int rc;
+	rc = stopThreadedTimer();
+        if( rc == 0 ) {
+		rc = initThreadedTimer();
+	}
+	return rc;
 }
 
 void
@@ -121,6 +151,20 @@ initSignaledTimer(void)
 	setitimer(ITIMER_REAL, &itimer, 0);
 }
 
+int resetElapsed() {
+	int delta = 0;
+	if(runTimerIntervalThread) {
+		pthread_mutex_lock(&elapsedLock);
+		delta = elapsed;
+		elapsed = 0;
+	        pthread_mutex_unlock(&elapsedLock);
+	} else {
+		delta = elapsed;
+		elapsed = 0;
+	}
+	return delta;
+}
+
 void
 timerUpdate(IntervalTimer * itimer)
 {
@@ -131,8 +175,7 @@ timerUpdate(IntervalTimer * itimer)
 	 * latch how many ticks we got since we were last called
 	 * remember that catch_alarm() is totally asynchronous to this timerUpdate()
 	 */
-	delta = elapsed;
-	elapsed = 0;
+	delta = resetElapsed();
 
 	if (delta <= 0)
 		return;

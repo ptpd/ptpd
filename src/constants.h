@@ -11,9 +11,12 @@
 
 #define PTPD_PROGNAME PACKAGE_NAME
 
-/* FIXME: make these parameterized, either through command-line options or make variables */
+/*
+ * TODO: Make these parameterized either through a run-time API, command-line
+ * options, or configure flags
+ */
  #define MANUFACTURER_ID \
-  "ptpd.sf.net;2.3.0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+  "ptpd.sf.net;2.4.0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 #define MANUFACTURER_ID_OUI0 \
   0xFF
 #define MANUFACTURER_ID_OUI1 \

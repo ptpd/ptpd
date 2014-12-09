@@ -63,6 +63,14 @@ typedef void (*ClockAdjustFunc)( Integer32 oldSeconds, Integer32 oldNanoseconds,
 
 
 /*
+ * Forward declarations for ptpd structs used in the API.  These are fully
+ * defined in ptp_api.c and dep/iniparser/dictionary.h
+ */
+typedef struct PtpSession PtpSession;
+typedef struct _dictionary_ PtpDictionary;
+
+
+/*
  * TODO: Reconcile the return code convention across all of ptpd when
  * int is the return type. The ptp_api functions return 0 on success while
  * the internal ptpd functions return 1 on success and 0 or -1 on failure.
@@ -75,23 +83,22 @@ typedef void (*ClockAdjustFunc)( Integer32 oldSeconds, Integer32 oldNanoseconds,
  * ptp_deleteSession().
  *
  * Returns 0 on success and ENOMEM (Out of memory) if memory could not be
- * allocated.
+ * allocated and EINVAL if "session" is NULL.
  */
-int ptp_initializeSession( void** session );
+int ptp_initializeSession( PtpSession** session );
 
 
 /*
- * Free the memory pointed to by "session" that was allocated by
- * ptp_initializeSession().
+ * Free the memory allocated by ptp_initializeSession().
  *
- * Returns 0 on success.
+ * Returns 0 on success or EINVAL if "session" is NULL.
  */
-int ptp_deleteSession( void* session );
+int ptp_deleteSession( PtpSession* session );
 
 
 /*
- * Set the runtime options for a ptpd session pointed to by "session" based on
- * the values of argv.  argc is the number of arguments in argv.
+ * Set the runtime options for a ptpd session based on the values of argv.  argc
+ * is the number of arguments in argv.
  *
  * shouldRun is set to 1 if the arguments are sufficient to allow the PTP
  * protocol to run, and 0 if PTP should not be run.  For example, this is useful
@@ -102,7 +109,7 @@ int ptp_deleteSession( void* session );
  * and non-zero if argv could not be parsed or resulted in invalid runtime
  * options.
  */
-int ptp_setOptsFromCommandLine( void* session,
+int ptp_setOptsFromCommandLine( PtpSession* session,
                                 int argc, char** argv,
                                 int* shouldRun );
 
@@ -112,56 +119,89 @@ int ptp_setOptsFromCommandLine( void* session,
  *
  * Returns 0 on success and non-zero on failure.
  */
-int ptp_testNetworkConfig( void* session );
+int ptp_testNetworkConfig( PtpSession* session );
 
 
 /*
  * Return 1 if the ptpd session was configured to check the configuration
  * options only, and 0 if configured to run the PTP protocol.
  */
-int ptp_checkConfigOnly( void* session );
+int ptp_checkConfigOnly( PtpSession* session );
 
 
 /*
- * Prints the current configuration of the ptpd session pointed to by "session"
- * to the open file handle "out".  stdio and stderr are acceptable file handles.
+ * Prints the current configuration of the ptpd session to an open file handle.
+ * STDIO and STDERR are acceptable file handles.
  *
  * Returns 0 on successful write and EOPNOTSUPP if the configuration could not
  * be written.
  */
-int ptp_dumpConfig( void* session, FILE* out );
+int ptp_dumpConfig( PtpSession* session, FILE* out );
 
 
 /*
- * Runs the PTP protocol using the configuration state set in the ptpd session
- * pointed to by "session".  This function does not return until the protocol is
- * stopped.
+ * Duplicates the configuration settings of a ptpd session to a new config
+ * object and assigns the "config" pointer to it.  Any existing settings in
+ * "config" will be deleted, and "config" must eventually be deleted using
+ * ptp_deleteConfigObject().
+ *
+ * Returns 0 on successful duplication, ENODATA if the ptpd session did not have
+ * a current configuration, and ENOMEM if new config object contents could not
+ * be allocated.
+ */
+int ptp_duplicateConfig( PtpSession* session, PtpDictionary** config );
+
+
+/*
+ * Deletes the contents of a config object created by ptp_duplicateConfig(),
+ * leaving it in a state that can be either re-used by another call to
+ * ptp_duplicateConfig() or discarded.
+ *
+ * Returns 0 on success or EINVAL if "config" is NULL.
+ */
+int ptp_deleteConfigObject( PtpDictionary* config );
+
+
+/*
+ * Applies a configuration from a config object to the ptpd session by
+ * completely removing it and replacing with settings from "config".  This
+ * operation can only be done if "session" is not running the protocol.
+ *
+ * Returns 0 on success, EBUSY if "session" is currently running the protocol,
+ * and ENOMEM if a new config could not be allocated in the session.
+ */
+int ptp_applyConfigObject( PtpSession* session, PtpDictionary* config );
+
+
+/*
+ * Runs the PTP protocol using the configuration state set in the ptpd session.
+ * This function does not return until the protocol is stopped.
  *
  * Returns 0 if the protocol was successfuly run and stopped, non-zero if
  * stopped due to an error.
  */
-int ptp_run( void* session );
+int ptp_run( PtpSession* session );
 
 
 /*
- * Stops the PTP protocol running which is part of the ptpd session pointed to
- * by "session".  If the ptpd session is running the event timer in a separate
- * thread, this will properly stop the protocol and cause the call to ptp_run()
- * to return.
+ * Stops the PTP protocol running which is part of the ptpd session.  If the
+ * ptpd session is running the event timer in a separate thread, this will
+ * properly stop the protocol and cause the call to ptp_run() to return.
  *
- * Return 0 on successful stop of the protocol, and EOPNOTSUPP (Operation not
+ * Return 0 on successful stop of the protocol, EOPNOTSUPP (Operation not
  * supported) if the ptpd session was not configured to run the event timer in a
- * separate thread.  If the ptpd session is running the event timer in a
+ * separate thread, EAGAIN if the event timer is not running, and EINVAL if the
+ * session was not created.  If the ptpd session is running the event timer in a
  * separate thread and the protocol has not stopped after 10 seconds, EBUSY is
  * returned.
  */
-int ptp_stop( void* session );
+int ptp_stop( PtpSession* session );
 
 
 /*
- * Causes the ptpd session pointed to by "session" to run the PTP protocol event
- * timer in a separate thread.  The default behavior for a ptpd session is to
- * use signal-based timers for protocol events.
+ * Causes the ptpd session to run the PTP protocol event timer in a separate
+ * thread.  The default behavior for a ptpd session is to use signal-based
+ * timers for protocol events.
  *
  * A timer thread is needed if a ptpd session is to be created as part of a
  * larger threaded application, since the signal-based event timers require
@@ -169,13 +209,13 @@ int ptp_stop( void* session );
  * internals, which may not be an attractive option depending on the
  * application.
  */
-int ptp_enableTimerThread( void* session );
+int ptp_enableTimerThread( PtpSession* session );
 
 
 /*
- * Registers an optional callback function on the ptpd session pointed to by
- * "session" that will be called to adjust a client-specific servo/timekeeper
- * instead of the default ptpd servo/system timekeeper.
+ * Registers an optional callback function on the ptpd session that will be
+ * called to adjust a client-specific servo/timekeeper instead of the default
+ * ptpd servo/system timekeeper.
  *
  * If a ClockAdjustFunc callback is supplied, ptpd will call it *instead of*
  * calling the ptpd servo to adjust the system time.  Because the callback
@@ -188,53 +228,50 @@ int ptp_enableTimerThread( void* session );
  * Returns 0 if the callback was successfully registered and EBUSY (Device or
  * resource busy) if the ptpd session is currently running the PTP protocol.
  */
-int ptp_setClockAdjustFunc( void* session,
+int ptp_setClockAdjustFunc( PtpSession* session,
                             ClockAdjustFunc clientClockAdjustFunc, void* clientData );
 
 
 /*
  * TODO: implement this function.
  *
- * Sets the outgoing clock quality values used by the ptpd session pointed to by
- * "session" to the values set in the ClockQuality struct pointed to by
- * "newClockQuality".
+ * Sets the outgoing clock quality values used by the ptpd session to the values
+ * set in the ClockQuality struct.
  *
  * Returns 0 on successful set of clock quality values, and non-zero otherwise.
  */
-int ptp_setClockQuality( void* session,
+int ptp_setClockQuality( PtpSession* session,
                          ClockQuality* newClockQuality );
 
 
 /*
- * Sets the clock quality values pointed to by "gmClockQuality" to that of the
- * PTP grandmaster the ptpd session pointed to by "session" is synchronized to.
+ * Sets the clock quality values in the ptpd session to that of the grandmaster
+ * the session is synchronized to.
  *
  * Returns 0 if successfully set and ENOPROTOOPT (Protocol not available) if the
  * ptpd session is not currently running the PTP protocol.
  */
-int ptp_getGrandmasterClockQuality( void* session,
+int ptp_getGrandmasterClockQuality( PtpSession* session,
                                     ClockQuality* gmClockQuality );
 
 
 /*
- * Sets the port state value pointed to by "portState" using the ptpd session
- * pointed to by "session".
+ * Sets the port state value using the ptpd session.
  *
  * Returns 0 if successfully set and ENOPROTOOPT (Protocol not available) if the
  * ptpd session is not currently running the PTP protocol.
  */
-int ptp_getPortState( void* session,
+int ptp_getPortState( PtpSession* session,
                       Enumeration8* portState );
 
 
 /*
- * Gets the network interface name using the ptpd session pointed to by
- * "session".
+ * Gets the network interface name using the ptpd session.
  *
  * Returns 0 if successfully set and ENODATA (No data available) if the
  * ptpd session does not have it available.
  */
-int ptp_getInterfaceName( void* session,
+int ptp_getInterfaceName( PtpSession* session,
                           char** interface );
 
 

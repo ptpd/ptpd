@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2014      Rick Ratzel,
+ *                         Eric Satterness,
  *                         National Instruments.
  * Copyright (c) 2012-2013 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
@@ -65,7 +66,7 @@
 
 int main( int argc, char **argv ) {
 
-   void* ptpSess;
+   PtpSession* ptpSess;
    int shouldRun = 0;
    int retVal = 0;
 
@@ -80,7 +81,12 @@ int main( int argc, char **argv ) {
     */
    retVal = ptp_setOptsFromCommandLine( ptpSess, argc, argv, &shouldRun );
 
-   if( !shouldRun ) {
+   /*
+    * The only time we want to continue running ptp is if shouldRun is true and
+    * ret is 0 (meaning there were no errors while setting the options). If that
+    * isn't the case, we should stop.
+    */
+   if( !shouldRun || ( retVal != 0 ) ) {
       if( ( retVal != 0 ) && !ptp_checkConfigOnly( ptpSess ) ) {
          ptp_logError( "startup failed\n" );
       }
