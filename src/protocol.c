@@ -654,7 +654,12 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	/* initialize networking */
 	netShutdown(rtOpts, ptpClock);
 	if (!netInit(rtOpts, ptpClock)) {
-		ERROR("failed to initialize network\n");
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "Failed to initialize network -> FAULTY state\n");
+		ERROR("Failed to initialize network -> FAULTY state\n");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 		return FALSE;
 	}
@@ -733,8 +738,18 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			DBG2("event STATE_DECISION_EVENT\n");
 			ptpClock->record_update = FALSE;
 			state = bmc(ptpClock->foreign, rtOpts, ptpClock);
-			if(state != ptpClock->portState)
+			if(state != ptpClock->portState) {
 				toState(state, rtOpts, ptpClock);
+
+				/*
+				 * TODO: Remove extra logging to syslog, added right before release
+				 * to avoid changing defaults in the conf file used by NI.
+				 */
+				if(state == PTP_FAULTY) {
+					syslog( LOG_ERR, "Error in BMC data set comparison -> FAULTY \
+state" );
+				}
+			}
 		}
 		break;
 
@@ -1226,10 +1241,17 @@ receiveData(RunTimeOpts* rtOpts, PtpClock* ptpClock, CckTransport* transport)
 
     length = transport->recv(transport, (CckOctet*)ptpClock->msgIbuf, PACKET_SIZE, &sourceAddress, (CckTimestamp*)&timeStamp, 0);
     if (length < 0) {
-	PERROR("failed to receive data from \"%s\" transport", transport->header.instanceName);
-	toState(PTP_FAULTY, rtOpts, ptpClock);
-	ptpClock->counters.messageRecvErrors++;
-	return FALSE;
+        /*
+         * TODO: Remove extra logging to syslog, added right before release
+         * to avoid changing defaults in the conf file used by NI.
+         */
+        syslog( LOG_ERR, "Failed to receive data from \"%s\" transport -> FAULTY \
+state", transport->header.instanceName);
+        PERROR("Failed to receive data from \"%s\" transport -> FAULTY state",
+transport->header.instanceName);
+        toState(PTP_FAULTY, rtOpts, ptpClock);
+        ptpClock->counters.messageRecvErrors++;
+        return FALSE;
     }
 
     processMessage(rtOpts, ptpClock, &timeStamp, &sourceAddress, transport, length);
@@ -1267,7 +1289,12 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
         }
 
 	if (ret < 0) {
-	    PERROR("failed to poll sockets");
+	    /*
+	     * TODO: Remove extra logging to syslog, added right before release
+	     * to avoid changing defaults in the conf file used by NI.
+	     */
+	    syslog( LOG_ERR, "Failed to poll sockets -> FAULTY state");
+	    PERROR("Failed to poll sockets -> FAULTY state");
 	    ptpClock->counters.messageRecvErrors++;
 	    toState(PTP_FAULTY, rtOpts, ptpClock);
 	    return;
@@ -2467,7 +2494,13 @@ issueAnnounce(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					(CckOctet*)ptpClock->msgObuf,ANNOUNCE_LENGTH, NULL, NULL) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "Announce message can't be sent -> FAULTY state \n");
 		DBGV("Announce message can't be sent -> FAULTY state \n");
+
 	} else {
 		DBGV("Announce MSG sent ! \n");
 		ptpClock->sentAnnounceSequenceId++;
@@ -2498,6 +2531,11 @@ issueSync(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 					SYNC_LENGTH, NULL, (CckTimestamp*)&internalTime) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "Sync message can't be sent -> FAULTY state \n");
 		DBGV("Sync message can't be sent -> FAULTY state \n");
 	} else {
 		DBGV("Sync MSG sent ! \n");
@@ -2529,6 +2567,11 @@ issueFollowup(const TimeInternal *tint,RunTimeOpts *rtOpts,PtpClock *ptpClock, U
 					(CckOctet*)ptpClock->msgObuf, FOLLOW_UP_LENGTH, NULL, NULL) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "FollowUp message can't be sent -> FAULTY state \n");
 		DBGV("FollowUp message can't be sent -> FAULTY state \n");
 	} else {
 		DBGV("FollowUp MSG sent ! \n");
@@ -2571,7 +2614,12 @@ issueDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 					DELAY_REQ_LENGTH, dst, (CckTimestamp*)&internalTime) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
-		DBGV("delayReq message can't be sent -> FAULTY state \n");
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "DelayReq message can't be sent -> FAULTY state \n");
+		DBGV("DelayReq message can't be sent -> FAULTY state \n");
 	} else {
 		DBGV("DelayReq MSG sent ! \n");
 
@@ -2617,7 +2665,12 @@ issuePDelayReq(RunTimeOpts *rtOpts,PtpClock *ptpClock)
 					PDELAY_REQ_LENGTH, NULL, (CckTimestamp*)&internalTime) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
-		DBGV("PdelayReq message can't be sent -> FAULTY state \n");
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "PDelayReq message can't be sent -> FAULTY state \n");
+		DBGV("PDelayReq message can't be sent -> FAULTY state \n");
 	} else {
 		DBGV("PDelayReq MSG sent ! \n");
 
@@ -2654,7 +2707,12 @@ issuePDelayResp( PtpMessage* request,RunTimeOpts *rtOpts,
 					PDELAY_RESP_LENGTH, NULL, (CckTimestamp*)&txTimestamp) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
-		DBGV("PdelayResp message can't be sent -> FAULTY state \n");
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "PDelayResp message can't be sent -> FAULTY state \n");
+		DBGV("PDelayResp message can't be sent -> FAULTY state \n");
 	} else {
 		DBGV("PDelayResp MSG sent ! \n");
 
@@ -2691,7 +2749,12 @@ issueDelayResp(PtpMessage* request, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					(CckOctet*)ptpClock->msgObuf, DELAY_RESP_LENGTH, dst, NULL) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
-		DBGV("delayResp message can't be sent -> FAULTY state \n");
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "DelayResp message can't be sent -> FAULTY state \n");
+		DBGV("DelayResp message can't be sent -> FAULTY state \n");
 	} else {
 		DBGV("PDelayResp MSG sent ! \n");
 		ptpClock->counters.delayRespMessagesSent++;
@@ -2712,7 +2775,12 @@ issuePDelayRespFollowUp(const TimeInternal *tint, MsgHeader *header,
 		(CckOctet*)ptpClock->msgObuf, PDELAY_RESP_FOLLOW_UP_LENGTH, NULL, NULL) == -1) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
-		DBGV("PdelayRespFollowUp message can't be sent -> FAULTY state \n");
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "PDelayRespFollowUp message can't be sent -> FAULTY state \n");
+		DBGV("PDelayRespFollowUp message can't be sent -> FAULTY state \n");
 	} else {
 		DBGV("PDelayRespFollowUp MSG sent ! \n");
 		ptpClock->counters.pdelayRespFollowUpMessagesSent++;
@@ -2752,6 +2820,11 @@ issueManagementRespOrAck(PtpMessage* incoming, MsgManagement *outgoing, RunTimeO
 
 	if(ptpClock->generalTransport->send(ptpClock->generalTransport,
 		(CckOctet*)ptpClock->msgObuf, outgoing->header.messageLength, dst, NULL) == -1) {
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "Management response/acknowledge can't be sent -> FAULTY state \n");
 		DBGV("Management response/acknowledge can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -2783,6 +2856,11 @@ issueManagementErrorStatus(PtpMessage* incoming, MsgManagement *outgoing, RunTim
 
 	if(ptpClock->generalTransport->send(ptpClock->generalTransport,
 		(CckOctet*)ptpClock->msgObuf, outgoing->header.messageLength, dst, NULL) == -1) {
+		/*
+		 * TODO: Remove extra logging to syslog, added right before release
+		 * to avoid changing defaults in the conf file used by NI.
+		 */
+		syslog( LOG_ERR, "Management error status can't be sent -> FAULTY state \n");
 		DBGV("Management error status can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);

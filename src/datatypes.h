@@ -919,6 +919,8 @@ typedef struct {
 	double servoKI;
 	int servoDtMethod;
 
+	Boolean oneWayDelayFilterEnabled;
+
 #ifdef	PTPD_STATISTICS
 
 	Boolean delayMSOutlierFilterEnabled;

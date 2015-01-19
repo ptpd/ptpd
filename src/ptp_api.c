@@ -37,6 +37,32 @@
 #define STOP_TIMEOUT_MSEC 10000  /* 10 seconds */
 
 /*
+ * PtpManagedSettings consists of copies of all PtpClock members that are
+ * updated via an external management mechanism (1588 "native" management for
+ * now, but possibly also SNMP in the future).
+ *
+ * These copies mean that the PtpClock instance can be deleted and re-created
+ * without losing state.  This allows an application to recover from a PTP
+ * faulty state without losing changes made by management.
+ */
+struct PtpManagedSettings {
+   Boolean slaveOnly;
+   UInteger8 priority1;
+   UInteger8 priority2;
+   UInteger8 domainNumber;
+   Integer8 logAnnounceInterval;
+   UInteger8 announceReceiptTimeout;
+   Integer8 logSyncInterval;
+   Enumeration8 delayMechanism;
+   Integer8 logMinPdelayReqInterval;
+   Octet user_description[USER_DESCRIPTION_MAX + 1];
+   UInteger4 versionNumber;
+   ClockQuality clockQuality;
+   TimePropertiesDS timePropertiesDS;
+};
+
+
+/*
  * A PtpSession consists of a PtpClock and the corresponding RunTimeOpts.
  *
  * NOTE: the need for globals for instances of both of these structs (as well as
@@ -93,6 +119,112 @@ _deletePtpRTOpts( PtpSession* ptpSess )
 }
 
 
+static void
+_saveManagedSettingsFromPtpClock( PtpManagedSettings* settings,
+                                  PtpClock* ptpClock )
+{
+   assert( settings != NULL );
+   assert( ptpClock != NULL );
+
+   settings->slaveOnly = ptpClock->slaveOnly;
+   settings->priority1 = ptpClock->priority1;
+   settings->priority2 = ptpClock->priority2;
+   settings->domainNumber = ptpClock->domainNumber;
+   settings->logAnnounceInterval = ptpClock->logAnnounceInterval;
+   settings->announceReceiptTimeout = ptpClock->announceReceiptTimeout;
+   settings->logSyncInterval = ptpClock->logSyncInterval;
+   settings->delayMechanism = ptpClock->delayMechanism;
+   settings->logMinPdelayReqInterval = ptpClock->logMinPdelayReqInterval;
+   settings->versionNumber = ptpClock->versionNumber;
+
+   strncpy( settings->user_description, ptpClock->user_description,
+            USER_DESCRIPTION_MAX+1 );
+
+   settings->clockQuality.clockClass = ptpClock->clockQuality.clockClass;
+   settings->clockQuality.clockAccuracy = ptpClock->clockQuality.clockAccuracy;
+   settings->clockQuality.offsetScaledLogVariance = ptpClock->clockQuality.offsetScaledLogVariance;
+
+   settings->timePropertiesDS.currentUtcOffset = ptpClock->timePropertiesDS.currentUtcOffset;
+   settings->timePropertiesDS.currentUtcOffsetValid = ptpClock->timePropertiesDS.currentUtcOffsetValid;
+   settings->timePropertiesDS.leap59 = ptpClock->timePropertiesDS.leap59;
+   settings->timePropertiesDS.leap61 = ptpClock->timePropertiesDS.leap61;
+   settings->timePropertiesDS.timeTraceable = ptpClock->timePropertiesDS.timeTraceable;
+   settings->timePropertiesDS.frequencyTraceable = ptpClock->timePropertiesDS.frequencyTraceable;
+   settings->timePropertiesDS.ptpTimescale = ptpClock->timePropertiesDS.ptpTimescale;
+   settings->timePropertiesDS.timeSource = ptpClock->timePropertiesDS.timeSource;
+}
+
+
+static void
+_restoreManagedSettingsOnPtpClock( PtpManagedSettings* settings,
+                                   PtpClock* ptpClock, RunTimeOpts* rtOpts )
+{
+   assert( settings != NULL );
+   assert( ptpClock != NULL );
+   assert( rtOpts != NULL );
+
+   /*
+    * TODO: write automated test to ensure each variable is handled correctly.
+    */
+   ptpClock->slaveOnly = settings->slaveOnly;
+   ptpClock->priority1 = settings->priority1;
+   ptpClock->priority2 = settings->priority2;
+   ptpClock->domainNumber = settings->domainNumber;
+   ptpClock->logAnnounceInterval = settings->logAnnounceInterval;
+   ptpClock->announceReceiptTimeout = settings->announceReceiptTimeout;
+   ptpClock->logSyncInterval = settings->logSyncInterval;
+   ptpClock->delayMechanism = settings->delayMechanism;
+   ptpClock->logMinPdelayReqInterval = settings->logMinPdelayReqInterval;
+   ptpClock->versionNumber = settings->versionNumber;
+
+   strncpy( ptpClock->user_description, settings->user_description,
+            USER_DESCRIPTION_MAX+1 );
+
+   ptpClock->clockQuality.clockClass = settings->clockQuality.clockClass;
+   ptpClock->clockQuality.clockAccuracy = settings->clockQuality.clockAccuracy;
+   ptpClock->clockQuality.offsetScaledLogVariance = settings->clockQuality.offsetScaledLogVariance;
+
+   ptpClock->timePropertiesDS.currentUtcOffset = settings->timePropertiesDS.currentUtcOffset;
+   ptpClock->timePropertiesDS.currentUtcOffsetValid = settings->timePropertiesDS.currentUtcOffsetValid;
+   ptpClock->timePropertiesDS.leap59 = settings->timePropertiesDS.leap59;
+   ptpClock->timePropertiesDS.leap61 = settings->timePropertiesDS.leap61;
+   ptpClock->timePropertiesDS.timeTraceable = settings->timePropertiesDS.timeTraceable;
+   ptpClock->timePropertiesDS.frequencyTraceable = settings->timePropertiesDS.frequencyTraceable;
+   ptpClock->timePropertiesDS.ptpTimescale = settings->timePropertiesDS.ptpTimescale;
+   ptpClock->timePropertiesDS.timeSource = settings->timePropertiesDS.timeSource;
+
+   /*
+    * TODO: Make this better - ptpd calls initData() when the clock goes into
+    * the INITIALIZING state, which resets various values on ptpClock from
+    * rtOpts.  Set the same values on rtOpts here, so the clock settings will
+    * persist after transitioning to INITIALIZING.  See initData() in bmc.c
+    */
+   rtOpts->clockQuality.clockClass = settings->clockQuality.clockClass;
+   rtOpts->clockQuality.clockAccuracy = settings->clockQuality.clockAccuracy;
+   rtOpts->clockQuality.offsetScaledLogVariance = settings->clockQuality.offsetScaledLogVariance;
+
+   rtOpts->slaveOnly = settings->slaveOnly;
+   rtOpts->priority1 = settings->priority1;
+   rtOpts->priority2 = settings->priority2;
+   rtOpts->domainNumber = settings->domainNumber;
+
+   rtOpts->announceInterval = settings->logAnnounceInterval;
+   rtOpts->announceReceiptTimeout = settings->announceReceiptTimeout;
+   rtOpts->syncInterval = settings->logSyncInterval;
+   rtOpts->delayMechanism = settings->delayMechanism;
+   rtOpts->logMinPdelayReqInterval = settings->logMinPdelayReqInterval;
+   /*
+    * TODO: need to figure out how to restore version number - it is very
+    * unlikely someone would want to change this though.
+    */
+}
+
+
+/*
+ *******************************************************************************
+ * Public API
+ *******************************************************************************
+ */
 int
 ptp_initializeSession( PtpSession** ptpSess )
 {
@@ -306,7 +438,7 @@ ptp_applyConfigObject( PtpSession* ptpSess, PtpDictionary* configDict )
 
 
 int
-ptp_run( PtpSession* ptpSess )
+ptp_run( PtpSession* ptpSess, PtpManagedSettings** settingsObj )
 {
    Integer16 ptpdStartupReturnVal = 0;
    Boolean cckInitSucceeded = FALSE;
@@ -354,11 +486,36 @@ ptp_run( PtpSession* ptpSess )
    G_rtOpts = ptpSess->rtOpts;
 
    /*
+    * Re-apply saved settings made during a previous run only if a valid
+    * settings object was passed in.
+    */
+   if( (settingsObj != NULL) && (*settingsObj != NULL) ) {
+      _restoreManagedSettingsOnPtpClock( *settingsObj,
+                                         ptpSess->ptpClock,
+                                         ptpSess->rtOpts );
+   }
+
+   /*
     * protocol() does not return until the "rtOpts->run" flag is set FALSE
     */
    ptpSess->protocolIsRunning = TRUE;
    protocolSucceeded = protocol( ptpSess->rtOpts, ptpSess->ptpClock );
    ptpSess->protocolIsRunning = FALSE;
+
+   /*
+    * Only save the managed runtime settings if an object was passed in.
+    * Re-use an existing object if one was allocated in the past.
+    */
+   if( settingsObj != NULL ) {
+      if( *settingsObj == NULL ) {
+         *settingsObj = \
+            (PtpManagedSettings*) malloc( sizeof( PtpManagedSettings ) );
+         if( *settingsObj == NULL ) { return ENOMEM; }
+      }
+
+      _saveManagedSettingsFromPtpClock( *settingsObj,
+                                        ptpSess->ptpClock );
+   }
 
    /*
     * This frees ptpSess->ptpClock and sets G_ptpClock to NULL
@@ -371,11 +528,21 @@ ptp_run( PtpSession* ptpSess )
    /*
     * Convert protocol's error to an unused error code.
     */
-   if ( !protocolSucceeded ) {
-      return PROTOCOL_FAILED;
-   }
+   if ( !protocolSucceeded ) { return PROTOCOL_FAILED; }
 
    return 0;
+}
+
+
+int
+ptp_deleteManagedSettingsObject( PtpManagedSettings* settingsObj )
+{
+   if( settingsObj != NULL ) {
+      free( settingsObj );
+      return 0;
+   }
+
+   return EINVAL;
 }
 
 

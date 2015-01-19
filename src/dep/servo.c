@@ -117,10 +117,7 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 
 	DBGV("updateDelay\n");
 
-
-
-	/* todo: do all intermediate calculations on temp vars */
-	TimeInternal prev_meanPathDelay = ptpClock->meanPathDelay;
+	TimeInternal tmpMeanPathDelay = ptpClock->meanPathDelay;
 
 	ptpClock->char_last_msg = 'D';
 
@@ -154,8 +151,6 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				INFO("updateDelay aborted, delay %d.%d greater than 1 second\n",
 				     slave_to_master_delay.seconds,
 				     slave_to_master_delay.nanoseconds);
-			/*	if (rtOpts->displayPackets)
-					msgDump(ptpClock);*/
 				goto display;
 			}
 
@@ -164,8 +159,6 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 				     "administratively set maximum %d\n",
 				     slave_to_master_delay.nanoseconds,
 				     rtOpts->maxDelay);
-			/*	if (rtOpts->displayPackets)
-					msgDump(ptpClock);*/
 				goto display;
 			}
 		}
@@ -177,8 +170,6 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 	 *   - calculate a new filtered MPD
 	 */
 	if (rtOpts->offset_first_updated) {
-		Integer16 s;
-
 		/*
 		 * calc 'slave_to_master_delay' (Master to Slave delay is
 		 * already computed in updateOffset )
@@ -213,35 +204,33 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 			&ptpClock->delay_req_send_time);
 #endif
 		/* update 'one_way_delay' */
-		addTime(&ptpClock->meanPathDelay, &ptpClock->delaySM,
+		addTime(&tmpMeanPathDelay, &ptpClock->delaySM,
 			&ptpClock->delayMS);
 
 		/* Substract correctionField */
-		subTime(&ptpClock->meanPathDelay, &ptpClock->meanPathDelay,
+		subTime(&tmpMeanPathDelay, &tmpMeanPathDelay,
 			correctionField);
 
 		/* Compute one-way delay */
-		div2Time(&ptpClock->meanPathDelay);
+		div2Time(&tmpMeanPathDelay);
 
-		if (ptpClock->meanPathDelay.seconds) {
-			DBG("update delay: cannot filter with large OFM, "
-				"clearing filter\n");
+		if (tmpMeanPathDelay.seconds) {
 			INFO("Servo: Ignoring delayResp because of large OFM\n");
 
-			owd_filt->s_exp = owd_filt->nsec_prev = 0;
-			/* revert back to previous value */
-			ptpClock->meanPathDelay = prev_meanPathDelay;
+			if (rtOpts->oneWayDelayFilterEnabled) {
+				DBG("update delay: cannot filter with large OFM, "
+					"clearing filter\n");
+				owd_filt->s_exp = owd_filt->nsec_prev = 0;
+			}
 
 			goto display;
 		}
 
 
-		if(ptpClock->meanPathDelay.nanoseconds < 0){
+		if(tmpMeanPathDelay.nanoseconds < 0){
 			DBG("update delay: found negative value for OWD, "
 			    "so ignoring this value: %d\n",
-				ptpClock->meanPathDelay.nanoseconds);
-			/* revert back to previous value */
-			ptpClock->meanPathDelay = prev_meanPathDelay;
+				tmpMeanPathDelay.nanoseconds);
 #ifdef PTPD_STATISTICS
 			goto statistics;
 #else
@@ -249,31 +238,12 @@ updateDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * pt
 #endif /* PTPD_STATISTICS */
 		}
 
-		/* avoid overflowing filter */
-		s = rtOpts->s;
-		while (abs(owd_filt->y) >> (31 - s))
-			--s;
+		if (rtOpts->oneWayDelayFilterEnabled) {
+			applyOneWayDelayFilter(owd_filt, rtOpts, &tmpMeanPathDelay);
+			DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
+		}
 
-		/* crank down filter cutoff by increasing 's_exp' */
-		if (owd_filt->s_exp < 1)
-			owd_filt->s_exp = 1;
-		else if (owd_filt->s_exp < 1 << s)
-			++owd_filt->s_exp;
-		else if (owd_filt->s_exp > 1 << s)
-			owd_filt->s_exp = 1 << s;
-
-		/* filter 'meanPathDelay' */
-		float fy =
-			(double)((owd_filt->s_exp - 1.0) *
-			owd_filt->y / (owd_filt->s_exp + 0.0) +
-			(ptpClock->meanPathDelay.nanoseconds / 2.0 +
-			 owd_filt->nsec_prev / 2.0) / (owd_filt->s_exp + 0.0));
-
-		owd_filt->nsec_prev = ptpClock->meanPathDelay.nanoseconds;
-
-		owd_filt->y = round(fy);
-
-		ptpClock->meanPathDelay.nanoseconds = owd_filt->y;
+		ptpClock->meanPathDelay = tmpMeanPathDelay;
 
 /* Update relevant statistics containers, feed outlier filter thresholds etc. */
 #ifdef PTPD_STATISTICS
@@ -293,8 +263,6 @@ statistics:
                         feedDoublePermanentStdDev(&ptpClock->slaveStats.owdStats, timeInternalToDouble(&ptpClock->meanPathDelay));
 #endif
 
-
-		DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
 	} else {
 		INFO("Ignoring delayResp because we didn't receive any sync yet\n");
 	}
@@ -306,10 +274,40 @@ display:
 }
 
 void
+applyOneWayDelayFilter(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, TimeInternal * meanPathDelay)
+{
+		Integer16 s;
+
+		/* avoid overflowing filter */
+		s = rtOpts->s;
+		while (abs(owd_filt->y) >> (31 - s))
+			--s;
+
+		/* crank down filter cutoff by increasing 's_exp' */
+		if (owd_filt->s_exp < 1)
+			owd_filt->s_exp = 1;
+		else if (owd_filt->s_exp < 1 << s)
+			++owd_filt->s_exp;
+		else if (owd_filt->s_exp > 1 << s)
+			owd_filt->s_exp = 1 << s;
+
+		/* filter 'meanPathDelay' */
+		float fy =
+			(double)((owd_filt->s_exp - 1.0) *
+			owd_filt->y / (owd_filt->s_exp + 0.0) +
+			(meanPathDelay->nanoseconds / 2.0 +
+			 owd_filt->nsec_prev / 2.0) / (owd_filt->s_exp + 0.0));
+
+		owd_filt->nsec_prev = meanPathDelay->nanoseconds;
+
+		owd_filt->y = round(fy);
+
+                meanPathDelay->nanoseconds = owd_filt->y;
+}
+
+void
 updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField, Boolean twoStep)
 {
-	Integer16 s;
-
 	/* updates paused, leap second pending - do nothing */
 	if(ptpClock->leapSecondInProgress)
 		return;
@@ -354,11 +352,31 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 		div2Time(&ptpClock->peerMeanPathDelay);
 	}
 
-	if (ptpClock->peerMeanPathDelay.seconds) {
-		/* cannot filter with secs, clear filter */
-		owd_filt->s_exp = owd_filt->nsec_prev = 0;
-		return;
+	if (rtOpts->oneWayDelayFilterEnabled) {
+		if (ptpClock->peerMeanPathDelay.seconds) {
+			/* cannot filter with secs, clear filter */
+			owd_filt->s_exp = owd_filt->nsec_prev = 0;
+			return;
+		}
+
+		/*
+		 * FIXME: The filter code was moved into a separate function
+		 * but it has not been tested to ensure it still works.
+		 */
+		applyOneWayPeerDelayFilter(owd_filt, rtOpts, &ptpClock->peerMeanPathDelay);
+		DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
 	}
+
+	if(ptpClock->portState == PTP_SLAVE)
+		logStatistics(rtOpts, ptpClock);
+}
+
+/* TODO: Refactor to allow applyOneWayDelayFilter() to be used for both e2e and p2p mode */
+void
+applyOneWayPeerDelayFilter(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, TimeInternal * meanPathDelay)
+{
+	Integer16 s;
+
 	/* avoid overflowing filter */
 	s = rtOpts->s;
 	while (abs(owd_filt->y) >> (31 - s))
@@ -375,17 +393,12 @@ updatePeerDelay(one_way_delay_filter * owd_filt, RunTimeOpts * rtOpts, PtpClock 
 	/* filter 'meanPathDelay' */
 	owd_filt->y = (owd_filt->s_exp - 1) *
 		owd_filt->y / owd_filt->s_exp +
-		(ptpClock->peerMeanPathDelay.nanoseconds / 2 +
+		(meanPathDelay->nanoseconds / 2 +
 		 owd_filt->nsec_prev / 2) / owd_filt->s_exp;
 
-	owd_filt->nsec_prev = ptpClock->peerMeanPathDelay.nanoseconds;
-	ptpClock->peerMeanPathDelay.nanoseconds = owd_filt->y;
+	owd_filt->nsec_prev = meanPathDelay->nanoseconds;
 
-	DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
-
-//display:
-	if(ptpClock->portState == PTP_SLAVE)
-		logStatistics(rtOpts, ptpClock);
+	meanPathDelay->nanoseconds = owd_filt->y;
 }
 
 void

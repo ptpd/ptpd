@@ -681,6 +681,13 @@ dictionary * iniparser_load(const char * ininame)
             fclose(in);
             return NULL ;
         }
+        /*
+         * TODO: Verify if the while loop can be modified to prevent negative
+         * len values so that the consecutive if condition (len >= 0)
+         * can be removed. Negative len values are encountered when there is
+         * more than a single whitespace character in an otherwise empty line.
+         */
+
         /* Get rid of \n and spaces at end of line */
         while ((len>=0) &&
                 ((line[len]=='\n') || (isspace((unsigned char)line[len])))) {
@@ -688,7 +695,7 @@ dictionary * iniparser_load(const char * ininame)
             len-- ;
         }
         /* Detect multi-line */
-        if (line[len]=='\\') {
+        if ((len >= 0) && (line[len]=='\\')) {
             /* Multi-line value */
             last=len ;
             continue ;

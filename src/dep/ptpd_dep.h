@@ -306,6 +306,8 @@ void snmpShutdown();
 void initClock(RunTimeOpts*,PtpClock*);
 void updatePeerDelay (one_way_delay_filter*, RunTimeOpts*,PtpClock*,TimeInternal*,Boolean);
 void updateDelay (one_way_delay_filter*, RunTimeOpts*, PtpClock*,TimeInternal*);
+void applyOneWayDelayFilter(one_way_delay_filter*, RunTimeOpts*, TimeInternal*);
+void applyOneWayPeerDelayFilter(one_way_delay_filter*, RunTimeOpts*, TimeInternal*);
 void updateOffset(TimeInternal*,TimeInternal*,
   offset_from_master_filter*,RunTimeOpts*,PtpClock*,TimeInternal*);
 void updateClock(RunTimeOpts*,PtpClock*);

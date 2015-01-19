@@ -882,6 +882,9 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->servoDtMethod = DT_CONSTANT;
 
+	/* Enable the one way delay IIR filter used in the mean path delay calculation */
+	rtOpts->oneWayDelayFilterEnabled = TRUE;
+
 	/* disabled by default */
 	rtOpts->announceTimeoutGracePeriod = 0;
 	rtOpts->alwaysRespectUtcOffset=FALSE;
@@ -1686,6 +1689,11 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 			"none", DT_NONE,
 			"constant", DT_CONSTANT,
 			"measured", DT_MEASURED
+	);
+
+        CONFIG_MAP_BOOLEAN("servo:one_way_delay_filter_enabled",rtOpts->oneWayDelayFilterEnabled,
+	rtOpts->oneWayDelayFilterEnabled,
+	"Enable the one way delay IIR filter used in the mean path delay calculation."
 	);
 
 

@@ -68,6 +68,7 @@ typedef void (*ClockAdjustFunc)( Integer32 oldSeconds, Integer32 oldNanoseconds,
  */
 typedef struct PtpSession PtpSession;
 typedef struct _dictionary_ PtpDictionary;
+typedef struct PtpManagedSettings PtpManagedSettings;
 
 
 /*
@@ -175,12 +176,26 @@ int ptp_applyConfigObject( PtpSession* session, PtpDictionary* config );
 
 /*
  * Runs the PTP protocol using the configuration state set in the ptpd session.
- * This function does not return until the protocol is stopped.
+ * This function does not return until the protocol is stopped.  If a non-NULL
+ * PtpManagedSettings** is passed, upon return it will contain values that may
+ * have been set by 1588 management messages while the protocol was running.
+ * This allows the caller to re-run the protocol with a previous state.  Passing
+ * NULL for PtpManagedSettings** results in no attempt to save the managed
+ * settings.
  *
- * Returns 0 if the protocol was successfuly run and stopped, non-zero if
+ * Returns 0 if the protocol was successfuly run and stopped, ENOMEM if memory
+ * could not be allocated for a new PtpManagedSettings struct, and non-zero if
  * stopped due to an error.
  */
-int ptp_run( PtpSession* session );
+int ptp_run( PtpSession* session, PtpManagedSettings** settings );
+
+
+/*
+ * Deletes a PtpManagedSettings struct allocated by ptp_run().
+ *
+ * Returns 0 on success and EINVAL if settings is NULL.
+ */
+int ptp_deleteManagedSettingsObject( PtpManagedSettings* settings );
 
 
 /*

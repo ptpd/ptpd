@@ -100,7 +100,11 @@ int main( int argc, char **argv ) {
       return retVal;
    }
 
-   retVal = ptp_run( ptpSess );
+   /*
+    * A NULL PtpManagedSettings** indicates any management updates made while
+    * the protocol was running will not be saved to a PtpManagedSettings struct.
+    */
+   retVal = ptp_run( ptpSess, NULL );
 
    if( retVal != 0 ) {
       ptp_logError( "Shutdown due to an error\n" );
