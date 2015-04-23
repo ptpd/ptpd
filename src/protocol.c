@@ -716,7 +716,8 @@ static void
 doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	UInteger8 state;
-	
+	int tflags = 0;	
+
 	ptpClock->message_activity = FALSE;
 	
 	/* Process record_update (BMC algorithm) before everything else */
@@ -967,6 +968,22 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 
 	case PTP_MASTER:
+
+		/* Check the kernel for leap seconds notifications */
+#ifdef HAVE_SYS_TIMEX_H
+		tflags = getTimexFlags();
+		if (tflags != -1) {
+			if (tflags & STA_INS)
+				ptpClock->timePropertiesDS.leap61 = 1;
+			else
+				ptpClock->timePropertiesDS.leap61 = 0;
+			if (tflags & STA_DEL)
+				ptpClock->timePropertiesDS.leap59 = 1;
+			else
+				ptpClock->timePropertiesDS.leap59 = 0;
+		}
+#endif /* HAVE_SYS_TIMEX_H */
+
 		/*
 		 * handle SLAVE timers:
 		 *   - Time to send new Announce
