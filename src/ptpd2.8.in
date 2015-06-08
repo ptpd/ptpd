@@ -76,11 +76,11 @@ Directory to store lock files (also \fIglobal:lock_directory\fR)
 \fB-f --log-file \fIPATH\fR
 Path to log file (also \fIglobal:logfile\fR)
 .TP
-\fB-S --statistics-file \fII PATH\fR
+\fB-S --statistics-file \fIPATH\fR
 Path to statistics file (also \fIglobal:statistics_file\fR)
 .SH BASIC PTP PROTOCOL OPTIONS
 .TP
-\fB-i --interface \fDEV\fR
+\fB-i --interface \fIDEV\fR
 \fIREQUIRED:\fRInterface to use - eth0, etc (also \fIptpengine:interface\fR)
 .TP
 \fB-d --domain \fINUMBER\fR
@@ -99,14 +99,25 @@ Master only mode: passive when not best GM (also \fIptpengine:preset=masteronly\
 Hybrid mode - mixed multicast and unicast operation (multicast for sync and announce, unicast
 for delay request and response (also \fIptpengine:ip_mode=hybrid\fR)
 .TP
-\fB-u --unicast \fIIP\fR
-Unicast mode (no unicast negotiation) - send all messages to \fIIP\fR
-(also \fIptpengine:ip_mode=unicast\fR + \fIptpengine:unicast_address\fR)
+\fB-U --unicast\fR
+Unicast operation - (\fIalso ptpengine:ip_mode=unicast\fR). For a GM, unicast destinations
+must be specified (\fI-u, --unicast-destinations, ptpengine:unicast_destinations\fR) unless
+using unicast negotiation (\fI-g, --unicast-negotiation, ptpengine:unicast_negotiation=y\fR)
+for delay request and response (also \fIptpengine:ip_mode=hybrid\fR). For a slave, unicast
+destinations must be specified if not using unicast negotiation.
+.TP
+\fB-g --unicast-negotiation\fR
+Enable unicast message delivery and interval negotiation usin signaling messages, as used
+by the Telecom profile (also enables \fIptpengine:ip_mode=unicast\fR)
+.TP
+\fB-u --unicast-destinations \fIip/host, ip/host, ...\fR
+List of unicast destinations - see \fI--unicast\fR
+(also \fIptpengine:ip_mode=unicast\fR + \fIptpengine:unicast_destinations\fR)
 \fB-E --e2e\fR
-End to end delay detection (also \fIptpengine:delay_mechanism=E2E\fR)
+End to end delay mechanism (also \fIptpengine:delay_mechanism=E2E\fR)
 .TP
 \fB-E --p2p\fR
-Peer to peer delay detection (also \fIptpengine:delay_mechanism=P2P\fR)
+Peer to peer delay mechanism (also \fIptpengine:delay_mechanism=P2P\fR)
 .TP
 \fB-a --delay-override\fR
 In slave state, override delay request interval announced by master (also \fIptpengine:log_delayreq_override\fR) - the value
@@ -279,10 +290,16 @@ Observed drift / local clock frequency adjustment mean computed over the last sa
 \fBObserved Drift Std Dev\fR
 Observed drift / local clock frequency adjustment standard deviation computed over the last sampling window.
 The lower the value, the less aggressively the clock is being controlled and therefore the more stable it is.
+.TP 8
+\fBraw delayMS\fR
+Raw (unfiltered) delayMS value - useful for evaluating outliers and filter performance.
+.TP 8
+\fBraw delaySM\fR
+Raw (unfiltered) delaySM value - useful for evaluating outliers and filter performance.
 .RE
 
 \fBNOTE:\fR All the statistical measures (mean and std dev) will only be computed and displayed if PTPd was
-built with --enable-statistics. The duration of the sampling period is controlled with the
+built without --disable-statistics. The duration of the sampling period is controlled with the
 \fIglobal:statistics_update_interval\fR setting - (see \fBptpd2.conf(5)\fR).
 
 .SH HANDLED SIGNALS
@@ -314,6 +331,41 @@ option is used and the configuration was correct. A non-zero exit code is return
 \fB2\fR is returned on memory allocation errors during startup. For all other error conditions such as
 configuration errors, running ptpd2 in help mode or with no parameters, on self shutdown,
 network startup errors and when attempting to run ptpd2 as non-root -  \fB1\fR is returned.
+
+.SH SUPPORTED PLATFORMS AND ARCHITECTURES
+
+PTPd is fully supported on Linux and FreeBSD as this is what the core developers focus on.
+OpenBSD and NetBSD are also supported, but get less developers' attention.
+So is Max OS X, and as of PTPd 2.3.1 also OpenSolaris (11) derivatives (tested on OmniOS).
+Sun's / Oracle's Solaris 11 has not been tested but in essence, it should work as intended.
+Solaris 10 is NOT supported because it does not provide the SO_TIMESTAMP socket option.
+It should theoretically be possible to use Solaris 10 using the \fIpf\fR facility as used by \fIsnoop\fR,
+but there is currently no ongoing effort to acheive this. Patches for QNX/Neutrino have been provided,
+but cannot yet officially be merged because of no availability of QNX to the developers. Some users
+have ported PTPd to other RTOS, but this has not been merged either.
+
+As of 2.3.1, PTPd runs entirely in software and only relies on kernel and OS APIs, so
+there are no hardware dependencies. Any little-endian or big-endian port of modern versions
+of the supported OSes should work, but only x86 and ARM are actively tested. The only dependencies close to hardware
+can be NIC drivers and how and if they impact software timestamping.
+
+.SH HARDWARE TIMESTAMPING SUPPORT
+
+As of 2.3.1, PTPd still does not support hardware timestamping. This functionality will appear
+in the upcoming version 2.4 - potentially an interim version of 2.3.x may be delivered that will
+support hardware clocks and timestamping on Linux. This is very much OS-specific and to a large extent,
+hardware-specific. Linux has a PTP kernel API but not all hardware supports it.
+Because PTPd supports multiple OS platforms, where hardware timestamping may use different mechanisms
+on every platform, it has to be re-written in a modular way to allow this without unnecessarily increasing
+code complexity, which already is a problem. 
+
+.SH BUGS
+As of ptpd 2.3.1, the (Open)Solaris (11) OS family is supported, but libpcap functionality is
+currently broken - IPv4/pcap and Ethernet transports cannot be used on those systems. PTPd will compile and run,
+ but will not receive any data.
+
+Please report any bugs using the bug tracker on the SourceForge page:
+http://sourceforge.net/projects/ptpd/
 
 .SH SEE ALSO
 .Xr ptpd2.conf 5

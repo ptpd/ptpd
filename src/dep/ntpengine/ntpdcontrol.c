@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Wojciech Owczarek,
+ * Copyright (c) 2013-2015 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -36,9 +36,9 @@
 
 /*
  * This code is largely based on the source code of the ntpdc utility from the
- * NTP distribution version 4.2.6p5 and is mostly bridge between PTPd2 APIs
+ * NTP distribution version 4.2.6p5 and is mostly a bridge between PTPd2 APIs
  * and NTPDc code - functionality so far is limited to setting and clearing system
- * flags to allow falover to- and -from (local) NTP
+ * flags to allow failover to- and -from (local) NTP
  */
 
 /* Original NTP4 copyright notice */
@@ -70,11 +70,17 @@ char *ntpdc_pktdata;
 Boolean
 ntpInit(NTPoptions* options, NTPcontrol* control)
 {
+
+	int res = TRUE;
+	TimingService service = control->timingService;
+
 	control->sockFD = -1;
 	if(!options->enableEngine)
 	    return FALSE;
 
 	memset(control, 0, sizeof(*control));
+	/* preserve TimingService... temporary */
+	control->timingService = service;
 
 	if(!hostLookup(options->hostAddress, &control->serverAddress)) {
                 control->serverAddress = 0;
@@ -87,21 +93,33 @@ ntpInit(NTPoptions* options, NTPcontrol* control)
         }
 
 	/* This will attempt to read the ntpd control flags for the first time */
-	if (ntpdInControl(options, control)) {
-		DBGV("NTPd original flags: %d\n", control->originalFlags);
+	res = ntpdInControl(options, control);
+	
+       if (res != INFO_YES && res != INFO_NO) {
+		return FALSE;
 	}
 
+	DBGV("NTPd original flags: %d\n", control->originalFlags);
 	return TRUE;
 }
 
 Boolean
 ntpShutdown(NTPoptions* options, NTPcontrol* control)
 {
+
 	/* Attempt reverting ntpd flags to the original value */
 	if(control->flagsCaptured) {
-		DBGV("Attempting to revert NTPd flags to %d - result: %d\n", control->originalFlags,
-			ntpdSetFlags(options, control, control->originalFlags)
-		);
+		/* we only control the kernel and ntp flags */
+	/* just to avoid -Wunused* */
+#ifdef RUNTIME_DEBUG
+		int resC = ntpdClearFlags(options, control, ~(control->originalFlags) & (INFO_FLAG_KERNEL | INFO_FLAG_NTP));
+		int resS = ntpdSetFlags(options, control, control->originalFlags & (INFO_FLAG_KERNEL | INFO_FLAG_NTP));
+		DBGV("Attempting to revert NTPd flags to %d - result: clear %d set %d\n", control->originalFlags,
+			    resC, resS);
+#else
+		ntpdClearFlags(options, control, ~(control->originalFlags) & (INFO_FLAG_KERNEL | INFO_FLAG_NTP));
+		ntpdSetFlags(options, control, control->originalFlags & (INFO_FLAG_KERNEL | INFO_FLAG_NTP));
+#endif /* RUNTIME_DEBUG */
 	}
 
         if (control->sockFD > 0)
@@ -137,7 +155,7 @@ ntpSend(NTPcontrol* control, Octet * buf, UInteger16 length)
 
 
 /*
- * Default values we use.
+ * Default values we use
  */
 #define	DEFHOST		"localhost"	/* default host name */
 #define	DEFTIMEOUT	(5)		/* 5 second time out */
@@ -224,9 +242,7 @@ NTPDCrequest(
 	)
 {
 
-    l_fp delay_time;
-    delay_time.l_ui = 0;
-    delay_time.l_uf = 0x51EB852;
+	l_fp delay_time = { .l_ui=0, .l_uf=0x51EB852};
 
 	struct req_pkt qpkt;
 	size_t	datasize;
@@ -718,13 +734,13 @@ ntpdControlFlags(NTPoptions* options, NTPcontrol* control, int req, int flags)
 	sys.flags = flags;
 
 	sys.flags = htonl(sys.flags);
-	if (res || sys.flags == 0)
-	    return 0;
 
 	res = NTPDCquery(options, control, req, 1, 1,
 		      sizeof(struct conf_sys_flags), (char *)&sys, &items,
 		      &itemsize, &dummy, 0, sizeof(struct conf_sys_flags));
 
+	if ((res != INFO_OKAY) && (sys.flags == 0))
+	    return 0;
 
 	if (res != INFO_OKAY) {
 
@@ -759,7 +775,8 @@ ntpdSetFlags(NTPoptions* options, NTPcontrol* control, int flags)
 {
 
 	int res;
-        ntpdc_pktdata = malloc(INITDATASIZE);
+	ntpdc_pktdata = malloc(INITDATASIZE);
+	DBGV("Setting NTP flags %d\n", flags);
 	res=ntpdControlFlags(options, control, REQ_SET_SYS_FLAG, flags);
 	free(ntpdc_pktdata);
 	return res;
@@ -771,7 +788,8 @@ ntpdClearFlags(NTPoptions* options, NTPcontrol* control, int flags)
 {
 
 	int res;
-        ntpdc_pktdata = malloc(INITDATASIZE);
+	ntpdc_pktdata = malloc(INITDATASIZE);
+	DBGV("Clearing NTP flags %d\n", flags);
 	res=ntpdControlFlags(options, control, REQ_CLR_SYS_FLAG, flags);
 	free(ntpdc_pktdata);
 	return res;
@@ -812,7 +830,8 @@ ntpdInControl(NTPoptions* options, NTPcontrol* control)
 
 	if(!control->flagsCaptured) {
 		control->originalFlags = is->flags;
-
+		 /* we only control the kernel and ntp flags */
+		control->originalFlags &= (INFO_FLAG_KERNEL | INFO_FLAG_NTP);
 		control->flagsCaptured = TRUE;
 		res = INFO_YES;
 		goto end;
@@ -858,120 +877,3 @@ ntpdInControl(NTPoptions* options, NTPcontrol* control)
 
 }
 
-/* This function maintains the desired ntpd state based on NTPcontrol fields */
-Boolean ntpdControl(NTPoptions* options, NTPcontrol* control, Boolean quiet)
-{
-
-	if(!options->enableEngine)
-		return TRUE;
-
-	/* Attempt to restart the NTPd socket if for some reason not operational */
-	if(!control->operational) {
-		if(!(control->operational =
-		    ntpInit(options, control))) {
-			NOTICE("Could not start NTP control subsystem\n");
-			return FALSE;
-		}
-	}
-
-	/* Find out if NTPd is controlling the clock or not */
-
-//	if (!quiet) INFO("Checking local NTPd status\n");
-
-	switch(ntpdInControl(options, control)) {
-
-		case INFO_YES:
-			control->inControl = TRUE;
-			break;
-		case INFO_NO:
-			control->inControl = FALSE;
-			break;
-		default:
-			if(!control->checkFailed)
-			WARNING("Could not verify NTP status - will keep checking\n");
-			control->inControl = FALSE;
-			control->checkFailed = TRUE;
-		return FALSE;
-	}
-
-	if(control->checkFailed)
-		NOTIFY("NTPd now available\n");
-	control->checkFailed = FALSE;
-
-	/* NTP is running as expected */
-
-	if(control->inControl == control->isRequired) {
-		control->requestFailed = FALSE;
-		if(!quiet) {
-			if(control->isRequired)
-				INFO("NTPd running and is already controlling the clock - OK\n");
-			else
-				INFO("NTPd running and is not controlling the clock - OK\n");
-		}
-		return TRUE;
-
-	/* NTP is not running as expected - see if we can fail over or fail back */
-
-	} else  {
-
-		/* We can't control NTPD - inform only */
-		if(!options->enableControl) {
-/*			if(!quiet) {*/
-				if(control->isRequired) {
-					INFO("Found NTPd running and not controlling the clock\n");
-					WARNING("Cannot hand over control to NTPd - NTPD control is disabled\n");
-				} else {
-					INFO("Found NTPd running and controlling the clock\n");
-					WARNING("Cannot take over clock control from NTPd - NTPd control is disabled\n");
-/*				}   */
-			}
-			/* We cannot fail over but there were no errors - still return TRUE */
-			return TRUE;
-		}
-
-		/* We can control NTPd - try to match the desired state */
-
-		/* Attempt handing over clock control TO NTPD */
-
-		if(control->isRequired) {
-			if(!control->requestFailed) INFO("Found NTPd running and not controlling the clock\n");
-			if(!control->requestFailed) INFO("Attempting to fail over to local NTPd\n");
-				switch(ntpdSetFlags(options, control, SYS_FLAG_KERNEL | SYS_FLAG_NTP)) {
-					case INFO_OKAY:
-						NOTICE("Succesfully failed over to NTP\n");
-						control->inControl = TRUE;
-						control->requestFailed = FALSE;
-						return TRUE;
-						break;
-					default:
-						if(!control->requestFailed) WARNING("Could not fail over to NTP  - Clock may drift! See previous errors\n");
-						control->requestFailed = TRUE;
-						return FALSE;
-						break;
-				}
-
-		/* Attempt taking clock control back FROM NTPD */
-
-		} else {
-			if(!control->requestFailed) INFO("Found NTPd running and controlling the clock\n");
-			if(!control->requestFailed) INFO("Attempting to disable local NTPd\n");
-				switch(ntpdClearFlags(options, control, SYS_FLAG_KERNEL | SYS_FLAG_NTP)) {
-					case INFO_OKAY:
-						NOTICE("Succesfully disabled local NTPd\n");
-						control->inControl = FALSE;
-						control->requestFailed = FALSE;
-						return TRUE;
-						break;
-					default:
-						if(!control->requestFailed) WARNING("Could not disable local NTPd - Clock may be unstable! See previous errors\n");
-						control->requestFailed = TRUE;
-						return FALSE;
-						break;
-				}
-			}
-
-		}
-
-return FALSE;
-
-}

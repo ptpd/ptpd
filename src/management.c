@@ -978,7 +978,7 @@ void handleMMDisablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 }
 
 /**\brief Handle incoming TIME management message type*/
-void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock, RunTimeOpts* rtOpts)
+void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 {
 	DBGV("received TIME message\n");
 

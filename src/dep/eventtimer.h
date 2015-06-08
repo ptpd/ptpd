@@ -1,28 +1,10 @@
+#ifndef EVENTTIMER_H_
+#define EVENTTIMER_H_
+
+#include "../ptpd.h"
+
 /*-
- * Copyright (c) 2015      Wojciech Owczarek,
- * Copyright (c) 2014      Perseus Telecom,
- * Copyright (c) 2013-2014 Harlan Stenn,
- *                         George N. Neville-Neil,
- *                         Wojciech Owczarek,
- *                         Jan Breuer.
- * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
- *                         Jan Breuer,
- *                         Wojciech Owczarek,
- *                         Gael Mace, 
- *                         Alexandre Van Kempen,
- *                         Inaqui Delgado,
- *                         Rick Ratzel,
- *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
- *                         Jan Breuer,
- *                         Gael Mace, 
- *                         Alexandre Van Kempen
- *
- * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
+ * Copyright (c) 2015 Wojciech Owczarek,
  *
  * All Rights Reserved
  * 
@@ -47,3 +29,48 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#define EVENTTIMER_MAX_DESC           20
+
+typedef struct EventTimer EventTimer;
+
+struct EventTimer {
+
+	/* data */
+	char id[EVENTTIMER_MAX_DESC + 1];
+	Boolean expired;
+	Boolean running;
+
+	/* "methods" */
+	void (*start) (EventTimer* timer, double interval);
+	void (*stop) (EventTimer* timer);
+	void (*reset) (EventTimer* timer);
+	void (*shutdown) (EventTimer* timer);
+	Boolean (*isExpired) (EventTimer* timer);
+	Boolean (*isRunning) (EventTimer* timer);	
+
+	/* implementation data */
+#ifdef PTPD_PTIMERS
+	timer_t timerId;
+#else
+	int32_t itimerInterval;
+	int32_t itimerLeft;
+#endif /* PTPD_PTIMERS */
+
+	/* linked list */
+	EventTimer *_first;
+	EventTimer *_next;
+	EventTimer *_prev;
+
+};
+
+EventTimer *createEventTimer(const char *id);
+void freeEventTimer(EventTimer **timer);
+void setupEventTimer(EventTimer *timer);
+
+void startEventTimers();
+void shutdownEventTimers();
+
+
+#endif /* EVENTTIMER_H_ */
+

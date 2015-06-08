@@ -72,13 +72,22 @@ Boolean startupInProgress;
  */
 PtpClock *G_ptpClock = NULL;
 
+TimingDomain timingDomain;
+
+
 int
 main(int argc, char **argv)
 {
 	PtpClock *ptpClock;
 	Integer16 ret;
+	TimingService *ts;
 
 	startupInProgress = TRUE;
+
+	memset(&timingDomain, 0, sizeof(timingDomain));
+	timingDomainSetup(&timingDomain);
+
+	timingDomain.electionLeft = 10;
 
 	/* Initialize run time options with command line arguments */
 	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts))) {
@@ -86,6 +95,32 @@ main(int argc, char **argv)
 			ERROR(USER_DESCRIPTION" startup failed\n");
 		return ret;
 	}
+
+	timingDomain.electionDelay = rtOpts.electionDelay;
+
+	/* configure PTP TimeService */
+
+	timingDomain.services[0] = &ptpClock->timingService;
+	ts = timingDomain.services[0];
+	strncpy(ts->id, "PTP0", TIMINGSERVICE_MAX_DESC);
+	ts->dataSet.priority1 = rtOpts.preferNTP;
+	ts->dataSet.type = TIMINGSERVICE_PTP;
+	ts->config = &rtOpts;
+	ts->controller = ptpClock;
+	ts->timeout = rtOpts.idleTimeout;
+	ts->updateInterval = 1;
+	ts->holdTime = rtOpts.ntpOptions.failoverTimeout;
+	timingDomain.serviceCount = 1;
+
+	if (rtOpts.ntpOptions.enableEngine) {
+		ntpSetup(&rtOpts, ptpClock);
+	} else {
+	    timingDomain.serviceCount = 1;
+	    timingDomain.services[1] = NULL;
+	}
+
+	timingDomain.init(&timingDomain);
+	timingDomain.updateInterval = 1;
 
 	startupInProgress = FALSE;
 
@@ -96,7 +131,8 @@ main(int argc, char **argv)
 	protocol(&rtOpts, ptpClock);
 	/* forever loop.. */
 
-	ptpdShutdown(ptpClock);
+	/* this also calls ptpd shutdown */
+	timingDomain.shutdown(&timingDomain);
 
 	NOTIFY("Self shutdown\n");
 

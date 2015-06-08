@@ -90,11 +90,16 @@ typedef struct {
 	struct in_addr interfaceAddr;
 	/* Typically MAC address - outer 6 octers of ClockIdendity */
 	Octet interfaceID[ETHER_ADDR_LEN];
-	/* used for Hybrid mode */
+	/* source address of last received packet - used for unicast replies to Delay Requests */
 	Integer32 lastRecvAddr;
+	/* destination address of last received packet - used for unicast FollowUp for multiple slaves*/
+	Integer32 lastDestAddr;
 
 	uint64_t sentPackets;
 	uint64_t receivedPackets;
+
+	uint64_t sentPacketsTotal;
+	uint64_t receivedPacketsTotal;
 
 #ifdef PTPD_PCAP
 	pcap_t *pcapEvent;
@@ -176,5 +181,32 @@ typedef struct{
     UInteger16  defaultValue;
 
 } UInteger16_option;
+
+typedef union { uint32_t *uintval; int32_t *intval; double *doubleval; Boolean *boolval; char *strval; } ConfigPointer;
+typedef union { uint32_t uintval; int32_t intval; double doubleval; Boolean boolval; char *strval; } ConfigSetting;
+
+typedef struct ConfigOption ConfigOption;
+
+struct ConfigOption {
+    char *key;
+    enum { CO_STRING, CO_INT, CO_UINT, CO_DOUBLE, CO_BOOL, CO_SELECT } type;
+    enum { CO_MIN, CO_MAX, CO_RANGE, CO_STRLEN } restriction;
+    ConfigPointer target;
+    ConfigPointer defvalue;
+    ConfigSetting constraint1;
+    ConfigSetting constraint2;
+    int restartFlags;
+    ConfigOption *next;
+};
+
+typedef struct {
+    int currentOffset;
+    int nextOffset;
+    int leapType;
+    Integer32 startTime;
+    Integer32 endTime;
+    Boolean valid;
+    Boolean offsetValid;
+} LeapSecondInfo;
 
 #endif /*DATATYPES_DEP_H_*/

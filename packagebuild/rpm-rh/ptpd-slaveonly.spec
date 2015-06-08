@@ -10,7 +10,7 @@
 %endif
 
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard
-Name: ptpd
+Name: ptpd-slaveonly
 Version: 2.3.1
 Release: 0.99.rc4%{distver}
 License: distributable
@@ -23,7 +23,7 @@ Source3: ptpd.conf
 
 URL: http://ptpd.sf.net
 
-Conflicts: ptpd-slaveonly
+Conflicts: ptpd
 
 Requires(pre): /sbin/chkconfig
 Requires(pre): /bin/awk sed grep
@@ -40,7 +40,8 @@ PTP was developed to provide very precise time
 coordination of LAN connected computers.
 
 Install the ptpd package if you need tools for keeping your system's
-time synchronised via the PTP protocol or serving PTP time.
+time synchronised via the PTP protocol. This version is a slave-only
+build - it is not possible to run as PTP master using ptpd-slave-only.
 
 %prep 
 
@@ -48,7 +49,7 @@ time synchronised via the PTP protocol or serving PTP time.
 
 %build
 
-./configure --with-max-unicast-destinations=128
+./configure --enable-slave-only --with-max-unicast-destinations=128
 
 make
 
@@ -157,8 +158,9 @@ fi
 
 %changelog
 * Mon Jun 01 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc4
-- RC4 release, adds leap seconds file and config files
+- RC4 release, adds leap seconds file
 * Wed Apr 15 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc4.pre2
+- Added the slaveonly spec
 * Mon Apr 13 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc4.pre1
 * Tue Oct 07 2014 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc3
 * Fri Jul 25 2014 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc2

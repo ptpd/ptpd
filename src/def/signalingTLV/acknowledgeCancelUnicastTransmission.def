@@ -1,0 +1,9 @@
+/* Spec Table 75 - ACKNOWLEDGE_UNICAST_TRANSMISSION signaling TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+
+OPERATE( messageType, 0, Enumeration4Upper)
+OPERATE( reserved0, 1, UInteger4Lower)
+OPERATE( reserved1, 1, Octet )
+
+#undef OPERATE

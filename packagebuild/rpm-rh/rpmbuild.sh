@@ -1,11 +1,14 @@
 #!/bin/sh
 
 # ptpd RPM building script
-# (c) 2013-2014: Wojciech Owczarek, PTPd project
+# (c) 2013-2015: Wojciech Owczarek, PTPd project
+
+# build both specs - ptpd and ptpd-slaveonly
+for SPEC in ptpd.spec ptpd-slaveonly.spec; do
 
 PWD=`pwd`
 BUILDDIR=`mktemp -d $PWD/tmpbuild.XXXXXXXXX`
-SPEC=ptpd.spec
+
 
 rm -rf $BUILDDIR
 
@@ -18,7 +21,12 @@ for dir in BUILD BUILDROOT RPMS SOURCES SPECS SRPMS; do mkdir -p $BUILDDIR/$dir;
 
 TARBALL=`cat $SPEC | grep ^Source0 | awk '{ print $2; }'`
 
+# hack: dist hook now removes rpms from this dir before dist packaging:
+# this is how we preserve them...
+mv *.rpm ..
 ( cd ../..; ./configure; make dist; )
+# and in they go again...
+mv ../*.rpm .
 
 mv ../../$TARBALL .
 
@@ -42,3 +50,5 @@ rpmbuild --define "_topdir $BUILDDIR" -ba $BUILDDIR/SPECS/$SPEC && {
 
 rm -rf $BUILDDIR
 rm $TARBALL
+
+done

@@ -123,17 +123,14 @@ netPath_display(const NetPath * net)
 	DBGV("multicastAdress : %s \n", inet_ntoa(addr));
 	addr.s_addr = net->peerMulticastAddr;
 	DBGV("peerMulticastAddress : %s \n", inet_ntoa(addr));
-	addr.s_addr = net->unicastAddr;
-	DBGV("unicastAddress : %s \n", inet_ntoa(addr));
 }
 
 /**\brief Display a IntervalTimer Structure*/
 void
 intervalTimer_display(const IntervalTimer * ptimer)
 {
-	DBGV("interval : %d \n", ptimer->interval);
-	DBGV("left : %d \n", ptimer->left);
-	DBGV("expire : %d \n", ptimer->expire);
+	DBGV("interval : %.06f \n", ptimer->interval);
+	DBGV("expire : %d \n", ptimer->expired);
 }
 
 /**\brief Display a TimeInterval Structure*/
@@ -277,14 +274,14 @@ msgDelayResp_display(const MsgDelayResp * resp)
 
 /**\brief Display Pdelay_Req message*/
 void
-msgPDelayReq_display(const MsgPDelayReq * preq)
+msgPdelayReq_display(const MsgPdelayReq * preq)
 {
 	timestamp_display(&preq->originTimestamp);
 }
 
 /**\brief Display Pdelay_Resp message*/
 void
-msgPDelayResp_display(const MsgPDelayResp * presp)
+msgPdelayResp_display(const MsgPdelayResp * presp)
 {
 
 	timestamp_display(&presp->requestReceiptTimestamp);
@@ -293,7 +290,7 @@ msgPDelayResp_display(const MsgPDelayResp * presp)
 
 /**\brief Display Pdelay_Resp Follow Up message*/
 void
-msgPDelayRespFollowUp_display(const MsgPDelayRespFollowUp * prespfollow)
+msgPdelayRespFollowUp_display(const MsgPdelayRespFollowUp * prespfollow)
 {
 
 	timestamp_display(&prespfollow->responseOriginTimestamp);
@@ -487,6 +484,49 @@ mMErrorStatus_display(const MMErrorStatus* errorStatus, const PtpClock *ptpClock
 	/* TODO: implement me */
 }
 
+/**\brief Display Signaling message*/
+void
+msgSignaling_display(const MsgSignaling * signaling)
+{
+        DBGV("Signaling Message : \n");
+        DBGV("\n");
+        DBGV("targetPortIdentity : \n");
+	portIdentity_display(&signaling->targetPortIdentity);
+}
+
+void
+sMRequestUnicastTransmission_display(const SMRequestUnicastTransmission* request, const PtpClock *ptpClock)
+{
+	DBGV("Request Unicast Transmission SignalingTLV message \n");
+	DBGV("messageType: %d\n", request->messageType);
+	DBGV("logInterMessagePeriod: %d\n", request->logInterMessagePeriod);
+	DBGV("durationField: %d\n", request->durationField);
+}
+
+void
+sMGrantUnicastTransmission_display(const SMGrantUnicastTransmission* grant, const PtpClock *ptpClock)
+{
+	DBGV("Grant Unicast Transmission SignalingTLV message \n");
+	DBGV("messageType: %d\n", grant->messageType);
+	DBGV("logInterMessagePeriod: %d\n", grant->logInterMessagePeriod);
+	DBGV("durationField: %d\n", grant->durationField);
+	DBGV("R (renewal invited): %d\n", grant->renewal_invited);
+}
+
+void
+sMCancelUnicastTransmission_display(const SMCancelUnicastTransmission* tlv, const PtpClock *ptpClock)
+{
+	DBGV("Cancel Unicast Transmission SignalingTLV message \n");
+	DBGV("messageType: %d\n", tlv->messageType);
+}
+
+void
+sMAcknowledgeCancelUnicastTransmission_display(const SMAcknowledgeCancelUnicastTransmission* tlv, const PtpClock *ptpClock)
+{
+	DBGV("Acknowledge Cancel Unicast Transmission SignalingTLV message \n");
+	DBGV("messageType: %d\n", tlv->messageType);
+}
+
 #define FORMAT_SERVO	"%f"
 
 /**\brief Display runTimeOptions structure*/
@@ -496,15 +536,14 @@ displayRunTimeOpts(const RunTimeOpts * rtOpts)
 
 	DBGV("---Run time Options Display-- \n");
 	DBGV("\n");
-	DBGV("announceInterval : %d \n", rtOpts->announceInterval);
-	DBGV("syncInterval : %d \n", rtOpts->syncInterval);
+	DBGV("announceInterval : %d \n", rtOpts->logAnnounceInterval);
+	DBGV("syncInterval : %d \n", rtOpts->logSyncInterval);
 	clockQuality_display(&(rtOpts->clockQuality));
 	DBGV("priority1 : %d \n", rtOpts->priority1);
 	DBGV("priority2 : %d \n", rtOpts->priority2);
 	DBGV("domainNumber : %d \n", rtOpts->domainNumber);
 	DBGV("slaveOnly : %d \n", rtOpts->slaveOnly);
 	DBGV("currentUtcOffset : %d \n", rtOpts->timeProperties.currentUtcOffset);
-	unicast_display(rtOpts->unicastAddress);
 	DBGV("noAdjust : %d \n", rtOpts->noAdjust);
 	DBGV("logStatistics : %d \n", rtOpts->logStatistics);
 	iFaceName_display(rtOpts->ifaceName);
@@ -691,8 +730,8 @@ displayOthers(const PtpClock * ptpClock)
 	timeInternal_display(&ptpClock->sync_receive_time);
 	DBGV("\n");
 	//DBGV("R : %f \n", ptpClock->R);
-	DBGV("sentPdelayReq : %d \n", ptpClock->sentPDelayReq);
-	DBGV("sentPDelayReqSequenceId : %d \n", ptpClock->sentPDelayReqSequenceId);
+	DBGV("sentPdelayReq : %d \n", ptpClock->sentPdelayReq);
+	DBGV("sentPdelayReqSequenceId : %d \n", ptpClock->sentPdelayReqSequenceId);
 	DBGV("waitingForFollow : %d \n", ptpClock->waitingForFollow);
 	DBGV("\n");
 	DBGV("Offset from master filter : \n");
@@ -708,9 +747,9 @@ displayOthers(const PtpClock * ptpClock)
 	DBGV("message activity %d \n", ptpClock->message_activity);
 	DBGV("\n");
 
-	for (i = 0; i < TIMER_ARRAY_SIZE; i++) {
+	for (i = 0; i < PTP_MAX_TIMER; i++) {
 		DBGV("%s : \n", timer[i]);
-		intervalTimer_display(&ptpClock->itimer[i]);
+		intervalTimer_display(&ptpClock->timers[i]);
 		DBGV("\n");
 	}
 
@@ -848,6 +887,23 @@ displayCounters(const PtpClock * ptpClock)
 	INFO("        managementMessagesReceived : %d\n",
 		ptpClock->counters.managementMessagesReceived);
 
+    if(ptpClock->counters.signalingMessagesReceived ||
+	    ptpClock->counters.signalingMessagesSent) {
+	INFO("Unicast negotiation counters:\n");
+	INFO("            unicastGrantsRequested : %d\n",
+		ptpClock->counters.unicastGrantsRequested);
+	INFO("              unicastGrantsGranted : %d\n",
+		ptpClock->counters.unicastGrantsGranted);
+	INFO("               unicastGrantsDenied : %d\n",
+		ptpClock->counters.unicastGrantsDenied);
+	INFO("           unicastGrantsCancelSent : %d\n",
+		ptpClock->counters.unicastGrantsCancelSent);
+	INFO("       unicastGrantsCancelReceived : %d\n",
+		ptpClock->counters.unicastGrantsCancelReceived);
+	INFO("    unicastGrantsCancelAckReceived : %d\n",
+		ptpClock->counters.unicastGrantsCancelAckReceived);
+
+    }
 /* not implemented yet */
 #if 0
 	INFO("FMR counters:\n");
@@ -896,6 +952,8 @@ displayCounters(const PtpClock * ptpClock)
 		ptpClock->counters.domainMismatchErrors);
 	INFO("            sequenceMismatchErrors : %d\n",
 		ptpClock->counters.sequenceMismatchErrors);
+	INFO("         consecutiveSequenceErrors : %d\n",
+		ptpClock->counters.consecutiveSequenceErrors);
 	INFO("           delayModeMismatchErrors : %d\n",
 		ptpClock->counters.delayModeMismatchErrors);
 	INFO("           maxDelayDrops : %d\n",
@@ -911,6 +969,78 @@ displayCounters(const PtpClock * ptpClock)
 #endif /* PTPD_STATISTICS */
 
 }
+
+const char *
+getTimeSourceName(Enumeration8 timeSource)
+{
+
+    switch(timeSource) {
+
+        case  ATOMIC_CLOCK:
+	    return "ATOMIC_CLOCK";
+	case  GPS:
+	    return "GPS";
+	case  TERRESTRIAL_RADIO:
+	    return "TERRERSTRIAL_RADIO";
+	case  PTP:
+	    return "PTP";
+	case  NTP:
+	    return "NTP";
+	case  HAND_SET:
+	    return "HAND_SET";
+	case  OTHER:
+	    return "OTHER";
+	case  INTERNAL_OSCILLATOR:
+	    return "INTERNAL_OSCILLATOR";
+	default:
+	    return "UNKNOWN";
+    }              
+
+}
+
+const char *
+getMessageTypeName(Enumeration8 messageType)
+{
+    switch(messageType)
+    {
+    case ANNOUNCE:
+	return("Announce");
+	break;
+    case SYNC:
+	return("Sync");
+	break;
+    case FOLLOW_UP:
+	return("FollowUp");
+	break;
+    case DELAY_REQ:
+	return("DelayReq");
+	break;
+    case DELAY_RESP:
+	return("DelayResp");
+	break;
+    case PDELAY_REQ:
+	return("PdelayReq");
+	break;
+    case PDELAY_RESP:
+	return("PdelayResp");
+	break;
+    case PDELAY_RESP_FOLLOW_UP:
+	return("PdelayRespFollowUp");
+	break;	
+    case MANAGEMENT:
+	return("Management");
+	break;
+    case SIGNALING:
+	return("Signaling");
+	break;
+    default:
+	return("Unknown");
+	break;
+    }
+
+}
+
+
 
 /**\brief Display all PTP clock (port) statistics*/
 void

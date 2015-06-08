@@ -31,16 +31,13 @@
 #define PTPD_RESTART_DAEMON	1 << 7
 
 #ifdef PTPD_STATISTICS
-/* Configuration changes require outlier filter restart */
-#define PTPD_RESTART_PEIRCE	1 << 8
+/* Configuration changes require filter restart */
+#define PTPD_RESTART_FILTERS	1 << 8
 #endif
 
 #define PTPD_RESTART_ACLS	1 << 9
-
-#ifdef PTPD_NTPDC
 #define PTPD_RESTART_NTPENGINE	1 << 10
-#define PTPD_RESTART_NTPCONTROL	1 << 11
-#endif /* PTPD_NTPDC */
+#define PTPD_RESTART_NTPCONFIG	1 << 11
 
 #define LOG2_HELP "(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)"
 
