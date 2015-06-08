@@ -1,9 +1,23 @@
-2013-10-10  Wojciech Owczarek <wojciech@owczarek.co.uk>
+2013-06-10  Wojciech Owczarek <wojciech@owczarek.co.uk>
 
 	* 2.3.1 release
 
 	* New features since 2.3.0: 
 
+	- full unicast support both in master and in slave mode:
+	  + support for multiple unicast destinations for masters
+	  + feature-complete Telecom Profile support:
+	     * unicast negotiation for masters and slaves
+	     * disabling BMCA for masters
+	     * support for slaves with masters in multiple domains
+	     * influencing slave BMCA with local preference
+	     * serving multiple Telecom slaves at different rates
+	     * slaves correctly negotiate message rates over supported
+	       range of intervals until an acceptable interval is granted
+	  + support for unicast Peer Delay target - exotic use case
+	- greatly improved network robustness
+	- added support for slave-only builds (configure --slave-only):
+	  allows building a binary incapable of running as master
 	- simple failover mechanism - ptpengine:backup_interface
 	- ptpengine:max_delay_max_rejected setting to unblock ptpd
 	  rejecting all messages when max_delay set
@@ -14,6 +28,8 @@
 	  OSX and Solaris and its derivatives (OpenIndiana, OmniOS etc.)
 	- major rework of the ACL code
 	- outlier filter auto-tune to improve operation in noisy environments(high PDV)
+	- added support for statistical filters (min/mean/median)
+	- added small step detection (millisecond level)
 	- added ptpengine:clock_update_timeout setting to reset slave
 	  if no clock updates for a period of time
 	- when running slave-only in unicast mode, unicast address
@@ -23,13 +39,41 @@
 	- automatic Delay Request override for Hybrid and Unicast modes
 	- added options allowing to step the clock on startup
 	- improved sequence and re-ordering checks
+	- added support for "any domain" operation where ptpd will sync with
+	  any available domain
+	- idle timeout (PTPd hands over clock control)
+	- clock update timeout (PTPd restarts slave on timeout)
+	- maximum state machine reset count - full network restart when exceeded:
+	  allows ptpd to survive situations where network interface is removed,
+	  shut down or IP address changes
+	- support for NIST/IETF leap seconds file both for master and slave
+	- configurable leap second handling: accept, ignore, step
+	- support for leap second smear for slave operation
+	- option to step clock on startup
+	- TimingDomain API: all NTP failover code removed
+	  in favour of a generic interface for multiple time controllers.
+	- configurable port number - useful when running multiple instances
+	- periodic log file updates with slave or master information - separate
+	  from statistics file: allows sending statistics into syslog
+	- support for software transmit timestamping on Linux
 
 	* Bug fixes / improvements since 2.3.0:
 
+	- added CentOS / RHEL 7.x support
+	- statistics code enabled by default - can be disabled
+	- NTPd failover code enabled by default - can be disabled
+	- Improved status file - more error conditions included,
+	  message performance statistics included
+	- Rewritten timer subsystem allowing for easily implementing
+	  other implementations: included is the old interval timer implementation,
+	  and new (now default), POSIX timer implementation. This allows for
+	  fully standards-compliant message rates. This can be disabled with
+	  a configure flag
 	- ptpd now usable on systems with no adjtimex() call like OSX,
 	  OpenBSD and LynxOS ()
 	- moving standard deviation algorithm fix improving the outlier
 	  filters
+	- major servo.c spaghetti code cleanups
 	- network code cleanup
 	- fixed bug #66 - Ethernet interfaces no longer need IP addresses
 	  to run PTP Ethernet transport
@@ -46,8 +90,13 @@
 	  and vice versa. In hybrid mode, only unicast Delay Request /
 	  response is accepted; multicast management messages are always
 	  accepted
+	- further autoconf improvements across all supported OSes
+	- added missing files to distribution
 	- ptpd will now recover even from critical network failures,
 	  such as reloading drivers
+	- remaining memory leaks fixed
+	- more code cleanup, no more ajtimex() and similar calls in protocol.c
+	- some refactoring, constified rtOpts wherever possible
 	- other minor bugs fixed
 
 2013-11-22  George Neville-Neil  <gnn@neville-neil.com>, Wojciech Owczarek <wojciech@owczarek.co.uk>

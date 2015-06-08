@@ -1249,6 +1249,10 @@ else {
 	fprintf(out, 		STATUSPREFIX"  %d\n","Ignored Announce",
 		    ptpClock->counters.ignoredAnnounce);
 
+	if(ptpClock->counters.unicastGrantsDenied)
+	fprintf(out, 		STATUSPREFIX"  %d\n","Denied Unicast",
+		    ptpClock->counters.unicastGrantsDenied);
+
 	fprintf(out, 		STATUSPREFIX"  %d\n","State transitions",
 		    ptpClock->counters.stateTransitions);
 	fprintf(out, 		STATUSPREFIX"  %d\n","PTP Engine resets",

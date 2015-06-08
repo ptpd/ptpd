@@ -299,7 +299,7 @@ Raw (unfiltered) delaySM value - useful for evaluating outliers and filter perfo
 .RE
 
 \fBNOTE:\fR All the statistical measures (mean and std dev) will only be computed and displayed if PTPd was
-built with --enable-statistics. The duration of the sampling period is controlled with the
+built without --disable-statistics. The duration of the sampling period is controlled with the
 \fIglobal:statistics_update_interval\fR setting - (see \fBptpd2.conf(5)\fR).
 
 .SH HANDLED SIGNALS

@@ -49,7 +49,7 @@ build - it is not possible to run as PTP master using ptpd-slave-only.
 
 %build
 
-./configure --enable-statistics --enable-slave-only --with-max-unicast-destinations=128
+./configure --enable-slave-only --with-max-unicast-destinations=128
 
 make
 

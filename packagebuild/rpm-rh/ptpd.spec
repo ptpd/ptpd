@@ -48,7 +48,7 @@ time synchronised via the PTP protocol or serving PTP time.
 
 %build
 
-./configure --enable-statistics --with-max-unicast-destinations=128
+./configure --with-max-unicast-destinations=128
 
 make
 

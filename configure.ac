@@ -647,21 +647,21 @@ AC_MSG_CHECKING([for realtime statistics support])
 AC_ARG_ENABLE(
     [statistics],
     [AS_HELP_STRING(
-	[--enable-statistics],
-	[Enable support for realtime statistics and statistics based filtering]
+	[--disable-statistics],
+	[Disable support for realtime statistics and statistics based filtering]
     )],
-    [ptp_statistics=$enableval],
-    [ptp_statistics=no]
+    [ptp_enable_statistics=no],
+    [ptp_enable_statistics=yes]
 )
-AC_MSG_RESULT([$ptp_statistics])
-case "$ptp_statistics" in
+AC_MSG_RESULT([$ptp_enable_statistics])
+case "$ptp_enable_statistics" in
  yes)
     PTP_STATISTICS="-DPTPD_STATISTICS"
     ;;
 esac
 AC_SUBST(PTP_STATISTICS)
 
-AM_CONDITIONAL([STATISTICS], [test x$ptp_statistics = xyes])
+AM_CONDITIONAL([STATISTICS], [test x$ptp_enable_statistics = xyes])
 
 AC_MSG_CHECKING([for slave-only build support])
 AC_ARG_ENABLE(

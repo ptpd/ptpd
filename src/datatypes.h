@@ -1148,7 +1148,7 @@ typedef struct {
 	StatFilterOptions filterMSOpts;
 	StatFilterOptions filterSMOpts;
 
-	int statsUpdateInterval;
+
 	Boolean servoStabilityDetection;
 	double servoStabilityThreshold;
 	int servoStabilityTimeout;
@@ -1156,6 +1156,8 @@ typedef struct {
 
 	Boolean maxDelayStableOnly;
 #endif
+	/* also used by the periodic message ticker */
+	int statsUpdateInterval;
 
 	int calibrationDelay;
 	Boolean enablePanicMode;

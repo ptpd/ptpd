@@ -23,10 +23,10 @@ You will need the following tools and libraries to build ptpd2
 
 3. ./configure
 
-   To make use of all advanced functions it is recommended to
-   configure the build with the following options:
+   To disable the statistics code in order to lower computational
+   expense and RAM usage, configure the build with the following options:
 
-   ./configure --enable-statistics
+   ./configure --disable-statistics
 
    To add support for printing all message counters on a SIGUSR2,
    add --enable-sigusr2=counters to the configure parameters.
@@ -54,7 +54,9 @@ You will need the following tools and libraries to build ptpd2
 
 4. make
 
-5. Read the manual pages. ptpd2 itself also provides an extensive help:
+5. Read the manual pages ptpd2(8) and ptpd2.conf(5). The man pages
+   are the most complete source of configuration information.
+   ptpd2 itself also provides an extensive help:
    run ptpd2 --help to see the short help
    run ptpd2 --long-help to see the long help for all settings
    run ptpd2 -e [key:setting] to display help for a single setting
