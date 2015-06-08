@@ -26,6 +26,7 @@ AC_SUBST([VERSION_NUMBER])
 AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_LIBTOOL
+AM_PROG_CC_C_O
 
 # Check for svnversion, cut and tr
 
