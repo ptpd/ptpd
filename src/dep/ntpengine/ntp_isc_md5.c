@@ -38,7 +38,6 @@ void    ntp_memset      (char *, int, int);
                                 else \
                                         ntp_memset((char *)(a), x, c)
 
-
 static void
 byteSwap(uint32_t *buf, unsigned words)
 {

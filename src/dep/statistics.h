@@ -18,6 +18,8 @@
 typedef struct {
 
 	int32_t mean;
+	int32_t previous;
+	int32_t bufferedMean;
 	int32_t count;
 
 } IntPermanentMean;
@@ -25,6 +27,8 @@ typedef struct {
 typedef struct {
 
 	double mean;
+	double previous;
+	double bufferedMean;
 	double count;
 
 } DoublePermanentMean;
@@ -75,6 +79,7 @@ typedef struct {
 	double* samples;
 	Boolean full;
 	int count;
+	int counter;
 	int capacity;
 
 } DoubleMovingMean;
@@ -93,6 +98,7 @@ typedef struct {
 	DoubleMovingMean* meanContainer;
 	double squareSum;
 	double stdDev;
+	double periodicStdDev;
 	char identifier[10];
 
 } DoubleMovingStdDev;
@@ -100,20 +106,35 @@ typedef struct {
 typedef struct {
 
 	IntMovingMean* meanContainer;
-	int32_t median;
+	int32_t output;
 	int32_t* sortedSamples;
-	char* identifier[10];
+	char identifier[10];
+	int counter;
+	int filterType;
+	int windowType;
 
-} IntMovingMedian;
+} IntMovingStatFilter;
 
 typedef struct {
 
 	DoubleMovingMean* meanContainer;
-	double median;
+	double output;
 	double* sortedSamples;
-	char* identifier[10];
+	char identifier[10];
+	int counter;
+	int filterType;
+	int windowType;
 
-} DoubleMovingMedian;
+} DoubleMovingStatFilter;
+
+typedef struct {
+
+	Boolean enabled;
+	int	filterType;
+	int	windowSize;
+	int	windowType;
+
+} StatFilterOptions;
 
 IntMovingMean* createIntMovingMean(int capacity);
 void freeIntMovingMean(IntMovingMean** container);
@@ -135,15 +156,15 @@ void freeDoubleMovingStdDev(DoubleMovingStdDev** container);
 void resetDoubleMovingStdDev(DoubleMovingStdDev* container);
 double feedDoubleMovingStdDev(DoubleMovingStdDev* container, double sample);
 
-IntMovingMedian* createIntMovingMedian(int capacity);
-void freeIntMovingMedian(IntMovingMedian** container);
-void resetIntMovingMedian(IntMovingMedian* container);
-int32_t feedIntMovingMedian(IntMovingMedian* container, int32_t sample);
+IntMovingStatFilter* createIntMovingStatFilter(StatFilterOptions* config, const char* id);
+void freeIntMovingStatFilter(IntMovingStatFilter** container);
+void resetIntMovingStatFilter(IntMovingStatFilter* container);
+Boolean feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample);
 
-DoubleMovingMedian* createDoubleMovingMedian(int capacity);
-void freeDoubleMovingMedian(DoubleMovingMedian** container);
-void resetDoubleMovingMedian(DoubleMovingMedian* container);
-double feedDoubleMovingMedian(DoubleMovingMedian* container, double sample);
+DoubleMovingStatFilter* createDoubleMovingStatFilter(StatFilterOptions* config, const char* id);
+void freeDoubleMovingStatFilter(DoubleMovingStatFilter** container);
+void resetDoubleMovingStatFilter(DoubleMovingStatFilter* container);
+Boolean feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample);
 
 void intStatsTest(int32_t sample);
 void doubleStatsTest(double sample);

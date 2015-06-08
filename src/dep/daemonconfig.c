@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Wojciech Owczarek,
+ * Copyright (c) 2013-2015 Wojciech Owczarek,
  *
  * All Rights Reserved
  * 
@@ -624,6 +624,14 @@ printf("Note: The use of '-%c' option is deprecated %s- consider using '-%c' (--
 		restartFlags |= flag;\
 	}
 
+#define CONFIG_KEY_ALIAS(src,dest) \
+	{ \
+		if(!STRING_EMPTY(dictionary_get(dict,src,""))) {\
+		    dictionary_set(dict,dest,dictionary_get(dict,src,""));\
+		    dictionary_unset(dict,src);\
+		}\
+	}
+
 /* concatenate every second vararg argument for string, int pairs and print it */
 static void
 printKeyOptions( int count, ... )
@@ -791,8 +799,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* Wipe the memory first to avoid unconsistent behaviour - no need to set Boolean to FALSE, int to 0 etc. */
 	memset(rtOpts, 0, sizeof(RunTimeOpts));
 
-	rtOpts->announceInterval = DEFAULT_ANNOUNCE_INTERVAL;
-	rtOpts->syncInterval = DEFAULT_SYNC_INTERVAL;
+	rtOpts->logAnnounceInterval = DEFAULT_ANNOUNCE_INTERVAL;
+	rtOpts->logSyncInterval = DEFAULT_SYNC_INTERVAL;
 	rtOpts->logMinPdelayReqInterval = DEFAULT_PDELAYREQ_INTERVAL;
 	rtOpts->clockQuality.clockAccuracy = DEFAULT_CLOCK_ACCURACY;
 	rtOpts->clockQuality.clockClass = DEFAULT_CLOCK_CLASS;
@@ -800,6 +808,9 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->priority1 = DEFAULT_PRIORITY1;
 	rtOpts->priority2 = DEFAULT_PRIORITY2;
 	rtOpts->domainNumber = DEFAULT_DOMAIN_NUMBER;
+	rtOpts->portNumber = NUMBER_PORTS;
+
+	rtOpts->anyDomain = FALSE;
 
 	rtOpts->transport = UDP_IPV4;
 
@@ -809,24 +820,28 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->timeProperties.timeSource = INTERNAL_OSCILLATOR;
 	rtOpts->timeProperties.timeTraceable = FALSE;
 	rtOpts->timeProperties.frequencyTraceable = FALSE;
-	rtOpts->timeProperties.ptpTimescale = FALSE;
+	rtOpts->timeProperties.ptpTimescale = TRUE;
 
 	rtOpts->ip_mode = IPMODE_MULTICAST;
+
+	rtOpts->unicastNegotiation = FALSE;
+	rtOpts->unicastNegotiationListening = FALSE;
+	rtOpts->disableBMCA = FALSE;
+	rtOpts->unicastGrantDuration = 300;
 
 	rtOpts->noAdjust = NO_ADJUST;  // false
 	rtOpts->logStatistics = TRUE;
 	rtOpts->statisticsTimestamp = TIMESTAMP_DATETIME;
 
+	rtOpts->periodicUpdates = FALSE; /* periodically log a status update */
+
 	/* Deep display of all packets seen by the daemon */
 	rtOpts->displayPackets = FALSE;
-	// rtOpts->unicastAddress
 
 	rtOpts->s = DEFAULT_DELAY_S;
 	rtOpts->inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
 	rtOpts->outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
 	rtOpts->max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
-	// rtOpts->offset_first_updated = FALSE;
-
 	rtOpts->nonDaemon = FALSE;
 
 	/*
@@ -852,9 +867,17 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->statisticsLogInterval = 0;
 
 	rtOpts->initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
-	rtOpts->subsequent_delayreq = DEFAULT_DELAYREQ_INTERVAL;      // this will be updated if -g is given
+	rtOpts->logMinDelayReqInterval = DEFAULT_DELAYREQ_INTERVAL;
 	rtOpts->autoDelayReqInterval = TRUE;
 	rtOpts->masterRefreshInterval = 60;
+
+	/* maximum values for unicast negotiation */	
+    	rtOpts->logMaxPdelayReqInterval = 5;
+	rtOpts->logMaxDelayReqInterval = 5;
+	rtOpts->logMaxSyncInterval = 5;
+	rtOpts->logMaxAnnounceInterval = 5;
+
+
 
 	rtOpts->drift_recovery_method = DRIFT_KERNEL;
 	strncpy(rtOpts->lockDirectory, DEFAULT_LOCKDIR, PATH_MAX);
@@ -863,7 +886,11 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->autoLockFile = FALSE;
 	rtOpts->snmp_enabled = FALSE;
 	/* This will only be used if the "none" preset is configured */
+#ifndef PTPD_SLAVE_ONLY
 	rtOpts->slaveOnly = FALSE;
+#else
+	rtOpts->slaveOnly = TRUE;
+#endif /* PTPD_SLAVE_ONLY */
 	/* Otherwise default to slave only via the preset */
 	rtOpts->selectedPreset = PTP_PRESET_SLAVEONLY;
 	rtOpts->pidAsClockId = FALSE;
@@ -896,44 +923,65 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 #ifdef PTPD_STATISTICS
 
-	rtOpts->oFilterMSOpts.enabled = FALSE;
-	rtOpts->oFilterMSOpts.discard = FALSE;
-	rtOpts->oFilterMSOpts.autoTune = FALSE;
-	rtOpts->oFilterMSOpts.capacity = 20;
-	rtOpts->oFilterMSOpts.threshold = 1.0;
-	rtOpts->oFilterMSOpts.weight = 1;
-	rtOpts->oFilterMSOpts.minPercent = 20;
-	rtOpts->oFilterMSOpts.maxPercent = 95;
-	rtOpts->oFilterMSOpts.step = 0.1;
-	rtOpts->oFilterMSOpts.minThreshold = 0.1;
-	rtOpts->oFilterMSOpts.maxThreshold = 5.0;
+	rtOpts->oFilterMSConfig.enabled = FALSE;
+	rtOpts->oFilterMSConfig.discard = TRUE;
+	rtOpts->oFilterMSConfig.autoTune = TRUE;
+	rtOpts->oFilterMSConfig.stepDelay = FALSE;
+	rtOpts->oFilterMSConfig.alwaysFilter = FALSE;
+	rtOpts->oFilterMSConfig.stepThreshold = 1000000;
+	rtOpts->oFilterMSConfig.stepLevel = 500000;
+	rtOpts->oFilterMSConfig.capacity = 20;
+	rtOpts->oFilterMSConfig.threshold = 1.0;
+	rtOpts->oFilterMSConfig.weight = 1;
+	rtOpts->oFilterMSConfig.minPercent = 20;
+	rtOpts->oFilterMSConfig.maxPercent = 95;
+	rtOpts->oFilterMSConfig.thresholdStep = 0.1;
+	rtOpts->oFilterMSConfig.minThreshold = 0.1;
+	rtOpts->oFilterMSConfig.maxThreshold = 5.0;
+	rtOpts->oFilterMSConfig.delayCredit = 200;
+	rtOpts->oFilterMSConfig.creditIncrement = 10;
+	rtOpts->oFilterMSConfig.maxDelay = 1500;
 
-	rtOpts->oFilterSMOpts.enabled = FALSE;
-	rtOpts->oFilterSMOpts.discard = FALSE;
-	rtOpts->oFilterSMOpts.autoTune = FALSE;	
-	rtOpts->oFilterSMOpts.capacity = 20;
-	rtOpts->oFilterSMOpts.threshold = 1.0;
-	rtOpts->oFilterSMOpts.weight = 1;
-	rtOpts->oFilterSMOpts.minPercent = 20;
-	rtOpts->oFilterSMOpts.maxPercent = 95;
-	rtOpts->oFilterSMOpts.step = 0.1;
-	rtOpts->oFilterSMOpts.minThreshold = 0.1;
-	rtOpts->oFilterSMOpts.maxThreshold = 5.0;
+	rtOpts->oFilterSMConfig.enabled = FALSE;
+	rtOpts->oFilterSMConfig.discard = TRUE;
+	rtOpts->oFilterSMConfig.autoTune = TRUE;
+	rtOpts->oFilterSMConfig.stepDelay = FALSE;
+	rtOpts->oFilterSMConfig.alwaysFilter = FALSE;
+	rtOpts->oFilterSMConfig.stepThreshold = 1000000;
+	rtOpts->oFilterSMConfig.stepLevel = 500000;
+	rtOpts->oFilterSMConfig.capacity = 20;
+	rtOpts->oFilterSMConfig.threshold = 1.0;
+	rtOpts->oFilterSMConfig.weight = 1;
+	rtOpts->oFilterSMConfig.minPercent = 20;
+	rtOpts->oFilterSMConfig.maxPercent = 95;
+	rtOpts->oFilterSMConfig.thresholdStep = 0.1;
+	rtOpts->oFilterSMConfig.minThreshold = 0.1;
+	rtOpts->oFilterSMConfig.maxThreshold = 5.0;
+	rtOpts->oFilterSMConfig.delayCredit = 200;
+	rtOpts->oFilterSMConfig.creditIncrement = 10;
+	rtOpts->oFilterSMConfig.maxDelay = 1500;
 
-	rtOpts->medianFilter = TRUE;
-	rtOpts->medianFilterCapacity = 3;
+	rtOpts->filterMSOpts.enabled = FALSE;
+	rtOpts->filterMSOpts.filterType = FILTER_MIN;
+	rtOpts->filterMSOpts.windowSize = 4;
+	rtOpts->filterMSOpts.windowType = WINDOW_SLIDING;
+
+	rtOpts->filterSMOpts.enabled = FALSE;
+	rtOpts->filterSMOpts.filterType = FILTER_MIN;
+	rtOpts->filterSMOpts.windowSize = 4;
+	rtOpts->filterSMOpts.windowType = WINDOW_SLIDING;
 
 	/* How often refresh statistics (seconds) */
-	rtOpts->statsUpdateInterval = 5;
+	rtOpts->statsUpdateInterval = 30;
 	/* Servo stability detection settings follow */
 	rtOpts->servoStabilityDetection = FALSE;
 	/* Stability threshold (ppb) - observed drift std dev value considered stable */
-	rtOpts->servoStabilityThreshold = 5;
+	rtOpts->servoStabilityThreshold = 10;
 	/* How many consecutive statsUpdateInterval periods of observed drift std dev within threshold  means stable servo */
-	rtOpts->servoStabilityPeriod = 3;
+	rtOpts->servoStabilityPeriod = 1;
 	/* How many minutes without servo stabilisation means servo has not stabilised */
 	rtOpts->servoStabilityTimeout = 10;
-	/* How many statsUpdateInterval periods to wait for one-way delay prefiltering */
+	/* How long to wait for one-way delay prefiltering */
 	rtOpts->calibrationDelay = 0;
 	/* if set to TRUE and maxDelay is defined, only check against threshold if servo is stable */
 	rtOpts->maxDelayStableOnly = FALSE;
@@ -952,17 +1000,23 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* full network reset after 5 times in listening */
 	rtOpts->maxListen = 5;
 
-#ifdef PTPD_NTPDC
-	rtOpts->panicModeNtp = FALSE;
+	rtOpts->panicModeReleaseClock = FALSE;
 	rtOpts->ntpOptions.enableEngine = FALSE;
 	rtOpts->ntpOptions.enableControl = FALSE;
 	rtOpts->ntpOptions.enableFailover = FALSE;
-	rtOpts->ntpOptions.ntpInControl = FALSE;
-	rtOpts->ntpOptions.failoverTimeout = 60;
+	rtOpts->ntpOptions.failoverTimeout = 120;
 	rtOpts->ntpOptions.checkInterval = 15;
 	rtOpts->ntpOptions.keyId = 0;
 	strncpy(rtOpts->ntpOptions.hostAddress,"localhost",MAXHOSTNAMELEN); 	/* not configurable */
-#endif
+	rtOpts->preferNTP = FALSE;
+
+	rtOpts->leapSecondPausePeriod = 5;
+	rtOpts->leapSecondHandling = LEAP_ACCEPT;
+	rtOpts->leapSecondSmearPeriod = 86400;
+
+/* timing domain */
+	rtOpts->idleTimeout = 120; /* idle timeout */
+	rtOpts->electionDelay = 15; /* anti-flapping delay */
 
 /* Log file settings */
 
@@ -1155,16 +1209,23 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_SELECTVALUE("ptpengine:preset",rtOpts->selectedPreset,rtOpts->selectedPreset,
 		"PTP engine preset:\n"
 	"	 none	     = Defaults, no clock class restrictions\n"
-	"        slaveonly   = Slave only (clock class 255 only)\n"
 	"        masteronly  = Master, passive when not best master (clock class 0..127)\n"
 	"        masterslave = Full IEEE 1588 implementation:\n"
 	"                      Master, slave when not best master\n"
-	"	 	       (clock class 128..254)\n",
+	"	 	       (clock class 128..254)\n"
+	"        slaveonly   = Slave only (clock class 255 only)\n",
+#ifndef PTPD_SLAVE_ONLY
 				(getPtpPreset(PTP_PRESET_NONE,rtOpts)).presetName,		PTP_PRESET_NONE,
-				(getPtpPreset(PTP_PRESET_SLAVEONLY,rtOpts)).presetName,		PTP_PRESET_SLAVEONLY,
 				(getPtpPreset(PTP_PRESET_MASTERONLY,rtOpts)).presetName,	PTP_PRESET_MASTERONLY,
-				(getPtpPreset(PTP_PRESET_MASTERSLAVE,rtOpts)).presetName,	PTP_PRESET_MASTERSLAVE
+				(getPtpPreset(PTP_PRESET_MASTERSLAVE,rtOpts)).presetName,	PTP_PRESET_MASTERSLAVE,
+#endif /* PTPD_SLAVE_ONLY */
+				(getPtpPreset(PTP_PRESET_SLAVEONLY,rtOpts)).presetName,		PTP_PRESET_SLAVEONLY
 				);
+
+	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:preset",
+	 			    rtOpts->selectedPreset == PTP_PRESET_MASTERSLAVE,
+	 			    "masterslave",
+	 			    "ptpengine:unicast_negotiation");
 
 	ptpPreset = getPtpPreset(rtOpts->selectedPreset, rtOpts);
 
@@ -1190,12 +1251,37 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		"IP transmission mode (requires IP transport) - hybrid mode uses\n"
 	"	 multicast for sync and announce, and unicast for delay request and\n"
 	"	 response; unicast mode uses unicast for all transmission.\n"
-	"	 When unicast mode is selected, destination IP must be configured\n"
-	"	(ptpengine:unicast_address).",
+	"	 When unicast mode is selected, destination IP(s) may need to be configured\n"
+	"	(ptpengine:unicast_destinations).",
 				"multicast", 	IPMODE_MULTICAST,
 				"unicast", 	IPMODE_UNICAST,
 				"hybrid", 	IPMODE_HYBRID
 				);
+
+
+	CONFIG_MAP_BOOLEAN("ptpengine:unicast_negotiation",rtOpts->unicastNegotiation,rtOpts->unicastNegotiation,
+		"Enable unicast negotiation support using signaling messages\n");
+
+	CONFIG_KEY_CONDITIONAL_WARNING((rtOpts->transport == IEEE_802_3) && rtOpts->unicastNegotiation,
+	 			    "ptpengine:unicast_negotiation", 
+				"Unicast negotiation cannot be used with Ethernet transport\n");
+
+	CONFIG_KEY_CONDITIONAL_WARNING((rtOpts->ip_mode != IPMODE_UNICAST) && rtOpts->unicastNegotiation,
+	 			    "ptpengine:unicast_negotiation", 
+				"Unicast negotiation can only be used with unicast transmission\n");
+
+	/* disable unicast negotiation unless running unicast */
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3,rtOpts->unicastNegotiation,FALSE,rtOpts->unicastNegotiation);
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->ip_mode != IPMODE_UNICAST,rtOpts->unicastNegotiation,FALSE,rtOpts->unicastNegotiation);
+
+	CONFIG_MAP_BOOLEAN("ptpengine:disable_bmca",rtOpts->disableBMCA,rtOpts->disableBMCA,
+		"Disable Best Master Clock Algorithm for unicast masters:\n"
+	"        Only effective for masteronly preset - all Announce messages\n"
+	"        will be ignored and clock will transition directly into MASTER state.\n");
+
+	CONFIG_MAP_BOOLEAN("ptpengine:unicast_negotiation_listening",rtOpts->unicastNegotiationListening,rtOpts->unicastNegotiationListening,
+		"When unicast negotiation enabled on a master clock, \n"
+	"	 reply to transmission requests also in LISTENING state.");
 
 #if defined(PTPD_PCAP) && defined(__sun) && !defined(PTPD_EXPERIMENTAL)
 	if(CONFIG_ISTRUE("ptpengine:use_libpcap"))
@@ -1250,6 +1336,18 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT_RANGE("ptpengine:domain",rtOpts->domainNumber,rtOpts->domainNumber,
 		"PTP domain number.",0,127);
 
+	CONFIG_MAP_INT_RANGE("ptpengine:port_number",rtOpts->portNumber,rtOpts->portNumber,
+			    "PTP port number (part of PTP Port Identity - not UDP port).\n"
+		    "        For ordinary clocks (single port), the default should be used, \n"
+		    "        but when running multiple instances to simulate a boundary clock, \n"
+		    "        The port number can be changed.",1,65534);
+
+	CONFIG_MAP_BOOLEAN("ptpengine:any_domain",rtOpts->anyDomain, rtOpts->anyDomain,
+		"Usability extension: if enabled, a slave-only clock will accept\n"
+	"	 masters from any domain, while preferring the configured domain,\n"
+	"	 and preferring lower domain number.\n"
+	"	 NOTE: this behaviour is not part of the standard.");
+
 	CONFIG_MAP_BOOLEAN("ptpengine:slave_only",rtOpts->slaveOnly, ptpPreset.slaveOnly,
 		 "Slave only mode (sets clock class to 255, overriding value from preset).");
 
@@ -1262,7 +1360,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT( "ptpengine:offset_shift",rtOpts->ofmShift.nanoseconds,rtOpts->ofmShift.nanoseconds,
 	"Apply an arbitrary shift (nanoseconds) to offset from master when\n"
 	"	 in slave state. Value can be positive or negative - useful for\n"
-	"	 correcting for of antenna latencies, delay assymetry\n"
+	"	 correcting for antenna latencies, delay assymetry\n"
 	"	 and IP stack latencies. This will not be visible in the offset \n"
 	"	 from master value - only in the resulting clock correction.");
 
@@ -1284,9 +1382,33 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 as FALSE.\n"
 	"	 NOTE: this behaviour is not part of the standard.");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:log_announce_interval",rtOpts->announceInterval,rtOpts->announceInterval,
-		"PTP announce message interval in master state."
-		 LOG2_HELP,-1,7);
+	/* from 30 seconds to 7 days */
+	CONFIG_MAP_INT_RANGE("ptpengine:unicast_grant_duration", rtOpts->unicastGrantDuration, rtOpts->unicastGrantDuration,
+		"Time (seconds) unicast messages are requested for by slaves\n"
+	"	 when using unicast negotiation, and maximum time unicast message\n"
+	"	 transmission is granted to slaves by masters\n", 30, 604800);
+
+	CONFIG_MAP_INT_RANGE("ptpengine:log_announce_interval",rtOpts->logAnnounceInterval,rtOpts->logAnnounceInterval,
+		"PTP announce message interval in master state. When using unicast negotiation, for\n"
+	"	 slaves this is the minimum interval requested, and for masters\n"
+	"	 this is the only interval granted.\n"
+#ifdef PTPD_EXPERIMENTAL
+    "	"LOG2_HELP,-30,30);
+#else
+    "	"LOG2_HELP,-4,7);
+#endif
+
+	CONFIG_MAP_INT_RANGE("ptpengine:log_announce_interval_max",rtOpts->logMaxAnnounceInterval,rtOpts->logMaxAnnounceInterval,
+		"Maximum Announce message interval requested by slaves "
+		"when using unicast negotiation,\n"
+#ifdef PTPD_EXPERIMENTAL
+    "	"LOG2_HELP,-30,30);
+#else
+    "	"LOG2_HELP,-1,7);
+#endif
+
+	CONFIG_CONDITIONAL_ASSERTION(rtOpts->logAnnounceInterval >= rtOpts->logMaxAnnounceInterval,
+					"ptpengine:log_announce_interval value must be lower than ptpengine:log_announce_interval_max\n");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:announce_receipt_timeout",rtOpts->announceReceiptTimeout,rtOpts->announceReceiptTimeout,
 		"PTP announce receipt timeout announced in master state.",2,255);
@@ -1299,9 +1421,27 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	 to react. When set to 0, this option is not used.",
 	0,20);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:log_sync_interval",rtOpts->syncInterval,rtOpts->syncInterval,
-		"PTP sync message interval in master state\n"
-	"	"LOG2_HELP,-7,7);
+	CONFIG_MAP_INT_RANGE("ptpengine:log_sync_interval",rtOpts->logSyncInterval,rtOpts->logSyncInterval,
+		"PTP sync message interval in master state. When using unicast negotiation, for\n"
+	"	 slaves this is the minimum interval requested, and for masters\n"
+	"	 this is the only interval granted.\n"
+#ifdef PTPD_EXPERIMENTAL
+    "	"LOG2_HELP,-30,30);
+#else
+    "	"LOG2_HELP,-7,7);
+#endif
+
+	CONFIG_MAP_INT_RANGE("ptpengine:log_sync_interval_max",rtOpts->logMaxSyncInterval,rtOpts->logMaxSyncInterval,
+		"Maximum Sync message interval requested by slaves "
+		"when using unicast negotiation,\n"
+#ifdef PTPD_EXPERIMENTAL
+    "	"LOG2_HELP,-30,30);
+#else
+    "	"LOG2_HELP,-1,7);
+#endif
+
+	CONFIG_CONDITIONAL_ASSERTION(rtOpts->logSyncInterval >= rtOpts->logMaxSyncInterval,
+					"ptpengine:log_sync_interval value must be lower than ptpengine:log_sync_interval_max\n");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:log_delayreq_override", rtOpts->ignore_delayreq_interval_master,
 	rtOpts->ignore_delayreq_interval_master,
@@ -1311,22 +1451,62 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	rtOpts->autoDelayReqInterval,
 		 "Automatically override the Delay Request interval\n"
 	"         if the announced value is 127 (0X7F), such as in\n"
-	"         unicast messages,");
+	"         unicast messages (unless using unicast negotiation)");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:log_delayreq_interval_initial",rtOpts->initial_delayreq,rtOpts->initial_delayreq,
 		"Delay request interval used before receiving first delay response\n"
-	"	"LOG2_HELP,-7,7);
+#ifdef PTPD_EXPERIMENTAL
+    "	"LOG2_HELP,-30,30);
+#else
+    "	"LOG2_HELP,-7,7);
+#endif
 
 	/* take the delayreq_interval from config, otherwise use the initial setting as default */
-	CONFIG_MAP_INT_RANGE("ptpengine:log_delayreq_interval",rtOpts->subsequent_delayreq,rtOpts->initial_delayreq,
+	CONFIG_MAP_INT_RANGE("ptpengine:log_delayreq_interval",rtOpts->logMinDelayReqInterval,rtOpts->initial_delayreq,
 		"Minimum delay request interval announced when in master state,\n"
 	"	 in slave state overrides the master interval,\n"
-	"	 required in hybrid mode.\n"
-	"	 "LOG2_HELP,-7,7);
+	"	 required in hybrid mode. When using unicast negotiation, for\n"
+	"	 slaves this is the minimum interval requested, and for masters\n"
+	"	 this is the minimum interval granted.\n"
+#ifdef PTPD_EXPERIMENTAL
+    "	"LOG2_HELP,-30,30);
+#else
+    "	"LOG2_HELP,-7,7);
+#endif
+
+	CONFIG_MAP_INT_RANGE("ptpengine:log_delayreq_interval_max",rtOpts->logMaxDelayReqInterval,rtOpts->logMaxDelayReqInterval,
+		"Maximum Delay Response interval requested by slaves "
+		"when using unicast negotiation,\n"
+#ifdef PTPD_EXPERIMENTAL
+    "	"LOG2_HELP,-30,30);
+#else
+    "	"LOG2_HELP,-1,7);
+#endif
+
+	CONFIG_CONDITIONAL_ASSERTION(rtOpts->logMinDelayReqInterval >= rtOpts->logMaxDelayReqInterval,
+					"ptpengine:log_delayreq_interval value must be lower than ptpengine:log_delayreq_interval_max\n");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:log_peer_delayreq_interval",rtOpts->logMinPdelayReqInterval,rtOpts->logMinPdelayReqInterval,
-		"Minimum peer delay request message interval in peer to peer delay mode\n"
-	"	"LOG2_HELP,-7,7);
+		"Minimum peer delay request message interval in peer to peer delay mode.\n"
+	"        When using unicast negotiation, this is the minimum interval requested, \n"
+	"	 and the only interval granted.\n"
+#ifdef PTPD_EXPERIMENTAL
+    "	"LOG2_HELP,-30,30);
+#else
+    "	"LOG2_HELP,-7,7);
+#endif
+
+	CONFIG_MAP_INT_RANGE("ptpengine:log_peer_delayreq_interval_max",rtOpts->logMaxPdelayReqInterval,rtOpts->logMaxPdelayReqInterval,
+		"Maximum Peer Delay Response interval requested by slaves "
+		"when using unicast negotiation,\n"
+#ifdef PTPD_EXPERIMENTAL
+    "	"LOG2_HELP,-30,30);
+#else
+    "	"LOG2_HELP,-1,7);
+#endif
+
+	CONFIG_CONDITIONAL_ASSERTION(rtOpts->logMinPdelayReqInterval >= rtOpts->logMaxPdelayReqInterval,
+					"ptpengine:log_peer_delayreq_interval value must be lower than ptpengine:log_peer_delayreq_interval_max\n");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:foreignrecord_capacity",rtOpts->max_foreign_records,rtOpts->max_foreign_records,
 	"Foreign master record size (Maximum number of foreign masters).",5,10);
@@ -1406,6 +1586,18 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->clockQuality.clockClass==DEFAULT_CLOCK_CLASS__APPLICATION_SPECIFIC_TIME_SOURCE,
 					rtOpts->timeProperties.ptpTimescale,FALSE,rtOpts->timeProperties.ptpTimescale);
 
+	/* ClockClass = 14 triggers ARB */
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->clockQuality.clockClass==14,
+					rtOpts->timeProperties.ptpTimescale,FALSE,rtOpts->timeProperties.ptpTimescale);
+
+	/* ClockClass = 6 triggers PTP*/
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->clockQuality.clockClass==6,
+					rtOpts->timeProperties.ptpTimescale,TRUE,rtOpts->timeProperties.ptpTimescale);
+
+	/* ClockClass = 7 triggers PTP*/
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->clockQuality.clockClass==7,
+					rtOpts->timeProperties.ptpTimescale,TRUE,rtOpts->timeProperties.ptpTimescale);
+
 	/* ClockClass = 255 triggers slaveOnly */
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->clockQuality.clockClass==SLAVE_ONLY_CLOCK_CLASS,rtOpts->slaveOnly,TRUE,FALSE);
 	/* ...and vice versa */
@@ -1439,21 +1631,59 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		    "ptpengine:log_delayreq_interval",
 		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in unicast mode"
 	);
-	/* 
-	 * TODO: this should only be required in master mode - in unicast slave mode,
-	 * we should be sending delay requests to the IP of the current master, just
-	 * like in hybrid mode. Setting this in slave mode should override the master IP
-	 */
 
-	/* unicast mode -> must specify unicast address */
+	CONFIG_KEY_ALIAS("ptpengine:unicast_address","ptpengine:unicast_destinations");
+
+	/* unicast signaling slave -> must specify unicast destination(s) */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
-				     rtOpts->clockQuality.clockClass <= 127 && rtOpts->ip_mode == IPMODE_UNICAST,
+				     rtOpts->clockQuality.clockClass > 127 && 
+				    rtOpts->ip_mode == IPMODE_UNICAST && 
+				    rtOpts->unicastNegotiation,
 				    "unicast",
-				    "ptpengine:unicast_address");
+				    "ptpengine:unicast_destinations");
 
-	CONFIG_MAP_CHARARRAY("ptpengine:unicast_address",rtOpts->unicastAddress,rtOpts->unicastAddress,
-		"Specify unicast destination for unicast master mode (in unicast slave mode,\n"
-	"	 overrides delay request destination).");
+	/* unicast master without signaling - must specify unicast destinations */
+	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
+				     rtOpts->clockQuality.clockClass <= 127 && 
+				    rtOpts->ip_mode == IPMODE_UNICAST && 
+				    !rtOpts->unicastNegotiation,
+				    "unicast",
+				    "ptpengine:unicast_destinations");
+
+	CONFIG_KEY_TRIGGER("ptpengine:unicast_destinations",rtOpts->unicastDestinationsSet,TRUE,rtOpts->unicastDestinationsSet);
+
+	CONFIG_MAP_CHARARRAY("ptpengine:unicast_destinations",rtOpts->unicastDestinations,rtOpts->unicastDestinations,
+		"Specify unicast slave addresses for unicast master operation, or unicast\n"
+	"	 master addresses for slave operation. Format is similar to an ACL: comma,\n"
+	"        tab or space-separated IPv4 unicast addresses, one or more. For a slave,\n"
+	"        when unicast negotiation is used, setting this is mandatory.");
+
+	CONFIG_MAP_CHARARRAY("ptpengine:unicast_domains",rtOpts->unicastDomains,rtOpts->unicastDomains,
+		"Specify PTP domain number for each configured unicast destination (ptpengine:unicast_destinations).\n"
+	"	 This is only used by slave-only clocks using unicast destinations to allow for each master\n"
+	"        to be in a separate domain, such as with Telecom Profile. The number of entries should match the number\n"
+	"        of unicast destinations, otherwise unconfigured domains or domains set to 0 are set to domain configured in\n"
+	"        ptpengine:domain. The format is a comma, tab or space-separated list of 8-bit unsigned integers (0 .. 255)");
+
+	CONFIG_MAP_CHARARRAY("ptpengine:unicast_local_preference",rtOpts->unicastLocalPreference,rtOpts->unicastLocalPreference,
+		"Specify a local preference for each configured unicast destination (ptpengine:unicast_destinations).\n"
+	"	 This is only used by slave-only clocks using unicast destinations to allow for each master's\n"
+	"        BMC selection to be influenced by the slave, such as with Telecom Profile. The number of entries should match the number\n"
+	"        of unicast destinations, otherwise unconfigured preference is set to 0 (highest).\n"
+	"        The format is a comma, tab or space-separated list of 8-bit unsigned integers (0 .. 255)");
+
+	/* unicast P2P - must specify unicast peer destination */
+	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:delay_mechanism",
+					rtOpts->delayMechanism == P2P &&
+				    rtOpts->ip_mode == IPMODE_UNICAST,
+				    "P2P",
+				    "ptpengine:unicast_peer_destination");
+
+	CONFIG_KEY_TRIGGER("ptpengine:unicast_peer_destination",rtOpts->unicastPeerDestinationSet,TRUE,rtOpts->unicastPeerDestinationSet);
+
+	CONFIG_MAP_CHARARRAY("ptpengine:unicast_peer_destination",rtOpts->unicastPeerDestination,rtOpts->unicastPeerDestination,
+		"Specify peer unicast adress for P2P unicast. Mandatory when\n"
+	"	 running unicast mode and P2P delay mode.");
 
 	CONFIG_MAP_BOOLEAN("ptpengine:management_enable",rtOpts->managementEnabled,rtOpts->managementEnabled,
 	"Enable handling of PTP management messages.");
@@ -1480,128 +1710,218 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #ifdef PTPD_STATISTICS
 
-	CONFIG_MAP_BOOLEAN("ptpengine:sync_median_filter_enable",rtOpts->medianFilter,rtOpts->medianFilter,
-		 "Enable median filtering / smoothing filter for Sync messages.");
+	CONFIG_MAP_BOOLEAN("ptpengine:sync_stat_filter_enable",rtOpts->filterMSOpts.enabled,rtOpts->filterMSOpts.enabled,
+		 "Enable statistical filter for Sync messages.");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:sync_median_filter_samples",rtOpts->medianFilterCapacity,rtOpts->medianFilterCapacity,
-		"Number of samples to take median from when filtering Sync messages.",3,100);
+	CONFIG_MAP_SELECTVALUE("ptpengine:sync_stat_filter_type",rtOpts->filterMSOpts.filterType,rtOpts->filterMSOpts.filterType,
+		"Type of filter used for Sync message filtering",
+	"none", FILTER_NONE,
+	"mean", FILTER_MEAN,
+	"min", FILTER_MIN,
+	"max", FILTER_MAX,
+	"absmin", FILTER_ABSMIN,
+	"absmax", FILTER_ABSMAX,
+	"median", FILTER_MEDIAN);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_enable",rtOpts->oFilterSMOpts.enabled,rtOpts->oFilterSMOpts.enabled,
+	CONFIG_MAP_INT_RANGE("ptpengine:sync_stat_filter_window",rtOpts->filterMSOpts.windowSize, rtOpts->filterMSOpts.windowSize,
+		"Number of samples used for the Sync statistical filter",3,128);
+
+	CONFIG_MAP_SELECTVALUE("ptpengine:sync_stat_filter_window_type",rtOpts->filterMSOpts.windowType, rtOpts->filterMSOpts.windowType,
+		"Sample window type used for Sync message statistical filter. Delay Response outlier filter action.\n"
+	"        Sliding window is continuous, interval passes every n-th sample only.",
+	"sliding", WINDOW_SLIDING,
+	"interval", WINDOW_INTERVAL);
+
+	CONFIG_MAP_BOOLEAN("ptpengine:delay_stat_filter_enable",rtOpts->filterSMOpts.enabled,rtOpts->filterSMOpts.enabled,
+		 "Enable statistical filter for Delay messages.");
+
+	CONFIG_MAP_SELECTVALUE("ptpengine:delay_stat_filter_type",rtOpts->filterSMOpts.filterType,rtOpts->filterSMOpts.filterType,
+		"Type of filter used for Delay message statistical filter",
+	"none", FILTER_NONE,
+	"mean", FILTER_MEAN,
+	"min", FILTER_MIN,
+	"max", FILTER_MAX,
+	"absmin", FILTER_ABSMIN,
+	"absmax", FILTER_ABSMAX,
+	"median", FILTER_MEDIAN);
+
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_stat_filter_window",rtOpts->filterSMOpts.windowSize, rtOpts->filterSMOpts.windowSize,
+		"Number of samples used for the Delay statistical filter",3,128);
+
+	CONFIG_MAP_SELECTVALUE("ptpengine:delay_stat_filter_window_type",rtOpts->filterSMOpts.windowType, rtOpts->filterSMOpts.windowType,
+		"Sample window type used for Delay message statistical filter\n"
+	"        Sliding window is continuous, interval passes every n-th sample only",
+	"sliding", WINDOW_SLIDING,
+	"interval", WINDOW_INTERVAL);
+
+
+	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_enable",rtOpts->oFilterSMConfig.enabled,rtOpts->oFilterSMConfig.enabled,
 		 "Enable outlier filter for the Delay Response component in slave state");
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:delay_outlier_filter_action",rtOpts->oFilterSMOpts.discard,rtOpts->oFilterSMOpts.discard,
+	CONFIG_MAP_SELECTVALUE("ptpengine:delay_outlier_filter_action",rtOpts->oFilterSMConfig.discard,rtOpts->oFilterSMConfig.discard,
 		"Delay Response outlier filter action. If set to 'filter', outliers are\n"
 	"	 replaced with moving average.",
 	"discard", TRUE,
 	"filter", FALSE);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_capacity",rtOpts->oFilterSMOpts.capacity,rtOpts->oFilterSMOpts.capacity,
-		"Number of samples in the Delay Response outlier filter buffer",4,STATCONTAINER_MAX_SAMPLES);
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_capacity",rtOpts->oFilterSMConfig.capacity,rtOpts->oFilterSMConfig.capacity,
+		"Number of samples in the Delay Response outlier filter buffer",10,STATCONTAINER_MAX_SAMPLES);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_threshold",rtOpts->oFilterSMOpts.threshold,rtOpts->oFilterSMOpts.threshold,
-		"Delay Response outlier filter threshold: multiplier for Peirce's maximum\n"
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_threshold",rtOpts->oFilterSMConfig.threshold,rtOpts->oFilterSMConfig.threshold,
+		"Delay Response outlier filter threshold (: multiplier for Peirce's maximum\n"
 	"	 standard deviation. When set below 1.0, filter is tighter, when set above\n"
-	"	 1.0, filter is looser than standard Peirce's test.", 0.001, 1000.0);
+	"	 1.0, filter is looser than standard Peirce's test.\n"
+	"        When autotune enabled, this is the starting threshold.", 0.001, 1000.0);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_autotune_enable",rtOpts->oFilterSMOpts.autoTune,rtOpts->oFilterSMOpts.autoTune,
+	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_always_filter",rtOpts->oFilterSMConfig.alwaysFilter,rtOpts->oFilterSMConfig.alwaysFilter,
+		"Always run the Delay Response outlier filter, even if clock is being slewed at maximum rate");
+
+	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_autotune_enable",rtOpts->oFilterSMConfig.autoTune,rtOpts->oFilterSMConfig.autoTune,
 		"Enable automatic threshold control for Delay Response outlier filter.");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_autotune_minpercent",rtOpts->oFilterSMOpts.minPercent,rtOpts->oFilterSMOpts.minPercent,
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_autotune_minpercent",rtOpts->oFilterSMConfig.minPercent,rtOpts->oFilterSMConfig.minPercent,
 		"Delay Response outlier filter autotune low watermark - minimum percentage\n"
 	"	 of discarded samples in the update period before filter is tightened\n"
 	"	 by the autotune step value.",0,99);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_autotune_maxpercent",rtOpts->oFilterSMOpts.maxPercent,rtOpts->oFilterSMOpts.maxPercent,
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_autotune_maxpercent",rtOpts->oFilterSMConfig.maxPercent,rtOpts->oFilterSMConfig.maxPercent,
 		"Delay Response outlier filter autotune high watermark - maximum percentage\n"
 	"	 of discarded samples in the update period before filter is loosened\n"
 	"	 by the autotune step value.",1,100);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_autotune_step",rtOpts->oFilterSMOpts.step,rtOpts->oFilterSMOpts.step,
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_autotune_step",rtOpts->oFilterSMConfig.thresholdStep,rtOpts->oFilterSMConfig.thresholdStep,
 		"The value the Delay Response outlier filter threshold is increased\n"
 	"	 or decreased by when auto-tuning.",0.01,10.0);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_autotune_minthreshold",rtOpts->oFilterSMOpts.minThreshold,rtOpts->oFilterSMOpts.minThreshold,
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_autotune_minthreshold",rtOpts->oFilterSMConfig.minThreshold,rtOpts->oFilterSMConfig.minThreshold,
 		"Minimum Delay Response filter threshold value used when auto-tuning", 0.01,10.0);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_autotune_maxthreshold",rtOpts->oFilterSMOpts.maxThreshold,rtOpts->oFilterSMOpts.maxThreshold,
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_autotune_maxthreshold",rtOpts->oFilterSMConfig.maxThreshold,rtOpts->oFilterSMConfig.maxThreshold,
 		"Maximum Delay Response filter threshold value used when auto-tuning", 0.01,10.0);
 
-	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterSMOpts.maxPercent <= rtOpts->oFilterSMOpts.minPercent,
+	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterSMConfig.maxPercent <= rtOpts->oFilterSMConfig.minPercent,
 					"ptpengine:delay_outlier_filter_autotune_maxpercent value has to be greater "
 					"than ptpengine:delay_outlier_filter_autotune_minpercent\n");
 
-	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterSMOpts.maxThreshold <= rtOpts->oFilterSMOpts.minThreshold,
+	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterSMConfig.maxThreshold <= rtOpts->oFilterSMConfig.minThreshold,
 					"ptpengine:delay_outlier_filter_autotune_maxthreshold value has to be greater "
 					"than ptpengine:delay_outlier_filter_autotune_minthreshold\n");
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_weight",rtOpts->oFilterSMOpts.weight,rtOpts->oFilterSMOpts.weight,
+	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_stepdetect_enable",rtOpts->oFilterSMConfig.stepDelay,rtOpts->oFilterSMConfig.stepDelay,
+		"Enable Delay filter step detection (delaySM) to block when certain level exceeded");
+
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_stepdetect_threshold",rtOpts->oFilterSMConfig.stepThreshold,rtOpts->oFilterSMConfig.stepThreshold,
+		"Delay Response step detection threshold. Step detection is performed\n"
+	"	 only when delaySM is below this threshold (nanoseconds)", 50000, NANOSECONDS_MAX);
+
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_stepdetect_level",rtOpts->oFilterSMConfig.stepLevel,rtOpts->oFilterSMConfig.stepLevel,
+		"Delay Response step level. When step detection enabled and operational,\n"
+	"	 delaySM above this level (nanosecond) is considered a clock step and updates are paused", 50000, NANOSECONDS_MAX);
+
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_stepdetect_credit",rtOpts->oFilterSMConfig.delayCredit,rtOpts->oFilterSMConfig.delayCredit,
+		"Initial credit (number of samples) the Delay step detection filter can block for\n"
+	"	 When credit is exhausted, filter stops blocking. Credit is gradually restored",50,1000);
+
+	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_stepdetect_credit_increment",rtOpts->oFilterSMConfig.creditIncrement,rtOpts->oFilterSMConfig.creditIncrement,
+		"Amount of credit for the Delay step detection filter restored every full sample window",1,100);
+
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_weight",rtOpts->oFilterSMConfig.weight,rtOpts->oFilterSMConfig.weight,
 		"Delay Response outlier weight: if an outlier is detected, determines\n"
 	"	 the amount of its deviation from mean that is used to build the standard\n"
 	"	 deviation statistics and influence further outlier detection.\n"
 	"	 When set to 1.0, the outlier is used as is.", 0.01, 2.0);
 
-    CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_enable",rtOpts->oFilterMSOpts.enabled,rtOpts->oFilterMSOpts.enabled,
+    CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_enable",rtOpts->oFilterMSConfig.enabled,rtOpts->oFilterMSConfig.enabled,
 		"Enable outlier filter for the Sync component in slave state.");
 
-    CONFIG_MAP_SELECTVALUE("ptpengine:sync_outlier_filter_action",rtOpts->oFilterMSOpts.discard,rtOpts->oFilterMSOpts.discard,
+    CONFIG_MAP_SELECTVALUE("ptpengine:sync_outlier_filter_action",rtOpts->oFilterMSConfig.discard,rtOpts->oFilterMSConfig.discard,
 		"Sync outlier filter action. If set to 'filter', outliers are replaced\n"
 	"	 with moving average.",
      "discard", TRUE,
      "filter", FALSE);
 
-     CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_capacity",rtOpts->oFilterMSOpts.capacity,rtOpts->oFilterMSOpts.capacity,
-    "Number of samples in the Sync outlier filter buffer.",4,STATCONTAINER_MAX_SAMPLES);
+     CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_capacity",rtOpts->oFilterMSConfig.capacity,rtOpts->oFilterMSConfig.capacity,
+    "Number of samples in the Sync outlier filter buffer.",10,STATCONTAINER_MAX_SAMPLES);
 
-    CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_threshold",rtOpts->oFilterMSOpts.threshold,rtOpts->oFilterMSOpts.threshold,
+    CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_threshold",rtOpts->oFilterMSConfig.threshold,rtOpts->oFilterMSConfig.threshold,
 		"Sync outlier filter threshold: multiplier for the Peirce's maximum standard\n"
 	"	 deviation. When set below 1.0, filter is tighter, when set above 1.0,\n"
 	"	 filter is looser than standard Peirce's test.", 0.001, 1000.0);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_autotune_enable",rtOpts->oFilterMSOpts.autoTune,rtOpts->oFilterMSOpts.autoTune,
+	CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_always_filter",rtOpts->oFilterMSConfig.alwaysFilter,rtOpts->oFilterMSConfig.alwaysFilter,
+		"Always run the Sync outlier filter, even if clock is being slewed at maximum rate");
+
+	CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_autotune_enable",rtOpts->oFilterMSConfig.autoTune,rtOpts->oFilterMSConfig.autoTune,
 		"Enable automatic threshold control for Sync outlier filter.");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_autotune_minpercent",rtOpts->oFilterMSOpts.minPercent,rtOpts->oFilterMSOpts.minPercent,
+	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_autotune_minpercent",rtOpts->oFilterMSConfig.minPercent,rtOpts->oFilterMSConfig.minPercent,
 		"Sync outlier filter autotune low watermark - minimum percentage\n"
 	"	 of discarded samples in the update period before filter is tightened\n"
 	"	 by the autotune step value.",0,99);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_autotune_maxpercent",rtOpts->oFilterMSOpts.maxPercent,rtOpts->oFilterMSOpts.maxPercent,
+	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_autotune_maxpercent",rtOpts->oFilterMSConfig.maxPercent,rtOpts->oFilterMSConfig.maxPercent,
 		"Sync outlier filter autotune high watermark - maximum percentage\n"
 	"	 of discarded samples in the update period before filter is loosened\n"
 	"	 by the autotune step value.",1,100);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_autotune_step",rtOpts->oFilterMSOpts.step,rtOpts->oFilterMSOpts.step,
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_autotune_step",rtOpts->oFilterMSConfig.thresholdStep,rtOpts->oFilterMSConfig.thresholdStep,
 		"Value the Sync outlier filter threshold is increased\n"
 	"	 or decreased by when auto-tuning.",0.01,10.0);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_autotune_minthreshold",rtOpts->oFilterMSOpts.minThreshold,rtOpts->oFilterMSOpts.minThreshold,
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_autotune_minthreshold",rtOpts->oFilterMSConfig.minThreshold,rtOpts->oFilterMSConfig.minThreshold,
 		"Minimum Sync outlier filter threshold value used when auto-tuning", 0.01,10.0);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_autotune_maxthreshold",rtOpts->oFilterMSOpts.maxThreshold,rtOpts->oFilterMSOpts.maxThreshold,
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_autotune_maxthreshold",rtOpts->oFilterMSConfig.maxThreshold,rtOpts->oFilterMSConfig.maxThreshold,
 		"Maximum Sync outlier filter threshold value used when auto-tuning", 0.01,10.0);
 
-	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterMSOpts.maxPercent <= rtOpts->oFilterMSOpts.minPercent,
+	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterMSConfig.maxPercent <= rtOpts->oFilterMSConfig.minPercent,
 					"ptpengine:sync_outlier_filter_autotune_maxpercent value has to be greater "
 					"than ptpengine:sync_outlier_filter_autotune_minpercent\n");
 
-	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterMSOpts.maxThreshold <= rtOpts->oFilterMSOpts.minThreshold,
+	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterMSConfig.maxThreshold <= rtOpts->oFilterMSConfig.minThreshold,
 					"ptpengine:sync_outlier_filter_autotune_maxthreshold value has to be greater "
 					"than ptpengine:sync_outlier_filter_autotune_minthreshold\n");
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_weight",rtOpts->oFilterMSOpts.weight,rtOpts->oFilterMSOpts.weight,
+	CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_stepdetect_enable",rtOpts->oFilterMSConfig.stepDelay,rtOpts->oFilterMSConfig.stepDelay,
+		"Enable Sync filter step detection (delayMS) to block when certain level exceeded.");
+
+	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_stepdetect_threshold",rtOpts->oFilterMSConfig.stepThreshold,rtOpts->oFilterMSConfig.stepThreshold,
+		"Sync step detection threshold. Step detection is performed\n"
+	"	 only when delayMS is below this threshold (nanoseconds)", 100000, NANOSECONDS_MAX);
+
+	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_stepdetect_level",rtOpts->oFilterMSConfig.stepLevel,rtOpts->oFilterMSConfig.stepLevel,
+		"Sync step level. When step detection enabled and operational,\n"
+	"	 delayMS above this level (nanosecond) is considered a clock step and updates are paused", 100000, NANOSECONDS_MAX);
+
+	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterMSConfig.stepThreshold <= (rtOpts->oFilterMSConfig.stepLevel + 100000),
+					"ptpengine:sync_outlier_filter_stepdetect_threshold  has to be at least "
+					"100 us (100000) greater than ptpengine:sync_outlier_filter_stepdetect_level\n");
+
+	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_stepdetect_credit",rtOpts->oFilterMSConfig.delayCredit,rtOpts->oFilterMSConfig.delayCredit,
+		"Initial credit (number of samples) the Sync step detection filter can block for.\n"
+	"	 When credit is exhausted, filter stops blocking. Credit is gradually restored",50,1000);
+
+	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_stepdetect_credit_increment",rtOpts->oFilterMSConfig.creditIncrement,rtOpts->oFilterMSConfig.creditIncrement,
+		"Amount of credit for the Sync step detection filter restored every full sample window",1,100);
+
+	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_weight",rtOpts->oFilterMSConfig.weight,rtOpts->oFilterMSConfig.weight,
 		"Sync outlier weight: if an outlier is detected, this value determines the\n"
 	"	 amount of its deviation from mean that is used to build the standard \n"
 	"	 deviation statistics and influence further outlier detection.\n"
 	"	 When set to 1.0, the outlier is used as is.", 0.01, 2.0);
 
         CONFIG_MAP_INT_RANGE("ptpengine:calibration_delay",rtOpts->calibrationDelay,rtOpts->calibrationDelay,
-		"Delay between moving to slave state and enabling clock updates, expressed\n"
-	"	 as number of statistics update periods (global:statistics_update_interval).\n"
+		"Delay between moving to slave state and enabling clock updates (seconds).\n"
 	"	 This allows one-way delay to stabilise before starting clock updates.\n"
 	"	 Activated when going into slave state and during slave's GM failover.\n"
-	"	 0 - not used.",0,100);
+	"	 0 - not used.",0,300);
 
 #endif /* PTPD_STATISTICS */
+
+
+        CONFIG_MAP_INT_RANGE("ptpengine:idle_timeout",rtOpts->idleTimeout,rtOpts->idleTimeout,
+		"PTP idle timeout: if PTPd is in SLAVE state and there have been no clock\n"
+	"	 updates for this amout of time, PTPd releases clock control.\n", 10,3600);
 
 	CONFIG_MAP_BOOLEAN("ptpengine:panic_mode",rtOpts->enablePanicMode,rtOpts->enablePanicMode,
 		"Enable panic mode: when offset from master is above 1 second, stop updating\n"
@@ -1612,15 +1932,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		"Duration (minutes) of the panic mode period (no clock updates) when offset\n"
 	"	 above 1 second detected.",1,60);
 
+	CONFIG_MAP_BOOLEAN("ptpengine:panic_mode_release_clock",rtOpts->panicModeReleaseClock,rtOpts->panicModeReleaseClock,
+		"When entering panic mode, release clock control while panic mode lasts\n"
+ 	"	 if ntpengine:* configured, this will fail over to NTP,\n"
+	"	 if not set, PTP will hold clock control during panic mode.");
+
     CONFIG_MAP_INT_RANGE("ptpengine:panic_mode_exit_threshold",rtOpts->panicModeExitThreshold,rtOpts->panicModeExitThreshold,
 		"Do not exit panic mode until offset drops below this value (nanoseconds).\n"
 	"	 0 = not used.",0,NANOSECONDS_MAX);
 
-
 	CONFIG_MAP_BOOLEAN("ptpengine:pid_as_clock_identity",rtOpts->pidAsClockId,rtOpts->pidAsClockId,
 	"Use PTPd's process ID as the middle part of the PTP clock ID - useful for running multiple instances.");
-
-#ifdef PTPD_NTPDC
 
 	CONFIG_MAP_BOOLEAN("ptpengine:ntp_failover",rtOpts->ntpOptions.enableFailover,rtOpts->ntpOptions.enableFailover,
 		"Fail over to NTP when PTP time sync not available - requires\n"
@@ -1632,20 +1954,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_INT_RANGE("ptpengine:ntp_failover_timeout",rtOpts->ntpOptions.failoverTimeout,
 								rtOpts->ntpOptions.failoverTimeout,	
 		"NTP failover timeout in seconds: time between PTP slave going into\n"
-	"	 LISTENING state, and failing over to NTP. 0 = fail over immediately.", 0, 1800);
+	"	 LISTENING state, and releasing clock control. 0 = fail over immediately.", 0, 1800);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:prefer_ntp",rtOpts->ntpOptions.ntpInControl,rtOpts->ntpOptions.ntpInControl,
-		"Prefer NTP time synchronisation when not controlling the clock (all states,\n"
-	"	 including slave when clock:no_adjust set).");
+	CONFIG_MAP_BOOLEAN("ptpengine:prefer_ntp",rtOpts->preferNTP,rtOpts->preferNTP,
+		"Prefer NTP time synchronisation. Only use PTP when NTP not available,\n"
+	"	 could be used when NTP runs with a local GPS receiver or another reference");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:panic_mode_ntp",rtOpts->panicModeNtp,rtOpts->panicModeNtp,
-		"When entering panic mode, fail over to NTP (after the NTP failover timeout\n"
- 	"	 period) - requires ntpengine:enabled but does not require the rest of NTP\n"
-	"	 configuration - will warn instead of failing over if it cannot control ntpd.");
+
+	CONFIG_MAP_BOOLEAN("ptpengine:panic_mode_ntp",rtOpts->panicModeReleaseClock,rtOpts->panicModeReleaseClock,
+		"Legacy option from 2.3.0: same as ptpengine:panic_mode_release_clock");
 
 	CONFIG_KEY_DEPENDENCY("ptpengine:panic_mode_ntp", "ntpengine:enabled");
-
-#endif /* PTPD_NTPDC */
 
 	CONFIG_MAP_BOOLEAN("ptpengine:sigusr2_clears_counters",rtOpts->clearCounters,rtOpts->clearCounters,
 		"Clear counters after dumping all counter values on SIGUSR2.");
@@ -1658,35 +1977,32 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_CHARARRAY("ptpengine:timing_acl_permit",rtOpts->timingAclPermitText, rtOpts->timingAclPermitText,
 		"Permit access control list for timing packets. Format is a series of \n"
-	"	 comma-separated network prefixes in full CIDR notation a.b.c.d/x where\n"
-	"	 a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32\n"
-	"	 mask is required for the ACL to be parsed correctly. The match is performed\n"
-	"	 on the source IP address of the incoming messages. IP access lists are\n"
-	"	 only supported when using the IP transport.");
+        "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
+        "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
+        "        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
+        "        incoming messages. IP access lists are only supported when using the IP transport.");
 
 	CONFIG_MAP_CHARARRAY("ptpengine:timing_acl_deny",rtOpts->timingAclDenyText, rtOpts->timingAclDenyText,
 		"Deny access control list for timing packets. Format is a series of \n"
-	"	 comma-separated network prefixes in full CIDR notation a.b.c.d/x where\n"
-	"	 a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32\n"
-	"	 mask is required for the ACL to be parsed correctly. The match is performed\n"
-	"	 on the source IP address of the incoming messages. IP access lists are\n"
-	"	 only supported when using the IP transport.");
+        "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
+        "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
+        "        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
+        "        incoming messages. IP access lists are only supported when using the IP transport.");
 
 	CONFIG_MAP_CHARARRAY("ptpengine:management_acl_permit",rtOpts->managementAclPermitText, rtOpts->managementAclPermitText,
 		"Permit access control list for management messages. Format is a series of \n"
-	"	 comma-separated network prefixes in full CIDR notation a.b.c.d/x where\n"
-	"	 a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32\n"
-	"	 mask is required for the ACL to be parsed correctly. The match is performed\n"
-	"	 on the source IP address of the incoming messages. IP access lists are\n"
-	"	 only supported when using the IP transport.");
+	"	 comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
+	"	 where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
+	"        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
+	"        incoming messages. IP access lists are only supported when using the IP transport.");
 
 	CONFIG_MAP_CHARARRAY("ptpengine:management_acl_deny",rtOpts->managementAclDenyText, rtOpts->managementAclDenyText,
-	"Deny access control list for management messages. Format is a series of \n"
-	"	 comma-separated network prefixes in full CIDR notation a.b.c.d/x where\n"
-	"	 a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32\n"
-	"	 mask is required for the ACL to be parsed correctly. The match is performed\n"
-	"	 on the source IP address of the incoming messages. IP access lists are\n"
-	"	 only supported when using the IP transport.");
+		"Deny access control list for management messages. Format is a series of \n"
+        "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
+        "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
+        "        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
+        "        incoming messages. IP access lists are only supported when using the IP transport.");
+
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:timing_acl_order",rtOpts->timingAclOrder,rtOpts->timingAclOrder,
 		"Order in which permit and deny access lists are evaluated for timing\n"
@@ -1728,9 +2044,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 #ifdef HAVE_LINUX_RTC_H
 	CONFIG_MAP_BOOLEAN("clock:set_rtc_on_step",rtOpts->setRtc,rtOpts->setRtc,
 	"Attempt setting the RTC when stepping clock (Linux only - FreeBSD does \n"
-	"	 this for us. WARNING: this will always set the RTC to OS clock time,\n"
-	"	 regardless of time zones, so this assumes that RTC runs in UTC - \n"
-	"	 true at least on most single-boot x86 Linux systems.");
+	"        this for us. WARNING: this will always set the RTC to OS clock time,\n"
+	"        regardless of time zones, so this assumes that RTC runs in UTC or \n"
+	"        at least in the same timescale as PTP. true at least on most \n"
+	"        single-boot x86 Linux systems.");
 #endif /* HAVE_LINUX_RTC_H */
 
 	CONFIG_MAP_SELECTVALUE("clock:drift_handling",rtOpts->drift_recovery_method,rtOpts->drift_recovery_method,
@@ -1747,6 +2064,36 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_MAP_CHARARRAY("clock:drift_file",rtOpts->driftFile,rtOpts->driftFile,
 	"Specify drift file");
+
+	CONFIG_MAP_INT_RANGE("clock:leap_second_pause_period",rtOpts->leapSecondPausePeriod,
+		rtOpts->leapSecondPausePeriod,
+		"Time (seconds) before and after midnight that clock updates should pe suspended for\n"
+	"	 during a leap second event. The total duration of the pause is twice\n"
+	"        the configured duration",5,600);
+
+	CONFIG_MAP_CHARARRAY("clock:leap_seconds_file",rtOpts->leapFile,rtOpts->leapFile,
+	"Specify leap second file location - up to date version can be downloaded from \n"
+	"        http://www.ietf.org/timezones/data/leap-seconds.list");
+
+	CONFIG_MAP_SELECTVALUE("clock:leap_second_handling",rtOpts->leapSecondHandling,rtOpts->leapSecondHandling,
+		"Behaviour during a leap second event:\n"
+	"	 accept: inform the OS kernel of the event\n"
+	"	 ignore: do nothing - ends up with a 1-second offset which is then slewed\n"
+	"	 step: similar to ignore, but steps the clock immediately after the leap second event\n"
+	"        smear: do not inform kernel, gradually introduce the leap second before the event\n"
+	"               by modifying clock offset (see clock:leap_second_smear_period)",
+				"accept", 	LEAP_ACCEPT,
+				"ignore", 	LEAP_IGNORE,
+				"step", 	LEAP_STEP,
+				"smear",	LEAP_SMEAR
+				);
+
+	CONFIG_MAP_INT_RANGE("clock:leap_second_smear_period",rtOpts->leapSecondSmearPeriod,
+		rtOpts->leapSecondSmearPeriod,
+		"Time period (Seconds) over which the leap second is introduced before the event.\n"
+	"	 Example: when set to 86400 (24 hours), an extra 11.5 microseconds is added every second"
+	,3600,86400);
+
 
 #ifdef HAVE_STRUCT_TIMEX_TICK
 	/* This really is clock specific - different clocks may allow different ranges */
@@ -1829,24 +2176,20 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		"Maximum number of consecutive delay measurements exceeding maxDelay threshold,\n"
 	"	 before slave is reset.", 0);
 
-
 #ifdef PTPD_STATISTICS
 	CONFIG_MAP_BOOLEAN("servo:max_delay_stable_only",rtOpts->maxDelayStableOnly,rtOpts->maxDelayStableOnly,
 		"If servo:max_delay is set, perform the check only if clock servo has stabilised.\n");
 #endif
 
-
-	rtOpts->syncSequenceChecking = FALSE;
-	rtOpts->clockUpdateTimeout = 0;
-
 	CONFIG_MAP_BOOLEAN("ptpengine:sync_sequence_checking",rtOpts->syncSequenceChecking,rtOpts->syncSequenceChecking,
-		"When enabled, Sync messages will only be accepted if sequence ID is increasing.\n");
+		"When enabled, Sync messages will only be accepted if sequence ID is increasing."
+	"        This is limited to 50 dropped messages.\n");
 
 	CONFIG_MAP_INT_RANGE("ptpengine:clock_update_timeout",rtOpts->clockUpdateTimeout,rtOpts->clockUpdateTimeout,
 		"If set to non-zero, timeout in seconds, after which the slave resets if no clock updates made. \n",
 		0, 3600);
 
-	CONFIG_MAP_INT_RANGE("servo:max_offset",rtOpts->maxReset,rtOpts->maxReset,
+	CONFIG_MAP_INT_RANGE("servo:max_offset",rtOpts->maxOffset,rtOpts->maxOffset,
 		"Do not reset the clock if offset from master is greater\n"
 	"        than this value (nanoseconds). 0 = not used.",
 	0,NANOSECONDS_MAX);
@@ -2028,10 +2371,15 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	-1,255);
 #endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H */
 
-#ifdef PTPD_STATISTICS
 	CONFIG_MAP_INT_RANGE("global:statistics_update_interval",rtOpts->statsUpdateInterval,
 								rtOpts->statsUpdateInterval,
 		"Clock synchronisation statistics update interval in seconds\n", 1, 60);
+
+#ifdef PTPD_STATISTICS
+
+
+	CONFIG_MAP_BOOLEAN("global:periodic_updates", rtOpts->periodicUpdates, rtOpts->periodicUpdates,
+		"Log a status update every time statistics are updated (global:statistics_update_interval)\n");
 
 	CONFIG_CONDITIONAL_ASSERTION( rtOpts->servoStabilityDetection && (
 				    (rtOpts->statsUpdateInterval * rtOpts->servoStabilityPeriod) / 60 >=
@@ -2041,8 +2389,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #endif /* PTPD_STATISTICS */
 
+	CONFIG_MAP_INT_RANGE("global:timingdomain_election_delay",rtOpts->electionDelay,rtOpts->electionDelay,
+		" Delay (seconds) before releasing a time service (NTP or PTP)"
+	"        and electing a new one to control a clock. 0 = elect immediately\n", 0, 3600);
 
-#ifdef PTPD_NTPDC
 
 /* ===== ntpengine section ===== */
 
@@ -2069,9 +2419,6 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_KEY_DEPENDENCY("ntpengine:control:enabled", "ntpengine:key_id");
 	CONFIG_KEY_DEPENDENCY("ntpengine:control:enabled", "ntpengine:key");
-
-#endif /* PTPD_NTPDC */
-
 
 
 /* ============== END CONFIG MAPPINGS, TRIGGERS AND DEPENDENCIES =========== */
@@ -2102,6 +2449,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 			rtOpts->timingAclEnabled = FALSE;
 		}
 	}
+
 
 	/* Check management message ACLs */
 	if(rtOpts->managementAclEnabled) {
@@ -2433,7 +2781,9 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	    {"long-help",	no_argument,	   0, 'H'},
 	    {"explain",		required_argument, 0, 'e'},
 	    {"default-config",  optional_argument, 0, 'O'},
-	    {"unicast",		required_argument, 0, 'u'},
+	    {"unicast",		optional_argument, 0, 'U'},
+	    {"unicast-negotiation",		optional_argument, 0, 'g'},
+	    {"unicast-destinations",		required_argument, 0, 'u'},
 	    {0,			0		 , 0, 0}
 	};
 
@@ -2488,9 +2838,6 @@ short_help:
 		case 'd':
 			dictionary_set(dict,"ptpengine:domain", optarg);
 			break;
-		/* slave only */
-		case 'g':
-			WARN_DEPRECATED('g', 's', "slave", "ptpengine:preset=slaveonly");
 		case 's':
 			dictionary_set(dict,"ptpengine:preset", "slaveonly");
 			break;
@@ -2506,16 +2853,19 @@ short_help:
 		case 'M':
 			dictionary_set(dict,"ptpengine:preset", "masteronly");
 			break;
-		/* hybrid mode */
-		case 'U':
-			WARN_DEPRECATED('U', 'y', "hybrid", "ptpengine:ptp_ip_mode=hybrid");
 		case 'y':
 			dictionary_set(dict,"ptpengine:ip_mode", "hybrid");
 			break;
 		/* unicast */
+		case 'U':
+			dictionary_set(dict,"ptpengine:ip_mode", "unicast");
+			break;
+		case 'g':
+			dictionary_set(dict,"ptpengine:unicast_negotiation", "y");
+			break;
 		case 'u':
 			dictionary_set(dict,"ptpengine:ip_mode", "unicast");
-			dictionary_set(dict,"ptpengine:unicast_address", optarg);
+			dictionary_set(dict,"ptpengine:unicast_destinations", optarg);
 			break;
 		case 't':
 			WARN_DEPRECATED('t', 'n', "noadjust", "clock:no_adjust");
@@ -2672,7 +3022,7 @@ printShortHelp()
 			"\n"
 			"Basic PTP protocol and daemon configuration options: \n"
 			"\n"
-			"Command-line option		Config key			Description\n"
+			"Command-line option		Config key(s)			Description\n"
 			"------------------------------------------------------------------------------------\n"
 
 			"-i --interface [dev]		ptpengine:interface=<dev>	Interface to use (required)\n"
@@ -2683,8 +3033,10 @@ printShortHelp()
 			"-y --hybrid			ptpengine:ip_mode=hybrid	Hybrid mode (multicast for sync\n"
 			"								and announce, unicast for delay\n"
 			"								request and response)\n"
-			"-u --unicast [IP]		ptpengine:ip_mode=unicast	Unicast mode (send all messages to [IP])\n"
-			"				ptpengine:unicast_address=<IP>\n\n"
+			"-U --unicast			ptpengine:ip_mode=unicast	Unicast mode\n"
+			"-g --unicast-negotiation	ptpengine:unicast_negotiation=y Enable unicast negotiation (signaling)\n"
+			"-u --unicast-destinations 	ptpengine:ip_mode=unicast	Unicast destination list\n"
+			"     [ip/host, ...]		ptpengine:unicast_destinations=<ip/host, ...>\n\n"
 			"-E --e2e			ptpengine:delay_mechanism=E2E	End to end delay detection\n"
 			"-P --p2p			ptpengine:delay_mechanism=P2P	Peer to peer delay detection\n"
 			"\n"
@@ -2722,14 +3074,13 @@ printShortHelp()
 			"\n"
 			"-b [dev]			Network interface to use\n"
 			"-i [n]				PTP domain number\n"
-			"-g				Slave only mode (ptpengine:preset=slaveonly)\n"
 			"-G				'Master mode with NTP' (ptpengine:preset=masteronly)\n"
 			"-W				'Master mode without NTP' (ptpengine:preset=masterslave) \n"
-			"-U				Hybrid mode\n"
 			"-Y [n]				Delay request interval (log 2)\n"
 			"-t 				Do not adjust the clock\n"
 			"\n"
-			"Note: the above parameters are deprecated and their use will issue a warning.\n"
+			"Note 1: the above parameters are deprecated and their use will issue a warning.\n"
+			"Note 2: -U and -g options have been re-purposed in 2.3.1\n."
 			"\n\n"
 		);
 }
@@ -2825,12 +3176,18 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:backup_interface",     	PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:preset",  		PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:ip_mode",       		PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_negotiation",  		PTPD_RESTART_PROTOCOL);
+        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_grant_duration",  		PTPD_RESTART_PROTOCOL);
+//        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_negotiation_listening",  		PTPD_RESTART_NONE );
+        COMPONENT_RESTART_REQUIRED("ptpengine:disable_bmca",  		PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:transport",     		PTPD_RESTART_NETWORK );
 #ifdef PTPD_PCAP
         COMPONENT_RESTART_REQUIRED("ptpengine:use_libpcap",   		PTPD_RESTART_NETWORK );
 #endif
         COMPONENT_RESTART_REQUIRED("ptpengine:delay_mechanism",        	PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:domain",    		PTPD_RESTART_PROTOCOL );
+        COMPONENT_RESTART_REQUIRED("ptpengine:port_number",    		PTPD_UPDATE_DATASETS );
+        COMPONENT_RESTART_REQUIRED("ptpengine:any_domain",    		PTPD_RESTART_PROTOCOL );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:inbound_latency",       PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:outbound_latency",      PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:offset_shift",      	PTPD_RESTART_NONE );
@@ -2838,8 +3195,10 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:pid_as_clock_identity", 	PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:ptp_slaveonly",           PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_announce_interval",   PTPD_UPDATE_DATASETS );
+        COMPONENT_RESTART_REQUIRED("ptpengine:log_announce_interval_max",   PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:announce_receipt_timeout",        PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_sync_interval",     	PTPD_UPDATE_DATASETS );
+        COMPONENT_RESTART_REQUIRED("ptpengine:log_sync_interval_max",     	PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:master_igmp_refresh_interval",     	PTPD_RESTART_PROTOCOL );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_interval_initial",PTPD_RESTART_NONE );
 #ifdef DBG_SIGUSR2_DUMP_COUNTERS
@@ -2847,6 +3206,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 #endif /* DBG_SIGUSR2_DUMP_COUNTERS */
 
         COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_interval",   PTPD_UPDATE_DATASETS );
+        COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_interval_max",   PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_override",   PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:log_delayreq_auto",   	PTPD_UPDATE_DATASETS );
         COMPONENT_RESTART_REQUIRED("ptpengine:foreignrecord_capacity", 	PTPD_RESTART_DAEMON );
@@ -2866,7 +3226,10 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:prefer_utc_offset_valid", PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:require_utc_offset_valid", PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:announce_receipt_grace_period", PTPD_RESTART_NONE );
-        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_address",   	PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_destinations",   	PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_domains",   	PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_local_preference",   	PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_peer_destination",   	PTPD_RESTART_NETWORK );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:management_enable",         	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:management_set_enable",         	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:igmp_refresh",         	PTPD_RESTART_NONE );
@@ -2879,32 +3242,54 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 
 #ifdef PTPD_STATISTICS
 
-          COMPONENT_RESTART_REQUIRED("ptpengine:sync_median_filter_enable",     PTPD_RESTART_PEIRCE );
-          COMPONENT_RESTART_REQUIRED("ptpengine:sync_median_filter_samples",     PTPD_RESTART_PEIRCE );
-          COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_enable",     PTPD_RESTART_PEIRCE );
+	COMPONENT_RESTART_REQUIRED("ptpengine:sync_stat_filter_enable",		PTPD_RESTART_FILTERS );
+	COMPONENT_RESTART_REQUIRED("ptpengine:sync_stat_filter_type",		PTPD_RESTART_FILTERS );
+	COMPONENT_RESTART_REQUIRED("ptpengine:sync_stat_filter_window",		PTPD_RESTART_FILTERS );
+	COMPONENT_RESTART_REQUIRED("ptpengine:sync_stat_filter_window_type",PTPD_RESTART_FILTERS );
+
+
+	COMPONENT_RESTART_REQUIRED("ptpengine:delay_stat_filter_enable",	 PTPD_RESTART_FILTERS );
+	COMPONENT_RESTART_REQUIRED("ptpengine:delay_stat_filter_type",		 PTPD_RESTART_FILTERS );
+	COMPONENT_RESTART_REQUIRED("ptpengine:delay_stat_filter_window",	 PTPD_RESTART_FILTERS );
+	COMPONENT_RESTART_REQUIRED("ptpengine:delay_stat_filter_window_type",PTPD_RESTART_FILTERS );
+
+	COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_enable",     PTPD_RESTART_FILTERS );
+        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_always_filter",PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_action",    	PTPD_RESTART_NONE );
-          COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_capacity",  	PTPD_RESTART_PEIRCE );
+          COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_capacity",  	PTPD_RESTART_FILTERS );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_threshold",  PTPD_RESTART_NONE );
-          COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_enable",  PTPD_RESTART_PEIRCE );
+          COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_enable",  PTPD_RESTART_FILTERS );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_minpercent",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_maxpercent",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_step",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_minthreshold",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_autotune_maxthreshold",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_weight",  PTPD_RESTART_NONE );
+	COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_stepdetect_enable",PTPD_RESTART_FILTERS);
+//	COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_stepdetect_threshold", PTPD_RESTART_NONE);
+//	COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_stepdetect_level", PTPD_RESTART_NONE);
+	COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_stepdetect_credit", PTPD_RESTART_FILTERS);
+//	COMPONENT_RESTART_REQUIRED("ptpengine:delay_outlier_filter_stepdetect_credit_increment", PTPD_RESTART_NONE);
 
 
-          COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_enable",      PTPD_RESTART_PEIRCE );
+          COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_enable",      PTPD_RESTART_FILTERS );
+
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_action",    	PTPD_RESTART_NONE );
-          COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_capacity",  	PTPD_RESTART_PEIRCE );
+          COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_capacity",  	PTPD_RESTART_FILTERS );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_threshold",  	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_weight",  	PTPD_RESTART_NONE );
-          COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_enable",  PTPD_RESTART_PEIRCE );
+          COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_enable",  PTPD_RESTART_FILTERS );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_minpercent",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_maxpercent",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_minthreshold",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_maxthreshold",  PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_autotune_step",  PTPD_RESTART_NONE );
+	COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_stepdetect_enable",PTPD_RESTART_FILTERS);
+//	COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_stepdetect_threshold", PTPD_RESTART_NONE);
+//	COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_stepdetect_level", PTPD_RESTART_NONE);
+	COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_stepdetect_credit", PTPD_RESTART_FILTERS);
+//	COMPONENT_RESTART_REQUIRED("ptpengine:sync_outlier_filter_stepdetect_credit_increment", PTPD_RESTART_NONE);
+
 
 //        COMPONENT_RESTART_REQUIRED("ptpengine:calibration_delay",  	PTPD_RESTART_NONE );
 
@@ -2933,7 +3318,10 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("clock:set_rtc_on_step",  		PTPD_RESTART_NONE );
 #endif /* HAVE_LINUX_RTC_H */
 //        COMPONENT_RESTART_REQUIRED("clock:drift_file",   		PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("clock:drift_file",   		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:drift_handling",       	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("clock:leap_seconds_file",		PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("clock:leap_second_pause_period",	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:max_offset_ppm",       	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:owdfilter_stiffness",         PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:kp",   			PTPD_RESTART_NONE );
@@ -2966,6 +3354,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("global:log_file_truncate",			PTPD_RESTART_LOGGING );
 //        COMPONENT_RESTART_REQUIRED("global:log_file_file_max_files",		PTPD_RESTART_LOGGING );
 //        COMPONENT_RESTART_REQUIRED("global:status_update_interval",			PTPD_RESTART_LOGGING );
+//        COMPONENT_RESTART_REQUIRED("global:periodic_updates",			PTPD_RESTART_LOGGING );
 //        COMPONENT_RESTART_REQUIRED("global:status_file",			PTPD_RESTART_LOGGING );
 //        COMPONENT_RESTART_REQUIRED("global:log_level",		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("global:debug_level",		PTPD_RESTART_NONE );
@@ -2991,16 +3380,18 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("global:cpuaffinity_cpucore",	PTPD_CHANGE_CPUAFFINITY );
 #endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H */
 
-#ifdef PTPD_NTPDC
-	COMPONENT_RESTART_REQUIRED("ntpengine:enabled",			PTPD_RESTART_NTPENGINE);
-	COMPONENT_RESTART_REQUIRED("ptpengine:ntp_failover",		PTPD_RESTART_NTPCONTROL);
-	COMPONENT_RESTART_REQUIRED("ptpengine:ntp_failover_timeout",	PTPD_RESTART_NTPCONTROL);
-	COMPONENT_RESTART_REQUIRED("ptpengine:prefer_ntp",		PTPD_RESTART_NTPCONTROL);
-	COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode_ntp",		PTPD_RESTART_NTPCONTROL);
-	COMPONENT_RESTART_REQUIRED("ntpengine:control_enabled",		PTPD_RESTART_NTPCONTROL);
-	COMPONENT_RESTART_REQUIRED("ntpengine:check_interval",		PTPD_RESTART_NTPCONTROL);
-#endif /* PTPD_NTPDC */
+        COMPONENT_RESTART_REQUIRED("global:timingdomain_election_delay",	PTPD_RESTART_NONE );
 
+	COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode_release_clock",	PTPD_RESTART_NONE);
+	COMPONENT_RESTART_REQUIRED("ptpengine:idle_timeout",		PTPD_RESTART_NONE);
+
+	COMPONENT_RESTART_REQUIRED("ntpengine:enabled",			PTPD_RESTART_NTPENGINE);
+	COMPONENT_RESTART_REQUIRED("ptpengine:ntp_failover",		PTPD_RESTART_NONE);
+	COMPONENT_RESTART_REQUIRED("ptpengine:ntp_failover_timeout",	PTPD_RESTART_NTPCONFIG);
+	COMPONENT_RESTART_REQUIRED("ptpengine:prefer_ntp",		PTPD_RESTART_NTPCONFIG);
+	COMPONENT_RESTART_REQUIRED("ptpengine:panic_mode_ntp",		PTPD_RESTART_NONE);
+	COMPONENT_RESTART_REQUIRED("ntpengine:control_enabled",		PTPD_RESTART_NONE);
+	COMPONENT_RESTART_REQUIRED("ntpengine:check_interval",		PTPD_RESTART_NTPCONFIG);
 
 /* ========= Any additional logic goes here =========== */
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014      Wojciech Owczarek,
+ * Copyright (c) 2014-2015 Wojciech Owczarek,
  * Copyright (c) 2012-2013 George V. Neville-Neil,
  *                         Wojciech Owczarek
  * Copyright (c) 2011-2012 George V. Neville-Neil,
@@ -130,7 +130,8 @@ void catchSignals(int sig)
 void
 do_signal_close(PtpClock * ptpClock)
 {
-	ptpdShutdown(ptpClock);
+
+	timingDomain.shutdown(&timingDomain);
 
 	NOTIFY("Shutdown on close signal\n");
 	exit(0);
@@ -207,9 +208,9 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		    rtOpts->restartSubsystems = -1;
 		    ERROR("Error: Cannot use %s interface\n",tmpOpts.primaryIfaceName);
 		}
-		if(!testInterface(tmpOpts.backupIfaceName, &tmpOpts)) {
+		if(rtOpts->backupIfaceEnabled && !testInterface(tmpOpts.backupIfaceName, &tmpOpts)) {
 		    rtOpts->restartSubsystems = -1;
-		    ERROR("Error: Cannot use %s interface\n",tmpOpts.backupIfaceName);
+		    ERROR("Error: Cannot use %s interface as backup\n",tmpOpts.backupIfaceName);
 		}
 
 
@@ -324,6 +325,9 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	end:
 
+	/* tell the service it can perform any HUP-triggered actions */
+	ptpClock->timingService.reloadRequested = TRUE;
+
 	if(rtOpts->recordLog.logEnabled ||
 	    rtOpts->eventLog.logEnabled ||
 	    (rtOpts->statisticsLog.logEnabled))
@@ -336,6 +340,131 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 
 }
+
+void
+restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+			DBG("RestartSubsystems: %d\n",rtOpts->restartSubsystems);
+		    /* So far, PTP_INITIALIZING is required for both network and protocol restart */
+		    if((rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) ||
+			(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK)) {
+			    if(rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) {
+				INFO("Applying protocol configuration: going into PTP_INITIALIZING\n");
+			    }
+
+			    if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
+				NOTIFY("Applying network configuration: going into PTP_INITIALIZING\n");
+			    }
+			    /* Those two parameters have to be passed to ptpClock before re-init */
+			    ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
+			    ptpClock->slaveOnly = rtOpts->slaveOnly;
+
+			    /* Move back to primary interface only during configuration changes. */
+			    ptpClock->runningBackupInterface = FALSE;
+
+			    toState(PTP_INITIALIZING, rtOpts, ptpClock);
+		    } else {
+		    /* Nothing happens here for now - SIGHUP handler does this anyway */
+		    if(rtOpts->restartSubsystems & PTPD_UPDATE_DATASETS) {
+				NOTIFY("Applying PTP engine configuration: updating datasets\n");
+				updateDatasets(ptpClock, rtOpts);
+		    }}
+		    /* Nothing happens here for now - SIGHUP handler does this anyway */
+		    if(rtOpts->restartSubsystems & PTPD_RESTART_LOGGING) {
+				NOTIFY("Applying logging configuration: restarting logging\n");
+		    }
+
+
+    		if(rtOpts->restartSubsystems & PTPD_RESTART_ACLS) {
+            		NOTIFY("Applying access control list configuration\n");
+            		/* re-compile ACLs */
+            		freeIpv4AccessList(&ptpClock->netPath.timingAcl);
+            		freeIpv4AccessList(&ptpClock->netPath.managementAcl);
+            		if(rtOpts->timingAclEnabled) {
+                    	    ptpClock->netPath.timingAcl=createIpv4AccessList(rtOpts->timingAclPermitText,
+                                rtOpts->timingAclDenyText, rtOpts->timingAclOrder);
+            		}
+            		if(rtOpts->managementAclEnabled) {
+                    	    ptpClock->netPath.managementAcl=createIpv4AccessList(rtOpts->managementAclPermitText,
+                                rtOpts->managementAclDenyText, rtOpts->managementAclOrder);
+            		}
+    		}
+
+
+#ifdef PTPD_STATISTICS
+                    /* Reinitialising the outlier filter containers */
+                    if(rtOpts->restartSubsystems & PTPD_RESTART_FILTERS) {
+
+                                NOTIFY("Applying filter configuration: re-initialising filters\n");
+
+				freeDoubleMovingStatFilter(&ptpClock->filterMS);
+				freeDoubleMovingStatFilter(&ptpClock->filterSM);
+
+				ptpClock->oFilterMS.shutdown(&ptpClock->oFilterMS);
+				ptpClock->oFilterSM.shutdown(&ptpClock->oFilterSM);
+
+				outlierFilterSetup(&ptpClock->oFilterMS);
+				outlierFilterSetup(&ptpClock->oFilterSM);
+
+				ptpClock->oFilterMS.init(&ptpClock->oFilterMS,&rtOpts->oFilterMSConfig, "delayMS");
+				ptpClock->oFilterSM.init(&ptpClock->oFilterSM,&rtOpts->oFilterSMConfig, "delaySM");
+
+
+				if(rtOpts->filterMSOpts.enabled) {
+					ptpClock->filterMS = createDoubleMovingStatFilter(&rtOpts->filterMSOpts,"delayMS");
+				}
+
+				if(rtOpts->filterSMOpts.enabled) {
+					ptpClock->filterSM = createDoubleMovingStatFilter(&rtOpts->filterSMOpts, "delaySM");
+				}
+
+		    }
+#endif /* PTPD_STATISTICS */
+
+	    ptpClock->timingService.reloadRequested = TRUE;
+
+            if(rtOpts->restartSubsystems & PTPD_RESTART_NTPENGINE && timingDomain.serviceCount > 1) {
+		ptpClock->ntpControl.timingService.shutdown(&ptpClock->ntpControl.timingService);
+	    }
+
+	    if((rtOpts->restartSubsystems & PTPD_RESTART_NTPENGINE) ||
+        	(rtOpts->restartSubsystems & PTPD_RESTART_NTPCONFIG)) {
+        	ntpSetup(rtOpts, ptpClock);
+    	    }
+		if((rtOpts->restartSubsystems & PTPD_RESTART_NTPENGINE) && rtOpts->ntpOptions.enableEngine) {
+		    timingServiceSetup(&ptpClock->ntpControl.timingService);
+		    ptpClock->ntpControl.timingService.init(&ptpClock->ntpControl.timingService);
+		}
+
+		ptpClock->timingService.dataSet.priority1 = rtOpts->preferNTP;
+
+		timingDomain.electionDelay = rtOpts->electionDelay;
+		if(timingDomain.electionLeft > timingDomain.electionDelay) {
+			timingDomain.electionLeft = timingDomain.electionDelay;
+		}
+
+		timingDomain.services[0]->holdTime = rtOpts->ntpOptions.failoverTimeout;
+
+		if(timingDomain.services[0]->holdTimeLeft >
+			timingDomain.services[0]->holdTime) {
+			timingDomain.services[0]->holdTimeLeft = 
+			rtOpts->ntpOptions.failoverTimeout;
+		}
+
+		ptpClock->timingService.timeout = rtOpts->idleTimeout;
+
+		    /* Update PI servo parameters */
+		    setupPIservo(&ptpClock->servo, rtOpts);
+		    /* Config changes don't require subsystem restarts - acknowledge it */
+		    if(rtOpts->restartSubsystems == PTPD_RESTART_NONE) {
+				NOTIFY("Applying configuration\n");
+		    }
+
+		    if(rtOpts->restartSubsystems != -1)
+			    rtOpts->restartSubsystems = 0;
+
+}
+
 
 /*
  * Synchronous signal processing:
@@ -361,7 +490,8 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if(sigusr1_received){
 	    if(ptpClock->portState == PTP_SLAVE){
 		    WARNING("SIGUSR1 received, stepping clock to current known OFM\n");
-		    servo_perform_clock_step(rtOpts, ptpClock);
+                    stepClock(rtOpts, ptpClock);                                                                                                         
+//		    ptpClock->clockControl.stepRequired = TRUE;
 	    } else {
 		    ERROR("SIGUSR1 received - will not step clock, not in PTP_SLAVE state\n");
 	    }
@@ -369,6 +499,16 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 	if(sigusr2_received){
+
+/* testing only: testing step detection */
+#if 0
+		{
+		ptpClock->addOffset ^= 1;
+		INFO("a: %d\n", ptpClock->addOffset);
+		sigusr2_received = 0;
+		return;
+		}
+#endif
 		displayCounters(ptpClock);
 		if(rtOpts->timingAclEnabled) {
 			INFO("\n\n");
@@ -385,11 +525,11 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			NOTIFY("PTP engine counters cleared\n");
 		}
 #ifdef PTPD_STATISTICS
-		if(rtOpts->oFilterSMOpts.enabled) {
-			oFilterDisplay(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts);
+		if(rtOpts->oFilterSMConfig.enabled) {
+			ptpClock->oFilterSM.display(&ptpClock->oFilterSM);
 		}
-		if(rtOpts->oFilterMSOpts.enabled) {
-			oFilterDisplay(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts);
+		if(rtOpts->oFilterMSConfig.enabled) {
+			ptpClock->oFilterMS.display(&ptpClock->oFilterMS);
 		}
 #endif /* PTPD_STATISTICS */
 		sigusr2_received = 0;
@@ -460,17 +600,23 @@ ptpdShutdown(PtpClock * ptpClock)
 {
 
 	extern RunTimeOpts rtOpts;
+	
+	/* 
+         * go into DISABLED state so the FSM can call any PTP-specific shutdown actions,
+	 * such as canceling unicast transmission
+         */
+	toState(PTP_DISABLED, &rtOpts, ptpClock);
 
 	netShutdown(&ptpClock->netPath);
-#ifdef PTPD_NTPDC
-	ntpShutdown(&rtOpts.ntpOptions, &ptpClock->ntpControl);
-#endif /* PTPD_NTPDC */
 	free(ptpClock->foreign);
 
-	/* free management messages, they can have dynamic memory allocated */
+	/* free management and signaling messages, they can have dynamic memory allocated */
 	if(ptpClock->msgTmpHeader.messageType == MANAGEMENT)
 		freeManagementTLV(&ptpClock->msgTmp.manage);
 	freeManagementTLV(&ptpClock->outgoingManageTmp);
+	if(ptpClock->msgTmpHeader.messageType == SIGNALING)
+		freeSignalingTLV(&ptpClock->msgTmp.signaling);
+	freeSignalingTLV(&ptpClock->outgoingSignalingTmp);
 
 #ifdef PTPD_SNMP
 	snmpShutdown();
@@ -482,6 +628,11 @@ ptpdShutdown(PtpClock * ptpClock)
 	if(ptpClock->slaveOnly && !ptpClock->servo.runningMaxOutput)
 		saveDrift(ptpClock, &rtOpts, FALSE);
 #else
+	ptpClock->oFilterMS.shutdown(&ptpClock->oFilterMS);
+	ptpClock->oFilterSM.shutdown(&ptpClock->oFilterSM);
+        freeDoubleMovingStatFilter(&ptpClock->filterMS);
+        freeDoubleMovingStatFilter(&ptpClock->filterSM);
+
 	/* We are running statistics code - save drift on exit only if we're not monitoring servo stability */
 	if(!rtOpts.servoStabilityDetection && !ptpClock->servo.runningMaxOutput)
 		saveDrift(ptpClock, &rtOpts, FALSE);
@@ -493,24 +644,33 @@ ptpdShutdown(PtpClock * ptpClock)
 	if(rtOpts.cliConfig != NULL)
 		dictionary_del(rtOpts.cliConfig);
 
+	timerShutdown(ptpClock->timers);
+
 	free(ptpClock);
 	ptpClock = NULL;
 
 	extern PtpClock* G_ptpClock;
 	G_ptpClock = NULL;
 
+
+
 	/* properly clean lockfile (eventough new deaemons can acquire the lock after we die) */
 	if(!rtOpts.ignore_daemon_lock && G_lockFilePointer != NULL) {
 	    fclose(G_lockFilePointer);
+	    G_lockFilePointer = NULL;
 	}
 	unlink(rtOpts.lockFile);
 
 	if(rtOpts.statusLog.logEnabled) {
 		/* close and remove the status file */
-		if(rtOpts.statusLog.logFP != NULL)
+		if(rtOpts.statusLog.logFP != NULL) {
 			fclose(rtOpts.statusLog.logFP);
+			rtOpts.statusLog.logFP = NULL;
+		}
 		unlink(rtOpts.statusLog.logPath);
 	}
+
+	stopLogging(&rtOpts);
 
 }
 
@@ -686,6 +846,8 @@ configcheck:
 	} else {
 		DBG("allocated %d bytes for protocol engine data\n", 
 		    (int)sizeof(PtpClock));
+
+
 		ptpClock->foreign = (ForeignMasterRecord *)
 			calloc(rtOpts->max_foreign_records, 
 			       sizeof(ForeignMasterRecord));
@@ -794,6 +956,14 @@ configcheck:
 	}
 #endif /* HAVE_SYS_CPUSET_H */
 
+	/* set up timers */
+	if(!timerSetup(ptpClock->timers)) {
+		PERROR("failed to set up event timers");
+		*ret = 2;
+		free(ptpClock);
+		return 0;
+	}
+    
 	/* use new synchronous signal handlers */
 	signal(SIGINT,  catchSignals);
 	signal(SIGTERM, catchSignals);
@@ -818,11 +988,19 @@ configcheck:
 
 #ifdef PTPD_STATISTICS
 
-	oFilterInit(&ptpClock->oFilterMS, &rtOpts->oFilterMSOpts, "Sync");
-	oFilterInit(&ptpClock->oFilterSM, &rtOpts->oFilterSMOpts, "Delay");
+	outlierFilterSetup(&ptpClock->oFilterMS);
+	outlierFilterSetup(&ptpClock->oFilterSM);
 
-	if(rtOpts->medianFilter) {
-    	    ptpClock->filterMS = createDoubleMovingMedian(rtOpts->medianFilterCapacity);
+	ptpClock->oFilterMS.init(&ptpClock->oFilterMS,&rtOpts->oFilterMSConfig, "delayMS");
+	ptpClock->oFilterSM.init(&ptpClock->oFilterSM,&rtOpts->oFilterSMConfig, "delaySM");
+
+
+	if(rtOpts->filterMSOpts.enabled) {
+		ptpClock->filterMS = createDoubleMovingStatFilter(&rtOpts->filterMSOpts,"delayMS");
+	}
+
+	if(rtOpts->filterSMOpts.enabled) {
+		ptpClock->filterSM = createDoubleMovingStatFilter(&rtOpts->filterSMOpts, "delaySM");
 	}
 
 #endif
@@ -842,3 +1020,34 @@ fail:
 	dictionary_del(rtOpts->candidateConfig);
 	return 0;
 }
+
+void
+ntpSetup (RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+	TimingService *ts = &ptpClock->ntpControl.timingService;
+
+
+
+	if (rtOpts->ntpOptions.enableEngine) {
+	    timingDomain.services[1] = ts;
+	    strncpy(ts->id, "NTP0", TIMINGSERVICE_MAX_DESC);
+	    ts->dataSet.priority1 = 0;
+	    ts->dataSet.type = TIMINGSERVICE_NTP;
+	    ts->config = &rtOpts->ntpOptions;
+	    ts->controller = &ptpClock->ntpControl;
+	    /* for now, NTP is considered always active, so will never go idle */
+	    ts->timeout = 60;
+	    ts->updateInterval = rtOpts->ntpOptions.checkInterval;
+	    timingDomain.serviceCount = 2;
+	} else {
+	    timingDomain.serviceCount = 1;
+	    timingDomain.services[1] = NULL;
+	    if(timingDomain.best == ts || timingDomain.current == ts || timingDomain.preferred == ts) {
+		timingDomain.best = timingDomain.current = timingDomain.preferred = NULL;
+	    }
+	}
+}
+
+
+
+

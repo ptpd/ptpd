@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Wojciech Owczarek,
+ * Copyright (c) 2012-2015 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer, 
  *                         Martin Burnicki, 
@@ -72,6 +72,7 @@
 /* only C99 has the round function built-in */
 double round (double __x);
 
+static int closeLog(LogFileHandler* handler);
 
 /*
  returns a static char * for the representation of time, for debug purposes
@@ -310,7 +311,7 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 
 	len += snprint_ClockIdentity_ntohost(&s[len], max_len - len, id->clockIdentity);
 
-	len += snprintf(&s[len], max_len - len, "/%02x", (unsigned) id->portNumber);
+	len += snprintf(&s[len], max_len - len, "/%d", (unsigned) id->portNumber);
 	return len;
 }
 
@@ -501,6 +502,19 @@ restartLog(LogFileHandler* handler, Boolean quiet)
         return (handler->logFP != NULL);
 }
 
+/* Close a file log target */
+static int
+closeLog(LogFileHandler* handler)
+{
+        if(handler->logFP != NULL) {
+                fclose(handler->logFP);
+		handler->logFP=NULL;
+		return 1;
+        }
+
+	return 0;
+}
+
 
 /* Return TRUE only if the log file had to be rotated / truncated - FALSE does not mean error */
 /* Mini-logrotate: truncate file if exceeds preset size, also rotate up to n number of files if configured */
@@ -566,9 +580,6 @@ maintainLogSize(LogFileHandler* handler)
 
 }
 
-
-
-
 void
 restartLogging(RunTimeOpts* rtOpts)
 {
@@ -587,9 +598,20 @@ restartLogging(RunTimeOpts* rtOpts)
 
 }
 
-void 
-logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+void
+stopLogging(RunTimeOpts* rtOpts)
 {
+	closeLog(&rtOpts->statisticsLog);
+	closeLog(&rtOpts->recordLog);
+	closeLog(&rtOpts->eventLog);
+	closeLog(&rtOpts->statusLog);
+}
+
+void 
+logStatistics(PtpClock * ptpClock)
+{
+	extern RunTimeOpts rtOpts;
+	static int errorMsg = 0;
 	static char sbuf[SCREEN_BUFSZ];
 	int len = 0;
 	TimeInternal now;
@@ -598,12 +620,12 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	static TimeInternal prev_now_sync, prev_now_delay;
 	char time_str[MAXTIMESTR];
 
-	if (!rtOpts->logStatistics) {
+	if (!rtOpts.logStatistics) {
 		return;
 	}
 
-	if(rtOpts->statisticsLog.logEnabled && rtOpts->statisticsLog.logFP != NULL)
-	    destination = rtOpts->statisticsLog.logFP;
+	if(rtOpts.statisticsLog.logEnabled && rtOpts.statisticsLog.logFP != NULL)
+	    destination = rtOpts.statisticsLog.logFP;
 	else
 	    destination = stdout;
 
@@ -613,9 +635,9 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		       "Offset From Master, Slave to Master, "
 		       "Master to Slave, Observed Drift, Last packet Received"
 #ifdef PTPD_STATISTICS
-			", One Way Delay Mean, One Way Delay Std Dev, Offset From Master Mean, Offset From Master Std Dev, Observed Drift Mean, Observed Drift Std Dev"
+			", One Way Delay Mean, One Way Delay Std Dev, Offset From Master Mean, Offset From Master Std Dev, Observed Drift Mean, Observed Drift Std Dev, raw delayMS, raw delaySM"
 #endif
-			"\n", (rtOpts->statisticsTimestamp == TIMESTAMP_BOTH) ? "Timestamp, Unix timestamp" : "Timestamp");
+			"\n", (rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) ? "Timestamp, Unix timestamp" : "Timestamp");
 	}
 	memset(sbuf, ' ', sizeof(sbuf));
 
@@ -625,11 +647,11 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 * print one log entry per X seconds for Sync and DelayResp messages, to reduce disk usage.
 	 */
 
-	if ((ptpClock->portState == PTP_SLAVE) && (rtOpts->statisticsLogInterval)) {
+	if ((ptpClock->portState == PTP_SLAVE) && (rtOpts.statisticsLogInterval)) {
 			
 		switch(ptpClock->char_last_msg) {
 			case 'S':
-			if((now.seconds - prev_now_sync.seconds) < rtOpts->statisticsLogInterval){
+			if((now.seconds - prev_now_sync.seconds) < rtOpts.statisticsLogInterval){
 				DBGV("Suppressed Sync statistics log entry - statisticsLogInterval configured\n");
 				return;
 			}
@@ -637,7 +659,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			    break;
 			case 'D':
 			case 'P':
-			if((now.seconds - prev_now_delay.seconds) < rtOpts->statisticsLogInterval){
+			if((now.seconds - prev_now_delay.seconds) < rtOpts.statisticsLogInterval){
 				DBGV("Suppressed Sync statistics log entry - statisticsLogInterval configured\n");
 				return;
 			}
@@ -651,8 +673,8 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	time_s = now.seconds;
 
 	/* output date-time timestamp if configured */
-	if (rtOpts->statisticsTimestamp == TIMESTAMP_DATETIME ||
-	    rtOpts->statisticsTimestamp == TIMESTAMP_BOTH) {
+	if (rtOpts.statisticsTimestamp == TIMESTAMP_DATETIME ||
+	    rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) {
 	    strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&time_s));
 	    len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s.%06d, %s, ",
 		       time_str, (int)now.nanoseconds/1000, /* Timestamp */
@@ -660,8 +682,8 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 	/* output unix timestamp s.ns if configured */
-	if (rtOpts->statisticsTimestamp == TIMESTAMP_UNIX ||
-	    rtOpts->statisticsTimestamp == TIMESTAMP_BOTH) {
+	if (rtOpts.statisticsTimestamp == TIMESTAMP_UNIX ||
+	    rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) {
 	    len += snprintf(sbuf + len, sizeof(sbuf) - len, "%d.%06d, %s,",
 		       now.seconds, now.nanoseconds, /* Timestamp */
 		       translatePortState(ptpClock)); /* State */
@@ -685,7 +707,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
-		if(rtOpts->delayMechanism == E2E) {
+		if(rtOpts.delayMechanism == E2E) {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 						    &ptpClock->meanPathDelay);
 		} else {
@@ -701,7 +723,7 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		/* print MS and SM with sign */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 			
-		if(rtOpts->delayMechanism == E2E) {
+		if(rtOpts.delayMechanism == E2E) {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 							&(ptpClock->delaySM));
 		} else {
@@ -726,10 +748,18 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			       ptpClock->slaveStats.ofmMean,
 			       ptpClock->slaveStats.ofmStdDev * 1E9);
 
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.0f, %.0f",
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.0f, %.0f, ",
 			       ptpClock->servo.driftMean,
-			       ptpClock->servo.driftStdDev
-);
+			       ptpClock->servo.driftStdDev);
+
+		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+							&(ptpClock->rawDelayMS));
+
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
+
+		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+							&(ptpClock->rawDelaySM));
+
 #endif /* PTPD_STATISTICS */
 
 	} else {
@@ -753,22 +783,85 @@ logStatistics(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
 
 #if 0   /* NOTE: Do we want this? */
-	if (rtOpts->nonDaemon) {
+	if (rtOpts.nonDaemon) {
 		/* in -C mode, adding an extra \n makes stats more clear intermixed with debug comments */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
 	}
 #endif
-
+	/* fprintf may get interrupted by a signal - silently retry once */
 	if (fprintf(destination, "%s", sbuf) < len) {
-		PERROR("Error while writing statistics");
+	    if (fprintf(destination, "%s", sbuf) < len) {
+		if(!errorMsg) {
+		    PERROR("Error while writing statistics");
+		}
+		errorMsg = TRUE;
+	    }
 	}
 
-	if(destination == rtOpts->statisticsLog.logFP) {
-		if (maintainLogSize(&rtOpts->statisticsLog))
+	if(destination == rtOpts.statisticsLog.logFP) {
+		if (maintainLogSize(&rtOpts.statisticsLog))
 			ptpClock->resetStatisticsLog = TRUE;
 	}
 
 }
+
+/* periodic status update */
+void
+periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+
+    char tmpBuf[200];
+    memset(tmpBuf,0,200);
+    TimeInternal *mpd = &ptpClock->meanPathDelay;
+    if(ptpClock->delayMechanism == P2P) {
+	mpd = &ptpClock->peerMeanPathDelay;
+    }
+
+    if(ptpClock->portState == PTP_SLAVE) {
+	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &ptpClock->offsetFromMaster);
+#ifdef PTPD_STATISTICS
+	if(ptpClock->slaveStats.statsCalculated) {
+	    INFO("state %s, ofm %s s, ofm_mean % .09f s, ofm_dev % .09f s\n",
+		portState_getName(ptpClock->portState),
+		tmpBuf,
+		ptpClock->slaveStats.ofmMean,
+		ptpClock->slaveStats.ofmStdDev);
+	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
+	    if (ptpClock->delayMechanism == E2E) {
+		INFO("state %s, mpd %s s, mpd_mean % .09f s, mpd_dev % .09f s\n",
+		    portState_getName(ptpClock->portState),
+		    tmpBuf,
+		    ptpClock->slaveStats.owdMean,
+		    ptpClock->slaveStats.owdStdDev);
+	    } else if(ptpClock->delayMechanism == P2P) {
+		INFO("state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	    }
+	} else {
+	    INFO("state %s, ofm %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
+	    if(ptpClock->delayMechanism != DELAY_DISABLED) {
+		INFO("state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	    }
+	}
+#else
+	INFO("state %s, ofm %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
+	if(ptpClock->delayMechanism != DELAY_DISABLED) {
+	    INFO("state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	}
+#endif /* PTPD_STATISTICS */
+    } else if(ptpClock->portState == PTP_MASTER) {
+	if(rtOpts->unicastNegotiation || ptpClock->unicastDestinationCount) {
+	    INFO("state %s, %d slaves\n", portState_getName(ptpClock->portState),
+	    ptpClock->unicastDestinationCount + ptpClock->slaveCount);
+	} else {
+	    INFO("state %s\n", portState_getName(ptpClock->portState));
+	}
+    } else {
+	INFO("state %s\n", portState_getName(ptpClock->portState));
+    }
+}
+
 
 void 
 displayStatus(PtpClock *ptpClock, const char *prefixMessage)
@@ -795,14 +888,21 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 
 #define STATUSPREFIX "%-19s:"
 void
-writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
+writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 {
+
+	char outBuf[2048];
+	char tmpBuf[200];
 
 	if(rtOpts->statusLog.logFP == NULL)
 	    return;
+	
+	char timeStr[MAXTIMESTR];
+	struct timeval now;
 
-	char outBuf[4096];
-	char tmpBuf[200];
+	gettimeofday(&now, 0);
+	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", localtime((time_t*)&now.tv_sec));
+	
 	FILE* out = rtOpts->statusLog.logFP;
 	memset(outBuf, 0, sizeof(outBuf));
 
@@ -811,20 +911,36 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 	    DBG("writeStatusFile: ftruncate() failed\n");
 	}
 	rewind(out);
-// dictionary_get(rtOpts->currentConfig, "ptpengine:interface", ""),
+
+	fprintf(out, 		STATUSPREFIX"  %s\n","Local time", timeStr);
+	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", gmtime((time_t*)&now.tv_sec));
+	fprintf(out, 		STATUSPREFIX"  %s\n","Kernel time", timeStr);
 	fprintf(out, 		STATUSPREFIX"  %s%s\n","Interface", rtOpts->ifaceName,
 		(rtOpts->backupIfaceEnabled && ptpClock->runningBackupInterface) ? " (backup)" : (rtOpts->backupIfaceEnabled)?
 		    " (primary)" : "");
 	fprintf(out, 		STATUSPREFIX"  %s\n","Preset", dictionary_get(rtOpts->currentConfig, "ptpengine:preset", ""));
-	fprintf(out, 		STATUSPREFIX"  %s%s\n","Transport", dictionary_get(rtOpts->currentConfig, "ptpengine:transport", ""),
+	fprintf(out, 		STATUSPREFIX"  %s%s","Transport", dictionary_get(rtOpts->currentConfig, "ptpengine:transport", ""),
 		(rtOpts->transport==UDP_IPV4 && rtOpts->pcap == TRUE)?" + libpcap":"");
-	if(rtOpts->transport != IEEE_802_3)
-	fprintf(out, 		STATUSPREFIX"  %s\n","IP mode", dictionary_get(rtOpts->currentConfig, "ptpengine:ip_mode", ""));
+
+	if(rtOpts->transport != IEEE_802_3) {
+	    fprintf(out,", %s", dictionary_get(rtOpts->currentConfig, "ptpengine:ip_mode", ""));
+	    fprintf(out,"%s", rtOpts->unicastNegotiation ? " negotiation":"");
+	}
+
+	fprintf(out,"\n");
+
 	fprintf(out, 		STATUSPREFIX"  %s\n","Delay mechanism", dictionary_get(rtOpts->currentConfig, "ptpengine:delay_mechanism", ""));
 	if(ptpClock->portState >= PTP_MASTER) {
 	fprintf(out, 		STATUSPREFIX"  %s\n","Sync mode", ptpClock->twoStepFlag ? "TWO_STEP" : "ONE_STEP");
 	}
-	fprintf(out, 		STATUSPREFIX"  %d\n","PTP domain", rtOpts->domainNumber);
+	if(ptpClock->slaveOnly && rtOpts->anyDomain) {
+		fprintf(out, 		STATUSPREFIX"  %d, preferred %d\n","PTP domain",
+		ptpClock->domainNumber, rtOpts->domainNumber);
+	} else if(ptpClock->slaveOnly && rtOpts->unicastNegotiation) {
+		fprintf(out, 		STATUSPREFIX"  %d, default %d\n","PTP domain", ptpClock->domainNumber, rtOpts->domainNumber);
+	} else {
+		fprintf(out, 		STATUSPREFIX"  %d\n","PTP domain", ptpClock->domainNumber);
+	}
 	fprintf(out, 		STATUSPREFIX"  %s\n","Port state", portState_getName(ptpClock->portState));
 
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
@@ -853,8 +969,12 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 
 	}
 	if(ptpClock->portState == PTP_SLAVE) {
-	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d\n","GM info", 
+	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d","GM priority", 
 	ptpClock->grandmasterPriority1, ptpClock->grandmasterPriority2, ptpClock->grandmasterClockQuality.clockClass);
+	if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL ) {
+	    	fprintf(out, ", localPref %d", ptpClock->parentGrants->localPreference);
+	}
+	fprintf(out, "\n");
 	}
 
 	if(ptpClock->clockQuality.clockClass < 128 ||
@@ -862,15 +982,19 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 		ptpClock->portState == PTP_PASSIVE){
 	fprintf(out, 		STATUSPREFIX"  ","Time properties");
 	fprintf(out, "%s timescale, ",ptpClock->timePropertiesDS.ptpTimescale ? "PTP":"ARB");
-	fprintf(out, "traceable: time %s, freq %s\n", ptpClock->timePropertiesDS.timeTraceable ? "Y" : "N",
-							ptpClock->timePropertiesDS.frequencyTraceable ? "Y" : "N");
+	fprintf(out, "tracbl: time %s, freq %s, src: %s(0x%02x)\n", ptpClock->timePropertiesDS.timeTraceable ? "Y" : "N",
+							ptpClock->timePropertiesDS.frequencyTraceable ? "Y" : "N",
+							getTimeSourceName(ptpClock->timePropertiesDS.timeSource),
+							ptpClock->timePropertiesDS.timeSource);
 	fprintf(out, 		STATUSPREFIX"  ","UTC properties");
 	fprintf(out, "UTC valid: %s", ptpClock->timePropertiesDS.currentUtcOffsetValid ? "Y" : "N");
 	fprintf(out, ", UTC offset: %d",ptpClock->timePropertiesDS.currentUtcOffset);
 	fprintf(out, "%s",ptpClock->timePropertiesDS.leap61 ? 
 			", LEAP61 pending" : ptpClock->timePropertiesDS.leap59 ? ", LEAP59 pending" : "");
-	fprintf(out, "%s", rtOpts->preferUtcValid ? ", prefer UTC" : "");
-	fprintf(out, "%s", rtOpts->requireUtcValid ? ", require UTC" : "");
+	if (ptpClock->portState == PTP_SLAVE) {	
+	    fprintf(out, "%s", rtOpts->preferUtcValid ? ", prefer UTC" : "");
+	    fprintf(out, "%s", rtOpts->requireUtcValid ? ", require UTC" : "");
+	}
 	fprintf(out,"\n");
 	}
 
@@ -892,7 +1016,7 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
 		&ptpClock->meanPathDelay);
-	fprintf(out, 		STATUSPREFIX" %s s","One-way delay", tmpBuf);
+	fprintf(out, 		STATUSPREFIX" %s s","Mean Path Delay", tmpBuf);
 #ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated)
 	fprintf(out, ", mean % .09f s, dev % .09f s",
@@ -906,42 +1030,38 @@ writeStatusFile(PtpClock *ptpClock,RunTimeOpts *rtOpts, Boolean quiet)
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
 		&ptpClock->peerMeanPathDelay);
-	fprintf(out, 		STATUSPREFIX" %s s","One-way pDelay", tmpBuf);
+	fprintf(out, 		STATUSPREFIX" %s s","Mean Path (p)Delay", tmpBuf);
 	fprintf(out,"\n");
 	}
 
-#ifndef PTPD_STATISTICS
-if(rtOpts->enablePanicMode)
 	fprintf(out, 		STATUSPREFIX"  ","Clock status");
 		if(rtOpts->enablePanicMode) {
 	    if(ptpClock->panicMode) {
-		fprintf(out,"panic mode");
-	    }
-	}
-#else
-if(rtOpts->enablePanicMode || rtOpts->calibrationDelay || rtOpts->servoStabilityDetection) {
-	fprintf(out, 		STATUSPREFIX"  ","Clock status");
-		if(rtOpts->enablePanicMode) {
-	    if(ptpClock->panicMode) {
-		fprintf(out,"panic mode");
-		if (rtOpts->servoStabilityDetection || rtOpts->calibrationDelay)
-		fprintf(out, ", ");
+		fprintf(out,"panic mode,");
+
 	    }
 	}
 	if(rtOpts->calibrationDelay) {
-	    fprintf(out, "%s",
+	    fprintf(out, "%s, ",
 		ptpClock->isCalibrated ? "calibrated" : "not calibrated");
-	    if (rtOpts->servoStabilityDetection)
-		fprintf(out, ", ");
 	}
-	if (rtOpts->servoStabilityDetection)
-	    fprintf(out, "%s",
-		ptpClock->servo.isStable ? "stabilised" : "not stabilised");
-	fprintf(out,"\n");
-}
+	fprintf(out, "%s",
+		ptpClock->clockControl.granted ? "in control" : "no control");
+	if(rtOpts->noAdjust) {
+	    fprintf(out, ", read-only");
+	} 
+#ifdef PTPD_STATISTICS	
+	else {
+	    if (rtOpts->servoStabilityDetection) {
+		fprintf(out, ", %s",
+		    ptpClock->servo.isStable ? "stabilised" : "not stabilised");
+	    }
+	}
 #endif /* PTPD_STATISTICS */
+	fprintf(out,"\n");
 
-	fprintf(out, 		STATUSPREFIX" % .03f ppm","Drift correction",
+
+	fprintf(out, 		STATUSPREFIX" % .03f ppm","Clock correction",
 			    ptpClock->servo.observedDrift / 1000.0);
 if(ptpClock->servo.runningMaxOutput)
 	fprintf(out, " (slewing at maximum rate)");
@@ -979,7 +1099,7 @@ else {
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
 		&ptpClock->peerMeanPathDelay);
-	fprintf(out, 		STATUSPREFIX" %s s","One-way pDelay", tmpBuf);
+	fprintf(out, 		STATUSPREFIX" %s s","Mean Path (p)Delay", tmpBuf);
 	fprintf(out,"\n");
 	}
 
@@ -990,7 +1110,7 @@ else {
 
 	fprintf(out,		STATUSPREFIX"  ","Message rates");
 
-	if (ptpClock->logSyncInterval == 0x7F)
+	if (ptpClock->logSyncInterval == UNICAST_MESSAGEINTERVAL)
 	    fprintf(out,"[UC-unknown]");
 	else if (ptpClock->logSyncInterval <= 0)
 	    fprintf(out,"%.0f/s",pow(2,-ptpClock->logSyncInterval));
@@ -1000,7 +1120,7 @@ else {
 
 
 	if(ptpClock->delayMechanism == E2E) {
-		if (ptpClock->logMinDelayReqInterval == 0x7F)
+		if (ptpClock->logMinDelayReqInterval == UNICAST_MESSAGEINTERVAL)
 		    fprintf(out,", [UC-unknown]");
 		else if (ptpClock->logMinDelayReqInterval <= 0)
 		    fprintf(out,", %.0f/s",pow(2,-ptpClock->logMinDelayReqInterval));
@@ -1010,7 +1130,7 @@ else {
 	}
 
 	if(ptpClock->delayMechanism == P2P) {
-		if (ptpClock->logMinPdelayReqInterval == 0x7F)
+		if (ptpClock->logMinPdelayReqInterval == UNICAST_MESSAGEINTERVAL)
 		    fprintf(out,", [UC-unknown]");
 		else if (ptpClock->logMinPdelayReqInterval <= 0)
 		    fprintf(out,", %.0f/s",pow(2,-ptpClock->logMinPdelayReqInterval));
@@ -1019,7 +1139,7 @@ else {
 		fprintf(out, " pdelay");
 	}
 
-	if (ptpClock->logAnnounceInterval == 0x7F)
+	if (ptpClock->logAnnounceInterval == UNICAST_MESSAGEINTERVAL)
 	    fprintf(out,", [UC-unknown]");
 	else if (ptpClock->logAnnounceInterval <= 0)
 	    fprintf(out,", %.0f/s",pow(2,-ptpClock->logAnnounceInterval));
@@ -1031,39 +1151,43 @@ else {
 
 	}
 
+	fprintf(out, 		STATUSPREFIX"  ","TimingService");
+
+	fprintf(out, "current %s, best %s, pref %s", (timingDomain.current != NULL) ? timingDomain.current->id : "none",
+						(timingDomain.best != NULL) ? timingDomain.best->id : "none",
+		    				(timingDomain.preferred != NULL) ? timingDomain.preferred->id : "none");
+
+	if((timingDomain.current != NULL) && 
+	    (timingDomain.current->holdTimeLeft > 0)) {
+		fprintf(out, ", hold %d sec", timingDomain.current->holdTimeLeft);
+	} else	if(timingDomain.electionLeft) {
+		fprintf(out, ", elec %d sec", timingDomain.electionLeft);
+	}
 
 	fprintf(out, "\n");
 
-#ifdef PTPD_NTPDC
-	
-	if(rtOpts->ntpOptions.enableEngine) {
-		fprintf(out, 		STATUSPREFIX"  ","NTP control status ");
+	fprintf(out, 		STATUSPREFIX"  ","TimingServices");
 
+	fprintf(out, "total %d, avail %d, oper %d, idle %d, in_ctrl %d%s\n", 
+				    timingDomain.serviceCount,
+				    timingDomain.availableCount,
+				    timingDomain.operationalCount,
+				    timingDomain.idleCount,
+				    timingDomain.controlCount,
+				    timingDomain.controlCount > 1 ? " (!)":"");
 
-		    if(ptpClock->ntpControl.operational) {
-
-		    fprintf(out, "%s", (rtOpts->ntpOptions.ntpInControl) ?
-			    "Preferring NTP: Yes" : "Preferring NTP: No");
-
-		    fprintf(out, "%s", (ptpClock->ntpControl.inControl) ?
-			    ", NTP in control" : ptpClock->portState == PTP_SLAVE ? ", PTP in control" : "");
-
-		    fprintf(out, "%s", (ptpClock->ntpControl.isFailOver) ?
-			    ", failover requested" : "");
-
-		    fprintf(out, "%s", (ptpClock->ntpControl.checkFailed) ?
-			    ", check failed" : "");
-
-		    fprintf(out, "%s", (ptpClock->ntpControl.requestFailed) ?
-			    ", request failed" : "");
-		    } else {
-		    fprintf(out, "not operational");
-		    }
-		    fprintf(out, "\n");
-
+	fprintf(out, 		STATUSPREFIX"  ","Performance");
+	fprintf(out,"Message RX %d/s, TX %d/s", ptpClock->counters.receivedMessageRate,
+						  ptpClock->counters.sentMessageRate);
+	if(ptpClock->portState == PTP_MASTER) {
+		if(rtOpts->unicastNegotiation) {
+		    fprintf(out,", slaves %d", ptpClock->slaveCount);
+		} else {
+		    fprintf(out,", slaves %d", ptpClock->unicastDestinationCount);
+		}
 	}
-#endif /* PTPD_NTPDC */
 
+	fprintf(out,"\n");
 
 	if ( ptpClock->portState == PTP_SLAVE ||
 	    ptpClock->clockQuality.clockClass == 255 ) {
@@ -1085,7 +1209,6 @@ else {
 
 	if( ptpClock->portState == PTP_MASTER ||
 	    ptpClock->clockQuality.clockClass < 128 ) {
-
 	fprintf(out, 		STATUSPREFIX"  %d received, %d sent \n","Announce",
 	    ptpClock->counters.announceMessagesReceived,
 	    ptpClock->counters.announceMessagesSent);
@@ -1106,13 +1229,13 @@ else {
 
 	if(ptpClock->delayMechanism == P2P) {
 
-		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PDelayReq",
+		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PdelayReq",
 		    ptpClock->counters.pdelayReqMessagesReceived,
 		    ptpClock->counters.pdelayReqMessagesSent);
-		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PDelayResp",
+		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PdelayResp",
 		    ptpClock->counters.pdelayRespMessagesReceived,
 		    ptpClock->counters.pdelayRespMessagesSent);
-		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PDelayRespFollowUp",
+		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PdelayRespFollowUp",
 		    ptpClock->counters.pdelayRespFollowUpMessagesReceived,
 		    ptpClock->counters.pdelayRespFollowUpMessagesSent);
 
@@ -1122,7 +1245,9 @@ else {
 	fprintf(out, 		STATUSPREFIX"  %d\n","Domain Mismatches",
 		    ptpClock->counters.domainMismatchErrors);
 
-
+	if(ptpClock->counters.ignoredAnnounce)
+	fprintf(out, 		STATUSPREFIX"  %d\n","Ignored Announce",
+		    ptpClock->counters.ignoredAnnounce);
 
 	fprintf(out, 		STATUSPREFIX"  %d\n","State transitions",
 		    ptpClock->counters.stateTransitions);
@@ -1148,13 +1273,14 @@ displayPortIdentity(PortIdentity *port, const char *prefixMessage)
 
 
 void
-recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time)
+recordSync(UInteger16 sequenceId, TimeInternal * time)
 {
-	if (rtOpts->recordLog.logEnabled && rtOpts->recordLog.logFP != NULL) {
-		fprintf(rtOpts->recordLog.logFP, "%d %llu\n", sequenceId, 
+	extern RunTimeOpts rtOpts;
+	if (rtOpts.recordLog.logEnabled && rtOpts.recordLog.logFP != NULL) {
+		fprintf(rtOpts.recordLog.logFP, "%d %llu\n", sequenceId, 
 		  ((time->seconds * 1000000000ULL) + time->nanoseconds)
 		);
-		maintainLogSize(&rtOpts->recordLog);
+		maintainLogSize(&rtOpts.recordLog);
 	}
 }
 
@@ -1196,6 +1322,33 @@ getTime(TimeInternal * time)
 
 #endif /* _POSIX_TIMERS */
 }
+
+void
+getTimeMonotonic(TimeInternal * time)
+{
+#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
+
+	struct timespec tp;
+#ifndef CLOCK_MONOTINIC                                                                                                       
+	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
+#else
+	if (clock_gettime(CLOCK_MONOTONIC, &tp) < 0) {
+#endif /* CLOCK_MONOTONIC */
+		PERROR("clock_gettime() failed, exiting.");
+		exit(0);
+	}
+	time->seconds = tp.tv_sec;
+	time->nanoseconds = tp.tv_nsec;
+#else
+
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	time->seconds = tv.tv_sec;
+	time->nanoseconds = tv.tv_usec * 1000;
+
+#endif /* _POSIX_TIMERS */
+}
+
 
 void
 setTime(TimeInternal * time)
@@ -1313,7 +1466,7 @@ cleanup:
 double 
 getRand(void)
 {
-	return ((rand() * 1.0) / RAND_MAX);
+	return((rand() * 1.0) / RAND_MAX);
 }
 
 /* Attempt setting advisory write lock on a file descriptor*/
@@ -1619,192 +1772,6 @@ getAdjFreq(void)
 	return(dFreq);
 }
 
-#define DRIFTFORMAT "%.0f"
-
-void
-restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
-{
-
-	FILE *driftFP;
-	Boolean reset_offset = FALSE;
-	double recovered_drift;
-
-	DBGV("restoreDrift called\n");
-
-	if (ptpClock->drift_saved && rtOpts->drift_recovery_method > 0 ) {
-		ptpClock->servo.observedDrift = ptpClock->last_saved_drift;
-		if (!rtOpts->noAdjust) {
-#ifndef HAVE_SYS_TIMEX_H
-			adjTime(-ptpClock->last_saved_drift);
-#else
-			adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->last_saved_drift);
-#endif /* HAVE_SYS_TIMEX_H */
-		}
-		DBG("loaded cached drift");
-		return;
-	}
-
-	switch (rtOpts->drift_recovery_method) {
-
-		case DRIFT_FILE:
-
-			if( (driftFP = fopen(rtOpts->driftFile,"r")) == NULL) {
-				PERROR("Could not open drift file: %s - using current kernel frequency offset",
-					rtOpts->driftFile);
-			} else
-
-			if (fscanf(driftFP, "%lf", &recovered_drift) != 1) {
-				PERROR("Could not load saved offset from drift file - using current kernel frequency offset");
-			} else {
-
-			if(recovered_drift == 0)
-				recovered_drift = 0;
-
-			fclose(driftFP);
-			if(quiet)
-				DBGV("Observed drift loaded from %s: "DRIFTFORMAT"\n",
-					rtOpts->driftFile,
-					recovered_drift);
-			else
-				INFO("Observed drift loaded from %s: "DRIFTFORMAT"\n",
-					rtOpts->driftFile,
-					recovered_drift);
-				break;
-			}
-
-		case DRIFT_KERNEL:
-
-			recovered_drift = -getAdjFreq();
-
-			if(recovered_drift == 0)
-				recovered_drift = 0;
-
-			if (quiet)
-				DBGV("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
-					recovered_drift);
-			else
-				INFO("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
-					recovered_drift);
-
-		break;
-
-
-		default:
-
-			reset_offset = TRUE;
-
-	}
-
-	if (reset_offset) {
-#ifdef HAVE_SYS_TIMEX_H
-		if (!rtOpts->noAdjust)
-		  adjFreq_wrapper(rtOpts, ptpClock, 0);
-#endif /* HAVE_SYS_TIMEX_H */
-		ptpClock->servo.observedDrift = 0;
-		return;
-	}
-
-	ptpClock->servo.observedDrift = recovered_drift;
-
-	ptpClock->drift_saved = TRUE;
-	ptpClock->last_saved_drift = recovered_drift;
-
-#ifdef HAVE_SYS_TIMEX_H
-	if (!rtOpts->noAdjust)
-		adjFreq(-recovered_drift);
-#endif /* HAVE_SYS_TIMEX_H */
-}
-
-#undef DRIFTFORMAT
-
-void
-saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet)
-{
-	FILE *driftFP;
-
-	DBGV("saveDrift called\n");
-
-       if(ptpClock->portState == PTP_PASSIVE ||
-              ptpClock->portState == PTP_MASTER ||
-                ptpClock->clockQuality.clockClass < 128) {
-                    DBGV("We're not slave - not saving drift\n");
-                    return;
-            }
-
-        if(ptpClock->servo.observedDrift == 0.0 &&
-            ptpClock->portState == PTP_LISTENING )
-                return;
-
-	if (rtOpts->drift_recovery_method > 0) {
-		ptpClock->last_saved_drift = ptpClock->servo.observedDrift;
-		ptpClock->drift_saved = TRUE;
-	}
-
-	if (rtOpts->drift_recovery_method != DRIFT_FILE)
-		return;
-
-	if(ptpClock->servo.runningMaxOutput) {
-	    DBG("Servo running ad maximum shift - not saving drift file");
-	    return;
-	}
-
-	if( (driftFP = fopen(rtOpts->driftFile,"w")) == NULL) {
-		PERROR("Could not open drift file %s for writing", rtOpts->driftFile);
-		return;
-	}
-
-	/* The fractional part really won't make a difference here */
-	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.observedDrift));
-
-	if (quiet) {
-		DBGV("Wrote observed drift to %s\n", rtOpts->driftFile);
-	} else {
-		INFO("Wrote observed drift to %s\n", rtOpts->driftFile);
-	}
-	fclose(driftFP);
-}
-
-void
-setTimexFlags(int flags, Boolean quiet)
-{
-	struct timex tmx;
-	int ret;
-
-	memset(&tmx, 0, sizeof(tmx));
-
-	tmx.modes = MOD_STATUS;
-
-	tmx.status = getTimexFlags();
-	if(tmx.status == -1) 
-		return;
-	/* unset all read-only flags */
-	tmx.status &= ~STA_RONLY;
-	tmx.status |= flags;
-
-	ret = adjtimex(&tmx);
-
-	if (ret < 0)
-		PERROR("Could not set adjtimex flags: %s", strerror(errno));
-
-	if(!quiet && ret > 2) {
-		switch (ret) {
-		case TIME_OOP:
-			WARNING("Adjtimex: leap second already in progress\n");
-			break;
-		case TIME_WAIT:
-			WARNING("Adjtimex: leap second already occurred\n");
-			break;
-#if !defined(TIME_BAD)
-		case TIME_ERROR:
-#else
-		case TIME_BAD:
-#endif /* TIME_BAD */
-		default:
-			DBGV("unsetTimexFlags: adjtimex() returned TIME_BAD\n");
-			break;
-		}
-	}
-}
 
 /* First cut on informing the clock */
 void
@@ -1881,7 +1848,6 @@ int getTimexFlags(void)
 		return(-1);
 
 	}
-
 	return( tmx.status );
 }
 
@@ -1921,10 +1887,89 @@ setKernelUtcOffset(int utc_offset) {
 		PERROR("Could not set kernel TAI offset: %s", strerror(errno));
 	}
 }
+Boolean
+getKernelUtcOffset(int *utc_offset) {
+
+	static Boolean warned = FALSE;
+	int ret;
+
+#if defined(HAVE_NTP_GETTIME)
+	struct ntptimeval ntpv;
+	memset(&ntpv, 0, sizeof(ntpv));
+	ret = ntp_gettime(&ntpv);
+#else
+	struct timex tmx;
+	memset(&tmx, 0, sizeof(tmx));
+	tmx.modes = 0;
+	ret = adjtimex(&tmx);
+#endif /* HAVE_NTP_GETTIME */
+
+	if (ret < 0) {
+		if(!warned) {
+		    PERROR("Could not read adjtimex/ntp_gettime flags: %s", strerror(errno));
+		}
+		warned = TRUE;
+		return FALSE;
+
+	}
+#if !defined(HAVE_NTP_GETTIME) && defined(HAVE_STRUCT_TIMEX_TAI)
+	*utc_offset = ( tmx.tai );
+	return TRUE;
+#elif defined(HAVE_NTP_GETTIME) && defined(HAVE_STRUCT_NTPTIMEVAL_TAI)
+	*utc_offset = (int)(ntpv.tai);
+	return TRUE;
+#endif /* HAVE_STRUCT_TIMEX_TAI */
+	if(!warned) {
+	    WARNING("No OS support for kernel TAI/UTC offset information. Cannot read UTC offset.\n");
+	}
+	warned = TRUE;
+	return FALSE;
+}
 #endif /* MOD_TAI */
 
+void
+setTimexFlags(int flags, Boolean quiet)
+{
+	struct timex tmx;
+	int ret;
 
+	memset(&tmx, 0, sizeof(tmx));
+
+	tmx.modes = MOD_STATUS;
+
+	tmx.status = getTimexFlags();
+	if(tmx.status == -1) 
+		return;
+	/* unset all read-only flags */
+	tmx.status &= ~STA_RONLY;
+	tmx.status |= flags;
+
+	ret = adjtimex(&tmx);
+
+	if (ret < 0)
+		PERROR("Could not set adjtimex flags: %s", strerror(errno));
+
+	if(!quiet && ret > 2) {
+		switch (ret) {
+		case TIME_OOP:
+			WARNING("Adjtimex: leap second already in progress\n");
+			break;
+		case TIME_WAIT:
+			WARNING("Adjtimex: leap second already occurred\n");
+			break;
+#if !defined(TIME_BAD)
+		case TIME_ERROR:
 #else
+		case TIME_BAD:
+#endif /* TIME_BAD */
+		default:
+			DBGV("unsetTimexFlags: adjtimex() returned TIME_BAD\n");
+			break;
+		}
+	}
+}
+
+#else /* SYS_TIMEX_H */
 
 void
 adjTime(Integer32 nanoseconds)
@@ -1942,4 +1987,410 @@ adjTime(Integer32 nanoseconds)
 
 #endif /* HAVE_SYS_TIMEX_H */
 
+#define DRIFTFORMAT "%.0f"
 
+void
+restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
+{
+
+	FILE *driftFP;
+	Boolean reset_offset = FALSE;
+	double recovered_drift;
+
+	DBGV("restoreDrift called\n");
+
+	if (ptpClock->drift_saved && rtOpts->drift_recovery_method > 0 ) {
+		ptpClock->servo.observedDrift = ptpClock->last_saved_drift;
+		if (!rtOpts->noAdjust && ptpClock->clockControl.granted) {
+#ifndef HAVE_SYS_TIMEX_H
+			adjTime(-ptpClock->last_saved_drift);
+#else
+			adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->last_saved_drift);
+#endif /* HAVE_SYS_TIMEX_H */
+		}
+		DBG("loaded cached drift");
+		return;
+	}
+
+	switch (rtOpts->drift_recovery_method) {
+
+		case DRIFT_FILE:
+
+			if( (driftFP = fopen(rtOpts->driftFile,"r")) == NULL) {
+				PERROR("Could not open drift file: %s - using current kernel frequency offset",
+					rtOpts->driftFile);
+			} else
+
+			if (fscanf(driftFP, "%lf", &recovered_drift) != 1) {
+				PERROR("Could not load saved offset from drift file - using current kernel frequency offset");
+			} else {
+
+			if(recovered_drift == 0)
+				recovered_drift = 0;
+
+			fclose(driftFP);
+			if(quiet)
+				DBGV("Observed drift loaded from %s: "DRIFTFORMAT"\n",
+					rtOpts->driftFile,
+					recovered_drift);
+			else
+				INFO("Observed drift loaded from %s: "DRIFTFORMAT"\n",
+					rtOpts->driftFile,
+					recovered_drift);
+				break;
+			}
+
+		case DRIFT_KERNEL:
+#ifdef HAVE_SYS_TIMEX_H
+			recovered_drift = -getAdjFreq();
+#else
+			recovered_drift = 0;
+#endif /* HAVE_SYS_TIMEX_H */
+			if(recovered_drift == 0)
+				recovered_drift = 0;
+
+			if (quiet)
+				DBGV("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
+					recovered_drift);
+			else
+				INFO("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
+					recovered_drift);
+
+		break;
+
+
+		default:
+
+			reset_offset = TRUE;
+
+	}
+
+	if (reset_offset) {
+#ifdef HAVE_SYS_TIMEX_H
+		if (!rtOpts->noAdjust && ptpClock->clockControl.granted)
+		  adjFreq_wrapper(rtOpts, ptpClock, 0);
+#endif /* HAVE_SYS_TIMEX_H */
+		ptpClock->servo.observedDrift = 0;
+		return;
+	}
+
+	ptpClock->servo.observedDrift = recovered_drift;
+
+	ptpClock->drift_saved = TRUE;
+	ptpClock->last_saved_drift = recovered_drift;
+
+#ifdef HAVE_SYS_TIMEX_H
+	if (!rtOpts->noAdjust)
+		adjFreq(-recovered_drift);
+#endif /* HAVE_SYS_TIMEX_H */
+}
+
+#undef DRIFTFORMAT
+
+void
+saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
+{
+	FILE *driftFP;
+
+	DBGV("saveDrift called\n");
+
+       if(ptpClock->portState == PTP_PASSIVE ||
+              ptpClock->portState == PTP_MASTER ||
+                ptpClock->clockQuality.clockClass < 128) {
+                    DBGV("We're not slave - not saving drift\n");
+                    return;
+            }
+
+        if(ptpClock->servo.observedDrift == 0.0 &&
+            ptpClock->portState == PTP_LISTENING )
+                return;
+
+	if (rtOpts->drift_recovery_method > 0) {
+		ptpClock->last_saved_drift = ptpClock->servo.observedDrift;
+		ptpClock->drift_saved = TRUE;
+	}
+
+	if (rtOpts->drift_recovery_method != DRIFT_FILE)
+		return;
+
+	if(ptpClock->servo.runningMaxOutput) {
+	    DBG("Servo running at maximum shift - not saving drift file");
+	    return;
+	}
+
+	if( (driftFP = fopen(rtOpts->driftFile,"w")) == NULL) {
+		PERROR("Could not open drift file %s for writing", rtOpts->driftFile);
+		return;
+	}
+
+	/* The fractional part really won't make a difference here */
+	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.observedDrift));
+
+	if (quiet) {
+		DBGV("Wrote observed drift to %s\n", rtOpts->driftFile);
+	} else {
+		INFO("Wrote observed drift to %s\n", rtOpts->driftFile);
+	}
+	fclose(driftFP);
+}
+
+int parseLeapFile(char *path, LeapSecondInfo *info)
+{
+    FILE *leapFP;
+    TimeInternal now;
+    char lineBuf[PATH_MAX];
+
+    unsigned long ntpSeconds = 0;
+    Integer32 utcSeconds = 0;
+    Integer32 utcExpiry = 0;
+    int ntpOffset = 0;
+    int res;
+
+    getTime(&now);
+
+    info->valid = FALSE;
+
+    if( (leapFP = fopen(path,"r")) == NULL) {
+	PERROR("Could not open leap second list file %s", path);
+	return 0;
+    } else
+
+    memset(info, 0, sizeof(LeapSecondInfo));
+
+    while (fgets(lineBuf, PATH_MAX - 1, leapFP) != NULL) {  
+
+	/* capture file expiry time */
+	res = sscanf(lineBuf, "#@ %lu", &ntpSeconds);
+	if(res == 1) {
+	    utcExpiry = ntpSeconds - NTP_EPOCH;
+	    DBG("leapfile expiry %d\n", utcExpiry);
+	}
+	/* capture leap seconds information */
+	res = sscanf(lineBuf, "%lu %d", &ntpSeconds, &ntpOffset);
+	if(res ==2) {
+	    utcSeconds = ntpSeconds - NTP_EPOCH;
+	    DBG("leapfile date %d offset %d\n", utcSeconds, ntpOffset);
+
+	    /* next leap second date found */
+
+	    if((now.seconds ) < utcSeconds) {
+		info->nextOffset = ntpOffset;
+		info->endTime = utcSeconds;
+		info->startTime = utcSeconds - 86400;
+		break;
+	    } else 
+	    /* current leap second value found */
+		if(now.seconds >= utcSeconds) {
+		info->currentOffset = ntpOffset;
+	    }
+
+	}
+
+    }    
+
+    fclose(leapFP);
+
+    /* leap file past expiry date */
+    if(utcExpiry && utcExpiry < now.seconds) {
+	WARNING("Leap seconds file is expired. Please download the current version\n");
+	return 0;
+    }
+
+    /* we have the current offset - the rest can be invalid but at least we have this */
+    if(info->currentOffset != 0) {
+	info->offsetValid = TRUE;
+    }
+
+    /* if anything failed, return 0 so we know we cannot use leap file information */
+    if((info->startTime == 0) || (info->endTime == 0) || 
+	(info->currentOffset == 0) || (info->nextOffset == 0)) {
+	return 0;
+	INFO("Leap seconds file %s loaded (incomplete): now %d, current %d next %d from %d to %d, type %s\n", path,
+	now.seconds,
+	info->currentOffset, info->nextOffset, 
+	info->startTime, info->endTime, info->leapType > 0 ? "positive" : info->leapType < 0 ? "negative" : "unknown");
+    }
+
+    if(info->nextOffset > info->currentOffset) {
+	info->leapType = 1;
+    }
+
+    if(info->nextOffset < info->currentOffset) {
+	info->leapType = -1;
+    }
+
+    INFO("Leap seconds file %s loaded: now %d, current %d next %d from %d to %d, type %s\n", path,
+	now.seconds,
+	info->currentOffset, info->nextOffset, 
+	info->startTime, info->endTime, info->leapType > 0 ? "positive" : info->leapType < 0 ? "negative" : "unknown");
+    info->valid = TRUE;
+    return 1;
+
+}
+
+void
+updateXtmp (TimeInternal oldTime, TimeInternal newTime)
+{
+
+/* Add the old time entry to utmp/wtmp */
+
+/* About as long as the ntpd implementation, but not any less ugly */
+
+#ifdef HAVE_UTMPX_H
+		struct utmpx utx;
+	memset(&utx, 0, sizeof(utx));
+		strncpy(utx.ut_user, "date", sizeof(utx.ut_user));
+#ifndef OTIME_MSG
+		strncpy(utx.ut_line, "|", sizeof(utx.ut_line));
+#else
+		strncpy(utx.ut_line, OTIME_MSG, sizeof(utx.ut_line));
+#endif /* OTIME_MSG */
+#ifdef OLD_TIME
+		utx.ut_tv.tv_sec = oldTime.seconds;
+		utx.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
+		utx.ut_type = OLD_TIME;
+#else /* no ut_type */
+		utx.ut_time = oldTime.seconds;
+#endif /* OLD_TIME */
+
+/* ======== BEGIN  OLD TIME EVENT - UTMPX / WTMPX =========== */
+#ifdef HAVE_UTMPXNAME
+		utmpxname("/var/log/utmp");
+#endif /* HAVE_UTMPXNAME */
+		setutxent();
+		pututxline(&utx);
+		endutxent();
+#ifdef HAVE_UPDWTMPX
+		updwtmpx("/var/log/wtmp", &utx);
+#endif /* HAVE_IPDWTMPX */
+/* ======== END    OLD TIME EVENT - UTMPX / WTMPX =========== */
+
+#else /* NO UTMPX_H */
+
+#ifdef HAVE_UTMP_H
+		struct utmp ut;
+		memset(&ut, 0, sizeof(ut));
+		strncpy(ut.ut_name, "date", sizeof(ut.ut_name));
+#ifndef OTIME_MSG
+		strncpy(ut.ut_line, "|", sizeof(ut.ut_line));
+#else
+		strncpy(ut.ut_line, OTIME_MSG, sizeof(ut.ut_line));
+#endif /* OTIME_MSG */
+
+#ifdef OLD_TIME
+		ut.ut_tv.tv_sec = oldTime.seconds;
+		ut.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
+		ut.ut_type = OLD_TIME;
+#else /* no ut_type */
+		ut.ut_time = oldTime.seconds;
+#endif /* OLD_TIME */
+
+/* ======== BEGIN  OLD TIME EVENT - UTMP / WTMP =========== */
+#ifdef HAVE_UTMPNAME
+		utmpname(UTMP_FILE);
+#endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
+		setutent();
+#endif /* HAVE_SETUTENT */
+#ifdef HAVE_PUTUTLINE
+		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
+		endutent();
+#endif /* HAVE_ENDUTENT */
+#ifdef HAVE_UTMPNAME
+		utmpname(WTMP_FILE);
+#endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
+		setutent();
+#endif /* HAVE_SETUTENT */
+#ifdef HAVE_PUTUTLINE
+		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
+		endutent();
+#endif /* HAVE_ENDUTENT */
+/* ======== END    OLD TIME EVENT - UTMP / WTMP =========== */
+
+#endif /* HAVE_UTMP_H */
+#endif /* HAVE_UTMPX_H */
+
+/* Add the new time entry to utmp/wtmp */
+
+#ifdef HAVE_UTMPX_H
+		memset(&utx, 0, sizeof(utx));
+		strncpy(utx.ut_user, "date", sizeof(utx.ut_user));
+#ifndef NTIME_MSG
+		strncpy(utx.ut_line, "{", sizeof(utx.ut_line));
+#else
+		strncpy(utx.ut_line, NTIME_MSG, sizeof(utx.ut_line));
+#endif /* NTIME_MSG */
+#ifdef NEW_TIME
+		utx.ut_tv.tv_sec = newTime.seconds;
+		utx.ut_tv.tv_usec = newTime.nanoseconds / 1000;
+		utx.ut_type = NEW_TIME;
+#else /* no ut_type */
+		utx.ut_time = newTime.seconds;
+#endif /* NEW_TIME */
+
+/* ======== BEGIN  NEW TIME EVENT - UTMPX / WTMPX =========== */
+#ifdef HAVE_UTMPXNAME
+		utmpxname("/var/log/utmp");
+#endif /* HAVE_UTMPXNAME */
+		setutxent();
+		pututxline(&utx);
+		endutxent();
+#ifdef HAVE_UPDWTMPX
+		updwtmpx("/var/log/wtmp", &utx);
+#endif /* HAVE_UPDWTMPX */
+/* ======== END    NEW TIME EVENT - UTMPX / WTMPX =========== */
+
+#else /* NO UTMPX_H */
+
+#ifdef HAVE_UTMP_H
+		memset(&ut, 0, sizeof(ut));
+		strncpy(ut.ut_name, "date", sizeof(ut.ut_name));
+#ifndef NTIME_MSG
+		strncpy(ut.ut_line, "{", sizeof(ut.ut_line));
+#else
+		strncpy(ut.ut_line, NTIME_MSG, sizeof(ut.ut_line));
+#endif /* NTIME_MSG */
+#ifdef NEW_TIME
+		ut.ut_tv.tv_sec = newTime.seconds;
+		ut.ut_tv.tv_usec = newTime.nanoseconds / 1000;
+		ut.ut_type = NEW_TIME;
+#else /* no ut_type */
+		ut.ut_time = newTime.seconds;
+#endif /* NEW_TIME */
+
+/* ======== BEGIN  NEW TIME EVENT - UTMP / WTMP =========== */
+#ifdef HAVE_UTMPNAME
+		utmpname(UTMP_FILE);
+#endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
+		setutent();
+#endif /* HAVE_SETUTENT */
+#ifdef HAVE_PUTUTLINE
+		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
+		endutent();
+#endif /* HAVE_ENDUTENT */
+#ifdef HAVE_UTMPNAME
+		utmpname(WTMP_FILE);
+#endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
+		setutent();
+#endif /* HAVE_SETUTENT */
+#ifdef HAVE_PUTUTLINE
+		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
+		endutent();
+#endif /* HAVE_ENDUTENT */
+/* ======== END    NEW TIME EVENT - UTMP / WTMP =========== */
+
+#endif /* HAVE_UTMP_H */
+#endif /* HAVE_UTMPX_H */
+
+}

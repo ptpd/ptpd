@@ -1,6 +1,10 @@
 ; ==============================================================================
 ; This is a minimal configuration for a PTPv2 slave
-; For a full list of options run ptpd2 -H or see the documentation and man pages
+; For a full list of options run ptpd2 -H or see the documentation and man pages.
+;
+; NOTE: for best results, do read the ptpd2.conf(5) man page as many settings
+;       such as outlier filters and statistics filters can greatly improve
+;       the operation of PTPd.
 ; ==============================================================================
 
 ; interface has to be specified

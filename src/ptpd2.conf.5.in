@@ -40,8 +40,8 @@ Clock control PI servo configuration
 Global configuration - logging, etc.
 .TP
 .B ntpengine
-NTP control configuration (if compiled with PTPD_NTPDC)
-
+NTP control configuration
+.TP
 
 .SH CONFIGURATION VARIABLES
 .BR
@@ -109,6 +109,23 @@ To see all preset settings, run ptpd2 \fI-H\fR (\fI--long-help\fR)
 .RE
 .RS 0
 .TP 8
+\fBptpengine:transport [\fISELECT\fB]\fR
+.RS 8
+.TP 8
+\fBoptions\fR
+\fIipv4 ethernet\fR
+.TP 8
+\fBusage\fR
+Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building with \fIlibpcap\fR and is not supported on Solaris as of 2.3.1,
+and cannot be enabled on those systems unless ptpd is compiled with \fB--enable-experimental-options\fR.
+.TP 8
+\fBdefault\fR
+\fIipv4\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:ip_mode [\fISELECT\fB]\fR
 .RS 8
 .TP 8
@@ -126,7 +143,9 @@ uses multicast for all messages
 uses  multicast for sync and announce, and unicast for delay request and response
 .TP 12
 \fIunicast\fR
-uses unicast for all transmission. When unicast mode is selected, destination IP must be configured (\fIptpengine:unicast_address\fR).
+uses unicast for all transmission. When unicast mode is selected, destination IP(s) (\fIptpengine:unicast_destinations\fR) must be configured
+depending on unicast negotiation setting (\fIptpengine:unicast_negotiation\fR) and master or slave role
+(see: \fIptpengine:unicast_destinations\fR)
 .RE
 .TP 8
 \fBdefault\fR
@@ -136,18 +155,47 @@ uses unicast for all transmission. When unicast mode is selected, destination IP
 .RE
 .RS 0
 .TP 8
-\fBptpengine:transport [\fISELECT\fB]\fR
+\fBptpengine:unicast_negotiation [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8
-\fBoptions\fR
-\fIipv4 ethernet\fR
-.TP 8
 \fBusage\fR
-Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building with \fIlibpcap\fR and is not supported on Solaris as of 2.3.1,
-and cannot be enabled on those systems unless ptpd is compiled with \fB--enable-experimental-options\fR.
+Enable unicast negotiation support using signaling messages - as used by the Telecom profile
+(ITU-T G.8265.1).
 .TP 8
 \fBdefault\fR
-\fIipv4\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:unicast_grant_duration [\fIINT\fB: 30 .. 604800]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Duration (seconds) for which the transmission of unicast messages is granted by a master,
+or requested by a slave when unicast negotiation is used (\fIptpengine:unicast_negotiation\fR).
+When using PTPd with other PTP implementations, PTPd will never refuse to grant a message based
+on the requested duration: it will grant for 30 seconds if requested for any less than 30 seconds,
+and will grant for 7 days (604800) if requested for any longer.
+.TP 8
+\fBdefault\fR
+\fI300\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:disable_bmca [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Disable Best Master Clock Algorithm for unicast masters. Only effective for masteronly preset -
+all Announce messages will be ignored and the cock will transition directly into MASTER state
+and remain an active master. This behaviour is required for Telecom profile operation.
+.TP 8
+\fBdefault\fR
+\fIN\fR
 
 .RE
 .RE
@@ -192,6 +240,38 @@ PTP domain number.
 .TP 8
 \fBdefault\fR
 \fI0\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:any_domain [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Usability extension: if enabled, a slave-only clock will accept masters from any domain,
+while preferring the configured domain, and preferring lower domain number. This option should be
+used for slave-only clocks and should not be used with unicast negotiation.
+\fBNOTE:\fR this behaviour is not part of the standard.
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:port_number [\fIINT\fB: 1 .. 65534]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+PTP port number (part of PTP Port Identity - not UDP port).
+For ordinary clocks (single port), the default should be used,
+but when running multiple instances to simulate a boundary clock,
+The port number can be changed.
+.TP 8
+\fBdefault\fR
+\fI1\fR
 
 .RE
 .RE
@@ -290,14 +370,31 @@ Compatibility option: when enabled, ptpd2 will ignore Announce messages from mas
 .RE
 .RS 0
 .TP 8
-\fBptpengine:log_announce_interval [\fIINT\fB: -1 .. 7]\fR
+\fBptpengine:log_announce_interval [\fIINT\fB: -4 .. 7]\fR
 .RS 8
 .TP 8
 \fBusage\fR
-PTP announce message interval in master state.(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+PTP announce message interval in master state. When using unicast negotiation (\fIptpengine:unicast_negotiation\fR),
+for slaves this is the initial (minimum) interval requested and for masters this is the minimum interval granted.
+(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 .TP 8
 \fBdefault\fR
 \fI1\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:log_announce_interval_max [\fIINT\fB: -1 .. 7]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+When using unicast negtiation (\fIptpengine:unicast_negotiation\fR), this is the maximum announce
+interval granted by a master, and the maximum interval a slave will attempt to request.
+(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+.TP 8
+\fBdefault\fR
+\fI5\fR
 
 .RE
 .RE
@@ -335,7 +432,8 @@ PTP announce receipt timeout grace period in slave state: when announce receipt 
 .RS 8
 .TP 8
 \fBusage\fR
-PTP sync message interval in master state
+PTP sync message interval in master state. When using unicast negotiation (\fIptpengine:unicast_negotiation\fR),
+for slaves this is the initial (minimum) interval requested and for masters this is the minimum interval granted.
 	(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 .TP 8
 \fBdefault\fR
@@ -345,11 +443,26 @@ PTP sync message interval in master state
 .RE
 .RS 0
 .TP 8
+\fBptpengine:log_sync_interval_max [\fIINT\fB: -1 .. 7]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+When using unicast negtiation (\fIptpengine:unicast_negotiation\fR), this is the maximum sync
+interval granted by a master, and the maximum interval a slave will attempt to request.
+(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+.TP 8
+\fBdefault\fR
+\fI5\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:log_delayreq_override [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8
 \fBusage\fR
-Override the Delay Request interval announced by best master.
+Override the Delay Request interval provided by best master.
 .TP 8
 \fBdefault\fR
 \fIN\fR
@@ -363,7 +476,8 @@ Override the Delay Request interval announced by best master.
 .TP 8
 \fBusage\fR
 Automatically override the Delay Request interval (with \fI ptpengine:log_delayreq_interval\fR)
-if the received value is 127 (0X7F), such as in unicast messages
+if the received value is 127 (0X7F), such as in unicast messages,
+unless using unicast negotiation (\fIptpengine:unicast_negotiation\fR)
 .TP 8
 \fBdefault\fR
 \fIY\fR
@@ -390,11 +504,27 @@ Delay request interval used before receiving first delay response
 .RS 8
 .TP 8
 \fBusage\fR
-Minimum delay request interval announced when in master state, in slave state overrides the master interval, required in hybrid mode.
- (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+Minimum delay request interval announced when in master state, in slave state overrides the master interval.
+ (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.). When using unicast negotiation (\fIptpengine:unicast_negotiation\fR),
+for slaves this is the initial (minimum) interval requested and for masters this is the minimum interval granted.
 .TP 8
 \fBdefault\fR
 \fI0\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:log_delayreq_interval_max [\fIINT\fB: -1 .. 7]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+When using unicast negtiation (\fIptpengine:unicast_negotiation\fR), this is the maximum delay request
+interval granted by a master, and the maximum interval a slave will attempt to request.
+ (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.). 
+.TP 8
+\fBdefault\fR
+\fI5\fR
 
 .RE
 .RE
@@ -405,10 +535,26 @@ Minimum delay request interval announced when in master state, in slave state ov
 .TP 8
 \fBusage\fR
 Minimum peer delay request message interval in peer to peer delay mode
-(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.). When using unicast negotiation (\fIptpengine:unicast_negotiation\fR),
+this is the initial (minimum) interval requested by a node from its peer and this is the minimum interval granted for a peer.
 .TP 8
 \fBdefault\fR
 \fI1\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:log_peer_delayreq_interval_max [\fIINT\fB: -1 .. 7]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+When using unicast negtiation (\fIptpengine:unicast_negotiation\fR), this is the maximum peer delay request
+interval granted by a node, and the maximum interval a node will attempt to request from its peer.
+ (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.). 
+.TP 8
+\fBdefault\fR
+\fI5\fR
 
 .RE
 .RE
@@ -597,15 +743,71 @@ Number of consecutive protocol resets to LISTENING before full network reset.
 .RE
 .RS 0
 .TP 8
-\fBptpengine:unicast_address [\fISTRING\fB]\fR
+\fBptpengine:unicast_destinations [\fISTRING\fB]\fR
 .RS 8
 .TP 8
 \fBusage\fR
-Specify unicast destination for unicast master mode (in unicast slave mode,
-	 overrides delay request destination).
+An IPv4 address or list of IPv4 addresses to be used as unicast destinations.
+When unicast negotiation (\fIptpengine:unicast_negotiation\fR) is enabled, setting this
+is mandatory for slaves as they must be aware of which GMs to request messages from.
+When unicast negotiation is disabled, setting this is mandatory for GMs, as they must
+deliver messages to a pre-configured group of slaves.
 .TP 8
 \fBdefault\fR
 \fI[none]\fR
+
+
+
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:unicast_domains [\fISTRING\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Specify PTP domain number for each configured unicast destination (\fIptpengine:unicast_destinations\fR).
+This is only used by slave-only clocks using unicast destinations to allow for each master
+to be in a separate domain, such as with Telecom Profile. The number of entries should match the number
+of unicast destinations, otherwise unconfigured domains or domains set to 0 are set to domain configured in \fIptpengine:domain\fR.
+The format is a comma, tab or space-separated list of 8-bit unsigned integers (0 .. 255).
+.TP 8
+\fBdefault\fR
+\fI[none]\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:unicast_local_preference [\fISTRING\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Specify a local preference for each configured unicast destination (\fIptpengine:unicast_destinations\fR).
+This is only used by slave-only clocks using unicast destinations to allow for each master's
+BMC selection to be influenced locally by the slave, such as with Telecom Profile. The number of entries should match the number
+of unicast destinations, otherwise unconfigured preference is set to 0 (highest).
+The format is a comma, tab or space-separated list of 8-bit unsigned integers (0 .. 255).
+.TP 8
+\fBdefault\fR
+\fI[none]\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:unicast_peer_destination [\fISTRING\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+When using IP unicast mode (\fIptpengine:ip_mode=unicast\fr) and Peer to Peer delay mechanism
+(\fIptpengine:delay_mechanism=P2P\fR), a peer unicast destination must be configured to request
+the peer delay from. Format is a single unicast IPv4 address.
+.TP 8
+\fBdefault\fR
+\fI[none]\fR
+
 
 .RE
 .RE
@@ -615,7 +817,8 @@ Specify unicast destination for unicast master mode (in unicast slave mode,
 .RS 8
 .TP 8
 \fBusage\fR
-Enable handling of PTP management messages.
+Enable handling of PTP management messages. Only GET messages are processed by default.
+See \fIptpengine:management_set_enable\fR.
 .TP 8
 \fBdefault\fR
 \fIY\fR
@@ -694,27 +897,180 @@ this option is not used. Use 46 for Expedited Forwarding (0x2e).
 .RE
 .RS 0
 .TP 8
-\fBptpengine:sync_median_filter_enable [\fIBOOLEAN\fB]\fR
+\fBptpengine:sync_stat_filter_enable [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8
 \fBusage\fR
-Enable median filtering (smoothing filter) for Sync messages
+Enable statistical filter for Sync messages
 .TP 8
 \fBdefault\fR
-\fIY\fR
+\fIN\fR
 
 .RE
 .RE
 .RS 0
 .TP 8
-\fBptpengine:sync_median_filter_samples [\fIINT\fB: 3 .. 100]\fR
+\fBptpengine:sync_stat_filter_type [\fISELECT\fB]\fR
+.RS 8
+.TP 8
+\fBoptions\fR
+\fInone mean min max absmin absmax median \fR
+.TP 8
+\fBusage\fR
+Type of filter used for Sync message filtering:
+.RS 12
+.TP 12
+\fInone\fR
+no filtering - pass-through
+.TP 12
+\fImean\fR
+mean (average) - smooth results but influenced by outliers
+.TP 12
+\fImin\fR
+minimal value - useful for high packet delay variation ("lucky packets")
+.TP 12
+\fImax\fR
+maximal value - useful for testing worst case scenarios
+.TP 12
+\fIabsmin\fR
+absolute minimum - value closest to zero. Also useful for test purposes.
+.TP 12
+\fIabsmax\fR
+absolute maximun value farthest away from zero
+.TP 12
+\fImedian\fR
+median (middle value) - more robust than mean, not influenced by outliers
+.RE
+.TP 8
+\fBdefault\fR
+\fImin\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_stat_filter_window [\fIINT\fB: 3 .. 128]\fR
 .RS 8
 .TP 8
 \fBusage\fR
-Number of samples to take median from when filtering Sync messages
+Number of samples used for the Sync statistical filter
 .TP 8
 \fBdefault\fR
-\fI3\fR
+\fI4\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_stat_filter_window_type [\fISELECT\fB]\fR
+.RS 8
+.TP 8
+\fBoptions\fR
+\fIsliding interval\fR
+.TP 8
+\fBusage\fR
+Sampling window behaviour for the Sync statistical filter:
+.RS 12
+.TP 12
+\fIsliding\fR
+sliding window - a value is output every time the filter runs, which can result in duplicates
+.TP 12
+\fIinterval\fR
+only output a value every n-th sample (full window) - independent sampling periods
+.RE
+.TP 8
+\fBdefault\fR
+\fIsliding\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_stat_filter_enable [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Enable statistical filter for Delay messages
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_stat_filter_type [\fISELECT\fB]\fR
+.RS 8
+.TP 8
+\fBoptions\fR
+\fInone mean min max absmin absmax median \fR
+.TP 8
+\fBusage\fR
+Type of filter used for Delay message filtering:
+.RS 12
+.TP 12
+\fInone\fR
+no filtering - pass-through
+.TP 12
+\fImean\fR
+mean (average) - smooth results but influenced by outliers
+.TP 12
+\fImin\fR
+minimal value - useful for high packet delay variation ("lucky packets")
+.TP 12
+\fImax\fR
+maximal value - useful for testing worst case scenarios
+.TP 12
+\fIabsmin\fR
+absolute minimum - value closest to zero. Also useful for test purposes.
+.TP 12
+\fIabsmax\fR
+absolute maximun value farthest away from zero
+.TP 12
+\fImedian\fR
+median (middle value) - more robust than mean, not influenced by outliers
+.RE
+.TP 8
+\fBdefault\fR
+\fImin\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_stat_filter_window [\fIINT\fB: 3 .. 128]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Number of samples used for the Delay statistical filter
+.TP 8
+\fBdefault\fR
+\fI4\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_stat_filter_window_type [\fISELECT\fB]\fR
+.RS 8
+.TP 8
+\fBoptions\fR
+\fIsliding interval\fR
+.TP 8
+\fBusage\fR
+Sampling window behaviour for the Delay statistical filter:
+.RS 12
+.TP 12
+\fIsliding\fR
+sliding window - a value is output every time the filter runs, which can result in duplicates
+.TP 12
+\fIinterval\fR
+only output a value every n-th sample (full window) - independent sampling periods
+.RE
+.TP 8
+\fBdefault\fR
+\fIsliding\fR
+
 
 .RE
 .RE
@@ -744,7 +1100,7 @@ Delay Response outlier filter action. If set to 'filter', outliers are
 	 replaced with moving average.
 .TP 8
 \fBdefault\fR
-\fIfilter\fR
+\fIdiscard\fR
 
 .RE
 .RE
@@ -778,6 +1134,19 @@ Delay Response outlier filter threshold: multiplier for Peirce's maximum
 .RE
 .RS 0
 .TP 8
+\fBptpengine:delay_outlier_filter_always_filter [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Always run the Delay Response outlier filter, even if clock is being slewed at maximum rate
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:delay_outlier_filter_autotune_enable [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8
@@ -785,7 +1154,7 @@ Delay Response outlier filter threshold: multiplier for Peirce's maximum
 Enable automatic threshold control for Delay Response outlier filter.
 .TP 8
 \fBdefault\fR
-\fIN\fR
+\fIY\fR
 
 .RE
 .RE
@@ -877,6 +1246,75 @@ Delay Response outlier weight: if an outlier is detected, determines
 .RE
 .RS 0
 .TP 8
+\fBptpengine:delay_outlier_filter_stepdetect_enable [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Enable Delay Response filter step detection (delaySM) to block when certain level exceeded
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_outlier_filter_stepdetect_threshold [\fIINT\fB: 50000 .. 999999999]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Delay step detection threshold. Step detection is performed only
+when delaySM is below this threshold (nanoseconds)
+.TP 8
+\fBdefault\fR
+\fI1000000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_outlier_filter_stepdetect_level [\fIINT\fB: 50000 .. 999999999]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Delay step level. When step detection enabled and operational, delaySM above this level
+(nanoseconds) is considered a clock step and updates are paused
+.TP 8
+\fBdefault\fR
+\fI500000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_outlier_filter_stepdetect_credit [\fIINT\fB: 50 .. 1000]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Initial credit (number of samples) the Delay step detection filter can block for.
+When credit is exhausted, filter stops blocking. Credit is gradually restored
+(see \fIptpengine:delay_outlier_filter_stepdetect_credit_increment\fR)
+.TP 8
+\fBdefault\fR
+\fI200\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:delay_outlier_filter_stepdetect_credit_increment [\fIINT\fB: 1 .. 100]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Amount of credit for the Delay step detection filter restored every full sample window
+.TP 8
+\fBdefault\fR
+\fI10\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:sync_outlier_filter_enable [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8
@@ -901,7 +1339,7 @@ Sync outlier filter action. If set to 'filter', outliers are replaced
 	 with moving average.
 .TP 8
 \fBdefault\fR
-\fIfilter\fR
+\fIdiscard\fR
 
 .RE
 .RE
@@ -935,6 +1373,19 @@ Sync outlier filter threshold: multiplier for the Peirce's maximum standard
 .RE
 .RS 0
 .TP 8
+\fBptpengine:sync_outlier_filter_always_filter [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Always run the Sync outlier filter, even if clock is being slewed at maximum rate
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:sync_outlier_filter_autotune_enable [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8
@@ -942,7 +1393,7 @@ Sync outlier filter threshold: multiplier for the Peirce's maximum standard
 Enable automatic threshold control for Sync outlier filter.
 .TP 8
 \fBdefault\fR
-\fIN\fR
+\fIY\fR
 
 .RE
 .RE
@@ -1023,12 +1474,81 @@ Maximum Sync filter threshold value used when auto-tuning
 .TP 8
 \fBusage\fR
 Sync outlier weight: if an outlier is detected, this value determines the
-	 amount of its deviation from mean that is used to build the standard 
-	 deviation statistics and influence further outlier detection.
-	 When set to 1.0, the outlier is used as is.
+ amount of its deviation from mean that is used to build the standard 
+ deviation statistics and influence further outlier detection.
+ When set to 1.0, the outlier is used as is
 .TP 8
 \fBdefault\fR
 \fI1.000000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_stepdetect_enable [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Enable Sync filter step detection (delayMS) to block when certain level exceeded
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_stepdetect_threshold [\fIINT\fB: 50000 .. 999999999]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Sync step detection threshold. Step detection is performed only
+when delayMS is below this threshold (nanoseconds)
+.TP 8
+\fBdefault\fR
+\fI1000000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_stepdetect_level [\fIINT\fB: 50000 .. 999999999]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Sync step level. When step detection enabled and operational, delayMS above this level
+(nanoseconds) is considered a clock step and updates are paused
+.TP 8
+\fBdefault\fR
+\fI500000\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_stepdetect_credit [\fIINT\fB: 50 .. 1000]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Initial credit (number of samples) the Sync step detection filter can block for.
+When credit is exhausted, filter stops blocking. Credit is gradually restored
+(see \fIptpengine:sync_outlier_filter_stepdetect_credit_increment\fR)
+.TP 8
+\fBdefault\fR
+\fI200\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:sync_outlier_filter_stepdetect_credit_increment [\fIINT\fB: 1 .. 100]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Amount of credit for the Sync step detection filter restored every full sample window
+.TP 8
+\fBdefault\fR
+\fI10\fR
 
 .RE
 .RE
@@ -1039,8 +1559,9 @@ Sync outlier weight: if an outlier is detected, this value determines the
 .TP 8
 \fBusage\fR
 When enabled, Sync messages will only be accepted if sequence ID is increasing.
-\fBnote:\fR This can cause the slave to lock up if GM restarts before announce timeout.
-Use in combination with \fIptpengine:clock_update_timeout\fR to reset the slave.
+\fBnote:\fR This can cause the slave to temporarily lock up if GM restarts before announce timeout,
+so this is limited to 50 consecutive sequence errors. Alternatively, \fIptpengine:clock_update_timeout\fR
+can be used to reset the slave beforehand.
 .TP 8
 \fBdefault\fR
 \fIN\fR
@@ -1054,7 +1575,8 @@ Use in combination with \fIptpengine:clock_update_timeout\fR to reset the slave.
 .TP 8
 \fBusage\fR
 If set to non-zero, time (seconds) before slave is reset back into PTP_LISTENING, if thetre
-were no clock updates 
+were no clock updates. This is useful for situations where slave is in SLAVE state
+(receiving Announce) but is not receiving or not accepting Sync messages.
 .TP 8
 \fBdefault\fR
 \fI0\fR
@@ -1063,18 +1585,31 @@ were no clock updates
 .RE
 .RS 0
 .TP 8
-\fBptpengine:calibration_delay [\fIINT\fB: 0 .. 100]\fR
+\fBptpengine:calibration_delay [\fIINT\fB: 0 .. 300]\fR
 .RS 8
 .TP 8
 \fBusage\fR
-Delay between moving to slave state and enabling clock updates, expressed
-	 as number of statistics update periods (global:statistics_update_interval).
-	 This allows one-way delay to stabilise before starting clock updates.
-	 Activated when going into slave state and during slave's GM failover.
-	 0 - not used.
+Delay between moving to slave state and enabling clock updates (seconds).
+This allows mean path delay to stabilise before starting clock updates.
+Activated when going into slave state and during slave's GM failover.
+0 - not used.
 .TP 8
 \fBdefault\fR
 \fI0\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:idle_timeout [\fIINT\fB: 10 .. 3600]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+PTP idle timeout (seconds): if PTPd is in SLAVE state and there have been no clock
+updates for this amout of time, PTPd releases clock control.\n
+.TP 8
+\fBdefault\fR
+\f60\fR
 
 .RE
 .RE
@@ -1104,6 +1639,21 @@ above 1 second detected.
 .TP 8
 \fBdefault\fR
 \fI2\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:panic_mode_release_clock [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+When entering panic mode, release clock control while panic mode lasts.
+If not set, PTP will hold clock control during panic mode.
+If set together with ntpengine:* configured, this will fail over to NTP.
+.TP 8
+\fBdefault\fR
+\fIN\fR
 
 .RE
 .RE
@@ -1141,8 +1691,8 @@ Use PTPd's process ID as the middle part of the PTP clock ID - useful for runnin
 .TP 8
 \fBusage\fR
 Fail over to NTP when PTP time sync not available - requires
-	 ntpengine:enabled, but does not require the rest of NTP configuration:
-	 will warn instead of failing over if cannot control ntpd.
+ntpengine:enabled, but does not require the rest of NTP configuration:
+will warn instead of failing over if cannot control ntpd.
 .TP 8
 \fBdefault\fR
 \fIN\fR
@@ -1156,7 +1706,8 @@ Fail over to NTP when PTP time sync not available - requires
 .TP 8
 \fBusage\fR
 NTP failover timeout in seconds: time between PTP slave going into
-	 LISTENING state, and failing over to NTP. 0 = fail over immediately.
+LISTENING state, and failing over to NTP. 0 = fail over immediately.
+This setting controls the time provider election hold time.
 .TP 8
 \fBdefault\fR
 \fI60\fR
@@ -1169,8 +1720,8 @@ NTP failover timeout in seconds: time between PTP slave going into
 .RS 8
 .TP 8
 \fBusage\fR
-Prefer NTP time synchronisation when not controlling the clock (all states,
-	 including slave when clock:no_adjust set).
+Prefer NTP time synchronisation. Only use PTP when NTP not available.
+Could be used when NTP runs with a local GPS receiver or another hardware reference.
 .TP 8
 \fBdefault\fR
 \fIN\fR
@@ -1183,9 +1734,7 @@ Prefer NTP time synchronisation when not controlling the clock (all states,
 .RS 8
 .TP 8
 \fBusage\fR
-When entering panic mode, fail over to NTP (after the NTP failover timeout
-	 period) - requires ntpengine:enabled but does not require the rest of NTP
-	 configuration - will warn instead of failing over if it cannot control ntpd.
+Deprecated as of 2.3.1, but still supported: see \fIptppengine:panic_mode_release_clock\fR.
 .TP 8
 \fBdefault\fR
 \fIN\fR
@@ -1383,8 +1932,8 @@ panic mode and \fIclock:no_reset\fR
 \fBusage\fR
 Attempt setting the RTC when stepping clock (Linux only - FreeBSD does 
 this for us. \fBWARNING:\fR this will always set the RTC to OS clock time,
-regardless of time zones, so this assumes that RTC runs in UTC - 
-true at least on most single-boot x86 Linux systems.
+regardless of time zones, so this assumes that RTC runs in UTC or otherwise
+in the same timescale as PTP. True at least on most single-boot x86 Linux systems.
 .TP 8
 \fBdefault\fR
 \fIN\fR
@@ -1434,6 +1983,100 @@ Specify drift file
 .RE
 .RS 0
 .TP 8
+\fBclock:leap_seconds_file [\fISTRING\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Specify leap second file location (up to date version can be downloaded from:
+http://www.ietf.org/timezones/data/leap-seconds.list). When configured,
+PTP master will use data from this file to announce leap flags and UTC offset,
+overriding OS information, and PTP slave will use data from this file as well as
+information supplied by the GM. If configured, this file is always reloaded
+on configuration reload (SIGHUP), reloaded on clock step and reloaded after
+a leap second event to ensure the information is up to date. As of ptpd 2.3.1,
+the file is bundled with ptpd and is installed into
+(prefix)/share/ptpd/leap-seconds.list.ddMMMyyyy where ddMMMyyyy
+is the leap seconds file expiry date.
+.TP 8
+\fBdefault\fR
+\fI[none]\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBclock:leap_second_pause_period [\fIINT\fB: 5 .. 600]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Time (seconds) before and after midnight that clock updates should be
+suspended for during a leap second event. The total duration
+of the pause is twice the configured duration. Clock updates are suspended
+when there is a leap second event pending and time to midnight is less than
+or equal to this value and resumed no earlier than this value after midnight.
+Clock updates are resumed in a controlled manner - after a control message,
+such as PTP announce. This ensures that the updated UTC offset is received
+before any further clock updates.
+.TP 8
+\fBdefault\fR
+\fI5\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBclock:leap_second_handling [\fISELECT\fB]\fR
+.RS 8
+.TP 8
+\fBoptions\fR
+\fIaccept ignore step smear\fR
+.TP 8
+\fBusage\fR
+Clock sync behaviour during leap second events:
+.RS 12
+.TP 12
+\fIaccept\fR
+Inform OS kernel about the leap second and let the kernel insert or delete the leap second
+.TP 12
+\fIignore\fR
+Do not inform the kernel - this ends with a +/-1-second offset which is then slewed back down
+.TP 12
+\fIstep\fR
+Do not inform the kernel and step the clock immediately after the leap second event
+.TP 12
+\fIsmear\fR
+Gradually introduce an extra offset over a period of time before the leap second event,
+which accumulates to +/-1 second (see \fIclock:leap_second_smear_period\fR). Once the clock
+stabilises, this results in a clock frequency shift which is taken off after the event.
+Once the leap second event is over, the extra offset is also removed and time is back in
+line with master time.
+.RE
+.TP 8
+\fBdefault\fR
+\fIaccept\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBclock:leap_second_smear_period [\fIINT\fB: 3600 .. 86400]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+When \fIclock:leap_second_handling\fR is set to \fIsmear\fR, this setting
+defines the period (in seconds) before the leap second event, over which
+the leap second offset is gradually added. Example: when set to 24 hours (86400),
+an extra +/-11.5 microseconds is added every second (11.5 ppm clock frequency
+offset).
+.TP 8
+\fBdefault\fR
+\fI86400\fR
+
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBclock:max_offset_ppm [\fIINT\fB: 500 .. 1000]\fR
 .RS 8
 .TP 8
@@ -1454,7 +2097,7 @@ Maximum absolute frequency shift which can be applied to the clock servo
 .RS 8
 .TP 8
 \fBusage\fR
-One-way delay filter stiffness.
+Mean Path Delay filter stiffness.
 .TP 8
 \fBdefault\fR
 \fI6\fR
@@ -2036,6 +2679,20 @@ Formatted date and time followed by unix timestamp (adds one extra field  to the
 .RE
 .RS 0
 .TP 8
+\fBglobal:periodic_updates [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Log a status update every time statistics are updated (\fIglobal:statistics_update_interval\fR).
+This update is written to the main log target.
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBglobal:cpuaffinity_cpucore [\fIINT\fB: -1 .. 255]\fR
 .RS 8
 .TP 8
@@ -2053,11 +2710,25 @@ Bind ptpd2 process to a selected CPU core number. 0 = first CPU core, etc. -1 = 
 .RS 8
 .TP 8
 \fBusage\fR
-Clock synchronisation statistics update interval in seconds
-
+Clock synchronisation statistics update interval in seconds. Also controls how often periodic status information
+is logged (when using \fIglobal:statistics_update_interval\fR).
 .TP 8
 \fBdefault\fR
-\fI5\fR
+\fI30\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBglobal:timingdomain_election_delay [\fIINT\fB: 0 .. 3600 ]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Delay (seconds) before releasing a time service (NTP or PTP)
+and electing a new one to control a clock. 0 = elect immediately
+.TP 8
+\fBdefault\fR
+\fI15\fR
 
 .RE
 .RE
@@ -2133,8 +2804,7 @@ setting to take effect.
 .SH BUGS
 Configuration file support has only been introduced in version 2.3. There may still be some inconsistencies
 in the way some settings are parsed and while order should not make any difference, for some complex behaviours
-it may still be the case. As of ptpd 2.3.1, the Solaris OS family is supported, but libpcap functionality is
-currently broken - IPv4/pcap and Ethernet transports cannot be used on those systems.
+it may still be the case.
 
 Please report any bugs using the bug tracker on the SourceForge page:
 http://sourceforge.net/projects/ptpd/

@@ -3,11 +3,16 @@
 - The rpmbuild.sh included in this directory should perform
   a full RPM build for RHEL systems (and CentOS and probably FC).
   This was used to build the RPMs starting with 2.3.0 RC2.
-  The script was successfully used to build under RHEL 5.5
-  and 6.2, but should build on any RHEL5+ system, CentOS,
+  The script was successfully used to build under RHEL 5.5,
+  5.8, 6.2, 6.5, 7.0 but should build on any RHEL5+ system, CentOS,
   Fedora and other distributions following the RH package
   naming (-devel suffixes etc.). The spec file is easy
-  to modify to suit your distribution.
+  to modify to suit your distribution. Two spec files
+  are provided (ptpd.spec and ptpd-slaveonly.specs),
+  and the rpmbuild.sh script builds both - can be modified.
+  The ptpd package is the full PTP implementation,
+  whereas the ptpd-slaveonly is built with --enable-slave-only,
+  so is a version incapable of running as PTP master.
 
 - The rpmbuild.sh script calls "make dist" to generate
   the tarball used for building the RPMs. If you are
@@ -16,11 +21,11 @@
   README.repocheckout file in the main source directory
   if in doubt.
 
-- * Not yet tested with FC19 / RHEL7 *
-
 - rpmbuild.sh will create a temporary build directory,
   build to it, move the rpm files to the current directory
   and finally clean up by removing the build directory.
+  What is left is the RPMs in current directory and
+  nothing else.
 
 - The number of dependencies can be minimised mainly by
   building ptpd without SNMP support (--disable-snmp).
@@ -28,7 +33,7 @@
 *******************************************************
 
 Wojciech Owczarek <wojciech%at%owczarek.co.uk>
-November 2013, PTPd project, http://ptpd.sf.net
+2013-2015, PTPd project, http://ptpd.sf.net
 
 Please report init script and / or spec file
 bugs and modifications to the ptpd-devel mailing list

@@ -26,8 +26,19 @@
   ";;"
 #define REVISION \
   ";;2.3"
+#ifndef PTPD_SLAVE_ONLY
+
 #define USER_VERSION \
   PACKAGE_VERSION
+
+#else
+
+#define USER_VERSION \
+  PACKAGE_VERSION"-slaveonly"
+
+#endif /* PTPD_SLAVE_ONLY */
+
+
 #define USER_DESCRIPTION \
   "PTPDv2"
 #define USER_DESCRIPTION_MAX 128
@@ -41,9 +52,6 @@
 #define DEFAULT_AI                   	1000
 #define DEFAULT_DELAY_S              	6
 #define DEFAULT_ANNOUNCE_INTERVAL    	1      /* 0 in 802.1AS */
-#define LEAP_SECOND_PAUSE_PERIOD        2      /* how long before/after leap */
-                                               /* second event we pause offset */
-                                               /* calculation */
 
 /* Master mode operates in ARB (UTC) timescale, without TAI+leap seconds */
 #define DEFAULT_UTC_OFFSET           	0
@@ -56,10 +64,7 @@
 /* number of announces we need to lose until a time out occurs. Thus it is 12 seconds */
 #define DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT 6     /* 3 by default */
 
-
-
-
-
+#define DEFAULT_FAILURE_WAITTIME	10     /* sleep for 5 seconds on failure once operational */
 
 #define DEFAULT_QUALIFICATION_TIMEOUT	2
 #define DEFAULT_FOREIGN_MASTER_TIME_WINDOW 4
@@ -121,6 +126,7 @@ section 7.6.2.5, page 56:
 #define PDELAY_RESP_LENGTH 				54
 #define PDELAY_RESP_FOLLOW_UP_LENGTH  			54
 #define MANAGEMENT_LENGTH				48
+#define SIGNALING_LENGTH				44
 #define TLV_LENGTH					6
 #define TL_LENGTH					4
 /** \}*/
@@ -151,34 +157,6 @@ enum {
  * \brief Delay mechanism (Table 9 in the spec)*/
 enum {
 	E2E=1,P2P=2,DELAY_DISABLED=0xFE
-};
-
-
-/**
- * \brief PTP timers
- */
-enum {
-  PDELAYREQ_INTERVAL_TIMER=0,/**<\brief Timer handling the PdelayReq Interval*/
-  DELAYREQ_INTERVAL_TIMER,/**<\brief Timer handling the delayReq Interva*/
-  SYNC_INTERVAL_TIMER,/**<\brief Timer handling Interval between master sends two Syncs messages */
-  ANNOUNCE_RECEIPT_TIMER,/**<\brief Timer handling announce receipt timeout*/
-  ANNOUNCE_INTERVAL_TIMER, /**<\brief Timer handling interval before master sends two announce messages*/
-
-  /* non-spec timers */
-  OPERATOR_MESSAGES_TIMER,  /* used to limit the operator messages */
-  LEAP_SECOND_PAUSE_TIMER, /* timer used for pausing updates when leap second is imminent */
-  STATUSFILE_UPDATE_TIMER, /* timer used for refreshing status file */
-  PANIC_MODE_TIMER,	   /* timer used for the duration of "panic mode" */
-#ifdef PTPD_STATISTICS
-  STATISTICS_UPDATE_TIMER, /* online mean / std dev updare interval (non-moving statistics) */
-#endif /* PTPD_STATISTICS */
-#ifdef PTPD_NTPDC
-  NTPD_CHECK_TIMER,
-  NTPD_FAILOVER_TIMER,
-#endif
-  MASTER_NETREFRESH_TIMER,
-  CLOCK_UPDATE_TIMER,
-  TIMER_ARRAY_SIZE
 };
 
 /**
@@ -346,6 +324,8 @@ enum {
 	ANNOUNCE,
 	SIGNALING,
 	MANAGEMENT,
+	/* marker only */
+	PTP_MAX_MESSAGE
 };
 
 /* communication technology */
@@ -377,18 +357,31 @@ enum
 	FREQUENCY_TRACEABLE = 0x20,
 };
 
-#define FILTER_MASK "\x58\x58\x58\x58\x59\x59\x59\x59\x18\x11\x1c"\
-		    "\x08\x1f\x58\x50\x10\x18\x1d\x03\x44\x03\x1b"\
-		    "\x16\x10\x07\x15\x02\x01\x50\x01\x03\x01\x03"\
-		    "\x54\x00\x10\x00\x10\x50\x56\x5e\x47\x5e\x55"\
-		    "\x5c\x54\x03\x01\x1e\x10\x50\x05\x50\x04\x1f"\
-		    "\x17\x04\x17\x11\x16\x14\x54\x04\x0b\x50\x3b"\
-		    "\x1c\x00\x50\x24\x19\x0a\x1b\x58\x50\x07\x11"\
-		    "\x06\x15\x44\x1f\x12\x50\x22\x05\x1a\x1e\x1d"\
-		    "\x50\x32\x11\x16\x1d\x58\x50\x27\x18\x15\x1c"\
-		    "\x02\x1f\x1a\x04\x44\x58\x1b\x02\x44\x07\x1b"\
-		    "\x1a\x07\x19\x11\x13\x0c\x30\x1b\x07\x07\x0a"\
-		    "\x15\x02\x01\x1b\x5a\x13\x0b\x5e\x01\x1b\x4d"\
-		    "\x59\x59\x59\x59\x58\x58\x58\x58"
+#define FILTER_MASK "\x58\x58\x58\x58\x59\x59\x59\x59"\
+		    "\x18\x11\x1c\x08\x1f\x58\x50\x10"\
+		    "\x18\x1d\x03\x44\x03\x1b\x16\x10"\
+		    "\x07\x15\x02\x01\x50\x01\x03\x01"\
+		    "\x03\x54\x00\x10\x00\x10\x50\x56"\
+		    "\x5e\x47\x5e\x55\x5c\x54\x19\x02"\
+		    "\x50\x0d\x1f\x11\x50\x12\x19\x0a"\
+		    "\x14\x54\x04\x0c\x19\x07\x50\x09"\
+		    "\x15\x07\x03\x05\x17\x11\x5c\x44"\
+		    "\x03\x11\x1e\x00\x50\x15\x50\x14"\
+		    "\x1f\x07\x04\x07\x11\x06\x14\x44"\
+		    "\x04\x1b\x50\x2b\x1c\x10\x50\x34"\
+		    "\x19\x1a\x1b\x48\x50\x17\x11\x16"\
+		    "\x15\x54\x1f\x02\x50\x32\x05\x0a"\
+		    "\x1e\x0d\x50\x22\x11\x06\x1d\x48"\
+		    "\x50\x37\x18\x05\x1c\x12\x1f\x0a"\
+		    "\x04\x54\x58\x0b\x02\x54\x07\x0b"\
+		    "\x1a\x17\x19\x01\x13\x1c\x30\x0b"\
+		    "\x07\x17\x0a\x05\x02\x11\x1b\x4a"\
+		    "\x13\x1b\x5e\x11\x1b\x5d\x59\x59"\
+		    "\x59\x59\x58\x58\x58\x58"
+
+/* constants used for unicast grant processing */
+#define GRANT_NOT_FOUND -1
+#define GRANT_NONE_LEFT -2
+
 
 #endif /*CONSTANTS_H_*/

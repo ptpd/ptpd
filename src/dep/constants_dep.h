@@ -122,6 +122,12 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define PTP_ETHER_TYPE 0x88f7
 #define PTP_ETHER_PEER "01:80:c2:00:00:0E"
 
+#ifdef PTPD_UNICAST_MAX
+#define UNICAST_MAX_DESTINATIONS PTPD_UNICAST_MAX
+#else
+#define UNICAST_MAX_DESTINATIONS 16
+#endif /* PTPD_UNICAST_MAX */
+
 /* dummy clock driver designation in preparation for generic clock driver API */
 #define DEFAULT_CLOCKDRIVER "kernelclock"
 /* default lock file location and mode */
@@ -139,6 +145,12 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 
 /* Highest log level (default) catches all */
 #define LOG_ALL LOG_DEBUGV
+
+/* Difference between Unix time / UTC and NTP time */
+#define NTP_EPOCH 2208988800ULL
+
+/* wait a maximum of 10 ms for a late TX timestamp */
+#define LATE_TXTIMESTAMP_US 10000
 
 /* drift recovery metod for use with -F */
 enum {
@@ -170,6 +182,35 @@ enum {
 	DT_MEASURED
 };
 
+/* StatFilter op type */
+enum {
+	FILTER_NONE,
+	FILTER_MEAN,
+	FILTER_MIN,
+	FILTER_MAX,
+	FILTER_ABSMIN,
+	FILTER_ABSMAX,
+	FILTER_MEDIAN,
+	FILTER_MAXVALUE
+};
+
+/* StatFilter window type */
+enum {
+	WINDOW_INTERVAL,
+	WINDOW_SLIDING,
+//	WINDOW_OVERLAPPING
+};
+
+/* Leap second handling */
+enum {
+	LEAP_ACCEPT,
+	LEAP_IGNORE,
+	LEAP_STEP,
+	LEAP_SMEAR
+};
+
+
+
 #define MM_STARTING_BOUNDARY_HOPS  0x7fff
 
 /* others */
@@ -185,6 +226,8 @@ enum {
 
 // limit operator messages to once every X seconds
 #define OPERATOR_MESSAGES_INTERVAL 300.0
+
+#define MAX_SEQ_ERRORS 50
 
 #define MAXTIMESTR 32
 

@@ -25,6 +25,7 @@ AC_SUBST([VERSION_NUMBER])
 # Checks for programs.
 AC_PROG_AWK
 AC_PROG_CC
+ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99])
 AC_PROG_LIBTOOL
 AM_PROG_CC_C_O
 
@@ -41,6 +42,11 @@ if test -n "$cutpath" && test -n "$trpath"; then
 	svn_rev=`$svnverpath 2>/dev/null | $cutpath -s -d: -f2 | $trpath -d MS`
 	if test -n "$svn_rev"; then
 	    AC_DEFINE_UNQUOTED(CODE_REVISION, ["$svn_rev"], [source code revision])
+	else
+	svn_rev=`$svnverpath 2>/dev/null | $trpath -d MS`
+	    if test -n "$svn_rev"; then
+		AC_DEFINE_UNQUOTED(CODE_REVISION, ["$svn_rev"], [source code revision])
+	    fi
 	fi
     fi
 fi
@@ -461,6 +467,13 @@ m4_version_prereq(2.60,[
 
 # Check for tick in the timex structure
 AC_CHECK_MEMBERS([struct timex.tick], [], [], [[#include <sys/timex.h>]])
+AC_CHECK_MEMBERS([struct timex.tai], [], [], [[#include <sys/timex.h>]])
+AC_CHECK_MEMBERS([struct ntptimeval.tai], [], [],
+[
+#include <sys/time.h>
+#include <sys/timex.h>
+])
+
 
 # Check for ifr_hwaddr in the ifreq structure
 AC_CHECK_MEMBERS([struct ifreq.ifr_hwaddr], [], [], [[#include <net/if.h>]])
@@ -493,9 +506,42 @@ AC_FUNC_SELECT_ARGTYPES
 AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal])
+AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal ntp_gettime])
 
 AC_CHECK_DECLS([MSG_ERRQUEUE], [], [], [[#include <sys/socket.h>]])
+
+AC_CHECK_DECLS([PTIMERS_OK], [posix_timers=true], [posix_timers=false], [
+#ifdef __sun && !defined(_XPG6)
+#define _XPG6
+#endif
+#include <unistd.h>
+#if _POSIX_TIMERS && (_POSIX_TIMERS - 200112L) >= 0
+#define PTIMERS_OK
+#else
+#endif
+])
+
+AC_ARG_ENABLE([posix_timers], 
+	    AS_HELP_STRING( [--disable-posix-timers],
+			    [Disable POSIX timer support and use interval timers even if POSIX timers supported by the OS])
+	    )
+
+AS_IF([test "x$enable_posix_timers" == "xno"], [
+posix_timers=false
+])
+
+AM_CONDITIONAL([PTIMERS], [test x$posix_timers = xtrue ])
+
+case "$posix_timers" in
+     "true")
+	PTP_PTIMERS="-DPTPD_PTIMERS"
+	;;
+     *) PTP_PTIMERS=""
+	;;
+esac
+
+
+AC_SUBST(PTP_PTIMERS)
 
 AC_MSG_CHECKING([for RUNTIME_DEBUG])
 AC_ARG_ENABLE(
@@ -542,12 +588,31 @@ case "$ptp_runtime" in
 esac
 AC_SUBST(PTP_DBL)
 
+AC_MSG_CHECKING([for maximum unicast destination table size])
+AC_ARG_WITH(
+    [max-unicast-destinations],
+    [AS_HELP_STRING(
+	[--with-max-unicast-destinations = [ 16 .. 512]],
+	[Change maximum supported number of unicast destinations - 
+	    this determines the maximum supported number of slaves 
+	    in unicast mode (with and without signaling)]
+    )],
+    [max_destinations=$with_max_unicast_destinations],
+    [max_destinations=0]
+)
+
+test $max_destinations -lt 16 && max_destinations=16
+test $max_destinations -gt 512 && max_destinations=512
+PTP_UNICAST_MAX="-DPTPD_UNICAST_MAX=$max_destinations"
+AC_SUBST([PTP_UNICAST_MAX])
+AC_MSG_RESULT([$max_destinations])
+
 AC_MSG_CHECKING([for daemon mode])
 AC_ARG_ENABLE(
     [daemon],
     [AS_HELP_STRING(
 	[--disable-daemon],
-	[Disable daemon mode (enabled by default)]
+	[Disable daemon mode (daemon mode is enabled by default)]
     )],
     [ptp_daemon=$enableval],
     [ptp_daemon=yes]
@@ -595,26 +660,27 @@ case "$ptp_statistics" in
     ;;
 esac
 AC_SUBST(PTP_STATISTICS)
+
 AM_CONDITIONAL([STATISTICS], [test x$ptp_statistics = xyes])
 
-AC_MSG_CHECKING([ntpd control / failover support])
+AC_MSG_CHECKING([for slave-only build support])
 AC_ARG_ENABLE(
-    [ntpdc],
+    [slave-only],
     [AS_HELP_STRING(
-	[--enable-ntpdc],
-	[Enable control of local NTP daemon and failover to local NTP]
+	[--enable-slave-only],
+	[Build a version incapable of running as PTP master]
     )],
-    [ptp_ntpdc=$enableval],
-    [ptp_ntpdc=no]
+    [ptp_slave_only=$enableval],
+    [ptp_slave_only=no]
 )
-AC_MSG_RESULT([$ptp_ntpdc])
-case "$ptp_ntpdc" in
+AC_MSG_RESULT([$ptp_slave_only])
+case "$ptp_slave_only" in
  yes)
-    PTP_NTPDC="-DPTPD_NTPDC"
+    PTP_SLAVE_ONLY="-DPTPD_SLAVE_ONLY"
     ;;
 esac
-AC_SUBST(PTP_NTPDC)
-AM_CONDITIONAL([NTPDC], [test x$ptp_ntpdc = xyes])
+AC_SUBST(PTP_SLAVE_ONLY)
+AM_CONDITIONAL([SLAVE_ONLY], [test x$ptp_slave_only = xyes])
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])

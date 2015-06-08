@@ -934,7 +934,143 @@ packMMErrorStatus( MsgManagement* m, Octet *buf)
 	return offset;
 }
 
+void
+unpackSMRequestUnicastTransmission( Octet *buf, MsgSignaling* m, PtpClock* ptpClock)
+{
+	int offset = 0;
+	XMALLOC(m->tlv->valueField, sizeof(SMRequestUnicastTransmission));
+	SMRequestUnicastTransmission* data = (SMRequestUnicastTransmission*)m->tlv->valueField;
+	/* see src/def/README for a note on this X-macro */
+	#define OPERATE( name, size, type ) \
+		unpack##type( buf + SIGNALING_LENGTH + TL_LENGTH + offset,\
+			      &data->name, ptpClock ); \
+		offset = offset + size;
+	#include "../def/signalingTLV/requestUnicastTransmission.def"
 
+	#ifdef PTPD_DBG
+	sMRequestUnicastTransmission_display(data, ptpClock);
+	#endif /* PTPD_DBG */
+
+
+}
+
+UInteger16
+packSMRequestUnicastTransmission( MsgSignaling* m, Octet *buf)
+{
+	int offset = 0;
+	SMRequestUnicastTransmission* data = (SMRequestUnicastTransmission*)m->tlv->valueField;
+	#define OPERATE( name, size, type ) \
+		pack##type( &data->name,\
+			    buf + SIGNALING_LENGTH + TL_LENGTH + offset ); \
+		offset = offset + size;
+	#include "../def/signalingTLV/requestUnicastTransmission.def"
+
+	/* return length */
+	return offset;
+}
+
+void
+unpackSMGrantUnicastTransmission( Octet *buf, MsgSignaling* m, PtpClock* ptpClock)
+{
+	int offset = 0;
+	XMALLOC(m->tlv->valueField, sizeof(SMGrantUnicastTransmission));
+	SMGrantUnicastTransmission* data = (SMGrantUnicastTransmission*)m->tlv->valueField;
+
+	/* see src/def/README for a note on this X-macro */
+	#define OPERATE( name, size, type ) \
+		unpack##type( buf + SIGNALING_LENGTH + TL_LENGTH + offset,\
+			      &data->name, ptpClock ); \
+		offset = offset + size;
+	#include "../def/signalingTLV/requestUnicastTransmission.def"
+
+	#ifdef PTPD_DBG
+	sMGrantUnicastTransmission_display(data, ptpClock);
+	#endif /* PTPD_DBG */
+}
+
+UInteger16
+packSMGrantUnicastTransmission( MsgSignaling* m, Octet *buf)
+{
+	int offset = 0;
+	SMGrantUnicastTransmission* data = (SMGrantUnicastTransmission*)m->tlv->valueField;
+	#define OPERATE( name, size, type ) \
+		pack##type( &data->name,\
+			    buf + SIGNALING_LENGTH + TL_LENGTH + offset ); \
+		offset = offset + size;
+	#include "../def/signalingTLV/grantUnicastTransmission.def"
+
+	/* return length */
+	return offset;
+}
+
+void
+unpackSMCancelUnicastTransmission( Octet *buf, MsgSignaling* m, PtpClock* ptpClock)
+{
+	int offset = 0;
+	XMALLOC(m->tlv->valueField, sizeof(SMCancelUnicastTransmission));
+	SMCancelUnicastTransmission* data = (SMCancelUnicastTransmission*)m->tlv->valueField;
+	/* see src/def/README for a note on this X-macro */
+	#define OPERATE( name, size, type ) \
+		unpack##type( buf + SIGNALING_LENGTH + TL_LENGTH + offset,\
+			      &data->name, ptpClock ); \
+		offset = offset + size;
+	#include "../def/signalingTLV/cancelUnicastTransmission.def"
+
+	#ifdef PTPD_DBG
+	sMCancelUnicastTransmission_display(data, ptpClock);
+	#endif /* PTPD_DBG */
+
+}
+
+UInteger16
+packSMCancelUnicastTransmission( MsgSignaling* m, Octet *buf)
+{
+	int offset = 0;
+	SMCancelUnicastTransmission* data = (SMCancelUnicastTransmission*)m->tlv->valueField;
+	#define OPERATE( name, size, type ) \
+		pack##type( &data->name,\
+			    buf + SIGNALING_LENGTH + TL_LENGTH + offset ); \
+		offset = offset + size;
+	#include "../def/signalingTLV/cancelUnicastTransmission.def"
+
+	/* return length */
+	return offset;
+}
+
+void
+unpackSMAcknowledgeCancelUnicastTransmission( Octet *buf, MsgSignaling* m, PtpClock* ptpClock)
+{
+	int offset = 0;
+	XMALLOC(m->tlv->valueField, sizeof(SMAcknowledgeCancelUnicastTransmission));
+	SMAcknowledgeCancelUnicastTransmission* data = (SMAcknowledgeCancelUnicastTransmission*)m->tlv->valueField;
+	/* see src/def/README for a note on this X-macro */
+	#define OPERATE( name, size, type ) \
+		unpack##type( buf + SIGNALING_LENGTH + TL_LENGTH + offset,\
+			      &data->name, ptpClock ); \
+		offset = offset + size;
+	#include "../def/signalingTLV/acknowledgeCancelUnicastTransmission.def"
+
+	#ifdef PTPD_DBG
+	sMAcknowledgeCancelUnicastTransmission_display(data, ptpClock);
+	#endif /* PTPD_DBG */
+
+
+}
+
+UInteger16
+packSMAcknowledgeCancelUnicastTransmission( MsgSignaling* m, Octet *buf)
+{
+	int offset = 0;
+	SMAcknowledgeCancelUnicastTransmission* data = (SMAcknowledgeCancelUnicastTransmission*)m->tlv->valueField;
+	#define OPERATE( name, size, type ) \
+		pack##type( &data->name,\
+			    buf + SIGNALING_LENGTH + TL_LENGTH + offset ); \
+		offset = offset + size;
+	#include "../def/signalingTLV/acknowledgeCancelUnicastTransmission.def"
+
+	/* return length */
+	return offset;
+}
 
 void
 unpackClockIdentity( Octet *buf, ClockIdentity *c, PtpClock *ptpClock)
@@ -1275,6 +1411,70 @@ void unpackMsgManagement(Octet *buf, MsgManagement *m, PtpClock *ptpClock)
 	#endif /* PTPD_DBG */
 }
 
+void
+unpackSignalingTLV(Octet *buf, MsgSignaling *m, PtpClock* ptpClock)
+{
+	int offset = 0;
+	XMALLOC(m->tlv, sizeof(SignalingTLV));
+	/* read the signaling TLV */
+	#define OPERATE( name, size, type ) \
+		unpack##type( buf + SIGNALING_LENGTH + offset, &m->tlv->name, ptpClock ); \
+		offset = offset + size;
+	#include "../def/signalingTLV/signalingTLV.def"
+}
+
+void
+packSignalingTLV(SignalingTLV *tlv, Octet *buf)
+{
+	int offset = 0;
+	#define OPERATE( name, size, type ) \
+		pack##type( &tlv->name, buf + SIGNALING_LENGTH + offset ); \
+		offset = offset + size;
+	#include "../def/signalingTLV/signalingTLV.def"
+}
+
+void
+freeSignalingTLV(MsgSignaling *m)
+{
+        /* cleanup outgoing signaling TLV */
+        if(m->tlv) {
+                if(m->tlv->valueField) {
+                        free(m->tlv->valueField);
+			m->tlv->valueField = NULL;
+                }
+                free(m->tlv);
+		m->tlv = NULL;
+        }
+}
+
+void
+packMsgSignaling(MsgSignaling *m, Octet *buf)
+{
+	int offset = 0;
+	MsgSignaling *data = m;
+
+	#define OPERATE( name, size, type) \
+		pack##type (&data->name, buf + offset); \
+		offset = offset + size;
+	#include "../def/message/signaling.def"
+
+}
+
+void
+unpackMsgSignaling(Octet *buf, MsgSignaling *m, PtpClock *ptpClock)
+{
+	int offset = 0;
+	MsgSignaling* data = m;
+	#define OPERATE( name, size, type) \
+		unpack##type (buf + offset, &data->name, ptpClock); \
+		offset = offset + size;
+	#include "../def/message/signaling.def"
+
+	#ifdef PTPD_DBG
+	msgSignaling_display(data);
+	#endif /* PTPD_DBG */
+}
+
 /*Unpack Header from IN buffer to msgTmpHeader field */
 void
 msgUnpackHeader(Octet * buf, MsgHeader * header)
@@ -1324,22 +1524,23 @@ msgPackHeader(Octet * buf, PtpClock * ptpClock)
 }
 
 
+#ifndef PTPD_SLAVE_ONLY
 /*Pack SYNC message into OUT buffer of ptpClock*/
 void
-msgPackSync(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
+msgPackSync(Octet * buf, UInteger16 sequenceId, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x00;
-	/* Two step flag - table 20: Sync and PDelayResp only */
+	/* Two step flag - table 20: Sync and PdelayResp only */
 	if (ptpClock->twoStepFlag)
 		*(UInteger8 *) (buf + 6) |= PTP_TWO_STEP;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(SYNC_LENGTH);
-	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentSyncSequenceId);
+	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
 	*(UInteger8 *) (buf + 32) = 0x00;
 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
@@ -1352,6 +1553,7 @@ msgPackSync(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	*(UInteger32 *) (buf + 36) = flip32(originTimestamp->secondsField.lsb);
 	*(UInteger32 *) (buf + 40) = flip32(originTimestamp->nanosecondsField);
 }
+#endif /* PTPD_SLAVE_ONLY */
 
 /*Unpack Sync message from IN buffer */
 void
@@ -1370,10 +1572,11 @@ msgUnpackSync(Octet * buf, MsgSync * sync)
 }
 
 
-
+/* When building slave only, this code does not get compiled */
+#ifndef PTPD_SLAVE_ONLY
 /*Pack Announce message into OUT buffer of ptpClock*/
 void
-msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
+msgPackAnnounce(Octet * buf, UInteger16 sequenceId, PtpClock * ptpClock)
 {
 	UInteger16 stepsRemoved;
 	
@@ -1385,7 +1588,7 @@ msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x0B;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(ANNOUNCE_LENGTH);
-	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentAnnounceSequenceId);
+	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
 	*(UInteger8 *) (buf + 32) = 0x05;
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
 	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ip_mode == IPMODE_MULTICAST)
@@ -1417,6 +1620,7 @@ msgPackAnnounce(Octet * buf, PtpClock * ptpClock)
 	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.timeTraceable)		<< 4;
 	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.frequencyTraceable)	<< 5;
 }
+#endif /* PTPD_SLAVE_ONLY */
 
 /*Unpack Announce message from IN buffer of ptpClock to msgtmp.Announce*/
 void
@@ -1450,6 +1654,7 @@ msgUnpackAnnounce(Octet * buf, MsgAnnounce * announce)
 	#endif /* PTPD_DBG */
 }
 
+#ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
 /*pack Follow_up message into OUT buffer of ptpClock*/
 void
 msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
@@ -1477,6 +1682,7 @@ msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpC
 	*(UInteger32 *) (buf + 40) =
 		flip32(preciseOriginTimestamp->nanosecondsField);
 }
+#endif /* PTPD_SLAVE_ONLY */
 
 /*Unpack Follow_up message from IN buffer of ptpClock to msgtmp.follow*/
 void
@@ -1497,7 +1703,7 @@ msgUnpackFollowUp(Octet * buf, MsgFollowUp * follow)
 
 /*pack PdelayReq message into OUT buffer of ptpClock*/
 void
-msgPackPDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
+msgPackPdelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -1507,7 +1713,7 @@ msgPackPDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x02;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(PDELAY_REQ_LENGTH);
-	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentPDelayReqSequenceId);
+	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentPdelayReqSequenceId);
 	*(UInteger8 *) (buf + 32) = 0x05;
 	/* Table 23 */
 	*(Integer8 *) (buf + 33) = 0x7F;
@@ -1593,7 +1799,7 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 
 /*pack PdelayResp message into OUT buffer of ptpClock*/
 void 
-msgPackPDelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTimestamp, PtpClock * ptpClock)
+msgPackPdelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -1601,7 +1807,7 @@ msgPackPDelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTim
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x03;
-	/* Two step flag - table 20: Sync and PDelayResp only */
+	/* Two step flag - table 20: Sync and PdelayResp only */
 	if (ptpClock->twoStepFlag)
 		*(UInteger8 *) (buf + 6) |= PTP_TWO_STEP;
 	/* Table 19 */
@@ -1647,7 +1853,7 @@ msgUnpackDelayReq(Octet * buf, MsgDelayReq * delayreq)
 
 /*Unpack PdelayReq message from IN buffer of ptpClock to msgtmp.req*/
 void
-msgUnpackPDelayReq(Octet * buf, MsgPDelayReq * pdelayreq)
+msgUnpackPdelayReq(Octet * buf, MsgPdelayReq * pdelayreq)
 {
 	pdelayreq->originTimestamp.secondsField.msb =
 		flip16(*(UInteger16 *) (buf + 34));
@@ -1657,7 +1863,7 @@ msgUnpackPDelayReq(Octet * buf, MsgPDelayReq * pdelayreq)
 		flip32(*(UInteger32 *) (buf + 40));
 
 	#ifdef PTPD_DBG
-	msgPDelayReq_display(pdelayreq);
+	msgPdelayReq_display(pdelayreq);
 	#endif /* PTPD_DBG */
 
 }
@@ -1686,7 +1892,7 @@ msgUnpackDelayResp(Octet * buf, MsgDelayResp * resp)
 
 /*Unpack PdelayResp message from IN buffer of ptpClock to msgtmp.presp*/
 void
-msgUnpackPDelayResp(Octet * buf, MsgPDelayResp * presp)
+msgUnpackPdelayResp(Octet * buf, MsgPdelayResp * presp)
 {
 	presp->requestReceiptTimestamp.secondsField.msb =
 		flip16(*(UInteger16 *) (buf + 34));
@@ -1700,13 +1906,13 @@ msgUnpackPDelayResp(Octet * buf, MsgPDelayResp * presp)
 		flip16(*(UInteger16 *) (buf + 52));
 
 	#ifdef PTPD_DBG
-	msgPDelayResp_display(presp);
+	msgPdelayResp_display(presp);
 	#endif /* PTPD_DBG */
 }
 
 /*pack PdelayRespfollowup message into OUT buffer of ptpClock*/
 void 
-msgPackPDelayRespFollowUp(Octet * buf, MsgHeader * header, Timestamp * responseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
+msgPackPdelayRespFollowUp(Octet * buf, MsgHeader * header, Timestamp * responseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -1740,7 +1946,7 @@ msgPackPDelayRespFollowUp(Octet * buf, MsgHeader * header, Timestamp * responseO
 
 /*Unpack PdelayResp message from IN buffer of ptpClock to msgtmp.presp*/
 void
-msgUnpackPDelayRespFollowUp(Octet * buf, MsgPDelayRespFollowUp * prespfollow)
+msgUnpackPdelayRespFollowUp(Octet * buf, MsgPdelayRespFollowUp * prespfollow)
 {
 	prespfollow->responseOriginTimestamp.secondsField.msb =
 		flip16(*(UInteger16 *) (buf + 34));
@@ -1754,7 +1960,7 @@ msgUnpackPDelayRespFollowUp(Octet * buf, MsgPDelayRespFollowUp * prespfollow)
 		flip16(*(UInteger16 *) (buf + 52));
 
 #ifdef PTPD_DBG
-        msgPDelayRespFollowUp_display(prespfollow);
+        msgPdelayRespFollowUp_display(prespfollow);
 #endif /* PTPD_DBG */
 }
 
@@ -1966,6 +2172,39 @@ msgPackManagementErrorStatusTLV(Octet *buf, MsgManagement *outgoing,
 	packManagementTLV((ManagementTLV*)outgoing->tlv, buf);
 }
 
+/* Pack  singaling message into OUT buffer */
+void
+msgPackSignalingTLV(Octet *buf, MsgSignaling *outgoing, PtpClock *ptpClock)
+{
+        DBGV("packing SignalingTLV message \n");
+
+	UInteger16 dataLength = 0;
+
+	switch(outgoing->tlv->tlvType)
+	{
+	case TLV_REQUEST_UNICAST_TRANSMISSION:
+		dataLength = packSMRequestUnicastTransmission(outgoing, buf);
+		break;
+	case TLV_GRANT_UNICAST_TRANSMISSION:
+		dataLength = packSMGrantUnicastTransmission(outgoing, buf);
+		break;
+	case TLV_CANCEL_UNICAST_TRANSMISSION:
+		dataLength = packSMCancelUnicastTransmission(outgoing, buf);
+		break;
+	case TLV_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:
+		dataLength = packSMAcknowledgeCancelUnicastTransmission(outgoing, buf);
+		break;
+	default:
+		DBGV("packing signaling msg: unsupported tlv type \n");
+	};
+	/* set the outgoing tlv lengthField to 2 + N where 2 is the managementId field
+         * and N is dataLength, the length of the management tlv dataField field.
+	 * See Table 39 of the spec.
+	 */
+	outgoing->tlv->lengthField = dataLength;
+	packSignalingTLV((SignalingTLV*)outgoing->tlv, buf);
+}
+
 void
 freeMMTLV(ManagementTLV* tlv) {
 	DBGV("cleanup managementTLV data\n");
@@ -2044,6 +2283,42 @@ msgUnpackManagement(Octet *buf, MsgManagement * manage, MsgHeader * header, PtpC
 
 }
 
+void
+msgPackSignaling(Octet *buf, MsgSignaling *outgoing, PtpClock *ptpClock)
+{
+	DBGV("packing signaling message \n");
+	packMsgSignaling(outgoing, buf);
+}
+
+/* Unpack Signaling message from IN buffer of ptpClock to msgtmp.signaling
+ * return TRUE if there are more packed TLVs left in the message.
+ */
+Boolean
+msgUnpackSignaling(Octet *buf, MsgSignaling * signaling, MsgHeader * header, PtpClock *ptpClock, const int tlvOffset)
+{
+	unpackMsgSignaling(buf, signaling, ptpClock);
+
+	if ( signaling->header.messageLength >= (SIGNALING_LENGTH + tlvOffset + TL_LENGTH) )
+	{
+		unpackSignalingTLV(buf + tlvOffset, signaling, ptpClock);
+
+		DBGV("Signaling seq %d: Found TLV type 0x%04x: %d bytes left\n", header->sequenceId,
+			signaling->tlv->tlvType,signaling->header.messageLength - SIGNALING_LENGTH - tlvOffset);
+
+		/* at this point, we know what managementTLV we have, so return and
+		 * let someone else handle the data */
+		signaling->tlv->valueField = NULL;
+		return TRUE;
+	}
+	else /* no (more) TLVs attached to this message */
+	{
+		signaling->tlv = NULL;
+		DBGV("Signaling seq %d: No more TLVs in message\n", header->sequenceId);
+		return FALSE;
+	}
+
+}
+
 /** 
  * Dump the most recent packet in the daemon
  * 
@@ -2080,6 +2355,12 @@ void msgDump(PtpClock *ptpClock)
     
 	case MANAGEMENT:
 		msgDebugManagement(&ptpClock->msgTmp.manage);
+		break;
+
+	case SIGNALING:
+		NOTIFY("* msgDebugSignaling not implemented *\n");
+		/* TODO: IMPLEMENT ME */
+		/* msgDebugSignaling(&ptpClock->msgTmp.signaling); */
 		break;
     
 	default:

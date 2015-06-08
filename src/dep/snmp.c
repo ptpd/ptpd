@@ -524,9 +524,9 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 			return SNMP_INTEGER(SNMP_PTP_TX_MULTICAST_MIX);
 		return SNMP_INTEGER(SNMP_PTP_TX_MULTICAST);
 	case PTPBASE_CLOCK_PORT_RUNNING_PACKETS_RECEIVED:
-		return SNMP_COUNTER64(snmpPtpClock->netPath.receivedPackets);
+		return SNMP_COUNTER64(snmpPtpClock->netPath.receivedPacketsTotal);
 	case PTPBASE_CLOCK_PORT_RUNNING_PACKETS_SENT:
-		return SNMP_COUNTER64(snmpPtpClock->netPath.sentPackets);
+		return SNMP_COUNTER64(snmpPtpClock->netPath.sentPacketsTotal);
 	}
 
 
