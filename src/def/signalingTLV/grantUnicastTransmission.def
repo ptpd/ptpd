@@ -1,0 +1,12 @@
+/* Spec Table 73 - REQUEST_UNICAST_TRANSMISSION signaling TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+
+OPERATE( messageType, 0, Enumeration4Upper)
+OPERATE( reserved0, 1, UInteger4Lower)
+OPERATE( logInterMessagePeriod, 1, Integer8)
+OPERATE( durationField, 4, UInteger32)
+OPERATE( reserved1, 1, Octet )
+OPERATE( renewal_invited,1, UInteger8)
+
+#undef OPERATE

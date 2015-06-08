@@ -37,7 +37,31 @@
 #define NOTICE(x, ...)    logMessage(LOG_NOTICE, x, ##__VA_ARGS__)
 #define INFO(x, ...)   logMessage(LOG_INFO, x, ##__VA_ARGS__)
 
+#define EMERGENCY_LOCAL(x, ...)	EMERGENCY(LOCAL_PREFIX": " x,##__VA_ARGS__)
+#define ALERT_LOCAL(x, ...)	ALERT(LOCAL_PREFIX": " x, ##__VA_ARGS__)
+#define CRITICAL_LOCAL(x, ...)	CRITICAL(LOCAL_PREFIX": " x, ##__VA_ARGS__)
+#define ERROR_LOCAL(x, ...)	ERROR(LOCAL_PREFIX": " x, ##__VA_ARGS__)
+#define PERROR_LOCAL(x, ...)	PERROR(LOCAL_PREFIX": " x, ##__VA_ARGS__)
+#define WARNING_LOCAL(x, ...)	WARNING(LOCAL_PREFIX": " x, ##__VA_ARGS__)
+#define NOTIFY_LOCAL(x, ...)	NOTIFY(LOCAL_PREFIX": " x, ##__VA_ARGS__)
+#define NOTIC_LOCALE(x, ...)	NOTICE(LOCAL_PREFIX": " x, ##__VA_ARGS__)
+#define INFO_LOCAL(x, ...)	INFO(LOCAL_PREFIX": " x, ##__VA_ARGS__)
 
+#define EMERGENCY_LOCAL_ID(o,x, ...)	EMERGENCY(LOCAL_PREFIX".%s: "x,o->id,##__VA_ARGS__)
+#define ALERT_LOCAL_ID(o,x, ...)	ALERT(LOCAL_PREFIX".%s: "x,o->id, ##__VA_ARGS__)
+#define CRITICAL_LOCAL_ID(o,x, ...)	CRITICAL(LOCAL_PREFIX".%s: "x,o->id, ##__VA_ARGS__)
+#define ERROR_LOCAL_ID(o,x, ...)	ERROR(LOCAL_PREFIX".%s: "x,o->id, ##__VA_ARGS__)
+#define PERROR_LOCAL_ID(o,x, ...)	PERROR(LOCAL_PREFIX".%s: "x,o->id, ##__VA_ARGS__)
+#define WARNING_LOCAL_ID(o,x, ...)	WARNING(LOCAL_PREFIX".%s: "x,o->id, ##__VA_ARGS__)
+#define NOTIFY_LOCAL_ID(o,x, ...)	NOTIFY(LOCAL_PREFIX".%s: "x,o->id, ##__VA_ARGS__)
+#define NOTICE_LOCAL_ID(o,x, ...)	NOTICE(LOCAL_PREFIX".%s: "x,o->id, ##__VA_ARGS__)
+#define INFO_LOCAL_ID(o,x, ...)		INFO(LOCAL_PREFIX".%s: "x,o->id, ##__VA_ARGS__)
+
+#if defined(__FILE__) && defined(__LINE__)
+#define MARKER INFO("Marker: %s:%d\n", __FILE__, __LINE__)
+#else
+#define MARKER INFO("Marker\n")
+#endif
 
 #include <assert.h>
 
@@ -79,8 +103,12 @@
 #define PTPD_DBG2
 
 #define DBGV(x, ...) logMessage(LOG_DEBUGV, x, ##__VA_ARGS__)
+#define DBGV_LOCAL(x, ...) DBGV(LOCAL_PREFIX": " x,##__VA_ARGS__)
+#define DBGV_LOCAL_ID(o,x, ...)	DBGV(LOCAL_PREFIX".%s:"x,o->id,##__VA_ARGS__)
 #else
 #define DBGV(x, ...)
+#define DBGV_LOCAL(x, ...)
+#define DBGV_LOCAL_ID(x, ...)
 #endif
 
 /*
@@ -93,14 +121,23 @@
 #undef PTPD_DBG
 #define PTPD_DBG
 #define DBG2(x, ...) logMessage(LOG_DEBUG2, x, ##__VA_ARGS__)
+#define DBG2_LOCAL (x, ...) DBG2(LOCAL_PREFIX": " x,##__VA_ARGS__)
+#define DBG2_LOCAL_ID(o,x, ...)	DBG2(LOCAL_PREFIX".%s:"x,o->id,##__VA_ARGS__)
+
 #else
 #define DBG2(x, ...)
+#define DBG2_LOCAL(x, ...)
+#define DBG2_LOCAL_ID(x, ...)
 #endif
 
 #ifdef PTPD_DBG
 #define DBG(x, ...) logMessage(LOG_DEBUG, x, ##__VA_ARGS__)
+#define DBG_LOCAL(x, ...) DBG(LOCAL_PREFIX": " x,##__VA_ARGS__)
+#define DBG_LOCAL_ID(o,x, ...)	DBG(LOCAL_PREFIX".%s:"x,o->id,##__VA_ARGS__)
 #else
 #define DBG(x, ...)
+#define DBG_LOCAL(x, ...)
+#define DBG_LOCAL_ID(x, ...)
 #endif
 
 /** \}*/
@@ -160,22 +197,27 @@ void msgUnpackSync(Octet * buf,MsgSync*);
 void msgUnpackFollowUp(Octet * buf,MsgFollowUp*);
 void msgUnpackDelayReq(Octet * buf, MsgDelayReq * delayreq);
 void msgUnpackDelayResp(Octet * buf,MsgDelayResp *);
-void msgUnpackPDelayReq(Octet * buf,MsgPDelayReq*);
-void msgUnpackPDelayResp(Octet * buf,MsgPDelayResp*);
-void msgUnpackPDelayRespFollowUp(Octet * buf,MsgPDelayRespFollowUp*);
+void msgUnpackPdelayReq(Octet * buf,MsgPdelayReq*);
+void msgUnpackPdelayResp(Octet * buf,MsgPdelayResp*);
+void msgUnpackPdelayRespFollowUp(Octet * buf,MsgPdelayRespFollowUp*);
 void msgUnpackManagement(Octet * buf,MsgManagement*, MsgHeader*, PtpClock *ptpClock);
+Boolean msgUnpackSignaling(Octet * buf,MsgSignaling*, MsgHeader*, PtpClock *ptpClock, const int);
 void msgPackHeader(Octet * buf,PtpClock*);
-void msgPackAnnounce(Octet * buf,PtpClock*);
-void msgPackSync(Octet * buf,Timestamp*,PtpClock*);
+#ifndef PTPD_SLAVE_ONLY
+void msgPackAnnounce(Octet * buf, UInteger16, PtpClock*);
+void msgPackSync(Octet * buf, UInteger16, Timestamp*,PtpClock*);
+#endif /* PTPD_SLAVE_ONLY */
 void msgPackFollowUp(Octet * buf,Timestamp*,PtpClock*, const UInteger16);
 void msgPackDelayReq(Octet * buf,Timestamp *,PtpClock *);
 void msgPackDelayResp(Octet * buf,MsgHeader *,Timestamp *,PtpClock *);
-void msgPackPDelayReq(Octet * buf,Timestamp*,PtpClock*);
-void msgPackPDelayResp(Octet * buf,MsgHeader*,Timestamp*,PtpClock*);
-void msgPackPDelayRespFollowUp(Octet * buf,MsgHeader*,Timestamp*,PtpClock*, const UInteger16);
+void msgPackPdelayReq(Octet * buf,Timestamp*,PtpClock*);
+void msgPackPdelayResp(Octet * buf,MsgHeader*,Timestamp*,PtpClock*);
+void msgPackPdelayRespFollowUp(Octet * buf,MsgHeader*,Timestamp*,PtpClock*, const UInteger16);
 void msgPackManagement(Octet * buf,MsgManagement*,PtpClock*);
+void msgPackSignaling(Octet * buf,MsgSignaling*,PtpClock*);
 void msgPackManagementRespAck(Octet *,MsgManagement*,PtpClock*);
 void msgPackManagementTLV(Octet *,MsgManagement*, PtpClock*);
+void msgPackSignalingTLV(Octet *,MsgSignaling*, PtpClock*);
 void msgPackManagementErrorStatusTLV(Octet *,MsgManagement*,PtpClock*);
 
 void freeMMErrorStatusTLV(ManagementTLV*);
@@ -193,11 +235,18 @@ void msgDebugManagement(MsgManagement *manage);
 void copyClockIdentity( ClockIdentity dest, ClockIdentity src);
 void copyPortIdentity( PortIdentity * dest, PortIdentity * src);
 
+void unpackMsgSignaling(Octet *, MsgSignaling*, PtpClock*);
+void packMsgSignaling(MsgSignaling*, Octet *);
+void unpackSignalingTLV(Octet*, MsgSignaling*, PtpClock*);
+void packSignalingTLV(SignalingTLV*, Octet*);
+void freeSignalingTLV(MsgSignaling*);
+
 void unpackMsgManagement(Octet *, MsgManagement*, PtpClock*);
 void packMsgManagement(MsgManagement*, Octet *);
 void unpackManagementTLV(Octet*, MsgManagement*, PtpClock*);
 void packManagementTLV(ManagementTLV*, Octet*);
 void freeManagementTLV(MsgManagement*);
+
 void unpackMMClockDescription( Octet* buf, MsgManagement*, PtpClock* );
 UInteger16 packMMClockDescription( MsgManagement*, Octet*);
 void freeMMClockDescription( MMClockDescription*);
@@ -248,6 +297,15 @@ UInteger16 packMMDelayMechanism( MsgManagement*, Octet*);
 void unpackMMLogMinPdelayReqInterval( Octet* buf, MsgManagement*, PtpClock* );
 UInteger16 packMMLogMinPdelayReqInterval( MsgManagement*, Octet*);
 
+/* Signaling TLV packing / unpacking functions */
+void unpackSMRequestUnicastTransmission( Octet* buf, MsgSignaling*, PtpClock* );
+UInteger16 packSMRequestUnicastTransmission( MsgSignaling*, Octet*);
+void unpackSMGrantUnicastTransmission( Octet* buf, MsgSignaling*, PtpClock* );
+UInteger16 packSMGrantUnicastTransmission( MsgSignaling*, Octet*);
+void unpackSMCancelUnicastTransmission( Octet* buf, MsgSignaling*, PtpClock* );
+UInteger16 packSMCancelUnicastTransmission( MsgSignaling*, Octet*);
+void unpackSMAcknowledgeCancelUnicastTransmission( Octet* buf, MsgSignaling*, PtpClock* );
+UInteger16 packSMAcknowledgeCancelUnicastTransmission( MsgSignaling*, Octet*);
 
 void unpackPortAddress( Octet* buf, PortAddress*, PtpClock*);
 void packPortAddress( PortAddress*, Octet*);
@@ -280,17 +338,17 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
  * -Init network stuff, send and receive datas*/
  /**\{*/
 
-Boolean testInterface(char* ifaceName, RunTimeOpts* rtOpts);
+Boolean testInterface(char* ifaceName, const RunTimeOpts* rtOpts);
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
 Boolean netShutdown(NetPath*);
 int netSelect(TimeInternal*,NetPath*,fd_set*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*,int);
 ssize_t netRecvGeneral(Octet*,NetPath*);
-ssize_t netSendEvent(Octet*,UInteger16,NetPath*,RunTimeOpts*,Integer32,TimeInternal*);
-ssize_t netSendGeneral(Octet*,UInteger16,NetPath*,RunTimeOpts*,Integer32 );
-ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*,RunTimeOpts*);
-ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*,RunTimeOpts*,TimeInternal*);
-Boolean netRefreshIGMP(NetPath *, RunTimeOpts *, PtpClock *);
+ssize_t netSendEvent(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32,TimeInternal*);
+ssize_t netSendGeneral(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32 );
+ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*,const RunTimeOpts*, Integer32);
+ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32,TimeInternal*);
+Boolean netRefreshIGMP(NetPath *, const RunTimeOpts *, PtpClock *);
 Boolean hostLookup(const char* hostname, Integer32* addr);
 
 /** \}*/
@@ -310,14 +368,14 @@ void snmpShutdown();
  * -Clock servo*/
  /**\{*/
 
-void initClock(RunTimeOpts*,PtpClock*);
-void updatePeerDelay (one_way_delay_filter*, RunTimeOpts*,PtpClock*,TimeInternal*,Boolean);
-void updateDelay (one_way_delay_filter*, RunTimeOpts*, PtpClock*,TimeInternal*);
+void initClock(const RunTimeOpts*,PtpClock*);
+void updatePeerDelay (one_way_delay_filter*, const RunTimeOpts*,PtpClock*,TimeInternal*,Boolean);
+void updateDelay (one_way_delay_filter*, const RunTimeOpts*, PtpClock*,TimeInternal*);
 void updateOffset(TimeInternal*,TimeInternal*,
-  offset_from_master_filter*,RunTimeOpts*,PtpClock*,TimeInternal*);
-void updateClock(RunTimeOpts*,PtpClock*);
-
-void servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock);
+  offset_from_master_filter*,const RunTimeOpts*,PtpClock*,TimeInternal*);
+void checkOffset(const RunTimeOpts*, PtpClock*);
+void updateClock(const RunTimeOpts*,PtpClock*);
+void stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
 /** \}*/
 
@@ -327,12 +385,15 @@ void servo_perform_clock_step(RunTimeOpts * rtOpts, PtpClock * ptpClock);
 int logToFile(RunTimeOpts * rtOpts);
 int recordToFile(RunTimeOpts * rtOpts);
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
-void ptpdShutdown(PtpClock * ptpClock);
 
+void ptpdShutdown(PtpClock * ptpClock);
 void checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock);
+void restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock);
 
 void enable_runtime_debug(void );
 void disable_runtime_debug(void );
+
+void ntpSetup(RunTimeOpts *rtOpts, PtpClock *ptpClock);
 
 #define D_ON      do { enable_runtime_debug();  } while (0);
 #define D_OFF     do { disable_runtime_debug( ); } while (0);
@@ -354,11 +415,15 @@ void updateLogSize(LogFileHandler* handler);
 Boolean maintainLogSize(LogFileHandler* handler);
 int restartLog(LogFileHandler* handler, Boolean quiet);
 void restartLogging(RunTimeOpts* rtOpts);
-void logStatistics(RunTimeOpts *rtOpts, PtpClock *ptpClock);
+void stopLogging(RunTimeOpts* rtOpts);
+void logStatistics(PtpClock *ptpClock);
+void periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 void displayStatus(PtpClock *ptpClock, const char *prefixMessage);
 void displayPortIdentity(PortIdentity *port, const char *prefixMessage);
+int snprint_PortIdentity(char *s, int max_len, const PortIdentity *id);
 Boolean nanoSleep(TimeInternal*);
 void getTime(TimeInternal*);
+void getTimeMonotonic(TimeInternal*);
 void setTime(TimeInternal*);
 #ifdef linux
 void setRtc(TimeInternal *);
@@ -369,20 +434,19 @@ int checkLockStatus(int fd, short lockType, int *lockPid);
 int checkFileLockable(const char *fileName, int *lockPid);
 Boolean checkOtherLocks(RunTimeOpts *rtOpts);
 
-void recordSync(RunTimeOpts * rtOpts, UInteger16 sequenceId, TimeInternal * time);
+void recordSync(UInteger16 sequenceId, TimeInternal * time);
 
 #ifndef HAVE_SYS_TIMEX_H
 void adjTime(Integer32);
 #else
 
-void adjFreq_wrapper(RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj);
+
+
+void adjFreq_wrapper(const RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj);
 Boolean adjFreq(double);
 double getAdjFreq(void);
 void informClockSource(PtpClock* ptpClock);
 
-/* Observed drift save / recovery functions */
-void restoreDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet);
-void saveDrift(PtpClock * ptpClock, RunTimeOpts * rtOpts, Boolean quiet);
 
 /* Helper function to manage ntpadjtime / adjtimex flags */
 void setTimexFlags(int flags, Boolean quiet);
@@ -392,43 +456,29 @@ Boolean checkTimexFlags(int flags);
 
 #if defined(MOD_TAI) &&  NTP_API == 4
 void setKernelUtcOffset(int utc_offset);
+Boolean getKernelUtcOffset(int *utc_offset);
 #endif /* MOD_TAI */
 
 #endif /* HAVE_SYS_TIMEX_H */
 
-/** \}*/
+/* Observed drift save / recovery functions */
+void restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet);
+void saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet);
 
-/** \name timer.c (Unix API dependent)
- * -Handle with timers*/
- /**\{*/
-void initTimer(void);
-void timerUpdate(IntervalTimer*);
-void timerStop(UInteger16,IntervalTimer*);
-
-//void timerStart(UInteger16,UInteger16,IntervalTimer*);
-
-/* R135 patch: we went back to floating point periods (for less than 1s )*/
-void timerStart(UInteger16 index, float interval, IntervalTimer * itimer);
-
-/* Version with randomized backoff */
-void timerStart_random(UInteger16 index, float interval, IntervalTimer * itimer);
-
-Boolean timerExpired(UInteger16,IntervalTimer*);
-Boolean timerStopped(UInteger16,IntervalTimer*);
-Boolean timerRunning(UInteger16,IntervalTimer*);
-/** \}*/
+int parseLeapFile(char * path, LeapSecondInfo *info);
 
 void
-reset_operator_messages(RunTimeOpts * rtOpts, PtpClock * ptpClock);
+reset_operator_messages(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
 void setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts);
 void resetPIservo(PIservo* servo);
 double runPIservo(PIservo* servo, const Integer32 input);
 
 #ifdef PTPD_STATISTICS
-void updatePtpEngineStats (PtpClock* ptpClock, RunTimeOpts* rtOpts);
+void updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts);
 #endif /* PTPD_STATISTICS */
 
-void writeStatusFile(PtpClock *ptpClock, RunTimeOpts *rtOpts, Boolean quiet);
+void writeStatusFile(PtpClock *ptpClock, const RunTimeOpts *rtOpts, Boolean quiet);
+void updateXtmp (TimeInternal oldTime, TimeInternal newTime);
 
 #endif /*PTPD_DEP_H_*/

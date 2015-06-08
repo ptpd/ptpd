@@ -305,27 +305,26 @@ isTimeInternalNegative(const TimeInternal * p)
 	return (p->seconds < 0) || (p->nanoseconds < 0);
 }
 
-float
+double
 secondsToMidnight(void) 
 {
 	TimeInternal now;
-
+	double stm, ret;
 	getTime(&now);
-
-	float stmf = 86400 - (now.seconds % 86400);
-
-	return (stmf - now.nanoseconds / 1E9);
+	stm = 86400.0 - (now.seconds % 86400);
+	ret =  (stm - now.nanoseconds / 1E9);
+	return ret;
 }
 
-float
-getPauseAfterMidnight(Integer8 announceInterval) 
+double
+getPauseAfterMidnight(Integer8 announceInterval, int pausePeriod) 
 {
-	unsigned ai = 1U << announceInterval;
+	double ai = pow(2,announceInterval);
 
-	if (LEAP_SECOND_PAUSE_PERIOD > 2 * ai)
-		return ((float)LEAP_SECOND_PAUSE_PERIOD);
+	if (pausePeriod > 2.0 * ai)
+		return (pausePeriod);
 	else
-		return (2.0f * ai);
+		return (2.0 * ai);
 }
 
 double

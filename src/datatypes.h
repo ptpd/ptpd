@@ -165,39 +165,30 @@ typedef struct {
 }MsgFollowUp;
 
 /**
-* \brief PDelayReq message fields (Table 29 of the spec)
+* \brief PdelayReq message fields (Table 29 of the spec)
  */
 /*PdelayReq Message*/
 typedef struct {
 	Timestamp originTimestamp;
-}MsgPDelayReq;
+}MsgPdelayReq;
 
 /**
-* \brief PDelayResp message fields (Table 30 of the spec)
+* \brief PdelayResp message fields (Table 30 of the spec)
  */
 /*PdelayResp Message*/
 typedef struct {
 	Timestamp requestReceiptTimestamp;
 	PortIdentity requestingPortIdentity;
-}MsgPDelayResp;
+}MsgPdelayResp;
 
 /**
-* \brief PDelayRespFollowUp message fields (Table 31 of the spec)
+* \brief PdelayRespFollowUp message fields (Table 31 of the spec)
  */
 /*PdelayRespFollowUp Message*/
 typedef struct {
 	Timestamp responseOriginTimestamp;
 	PortIdentity requestingPortIdentity;
-}MsgPDelayRespFollowUp;
-
-/**
-* \brief Signaling message fields (Table 33 of the spec)
- */
-/*Signaling Message*/
-typedef struct {
-	PortIdentity targetPortIdentity;
-	char* tlv;
-}MsgSignaling;
+} MsgPdelayRespFollowUp;
 
 
 /**
@@ -425,24 +416,72 @@ typedef struct {
 	#define OPERATE( name, size, type ) type name;
 	#include "def/message/management.def"
 	ManagementTLV* tlv;
-}MsgManagement;
+} MsgManagement;
 
 /**
-* \brief Time structure to handle Linux time information
+ * \brief Signaling TLV message fields (tab
+ */
+/* Signaling TLV Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/signalingTLV/signalingTLV.def"
+	Octet* valueField;
+} SignalingTLV;
+
+/**
+ * \brief Signaling TLV Request Unicast Transmission fields (Table 73 of the spec)
+ */
+/* Signaling TLV Request Unicast Transmission Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/signalingTLV/requestUnicastTransmission.def"
+} SMRequestUnicastTransmission;
+
+/**
+ * \brief Signaling TLV Grant Unicast Transmission fields (Table 74 of the spec)
+ */
+/* Signaling TLV Grant Unicast Transmission Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/signalingTLV/grantUnicastTransmission.def"
+} SMGrantUnicastTransmission;
+
+/**
+ * \brief Signaling TLV Cancel Unicast Transmission fields (Table 75 of the spec)
+ */
+/* Signaling TLV Cancel Unicast Transmission Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/signalingTLV/cancelUnicastTransmission.def"
+} SMCancelUnicastTransmission;
+
+/**
+ * \brief Signaling TLV Acknowledge Cancel Unicast Transmission fields (Table 76 of the spec)
+ */
+/* Signaling TLV Acknowledge Cancel Unicast Transmission Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/signalingTLV/acknowledgeCancelUnicastTransmission.def"
+} SMAcknowledgeCancelUnicastTransmission;
+
+/**
+* \brief Signaling message fields (Table 33 of the spec)
+ */
+/*Signaling Message*/
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/message/signaling.def"
+	SignalingTLV* tlv;
+} MsgSignaling;
+
+/**
+* \brief Time structure to handle timestamps
  */
 typedef struct {
 	Integer32 seconds;
 	Integer32 nanoseconds;
 } TimeInternal;
 
-/**
-* \brief Structure used as a timer
- */
-typedef struct {
-	Integer32 interval;
-	Integer32 left;
-	Boolean expire;
-} IntervalTimer;
 
 /**
 * \brief ForeignMasterRecord is used to manage foreign masters
@@ -452,9 +491,11 @@ typedef struct
 	PortIdentity foreignMasterPortIdentity;
 	UInteger16 foreignMasterAnnounceMessages;
 
-	//This one is not in the spec
-	MsgAnnounce  announce;
-	MsgHeader    header;
+	/* Supplementary data */
+	MsgAnnounce  announce;	/* announce message -> all datasets */
+	MsgHeader    header;	/* header -> some datasets */
+	UInteger8    localPreference; /* local preference - only used by telecom profile */
+	
 } ForeignMasterRecord;
 
 /**
@@ -522,6 +563,15 @@ typedef struct
 	uint32_t domainMismatchErrors;	  /* different domain than configured - also increments discarded */
 	uint32_t sequenceMismatchErrors;  /* mismatched sequence IDs - also increments discarded */
 	uint32_t delayModeMismatchErrors; /* P2P received, E2E expected or vice versa - incremets discarded */
+	uint32_t consecutiveSequenceErrors;    /* number of consecutive sequence mismatch errors */
+
+	/* unicast sgnaling counters */
+	uint32_t unicastGrantsRequested;  /* slave: how many we requested, master: how many requests we received */
+	uint32_t unicastGrantsGranted;	  /* slave: how many we got granted, master: how many we granted */
+	uint32_t unicastGrantsDenied;	 /* slave: how many we got denied, master: how many we denied */
+	uint32_t unicastGrantsCancelSent;   /* how many we canceled */
+	uint32_t unicastGrantsCancelReceived; /* how many cancels we received */
+	uint32_t unicastGrantsCancelAckReceived; /* how many cancel ack we received */
 
 #ifdef PTPD_STATISTICS
 	uint32_t delayMSOutliersFound;	  /* Number of outliers found by the delayMS filter */
@@ -529,6 +579,8 @@ typedef struct
 #endif /* PTPD_STATISTICS */
 	uint32_t maxDelayDrops; /* number of samples dropped due to maxDelay threshold */
 
+	uint32_t sentMessageRate;	/* RX message rate per sec */
+	uint32_t receivedMessageRate;	/* TX message rate per sec */
 
 } PtpdCounters;
 
@@ -546,7 +598,7 @@ typedef struct{
     TimeInternal lastUpdate;
     Boolean runningMaxOutput;
     int dTmethod;
-    int logdT;
+    double dT;
     int maxdT;
 #ifdef PTPD_STATISTICS
     int updateCount;
@@ -562,42 +614,66 @@ typedef struct{
 #endif /* PTPD_STATISTICS */
 } PIservo;
 
+typedef struct {
+	Boolean activity; 		/* periodic check, updateClock sets this to let the watchdog know we're holding clock control */
+	Boolean	available; 	/* flags that we can control the clock */
+	Boolean granted; 	/* upstream watchdog will grant this when we're the best provider */
+	Boolean updateOK;		/* if not, updateClock() will not run */
+	Boolean stepRequired;		/* if set, we need to step the clock */
+	Boolean offsetOK;		/* if set, updateOffset accepted oFm */
+} ClockControlInfo;
 
-#ifdef PTPD_STATISTICS
-	typedef struct {
+typedef struct {
+	Boolean inSync;
+	Boolean leapInsert;
+	Boolean leapDelete;
+	Boolean majorChange;
+	Boolean update;
+	Boolean override; /* this tells the client that this info takes priority
+			   * over whatever the client itself would like to set
+			   * prime example: leap second file
+			   */
+	int utcOffset;
+	long clockOffset;
+} ClockStatusInfo;
 
-	    Boolean enabled;
-	    Boolean discard;
-	    Boolean autoTune;
+typedef struct UnicastGrantTable UnicastGrantTable;
 
-	    int capacity;
-	    double threshold;
-	    double weight;
+typedef struct {
+	UInteger32      duration;		/* grant duration */
+	Boolean		requestable;		/* is this mesage type even requestable? */
+	Boolean		requested;		/* slave: we have requested this */
+	Boolean		canceled;		/* this has been canceled (awaiting ack) */
+	Boolean		cancelCount;		/* how many times we sent the cancel message while waiting for ack */
+	Integer8	logInterval;		/* interval we granted or got granted */
+	Integer8	logMinInterval;		/* minimum interval we're going to request */
+	Integer8	logMaxInterval;		/* maximum interval we're going to request */
+	UInteger16	sentSeqId;		/* used by masters: last sent sequence id */
+	UInteger32	intervalCounter;	/* used as a modulo counter to allow different message rates for different slaves */
+	Boolean		expired;		/* TRUE -> grant has expired */
+	Boolean         granted;		/* master: we have granted this, slave: we have been granted this */
+	UInteger32      timeLeft;		/* countdown timer for aging out grants */
+	UInteger16      messageType;		/* message type this grant is for */
+	UnicastGrantTable *parent;		/* parent entry (that has transportAddress and portIdentity */
+} UnicastGrantData;
 
-	    int minPercent;
-	    int maxPercent;
-	    double step;
+struct UnicastGrantTable {
+	Integer32		transportAddress;	/* IP address of slave (or master) */
+	UInteger8		domainNumber;		/* domain of the master - as used by Telecom Profile */
+	UInteger8		localPreference;		/* local preference - as used by Telecom profile */
+	PortIdentity    	portIdentity;		/* master: port ID of grantee, slave: portID of grantor */
+	UnicastGrantData	grantData[PTP_MAX_MESSAGE];/* master: grantee's grants, slave: grantor's grant status */
+	UInteger32		timeLeft;		/* time until expiry of last grant (max[grants.timeLeft]. when runs out and no renewal, entry can be re-used */
+	Boolean			isPeer;			/* this entry is peer only */
+	UInteger16		lastAnnounce;		/* slave: sequence number of last announce message */
+};
 
-	    double minThreshold;
-	    double maxThreshold;
-
-	} OutlierFilterOptions;
-
-
-	typedef struct {
-
-	    DoubleMovingStdDev* rawStats;
-	    DoubleMovingMean* filteredStats;
-	    Boolean lastOutlier;
-	    double threshold;
-	    int autoTuneSamples;
-	    int autoTuneOutliers;
-	    int autoTuneScore;
-
-	} OutlierFilter;
-
-#endif /* PTPD_STATISTICS */
-
+/* Unicast destination configuration: Address, domain, preference */
+typedef struct {
+    Integer32 transportAddress;
+    UInteger8 domainNumber;
+    UInteger8 localPreference;
+} UnicastDestination;
 
 /**
  * \struct PtpClock
@@ -656,6 +732,7 @@ typedef struct {
 	/*Dynamic members*/
 	Enumeration8 portState;
 	Integer8 logMinDelayReqInterval;
+	Integer8 logMinPdelayReqInterval;
 	TimeInternal peerMeanPathDelay;
  
 	/*Configurable members*/
@@ -663,7 +740,6 @@ typedef struct {
 	UInteger8 announceReceiptTimeout;
 	Integer8 logSyncInterval;
 	Enumeration8 delayMechanism;
-	Integer8 logMinPdelayReqInterval;
 	UInteger4 versionNumber;
 
 
@@ -679,6 +755,26 @@ typedef struct {
 	Boolean  record_update;    /* should we run bmc() after receiving an announce message? */
 
 
+	/* unicast grant table - our own grants or our slaves' grants or grants to peers */
+	UnicastGrantTable unicastGrants[UNICAST_MAX_DESTINATIONS];
+	/* current parent from the above table */
+	UnicastGrantTable *parentGrants;
+	/* previous parent's grants when changing parents: if not null, this is what should be canceled */
+	UnicastGrantTable *previousGrants;
+
+	/* unicast destinations parsed from config */
+	UnicastDestination unicastDestinations[UNICAST_MAX_DESTINATIONS];
+	int unicastDestinationCount;
+
+	/* number of slaves we have granted Announce to */
+	int slaveCount;
+
+	/* unicast destination for pdelay */
+	UnicastDestination  unicastPeerDestination;
+
+	/* support for unicast negotiation in P2P mode */
+	UnicastGrantTable peerGrants;
+
 	MsgHeader msgTmpHeader;
 
 	union {
@@ -686,15 +782,16 @@ typedef struct {
 		MsgFollowUp  follow;
 		MsgDelayReq  req;
 		MsgDelayResp resp;
-		MsgPDelayReq  preq;
-		MsgPDelayResp  presp;
-		MsgPDelayRespFollowUp  prespfollow;
+		MsgPdelayReq  preq;
+		MsgPdelayResp  presp;
+		MsgPdelayRespFollowUp  prespfollow;
 		MsgManagement  manage;
 		MsgAnnounce  announce;
 		MsgSignaling signaling;
 	} msgTmp;
 
 	MsgManagement outgoingManageTmp;
+	MsgSignaling outgoingSignalingTmp;
 
 	Octet msgObuf[PACKET_SIZE];
 	Octet msgIbuf[PACKET_SIZE];
@@ -725,14 +822,15 @@ typedef struct {
 	TimeInternal  lastSyncCorrectionField;
 	TimeInternal  lastPdelayRespCorrectionField;
 
-	Boolean  sentPDelayReq;
-	UInteger16  sentPDelayReqSequenceId;
+	Boolean  sentPdelayReq;
+	UInteger16  sentPdelayReqSequenceId;
 	UInteger16  sentDelayReqSequenceId;
 	UInteger16  sentSyncSequenceId;
 	UInteger16  sentAnnounceSequenceId;
-	UInteger16  recvPDelayReqSequenceId;
+	UInteger16  sentSignalingSequenceId;
+	UInteger16  recvPdelayReqSequenceId;
 	UInteger16  recvSyncSequenceId;
-	UInteger16  recvPDelayRespSequenceId;
+	UInteger16  recvPdelayRespSequenceId;
 	Boolean  waitingForFollow;
 	Boolean  waitingForDelayResp;
 	
@@ -741,7 +839,7 @@ typedef struct {
 
 	Boolean message_activity;
 
-	IntervalTimer  itimer[TIMER_ARRAY_SIZE];
+	IntervalTimer  timers[PTP_MAX_TIMER];
 
 	NetPath netPath;
 
@@ -765,11 +863,13 @@ typedef struct {
 
 	char char_last_msg;                             /* representation of last message processed by servo */
 
-	int waiting_for_first_sync;                     /* we'll only start the delayReq timer after the first sync */
-	int waiting_for_first_delayresp;                /* Just for information purposes */
+	int syncWaiting;                     /* we'll only start the delayReq timer after the first sync */
+	int delayRespWaiting;                /* Just for information purposes */
 	Boolean startup_in_progress;
 
 	Boolean pastStartup;				/* we've set the clock already, at least once */
+
+	Boolean	offsetFirstUpdated;
 
 	uint32_t init_timestamp;                        /* When the clock was last initialised */
 	Integer32 stabilisation_time;                   /* How long (seconds) it took to stabilise the clock */
@@ -779,9 +879,10 @@ typedef struct {
 	/* user description is max size + 1 to leave space for a null terminator */
 	Octet user_description[USER_DESCRIPTION_MAX + 1];
 
-
-	Integer32 masterAddr;                           // used for hybrid mode, when receiving announces
-	Integer32 LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
+	Integer32 	masterAddr;                           // used for hybrid mode, when receiving announces
+	Integer32 	LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
+	Integer32	lastSyncDst;		/* captures the destination address for last sync, so we know where to send the followUp */
+	Integer32	lastPdelayRespDst;	/* captures the destination address of last pdelayResp so we know where to send the pdelayRespfollowUp */
 
 	/*
 	 * counters - useful for debugging and monitoring,
@@ -798,6 +899,23 @@ typedef struct {
 	Boolean panicOver; /* panic mode is over, we can reset the clock */
 	int panicModeTimeLeft; /* How many 30-second periods left in panic mode */
 
+	/* used to wait on failure while allowing timers to tick */
+	Boolean initFailure;
+	Integer32 initFailureTimeout;
+
+	/* 
+	 * used to inform TimingService about our status, but so 
+	 * that PTP code is independent from LibCCK and glue code can poll this
+	 */
+	ClockControlInfo clockControl;
+	ClockStatusInfo clockStatus;
+
+
+	TimeInternal	rawDelayMS;
+	TimeInternal	rawDelaySM;
+	TimeInternal	rawPdelayMS;
+	TimeInternal	rawPdelaySM;
+
 #ifdef	PTPD_STATISTICS
 	/*
 	 * basic clock statistics information, useful
@@ -807,25 +925,30 @@ typedef struct {
 	*/
 	PtpEngineSlaveStats slaveStats;
 
-	TimeInternal	rawDelayMS;
-	TimeInternal	rawDelaySM;
-	TimeInternal	rawPdelayMS;
-	TimeInternal	rawPdelaySM;
-
 	OutlierFilter 	oFilterMS;
 	OutlierFilter	oFilterSM;
 
-	DoubleMovingMedian *filterMS;
-
-	Integer32 lastSyncCounter;
-
-	int statsUpdates;
-	Boolean isCalibrated;
+	DoubleMovingStatFilter *filterMS;
+	DoubleMovingStatFilter *filterSM;
 
 #endif
 
-#ifdef PTPD_NTPDC
+	Integer32 acceptedUpdates;
+	Integer32 offsetUpdates;
+
+	Boolean isCalibrated;
+
 	NTPcontrol ntpControl;
+
+	/* the interface to TimingDomain */
+	TimingService timingService;
+
+	/* accumulating offset correction added when smearing leap second */
+	double leapSmearFudge;
+
+	/* testing only - used to add a 1ms offset */
+#if 0
+	Boolean addOffset;
 #endif
 
 } PtpClock;
@@ -836,16 +959,31 @@ typedef struct {
  */
 /* program options set at run-time */
 typedef struct {
-	Integer8 announceInterval;
+	Integer8 logAnnounceInterval;
 	Integer8 announceReceiptTimeout;
-	Boolean slaveOnly;
-	Integer8 syncInterval;
+	Integer8 logSyncInterval;
+	Integer8 logMinDelayReqInterval;
 	Integer8 logMinPdelayReqInterval;
+
+	Boolean slaveOnly;
+
 	ClockQuality clockQuality;
 	TimePropertiesDS timeProperties;
+
 	UInteger8 priority1;
 	UInteger8 priority2;
 	UInteger8 domainNumber;
+	UInteger16 portNumber;
+
+
+	/* Max intervals for unicast negotiation */
+	Integer8 logMaxPdelayReqInterval;
+	Integer8 logMaxDelayReqInterval;
+	Integer8 logMaxSyncInterval;
+	Integer8 logMaxAnnounceInterval;
+
+	/* optional BMC extension: accept any domain, prefer configured domain, prefer lower domain */
+	Boolean anyDomain;
 //	UInteger8 timeSource;
 
 	/*
@@ -859,7 +997,6 @@ typedef struct {
 	int announceTimeoutGracePeriod;
 //	Integer16 currentUtcOffset;
 
-//	Octet ifaceName[IFACE_NAME_LENGTH];
 	Octet* ifaceName;
 	Octet primaryIfaceName[IFACE_NAME_LENGTH];
 	Octet backupIfaceName[IFACE_NAME_LENGTH];
@@ -877,17 +1014,17 @@ typedef struct {
 
 	Integer8 masterRefreshInterval;
 
-	Integer32 maxReset; /* Maximum number of nanoseconds to reset */
+	Integer32 maxOffset; /* Maximum number of nanoseconds of offset */
 	Integer32 maxDelay; /* Maximum number of nanoseconds of delay */
+
 	Boolean	noAdjust;
 
 	Boolean displayPackets;
-	Octet unicastAddress[MAXHOSTNAMELEN];
 	Integer16 s;
 	TimeInternal inboundLatency, outboundLatency, ofmShift;
 	Integer16 max_foreign_records;
 	Enumeration8 delayMechanism;
-	Boolean	offset_first_updated;
+
 	int ttl;
 	int dscpValue;
 #if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H)
@@ -908,6 +1045,11 @@ typedef struct {
 	LogFileHandler eventLog;
 	LogFileHandler statusLog;
 
+	int leapSecondPausePeriod;
+	int leapSecondHandling;
+	Integer32 leapSecondSmearPeriod;
+
+	Boolean periodicUpdates;
 	Boolean logStatistics;
 	int statisticsTimestamp;
 
@@ -921,7 +1063,7 @@ typedef struct {
 	Boolean  nonDaemon;
 
 	int initial_delayreq;
-	int subsequent_delayreq;
+
 	Boolean ignore_delayreq_interval_master;
 	Boolean autoDelayReqInterval;
 
@@ -931,8 +1073,11 @@ typedef struct {
 				       * When automatic lock files used */
 	char lockFile[PATH_MAX]; /* lock file location */
 	char driftFile[PATH_MAX]; /* drift file location */
+	char leapFile[PATH_MAX]; /* leap seconds file location */
 	int drift_recovery_method; /* how the observed drift is managed 
 				      between restarts */
+
+	LeapSecondInfo	leapInfo;
 
 	Boolean snmp_enabled; /* SNMP subsystem enabled / disabled even if 
 				 compiled in */
@@ -941,6 +1086,23 @@ typedef struct {
 			 network stack. */
 	int transport;
 	int ip_mode;
+
+
+	/* list of unicast destinations for use with unicast with or without signaling */
+	char unicastDestinations[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
+	char unicastDomains[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
+	char unicastLocalPreference[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
+
+	Boolean		unicastDestinationsSet;
+	char unicastPeerDestination[MAXHOSTNAMELEN];
+	Boolean		unicastPeerDestinationSet;
+
+	UInteger32	unicastGrantDuration;
+
+	Boolean unicastNegotiation; /* Enable unicast negotiation support */
+	Boolean	unicastNegotiationListening; /* Master: Reply to signaling messages when in LISTENING */
+	Boolean disableBMCA; /* used to achieve master-only for unicast */
+
 #ifdef RUNTIME_DEBUG
 	int debug_level;
 #endif
@@ -980,33 +1142,35 @@ typedef struct {
 	int clockUpdateTimeout;
 
 #ifdef	PTPD_STATISTICS
+	OutlierFilterConfig oFilterMSConfig;
+	OutlierFilterConfig oFilterSMConfig;
 
-	OutlierFilterOptions oFilterMSOpts;
-	OutlierFilterOptions oFilterSMOpts;
+	StatFilterOptions filterMSOpts;
+	StatFilterOptions filterSMOpts;
 
-	Boolean medianFilter;
-	int medianFilterCapacity;
 
-	int calibrationDelay;
-
-	int statsUpdateInterval;
 	Boolean servoStabilityDetection;
 	double servoStabilityThreshold;
 	int servoStabilityTimeout;
 	int servoStabilityPeriod;
 
 	Boolean maxDelayStableOnly;
-
 #endif
+	/* also used by the periodic message ticker */
+	int statsUpdateInterval;
 
+	int calibrationDelay;
 	Boolean enablePanicMode;
+	Boolean panicModeReleaseClock;
 	int panicModeDuration;
 	UInteger32 panicModeExitThreshold;
+	int idleTimeout;
 
-#ifdef PTPD_NTPDC
-	Boolean panicModeNtp;
+
 	NTPoptions ntpOptions;
-#endif
+	Boolean preferNTP;
+
+	int electionDelay; /* timing domain election delay to prevent flapping */
 
 	int maxDelayMaxRejected;
 

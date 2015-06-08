@@ -1,5 +1,5 @@
 ; ========================================
-; PTPDv2 version 2.3.1-rc3 default configuration
+; PTPDv2 version 2.3.1-rc4 default configuration
 ; ========================================
 
 ; NOTE: the following settings are affected by ptpengine:preset selection:
@@ -18,13 +18,13 @@ ptpengine:backup_interface =
 
 ; PTP engine preset:
 ; none	     = Defaults, no clock class restrictions
-; slaveonly   = Slave only (clock class 255 only)
 ; masteronly  = Master, passive when not best master (clock class 0..127)
 ; masterslave = Full IEEE 1588 implementation:
 ; Master, slave when not best master
 ; (clock class 128..254)
+; slaveonly   = Slave only (clock class 255 only)
 ; 
-; Options: none slaveonly masteronly masterslave 
+; Options: none masteronly masterslave slaveonly 
 ptpengine:preset = slaveonly
 
 ; Transport type for PTP packets. Ethernet transport requires libpcap support.
@@ -34,10 +34,24 @@ ptpengine:transport = ipv4
 ; IP transmission mode (requires IP transport) - hybrid mode uses
 ; multicast for sync and announce, and unicast for delay request and
 ; response; unicast mode uses unicast for all transmission.
-; When unicast mode is selected, destination IP must be configured
-; (ptpengine:unicast_address).
+; When unicast mode is selected, destination IP(s) may need to be configured
+; (ptpengine:unicast_destinations).
 ; Options: multicast unicast hybrid 
 ptpengine:ip_mode = multicast
+
+; Enable unicast negotiation support using signaling messages
+; 
+ptpengine:unicast_negotiation = N
+
+; Disable Best Master Clock Algorithm for unicast masters:
+; Only effective for masteronly preset - all Announce messages
+; will be ignored and clock will transition directly into MASTER state.
+; 
+ptpengine:disable_bmca = N
+
+; When unicast negotiation enabled on a master clock, 
+; reply to transmission requests also in LISTENING state.
+ptpengine:unicast_negotiation_listening = N
 
 ; Use libpcap for sending and receiving traffic (automatically enabled
 ; in Ethernet mode).
@@ -51,6 +65,18 @@ ptpengine:delay_mechanism = E2E
 ; PTP domain number.
 ptpengine:domain = 0
 
+; PTP port number (part of PTP Port Identity - not UDP port).
+; For ordinary clocks (single port), the default should be used, 
+; but when running multiple instances to simulate a boundary clock, 
+; The port number can be changed.
+ptpengine:port_number = 1
+
+; Usability extension: if enabled, a slave-only clock will accept
+; masters from any domain, while preferring the configured domain,
+; and preferring lower domain number.
+; NOTE: this behaviour is not part of the standard.
+ptpengine:any_domain = N
+
 ; Slave only mode (sets clock class to 255, overriding value from preset).
 ptpengine:slave_only = Y
 
@@ -62,7 +88,7 @@ ptpengine:outbound_latency = 0
 
 ; Apply an arbitrary shift (nanoseconds) to offset from master when
 ; in slave state. Value can be positive or negative - useful for
-; correcting for of antenna latencies, delay assymetry
+; correcting for antenna latencies, delay assymetry
 ; and IP stack latencies. This will not be visible in the offset 
 ; from master value - only in the resulting clock correction.
 ptpengine:offset_shift = 0
@@ -85,8 +111,21 @@ ptpengine:prefer_utc_offset_valid = N
 ; NOTE: this behaviour is not part of the standard.
 ptpengine:require_utc_offset_valid = N
 
-; PTP announce message interval in master state.(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+; Time (seconds) unicast messages are requested for by slaves
+; when using unicast negotiation, and maximum time unicast message
+; transmission is granted to slaves by masters
+; 
+ptpengine:unicast_grant_duration = 300
+
+; PTP announce message interval in master state. When using unicast negotiation, for
+; slaves this is the minimum interval requested, and for masters
+; this is the only interval granted.
+; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_announce_interval = 1
+
+; Maximum Announce message interval requested by slaves when using unicast negotiation,
+; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+ptpengine:log_announce_interval_max = 5
 
 ; PTP announce receipt timeout announced in master state.
 ptpengine:announce_receipt_timeout = 6
@@ -98,16 +137,22 @@ ptpengine:announce_receipt_timeout = 6
 ; to react. When set to 0, this option is not used.
 ptpengine:announce_receipt_grace_period = 0
 
-; PTP sync message interval in master state
+; PTP sync message interval in master state. When using unicast negotiation, for
+; slaves this is the minimum interval requested, and for masters
+; this is the only interval granted.
 ; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_sync_interval = 0
+
+; Maximum Sync message interval requested by slaves when using unicast negotiation,
+; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+ptpengine:log_sync_interval_max = 5
 
 ; Override the Delay Request interval announced by best master.
 ptpengine:log_delayreq_override = N
 
 ; Automatically override the Delay Request interval
 ; if the announced value is 127 (0X7F), such as in
-; unicast messages,
+; unicast messages (unless using unicast negotiation)
 ptpengine:log_delayreq_auto = Y
 
 ; Delay request interval used before receiving first delay response
@@ -116,13 +161,25 @@ ptpengine:log_delayreq_interval_initial = 0
 
 ; Minimum delay request interval announced when in master state,
 ; in slave state overrides the master interval,
-; required in hybrid mode.
+; required in hybrid mode. When using unicast negotiation, for
+; slaves this is the minimum interval requested, and for masters
+; this is the minimum interval granted.
 ; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_delayreq_interval = 0
 
-; Minimum peer delay request message interval in peer to peer delay mode
+; Maximum Delay Response interval requested by slaves when using unicast negotiation,
+; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+ptpengine:log_delayreq_interval_max = 5
+
+; Minimum peer delay request message interval in peer to peer delay mode.
+; When using unicast negotiation, this is the minimum interval requested, 
+; and the only interval granted.
 ; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
 ptpengine:log_peer_delayreq_interval = 1
+
+; Maximum Peer Delay Response interval requested by slaves when using unicast negotiation,
+; (expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)
+ptpengine:log_peer_delayreq_interval_max = 5
 
 ; Foreign master record size (Maximum number of foreign masters).
 ptpengine:foreignrecord_capacity = 5
@@ -150,7 +207,7 @@ ptpengine:frequency_traceable = N
 ; are ignored by slaves). When clock class is set to 13 (application
 ; specific), this value is ignored and ARB is used.
 ; Options: PTP ARB 
-ptpengine:ptp_timescale = ARB
+ptpengine:ptp_timescale = PTP
 
 ; Time source announced in master state.
 ; Options: ATOMIC_CLOCK GPS TERRESTRIAL_RADIO PTP NTP HAND_SET OTHER INTERNAL_OSCILLATOR 
@@ -177,9 +234,29 @@ ptpengine:priority2 = 128
 ; 
 ptpengine:max_listen = 5
 
-; Specify unicast destination for unicast master mode (in unicast slave mode,
-; overrides delay request destination).
-ptpengine:unicast_address = 
+; Specify unicast slave addresses for unicast master operation, or unicast
+; master addresses for slave operation. Format is similar to an ACL: comma,
+; tab or space-separated IPv4 unicast addresses, one or more. For a slave,
+; when unicast negotiation is used, setting this is mandatory.
+ptpengine:unicast_destinations = 
+
+; Specify PTP domain number for each configured unicast destination (ptpengine:unicast_destinations).
+; This is only used by slave-only clocks using unicast destinations to allow for each master
+; to be in a separate domain, such as with Telecom Profile. The number of entries should match the number
+; of unicast destinations, otherwise unconfigured domains or domains set to 0 are set to domain configured in
+; ptpengine:domain. The format is a comma, tab or space-separated list of 8-bit unsigned integers (0 .. 255)
+ptpengine:unicast_domains = 
+
+; Specify a local preference for each configured unicast destination (ptpengine:unicast_destinations).
+; This is only used by slave-only clocks using unicast destinations to allow for each master's
+; BMC selection to be influenced by the slave, such as with Telecom Profile. The number of entries should match the number
+; of unicast destinations, otherwise unconfigured preference is set to 0 (highest).
+; The format is a comma, tab or space-separated list of 8-bit unsigned integers (0 .. 255)
+ptpengine:unicast_local_preference = 
+
+; Specify peer unicast adress for P2P unicast. Mandatory when
+; running unicast mode and P2P delay mode.
+ptpengine:unicast_peer_destination = 
 
 ; Enable handling of PTP management messages.
 ptpengine:management_enable = Y
@@ -204,11 +281,35 @@ ptpengine:multicast_ttl = 64
 ; this option is not used. Use 46 for Expedited Forwarding (0x2e).
 ptpengine:ip_dscp = 0
 
-; Enable median filtering / smoothing filter for Sync messages.
-ptpengine:sync_median_filter_enable = Y
+; Enable statistical filter for Sync messages.
+ptpengine:sync_stat_filter_enable = N
 
-; Number of samples to take median from when filtering Sync messages.
-ptpengine:sync_median_filter_samples = 3
+; Type of filter used for Sync message filtering
+; Options: none mean min max absmin absmax median 
+ptpengine:sync_stat_filter_type = min
+
+; Number of samples used for the Sync statistical filter
+ptpengine:sync_stat_filter_window = 4
+
+; Sample window type used for Sync message statistical filter. Delay Response outlier filter action.
+; Sliding window is continuous, interval passes every n-th sample only.
+; Options: sliding interval 
+ptpengine:sync_stat_filter_window_type = sliding
+
+; Enable statistical filter for Delay messages.
+ptpengine:delay_stat_filter_enable = N
+
+; Type of filter used for Delay message statistical filter
+; Options: none mean min max absmin absmax median 
+ptpengine:delay_stat_filter_type = min
+
+; Number of samples used for the Delay statistical filter
+ptpengine:delay_stat_filter_window = 4
+
+; Sample window type used for Delay message statistical filter
+; Sliding window is continuous, interval passes every n-th sample only
+; Options: sliding interval 
+ptpengine:delay_stat_filter_window_type = sliding
 
 ; Enable outlier filter for the Delay Response component in slave state
 ptpengine:delay_outlier_filter_enable = N
@@ -216,18 +317,22 @@ ptpengine:delay_outlier_filter_enable = N
 ; Delay Response outlier filter action. If set to 'filter', outliers are
 ; replaced with moving average.
 ; Options: discard filter 
-ptpengine:delay_outlier_filter_action = filter
+ptpengine:delay_outlier_filter_action = discard
 
 ; Number of samples in the Delay Response outlier filter buffer
 ptpengine:delay_outlier_filter_capacity = 20
 
-; Delay Response outlier filter threshold: multiplier for Peirce's maximum
+; Delay Response outlier filter threshold (: multiplier for Peirce's maximum
 ; standard deviation. When set below 1.0, filter is tighter, when set above
 ; 1.0, filter is looser than standard Peirce's test.
+; When autotune enabled, this is the starting threshold.
 ptpengine:delay_outlier_filter_threshold = 1.000000
 
+; Always run the Delay Response outlier filter, even if clock is being slewed at maximum rate
+ptpengine:delay_outlier_filter_always_filter = N
+
 ; Enable automatic threshold control for Delay Response outlier filter.
-ptpengine:delay_outlier_filter_autotune_enable = N
+ptpengine:delay_outlier_filter_autotune_enable = Y
 
 ; Delay Response outlier filter autotune low watermark - minimum percentage
 ; of discarded samples in the update period before filter is tightened
@@ -249,6 +354,24 @@ ptpengine:delay_outlier_filter_autotune_minthreshold = 0.100000
 ; Maximum Delay Response filter threshold value used when auto-tuning
 ptpengine:delay_outlier_filter_autotune_maxthreshold = 5.000000
 
+; Enable Delay filter step detection (delaySM) to block when certain level exceeded
+ptpengine:delay_outlier_filter_stepdetect_enable = N
+
+; Delay Response step detection threshold. Step detection is performed
+; only when delaySM is below this threshold (nanoseconds)
+ptpengine:delay_outlier_filter_stepdetect_threshold = 1000000
+
+; Delay Response step level. When step detection enabled and operational,
+; delaySM above this level (nanosecond) is considered a clock step and updates are paused
+ptpengine:delay_outlier_filter_stepdetect_level = 500000
+
+; Initial credit (number of samples) the Delay step detection filter can block for
+; When credit is exhausted, filter stops blocking. Credit is gradually restored
+ptpengine:delay_outlier_filter_stepdetect_credit = 200
+
+; Amount of credit for the Delay step detection filter restored every full sample window
+ptpengine:delay_outlier_filter_stepdetect_credit_increment = 10
+
 ; Delay Response outlier weight: if an outlier is detected, determines
 ; the amount of its deviation from mean that is used to build the standard
 ; deviation statistics and influence further outlier detection.
@@ -261,7 +384,7 @@ ptpengine:sync_outlier_filter_enable = N
 ; Sync outlier filter action. If set to 'filter', outliers are replaced
 ; with moving average.
 ; Options: discard filter 
-ptpengine:sync_outlier_filter_action = filter
+ptpengine:sync_outlier_filter_action = discard
 
 ; Number of samples in the Sync outlier filter buffer.
 ptpengine:sync_outlier_filter_capacity = 20
@@ -271,8 +394,11 @@ ptpengine:sync_outlier_filter_capacity = 20
 ; filter is looser than standard Peirce's test.
 ptpengine:sync_outlier_filter_threshold = 1.000000
 
+; Always run the Sync outlier filter, even if clock is being slewed at maximum rate
+ptpengine:sync_outlier_filter_always_filter = N
+
 ; Enable automatic threshold control for Sync outlier filter.
-ptpengine:sync_outlier_filter_autotune_enable = N
+ptpengine:sync_outlier_filter_autotune_enable = Y
 
 ; Sync outlier filter autotune low watermark - minimum percentage
 ; of discarded samples in the update period before filter is tightened
@@ -294,18 +420,40 @@ ptpengine:sync_outlier_filter_autotune_minthreshold = 0.100000
 ; Maximum Sync outlier filter threshold value used when auto-tuning
 ptpengine:sync_outlier_filter_autotune_maxthreshold = 5.000000
 
+; Enable Sync filter step detection (delayMS) to block when certain level exceeded.
+ptpengine:sync_outlier_filter_stepdetect_enable = N
+
+; Sync step detection threshold. Step detection is performed
+; only when delayMS is below this threshold (nanoseconds)
+ptpengine:sync_outlier_filter_stepdetect_threshold = 1000000
+
+; Sync step level. When step detection enabled and operational,
+; delayMS above this level (nanosecond) is considered a clock step and updates are paused
+ptpengine:sync_outlier_filter_stepdetect_level = 500000
+
+; Initial credit (number of samples) the Sync step detection filter can block for.
+; When credit is exhausted, filter stops blocking. Credit is gradually restored
+ptpengine:sync_outlier_filter_stepdetect_credit = 200
+
+; Amount of credit for the Sync step detection filter restored every full sample window
+ptpengine:sync_outlier_filter_stepdetect_credit_increment = 10
+
 ; Sync outlier weight: if an outlier is detected, this value determines the
 ; amount of its deviation from mean that is used to build the standard 
 ; deviation statistics and influence further outlier detection.
 ; When set to 1.0, the outlier is used as is.
 ptpengine:sync_outlier_weight = 1.000000
 
-; Delay between moving to slave state and enabling clock updates, expressed
-; as number of statistics update periods (global:statistics_update_interval).
+; Delay between moving to slave state and enabling clock updates (seconds).
 ; This allows one-way delay to stabilise before starting clock updates.
 ; Activated when going into slave state and during slave's GM failover.
 ; 0 - not used.
 ptpengine:calibration_delay = 0
+
+; PTP idle timeout: if PTPd is in SLAVE state and there have been no clock
+; updates for this amout of time, PTPd releases clock control.
+; 
+ptpengine:idle_timeout = 120
 
 ; Enable panic mode: when offset from master is above 1 second, stop updating
 ; the clock for a period of time and then step the clock if offset remains
@@ -315,6 +463,11 @@ ptpengine:panic_mode = N
 ; Duration (minutes) of the panic mode period (no clock updates) when offset
 ; above 1 second detected.
 ptpengine:panic_mode_duration = 2
+
+; When entering panic mode, release clock control while panic mode lasts
+; if ntpengine:* configured, this will fail over to NTP,
+; if not set, PTP will hold clock control during panic mode.
+ptpengine:panic_mode_release_clock = N
 
 ; Do not exit panic mode until offset drops below this value (nanoseconds).
 ; 0 = not used.
@@ -329,51 +482,45 @@ ptpengine:pid_as_clock_identity = N
 ptpengine:ntp_failover = N
 
 ; NTP failover timeout in seconds: time between PTP slave going into
-; LISTENING state, and failing over to NTP. 0 = fail over immediately.
-ptpengine:ntp_failover_timeout = 60
+; LISTENING state, and releasing clock control. 0 = fail over immediately.
+ptpengine:ntp_failover_timeout = 120
 
-; Prefer NTP time synchronisation when not controlling the clock (all states,
-; including slave when clock:no_adjust set).
+; Prefer NTP time synchronisation. Only use PTP when NTP not available,
+; could be used when NTP runs with a local GPS receiver or another reference
 ptpengine:prefer_ntp = N
 
-; When entering panic mode, fail over to NTP (after the NTP failover timeout
-; period) - requires ntpengine:enabled but does not require the rest of NTP
-; configuration - will warn instead of failing over if it cannot control ntpd.
+; Legacy option from 2.3.0: same as ptpengine:panic_mode_release_clock
 ptpengine:panic_mode_ntp = N
 
 ; Clear counters after dumping all counter values on SIGUSR2.
 ptpengine:sigusr2_clears_counters = N
 
 ; Permit access control list for timing packets. Format is a series of 
-; comma-separated network prefixes in full CIDR notation a.b.c.d/x where
-; a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
-; mask is required for the ACL to be parsed correctly. The match is performed
-; on the source IP address of the incoming messages. IP access lists are
-; only supported when using the IP transport.
+; comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,
+; where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the
+; subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the
+; incoming messages. IP access lists are only supported when using the IP transport.
 ptpengine:timing_acl_permit = 
 
 ; Deny access control list for timing packets. Format is a series of 
-; comma-separated network prefixes in full CIDR notation a.b.c.d/x where
-; a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
-; mask is required for the ACL to be parsed correctly. The match is performed
-; on the source IP address of the incoming messages. IP access lists are
-; only supported when using the IP transport.
+; comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,
+; where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the
+; subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the
+; incoming messages. IP access lists are only supported when using the IP transport.
 ptpengine:timing_acl_deny = 
 
 ; Permit access control list for management messages. Format is a series of 
-; comma-separated network prefixes in full CIDR notation a.b.c.d/x where
-; a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
-; mask is required for the ACL to be parsed correctly. The match is performed
-; on the source IP address of the incoming messages. IP access lists are
-; only supported when using the IP transport.
+; comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,
+; where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the
+; subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the
+; incoming messages. IP access lists are only supported when using the IP transport.
 ptpengine:management_acl_permit = 
 
 ; Deny access control list for management messages. Format is a series of 
-; comma-separated network prefixes in full CIDR notation a.b.c.d/x where
-; a.b.c.d is the subnet and x is the mask. For single IP addresses, a /32
-; mask is required for the ACL to be parsed correctly. The match is performed
-; on the source IP address of the incoming messages. IP access lists are
-; only supported when using the IP transport.
+; comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,
+; where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the
+; subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the
+; incoming messages. IP access lists are only supported when using the IP transport.
 ptpengine:management_acl_deny = 
 
 ; Order in which permit and deny access lists are evaluated for timing
@@ -401,8 +548,9 @@ clock:step_startup = N
 
 ; Attempt setting the RTC when stepping clock (Linux only - FreeBSD does 
 ; this for us. WARNING: this will always set the RTC to OS clock time,
-; regardless of time zones, so this assumes that RTC runs in UTC - 
-; true at least on most single-boot x86 Linux systems.
+; regardless of time zones, so this assumes that RTC runs in UTC or 
+; at least in the same timescale as PTP. true at least on most 
+; single-boot x86 Linux systems.
 clock:set_rtc_on_step = N
 
 ; Observed drift handling method between servo restarts:
@@ -415,6 +563,28 @@ clock:drift_handling = preserve
 
 ; Specify drift file
 clock:drift_file = /etc/ptpd2_kernelclock.drift
+
+; Time (seconds) before and after midnight that clock updates should pe suspended for
+; during a leap second event. The total duration of the pause is twice
+; the configured duration
+clock:leap_second_pause_period = 5
+
+; Specify leap second file location - up to date version can be downloaded from 
+; http://www.ietf.org/timezones/data/leap-seconds.list
+clock:leap_seconds_file = 
+
+; Behaviour during a leap second event:
+; accept: inform the OS kernel of the event
+; ignore: do nothing - ends up with a 1-second offset which is then slewed
+; step: similar to ignore, but steps the clock immediately after the leap second event
+; smear: do not inform kernel, gradually introduce the leap second before the event
+; by modifying clock offset (see clock:leap_second_smear_period)
+; Options: accept ignore step smear 
+clock:leap_second_handling = accept
+
+; Time period (Seconds) over which the leap second is introduced before the event.
+; Example: when set to 86400 (24 hours), an extra 11.5 microseconds is added every second
+clock:leap_second_smear_period = 86400
 
 ; Maximum absolute frequency shift which can be applied to the clock servo
 ; when slewing the clock. Expressed in parts per million (1 ppm = shift of
@@ -451,11 +621,11 @@ servo:stability_detection = N
 ; Specify the observed drift standard deviation threshold in parts per
 ; billion (ppb) - if stanard deviation is within the threshold, servo
 ; is considered stable.
-servo:stability_threshold = 5.000000
+servo:stability_threshold = 10.000000
 
 ; Specify for how many statistics update intervals the observed drift
 ; standard deviation has to stay within threshold to be considered stable.
-servo:stability_period = 3
+servo:stability_period = 1
 
 ; Specify after how many minutes without stabilisation servo is considered
 ; unstable. Assists with logging servo stability information and
@@ -475,7 +645,7 @@ servo:max_delay_max_rejected = 0
 ; 
 servo:max_delay_stable_only = N
 
-; When enabled, Sync messages will only be accepted if sequence ID is increasing.
+; When enabled, Sync messages will only be accepted if sequence ID is increasing.        This is limited to 50 dropped messages.
 ; 
 ptpengine:sync_sequence_checking = N
 
@@ -533,6 +703,10 @@ global:log_status = N
 
 ; Status file update interval in seconds.
 global:status_update_interval = 1
+
+; Specify debug level (if compiled with RUNTIME_DEBUG).
+; Options: LOG_INFO LOG_DEBUG LOG_DEBUG1 LOG_DEBUG2 LOG_DEBUG3 LOG_DEBUGV 
+global:debug_level = LOG_INFO
 
 ; Specify log file path (event log). Setting this enables logging to file.
 global:log_file = 
@@ -604,7 +778,15 @@ global:cpuaffinity_cpucore = -1
 
 ; Clock synchronisation statistics update interval in seconds
 ; 
-global:statistics_update_interval = 5
+global:statistics_update_interval = 30
+
+; Log a status update every time statistics are updated (global:statistics_update_interval)
+; 
+global:periodic_updates = N
+
+;  Delay (seconds) before releasing a time service (NTP or PTP)        and electing a new one to control a clock. 0 = elect immediately
+; 
+global:timingdomain_election_delay = 15
 
 ; Enable NTPd integration
 ntpengine:enabled = N

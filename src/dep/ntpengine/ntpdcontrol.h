@@ -1,5 +1,5 @@
 /*
- * ntpdcontrol.h - definitions for the ntpd remote query facility
+ * ntpdcontrol.h - definitions for the ntpd remote query and control facility
  */
 
 #ifndef NTPDCONTROL_H
@@ -7,12 +7,13 @@
 
 #include "../../ptpd.h"
 
+#include "../../timingdomain.h"
+
 typedef struct {
 
 	Boolean enableEngine;
 	Boolean enableControl;
 	Boolean enableFailover;
-	Boolean ntpInControl;
 	int failoverTimeout;
 	int checkInterval;
 	int keyId;
@@ -32,6 +33,7 @@ typedef struct {
 	int originalFlags;
 	Integer32 serverAddress;
 	Integer32 sockFD;
+	struct TimingService timingService;
 } NTPcontrol;
 
 Boolean ntpInit(NTPoptions* options, NTPcontrol* control);
@@ -40,7 +42,7 @@ int ntpdControlFlags(NTPoptions* options, NTPcontrol* control, int req, int flag
 int ntpdSetFlags(NTPoptions* options, NTPcontrol* control, int flags);
 int ntpdClearFlags(NTPoptions* options, NTPcontrol* control, int flags);
 int ntpdInControl(NTPoptions* options, NTPcontrol* control);
-Boolean ntpdControl(NTPoptions* options, NTPcontrol* control, Boolean quiet);
+//Boolean ntpdControl(NTPoptions* options, NTPcontrol* control, Boolean quiet);
 
 
 #define NTPCONTROL_YES		128

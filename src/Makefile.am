@@ -13,12 +13,13 @@ if LINUX_KERNEL_HEADERS
 AM_CFLAGS += $(LINUX_KERNEL_INCLUDES)
 endif
 
-AM_CPPFLAGS    += $(PTP_DBL) $(PTP_DAEMON) $(PTP_EXP) $(PTP_SNMP) $(PTP_PCAP) $(PTP_STATISTICS) $(PTP_NTPDC)
+AM_CPPFLAGS    += $(PTP_DBL) $(PTP_DAEMON) $(PTP_EXP) $(PTP_SNMP) $(PTP_PCAP) $(PTP_STATISTICS) $(PTP_SLAVE_ONLY) $(PTP_PTIMERS) $(PTP_UNICAST_MAX)
 
 NULL=
 
 #VERSION = 2.3.1
 #SHAREDLIBVER = $(SHAREDLIB).$(VERSION)
+#	ptp_timers.c			
 
 EXTRA_DIST = def
 
@@ -34,6 +35,10 @@ ptpd2_SOURCES =				\
 	dep/msg.c			\
 	dep/net.c			\
 	dep/ptpd_dep.h			\
+	dep/eventtimer.h		\
+	dep/eventtimer.c		\
+	ptp_timers.h			\
+	ptp_timers.c			\
 	dep/servo.c			\
 	dep/iniparser/dictionary.h	\
 	dep/iniparser/iniparser.h	\
@@ -43,10 +48,16 @@ ptpd2_SOURCES =				\
 	dep/daemonconfig.c		\
 	dep/startup.c			\
 	dep/sys.c			\
-	dep/timer.c			\
 	display.c			\
 	management.c			\
+	signaling.c			\
 	protocol.c			\
+	dep/ntpengine/ntp_isc_md5.c	\
+	dep/ntpengine/ntp_isc_md5.h	\
+	dep/ntpengine/ntpdcontrol.c	\
+	dep/ntpengine/ntpdcontrol.h	\
+	timingdomain.h			\
+	timingdomain.c			\
 	ptpd.c				\
 	ptpd.h				\
 	$(NULL)
@@ -64,12 +75,11 @@ ptpd2_SOURCES += dep/outlierfilter.h
 ptpd2_SOURCES += dep/outlierfilter.c
 endif
 
-# NTP control
-if NTPDC
-ptpd2_SOURCES += dep/ntpengine/ntp_isc_md5.c
-ptpd2_SOURCES += dep/ntpengine/ntp_isc_md5.h
-ptpd2_SOURCES += dep/ntpengine/ntpdcontrol.c
-ptpd2_SOURCES += dep/ntpengine/ntpdcontrol.h
+# posix timers
+if PTIMERS
+ptpd2_SOURCES +=dep/eventtimer_posix.c
+else
+ptpd2_SOURCES +=dep/eventtimer_itimer.c
 endif
 
 CSCOPE = cscope
