@@ -415,7 +415,7 @@ void msgDelayResp_display(const MsgDelayResp * resp);
 void msgPdelayResp_display(const MsgPdelayResp * presp);
 void msgPdelayRespFollowUp_display(const MsgPdelayRespFollowUp * prespfollow);
 void msgManagement_display(const MsgManagement * manage);
-void msgSignaling_display(const MsgSignaling * signaling);                  
+void msgSignaling_display(const MsgSignaling * signaling);
 
 void mMSlaveOnly_display(const MMSlaveOnly*, const PtpClock*);
 void mMClockDescription_display(const MMClockDescription*, const PtpClock*);
@@ -438,7 +438,7 @@ void mMClockAccuracy_display(const MMClockAccuracy*, const PtpClock*);
 void mMUtcProperties_display(const MMUtcProperties*, const PtpClock*);
 void mMTraceabilityProperties_display(const MMTraceabilityProperties*, const PtpClock*);
 void mMDelayMechanism_display(const MMDelayMechanism*, const PtpClock*);
-void mMlogMinPdelayReqInterval_display(const MMLogMinPdelayReqInterval*, const PtpClock*);
+void mMLogMinPdelayReqInterval_display(const MMLogMinPdelayReqInterval*, const PtpClock*);
 void mMErrorStatus_display(const MMErrorStatus*, const PtpClock*);
 
 void sMRequestUnicastTransmission_display(const SMRequestUnicastTransmission*, const PtpClock*);

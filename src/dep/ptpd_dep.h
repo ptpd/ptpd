@@ -121,10 +121,11 @@
 #undef PTPD_DBG
 #define PTPD_DBG
 #define DBG2(x, ...) logMessage(LOG_DEBUG2, x, ##__VA_ARGS__)
-#define DBG2_LOCAL (x, ...) DBG2(LOCAL_PREFIX": " x,##__VA_ARGS__)
+#define DBG2_LOCAL(x, ...) DBG2(LOCAL_PREFIX": " x,##__VA_ARGS__)
 #define DBG2_LOCAL_ID(o,x, ...)	DBG2(LOCAL_PREFIX".%s:"x,o->id,##__VA_ARGS__)
 
 #else
+
 #define DBG2(x, ...)
 #define DBG2_LOCAL(x, ...)
 #define DBG2_LOCAL_ID(x, ...)

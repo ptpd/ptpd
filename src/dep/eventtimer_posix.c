@@ -134,7 +134,7 @@ eventTimerStop_posix(EventTimer *timer)
 
 	timer->running = FALSE;
 
-	DBG2("timerSop: stopped timer %s\n", timer->id);
+	DBG2("timerStop: stopped timer %s\n", timer->id);
 
 }
 
