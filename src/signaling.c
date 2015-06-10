@@ -187,7 +187,13 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS, TRUE);
 
 	if(nodeTable == NULL) {
-		INFO("REQUEST_UNICAST_TRANSMISSION: did not find node in slave table: %s (%s)\n", inet_ntoa(tmpAddr),portId);
+		if(ptpClock->slaveCount >= UNICAST_MAX_DESTINATIONS) {
+			DBG("REQUEST_UNICAST_TRANSMISSION (%s): did not find node in slave table : %s (%s) - table full\n", getMessageTypeName(messageType)
+			inet_ntoa(tmpAddr),portId);
+		} else {
+		DBG("REQUEST_UNICAST_TRANSMISSION (%s): did not find node in slave table: %s (%s)\n", getMessageTypeName(messageType)
+			inet_ntoa(tmpAddr),portId);
+		}
 		return;
 	}
 
@@ -1066,7 +1072,7 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 		    }
 		}
 
-		if(!everyN && grantData->messageType == ANNOUNCE && (nodeTable != ptpClock->parentGrants)) {
+		if(ptpClock->slaveOnly && !everyN && grantData->messageType == ANNOUNCE && (nodeTable != ptpClock->parentGrants)) {
 			if(nodeTable->lastAnnounce == 0) {
 			    DBG("foreign master: no Announce being received - will request again\n");
 				actionRequired = TRUE;
