@@ -91,7 +91,7 @@ typedef struct {
 	/* Typically MAC address - outer 6 octers of ClockIdendity */
 	Octet interfaceID[ETHER_ADDR_LEN];
 	/* source address of last received packet - used for unicast replies to Delay Requests */
-	Integer32 lastRecvAddr;
+	Integer32 lastSourceAddr;
 	/* destination address of last received packet - used for unicast FollowUp for multiple slaves*/
 	Integer32 lastDestAddr;
 

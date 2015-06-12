@@ -822,7 +822,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->timeProperties.frequencyTraceable = FALSE;
 	rtOpts->timeProperties.ptpTimescale = TRUE;
 
-	rtOpts->ip_mode = IPMODE_MULTICAST;
+	rtOpts->ipMode = IPMODE_MULTICAST;
 
 	rtOpts->unicastNegotiation = FALSE;
 	rtOpts->unicastNegotiationListening = FALSE;
@@ -1239,15 +1239,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"ethernet", 	IEEE_802_3
 				);
 
-#ifdef PTPD_PCAP
-	/* ethernet mode - cannot specify IP mode */
-	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:ip_mode",
-	 			    rtOpts->transport == IEEE_802_3,
-	 			    "ethernet",
-	 			    "ptpengine:ip_mode");
-#endif
-
-	CONFIG_MAP_SELECTVALUE("ptpengine:ip_mode", rtOpts->ip_mode, rtOpts->ip_mode,
+	CONFIG_MAP_SELECTVALUE("ptpengine:ip_mode", rtOpts->ipMode, rtOpts->ipMode,
 		"IP transmission mode (requires IP transport) - hybrid mode uses\n"
 	"	 multicast for sync and announce, and unicast for delay request and\n"
 	"	 response; unicast mode uses unicast for all transmission.\n"
@@ -1258,7 +1250,6 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"hybrid", 	IPMODE_HYBRID
 				);
 
-
 	CONFIG_MAP_BOOLEAN("ptpengine:unicast_negotiation",rtOpts->unicastNegotiation,rtOpts->unicastNegotiation,
 		"Enable unicast negotiation support using signaling messages\n");
 
@@ -1266,13 +1257,13 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 			    "ptpengine:unicast_negotiation", 
 				"Unicast negotiation cannot be used with Ethernet transport\n");
 
-	CONFIG_KEY_CONDITIONAL_WARNING((rtOpts->ip_mode != IPMODE_UNICAST) && rtOpts->unicastNegotiation,
+	CONFIG_KEY_CONDITIONAL_WARNING((rtOpts->ipMode != IPMODE_UNICAST) && rtOpts->unicastNegotiation,
 	 			    "ptpengine:unicast_negotiation", 
 				"Unicast negotiation can only be used with unicast transmission\n");
 
 	/* disable unicast negotiation unless running unicast */
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3,rtOpts->unicastNegotiation,FALSE,rtOpts->unicastNegotiation);
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->ip_mode != IPMODE_UNICAST,rtOpts->unicastNegotiation,FALSE,rtOpts->unicastNegotiation);
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->ipMode != IPMODE_UNICAST,rtOpts->unicastNegotiation,FALSE,rtOpts->unicastNegotiation);
 
 	CONFIG_MAP_BOOLEAN("ptpengine:disable_bmca",rtOpts->disableBMCA,rtOpts->disableBMCA,
 		"Disable Best Master Clock Algorithm for unicast masters:\n"
@@ -1620,13 +1611,13 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 */
 
 	/* hybrid mode -> should specify delayreq interval: override set in the bottom of this function */
-	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ip_mode == IPMODE_HYBRID,
+	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ipMode == IPMODE_HYBRID,
     		    "ptpengine:log_delayreq_interval",
 		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in hybrid mode"
 	);
 
 	/* unicast mode -> should specify delayreq interval if we can become a slave */
-	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ip_mode == IPMODE_UNICAST &&
+	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ipMode == IPMODE_UNICAST &&
 		    rtOpts->clockQuality.clockClass > 127,
 		    "ptpengine:log_delayreq_interval",
 		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in unicast mode"
@@ -1637,7 +1628,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	/* unicast signaling slave -> must specify unicast destination(s) */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
 				     rtOpts->clockQuality.clockClass > 127 && 
-				    rtOpts->ip_mode == IPMODE_UNICAST && 
+				    rtOpts->ipMode == IPMODE_UNICAST && 
 				    rtOpts->unicastNegotiation,
 				    "unicast",
 				    "ptpengine:unicast_destinations");
@@ -1645,7 +1636,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	/* unicast master without signaling - must specify unicast destinations */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
 				     rtOpts->clockQuality.clockClass <= 127 && 
-				    rtOpts->ip_mode == IPMODE_UNICAST && 
+				    rtOpts->ipMode == IPMODE_UNICAST && 
 				    !rtOpts->unicastNegotiation,
 				    "unicast",
 				    "ptpengine:unicast_destinations");
@@ -1675,7 +1666,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	/* unicast P2P - must specify unicast peer destination */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:delay_mechanism",
 					rtOpts->delayMechanism == P2P &&
-				    rtOpts->ip_mode == IPMODE_UNICAST,
+				    rtOpts->ipMode == IPMODE_UNICAST,
 				    "P2P",
 				    "ptpengine:unicast_peer_destination");
 
@@ -2484,7 +2475,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 * We're in hybrid mode and we haven't specified the delay request interval:
 	 * use override with a default value
 	 */
-	if((rtOpts->ip_mode == IPMODE_HYBRID) &&
+	if((rtOpts->ipMode == IPMODE_HYBRID) &&
 	 !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
 		rtOpts->ignore_delayreq_interval_master=TRUE;
 
@@ -2492,7 +2483,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 * We're in unicast slave-capable mode and we haven't specified the delay request interval:
 	 * use override with a default value
 	 */
-	if((rtOpts->ip_mode == IPMODE_UNICAST && 
+	if((rtOpts->ipMode == IPMODE_UNICAST && 
 	    rtOpts->clockQuality.clockClass > 127) &&
 	    !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
 		rtOpts->ignore_delayreq_interval_master=TRUE;

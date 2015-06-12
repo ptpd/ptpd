@@ -592,7 +592,7 @@ AC_MSG_CHECKING([for maximum unicast destination table size])
 AC_ARG_WITH(
     [max-unicast-destinations],
     [AS_HELP_STRING(
-	[--with-max-unicast-destinations = [ 16 .. 512]],
+	[--with-max-unicast-destinations = [ 16 .. 1024]],
 	[Change maximum supported number of unicast destinations - 
 	    this determines the maximum supported number of slaves 
 	    in unicast mode (with and without signaling)]
@@ -602,7 +602,7 @@ AC_ARG_WITH(
 )
 
 test $max_destinations -lt 16 && max_destinations=16
-test $max_destinations -gt 512 && max_destinations=512
+test $max_destinations -gt 1024 && max_destinations=1024
 PTP_UNICAST_MAX="-DPTPD_UNICAST_MAX=$max_destinations"
 AC_SUBST([PTP_UNICAST_MAX])
 AC_MSG_RESULT([$max_destinations])
@@ -662,6 +662,26 @@ esac
 AC_SUBST(PTP_STATISTICS)
 
 AM_CONDITIONAL([STATISTICS], [test x$ptp_enable_statistics = xyes])
+
+AC_MSG_CHECKING([if we want to enable SO_TIMESTAMPING support on Linux if available])
+AC_ARG_ENABLE(
+    [so-timestamping],
+    [AS_HELP_STRING(
+	[--disable-so-timestamping],
+	[Disable support for SO_TIMESTAMPING on Linux builds]
+    )],
+    [ptp_enable_so_timestamping=no],
+    [ptp_enable_so_timestamping=yes]
+)
+AC_MSG_RESULT([$ptp_enable_so_timestamping])
+case "$ptp_enable_so_timestamping" in
+ no)
+    PTP_DISABLE_SOTIMESTAMPING="-DPTPD_DISABLE_SOTIMESTAMPING"
+    ;;
+esac
+AC_SUBST(PTP_DISABLE_SOTIMESTAMPING)
+
+AM_CONDITIONAL([DISABLE_SOTIMESTAMPING], [test x$ptp_enable_so_timestamping = xno])
 
 AC_MSG_CHECKING([for slave-only build support])
 AC_ARG_ENABLE(

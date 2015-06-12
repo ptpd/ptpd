@@ -1182,7 +1182,7 @@ else {
 	if(ptpClock->portState == PTP_MASTER) {
 		if(rtOpts->unicastNegotiation) {
 		    fprintf(out,", slaves %d", ptpClock->slaveCount);
-		} else {
+		} else if (rtOpts->ipMode == IPMODE_UNICAST) {
 		    fprintf(out,", slaves %d", ptpClock->unicastDestinationCount);
 		}
 	}

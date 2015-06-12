@@ -150,7 +150,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	NOTIFY("SIGHUP received\n");
 
 #ifdef RUNTIME_DEBUG
-	if(rtOpts->transport == UDP_IPV4 && rtOpts->ip_mode != IPMODE_UNICAST) {
+	if(rtOpts->transport == UDP_IPV4 && rtOpts->ipMode != IPMODE_UNICAST) {
 		DBG("SIGHUP - running an ipv4 multicast based mode, re-sending IGMP joins\n");
 		netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
 	}

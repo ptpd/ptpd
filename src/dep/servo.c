@@ -58,11 +58,11 @@ static void checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts);
 #endif
 
 void
-reset_operator_messages(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
+resetWarnings(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	ptpClock->warned_operator_slow_slewing = 0;
 	ptpClock->warned_operator_fast_slewing = 0;
-
+	ptpClock->warnedUnicastCapacity = FALSE;
 	//ptpClock->seen_servo_stable_first_time = FALSE;
 }
 
@@ -97,7 +97,7 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	ptpClock->char_last_msg='I';
 
-	reset_operator_messages(rtOpts, ptpClock);
+	resetWarnings(rtOpts, ptpClock);
 
 	/* For Hybrid mode */
 	ptpClock->masterAddr = 0;

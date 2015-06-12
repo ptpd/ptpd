@@ -22,6 +22,7 @@
 # include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+
 #ifdef linux
 #	ifndef _GNU_SOURCE
 #		define _GNU_SOURCE
@@ -128,6 +129,17 @@
 
 #include "constants.h"
 #include "limits.h"
+
+/* Disable SO_TIMESTAMPING if configured to do so */
+#ifdef PTPD_DISABLE_SOTIMESTAMPING
+
+#ifdef 	SO_TIMESTAMPING
+
+#undef 	SO_TIMESTAMPING
+
+#endif 	/* SO_TIMESTAMPING */
+
+#endif /* PTPD_DISABLE_SOTIMESTAMPING */
 
 #include "dep/ipv4_acl.h"
 

@@ -469,7 +469,7 @@ void saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet);
 int parseLeapFile(char * path, LeapSecondInfo *info);
 
 void
-reset_operator_messages(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
+resetWarnings(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
 void setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts);
 void resetPIservo(PIservo* servo);

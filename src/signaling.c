@@ -879,7 +879,7 @@ handleSignaling(MsgHeader *header,
 	{
 	case TLV_REQUEST_UNICAST_TRANSMISSION:
 		DBGV("handleSignaling: Request Unicast Transmission\n");
-		if(!rtOpts->unicastNegotiation || rtOpts->ip_mode!=IPMODE_UNICAST) {
+		if(!rtOpts->unicastNegotiation || rtOpts->ipMode!=IPMODE_UNICAST) {
 			DBGV("handleSignaling: Ignoring unicast negotiation message - not running unicast or negotiation not enabled\n");
 			ptpClock->counters.discardedMessages++;
 			goto end;
@@ -901,7 +901,7 @@ handleSignaling(MsgHeader *header,
 		break;
 	case TLV_CANCEL_UNICAST_TRANSMISSION:
 		DBGV("handleSignaling: Cancel Unicast Transmission\n");
-		if(!rtOpts->unicastNegotiation || rtOpts->ip_mode!=IPMODE_UNICAST) {
+		if(!rtOpts->unicastNegotiation || rtOpts->ipMode!=IPMODE_UNICAST) {
 			DBGV("handleSignaling: Ignoring unicast negotiation message - not running unicast or negotiation not enabled\n");
 			ptpClock->counters.discardedMessages++;
 			goto end;
@@ -922,7 +922,7 @@ handleSignaling(MsgHeader *header,
 		break;
 	case TLV_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:
 		DBGV("handleSignaling: Acknowledge Cancel Unicast Transmission\n");
-		if(!rtOpts->unicastNegotiation || rtOpts->ip_mode!=IPMODE_UNICAST) {
+		if(!rtOpts->unicastNegotiation || rtOpts->ipMode!=IPMODE_UNICAST) {
 			DBGV("handleSignaling: Ignoring unicast negotiation message - not running unicast or negotiation not enabled\n");
 			ptpClock->counters.discardedMessages++;
 			goto end;
@@ -940,7 +940,7 @@ handleSignaling(MsgHeader *header,
 		break;
 	case TLV_GRANT_UNICAST_TRANSMISSION:
 		DBGV("handleSignaling: Grant Unicast Transmission\n");
-		if(!rtOpts->unicastNegotiation || rtOpts->ip_mode!=IPMODE_UNICAST) {
+		if(!rtOpts->unicastNegotiation || rtOpts->ipMode!=IPMODE_UNICAST) {
 			DBGV("handleSignaling: Ignoring unicast negotiation message - not running unicast or negotiation not enabled\n");
 			ptpClock->counters.discardedMessages++;
 			goto end;

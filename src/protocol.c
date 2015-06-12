@@ -209,7 +209,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]); 
 		timerStop(&ptpClock->timers[MASTER_NETREFRESH_TIMER]); 
 
-		if(rtOpts->unicastNegotiation && rtOpts->ip_mode==IPMODE_UNICAST) {
+		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST) {
 		    cancelAllGrants(ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS,
 				rtOpts, ptpClock);
 		    if(ptpClock->delayMechanism == P2P) {
@@ -222,7 +222,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	case PTP_SLAVE:
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
 		
-		if(rtOpts->unicastNegotiation && rtOpts->ip_mode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {
+		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {
 			cancelUnicastTransmission(&ptpClock->parentGrants->grantData[SYNC], rtOpts, ptpClock);
 			cancelUnicastTransmission(&ptpClock->parentGrants->grantData[DELAY_RESP], rtOpts, ptpClock);
 			ptpClock->parentGrants = NULL;
@@ -323,7 +323,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	case PTP_DISABLED:
 
 		/* well, theoretically we're still in the previous state, so we're not in breach of standard */
-		if(rtOpts->unicastNegotiation && rtOpts->ip_mode==IPMODE_UNICAST) {
+		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST) {
 		    cancelAllGrants(ptpClock->unicastGrants, ptpClock->unicastDestinationCount,
 				rtOpts, ptpClock);
 		}
@@ -347,8 +347,8 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		/* This is (re) started on clock updates only */
                 timerStop(&ptpClock->timers[CLOCK_UPDATE_TIMER]);
 
-		/* if we're ignoring announces (telecom), go straight to master */
-		if(rtOpts->ip_mode == IPMODE_UNICAST && ptpClock->clockQuality.clockClass <= 127 && rtOpts->disableBMCA) {
+		/* if we're ignoring announces (disable_bmca), go straight to master */
+		if(ptpClock->clockQuality.clockClass <= 127 && rtOpts->disableBMCA) {
 			DBG("unicast master only and ignoreAnnounce: going into MASTER state\n");
 			ptpClock->number_foreign_records = 0;
 			ptpClock->foreign_record_i = 0;
@@ -378,7 +378,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
 
 		/* force a IGMP refresh per reset */
-		if (rtOpts->ip_mode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
+		if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
 		    /* if multicast refresh failed, restart network - helps recover after driver reloads and such */
                     if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
                             WARNING("Error while refreshing multicast - will do a full network reset\n");
@@ -419,7 +419,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   pow(2,ptpClock->logMinPdelayReqInterval));
 		if( rtOpts->do_IGMP_refresh &&
 		    rtOpts->transport == UDP_IPV4 &&
-		    rtOpts->ip_mode != IPMODE_UNICAST &&
+		    rtOpts->ipMode != IPMODE_UNICAST &&
 		    rtOpts->masterRefreshInterval > 9 )
 			timerStart(&ptpClock->timers[MASTER_NETREFRESH_TIMER], 
 			   rtOpts->masterRefreshInterval);
@@ -669,7 +669,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					ptpClock->counters.announceTimeouts++;
 				}
 
-				if (rtOpts->ip_mode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
+				if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
 				/* if multicast refresh failed, restart network - helps recover after driver reloads and such */
                 		    if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
                         		WARNING("Error while refreshing multicast - will do a full network reset\n");
@@ -732,7 +732,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 
 		if (timerExpired(&ptpClock->timers[OPERATOR_MESSAGES_TIMER])) {
-			reset_operator_messages(rtOpts, ptpClock);
+			resetWarnings(rtOpts, ptpClock);
 		}
 
 		if(ptpClock->portState==PTP_SLAVE && rtOpts->calibrationDelay && !ptpClock->isCalibrated) {
@@ -755,7 +755,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				if(!rtOpts->unicastNegotiation || 
 					(ptpClock->parentGrants && 
 					    ptpClock->parentGrants->grantData[DELAY_RESP].granted)) {
-					    issueDelayReq(rtOpts,ptpClock);
+						issueDelayReq(rtOpts,ptpClock);
 				}
 			}
 		} else if (ptpClock->delayMechanism == P2P) {
@@ -818,7 +818,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 #ifndef PTPD_SLAVE_ONLY
 	case PTP_MASTER:
 		/*
-		 * handle SLAVE timers:
+		 * handle MASTER timers:
 		 *   - Time to send new Announce(s)
 		 *   - Time to send new PathDelay
 		 *   - Time to send new Sync(s) (last order - so that follow-up always follows sync
@@ -909,7 +909,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		if(rtOpts->do_IGMP_refresh &&
 		    rtOpts->transport == UDP_IPV4 &&
-		    rtOpts->ip_mode != IPMODE_UNICAST &&
+		    rtOpts->ipMode != IPMODE_UNICAST &&
 		    rtOpts->masterRefreshInterval > 9 &&
 		    timerExpired(&ptpClock->timers[MASTER_NETREFRESH_TIMER])) {
 				DBGV("Master state periodic IGMP refresh - next in %d seconds...\n",
@@ -931,6 +931,19 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			}
 
 			issueSync(rtOpts, ptpClock);
+		}
+		if(!ptpClock->warnedUnicastCapacity) {
+		    if(ptpClock->slaveCount >= UNICAST_MAX_DESTINATIONS || 
+			ptpClock->unicastDestinationCount >= UNICAST_MAX_DESTINATIONS) {
+			    if(rtOpts->ipMode == IPMODE_UNICAST) {
+				WARNING("Maximum unicast slave capacity reached: %d\n",UNICAST_MAX_DESTINATIONS);
+				ptpClock->warnedUnicastCapacity = TRUE;
+			    }
+		    }
+		}
+
+		if (timerExpired(&ptpClock->timers[OPERATOR_MESSAGES_TIMER])) {
+			resetWarnings(rtOpts, ptpClock);
 		}
 
 		// TODO: why is handle() below expiretimer, while in slave is the opposite
@@ -1049,15 +1062,15 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
     msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
 
     /* packet is not from self, and is from a non-zero source address - check ACLs */
-    if(ptpClock->netPath.lastRecvAddr && 
-	(ptpClock->netPath.lastRecvAddr != ptpClock->netPath.interfaceAddr.s_addr)) {
+    if(ptpClock->netPath.lastSourceAddr && 
+	(ptpClock->netPath.lastSourceAddr != ptpClock->netPath.interfaceAddr.s_addr)) {
 		struct in_addr in;
-		in.s_addr=ptpClock->netPath.lastRecvAddr;
+		in.s_addr=ptpClock->netPath.lastSourceAddr;
 		if(ptpClock->msgTmpHeader.messageType == MANAGEMENT) {
 			if(rtOpts->managementAclEnabled) {
 			    if (!matchIpv4AccessList(
 				ptpClock->netPath.managementAcl, 
-				ntohl(ptpClock->netPath.lastRecvAddr))) {
+				ntohl(ptpClock->netPath.lastSourceAddr))) {
 					DBG("ACL dropped management message from %s\n", inet_ntoa(in));
 					ptpClock->counters.aclManagementDiscardedMessages++;
 					return;
@@ -1066,7 +1079,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 			}
 	        } else if(rtOpts->timingAclEnabled) {
 			if(!matchIpv4AccessList(ptpClock->netPath.timingAcl, 
-			    ntohl(ptpClock->netPath.lastRecvAddr))) {
+			    ntohl(ptpClock->netPath.lastSourceAddr))) {
 				DBG("ACL dropped timing message from %s\n", inet_ntoa(in));
 				ptpClock->counters.aclTimingDiscardedMessages++;
 				return;
@@ -1116,8 +1129,8 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 	/* received a UNICAST message */
         if((ptpClock->msgTmpHeader.flagField0 & PTP_UNICAST) == PTP_UNICAST) {
     	/* in multicast mode, accept only management unicast messages, in hybrid mode accept only unicast delay messages */
-    	    if((rtOpts->ip_mode == IPMODE_MULTICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) ||
-    		(rtOpts->ip_mode == IPMODE_HYBRID && ptpClock->msgTmpHeader.messageType != DELAY_REQ && 
+    	    if((rtOpts->ipMode == IPMODE_MULTICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) ||
+    		(rtOpts->ipMode == IPMODE_HYBRID && ptpClock->msgTmpHeader.messageType != DELAY_REQ && 
 		    ptpClock->msgTmpHeader.messageType != DELAY_RESP)) {
 			DBG("ignord unicast message in multicast mode%d\n");
 			ptpClock->counters.discardedMessages++;
@@ -1126,7 +1139,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 	    /* received a MULTICAST message */
 	} else {
 	/* in unicast mode, accept only management multicast messages */
-		if(rtOpts->ip_mode == IPMODE_UNICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) {
+		if(rtOpts->ipMode == IPMODE_UNICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) {
 		    DBG("ignord multicast message in unicast mode%d\n");
 		    ptpClock->counters.discardedMessages++;
 		    return;
@@ -1165,7 +1178,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 	break;
     case SYNC:
 	handleSync(&ptpClock->msgTmpHeader, 
-	       length, timeStamp, isFromSelf, ptpClock->netPath.lastRecvAddr, ptpClock->netPath.lastDestAddr, rtOpts, ptpClock);
+	       length, timeStamp, isFromSelf, ptpClock->netPath.lastSourceAddr, ptpClock->netPath.lastDestAddr, rtOpts, ptpClock);
 	break;
     case FOLLOW_UP:
 	handleFollowUp(&ptpClock->msgTmpHeader,
@@ -1173,11 +1186,11 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 	break;
     case DELAY_REQ:
 	handleDelayReq(&ptpClock->msgTmpHeader,
-	           length, timeStamp, ptpClock->netPath.lastRecvAddr, isFromSelf, rtOpts, ptpClock);
+	           length, timeStamp, ptpClock->netPath.lastSourceAddr, isFromSelf, rtOpts, ptpClock);
 	break;
     case PDELAY_REQ:
 	handlePdelayReq(&ptpClock->msgTmpHeader,
-		length, timeStamp, ptpClock->netPath.lastRecvAddr, isFromSelf, rtOpts, ptpClock);
+		length, timeStamp, ptpClock->netPath.lastSourceAddr, isFromSelf, rtOpts, ptpClock);
 	break;  
     case DELAY_RESP:
 	handleDelayResp(&ptpClock->msgTmpHeader,
@@ -1185,7 +1198,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 	break;
     case PDELAY_RESP:
 	handlePdelayResp(&ptpClock->msgTmpHeader,
-		 timeStamp, length, isFromSelf, ptpClock->netPath.lastRecvAddr, ptpClock->netPath.lastDestAddr, rtOpts, ptpClock);
+		 timeStamp, length, isFromSelf, ptpClock->netPath.lastSourceAddr, ptpClock->netPath.lastDestAddr, rtOpts, ptpClock);
 	break;
     case PDELAY_RESP_FOLLOW_UP:
 	handlePdelayRespFollowUp(&ptpClock->msgTmpHeader, 
@@ -1197,7 +1210,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 	break;
     case SIGNALING:
        handleSignaling(&ptpClock->msgTmpHeader, isFromSelf,
-                ptpClock->netPath.lastRecvAddr, rtOpts, ptpClock);
+                ptpClock->netPath.lastSourceAddr, rtOpts, ptpClock);
 	break;
     default:
 	DBG("handle: unrecognized message\n");
@@ -1323,13 +1336,13 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 	}
 
 	/* if we're ignoring announces (telecom) */
-	if(rtOpts->ip_mode == IPMODE_UNICAST && ptpClock->clockQuality.clockClass <= 127 && rtOpts->disableBMCA) {
+	if(ptpClock->clockQuality.clockClass <= 127 && rtOpts->disableBMCA) {
 		DBG("unicast master only and disableBMCA: dropping Announce\n");
 		ptpClock->counters.discardedMessages++;
 		return;
 	}
 
-	if(rtOpts->unicastNegotiation && rtOpts->ip_mode == IPMODE_UNICAST) {
+	if(rtOpts->unicastNegotiation && rtOpts->ipMode == IPMODE_UNICAST) {
 
 		nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0, 
 							ptpClock->unicastGrants, ptpClock->unicastDestinationCount,
@@ -1445,7 +1458,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 
 			// remember IP address of our master for hybrid mode
 			// todo: add this to bmc(), to cover the very first packet
-			ptpClock->masterAddr = ptpClock->netPath.lastRecvAddr;
+			ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
 
 			break;
 
@@ -1508,7 +1521,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			/* update datasets (file bmc.c) */
 			s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
 
-			ptpClock->masterAddr = ptpClock->netPath.lastRecvAddr;
+			ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
 
 			DBG("___ Announce: received Announce from current Master, so reset the Announce timer\n\n");
 
@@ -1860,7 +1873,7 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 
 	if (ptpClock->delayMechanism == E2E) {
 
-		if(!isFromSelf && rtOpts->unicastNegotiation && rtOpts->ip_mode == IPMODE_UNICAST) {
+		if(!isFromSelf && rtOpts->unicastNegotiation && rtOpts->ipMode == IPMODE_UNICAST) {
 		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0, 
 				ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS,
 				FALSE);
@@ -1934,7 +1947,7 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 			ptpClock->counters.delayReqMessagesReceived++;
 
 			// remember IP address of this client for hybrid mode
-			ptpClock->LastSlaveAddr = ptpClock->netPath.lastRecvAddr;
+			ptpClock->LastSlaveAddr = ptpClock->netPath.lastSourceAddr;
 
 			issueDelayResp(tint,&ptpClock->delayReqHeader, sourceAddress,
 				       rtOpts,ptpClock);
@@ -2134,7 +2147,7 @@ handlePdelayReq(MsgHeader *header, ssize_t length,
 
 	if (ptpClock->delayMechanism == P2P) {
 
-		if(!isFromSelf && rtOpts->unicastNegotiation && rtOpts->ip_mode == IPMODE_UNICAST) {
+		if(!isFromSelf && rtOpts->unicastNegotiation && rtOpts->ipMode == IPMODE_UNICAST) {
 		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0, 
 				ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS,
 				FALSE);
@@ -2790,7 +2803,7 @@ handleManagement(MsgHeader *header,
 
         /* If the management message we received was unicast, we also reply with unicast */
         if((header->flagField0 & PTP_UNICAST) == PTP_UNICAST)
-                ptpClock->LastSlaveAddr = ptpClock->netPath.lastRecvAddr;
+                ptpClock->LastSlaveAddr = ptpClock->netPath.lastSourceAddr;
         else ptpClock->LastSlaveAddr = 0;
 
 	/* send management message response or acknowledge */
@@ -2823,7 +2836,7 @@ issueAnnounce(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	Boolean okToSend = TRUE;
 
 	/* send Announce to Ethernet or multicast */
-	if(rtOpts->transport == IEEE_802_3 || rtOpts->ip_mode == IPMODE_MULTICAST) {
+	if(rtOpts->transport == IEEE_802_3 || (rtOpts->ipMode != IPMODE_UNICAST)) {
 		issueAnnounceSingle(dst, &ptpClock->sentAnnounceSequenceId, rtOpts, ptpClock);
 	/* send Announce to unicast destination(s) */
 	} else {
@@ -2887,8 +2900,9 @@ issueSync(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	Boolean okToSend = TRUE;
 
 	/* send Sync to Ethernet or multicast */
-	if(rtOpts->transport == IEEE_802_3 || rtOpts->ip_mode == IPMODE_MULTICAST) {
+	if(rtOpts->transport == IEEE_802_3 || (rtOpts->ipMode != IPMODE_UNICAST)) {
 		issueSyncSingle(dst, &ptpClock->sentSyncSequenceId, rtOpts, ptpClock);
+
 	/* send Sync to unicast destination(s) */
 	} else {
 	    /* send to granted only */
@@ -3038,7 +3052,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	Integer32 dst = 0;
 
 	  /* in hybrid mode  or unicast mode, send delayReq to current master */
-        if (rtOpts->ip_mode == IPMODE_HYBRID || rtOpts->ip_mode == IPMODE_UNICAST) {
+        if (rtOpts->ipMode == IPMODE_HYBRID || rtOpts->ipMode == IPMODE_UNICAST) {
     		dst = ptpClock->masterAddr;
         }
 
@@ -3101,7 +3115,7 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	}
 	fromInternalTime(&internalTime,&originTimestamp);
 
-	if(rtOpts->ip_mode == IPMODE_UNICAST && ptpClock->unicastPeerDestination.transportAddress) {
+	if(rtOpts->ipMode == IPMODE_UNICAST && ptpClock->unicastPeerDestination.transportAddress) {
 	    dst = ptpClock->unicastPeerDestination.transportAddress;
 	}
 	
@@ -3146,7 +3160,7 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddr
 	}
 
 	/* if request was unicast and we're running unicast, reply to source */
-	if ( (rtOpts->ip_mode != IPMODE_MULTICAST) &&
+	if ( (rtOpts->ipMode != IPMODE_MULTICAST) &&
 	     (header->flagField0 & PTP_UNICAST) == PTP_UNICAST) {
 		dst = sourceAddress;
 	}
@@ -3190,7 +3204,7 @@ issueDelayResp(const TimeInternal *tint,MsgHeader *header,Integer32 sourceAddres
 	Integer32 dst = 0;
 
 	/* if request was unicast and we're running unicast, reply to source */
-	if ( (rtOpts->ip_mode != IPMODE_MULTICAST) &&
+	if ( (rtOpts->ipMode != IPMODE_MULTICAST) &&
 	     (header->flagField0 & PTP_UNICAST) == PTP_UNICAST) {
 		dst = sourceAddress;
 	}

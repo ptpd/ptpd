@@ -856,6 +856,7 @@ typedef struct {
 	int can_step_clock;
 	int warned_operator_slow_slewing;
 	int warned_operator_fast_slewing;
+	Boolean warnedUnicastCapacity;
 	int maxDelayRejected;
 
 	Boolean runningBackupInterface;
@@ -1085,7 +1086,7 @@ typedef struct {
 	Boolean pcap; /* Receive and send packets using libpcap, bypassing the
 			 network stack. */
 	int transport;
-	int ip_mode;
+	int ipMode;
 
 
 	/* list of unicast destinations for use with unicast with or without signaling */

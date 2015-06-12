@@ -1,80 +1,106 @@
 PTP Daemon Version 2 Build and Installation Instructions
 
-20 March 2015
+12 June 2015
 
 George V. Neville-Neil, Wojciech Owczarek
 
-The PTP Daemon is known to work on FreeBSD, NetBSD, Mac OS X and Linux systems.
+The PTP Daemon is known to work on FreeBSD, NetBSD, OpenBSD,
+OpenSolaris and its derivatives, Mac OS X and Linux systems.
 
 *) Requirements
 
-You will need the following tools and libraries to build ptpd2
+You will need the following tools and libraries to build ptpd2:
 
-1. GNU autotools (automake, autoconf, libtool etc.)
-2. PCAP libraries
-3. SNMP libraries (optional)
+1. GNU autotools (automake, autoconf, libtool etc.) - essential
 
-*) Building 
+2. PCAP libraries (libpcap/bpf) and development headers
+   (optional but recommended) - required for Ethernet transport
+   and generally recommended for message performance
+
+3. SNMP libraries (optional) - will allow building with SNMP
+   support
+
+*) Building
 
 1. cd into the root of the tree (which is where the file you're
    reading resides)
 
-2.  autoreconf -vi
+2. If building from a repository such as Subversion, CVS or GIT, run:
 
-3. ./configure
+   autoreconf -vi
 
-   To disable the statistics code in order to lower computational
+3. If building from a distribution .tar.gz package, you may run autoreconf -vi,
+   but in most cases running ./configure should be enough - must run
+   autoreconf if configure results in errors.
+
+4. ./configure
+
+   ========= configure script options for ptpd ========================
+
+   * To disable the statistics code in order to lower computational
    expense and RAM usage, configure the build with the following options:
 
    ./configure --disable-statistics
 
-   To add support for printing all message counters on a SIGUSR2,
-   add --enable-sigusr2=counters to the configure parameters.
-
-   To build a slave-only version (with GM logic disabled), build with:
+   * To build a slave-only version (with GM logic disabled), build with:
 
     ./configure --enable-slave-only
 
     This will build a version incapable of running as master.
 
-    As of 2.3.1, the default timer implamentation used for periodic
+    * As of 2.3.1, the default timer implamentation used for periodic
     actions uses POSIX timers if only the OS supports it. To disable
     POSIX timer support and use the old interval timer implementation,
     the following switch can be used:
 
     ./configure --disable-posix-timers
 
-    As of 2.3.1, support was added for multiple unicast destinations
+    * As of 2.3.1, support was added for multiple unicast destinations
     (both GMs and slaves) - with negotiation (signaling) and without.
     The default maximum number of unicast destinations (also the
     maximum number of slaves for a signaling GM) is set to 16. This
-    can be changed to a maximum of 512 using:
+    can be changed to a maximum of 1024 using:
 
-   ./configure --with-max-unicast-destinations=[16...512]
+   ./configure --with-max-unicast-destinations=[16...1024]
 
-4. make
+    It is possible to change this limit to more than 1024, but realistically,
+    due to message scheduling, timer signal usage and single-thread
+    architecture, anywhere above 400 ptpd will struggle.
 
-5. Read the manual pages ptpd2(8) and ptpd2.conf(5). The man pages
+    * With certain NIC drivers on Linux providing the SO_TIMESTAMPING
+    functionality with software transmit timestamps (SOF_TIMESTAMPING_
+    TX_SOFTWARE), unpredictable transmit timestamp failures can occur, 
+    which may cause unstable operation and in some cases high CPU usage
+    (see https://sourceforge.net/p/ptpd/discussion/469208/thread/4aea6e47).
+    While fixes have been implemented, there is still some risk.
+    To disable SO_TIMESTAMPING support completely on Linux,
+    regardless of OS support, use:
+
+    ./configure --disable-so-timestamping
+
+5. make
+
+6. Read the manual pages ptpd2(8) and ptpd2.conf(5). The man pages
    are the most complete source of configuration information.
    ptpd2 itself also provides an extensive help:
    run ptpd2 --help to see the short help
    run ptpd2 --long-help to see the long help for all settings
    run ptpd2 -e [key:setting] to display help for a single setting
 
-6. Update test/client-e2e-socket.conf so that its
+7. Update test/client-e2e-socket.conf so that its
    "ptpengine:interface = " setting points to a network interface on
    your test machine that can see PTP packets from a grandmaster.
 
-6. Test it in place: ./src/ptpd2 -c test/client-e2e-socket.conf
+8. Test it in place: ./src/ptpd2 -c test/client-e2e-socket.conf
 
-7. Check the log output of the daemon in /var/run/ptpd2.event.log
+9. Check the log output of the daemon in /var/run/ptpd2.event.log
    Check statistics output of the daemon in /var/run/ptpd2.stats.log
    Check the status file /var/run/ptpd2.status.log
 
-8. If the results look good, make install
+10. If the results look good, make install
 
-The daemon may work on other Posix based systems but this is not
-guaranteed.  Patches and fixes are welcome on the source forge page
+The daemon may work on other POSIX based systems but this is not
+guaranteed.  Patches and fixes are welcome on the SourceForge page:
 
 http://ptpd.sf.net
 

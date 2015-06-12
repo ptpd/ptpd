@@ -489,7 +489,7 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
 
     if(!(info.flags & IFF_MULTICAST) 
 	    && rtOpts->transport==UDP_IPV4 
-	    && rtOpts->ip_mode != IPMODE_UNICAST) {
+	    && rtOpts->ipMode != IPMODE_UNICAST) {
 	    WARNING("Interface %s is not multicast capable.\n", ifaceName);
     }
 
@@ -549,7 +549,7 @@ netInitMulticast(NetPath * netPath,  const RunTimeOpts * rtOpts)
 	char addrStr[NET_ADDRESS_LENGTH+1];
 
 	/* do not join multicast in unicast mode */
-	if(rtOpts->ip_mode == IPMODE_UNICAST)
+	if(rtOpts->ipMode == IPMODE_UNICAST)
 		return TRUE;
 
 	/* Init General multicast IP address */
@@ -628,7 +628,7 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	fd_set tmpSet;
 	struct timeval timeOut = {0,0};
 	int val = 1;
-
+	int i = 0;
 	if(netPath->txTimestampFailure)
 		goto failure;
 
@@ -637,37 +637,52 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 
 	if(select(netPath->eventSock + 1, &tmpSet, NULL, NULL, &timeOut) > 0) {
 		if (FD_ISSET(netPath->eventSock, &tmpSet)) {
-			length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, 
+			length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp,
 			    netPath, MSG_ERRQUEUE);
-
 			if (length > 0) {
-				DBG("Grabbed sent msg via errqueue: %d bytes, at %d.%d\n", length, timeStamp->seconds, timeStamp->nanoseconds);
+				DBG("getTxTimestamp: Grabbed sent msg via errqueue: %d bytes, at %d.%d\n", length, timeStamp->seconds, timeStamp->nanoseconds);
 				return TRUE;
 			} else if (length < 0) {
-				DBG("Failed to poll error queue for SO_TIMESTAMPING transmit time");
+				DBG("getTxTimestamp: Failed to poll error queue for SO_TIMESTAMPING transmit time\n");
 				G_ptpClock->counters.messageRecvErrors++;
-				goto failure;
 			} else if (length == 0) {
-				DBG("Received no data from TX error queue");
+				DBG("getTxTimestamp: Received no data from TX error queue\n");
 			}
 		}
-	} 
+	}
 
-	/* try again: sleep and poll the error queue, if nothing, consider SO_TIMESTAMPING inoperable */
+	/* we're desperate here, aren't we... */
+	for(i = 0; i < 3; i++) {
+	    length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
+	    if(length > 0) {
+		DBG("getTxTimestamp: SO_TIMESTAMPING - delayed TX timestamp caught\n");
+		return TRUE;
+	    }
+	    usleep(10);
+	}
+
+	/* try for the last time: sleep and poll the error queue, if nothing, consider SO_TIMESTAMPING inoperable */
 	usleep(LATE_TXTIMESTAMP_US);
+
 	length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
 
 	if(length > 0) {
-		DBG("SO_TIMESTAMPING - delayed TX timestamp caught\n");
+		DBG("getTxTimestamp: SO_TIMESTAMPING - even more delayed TX timestamp caught\n");
 		return TRUE;
 	} else {
-		    DBG("SO_TIMESTAMPING - TX timestamp retry failed - will use loop from now on\n");
+		DBG("getTxTimestamp: SO_TIMESTAMPING - TX timestamp retry failed - will use loop from now on\n");
 	}
 
 failure:
-
+	NOTICE("net.c: SO_TIMESTAMPING TX software timestamp failure - reverting to SO_TIMESTAMPNS\n");
+	/* unset SO_TIMESTAMPING first! otherwise we get an always-exiting select! */
+	val = 0;
+	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(int)) < 0) {
+		DBG("getTxTimestamp: failed to unset SO_TIMESTAMPING");
+	}
+	val = 1;
 	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
-		DBG("gettxtimestamp: failed to revert to SO_TIMESTAMPNS");
+		DBG("getTxTimestamp: failed to revert to SO_TIMESTAMPNS");
 	}
 
 	return FALSE;
@@ -1005,7 +1020,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		if (pcap_compile(netPath->pcapEvent, &program, 
 				 ( rtOpts->transport == IEEE_802_3 ) ?
 				    "ether proto 0x88f7":
-				 ( rtOpts->ip_mode != IPMODE_MULTICAST ) ?
+				 ( rtOpts->ipMode != IPMODE_MULTICAST ) ?
 					 "udp port 319" :
 				 "host (224.0.1.129 or 224.0.0.107) and udp port 319" ,
 				 1, 0) < 0) {
@@ -1032,7 +1047,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		}
 		if (rtOpts->transport != IEEE_802_3) {
 			if (pcap_compile(netPath->pcapGeneral, &program,
-					 ( rtOpts->ip_mode != IPMODE_MULTICAST ) ?
+					 ( rtOpts->ipMode != IPMODE_MULTICAST ) ?
 						 "udp port 320" :
 					 "host (224.0.1.129 or 224.0.0.107) and udp port 320" ,
 					 1, 0) < 0) {
@@ -1083,18 +1098,15 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		}
 		/* bind sockets */
 		/*
-		 * need INADDR_ANY to allow receipt of multicast and uni-cast
-		 * messages
+		 * need INADDR_ANY to receive both unicast and multicast,
+		 * but only need interface address for unicast
 		 */
 
-		/* why??? */
-		if (rtOpts->pidAsClockId) {
-			if (inet_pton(AF_INET, DEFAULT_PTP_DOMAIN_ADDRESS, &addr.sin_addr) < 0) {
-				PERROR("failed to convert address");
-				return FALSE;
-			}
-		} else
+		if(rtOpts->ipMode == IPMODE_UNICAST) {
+		    addr.sin_addr = netPath->interfaceAddr;
+		} else {
 			addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		}
 
 		addr.sin_family = AF_INET;
 		addr.sin_port = htons(PTP_EVENT_PORT);
@@ -1129,7 +1141,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		 * so may only be used for multicast-only
 		 */
 		 
-		if ( rtOpts->ip_mode == IPMODE_MULTICAST ) {
+		if ( rtOpts->ipMode == IPMODE_MULTICAST ) {
 		    if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
 				rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0
 			|| setsockopt(netPath->generalSock, SOL_SOCKET, SO_BINDTODEVICE,
@@ -1162,7 +1174,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		}
 
-		if(rtOpts->delayMechanism==P2P && rtOpts->ip_mode==IPMODE_UNICAST) {
+		if(rtOpts->delayMechanism==P2P && rtOpts->ipMode==IPMODE_UNICAST) {
 			ptpClock->unicastPeerDestination.transportAddress = 0;
 		    	if(rtOpts->unicastPeerDestinationSet && 
 				rtOpts->delayMechanism==P2P && !hostLookup(rtOpts->unicastPeerDestination, 
@@ -1181,7 +1193,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		}
 
-		if(rtOpts->ip_mode != IPMODE_UNICAST) {
+		if(rtOpts->ipMode != IPMODE_UNICAST) {
 
 			/* init UDP Multicast on both Default and Peer addresses */
 			if (!netInitMulticast(netPath, rtOpts))
@@ -1434,8 +1446,11 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 #if defined(HAVE_DECL_MSG_ERRQUEUE) && HAVE_DECL_MSG_ERRQUEUE
 		if(!(flags & MSG_ERRQUEUE))
 #endif
-		netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
-		netPath->receivedPackets++;
+		netPath->lastSourceAddr = from_addr.sin_addr.s_addr;
+		/* do not report "from self" */
+		if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
+		    netPath->receivedPackets++;
+		}
 		netPath->receivedPacketsTotal++;
 
 		if (msg.msg_controllen <= 0) {
@@ -1546,16 +1561,24 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		}
 
 	/* Make sure this is IP (could dot1q get here?) */
-	if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP)
-		DBGV("PCAP payload received is not Ethernet: 0x%04x\n",
+	if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP) {
+		if( ntohs(*(u_short *)(pkt_data + 12)) != PTP_ETHER_TYPE) {
+		DBG("PCAP payload ethertype received not IP or PTP: 0x%04x\n",
 		    ntohs(*(u_short *)(pkt_data + 12)));
-	/* Retrieve source IP from the payload - 14 eth + 12 IP */
-	netPath->lastRecvAddr = *(Integer32 *)(pkt_data + 26);
-	/* Retrieve destination IP from the payload - 14 eth + 16 IP */
-	netPath->lastDestAddr = *(Integer32 *)(pkt_data + 30);
+		}
+	} else {
+	    /* Retrieve source IP from the payload - 14 eth + 12 IP */
+	    netPath->lastSourceAddr = *(Integer32 *)(pkt_data + 26);
+	    /* Retrieve destination IP from the payload - 14 eth + 16 IP */
+	    netPath->lastDestAddr = *(Integer32 *)(pkt_data + 30);
+	}
 
+	/* do not report "from self" */
+	if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
 		netPath->receivedPackets++;
-		netPath->receivedPacketsTotal++;
+	}
+	netPath->receivedPacketsTotal++;
+
 		/* XXX Total cheat */
 		memcpy(buf, pkt_data + netPath->headerOffset, 
 		       pkt_header->caplen - netPath->headerOffset);
@@ -1597,11 +1620,18 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 #endif
 	socklen_t from_addr_len = sizeof(from_addr);
 
+	netPath->lastSourceAddr = 0;
+
 #ifdef PTPD_PCAP
 	if (netPath->pcapGeneral == NULL) {
 #endif
 		ret=recvfrom(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT, (struct sockaddr*)&from_addr, &from_addr_len);
-		netPath->lastRecvAddr = from_addr.sin_addr.s_addr;
+		netPath->lastSourceAddr = from_addr.sin_addr.s_addr;
+		/* do not report "from self" */
+		if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
+		    netPath->receivedPackets++;
+		}
+		netPath->receivedPacketsTotal++;
 		return ret;
 #ifdef PTPD_PCAP
 	}
@@ -1622,14 +1652,25 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 			return 0;
 		}
 	/* Make sure this is IP (could dot1q get here?) */
-	if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP)
-		DBGV("PCAP payload received is not Ethernet: 0x%04x\n",
-			ntohs(*(u_short *)(pkt_data + 12)));
-	/* Retrieve source IP from the payload - 14 eth + 12 IP src*/
-	netPath->lastRecvAddr = *(Integer32 *)(pkt_data + 26);
+	if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP) {
+		if( ntohs(*(u_short *)(pkt_data + 12)) != PTP_ETHER_TYPE) {
+		DBG("PCAP payload ethertype received not IP or PTP: 0x%04x\n",
+		    ntohs(*(u_short *)(pkt_data + 12)));
+		}
+	} else {
+	    /* Retrieve source IP from the payload - 14 eth + 12 IP */
+	    netPath->lastSourceAddr = *(Integer32 *)(pkt_data + 26);
+	    /* Retrieve destination IP from the payload - 14 eth + 16 IP */
+	    netPath->lastDestAddr = *(Integer32 *)(pkt_data + 30);
+	}
 
+	/* do not report "from self" */
+	if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
 		netPath->receivedPackets++;
-		netPath->receivedPacketsTotal++;
+	}
+
+	netPath->receivedPacketsTotal++;
+
 		/* XXX Total cheat */
 		memcpy(buf, pkt_data + netPath->headerOffset, 
 		       pkt_header->caplen - netPath->headerOffset);
