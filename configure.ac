@@ -521,8 +521,8 @@ AC_CHECK_DECLS([PTIMERS_OK], [posix_timers=true], [posix_timers=false], [
 #endif
 ])
 
-AC_ARG_ENABLE([posix_timers], 
-	    AS_HELP_STRING( [--disable-posix-timers],
+AC_ARG_ENABLE([posix_timers],
+	    AS_HELP_STRING( [--disable-posix-timers (enabled by default if supported)],
 			    [Disable POSIX timer support and use interval timers even if POSIX timers supported by the OS])
 	    )
 
@@ -547,18 +547,18 @@ AC_MSG_CHECKING([for RUNTIME_DEBUG])
 AC_ARG_ENABLE(
     [runtime-debug],
     [AS_HELP_STRING(
-	[--enable-runtime-debug],
+	[--enable-runtime-debug (disabled by default)],
 	[Enable all debug messages]
     )],
-    [ptp_runtime=$enableval],
-    [ptp_runtime=no]
+    [],
+    [enable_runtime_debug=no]
 )
-AC_MSG_RESULT([$ptp_runtime])
-case "$ptp_runtime" in
+AC_MSG_RESULT([$enable_runtime_debug])
+case "$enable_runtime_debug" in
  yes)
     PTP_DBL="-DRUNTIME_DEBUG"
     ;;
- *) 
+ *)
     AC_MSG_CHECKING([for (old-style) debug message level])
     AC_ARG_ENABLE(
         [debug-level],
@@ -611,14 +611,14 @@ AC_MSG_CHECKING([for daemon mode])
 AC_ARG_ENABLE(
     [daemon],
     [AS_HELP_STRING(
-	[--disable-daemon],
-	[Disable daemon mode (daemon mode is enabled by default)]
+	[--disable-daemon (enabled by default)],
+	[Disable daemon mode]
     )],
-    [ptp_daemon=$enableval],
-    [ptp_daemon=yes]
+    [],
+    [enable_daemon=yes]
 )
-AC_MSG_RESULT([$ptp_daemon])
-case "$ptp_daemon" in
+AC_MSG_RESULT([$enable_daemon])
+case "$enable_daemon" in
  no)
     PTP_DAEMON="-DPTPD_NO_DAEMON"
     ;;
@@ -629,78 +629,82 @@ AC_MSG_CHECKING([for experimental options])
 AC_ARG_ENABLE(
     [experimental-options],
     [AS_HELP_STRING(
-	[--enable-experimental-options],
-	[Enable experimental options (disabled by default)]
+	[--enable-experimental-options (disabled by default)],
+	[Enable experimental options]
     )],
-    [ptp_exp=$enableval],
-    [ptp_exp=no]
+    [],
+    [enable_experimental_options=no]
 )
-AC_MSG_RESULT([$ptp_exp])
-case "$ptp_exp" in
+AC_MSG_RESULT([$enable_experimental_options])
+case "$enable_experimental_options" in
  yes)
     PTP_EXP="-DPTPD_EXPERIMENTAL"
     ;;
 esac
 AC_SUBST(PTP_EXP)
+AM_CONDITIONAL([EXP], [test x$enable_experimental_options = xyes])
 
 AC_MSG_CHECKING([for realtime statistics support])
 AC_ARG_ENABLE(
     [statistics],
     [AS_HELP_STRING(
-	[--disable-statistics],
+	[--disable-statistics (enabled by default)],
 	[Disable support for realtime statistics and statistics based filtering]
     )],
-    [ptp_enable_statistics=no],
-    [ptp_enable_statistics=yes]
+    [],
+    [enable_statistics=yes]
 )
-AC_MSG_RESULT([$ptp_enable_statistics])
-case "$ptp_enable_statistics" in
+AC_MSG_RESULT([$enable_statistics])
+case "$enable_statistics" in
  yes)
     PTP_STATISTICS="-DPTPD_STATISTICS"
     ;;
 esac
 AC_SUBST(PTP_STATISTICS)
 
-AM_CONDITIONAL([STATISTICS], [test x$ptp_enable_statistics = xyes])
+AM_CONDITIONAL([STATISTICS], [test x$enable_statistics = xyes])
 
 AC_MSG_CHECKING([if we want to enable SO_TIMESTAMPING support on Linux if available])
 AC_ARG_ENABLE(
     [so-timestamping],
     [AS_HELP_STRING(
-	[--disable-so-timestamping],
+	[--disable-so-timestamping (enabled by default)],
 	[Disable support for SO_TIMESTAMPING on Linux builds]
     )],
-    [ptp_enable_so_timestamping=no],
-    [ptp_enable_so_timestamping=yes]
+    [],
+    [enable_so_timestamping=yes]
 )
-AC_MSG_RESULT([$ptp_enable_so_timestamping])
-case "$ptp_enable_so_timestamping" in
+AC_MSG_RESULT([$enable_so_timestamping])
+case "$enable_so_timestamping" in
  no)
     PTP_DISABLE_SOTIMESTAMPING="-DPTPD_DISABLE_SOTIMESTAMPING"
     ;;
 esac
 AC_SUBST(PTP_DISABLE_SOTIMESTAMPING)
 
-AM_CONDITIONAL([DISABLE_SOTIMESTAMPING], [test x$ptp_enable_so_timestamping = xno])
+AM_CONDITIONAL([DISABLE_SOTIMESTAMPING], [test x$enable_so_timestamping = xno])
 
-AC_MSG_CHECKING([for slave-only build support])
+
+
+AC_MSG_CHECKING([if we're building a slave-only build])
+
 AC_ARG_ENABLE(
     [slave-only],
     [AS_HELP_STRING(
-	[--enable-slave-only],
-	[Build a version incapable of running as PTP master]
+	[--enable-slave-only (disabled by default)],
+	[Build a slave-only version incapable of running as PTP master]
     )],
-    [ptp_slave_only=$enableval],
-    [ptp_slave_only=no]
+    [],
+    [enable_slave_only=no]
 )
-AC_MSG_RESULT([$ptp_slave_only])
-case "$ptp_slave_only" in
+AC_MSG_RESULT([$enable_slave_only])
+case "$enable_slave_only" in
  yes)
     PTP_SLAVE_ONLY="-DPTPD_SLAVE_ONLY"
     ;;
 esac
 AC_SUBST(PTP_SLAVE_ONLY)
-AM_CONDITIONAL([SLAVE_ONLY], [test x$ptp_slave_only = xyes])
+AM_CONDITIONAL([SLAVE_ONLY], [test x$enable_slave_only = xyes])
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
