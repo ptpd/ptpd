@@ -101,6 +101,48 @@ static void processPdelayRespFromSelf(const TimeInternal * tint, const RunTimeOp
 /* this shouldn't really be in protocol.c, it will be moved later */
 static void timestampCorrection(const RunTimeOpts * rtOpts, PtpClock *ptpClock, TimeInternal *timeStamp);
 
+static uint16_t hashTimeStamp(TimeInternal *timeStamp, UInteger16 sequenceId);
+static void indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAddress, Integer32 *index);
+static Integer32 lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 *index);
+
+/* compute a simple hash from a timestamp */
+static uint16_t
+hashTimeStamp(TimeInternal *timeStamp, UInteger16 sequenceId)
+{
+    if(timeStamp == NULL) {
+	return 0;
+    }
+    uint32_t sum = timeStamp->seconds + timeStamp->nanoseconds + sequenceId;
+    return ((uint16_t)(sum % UNICAST_MAX_DESTINATIONS));
+
+}
+
+/* store transportAddress in an index table */
+static void
+indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAddress, Integer32 *index)
+{
+
+    if(timeStamp == NULL || index == NULL) {
+	return;
+    }
+
+    index[hashTimeStamp(timeStamp, sequenceId)] = transportAddress;
+
+}
+
+static Integer32
+lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 *index)
+{
+
+    if(timeStamp == NULL || index == NULL) {
+	return 0;
+    }
+
+    return(index[hashTimeStamp(timeStamp, sequenceId)]);
+
+}
+
+
 void addForeign(Octet*,MsgHeader*,PtpClock*, UInteger8);
 
 /* loop forever. doState() has a switch for the actions and events to be
@@ -223,9 +265,17 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
 		
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {
+			/* do not cancel announce, just start re-requesting */
+			ptpClock->parentGrants->grantData[ANNOUNCE].granted = FALSE;
+			ptpClock->parentGrants->grantData[ANNOUNCE].requested = FALSE;
+			ptpClock->parentGrants->grantData[ANNOUNCE].timeLeft = 0;
+			/* actually cancel the rest though */
 			cancelUnicastTransmission(&ptpClock->parentGrants->grantData[SYNC], rtOpts, ptpClock);
+			if(ptpClock->delayMechanism == E2E) {
 			cancelUnicastTransmission(&ptpClock->parentGrants->grantData[DELAY_RESP], rtOpts, ptpClock);
+			}
 			ptpClock->parentGrants = NULL;
+
 			if(ptpClock->delayMechanism == P2P) {
 			    cancelUnicastTransmission(&ptpClock->peerGrants.grantData[PDELAY_RESP], rtOpts, ptpClock);
 			    cancelAllGrants(&ptpClock->peerGrants, 1, rtOpts, ptpClock);
@@ -335,7 +385,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	case PTP_LISTENING:
 
 		if(rtOpts->unicastNegotiation) {
-		    timerStart(&ptpClock->timers[UNICAST_GRANT_TIMER], 1);
+		    timerStart(&ptpClock->timers[UNICAST_GRANT_TIMER], UNICAST_GRANT_REFRESH_INTERVAL);
 		}
 
 		/* in Listening state, make sure we don't send anything. Instead we just expect/wait for announces (started below) */
@@ -1345,7 +1395,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 	if(rtOpts->unicastNegotiation && rtOpts->ipMode == IPMODE_UNICAST) {
 
 		nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0, 
-							ptpClock->unicastGrants, ptpClock->unicastDestinationCount,
+							ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS,
 							FALSE);
 		if(nodeTable == NULL || !(nodeTable->grantData[ANNOUNCE].granted)) {
 			DBG("Ignoring announce from master: unicast transmission not granted\n");
@@ -1353,7 +1403,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			return;
 		} else {
 		    localPreference = nodeTable->localPreference;
-		    nodeTable->lastAnnounce = header->sequenceId;
+		    nodeTable->grantData[ANNOUNCE].receiving = header->sequenceId;
 		}
 	}
 
@@ -1577,8 +1627,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 	if(destinationAddress) {
 	    dst = destinationAddress;
 	} else {
-	    /* last resort: may cause FollowUp to be sent to incorrect destinations */
-	    dst = ptpClock->lastSyncDst;
+	    dst = 0;
 	}
 
 	DBGV("Sync message received : \n");
@@ -1587,6 +1636,16 @@ handleSync(const MsgHeader *header, ssize_t length,
 		DBG("Error: Sync message too short\n");
 		ptpClock->counters.messageFormatErrors++;
 		return;
+	}
+
+	if(!isFromSelf && rtOpts->unicastNegotiation && rtOpts->ipMode == IPMODE_UNICAST) {
+	    UnicastGrantTable *nodeTable = NULL;
+	    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0, 
+			ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS,
+			FALSE);
+	    if(nodeTable != NULL) {
+		nodeTable->grantData[SYNC].receiving = header->sequenceId;
+	    }
 	}
 
 	switch (ptpClock->portState) {
@@ -1732,6 +1791,26 @@ handleSync(const MsgHeader *header, ssize_t length,
 			break;
 		} if (ptpClock->twoStepFlag) {
 			DBGV("HandleSync: going to send followup message\n");
+
+			/* who do we send the followUp to? no destination given - try looking up index */
+			if(rtOpts->ipMode == IPMODE_UNICAST && !dst) {
+				msgUnpackSync(ptpClock->msgIbuf,
+					      &ptpClock->msgTmp.sync);
+				toInternalTime(&OriginTimestamp, &ptpClock->msgTmp.sync.originTimestamp);
+			    dst = lookupSyncIndex(&OriginTimestamp, header->sequenceId, ptpClock->syncDestIndex);
+			    {
+				struct in_addr tmpAddr;
+				tmpAddr.s_addr = dst;
+				DBG("handleSync: master sync dest cache hit: %s\n", inet_ntoa(tmpAddr));
+			    }
+			    if(!dst) {
+				DBG("handleSync: master sync dest cache miss - using lastSyncDst\n");
+				dst = ptpClock->lastSyncDst;
+			    }
+
+			}
+
+
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
 			processSyncFromSelf(tint, rtOpts, ptpClock, dst, header->sequenceId);
 #endif /* PTPD_SLAVE_ONLY */
@@ -1874,15 +1953,19 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 	if (ptpClock->delayMechanism == E2E) {
 
 		if(!isFromSelf && rtOpts->unicastNegotiation && rtOpts->ipMode == IPMODE_UNICAST) {
-		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0, 
-				ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS,
+		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0,
+				ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS,
 				FALSE);
 		    if(nodeTable == NULL || !(nodeTable->grantData[DELAY_RESP].granted)) {
 			DBG("Ignoring Delay Request from slave: unicast transmission not granted\n");
 			ptpClock->counters.discardedMessages++;
 			    return;
+		    } else {
+			nodeTable->grantData[DELAY_REQ].receiving = header->sequenceId;
 		    }
+
 		}
+	
 
 		DBGV("delayReq message received : \n");
 		
@@ -1995,8 +2078,20 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 {
 
 	if (ptpClock->delayMechanism == E2E) {
+
+
 		TimeInternal requestReceiptTimestamp;
 		TimeInternal correctionField;
+
+		if(rtOpts->unicastNegotiation && rtOpts->ipMode == IPMODE_UNICAST) {
+		    UnicastGrantTable *nodeTable = NULL;
+		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0, 
+				ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS,
+				FALSE);
+		    if(nodeTable != NULL) {
+			nodeTable->grantData[DELAY_RESP].receiving = header->sequenceId;
+		    }
+		}
 
 		DBGV("delayResp message received : \n");
 
@@ -2149,13 +2244,16 @@ handlePdelayReq(MsgHeader *header, ssize_t length,
 
 		if(!isFromSelf && rtOpts->unicastNegotiation && rtOpts->ipMode == IPMODE_UNICAST) {
 		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0, 
-				ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS,
+				ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS,
 				FALSE);
 		    if(nodeTable == NULL || !(nodeTable->grantData[PDELAY_RESP].granted)) {
 			DBG("Ignoring Peer Delay Request from peer: unicast transmission not granted\n");
 			ptpClock->counters.discardedMessages++;
 			    return;
+		    } else {
+			nodeTable->grantData[PDELAY_RESP].receiving = header->sequenceId;
 		    }
+
 		}
 
 		DBGV("PdelayReq message received : \n");
@@ -2905,6 +3003,9 @@ issueSync(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	/* send Sync to unicast destination(s) */
 	} else {
+	    for(i = 0; i < UNICAST_MAX_DESTINATIONS; i++) {
+		ptpClock->syncDestIndex[i] = 0;
+	    }
 	    /* send to granted only */
 	    if(rtOpts->unicastNegotiation) {
 		for(i = 0; i < UNICAST_MAX_DESTINATIONS; i++) {
@@ -2990,6 +3091,11 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 			processSyncFromSelf(&internalTime, rtOpts, ptpClock, dst, *sequenceId);
 		}
 #endif
+		/* index the sync destination */
+		if(dst) {
+			indexSync(&internalTime, *sequenceId, dst, ptpClock->syncDestIndex);
+		}
+
 		ptpClock->lastSyncDst = dst;
 		(*sequenceId)++;
 		ptpClock->counters.syncMessagesSent++;

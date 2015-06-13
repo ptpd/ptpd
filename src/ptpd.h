@@ -342,7 +342,7 @@ void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement *outgoi
 /**
  * \brief Signaling message support
  */
-UnicastGrantTable* findUnicastGrants(const PortIdentity* portIdentity, Integer32 TransportAddress, UnicastGrantTable *grantTable, int nodeCount, Boolean update);
+UnicastGrantTable* findUnicastGrants(const PortIdentity* portIdentity, Integer32 TransportAddress, UnicastGrantTable *grantTable, UnicastGrantTable **index, int nodeCount, Boolean update);
 void 	initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism, int nodeCount, UnicastDestination *destinations, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 void 	handleSMRequestUnicastTransmission(MsgSignaling*, MsgSignaling*, Integer32, const RunTimeOpts*, PtpClock*);
 Boolean handleSMCancelUnicastTransmission(MsgSignaling*, MsgSignaling*, Integer32, PtpClock*);

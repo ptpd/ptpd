@@ -597,8 +597,8 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 		}
 		s1(header,announce,ptpClock, rtOpts);
 		if(rtOpts->unicastNegotiation) {
-			ptpClock->parentGrants = findUnicastGrants(&ptpClock->parentPortIdentity, 0, 
-						ptpClock->unicastGrants, ptpClock->unicastDestinationCount ,
+			ptpClock->parentGrants = findUnicastGrants(&ptpClock->parentPortIdentity, 0,
+						ptpClock->unicastGrants, ptpClock->unicastGrantIndex, ptpClock->unicastDestinationCount ,
 					    FALSE);
 		}
 		if (newBM) {

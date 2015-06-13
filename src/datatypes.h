@@ -655,6 +655,7 @@ typedef struct {
 	UInteger32      timeLeft;		/* countdown timer for aging out grants */
 	UInteger16      messageType;		/* message type this grant is for */
 	UnicastGrantTable *parent;		/* parent entry (that has transportAddress and portIdentity */
+	Boolean		receiving;		/* keepalive: used to detect if message of this type is being received */
 } UnicastGrantData;
 
 struct UnicastGrantTable {
@@ -665,7 +666,6 @@ struct UnicastGrantTable {
 	UnicastGrantData	grantData[PTP_MAX_MESSAGE];/* master: grantee's grants, slave: grantor's grant status */
 	UInteger32		timeLeft;		/* time until expiry of last grant (max[grants.timeLeft]. when runs out and no renewal, entry can be re-used */
 	Boolean			isPeer;			/* this entry is peer only */
-	UInteger16		lastAnnounce;		/* slave: sequence number of last announce message */
 };
 
 /* Unicast destination configuration: Address, domain, preference */
@@ -757,10 +757,14 @@ typedef struct {
 
 	/* unicast grant table - our own grants or our slaves' grants or grants to peers */
 	UnicastGrantTable unicastGrants[UNICAST_MAX_DESTINATIONS];
+	/* our trivial index table to speed up lookups */
+	UnicastGrantTable* unicastGrantIndex[UNICAST_MAX_DESTINATIONS];
 	/* current parent from the above table */
 	UnicastGrantTable *parentGrants;
 	/* previous parent's grants when changing parents: if not null, this is what should be canceled */
 	UnicastGrantTable *previousGrants;
+	/* another index to match unicast Sync with FollowUp when we can't capture the destination address of Sync */
+	Integer32 syncDestIndex[UNICAST_MAX_DESTINATIONS];
 
 	/* unicast destinations parsed from config */
 	UnicastDestination unicastDestinations[UNICAST_MAX_DESTINATIONS];

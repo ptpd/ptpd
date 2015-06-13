@@ -380,6 +380,7 @@ enum
 		    "\x59\x59\x58\x58\x58\x58"
 
 /* constants used for unicast grant processing */
+#define UNICAST_GRANT_REFRESH_INTERVAL 1
 #define GRANT_NOT_FOUND -1
 #define GRANT_NONE_LEFT -2
 

@@ -37,16 +37,79 @@
 
 #include "ptpd.h"
 
+/* how many times we send a cancel before we stop waiting for ack */
 #define GRANT_CANCEL_ACK_TIMEOUT 3
+/* every N grant refreshes, we re-request messages we don't seem to be receiving */
+#define GRANT_KEEPALIVE_INTERVAL 5
+/* maximum number of missed messages of given type before we re-request */
+#define GRANT_MAX_MISSED 10
+
+static uint16_t makeUnicastHash(PortIdentity *portIdentity, Integer32 transportAddress);
+static void updateUnicastIndex(UnicastGrantTable *table, UnicastGrantTable **index);
+static UnicastGrantTable* lookupUnicastIndex(PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantTable **index);
+
+/* very simple modN hash to speed up unicast grant table lookups.
+ * means are provided to hash on transportAddress, but currently not used
+ */
+static uint16_t
+makeUnicastHash(PortIdentity *portIdentity, Integer32 transportAddress)
+{
+
+    int dsize = sizeof(PortIdentity);
+    Octet data[dsize];
+    int i = 0;
+    uint32_t sum = 0;
+
+    memcpy(data, portIdentity, sizeof(PortIdentity));
+
+    while(i<dsize) {
+	sum+=*(uint16_t*)(data + i);
+	i+=2;
+    }
+
+    return (sum % UNICAST_MAX_DESTINATIONS);
+}
+
+/* update index table */
+static void
+updateUnicastIndex(UnicastGrantTable *table, UnicastGrantTable **index)
+{
+    uint16_t hash = makeUnicastHash(&table->portIdentity, table->transportAddress);
+    index[hash] = table;
+
+}
+
+/* return matching entry from index table */
+static UnicastGrantTable*
+lookupUnicastIndex(PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantTable **index)
+{
+    uint16_t hash = makeUnicastHash(portIdentity, transportAddress);
+    UnicastGrantTable* table;
+
+    if(index == NULL) {
+	return NULL;
+    }
+
+    table  = index[hash];
+
+    if(table != NULL && (!cmpPortIdentity(portIdentity, &table->portIdentity))) {
+	return table;
+    } else {
+	return NULL;
+    }
+
+}
+
 
 /* find which grant table entry the given port belongs to:
    - if not found, return first free entry, store portID and/or address
    - if found, find the entry it belongs to
-   - if update is false, only a search is performed
+   - look up the index table, only iterate on miss
+   - if update is FALSE, only a search is performed
 */
 UnicastGrantTable*
 findUnicastGrants
-(const PortIdentity* portIdentity, Integer32 transportAddress, UnicastGrantTable *grantTable, int nodeCount, Boolean update)
+(const PortIdentity* portIdentity, Integer32 transportAddress, UnicastGrantTable *grantTable, UnicastGrantTable **index, int nodeCount, Boolean update)
 {
 
 	int i;
@@ -56,7 +119,28 @@ findUnicastGrants
 
 	UnicastGrantTable *nodeTable;
 
-	for(i=0; i < nodeCount; i++) {
+	/* look up the index table*/
+	if(index != NULL) {
+	    found = lookupUnicastIndex(portIdentity, transportAddress, index);
+	}
+	
+	if(found != NULL) {
+	    DBG("findUnicastGrants: cache hit\n");
+		/* do not overwrite address if zero given
+		 * (used by slave to preserve configured master addresses)
+		 */
+		if(update && transportAddress) {
+		    found->transportAddress = transportAddress;
+		}
+		if(update) {
+		    found->portIdentity = *portIdentity;
+		}
+
+		if(update) {
+		    updateUnicastIndex(found, index);
+		}
+
+	} else for(i=0; i < nodeCount; i++) {
 
 	    nodeTable = &grantTable[i];
 
@@ -82,6 +166,7 @@ findUnicastGrants
 		    found->portIdentity = *portIdentity;
 		}
 
+		DBG("findUnicastGrants: cache miss - %d iterations %d\n", i);
 		break;
 
 	    }
@@ -184,7 +269,7 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 			getMessageTypeName(messageType), portId, inet_ntoa(tmpAddr), requestData->durationField,
 			requestData->logInterMessagePeriod);
 
-	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS, TRUE);
+	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS, TRUE);
 
 	if(nodeTable == NULL) {
 		if(ptpClock->slaveCount >= UNICAST_MAX_DESTINATIONS) {
@@ -299,7 +384,7 @@ void handleSMGrantUnicastTransmission(MsgSignaling* incoming, Integer32 sourceAd
 	DBGV("Received GRANT_UNICAST_TRANSMISSION message for message %s from %s(%s)\n",
 			getMessageTypeName(messageType), portId, inet_ntoa(tmpAddr));
 
-	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, grantTable, nodeCount, TRUE);
+	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, grantTable, ptpClock->unicastGrantIndex, nodeCount, TRUE);
 
 	if(nodeTable == NULL) {
 		DBG("GRANT_UNICAST_TRANSMISSION: did not find node in master table: %s\n", portId);
@@ -387,7 +472,7 @@ Boolean handleSMCancelUnicastTransmission(MsgSignaling* incoming, MsgSignaling* 
 
 	ptpClock->counters.unicastGrantsCancelReceived++;
 
-	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS, FALSE);
+	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS, FALSE);
 
 	if(nodeTable == NULL) {
 		DBG("CANCEL_UNICAST_TRANSMISSION: did not find node in slave table: %s\n", portId);
@@ -450,7 +535,7 @@ void handleSMAcknowledgeCancelUnicastTransmission(MsgSignaling* incoming, Intege
 	DBGV("Received ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION message for message %s from %s(%s)\n",
 			getMessageTypeName(messageType), portId, inet_ntoa(tmpAddr));
 
-	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS, FALSE);
+	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS, FALSE);
 
 	if(nodeTable == NULL) {
 		DBG("ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION: did not find node in slave table: %s\n", portId);
@@ -576,6 +661,12 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
 
     UnicastGrantData *grantData;
     UnicastGrantTable *nodeTable;
+
+    /* initialise the index table */
+    for(i=0; i < UNICAST_MAX_DESTINATIONS; i++) {
+	ptpClock->unicastGrantIndex[i] = NULL;
+	ptpClock->syncDestIndex[i] = 0;
+    }
 
     for(j=0; j<nodeCount; j++) {    
 
@@ -740,7 +831,9 @@ void requestUnicastTransmission(UnicastGrantData *grant, UInteger32 duration, co
 
 	/* pack and send */
 	if(prepareSMRequestUnicastTransmission(&ptpClock->outgoingSignalingTmp, grant, ptpClock)) {
-			ptpClock->outgoingSignalingTmp.header.domainNumber = grant->parent->domainNumber;
+			if(grant->parent->domainNumber != 0) {
+			    ptpClock->outgoingSignalingTmp.header.domainNumber = grant->parent->domainNumber;
+			}
 			issueSignaling(&ptpClock->outgoingSignalingTmp, grant->parent->transportAddress, rtOpts, ptpClock);
 			ptpClock->counters.unicastGrantsRequested++;
 			/* ready to be monitored */
@@ -762,7 +855,9 @@ void cancelUnicastTransmission(UnicastGrantData* grant, const const RunTimeOpts*
 /* todo: dbg sending */
 
 	if(prepareSMCancelUnicastTransmission(&ptpClock->outgoingSignalingTmp, grant, ptpClock)) {
-			ptpClock->outgoingSignalingTmp.header.domainNumber = grant->parent->domainNumber;
+			if(grant->parent->domainNumber != 0) {
+			    ptpClock->outgoingSignalingTmp.header.domainNumber = grant->parent->domainNumber;
+			}
 			issueSignaling(&ptpClock->outgoingSignalingTmp, grant->parent->transportAddress, rtOpts, ptpClock);
 			ptpClock->counters.unicastGrantsCancelSent++;
 	} 
@@ -999,7 +1094,7 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 
     /* modulo N counter: used for requesting announce while other master is selected */
     everyN++;
-    everyN %= 5;
+    everyN %= GRANT_KEEPALIVE_INTERVAL;
 
      /* only notSlave or slaveOnly - nothing inbetween */
      if(ptpClock->clockQuality.clockClass > 127 && ptpClock->clockQuality.clockClass < 255)  {
@@ -1066,18 +1161,22 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 		    actionRequired = TRUE;
 		}
 
-		if(!nodeTable->isPeer && ptpClock->slaveOnly && ptpClock->portState == PTP_LISTENING) {
+		if(!nodeTable->isPeer && ptpClock->slaveOnly) {
 		    if(grantData->messageType == ANNOUNCE && !grantData->requested) {
 			actionRequired = TRUE;
 		    }
 		}
 
-		if(ptpClock->slaveOnly && !everyN && grantData->messageType == ANNOUNCE && (nodeTable != ptpClock->parentGrants)) {
-			if(nodeTable->lastAnnounce == 0) {
-			    DBG("foreign master: no Announce being received - will request again\n");
+		if((ptpClock->slaveOnly || nodeTable->isPeer) && (everyN == (GRANT_KEEPALIVE_INTERVAL -1))){
+			if(grantData->receiving == 0 && grantData->granted ) {
+			    /* if we mixed n consecutive messages (checked every m seconds), re-request */
+ 			    if( (everyN * UNICAST_GRANT_REFRESH_INTERVAL) > (GRANT_MAX_MISSED * grantData->logInterval)) {
+			    DBG("foreign master: no %s being received - will request again\n",
+				    getMessageTypeName(grantData->messageType));
 				actionRequired = TRUE;
+			    }
 			}
-			    nodeTable->lastAnnounce = 0;
+			    grantData->receiving = 0;
 		}
 
 		/* if we're slave, we request; if we're master, we cancel */
