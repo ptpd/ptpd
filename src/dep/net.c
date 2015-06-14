@@ -674,7 +674,7 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	}
 
 failure:
-	NOTICE("net.c: SO_TIMESTAMPING TX software timestamp failure - reverting to SO_TIMESTAMPNS\n");
+	DBG("net.c: SO_TIMESTAMPING TX software timestamp failure - reverting to SO_TIMESTAMPNS\n");
 	/* unset SO_TIMESTAMPING first! otherwise we get an always-exiting select! */
 	val = 0;
 	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(int)) < 0) {
