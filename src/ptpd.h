@@ -261,6 +261,8 @@ UInteger8 bmc(ForeignMasterRecord*, const RunTimeOpts*,PtpClock*);
 int cmpPortIdentity(const PortIdentity *a, const PortIdentity *b);
 /* check if portIdentity is all zero */
 Boolean portIdentityEmpty(PortIdentity *portIdentity);
+/* check if portIdentity is all ones */
+Boolean portIdentityAllOnes(PortIdentity *portIdentity);
 
 /**
  * \brief When recommended state is Master, copy local data into parent and grandmaster dataset

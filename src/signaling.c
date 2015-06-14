@@ -144,10 +144,13 @@ findUnicastGrants
 
 	    nodeTable = &grantTable[i];
 
+	    /* first free entry */
 	    if(firstFree == NULL) {
-		    if(portIdentityEmpty(&nodeTable->portIdentity) || (nodeTable->timeLeft == 0)) {
-			firstFree = nodeTable;
-		}
+		    if(portIdentityEmpty(&nodeTable->portIdentity) ||
+			portIdentityAllOnes(&nodeTable->portIdentity) ||
+			(nodeTable->timeLeft == 0)) {
+			    firstFree = nodeTable;
+		    }
 	    }
 
 	    /* port identity matches */
@@ -162,11 +165,17 @@ findUnicastGrants
 		if(update && transportAddress) {
 		    found->transportAddress = transportAddress;
 		}
+
 		if(update) {
 		    found->portIdentity = *portIdentity;
 		}
 
 		DBG("findUnicastGrants: cache miss - %d iterations %d\n", i);
+
+		if(update) {
+		    updateUnicastIndex(found, index);
+		}
+
 		break;
 
 	    }
@@ -192,7 +201,7 @@ findUnicastGrants
     if(update && firstFree != NULL) {
 	firstFree->portIdentity = *portIdentity;
 	firstFree->transportAddress = transportAddress;
-	
+
 	/* new set of grants - reset sequence numbers */
 	for(i=0; i < PTP_MAX_MESSAGE; i++) {
 	    firstFree->grantData[i].sentSeqId = 0;
@@ -349,6 +358,11 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 	    myGrant->canceled = FALSE;
 	    myGrant->cancelCount = 0;
 	    myGrant->logInterval = grantData->logInterMessagePeriod;
+
+	    /* this could be the very first grant for this node - update node's timeLeft so it's not seen as free anymore */
+	    if(nodeTable->timeLeft <= 0) {
+		nodeTable->timeLeft = myGrant->timeLeft;
+	    }
 
 	    /* If we've granted once, we're likely to grant again */
 	    grantData->renewal_invited = 1;

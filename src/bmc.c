@@ -181,6 +181,19 @@ Boolean portIdentityEmpty(PortIdentity *portIdentity) {
     return FALSE;
 }
 
+/* compare portIdentity to all ones port identity */
+Boolean portIdentityAllOnes(PortIdentity *portIdentity) {
+
+    PortIdentity allOnes;
+    memset(&allOnes, 0xFF, sizeof(PortIdentity));
+
+    if (!cmpPortIdentity(portIdentity, &allOnes)) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 /*Local clock is becoming Master. Table 13 (9.3.5) of the spec.*/
 void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {

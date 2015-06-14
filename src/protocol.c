@@ -265,15 +265,13 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
 		
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {
-			/* do not cancel announce, just start re-requesting */
-			ptpClock->parentGrants->grantData[ANNOUNCE].granted = FALSE;
-			ptpClock->parentGrants->grantData[ANNOUNCE].requested = FALSE;
+			/* do not cancel, just start re-requesting so we can still send a cancel on exit */
 			ptpClock->parentGrants->grantData[ANNOUNCE].timeLeft = 0;
-			/* actually cancel the rest though */
-			cancelUnicastTransmission(&ptpClock->parentGrants->grantData[SYNC], rtOpts, ptpClock);
+			ptpClock->parentGrants->grantData[SYNC].timeLeft = 0;
 			if(ptpClock->delayMechanism == E2E) {
-			cancelUnicastTransmission(&ptpClock->parentGrants->grantData[DELAY_RESP], rtOpts, ptpClock);
+			    ptpClock->parentGrants->grantData[DELAY_RESP].timeLeft = 0;
 			}
+
 			ptpClock->parentGrants = NULL;
 
 			if(ptpClock->delayMechanism == P2P) {
