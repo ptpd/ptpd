@@ -1,4 +1,4 @@
-README for PTPd Version 2
+README for PTPd Version 2.x
 
 - Introduction -
 
@@ -21,6 +21,10 @@ going on.
 If you are just looking for software to update the time on your desktop, you
 probably want something that implements the Network Time Protocol. It can
 coordinate computer clocks with an absolute time reference such as UTC.
+
+Please refer to the INSTALL file for build instructions and configuration
+options. Please refer to the README.repocheckout file for information
+on how to build from source code repositories.
 
 - Legal notice -
 

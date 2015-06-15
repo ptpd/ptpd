@@ -693,9 +693,9 @@ again:
 	 * Try to be compatible with older implementations of ntpd.
 	 */
 	if (res == INFO_ERR_FMT && req_pkt_size != 48) {
-		int oldsize;
-
-		oldsize = req_pkt_size;
+#ifdef RUNTIME_DEBUG
+		int oldsize  = req_pkt_size;
+#endif /* RUNTIME_DEBUG */
 
 		switch(req_pkt_size) {
 		case REQ_LEN_NOMAC:

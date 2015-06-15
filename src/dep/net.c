@@ -1447,11 +1447,13 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		if(!(flags & MSG_ERRQUEUE))
 #endif
 		netPath->lastSourceAddr = from_addr.sin_addr.s_addr;
+
+		netPath->receivedPacketsTotal++;
+
 		/* do not report "from self" */
 		if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
 		    netPath->receivedPackets++;
 		}
-		netPath->receivedPacketsTotal++;
 
 		if (msg.msg_controllen <= 0) {
 			ERROR("received short ancillary data (%ld/%ld)\n",
@@ -1481,6 +1483,8 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 				DBG("IP_RECVDSTADDR Dst: %s\n", inet_ntoa(*pa));
 			}
 #endif
+
+
 			if (cmsg->cmsg_level == SOL_SOCKET) {
 #if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)
 				if(cmsg->cmsg_type == SO_TIMESTAMPING || 
@@ -1531,6 +1535,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 
 		}
 
+
 		if (!timestampValid) {
 			/*
 			 * do not try to get by with recording the time here, better
@@ -1573,10 +1578,11 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 	    netPath->lastDestAddr = *(Integer32 *)(pkt_data + 30);
 	}
 
-	/* do not report "from self" */
-	if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
-		netPath->receivedPackets++;
-	}
+		/* do not report "from self" */
+		if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
+		    netPath->receivedPackets++;
+		}
+
 	netPath->receivedPacketsTotal++;
 
 		/* XXX Total cheat */
@@ -1666,7 +1672,7 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 
 	/* do not report "from self" */
 	if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
-		netPath->receivedPackets++;
+	    netPath->receivedPackets++;
 	}
 
 	netPath->receivedPacketsTotal++;
@@ -1703,16 +1709,16 @@ netSendPcapEther(Octet * buf,  UInteger16 length,
 #endif
 
 //
-// alt_dst: alternative destination.
+// destinationAddress: destination:
 //   if filled, send to this unicast dest;
-//   if zero, do the normal operation (send to unicast with -u, or send to the multcast group)
+//   if zero, sending to multicast.
 //
 ///
 /// TODO: merge these 2 functions into one
 ///
 ssize_t 
 netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
-	     const RunTimeOpts *rtOpts, Integer32 alt_dst, TimeInternal * tim)
+	     const RunTimeOpts *rtOpts, Integer32 destinationAddress, TimeInternal * tim)
 {
 	ssize_t ret;
 	struct sockaddr_in addr;
@@ -1730,7 +1736,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 			(struct ether_addr *)netPath->interfaceID,
 			netPath->pcapGeneral);
 		
-		if (ret <= 0) 
+		if (ret <= 0)
 			DBG("Error sending ether multicast event message\n");
 		else {
 			netPath->sentPackets++;
@@ -1738,15 +1744,14 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 		}
         } else {
 #endif
-		if (netPath->unicastAddr || alt_dst ) {
-			if(alt_dst) {
-				addr.sin_addr.s_addr = alt_dst;
-			} else if (netPath->unicastAddr) {
-				addr.sin_addr.s_addr = netPath->unicastAddr;
-			}
+		if (destinationAddress ) {
+			addr.sin_addr.s_addr = destinationAddress;
 			/*
-			 * This function is used for PTP only anyway...
+			 * This function is used for PTP only anyway - for now.
 			 * If we're sending to a unicast address, set the UNICAST flag.
+			 * Transport API in LibCCK / 2.4 uses a callback for this,
+			 * so the client can do something with the payload before it's sent,
+			 * depending if it's unicast or multicast.
 			 */
 			*(char *)(buf + 6) |= PTP_UNICAST;
 
@@ -1836,7 +1841,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 
 ssize_t 
 netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
-	       const const RunTimeOpts *rtOpts, Integer32 alt_dst)
+	       const const RunTimeOpts *rtOpts, Integer32 destinationAddress)
 {
 	ssize_t ret;
 	struct sockaddr_in addr;
@@ -1859,13 +1864,9 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 		}
 	} else {
 #endif
-		if(alt_dst || netPath->unicastAddr) {
-			if(alt_dst) {
-			    addr.sin_addr.s_addr = alt_dst;
-			} else if (netPath->unicastAddr) {
-			    addr.sin_addr.s_addr = netPath->unicastAddr;
-			}
+		if(destinationAddress) {
 
+			addr.sin_addr.s_addr = destinationAddress;
 			/*
 			 * This function is used for PTP only anyway...
 			 * If we're sending to a unicast address, set the UNICAST flag.
@@ -1928,6 +1929,7 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, const RunT
 
 		if (ret <= 0) 
 			DBG("error sending ether multicast general message\n");
+
 	} else if (dst)
 #else
 	if (dst)
@@ -1962,6 +1964,7 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, const RunT
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("Error sending multicast peer general message\n");
+
 	}
 
 	if (ret > 0) {
@@ -2009,10 +2012,6 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("Error sending unicast peer event message\n");
-		else {
-			netPath->sentPackets++;
-			netPath->sentPacketsTotal++;
-		    }
 
 #ifndef SO_TIMESTAMPING
 		/* 
@@ -2062,10 +2061,6 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("Error sending multicast peer event message\n");
-		else {
-			netPath->sentPackets++;
-			netPath->sentPacketsTotal++;
-		}
 #ifdef SO_TIMESTAMPING
 		if(!netPath->txTimestampFailure) {
 			if(!getTxTimestamp(netPath, tim)) {

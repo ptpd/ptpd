@@ -81,7 +81,7 @@ typedef struct {
  */
 typedef struct {
 	Integer32 eventSock, generalSock;
-	Integer32 multicastAddr, peerMulticastAddr,unicastAddr;
+	Integer32 multicastAddr, peerMulticastAddr;
 
 	/* Interface address and capability descriptor */
 	InterfaceInfo interfaceInfo;

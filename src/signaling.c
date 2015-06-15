@@ -44,15 +44,15 @@
 /* maximum number of missed messages of given type before we re-request */
 #define GRANT_MAX_MISSED 10
 
-static uint16_t makeUnicastHash(PortIdentity *portIdentity, Integer32 transportAddress);
+static uint16_t makeUnicastHash(const PortIdentity *portIdentity, Integer32 transportAddress);
 static void updateUnicastIndex(UnicastGrantTable *table, UnicastGrantTable **index);
-static UnicastGrantTable* lookupUnicastIndex(PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantTable **index);
+static UnicastGrantTable* lookupUnicastIndex(const PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantTable **index);
 
 /* very simple modN hash to speed up unicast grant table lookups.
  * means are provided to hash on transportAddress, but currently not used
  */
 static uint16_t
-makeUnicastHash(PortIdentity *portIdentity, Integer32 transportAddress)
+makeUnicastHash(const PortIdentity *portIdentity, Integer32 transportAddress)
 {
 
     int dsize = sizeof(PortIdentity);
@@ -81,7 +81,7 @@ updateUnicastIndex(UnicastGrantTable *table, UnicastGrantTable **index)
 
 /* return matching entry from index table */
 static UnicastGrantTable*
-lookupUnicastIndex(PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantTable **index)
+lookupUnicastIndex(const PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantTable **index)
 {
     uint16_t hash = makeUnicastHash(portIdentity, transportAddress);
     UnicastGrantTable* table;
@@ -254,15 +254,16 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 {
 
 	char portId[PATH_MAX];
-	struct in_addr tmpAddr;
 	UnicastGrantData *myGrant;
 	UnicastGrantTable *nodeTable;
 	Boolean granted = TRUE;
 	SMRequestUnicastTransmission* requestData = (SMRequestUnicastTransmission*)incoming->tlv->valueField;
 	SMGrantUnicastTransmission* grantData = NULL;
 	Enumeration8 messageType = requestData->messageType;
-
+#ifdef RUNTIME_DEBUG
+	struct in_addr tmpAddr;
 	tmpAddr.s_addr = sourceAddress;
+#endif /* RUNTIME_DEBUG */
 	snprint_PortIdentity(portId, PATH_MAX, &incoming->header.sourcePortIdentity);
 
 	initOutgoingMsgSignaling(&incoming->header.sourcePortIdentity, outgoing, ptpClock);
@@ -282,10 +283,10 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 
 	if(nodeTable == NULL) {
 		if(ptpClock->slaveCount >= UNICAST_MAX_DESTINATIONS) {
-			DBG("REQUEST_UNICAST_TRANSMISSION (%s): did not find node in slave table : %s (%s) - table full\n", getMessageTypeName(messageType)
+			DBG("REQUEST_UNICAST_TRANSMISSION (%s): did not find node in slave table : %s (%s) - table full\n", getMessageTypeName(messageType),
 			inet_ntoa(tmpAddr),portId);
 		} else {
-		DBG("REQUEST_UNICAST_TRANSMISSION (%s): did not find node in slave table: %s (%s)\n", getMessageTypeName(messageType)
+		DBG("REQUEST_UNICAST_TRANSMISSION (%s): did not find node in slave table: %s (%s)\n", getMessageTypeName(messageType),
 			inet_ntoa(tmpAddr),portId);
 		}
 		return;
@@ -344,7 +345,7 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 		grantData->durationField);
 
 	    myGrant->duration = grantData->durationField;
-	    /* NEW! 5 seconds for free! Why 5? refreshUnicastGrants expires when it's 5 */
+	    /* NEW! 5 seconds for free! Why 5? refreshUnicastGrants expires the grant when it's 5 */
 	    myGrant->timeLeft = grantData->durationField + 10;
 
 	    /* do not reset the counter if this is being re-requested */
@@ -361,7 +362,8 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 
 	    /* this could be the very first grant for this node - update node's timeLeft so it's not seen as free anymore */
 	    if(nodeTable->timeLeft <= 0) {
-		nodeTable->timeLeft = myGrant->timeLeft;
+		/* + 10 seconds for a grace period */
+		nodeTable->timeLeft = myGrant->timeLeft + 10;
 	    }
 
 	    /* If we've granted once, we're likely to grant again */
@@ -386,13 +388,15 @@ void handleSMGrantUnicastTransmission(MsgSignaling* incoming, Integer32 sourceAd
 {
 
 	char portId[PATH_MAX];
-	struct in_addr tmpAddr;
 	SMGrantUnicastTransmission *incomingGrant = (SMGrantUnicastTransmission*)incoming->tlv->valueField;
 	UnicastGrantData *myGrant;
 	Enumeration8 messageType = incomingGrant->messageType;
 	UnicastGrantTable *nodeTable;
-
+#ifdef RUNTIME_DEBUG
+	struct in_addr tmpAddr;
 	tmpAddr.s_addr = sourceAddress;
+#endif /* RUNTIME_DEBUG */
+
 	snprint_PortIdentity(portId, PATH_MAX, &incoming->header.sourcePortIdentity);
 
 	DBGV("Received GRANT_UNICAST_TRANSMISSION message for message %s from %s(%s)\n",
@@ -462,13 +466,16 @@ Boolean handleSMCancelUnicastTransmission(MsgSignaling* incoming, MsgSignaling* 
 	DBGV("Received CANCEL_UNICAST_TRANSMISSION message\n");
 
 	char portId[PATH_MAX];
-	struct in_addr tmpAddr;
 	SMCancelUnicastTransmission* requestData = (SMCancelUnicastTransmission*)incoming->tlv->valueField;
 	SMAcknowledgeCancelUnicastTransmission* acknowledgeData = NULL;
 
 	UnicastGrantData *myGrant;
 	Enumeration8 messageType = requestData->messageType;
 	UnicastGrantTable *nodeTable;
+#ifdef RUNTIME_DEBUG
+	struct in_addr tmpAddr;
+	tmpAddr.s_addr = sourceAddress;
+#endif /* RUNTIME_DEBUG */
 
 	initOutgoingMsgSignaling(&incoming->header.sourcePortIdentity, outgoing, ptpClock);
         outgoing->header.flagField0 |= PTP_UNICAST;
@@ -477,8 +484,6 @@ Boolean handleSMCancelUnicastTransmission(MsgSignaling* incoming, MsgSignaling* 
 
 	XMALLOC(outgoing->tlv->valueField, sizeof(SMAcknowledgeCancelUnicastTransmission));
 	acknowledgeData = (SMAcknowledgeCancelUnicastTransmission*)outgoing->tlv->valueField;
-
-	tmpAddr.s_addr = sourceAddress;
 	snprint_PortIdentity(portId, PATH_MAX, &incoming->header.sourcePortIdentity);
 
 	DBGV("Received CANCEL_UNICAST_TRANSMISSION message for message %s from %s(%s)\n",
@@ -536,14 +541,17 @@ void handleSMAcknowledgeCancelUnicastTransmission(MsgSignaling* incoming, Intege
 {
 
 	char portId[PATH_MAX];
-	struct in_addr tmpAddr;
 	SMAcknowledgeCancelUnicastTransmission* requestData = (SMAcknowledgeCancelUnicastTransmission*)incoming->tlv->valueField;
 
 	UnicastGrantData *myGrant;
 	Enumeration8 messageType = requestData->messageType;
 	UnicastGrantTable *nodeTable;
 
+#ifdef RUNTIME_DEBUG
+	struct in_addr tmpAddr;
 	tmpAddr.s_addr = sourceAddress;
+#endif /* RUNTIME_DEBUG */
+
 	snprint_PortIdentity(portId, PATH_MAX, &incoming->header.sourcePortIdentity);
 
 	DBGV("Received ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION message for message %s from %s(%s)\n",
@@ -1141,10 +1149,10 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 		actionRequired = FALSE;
 	
 		if(grantData->granted) {
-		    /* re-request 5 seconds before expiry for continuous service
+		    /* re-request 5 seconds before expiry for continuous service.
 		     * masters set this to +10 sec so will keep +5 sec extra 
 		     */
-		    if(grantData->timeLeft < 5) {
+		    if(grantData->timeLeft <= 5) {
 			DBG("grant for message %s expired\n", getMessageTypeName(grantData->messageType));
 			grantData->expired = TRUE;
 		    } else {

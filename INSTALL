@@ -1,6 +1,6 @@
 PTP Daemon Version 2 Build and Installation Instructions
 
-12 June 2015
+15 June 2015
 
 George V. Neville-Neil, Wojciech Owczarek
 
@@ -58,23 +58,34 @@ You will need the following tools and libraries to build ptpd2:
     * As of 2.3.1, support was added for multiple unicast destinations
     (both GMs and slaves) - with negotiation (signaling) and without.
     The default maximum number of unicast destinations (also the
-    maximum number of slaves for a signaling GM) is set to 16. This
-    can be changed to a maximum of 1024 using:
+    maximum number of slaves for a signaling GM) is set to 128. This
+    can be changed to a maximum of 2048 using:
 
-   ./configure --with-max-unicast-destinations=[16...1024]
+   ./configure --with-max-unicast-destinations=[16...2048]
 
-    It is possible to change this limit to more than 1024, but realistically,
-    due to message scheduling, timer signal usage and single-thread
-    architecture, anywhere above 400 ptpd will struggle.
+    It is possible to change this limit to more than 2048, but realistically,
+    due to message scheduling, timer signal usage and single-threaded
+    architecture, anywhere above 1000 ptpd may struggle. Ptpd has been
+    successfully tested as unicast Telecom (negotiation) master
+    at 1000 slaves at low message rates (1/sec) and provided adequate
+    performance. When running high numbers of slaves, it is recommended
+    to use libpcap (ptpengine:use_libpcap=y) to allow easier matching
+    of Sync and FollowUp, unless the NIC supports software transmit
+    timestamps. Without those and without libpcap, ptpd loops packets 
+    back into its own socket, so the followUp destination cannot be
+    matched with the Sync destination, and a lookup table is used.
+    Hash collissions are low, but they may happen, in which case
+    ptpd will send followUp to the wrong slave. This is only and issue
+    in extreme scenarios.
 
     * With certain NIC drivers on Linux providing the SO_TIMESTAMPING
     functionality with software transmit timestamps (SOF_TIMESTAMPING_
     TX_SOFTWARE), unpredictable transmit timestamp failures can occur, 
     which may cause unstable operation and in some cases high CPU usage
     (see https://sourceforge.net/p/ptpd/discussion/469208/thread/4aea6e47).
-    While fixes have been implemented, there is still some risk.
-    To disable SO_TIMESTAMPING support completely on Linux,
-    regardless of OS support, use:
+    While fixes have been implemented and have shown success, 
+    there is still some risk. To disable SO_TIMESTAMPING support on Linux
+    completely, regardless of OS support, use:
 
     ./configure --disable-so-timestamping
 

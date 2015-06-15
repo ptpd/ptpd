@@ -463,8 +463,8 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		/* Only supports IPv4 */
 		return SNMP_INTEGER(SNMP_IPv4);
 	case PTPBASE_CLOCK_PORT_CURRENT_PEER_ADDRESS:
-		if (snmpPtpClock->netPath.unicastAddr)
-			return SNMP_IPADDR(snmpPtpClock->netPath.unicastAddr);
+		if (snmpPtpClock->unicastDestinations[1].transportAddress)
+			return SNMP_IPADDR(snmpPtpClock->unicastDestinations[1].transportAddress);
 		return SNMP_IPADDR(snmpPtpClock->netPath.multicastAddr);
 	case PTPBASE_CLOCK_PORT_NUM_ASSOCIATED_PORTS:
 		/* Either we are master and we use multicast and we

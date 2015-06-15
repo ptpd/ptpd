@@ -1,4 +1,4 @@
-# (c) 2014:  Wojciech Owczarek, PTPd project
+# (c) 2014-2015:  Wojciech Owczarek, PTPd project
 
 %define _use_internal_dependency_generator 0
 
@@ -12,11 +12,11 @@
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard
 Name: ptpd
 Version: 2.3.1
-Release: 0.99.rc4%{distver}
+Release: 0.99.rc5%{distver}
 License: distributable
 Group: System Environment/Daemons
 Vendor: PTPd project team
-Source0: ptpd-2.3.1-rc4.tar.gz
+Source0: ptpd-2.3.1-rc5.tar.gz
 Source1: ptpd.init
 Source2: ptpd.sysconfig
 Source3: ptpd.conf
@@ -44,11 +44,11 @@ time synchronised via the PTP protocol or serving PTP time.
 
 %prep 
 
-%setup -n ptpd-2.3.1-rc4
+%setup -n ptpd-2.3.1-rc5
 
 %build
 
-./configure --with-max-unicast-destinations=128
+./configure --with-max-unicast-destinations=512
 
 make
 
@@ -156,8 +156,9 @@ fi
 %{_datadir}/ptpd/*
 
 %changelog
+* Mon Jun 15 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc5
 * Mon Jun 01 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc4
-- RC4 release, adds leap seconds file and config files
+- rc5 release, adds leap seconds file and config files
 * Wed Apr 15 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc4.pre2
 * Mon Apr 13 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc4.pre1
 * Tue Oct 07 2014 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc3

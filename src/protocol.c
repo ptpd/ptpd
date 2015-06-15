@@ -1112,27 +1112,29 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
     /* packet is not from self, and is from a non-zero source address - check ACLs */
     if(ptpClock->netPath.lastSourceAddr && 
 	(ptpClock->netPath.lastSourceAddr != ptpClock->netPath.interfaceAddr.s_addr)) {
-		struct in_addr in;
-		in.s_addr=ptpClock->netPath.lastSourceAddr;
+#ifdef RUNTIME_DEBUG
+		struct in_addr tmpAddr;
+		tmpAddr.s_addr = ptpClock->netPath.lastSourceAddr;
+#endif /* RUNTIME_DEBUG */
 		if(ptpClock->msgTmpHeader.messageType == MANAGEMENT) {
 			if(rtOpts->managementAclEnabled) {
 			    if (!matchIpv4AccessList(
 				ptpClock->netPath.managementAcl, 
 				ntohl(ptpClock->netPath.lastSourceAddr))) {
-					DBG("ACL dropped management message from %s\n", inet_ntoa(in));
+					DBG("ACL dropped management message from %s\n", inet_ntoa(tmpAddr));
 					ptpClock->counters.aclManagementDiscardedMessages++;
 					return;
 				} else
-					DBG("ACL Accepted management message from %s\n", inet_ntoa(in));
+					DBG("ACL Accepted management message from %s\n", inet_ntoa(tmpAddr));
 			}
 	        } else if(rtOpts->timingAclEnabled) {
 			if(!matchIpv4AccessList(ptpClock->netPath.timingAcl, 
 			    ntohl(ptpClock->netPath.lastSourceAddr))) {
-				DBG("ACL dropped timing message from %s\n", inet_ntoa(in));
+				DBG("ACL dropped timing message from %s\n", inet_ntoa(tmpAddr));
 				ptpClock->counters.aclTimingDiscardedMessages++;
 				return;
 			} else
-				DBG("ACL accepted timing message from %s\n", inet_ntoa(in));
+				DBG("ACL accepted timing message from %s\n", inet_ntoa(tmpAddr));
 		}
     }
 
@@ -1797,8 +1799,10 @@ handleSync(const MsgHeader *header, ssize_t length,
 				toInternalTime(&OriginTimestamp, &ptpClock->msgTmp.sync.originTimestamp);
 			    dst = lookupSyncIndex(&OriginTimestamp, header->sequenceId, ptpClock->syncDestIndex);
 			    {
+#ifdef RUNTIME_DEBUG
 				struct in_addr tmpAddr;
 				tmpAddr.s_addr = dst;
+#endif /* RUNTIME_DEBUG */
 				DBG("handleSync: master sync dest cache hit: %s\n", inet_ntoa(tmpAddr));
 			    }
 			    if(!dst) {

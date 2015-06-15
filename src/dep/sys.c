@@ -821,44 +821,44 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &ptpClock->offsetFromMaster);
 #ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated) {
-	    INFO("state %s, ofm %s s, ofm_mean % .09f s, ofm_dev % .09f s\n",
+	    INFO("Status update: state %s, ofm %s s, ofm_mean % .09f s, ofm_dev % .09f s\n",
 		portState_getName(ptpClock->portState),
 		tmpBuf,
 		ptpClock->slaveStats.ofmMean,
 		ptpClock->slaveStats.ofmStdDev);
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
 	    if (ptpClock->delayMechanism == E2E) {
-		INFO("state %s, mpd %s s, mpd_mean % .09f s, mpd_dev % .09f s\n",
+		INFO("Status update: state %s, mpd %s s, mpd_mean % .09f s, mpd_dev % .09f s\n",
 		    portState_getName(ptpClock->portState),
 		    tmpBuf,
 		    ptpClock->slaveStats.owdMean,
 		    ptpClock->slaveStats.owdStdDev);
 	    } else if(ptpClock->delayMechanism == P2P) {
-		INFO("state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+		INFO("Status update: state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
 	    }
 	} else {
-	    INFO("state %s, ofm %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	    INFO("Status update: state %s, ofm %s s\n", portState_getName(ptpClock->portState), tmpBuf);
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
 	    if(ptpClock->delayMechanism != DELAY_DISABLED) {
-		INFO("state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+		INFO("Status update: state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
 	    }
 	}
 #else
-	INFO("state %s, ofm %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	INFO("Status update: state %s, ofm %s s\n", portState_getName(ptpClock->portState), tmpBuf);
 	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
 	if(ptpClock->delayMechanism != DELAY_DISABLED) {
-	    INFO("state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	    INFO("Status update: state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
 	}
 #endif /* PTPD_STATISTICS */
     } else if(ptpClock->portState == PTP_MASTER) {
 	if(rtOpts->unicastNegotiation || ptpClock->unicastDestinationCount) {
-	    INFO("state %s, %d slaves\n", portState_getName(ptpClock->portState),
+	    INFO("Status update: state %s, %d slaves\n", portState_getName(ptpClock->portState),
 	    ptpClock->unicastDestinationCount + ptpClock->slaveCount);
 	} else {
-	    INFO("state %s\n", portState_getName(ptpClock->portState));
+	    INFO("Status update: state %s\n", portState_getName(ptpClock->portState));
 	}
     } else {
-	INFO("state %s\n", portState_getName(ptpClock->portState));
+	INFO("Status update: state %s\n", portState_getName(ptpClock->portState));
     }
 }
 
@@ -898,8 +898,12 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	    return;
 	
 	char timeStr[MAXTIMESTR];
-	struct timeval now;
+	char hostName[MAXHOSTNAMELEN];
 
+	struct timeval now;
+	memset(hostName, 0, MAXHOSTNAMELEN);
+
+	gethostname(hostName, MAXHOSTNAMELEN);
 	gettimeofday(&now, 0);
 	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", localtime((time_t*)&now.tv_sec));
 	
@@ -912,6 +916,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	}
 	rewind(out);
 
+	fprintf(out, 		STATUSPREFIX"  %s, PID %d\n","Host info", hostName, getpid());
 	fprintf(out, 		STATUSPREFIX"  %s\n","Local time", timeStr);
 	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", gmtime((time_t*)&now.tv_sec));
 	fprintf(out, 		STATUSPREFIX"  %s\n","Kernel time", timeStr);

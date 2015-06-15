@@ -592,17 +592,18 @@ AC_MSG_CHECKING([for maximum unicast destination table size])
 AC_ARG_WITH(
     [max-unicast-destinations],
     [AS_HELP_STRING(
-	[--with-max-unicast-destinations = [ 16 .. 1024]],
+	[--with-max-unicast-destinations = [ 16 .. 2048]],
 	[Change maximum supported number of unicast destinations - 
 	    this determines the maximum supported number of slaves 
 	    in unicast mode (with and without signaling)]
     )],
     [max_destinations=$with_max_unicast_destinations],
-    [max_destinations=0]
+    [max_destinations=128]
 )
 
 test $max_destinations -lt 16 && max_destinations=16
-test $max_destinations -gt 1024 && max_destinations=1024
+test $max_destinations -gt 2048 && max_destinations=2048
+
 PTP_UNICAST_MAX="-DPTPD_UNICAST_MAX=$max_destinations"
 AC_SUBST([PTP_UNICAST_MAX])
 AC_MSG_RESULT([$max_destinations])

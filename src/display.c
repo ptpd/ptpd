@@ -115,14 +115,15 @@ clockUUID_display(const Octet * sourceUuid)
 void
 netPath_display(const NetPath * net)
 {
-	struct in_addr addr;
-
+#ifdef RUNTIME_DEBUG
+		struct in_addr tmpAddr;
 	DBGV("eventSock : %d \n", net->eventSock);
 	DBGV("generalSock : %d \n", net->generalSock);
-	addr.s_addr = net->multicastAddr;
-	DBGV("multicastAdress : %s \n", inet_ntoa(addr));
-	addr.s_addr = net->peerMulticastAddr;
-	DBGV("peerMulticastAddress : %s \n", inet_ntoa(addr));
+	tmpAddr.s_addr = net->multicastAddr;
+	DBGV("multicastAdress : %s \n", inet_ntoa(tmpAddr));
+	tmpAddr.s_addr = net->peerMulticastAddr;
+	DBGV("peerMulticastAddress : %s \n", inet_ntoa(tmpAddr));
+#endif /* RUNTIME_DEBUG */
 }
 
 /**\brief Display a IntervalTimer Structure*/
