@@ -1871,7 +1871,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				netPath->sentPacketsTotal++;
 			}
 #ifdef SO_TIMESTAMPING
-			if(!netPath->txTimestampFailure) {
+			if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
 				if(!getTxTimestamp(netPath, tim)) {
 					if (tim) {
 						clearTime(tim);
@@ -2079,7 +2079,7 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 		if (ret <= 0)
 			DBG("Error looping back unicast peer event message\n");
 #else
-		if(!netPath->txTimestampFailure) {
+		if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
 			if(!getTxTimestamp(netPath, tim)) {
 				netPath->txTimestampFailure = TRUE;
 				if (tim) {

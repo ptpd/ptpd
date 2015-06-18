@@ -916,7 +916,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	}
 	rewind(out);
 
-	fprintf(out, 		STATUSPREFIX"  %s, PID %d\n","Host info", hostName, getpid());
+	fprintf(out, 		STATUSPREFIX"  %s, PID %d\n","Host info", hostName, (int)getpid());
 	fprintf(out, 		STATUSPREFIX"  %s\n","Local time", timeStr);
 	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", gmtime((time_t*)&now.tv_sec));
 	fprintf(out, 		STATUSPREFIX"  %s\n","Kernel time", timeStr);
