@@ -66,8 +66,8 @@ You will need the following tools and libraries to build ptpd2:
     It is possible to change this limit to more than 2048, but realistically
     due to message scheduling, timer signal usage and single-threaded
     architecture, anywhere above 1000 ptpd will show high CPU utilisation.
-   Ptpd has been successfully tested as unicast Telecom (negotiation) master
-    at 1000 slaves and low high message rates (32/sec) and provided adequate
+    Ptpd has been successfully tested as unicast Telecom (negotiation) master
+    at 1000 slaves and high message rates (32/sec) and provided adequate
     performance. When running high numbers of slaves, it is recommended
     to use libpcap (ptpengine:use_libpcap=y) to allow easier matching
     of Sync and FollowUp, unless the NIC supports software transmit

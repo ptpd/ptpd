@@ -380,9 +380,13 @@ updateLogSize(LogFileHandler* handler)
 		return;
 	if (fstat(fileno(handler->logFP), &st)!=-1) {
 		handler->fileSize = st.st_size;
-		DBG("%s file size is %d\n", handler->logID, handler->fileSize);
+#ifdef RUNTIME_DEBUG
+		fprintf(stderr, "%s file size is %d\n", handler->logID, handler->fileSize);
+#endif /* RUNTIME_DEBUG */
 	} else {
-		DBG("fstat on %s file failed!\n", handler->logID);
+#ifdef RUNTIME_DEBUG
+		fprintf(stderr, "fstat on %s file failed!\n", handler->logID);
+#endif /* RUNTIME_DEBUG */
 	}
 
 }
@@ -526,7 +530,9 @@ maintainLogSize(LogFileHandler* handler)
 		if(handler->logFP == NULL)
 		    return FALSE;
 		updateLogSize(handler);
-		DBG("%s logsize: %d\n", handler->logID, handler->fileSize);
+#ifdef RUNTIME_DEBUG
+		fprintf(stderr, "%s logsize: %d\n", handler->logID, handler->fileSize);
+#endif /* RUNTIME_DEBUG */
 		if(handler->fileSize > (handler->maxSize * 1024)) {
 
 		    /* Rotate the log file */

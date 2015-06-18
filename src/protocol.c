@@ -112,10 +112,10 @@ indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAdd
 
     uint32_t hash = 0;
 
-#ifdef REALTIME_DEBUG
+#ifdef RUNTIME_DEBUG
 	struct in_addr tmpAddr;
 	tmpAddr.s_addr = transportAddress;
-#endif /* REALTIME_DEBUG */
+#endif /* RUNTIME_DEBUG */
 
     if(timeStamp == NULL || index == NULL) {
 	return;
