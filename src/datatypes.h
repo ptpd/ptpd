@@ -666,14 +666,20 @@ struct UnicastGrantTable {
 	UnicastGrantData	grantData[PTP_MAX_MESSAGE];/* master: grantee's grants, slave: grantor's grant status */
 	UInteger32		timeLeft;		/* time until expiry of last grant (max[grants.timeLeft]. when runs out and no renewal, entry can be re-used */
 	Boolean			isPeer;			/* this entry is peer only */
+	TimeInternal		lastSyncTimestamp;		/* last Sync message timestamp sent */
 };
 
-/* Unicast destination configuration: Address, domain, preference */
+/* Unicast destination configuration: Address, domain, preference, last Sync timestamp sent */
+typedef struct {
+    Integer32 		transportAddress;		/* destination address */
+    UInteger8 		domainNumber;			/* domain number - for slaves with masters in multiple domains */
+    UInteger8 		localPreference;		/* local preference to influence BMC */
+    TimeInternal 	lastSyncTimestamp;			/* last Sync timestamp sent */
+} UnicastDestination;
+
 typedef struct {
     Integer32 transportAddress;
-    UInteger8 domainNumber;
-    UInteger8 localPreference;
-} UnicastDestination;
+} SyncDestEntry;
 
 /**
  * \struct PtpClock
@@ -764,7 +770,7 @@ typedef struct {
 	/* previous parent's grants when changing parents: if not null, this is what should be canceled */
 	UnicastGrantTable *previousGrants;
 	/* another index to match unicast Sync with FollowUp when we can't capture the destination address of Sync */
-	Integer32 syncDestIndex[UNICAST_MAX_DESTINATIONS];
+	SyncDestEntry syncDestIndex[UNICAST_MAX_DESTINATIONS];
 
 	/* unicast destinations parsed from config */
 	UnicastDestination unicastDestinations[UNICAST_MAX_DESTINATIONS];

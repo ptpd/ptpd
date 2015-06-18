@@ -476,6 +476,8 @@ int isTimeInternalNegative(const TimeInternal * p);
 double timeInternalToDouble(const TimeInternal * p);
 TimeInternal doubleToTimeInternal(const double d);
 
+uint32_t fnvHash(void *input, size_t len, int modulo);
+
 int check_timestamp_is_fresh2(const TimeInternal * timeA, const TimeInternal * timeB);
 int check_timestamp_is_fresh(const TimeInternal * timeA);
 

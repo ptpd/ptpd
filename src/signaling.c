@@ -44,38 +44,19 @@
 /* maximum number of missed messages of given type before we re-request */
 #define GRANT_MAX_MISSED 10
 
-static uint16_t makeUnicastHash(const PortIdentity *portIdentity, Integer32 transportAddress);
 static void updateUnicastIndex(UnicastGrantTable *table, UnicastGrantTable **index);
 static UnicastGrantTable* lookupUnicastIndex(const PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantTable **index);
-
-/* very simple modN hash to speed up unicast grant table lookups.
- * means are provided to hash on transportAddress, but currently not used
- */
-static uint16_t
-makeUnicastHash(const PortIdentity *portIdentity, Integer32 transportAddress)
-{
-
-    int dsize = sizeof(PortIdentity);
-    Octet data[dsize];
-    int i = 0;
-    uint32_t sum = 0;
-
-    memcpy(data, portIdentity, sizeof(PortIdentity));
-
-    while(i<dsize) {
-	sum+=*(uint16_t*)(data + i);
-	i+=2;
-    }
-
-    return (sum % UNICAST_MAX_DESTINATIONS);
-}
 
 /* update index table */
 static void
 updateUnicastIndex(UnicastGrantTable *table, UnicastGrantTable **index)
 {
-    uint16_t hash = makeUnicastHash(&table->portIdentity, table->transportAddress);
-    index[hash] = table;
+    uint32_t hash = fnvHash(&table->portIdentity, sizeof(PortIdentity), UNICAST_MAX_DESTINATIONS);
+
+    /* peer table normally has one entry: if we got here, we might pollute the main index */
+    if(!table->isPeer && index != NULL) {
+	index[hash] = table;
+    }
 
 }
 
@@ -83,7 +64,8 @@ updateUnicastIndex(UnicastGrantTable *table, UnicastGrantTable **index)
 static UnicastGrantTable*
 lookupUnicastIndex(const PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantTable **index)
 {
-    uint16_t hash = makeUnicastHash(portIdentity, transportAddress);
+    uint32_t hash = fnvHash((void*)portIdentity, sizeof(PortIdentity), UNICAST_MAX_DESTINATIONS);
+
     UnicastGrantTable* table;
 
     if(index == NULL) {
@@ -93,8 +75,11 @@ lookupUnicastIndex(const PortIdentity *portIdentity, Integer32 transportAddress,
     table  = index[hash];
 
     if(table != NULL && (!cmpPortIdentity(portIdentity, &table->portIdentity))) {
+	DBG("lookupUnicastIndex: cache hit\n");
 	return table;
     } else {
+	/* hash collision */
+	DBG("lookupUnicastIndex: hash collision\n");
 	return NULL;
     }
 
@@ -147,7 +132,6 @@ findUnicastGrants
 	    /* first free entry */
 	    if(firstFree == NULL) {
 		    if(portIdentityEmpty(&nodeTable->portIdentity) ||
-			portIdentityAllOnes(&nodeTable->portIdentity) ||
 			(nodeTable->timeLeft == 0)) {
 			    firstFree = nodeTable;
 		    }
@@ -687,7 +671,7 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
     /* initialise the index table */
     for(i=0; i < UNICAST_MAX_DESTINATIONS; i++) {
 	ptpClock->unicastGrantIndex[i] = NULL;
-	ptpClock->syncDestIndex[i] = 0;
+	ptpClock->syncDestIndex[i].transportAddress = 0;
     }
 
     for(j=0; j<nodeCount; j++) {    
@@ -1072,7 +1056,9 @@ handleSignaling(MsgHeader *header,
 		}
 		unpackSMGrantUnicastTransmission(ptpClock->msgIbuf + tlvOffset, &ptpClock->msgTmp.signaling, ptpClock);
 		handleSMGrantUnicastTransmission(&ptpClock->msgTmp.signaling, sourceAddress, ptpClock->unicastGrants, ptpClock->unicastDestinationCount, ptpClock);
-		handleSMGrantUnicastTransmission(&ptpClock->msgTmp.signaling, sourceAddress, &ptpClock->peerGrants, 1, ptpClock);
+		if(ptpClock->delayMechanism == P2P) {
+		    handleSMGrantUnicastTransmission(&ptpClock->msgTmp.signaling, sourceAddress, &ptpClock->peerGrants, 1, ptpClock);
+		}
 		break;
 
 	default:

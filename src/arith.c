@@ -348,3 +348,25 @@ doubleToTimeInternal(const double d)
 	return t;
 
 }
+
+/* FNV-1 hash, 32-bit, optional modulo limiter */
+uint32_t
+fnvHash(void *input, size_t len, int modulo)
+{
+
+    int i = 0;
+
+    static uint32_t prime = 16777619;
+    static uint32_t basis = 2166136261;
+
+    uint32_t hash = basis;
+    uint8_t *buf = (uint8_t*)input;
+
+    for(i = 0; i < len; i++)  {
+        hash *= prime;
+        hash ^= *(buf + i);
+    }
+
+    return (modulo > 0 ? hash % modulo : hash);
+
+}

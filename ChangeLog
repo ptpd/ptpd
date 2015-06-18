@@ -56,6 +56,9 @@
 	- periodic log file updates with slave or master information - separate
 	  from statistics file: allows sending statistics into syslog
 	- support for software transmit timestamping on Linux
+	- lookup tables used for matching Sync and FollowUp when
+	  no transport information available
+
 
 	* Bug fixes / improvements since 2.3.0:
 

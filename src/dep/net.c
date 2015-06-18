@@ -637,6 +637,7 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 
 	if(select(netPath->eventSock + 1, &tmpSet, NULL, NULL, &timeOut) > 0) {
 		if (FD_ISSET(netPath->eventSock, &tmpSet)) {
+
 			length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp,
 			    netPath, MSG_ERRQUEUE);
 			if (length > 0) {
@@ -735,7 +736,7 @@ netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 		netPath->txTimestampFailure = TRUE;
 	}
 #else
-	netPath->txTimestampFailure = FALSE;
+	netPath->txTimestampFailure = TRUE;
 	val = 1;
 #endif /* ETHTOOL_GET_TS_INFO */
 #endif /* PTPD_EXPERIMENTAL */
@@ -1009,7 +1010,11 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 #ifdef PTPD_PCAP
 	if (rtOpts->pcap == TRUE) {
+
+		netPath->txTimestampFailure = TRUE;
+
 		int promisc = (rtOpts->transport == IEEE_802_3 ) ? 1 : 0;
+
 		if ((netPath->pcapEvent = pcap_open_live(rtOpts->ifaceName,
 							 PACKET_SIZE, promisc,
 							 PCAP_TIMEOUT,
@@ -1017,9 +1022,21 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			PERROR("failed to open event pcap");
 			return FALSE;
 		}
+
+/* libpcap - new way - may be required for non-default buffer sizes  */
+/*
+		netPath->pcapEvent = pcap_create(rtOpts->ifaceName, errbuf);
+		pcap_set_promisc(netPath->pcapEvent, promisc);
+		pcap_set_snaplen(netPath->pcapEvent, PACKET_SIZE);
+		pcap_set_timeout(netPath->pcapEvent, PCAP_TIMEOUT);
+		pcap_set_buffer_size(netPath->pcapEvent, 1024 * 2 * UNICAST_MAX_DESTINATIONS);
+		pcap_activate(netPath->pcapEvent);
+*/
 		if (pcap_compile(netPath->pcapEvent, &program, 
 				 ( rtOpts->transport == IEEE_802_3 ) ?
 				    "ether proto 0x88f7":
+				( rtOpts->ipMode == IPMODE_UNICAST ) ?
+				    "udp port 319 and not multicast" :
 				 ( rtOpts->ipMode != IPMODE_MULTICAST ) ?
 					 "udp port 319" :
 				 "host (224.0.1.129 or 224.0.0.107) and udp port 319" ,
@@ -1047,6 +1064,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		}
 		if (rtOpts->transport != IEEE_802_3) {
 			if (pcap_compile(netPath->pcapGeneral, &program,
+					( rtOpts->ipMode == IPMODE_UNICAST ) ?
+					    "udp port 320 and not multicast" :
 					 ( rtOpts->ipMode != IPMODE_MULTICAST ) ?
 						 "udp port 320" :
 					 "host (224.0.1.129 or 224.0.0.107) and udp port 320" ,
@@ -1103,7 +1122,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		 */
 
 		if(rtOpts->ipMode == IPMODE_UNICAST) {
-		    addr.sin_addr = netPath->interfaceAddr;
+			addr.sin_addr = netPath->interfaceAddr;
 		} else {
 			addr.sin_addr.s_addr = htonl(INADDR_ANY);
 		}
@@ -1121,6 +1140,40 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			PERROR("failed to bind general socket");
 			return FALSE;
 		}
+
+#ifdef SO_RCVBUF
+                /* try increasing receive buffers for unicast Sync processing */
+                if(rtOpts->ipMode == IPMODE_UNICAST && !rtOpts->slaveOnly) {
+                    uint32_t n = 0;
+                    socklen_t nlen = sizeof(n);
+
+                    if (getsockopt(netPath->eventSock, SOL_SOCKET, SO_RCVBUF, &n, &nlen) < 0) {
+                        n = 0;
+                    }
+
+                    DBG("eventSock rcvbuff : %d\n", n);
+
+                    if(n < (UNICAST_MAX_DESTINATIONS * 1024)) {
+                        n = UNICAST_MAX_DESTINATIONS * 1024;
+                        if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_RCVBUF, &n, sizeof(n)) < 0) {
+                            DBG("Failed to increase event socket receive buffer\n");
+                        }
+                    }
+
+                    if (getsockopt(netPath->generalSock, SOL_SOCKET, SO_RCVBUF, &n, &nlen) < 0) {
+                        n = 0;
+                    }
+
+                    DBG("genetalSock rcvbuff : %d\n", n);
+
+                    if(n < (UNICAST_MAX_DESTINATIONS * 1024)) {
+                        n = UNICAST_MAX_DESTINATIONS * 1024;
+                        if (setsockopt(netPath->generalSock, SOL_SOCKET, SO_RCVBUF, &n, sizeof(n)) < 0) {
+                            DBG("Failed to increase general socket receive buffer\n");
+                        }
+                    }
+                }
+#endif /* SO_RCVBUF */
 
 #ifdef USE_BINDTODEVICE
 #ifdef linux
@@ -1560,7 +1613,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		if ((ret = pcap_next_ex(netPath->pcapEvent, &pkt_header, 
 					&pkt_data)) < 1) {
 			if (ret < 0)
-				DBGV("netRecvEvent: pcap_next_ex failed %s\n",
+				INFO("netRecvEvent: pcap_next_ex failed %s\n",
 				     pcap_geterr(netPath->pcapEvent));
 			return 0;
 		}
@@ -1778,7 +1831,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				DBGV("Error looping back unicast event message\n");
 
 #else
-			if(!netPath->txTimestampFailure) {
+			if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
 				if(!getTxTimestamp(netPath, tim)) {
 					netPath->txTimestampFailure = TRUE;
 					if (tim) {

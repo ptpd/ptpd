@@ -63,11 +63,11 @@ You will need the following tools and libraries to build ptpd2:
 
    ./configure --with-max-unicast-destinations=[16...2048]
 
-    It is possible to change this limit to more than 2048, but realistically,
+    It is possible to change this limit to more than 2048, but realistically
     due to message scheduling, timer signal usage and single-threaded
-    architecture, anywhere above 1000 ptpd may struggle. Ptpd has been
-    successfully tested as unicast Telecom (negotiation) master
-    at 1000 slaves at low message rates (1/sec) and provided adequate
+    architecture, anywhere above 1000 ptpd will show high CPU utilisation.
+   Ptpd has been successfully tested as unicast Telecom (negotiation) master
+    at 1000 slaves and low high message rates (32/sec) and provided adequate
     performance. When running high numbers of slaves, it is recommended
     to use libpcap (ptpengine:use_libpcap=y) to allow easier matching
     of Sync and FollowUp, unless the NIC supports software transmit
@@ -75,7 +75,7 @@ You will need the following tools and libraries to build ptpd2:
     back into its own socket, so the followUp destination cannot be
     matched with the Sync destination, and a lookup table is used.
     Hash collissions are low, but they may happen, in which case
-    ptpd will send followUp to the wrong slave. This is only and issue
+    ptpd will iterate over a table of last timestamps.  This is only and issue
     in extreme scenarios.
 
     * With certain NIC drivers on Linux providing the SO_TIMESTAMPING

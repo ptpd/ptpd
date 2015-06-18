@@ -74,7 +74,7 @@ static void handleManagement(MsgHeader*, Boolean,const RunTimeOpts*,PtpClock*);
 static void issueAnnounce(const RunTimeOpts*,PtpClock*);
 static void issueAnnounceSingle(Integer32, UInteger16*, const RunTimeOpts*,PtpClock*);
 static void issueSync(const RunTimeOpts*,PtpClock*);
-static void issueSyncSingle(Integer32, UInteger16*, const RunTimeOpts*,PtpClock*);
+static TimeInternal issueSyncSingle(Integer32, UInteger16*, const RunTimeOpts*,PtpClock*);
 static void issueFollowup(const TimeInternal*,const RunTimeOpts*,PtpClock*, Integer32, const UInteger16);
 #endif /* PTPD_SLAVE_ONLY */
 static void issuePdelayReq(const RunTimeOpts*,PtpClock*);
@@ -101,47 +101,91 @@ static void processPdelayRespFromSelf(const TimeInternal * tint, const RunTimeOp
 /* this shouldn't really be in protocol.c, it will be moved later */
 static void timestampCorrection(const RunTimeOpts * rtOpts, PtpClock *ptpClock, TimeInternal *timeStamp);
 
-static uint16_t hashTimeStamp(TimeInternal *timeStamp, UInteger16 sequenceId);
-static void indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAddress, Integer32 *index);
-static Integer32 lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 *index);
-
-/* compute a simple hash from a timestamp */
-static uint16_t
-hashTimeStamp(TimeInternal *timeStamp, UInteger16 sequenceId)
-{
-    if(timeStamp == NULL) {
-	return 0;
-    }
-    uint32_t sum = timeStamp->seconds + timeStamp->nanoseconds + sequenceId;
-    return ((uint16_t)(sum % UNICAST_MAX_DESTINATIONS));
-
-}
+static void indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAddress, SyncDestEntry *index);
+static Integer32 lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, SyncDestEntry *index);
+static Integer32 findSyncDestination(TimeInternal *timeStamp, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 
 /* store transportAddress in an index table */
 static void
-indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAddress, Integer32 *index)
+indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAddress, SyncDestEntry *index)
 {
+
+    uint32_t hash = 0;
+
+#ifdef REALTIME_DEBUG
+	struct in_addr tmpAddr;
+	tmpAddr.s_addr = transportAddress;
+#endif /* REALTIME_DEBUG */
 
     if(timeStamp == NULL || index == NULL) {
 	return;
     }
 
-    index[hashTimeStamp(timeStamp, sequenceId)] = transportAddress;
+    hash = fnvHash(timeStamp, sizeof(TimeInternal), UNICAST_MAX_DESTINATIONS);
+
+    if(index[hash].transportAddress) {
+	DBG("indexSync: hash collision - clearing entry %s:%04x\n", inet_ntoa(tmpAddr), hash);
+	index[hash].transportAddress = 0;
+    } else {
+	DBG("indexSync: indexed successfully %s:%04x\n", inet_ntoa(tmpAddr), hash);
+	index[hash].transportAddress = transportAddress;
+    }
 
 }
 
+/* sync destination index lookup */
 static Integer32
-lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 *index)
+lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, SyncDestEntry *index)
 {
+
+    uint32_t hash = 0;
+    Integer32 previousAddress;
 
     if(timeStamp == NULL || index == NULL) {
 	return 0;
     }
 
-    return(index[hashTimeStamp(timeStamp, sequenceId)]);
+    hash = fnvHash(timeStamp, sizeof(TimeInternal), UNICAST_MAX_DESTINATIONS);
+
+    if(index[hash].transportAddress == 0) {
+	DBG("lookupSyncIndex: cache miss\n");
+	return 0;
+    } else {
+	DBG("lookupSyncIndex: cache hit - clearing old entry\n");
+	previousAddress =  index[hash].transportAddress;
+	index[hash].transportAddress = 0;
+	return previousAddress;
+    }
 
 }
 
+/* iterative search for Sync destination for the given cached timestamp */
+static Integer32
+findSyncDestination(TimeInternal *timeStamp, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
+
+    int i = 0;
+
+    for(i = 0; i < UNICAST_MAX_DESTINATIONS; i++) {
+
+	if(rtOpts->unicastNegotiation) {
+		if( (timeStamp->seconds == ptpClock->unicastGrants[i].lastSyncTimestamp.seconds) &&
+		    (timeStamp->nanoseconds == ptpClock->unicastGrants[i].lastSyncTimestamp.nanoseconds)) {
+			clearTime(&ptpClock->unicastGrants[i].lastSyncTimestamp);
+			return ptpClock->unicastGrants[i].transportAddress;
+		    }
+	} else {
+		if( (timeStamp->seconds == ptpClock->unicastDestinations[i].lastSyncTimestamp.seconds) &&
+		    (timeStamp->nanoseconds == ptpClock->unicastDestinations[i].lastSyncTimestamp.nanoseconds)) {
+			clearTime(&ptpClock->unicastDestinations[i].lastSyncTimestamp);
+			return ptpClock->unicastDestinations[i].transportAddress;
+		    }
+	}
+    }
+
+    return 0;
+
+}
 
 void addForeign(Octet*,MsgHeader*,PtpClock*, UInteger8);
 
@@ -339,8 +383,11 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					ptpClock->delayMechanism, 
 					1, &ptpClock->unicastPeerDestination,
 					rtOpts, ptpClock);
-			ptpClock->peerGrants.isPeer = TRUE;
 		    }
+			/* this must be set regardless of delay mechanism,
+			 * so functions can see this is a peer table
+			 */
+			ptpClock->peerGrants.isPeer = TRUE;
 		}
 		break;
 	default:
@@ -414,7 +461,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		} else {
                         ptpClock->listenCount++;
                         if( ptpClock->listenCount >= rtOpts->maxListen ) {
-                            WARNING("Still in LISTENING after %d restarts - will do a full network reset\n",
+                            WARNING("Still in LISTENING after %d restarts - restarting transports\n",
 				    rtOpts->maxListen);
                             toState(PTP_FAULTY, rtOpts, ptpClock);
                             ptpClock->listenCount = 0;
@@ -429,7 +476,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
 		    /* if multicast refresh failed, restart network - helps recover after driver reloads and such */
                     if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
-                            WARNING("Error while refreshing multicast - will do a full network reset\n");
+                            WARNING("Error while refreshing multicast - restarting transports\n");
                             toState(PTP_FAULTY, rtOpts, ptpClock);
                             break;
                     }
@@ -720,7 +767,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
 				/* if multicast refresh failed, restart network - helps recover after driver reloads and such */
                 		    if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
-                        		WARNING("Error while refreshing multicast - will do a full network reset\n");
+                        		WARNING("Error while refreshing multicast - restarting transports\n");
                         		toState(PTP_FAULTY, rtOpts, ptpClock);
                         		break;
                 		    }
@@ -964,7 +1011,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				rtOpts->masterRefreshInterval);
 				/* if multicast refresh failed, restart network - helps recover after driver reloads and such */
                 		    if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
-                        		WARNING("Error while refreshing multicast - will do a full network reset\n");
+                        		WARNING("Error while refreshing multicast - restarting transports\n");
                         		toState(PTP_FAULTY, rtOpts, ptpClock);
                         		break;
                 		    }
@@ -1308,17 +1355,22 @@ handle(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	if (ptpClock->netPath.pcapEventSock >=0 && FD_ISSET(ptpClock->netPath.pcapEventSock, &readfds)) {
 	    length = netRecvEvent(ptpClock->msgIbuf, &timeStamp, 
 		          &ptpClock->netPath,0);
-	    if (length == 0) /* timeout, return for now */
+	    if (length == 0){ /* timeout, return for now */
 		return;
+		}
+
+
 	    if (length < 0) {
 		PERROR("failed to receive event on pcap");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
 		ptpClock->counters.messageRecvErrors++;
+
 		return;
 	    }
 	    if(ptpClock->leapSecondInProgress) {
 		DBG("Leap second in progress - will not process event message\n");
 	    } else {
+
 		processMessage(rtOpts, ptpClock, &timeStamp, length);
 	    }
 	}
@@ -1793,21 +1845,30 @@ handleSync(const MsgHeader *header, ssize_t length,
 			DBGV("HandleSync: going to send followup message\n");
 
 			/* who do we send the followUp to? no destination given - try looking up index */
-			if(rtOpts->ipMode == IPMODE_UNICAST && !dst) {
+			if((rtOpts->ipMode == IPMODE_UNICAST) && !dst) {
 				msgUnpackSync(ptpClock->msgIbuf,
 					      &ptpClock->msgTmp.sync);
 				toInternalTime(&OriginTimestamp, &ptpClock->msgTmp.sync.originTimestamp);
 			    dst = lookupSyncIndex(&OriginTimestamp, header->sequenceId, ptpClock->syncDestIndex);
-			    {
+
 #ifdef RUNTIME_DEBUG
+			    {
 				struct in_addr tmpAddr;
 				tmpAddr.s_addr = dst;
-#endif /* RUNTIME_DEBUG */
 				DBG("handleSync: master sync dest cache hit: %s\n", inet_ntoa(tmpAddr));
 			    }
+#endif /* RUNTIME_DEBUG */
+
 			    if(!dst) {
-				DBG("handleSync: master sync dest cache miss - using lastSyncDst\n");
-				dst = ptpClock->lastSyncDst;
+				DBG("handleSync: master sync dest cache miss - searching\n");
+				dst = findSyncDestination(&OriginTimestamp, rtOpts, ptpClock);
+				/* give up. Better than sending FollowUp to random destinations*/
+				if(!dst) {
+				    DBG("handleSync: master sync dest not found for followUp. Giving up.\n");
+				    return;
+				} else {
+				    DBG("unicast destination found.\n");
+				}
 			    }
 
 			}
@@ -3001,12 +3062,14 @@ issueSync(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	/* send Sync to Ethernet or multicast */
 	if(rtOpts->transport == IEEE_802_3 || (rtOpts->ipMode != IPMODE_UNICAST)) {
-		issueSyncSingle(dst, &ptpClock->sentSyncSequenceId, rtOpts, ptpClock);
+		(void)issueSyncSingle(dst, &ptpClock->sentSyncSequenceId, rtOpts, ptpClock);
 
 	/* send Sync to unicast destination(s) */
 	} else {
 	    for(i = 0; i < UNICAST_MAX_DESTINATIONS; i++) {
-		ptpClock->syncDestIndex[i] = 0;
+		ptpClock->syncDestIndex[i].transportAddress = 0;
+		clearTime(&ptpClock->unicastGrants[i].lastSyncTimestamp);
+		clearTime(&ptpClock->unicastDestinations[i].lastSyncTimestamp);
 	    }
 	    /* send to granted only */
 	    if(rtOpts->unicastNegotiation) {
@@ -3021,21 +3084,22 @@ issueSync(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 			}
 			DBG("mixed interval to %d counter: %d\n", grant->parent->transportAddress,grant->intervalCounter);
 			grant->intervalCounter++;
-
 		    }
 
 		    if(grant->granted) {
 			if(okToSend) {
-			    issueSyncSingle(ptpClock->unicastGrants[i].transportAddress,
-			    &grant->sentSeqId,rtOpts, ptpClock);
+			    ptpClock->unicastGrants[i].lastSyncTimestamp =
+				issueSyncSingle(ptpClock->unicastGrants[i].transportAddress,
+				&grant->sentSeqId,rtOpts, ptpClock);
 			}
 		    }
 		}
 	    /* send to fixed unicast destinations */
 	    } else {
 		for(i = 0; i < ptpClock->unicastDestinationCount; i++) {
-			issueSyncSingle(ptpClock->unicastDestinations[i].transportAddress,
-			&(ptpClock->unicastGrants[i].grantData[SYNC].sentSeqId),
+			ptpClock->unicastDestinations[i].lastSyncTimestamp =
+			    issueSyncSingle(ptpClock->unicastDestinations[i].transportAddress,
+			    &(ptpClock->unicastGrants[i].grantData[SYNC].sentSeqId),
 						rtOpts, ptpClock);
 		    }
 		}
@@ -3043,14 +3107,15 @@ issueSync(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 }
 
-/*Pack and send on event multicast ip adress a Sync message*/
-static void
+/*Pack and send a single Sync message, return the embedded timestamp*/
+static TimeInternal
 issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 	Timestamp originTimestamp;
-	TimeInternal internalTime;
+	TimeInternal internalTime, now;
 
 	getTime(&internalTime);
+
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
@@ -3070,10 +3135,13 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 
 	if(ptpClock->leapSecondInProgress) {
 		DBG("Leap second in progress - will not send SYNC\n");
-		return;
+		clearTime(&internalTime);
+		return internalTime;
 	}
 
 	fromInternalTime(&internalTime,&originTimestamp);
+
+	now = internalTime;
 
 	msgPackSync(ptpClock->msgObuf,*sequenceId,&originTimestamp,ptpClock);
 
@@ -3083,26 +3151,37 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 		ptpClock->counters.messageSendErrors++;
 		DBGV("Sync message can't be sent -> FAULTY state \n");
 	} else {
+
 		DBGV("Sync MSG sent ! \n");
+
 #ifdef SO_TIMESTAMPING
-		if(!ptpClock->netPath.txTimestampFailure) {
-			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
-				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
+		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
+			if(internalTime.seconds && internalTime.nanoseconds) {
+
+			    if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
+				    internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
+			    }
+			    processSyncFromSelf(&internalTime, rtOpts, ptpClock, dst, *sequenceId);
 			}
-			
-			processSyncFromSelf(&internalTime, rtOpts, ptpClock, dst, *sequenceId);
 		}
 #endif
-		/* index the sync destination */
-		if(dst) {
-			indexSync(&internalTime, *sequenceId, dst, ptpClock->syncDestIndex);
-		}
 
 		ptpClock->lastSyncDst = dst;
 		(*sequenceId)++;
 		ptpClock->counters.syncMessagesSent++;
+
+		if(!internalTime.seconds && !internalTime.nanoseconds) {
+		    internalTime = now;
+		}
+
+		/* index the Sync destination */
+		indexSync(&internalTime, *sequenceId, dst, ptpClock->syncDestIndex);
+
 	}
+
+    return internalTime;
 }
+
 
 
 /*Pack and send on general multicast ip adress a FollowUp message*/
@@ -3173,7 +3252,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		DBGV("DelayReq MSG sent ! \n");
 		
 #ifdef SO_TIMESTAMPING
-		if(!ptpClock->netPath.txTimestampFailure) {
+		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
@@ -3237,7 +3316,7 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		DBGV("PdelayReq MSG sent ! \n");
 		
 #ifdef SO_TIMESTAMPING
-		if(!ptpClock->netPath.txTimestampFailure) {
+		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
@@ -3286,7 +3365,7 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddr
 		DBGV("PdelayResp MSG sent ! \n");
 		
 #ifdef SO_TIMESTAMPING
-		if(!ptpClock->netPath.txTimestampFailure) {
+		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			

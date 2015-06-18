@@ -1,5 +1,5 @@
 ; ========================================
-; PTPDv2 version 2.3.1-rc4 default configuration
+; PTPDv2 version 2.3.1-rc5 default configuration
 ; ========================================
 
 ; NOTE: the following settings are affected by ptpengine:preset selection:
@@ -703,10 +703,6 @@ global:log_status = N
 
 ; Status file update interval in seconds.
 global:status_update_interval = 1
-
-; Specify debug level (if compiled with RUNTIME_DEBUG).
-; Options: LOG_INFO LOG_DEBUG LOG_DEBUG1 LOG_DEBUG2 LOG_DEBUG3 LOG_DEBUGV 
-global:debug_level = LOG_INFO
 
 ; Specify log file path (event log). Setting this enables logging to file.
 global:log_file = 
