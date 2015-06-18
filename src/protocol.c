@@ -3167,8 +3167,6 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 #endif
 
 		ptpClock->lastSyncDst = dst;
-		(*sequenceId)++;
-		ptpClock->counters.syncMessagesSent++;
 
 		if(!internalTime.seconds && !internalTime.nanoseconds) {
 		    internalTime = now;
@@ -3176,6 +3174,9 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 
 		/* index the Sync destination */
 		indexSync(&internalTime, *sequenceId, dst, ptpClock->syncDestIndex);
+
+		(*sequenceId)++;
+		ptpClock->counters.syncMessagesSent++;
 
 	}
 

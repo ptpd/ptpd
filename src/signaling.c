@@ -352,7 +352,9 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 
 	    /* If we've granted once, we're likely to grant again */
 	    grantData->renewal_invited = 1;
-	    outgoing->header.sequenceId = (myGrant->sentSeqId)++;
+
+	    outgoing->header.sequenceId = myGrant->parent->grantData[SIGNALING].sentSeqId;
+	    myGrant->parent->grantData[SIGNALING].sentSeqId++;
 
 	} else {
 		ptpClock->counters.unicastGrantsDenied++;
@@ -504,7 +506,10 @@ Boolean handleSMCancelUnicastTransmission(MsgSignaling* incoming, MsgSignaling* 
 
 	myGrant->granted = FALSE;
 	myGrant->requested = FALSE;
-        outgoing->header.sequenceId = (myGrant->sentSeqId)++;
+
+	outgoing->header.sequenceId = myGrant->parent->grantData[SIGNALING].sentSeqId;
+	myGrant->parent->grantData[SIGNALING].sentSeqId++;
+
 	myGrant->sentSeqId = 0;
 	myGrant->cancelCount = 0;
 	myGrant->timeLeft = 0;
@@ -604,7 +609,8 @@ Boolean prepareSMRequestUnicastTransmission(MsgSignaling* outgoing, UnicastGrant
 	DBG(" prepared request unicast transmission request for message type 0x%0x\n",
 		grant->messageType);
 
-        outgoing->header.sequenceId = (grant->sentSeqId)++;
+	outgoing->header.sequenceId = grant->parent->grantData[SIGNALING].sentSeqId;
+	grant->parent->grantData[SIGNALING].sentSeqId++;
 
 	return TRUE;
 
@@ -651,7 +657,8 @@ Boolean prepareSMCancelUnicastTransmission(MsgSignaling* outgoing, UnicastGrantD
 	cancelData->reserved0 = 0;
 	cancelData->reserved1 = 0;
 
-        outgoing->header.sequenceId = (grant->sentSeqId)++;
+	outgoing->header.sequenceId = grant->parent->grantData[SIGNALING].sentSeqId;
+	grant->parent->grantData[SIGNALING].sentSeqId++;
 
 	return TRUE;
 
