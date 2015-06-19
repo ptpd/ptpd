@@ -92,6 +92,7 @@ static void processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeIn
 
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
 static void processSyncFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 dst, const UInteger16 sequenceId);
+static void indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAddress, SyncDestEntry *index);
 #endif /* PTPD_SLAVE_ONLY */
 
 static void processDelayReqFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock);
@@ -101,9 +102,11 @@ static void processPdelayRespFromSelf(const TimeInternal * tint, const RunTimeOp
 /* this shouldn't really be in protocol.c, it will be moved later */
 static void timestampCorrection(const RunTimeOpts * rtOpts, PtpClock *ptpClock, TimeInternal *timeStamp);
 
-static void indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAddress, SyncDestEntry *index);
 static Integer32 lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, SyncDestEntry *index);
 static Integer32 findSyncDestination(TimeInternal *timeStamp, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
+
+
+#ifndef PTPD_SLAVE_ONLY
 
 /* store transportAddress in an index table */
 static void
@@ -132,6 +135,8 @@ indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAdd
     }
 
 }
+
+#endif /* PTPD_SLAVE_ONLY */
 
 /* sync destination index lookup */
 static Integer32
@@ -422,6 +427,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    cancelAllGrants(ptpClock->unicastGrants, ptpClock->unicastDestinationCount,
 				rtOpts, ptpClock);
 		}
+		ptpClock->masterAddr = 0;
 		/* see? NOW we're in disabled state */
 		ptpClock->portState = PTP_DISABLED;
 
@@ -487,6 +493,8 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				(pow(2,ptpClock->logAnnounceInterval)));
 				ptpClock->announceTimeouts = 0;
 
+		ptpClock->masterAddr = 0;
+
 		/* 
 		 * Log status update only once - condition must be checked before we write the new state,
 		 * but the new state must be eritten before the log message...
@@ -520,6 +528,9 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   rtOpts->masterRefreshInterval);
 		ptpClock->portState = PTP_MASTER;
 		displayStatus(ptpClock, "Now in state: ");
+
+		ptpClock->masterAddr = 0;
+
 		break;
 #endif /* PTPD_SLAVE_ONLY */
 	case PTP_PASSIVE:
@@ -1558,8 +1569,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 					ptpClock->clockControl.available = TRUE;
 			}
 
-			// remember IP address of our master for hybrid mode
-			// todo: add this to bmc(), to cover the very first packet
+			/* save the master address for display purposes or hybrid mode */
 			ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
 
 			break;
@@ -3588,6 +3598,13 @@ updateDatasets(PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 
 		/* We are master so update both the port and the parent dataset */
 		case PTP_MASTER:
+
+			if(rtOpts->dot2AS) {
+			    ptpClock->transportSpecific = TSP_ETHERNET_AVB;
+			} else {
+			    ptpClock->transportSpecific = TSP_DEFAULT;
+			}
+
 			ptpClock->numberPorts = NUMBER_PORTS;
 			ptpClock->portIdentity.portNumber = rtOpts->portNumber;
 
@@ -3637,6 +3654,12 @@ updateDatasets(PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 		case PTP_PASSIVE:
 			ptpClock->numberPorts = NUMBER_PORTS;
 			ptpClock->portIdentity.portNumber = rtOpts->portNumber;
+
+			if(rtOpts->dot2AS) {
+			    ptpClock->transportSpecific = TSP_ETHERNET_AVB;
+			} else {
+			    ptpClock->transportSpecific = TSP_DEFAULT;
+			}
 
 			ptpClock->delayMechanism = rtOpts->delayMechanism;
 			ptpClock->versionNumber = VERSION_PTP;

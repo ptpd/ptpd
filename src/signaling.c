@@ -206,7 +206,7 @@ findUnicastGrants
 void initOutgoingMsgSignaling(PortIdentity* targetPortIdentity, MsgSignaling* outgoing, PtpClock *ptpClock)
 {
 	/* set header fields */
-	outgoing->header.transportSpecific = 0x0;
+	outgoing->header.transportSpecific = ptpClock->transportSpecific;
 	outgoing->header.messageType = SIGNALING;
         outgoing->header.versionPTP = ptpClock->versionNumber;
 	outgoing->header.domainNumber = ptpClock->domainNumber;

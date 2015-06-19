@@ -1623,18 +1623,20 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		if( ntohs(*(u_short *)(pkt_data + 12)) != PTP_ETHER_TYPE) {
 		DBG("PCAP payload ethertype received not IP or PTP: 0x%04x\n",
 		    ntohs(*(u_short *)(pkt_data + 12)));
+		/* do not count packets if from self */
+		} else if(memcmp(&netPath->interfaceInfo.hwAddress, pkt_data + 6, 6)) {
+		    netPath->receivedPackets++;
 		}
 	} else {
 	    /* Retrieve source IP from the payload - 14 eth + 12 IP */
 	    netPath->lastSourceAddr = *(Integer32 *)(pkt_data + 26);
 	    /* Retrieve destination IP from the payload - 14 eth + 16 IP */
 	    netPath->lastDestAddr = *(Integer32 *)(pkt_data + 30);
-	}
-
-		/* do not report "from self" */
-		if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
+	    /* do not count packets from self */
+	    if(netPath->lastSourceAddr != netPath->interfaceAddr.s_addr) {
 		    netPath->receivedPackets++;
-		}
+	    }
+	}
 
 	netPath->receivedPacketsTotal++;
 
@@ -1710,22 +1712,25 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 				     ret, pcap_geterr(netPath->pcapGeneral));
 			return 0;
 		}
+
 	/* Make sure this is IP (could dot1q get here?) */
 	if( ntohs(*(u_short *)(pkt_data + 12)) != ETHERTYPE_IP) {
 		if( ntohs(*(u_short *)(pkt_data + 12)) != PTP_ETHER_TYPE) {
 		DBG("PCAP payload ethertype received not IP or PTP: 0x%04x\n",
 		    ntohs(*(u_short *)(pkt_data + 12)));
+		/* do not count packets if from self */
+		} else if(memcmp(&netPath->interfaceInfo.hwAddress, pkt_data + 6, 6)) {
+		    netPath->receivedPackets++;
 		}
 	} else {
 	    /* Retrieve source IP from the payload - 14 eth + 12 IP */
 	    netPath->lastSourceAddr = *(Integer32 *)(pkt_data + 26);
 	    /* Retrieve destination IP from the payload - 14 eth + 16 IP */
 	    netPath->lastDestAddr = *(Integer32 *)(pkt_data + 30);
-	}
-
-	/* do not report "from self" */
-	if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
-	    netPath->receivedPackets++;
+	    /* do not count packets from self */
+	    if(netPath->lastSourceAddr != netPath->interfaceAddr.s_addr) {
+		    netPath->receivedPackets++;
+	    }
 	}
 
 	netPath->receivedPacketsTotal++;

@@ -56,7 +56,7 @@
 void initOutgoingMsgManagement(MsgManagement* incoming, MsgManagement* outgoing, PtpClock *ptpClock)
 {
 	/* set header fields */
-	outgoing->header.transportSpecific = 0x0;
+	outgoing->header.transportSpecific = ptpClock->transportSpecific;
 	outgoing->header.messageType = MANAGEMENT;
         outgoing->header.versionPTP = ptpClock->versionNumber;
 	outgoing->header.domainNumber = ptpClock->domainNumber;

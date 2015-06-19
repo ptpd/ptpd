@@ -174,9 +174,17 @@
 	    parseResult = FALSE;\
 	 }
 
-#define CONFIG_KEY_CONDITIONAL_WARNING(condition,dep,messageText) \
+#define CONFIG_KEY_CONDITIONAL_WARNING_NOTSET(condition,dep,messageText) \
 	if ( (condition) && \
 	    !CONFIG_ISSET(dep) ) \
+	 { \
+	    if(!IS_QUIET())\
+		WARNING("Warning: %s\n", messageText); \
+	 }
+
+#define CONFIG_KEY_CONDITIONAL_WARNING_ISSET(condition,dep,messageText) \
+	if ( (condition) && \
+	    CONFIG_ISSET(dep) ) \
 	 { \
 	    if(!IS_QUIET())\
 		WARNING("Warning: %s\n", messageText); \
@@ -823,6 +831,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->timeProperties.ptpTimescale = TRUE;
 
 	rtOpts->ipMode = IPMODE_MULTICAST;
+	rtOpts->dot2AS = FALSE;
 
 	rtOpts->unicastNegotiation = FALSE;
 	rtOpts->unicastNegotiationListening = FALSE;
@@ -1239,6 +1248,15 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"ethernet", 	IEEE_802_3
 				);
 
+	CONFIG_MAP_BOOLEAN("ptpengine:dot2as",rtOpts->dot2AS,rtOpts->dot2AS,
+		"Enable TransportSpecific field compatibility with 802.1AS / AVB (requires Ethernet transport)");
+
+	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transport != IEEE_802_3) && rtOpts->dot2AS,
+	 			    "ptpengine:dot2as",
+				"802.1AS compatibility can only be used with the Ethernet transport\n");
+
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport != IEEE_802_3,rtOpts->dot2AS,FALSE,rtOpts->dot2AS);
+
 	CONFIG_MAP_SELECTVALUE("ptpengine:ip_mode", rtOpts->ipMode, rtOpts->ipMode,
 		"IP transmission mode (requires IP transport) - hybrid mode uses\n"
 	"	 multicast for sync and announce, and unicast for delay request and\n"
@@ -1253,11 +1271,11 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_BOOLEAN("ptpengine:unicast_negotiation",rtOpts->unicastNegotiation,rtOpts->unicastNegotiation,
 		"Enable unicast negotiation support using signaling messages\n");
 
-	CONFIG_KEY_CONDITIONAL_WARNING((rtOpts->transport == IEEE_802_3) && rtOpts->unicastNegotiation,
+	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transport == IEEE_802_3) && rtOpts->unicastNegotiation,
 	 			    "ptpengine:unicast_negotiation", 
 				"Unicast negotiation cannot be used with Ethernet transport\n");
 
-	CONFIG_KEY_CONDITIONAL_WARNING((rtOpts->ipMode != IPMODE_UNICAST) && rtOpts->unicastNegotiation,
+	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->ipMode != IPMODE_UNICAST) && rtOpts->unicastNegotiation,
 	 			    "ptpengine:unicast_negotiation", 
 				"Unicast negotiation can only be used with unicast transmission\n");
 
@@ -1611,13 +1629,13 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 */
 
 	/* hybrid mode -> should specify delayreq interval: override set in the bottom of this function */
-	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ipMode == IPMODE_HYBRID,
+	CONFIG_KEY_CONDITIONAL_WARNING_NOTSET(rtOpts->ipMode == IPMODE_HYBRID,
     		    "ptpengine:log_delayreq_interval",
 		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in hybrid mode"
 	);
 
 	/* unicast mode -> should specify delayreq interval if we can become a slave */
-	CONFIG_KEY_CONDITIONAL_WARNING(rtOpts->ipMode == IPMODE_UNICAST &&
+	CONFIG_KEY_CONDITIONAL_WARNING_NOTSET(rtOpts->ipMode == IPMODE_UNICAST &&
 		    rtOpts->clockQuality.clockClass > 127,
 		    "ptpengine:log_delayreq_interval",
 		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in unicast mode"
@@ -2366,11 +2384,11 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 								rtOpts->statsUpdateInterval,
 		"Clock synchronisation statistics update interval in seconds\n", 1, 60);
 
-#ifdef PTPD_STATISTICS
-
-
 	CONFIG_MAP_BOOLEAN("global:periodic_updates", rtOpts->periodicUpdates, rtOpts->periodicUpdates,
-		"Log a status update every time statistics are updated (global:statistics_update_interval)\n");
+		"Log a status update every time statistics are updated (global:statistics_update_interval).\n"
+	"        The updates are logged even when ptpd is configured without statistics support");
+
+#ifdef PTPD_STATISTICS
 
 	CONFIG_CONDITIONAL_ASSERTION( rtOpts->servoStabilityDetection && (
 				    (rtOpts->statsUpdateInterval * rtOpts->servoStabilityPeriod) / 60 >=
@@ -3172,6 +3190,8 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_negotiation_listening",  		PTPD_RESTART_NONE );
         COMPONENT_RESTART_REQUIRED("ptpengine:disable_bmca",  		PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:transport",     		PTPD_RESTART_NETWORK );
+        COMPONENT_RESTART_REQUIRED("ptpengine:dot2as",     		PTPD_UPDATE_DATASETS );
+
 #ifdef PTPD_PCAP
         COMPONENT_RESTART_REQUIRED("ptpengine:use_libpcap",   		PTPD_RESTART_NETWORK );
 #endif

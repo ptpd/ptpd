@@ -100,7 +100,7 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	resetWarnings(rtOpts, ptpClock);
 
 	/* For Hybrid mode */
-	ptpClock->masterAddr = 0;
+//	ptpClock->masterAddr = 0;
 
 	ptpClock->maxDelayRejected = 0;
 

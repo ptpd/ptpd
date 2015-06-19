@@ -126,6 +126,20 @@ and cannot be enabled on those systems unless ptpd is compiled with \fB--enable-
 .RE
 .RS 0
 .TP 8
+\fBptpengine:dot2as [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Enable IEEE 802.1AS / AVB compatibility (transportSpecific field in PTP message headers).
+Requires Ethernet transport as this is the only mapping used by 802.1AS that PTP supports
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:ip_mode [\fISELECT\fB]\fR
 .RS 8
 .TP 8
@@ -2684,7 +2698,8 @@ Formatted date and time followed by unix timestamp (adds one extra field  to the
 .TP 8
 \fBusage\fR
 Log a status update every time statistics are updated (\fIglobal:statistics_update_interval\fR).
-This update is written to the main log target.
+This update is written to the main log target. Status updates are logged even if ptpd is configured
+without support for statistics.
 .TP 8
 \fBdefault\fR
 \fIN\fR

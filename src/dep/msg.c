@@ -1507,10 +1507,9 @@ msgUnpackHeader(Octet * buf, MsgHeader * header)
 void
 msgPackHeader(Octet * buf, PtpClock * ptpClock)
 {
-	Nibble transport = 0x00;
 
 	/* (spec annex D) */
-	*(UInteger8 *) (buf + 0) = transport;
+	*(UInteger8 *) (buf + 0) = ptpClock->transportSpecific << 4;
 	*(UInteger4 *) (buf + 1) = ptpClock->versionNumber;
 	*(UInteger8 *) (buf + 4) = ptpClock->domainNumber;
 	/* clear flag field - message packing functions should populate it */

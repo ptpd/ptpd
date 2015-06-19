@@ -127,6 +127,12 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
 	ptpClock->versionNumber = VERSION_PTP;
 
+	if(rtOpts->dot2AS) {
+	    ptpClock->transportSpecific = TSP_ETHERNET_AVB;
+	} else {
+	    ptpClock->transportSpecific = TSP_DEFAULT;
+	}
+
  	/*
 	 *  Initialize random number generator using same method as ptpv1:
 	 *  seed is now initialized from the last bytes of our mac addres (collected in net.c:findIface())
@@ -615,6 +621,8 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 					    FALSE);
 		}
 		if (newBM) {
+
+			ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
 
 			displayPortIdentity(&header->sourcePortIdentity,
 					    "New best master selected:");

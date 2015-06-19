@@ -378,14 +378,12 @@ updateLogSize(LogFileHandler* handler)
 	struct stat st;
 	if(handler->logFP == NULL)
 		return;
-	if (fstat(fileno(handler->logFP), &st)!=-1) {
+	if (fstat(fileno(handler->logFP), &st) != -1) {
 		handler->fileSize = st.st_size;
-#ifdef RUNTIME_DEBUG
-		fprintf(stderr, "%s file size is %d\n", handler->logID, handler->fileSize);
-#endif /* RUNTIME_DEBUG */
 	} else {
 #ifdef RUNTIME_DEBUG
-		fprintf(stderr, "fstat on %s file failed!\n", handler->logID);
+/* 2.3.1: do not print to stderr or log file */
+//		fprintf(stderr, "fstat on %s file failed!\n", handler->logID);
 #endif /* RUNTIME_DEBUG */
 	}
 
@@ -531,7 +529,8 @@ maintainLogSize(LogFileHandler* handler)
 		    return FALSE;
 		updateLogSize(handler);
 #ifdef RUNTIME_DEBUG
-		fprintf(stderr, "%s logsize: %d\n", handler->logID, handler->fileSize);
+/* 2.3.1: do not print to stderr or log file */
+//		fprintf(stderr, "%s logsize: %d\n", handler->logID, handler->fileSize);
 #endif /* RUNTIME_DEBUG */
 		if(handler->fileSize > (handler->maxSize * 1024)) {
 
@@ -575,7 +574,10 @@ maintainLogSize(LogFileHandler* handler)
 			INFO("Truncating %s file - size above %dkB\n",
 				handler->logID, handler->maxSize);
 			} else {
-				DBG("Could not truncate %s file\n", handler->logPath);
+#ifdef RUNTIME_DEBUG
+/* 2.3.1: do not print to stderr or log file */
+//				fprintf(stderr, "Could not truncate %s file\n", handler->logPath);
+#endif
 			}
 			return TRUE;
 		    }
@@ -817,8 +819,24 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
     char tmpBuf[200];
-    memset(tmpBuf,0,200);
+    char masterIdBuf[150];
+    int len = 0;
+
+    memset(tmpBuf, 0, sizeof(tmpBuf));
+    memset(masterIdBuf, 0, sizeof(masterIdBuf));
+
     TimeInternal *mpd = &ptpClock->meanPathDelay;
+
+    len += snprint_PortIdentity(masterIdBuf + len, sizeof(masterIdBuf) - len,
+	    &ptpClock->parentPortIdentity);
+    if(ptpClock->masterAddr) {
+	char strAddr[MAXHOSTNAMELEN];
+	struct in_addr tmpAddr;
+	tmpAddr.s_addr = ptpClock->masterAddr;
+	inet_ntop(AF_INET, (struct sockaddr_in *)(&tmpAddr), strAddr, MAXHOSTNAMELEN);
+	len += snprintf(masterIdBuf + len, sizeof(masterIdBuf) - len, " (IPv4:%s)",strAddr);
+    }
+
     if(ptpClock->delayMechanism == P2P) {
 	mpd = &ptpClock->peerMeanPathDelay;
     }
@@ -827,33 +845,35 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &ptpClock->offsetFromMaster);
 #ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated) {
-	    INFO("Status update: state %s, ofm %s s, ofm_mean % .09f s, ofm_dev % .09f s\n",
+	    INFO("Status update: state %s, best master %s, ofm %s s, ofm_mean % .09f s, ofm_dev % .09f s\n",
 		portState_getName(ptpClock->portState),
+		masterIdBuf,
 		tmpBuf,
 		ptpClock->slaveStats.ofmMean,
 		ptpClock->slaveStats.ofmStdDev);
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
 	    if (ptpClock->delayMechanism == E2E) {
-		INFO("Status update: state %s, mpd %s s, mpd_mean % .09f s, mpd_dev % .09f s\n",
+		INFO("Status update: state %s, best master %s, mpd %s s, mpd_mean % .09f s, mpd_dev % .09f s\n",
 		    portState_getName(ptpClock->portState),
+		    masterIdBuf,
 		    tmpBuf,
 		    ptpClock->slaveStats.owdMean,
 		    ptpClock->slaveStats.owdStdDev);
 	    } else if(ptpClock->delayMechanism == P2P) {
-		INFO("Status update: state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+		INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
 	    }
 	} else {
-	    INFO("Status update: state %s, ofm %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	    INFO("Status update: state %s, best master %s, ofm %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
 	    if(ptpClock->delayMechanism != DELAY_DISABLED) {
-		INFO("Status update: state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+		INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
 	    }
 	}
 #else
-	INFO("Status update: state %s, ofm %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	INFO("Status update: state %s, best master %s, ofm %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
 	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
 	if(ptpClock->delayMechanism != DELAY_DISABLED) {
-	    INFO("Status update: state %s, mpd %s s\n", portState_getName(ptpClock->portState), tmpBuf);
+	    INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
 	}
 #endif /* PTPD_STATISTICS */
     } else if(ptpClock->portState == PTP_MASTER) {
@@ -874,8 +894,10 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 {
 
 	static char sbuf[SCREEN_BUFSZ];
+	char strAddr[MAXHOSTNAMELEN];
 	int len = 0;
 
+	memset(strAddr, 0, sizeof(strAddr));
 	memset(sbuf, ' ', sizeof(sbuf));
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", prefixMessage);
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", 
@@ -885,6 +907,12 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", Best master: ");
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 			&ptpClock->parentPortIdentity);
+		if(ptpClock->masterAddr) {
+		    struct in_addr tmpAddr;
+		    tmpAddr.s_addr = ptpClock->masterAddr;
+		    inet_ntop(AF_INET, (struct sockaddr_in *)(&tmpAddr), strAddr, MAXHOSTNAMELEN);
+		    len += snprintf(sbuf + len, sizeof(sbuf) - len, " (IPv4:%s)",strAddr);
+		}
         }
 	if(ptpClock->portState == PTP_MASTER)
     		len += snprintf(sbuf + len, sizeof(sbuf) - len, " (self)");
@@ -975,9 +1003,8 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	    {
 	    struct in_addr tmpAddr;
 	    tmpAddr.s_addr = ptpClock->masterAddr;
-	fprintf(out, 		STATUSPREFIX"  %s\n","Best master IP", inet_ntoa(tmpAddr));
+	    fprintf(out, 		STATUSPREFIX"  %s\n","Best master IP", inet_ntoa(tmpAddr));
 	    }
-
 	}
 	if(ptpClock->portState == PTP_SLAVE) {
 	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d","GM priority", 

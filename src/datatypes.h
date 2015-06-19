@@ -748,6 +748,8 @@ typedef struct {
 	Enumeration8 delayMechanism;
 	UInteger4 versionNumber;
 
+	/* TransportSpecific for 802.1AS */
+	Nibble transportSpecific;
 
 	/* Foreign master data set */
 	ForeignMasterRecord *foreign;
@@ -1095,9 +1097,9 @@ typedef struct {
 
 	Boolean pcap; /* Receive and send packets using libpcap, bypassing the
 			 network stack. */
-	int transport;
-	int ipMode;
-
+	int transport; /* transport type */
+	int ipMode; /* IP transmission mode */
+	Boolean dot2AS; /* 801.2AS support -> transportSpecific field */
 
 	/* list of unicast destinations for use with unicast with or without signaling */
 	char unicastDestinations[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
