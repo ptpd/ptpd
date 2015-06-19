@@ -463,9 +463,17 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		/* Only supports IPv4 */
 		return SNMP_INTEGER(SNMP_IPv4);
 	case PTPBASE_CLOCK_PORT_CURRENT_PEER_ADDRESS:
+		if(snmpRtOpts->transport != UDP_IPV4)
+		    return SNMP_IPADDR(0);
+		if (snmpPtpClock->masterAddr)
+		return SNMP_IPADDR(snmpPtpClock->masterAddr);
 		if (snmpPtpClock->unicastDestinations[1].transportAddress)
 			return SNMP_IPADDR(snmpPtpClock->unicastDestinations[1].transportAddress);
-		return SNMP_IPADDR(snmpPtpClock->netPath.multicastAddr);
+		if(snmpRtOpts->ipMode != IPMODE_MULTICAST) {
+		    return(SNMP_IPADDR(snmpPtpClock->netPath.interfaceAddr.s_addr));
+		} else {
+		    return SNMP_IPADDR(snmpPtpClock->netPath.multicastAddr);
+		}
 	case PTPBASE_CLOCK_PORT_NUM_ASSOCIATED_PORTS:
 		/* Either we are master and we use multicast and we
 		 * consider we have a session or we are slave and we

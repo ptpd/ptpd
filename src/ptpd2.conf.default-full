@@ -31,6 +31,9 @@ ptpengine:preset = slaveonly
 ; Options: ipv4 ethernet 
 ptpengine:transport = ipv4
 
+; Enable TransportSpecific field compatibility with 802.1AS / AVB (requires Ethernet transport)
+ptpengine:dot2as = N
+
 ; IP transmission mode (requires IP transport) - hybrid mode uses
 ; multicast for sync and announce, and unicast for delay request and
 ; response; unicast mode uses unicast for all transmission.
@@ -776,8 +779,8 @@ global:cpuaffinity_cpucore = -1
 ; 
 global:statistics_update_interval = 30
 
-; Log a status update every time statistics are updated (global:statistics_update_interval)
-; 
+; Log a status update every time statistics are updated (global:statistics_update_interval).
+; The updates are logged even when ptpd is configured without statistics support
 global:periodic_updates = N
 
 ;  Delay (seconds) before releasing a time service (NTP or PTP)        and electing a new one to control a clock. 0 = elect immediately
