@@ -30,8 +30,8 @@ You will need the following tools and libraries to build ptpd2:
    autoreconf -vi
 
 3. If building from a distribution .tar.gz package, you may run autoreconf -vi,
-   but in most cases running ./configure should be enough - must run
-   autoreconf if configure results in errors.
+   but in most cases running ./configure should be enough - you must run
+   autoreconf if configure or result in errors.
 
 4. ./configure
 
