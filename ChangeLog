@@ -58,7 +58,7 @@
 	- support for software transmit timestamping on Linux
 	- lookup tables used for matching Sync and FollowUp when
 	  no transport information available
-
+	- restored compatibility with 802.1AS
 
 	* Bug fixes / improvements since 2.3.0:
 
@@ -81,7 +81,9 @@
 	- fixed bug #66 - Ethernet interfaces no longer need IP addresses
 	  to run PTP Ethernet transport
 	- fixed bug / feature request #21: timestamping initialisation on
-	  PHC kernels (like RHEL6.5 - likely fixed 100% CPU usage issue)
+	  PHC kernels
+	- fixed bug where ptpd would cause 100% CPU usage because of a 
+	  late TX timestamp
 	- fixed bug / feature request #22: prevent FMR from overwriting
 	   best master
 	- improved servo stability detection: servo no longer reporting

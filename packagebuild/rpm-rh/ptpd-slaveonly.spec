@@ -16,7 +16,7 @@ Release: 0.99.rc5%{distver}
 License: distributable
 Group: System Environment/Daemons
 Vendor: PTPd project team
-Source0: ptpd-2.3.1-rc5.tar.gz
+Source0: ptpd-2.3.1.tar.gz
 Source1: ptpd.init
 Source2: ptpd.sysconfig
 Source3: ptpd.conf
@@ -45,7 +45,7 @@ build - it is not possible to run as PTP master using ptpd-slave-only.
 
 %prep 
 
-%setup -n ptpd-2.3.1-rc5
+%setup -n ptpd-2.3.1
 
 %build
 
@@ -157,6 +157,7 @@ fi
 %{_datadir}/ptpd/*
 
 %changelog
+* Wed Jun 24 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-1
 * Mon Jun 15 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc5
 * Mon Jun 01 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc4
 - rc4 release, adds leap seconds file
