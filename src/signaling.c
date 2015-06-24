@@ -273,7 +273,8 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 		DBG("REQUEST_UNICAST_TRANSMISSION (%s): did not find node in slave table: %s (%s)\n", getMessageTypeName(messageType),
 			inet_ntoa(tmpAddr),portId);
 		}
-		return;
+		/* fill the response with basic fields (namely messageType so the deny is valid */
+		goto finaliseResponse;
 	}
 
 	myGrant = &nodeTable->grantData[messageType];
@@ -364,6 +365,7 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 	/* grantData->logInterMessagePeriod = requestData->logInterMessagePeriod; */
 	/* grantData->durationField = requestData->durationField; */
 
+finaliseResponse:
 	grantData->messageType = requestData->messageType;
 	grantData->reserved0 = 0;
 	grantData->reserved1 = 0;
@@ -696,7 +698,7 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
 	    }
 	    /* for masters: all-ones initially */
 	    nodeTable->portIdentity.portNumber = 0xFFFF;
-	    memset(nodeTable->portIdentity.clockIdentity, 0xFF, CLOCK_IDENTITY_LENGTH);
+	    memset(&nodeTable->portIdentity.clockIdentity, 0xFF, CLOCK_IDENTITY_LENGTH);
 	}
 
 	for(i=0; i<PTP_MAX_MESSAGE; i++) {
@@ -1122,7 +1124,7 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 	for(j=0; j<nodeCount; j++) {    
 
 	    nodeTable = &grantTable[j];
-	
+	    maxTime = 0;
 	    for(i=0; i<PTP_MAX_MESSAGE; i++) {
 		grantData = &nodeTable->grantData[i];
 		if(grantData->granted && !grantData->expired) {
@@ -1210,8 +1212,15 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 
 	    }
 
-	nodeTable->timeLeft = maxTime;
-
+	    nodeTable->timeLeft = maxTime;
+	    /* Wild West version:  Murdering Murphy! You done killed my paw! */
+	    /* Reggae version:     Matic in dem way, chopper in dem hand, hey, some a dem have M16 'pon dem shoulder */
+	    /* Factual version:    Make sure the node is re-usable: reset PortIdentity to all-ones again */
+	    if(nodeTable->timeLeft == 0) {
+		nodeTable->portIdentity.portNumber = 0xFFFF;
+		memset(&nodeTable->portIdentity.clockIdentity, 0xFF, CLOCK_IDENTITY_LENGTH);
+		DBG("Unicast node %d now free and reusable\n", j);
+	    }
 	}
 
 	if(nodeCount == 1 && nodeTable && nodeTable->isPeer) {
@@ -1222,6 +1231,8 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 	    cancelUnicastTransmission(&(ptpClock->previousGrants->grantData[SYNC]), rtOpts, ptpClock);
 	    cancelUnicastTransmission(&(ptpClock->previousGrants->grantData[DELAY_RESP]), rtOpts, ptpClock);
 	    cancelUnicastTransmission(&(ptpClock->previousGrants->grantData[PDELAY_RESP]), rtOpts, ptpClock);
+	    ptpClock->previousGrants->portIdentity.portNumber = 0xFFFF;
+	    memset(&ptpClock->previousGrants->portIdentity.clockIdentity, 0xFF, CLOCK_IDENTITY_LENGTH);
 	    ptpClock->previousGrants = NULL;
 	}
 

@@ -236,7 +236,8 @@ void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->timePropertiesDS.ptpTimescale = rtOpts->timeProperties.ptpTimescale;
 	ptpClock->timePropertiesDS.timeSource = rtOpts->timeProperties.timeSource;
 
-	if(ptpClock->timePropertiesDS.ptpTimescale) {
+	if(ptpClock->timePropertiesDS.ptpTimescale &&
+	    (secondsToMidnight() < rtOpts->leapSecondNoticePeriod)) {
 	    ptpClock->timePropertiesDS.leap59 = ptpClock->clockStatus.leapDelete;
 	    ptpClock->timePropertiesDS.leap61 = ptpClock->clockStatus.leapInsert;
 	} else {

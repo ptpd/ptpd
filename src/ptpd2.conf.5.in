@@ -2039,6 +2039,21 @@ before any further clock updates.
 .RE
 .RS 0
 .TP 8
+\fBclock:leap_second_notice_period [\fIINT\fB: 3600 .. 86400]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Time (seconds) before midnight that PTPd starts announcing the leap second
+if it's running as master. The IEEE 1588 standard suggests 12 hours notice
+and this is the default, but it may be changed to allow more flexibility.
+.TP 8
+\fBdefault\fR
+\fI43200\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBclock:leap_second_handling [\fISELECT\fB]\fR
 .RS 8
 .TP 8

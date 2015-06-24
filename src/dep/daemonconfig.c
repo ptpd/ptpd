@@ -1016,10 +1016,13 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->ntpOptions.failoverTimeout = 120;
 	rtOpts->ntpOptions.checkInterval = 15;
 	rtOpts->ntpOptions.keyId = 0;
-	strncpy(rtOpts->ntpOptions.hostAddress,"localhost",MAXHOSTNAMELEN); 	/* not configurable */
+	strncpy(rtOpts->ntpOptions.hostAddress,"localhost",MAXHOSTNAMELEN); 	/* not configurable, but could be */
 	rtOpts->preferNTP = FALSE;
 
 	rtOpts->leapSecondPausePeriod = 5;
+	/* by default, announce the leap second 12 hours before the event:
+	 * Clause 9.4 paragraph 5 */
+	rtOpts->leapSecondNoticePeriod = 43200;
 	rtOpts->leapSecondHandling = LEAP_ACCEPT;
 	rtOpts->leapSecondSmearPeriod = 86400;
 
@@ -2079,6 +2082,11 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 		"Time (seconds) before and after midnight that clock updates should pe suspended for\n"
 	"	 during a leap second event. The total duration of the pause is twice\n"
 	"        the configured duration",5,600);
+
+	CONFIG_MAP_INT_RANGE("clock:leap_second_notice_period",rtOpts->leapSecondNoticePeriod,
+		rtOpts->leapSecondNoticePeriod,
+		"Time (seconds) before midnight that PTPd starts announcing the leap second\n"
+	"	 if it's running as master",3600,86400);
 
 	CONFIG_MAP_CHARARRAY("clock:leap_seconds_file",rtOpts->leapFile,rtOpts->leapFile,
 	"Specify leap second file location - up to date version can be downloaded from \n"
@@ -3333,6 +3341,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
 //        COMPONENT_RESTART_REQUIRED("clock:drift_handling",       	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:leap_seconds_file",		PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:leap_second_pause_period",	PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("clock:leap_second_notice_period",	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("clock:max_offset_ppm",       	PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:owdfilter_stiffness",         PTPD_RESTART_NONE );
 //        COMPONENT_RESTART_REQUIRED("servo:kp",   			PTPD_RESTART_NONE );

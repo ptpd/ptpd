@@ -572,6 +572,10 @@ clock:drift_file = /etc/ptpd2_kernelclock.drift
 ; the configured duration
 clock:leap_second_pause_period = 5
 
+; Time (seconds) before midnight that PTPd starts announcing the leap second
+; if it's running as master
+clock:leap_second_notice_period = 43200
+
 ; Specify leap second file location - up to date version can be downloaded from 
 ; http://www.ietf.org/timezones/data/leap-seconds.list
 clock:leap_seconds_file = 

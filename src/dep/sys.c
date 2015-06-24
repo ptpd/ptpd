@@ -2059,6 +2059,16 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 		case DRIFT_FILE:
 
 			if( (driftFP = fopen(rtOpts->driftFile,"r")) == NULL) {
+			    if(errno!=ENOENT) {
+				    PERROR("Could not open drift file: %s - using current kernel frequency offset. Ignore this error if ",
+				    rtOpts->driftFile);
+			    } else {
+				    NOTICE("Drift file %s not found - will be initialised on write\n",rtOpts->driftFile);
+			    }
+			} else
+
+
+			if( (driftFP = fopen(rtOpts->driftFile,"r")) == NULL) {
 				PERROR("Could not open drift file: %s - using current kernel frequency offset",
 					rtOpts->driftFile);
 			} else

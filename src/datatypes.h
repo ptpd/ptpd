@@ -1061,6 +1061,7 @@ typedef struct {
 	int leapSecondPausePeriod;
 	int leapSecondHandling;
 	Integer32 leapSecondSmearPeriod;
+	int leapSecondNoticePeriod;
 
 	Boolean periodicUpdates;
 	Boolean logStatistics;

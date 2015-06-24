@@ -346,7 +346,13 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->panicMode = FALSE;
 		ptpClock->panicOver = FALSE;
 		timerStop(&ptpClock->timers[PANIC_MODE_TIMER]);
-		initClock(rtOpts, ptpClock); 
+		/* TODO: investigate if this is really needed */
+		/* Definitely not needed on exit, which is currently the only
+		 * place when we go into PTP_DISABLED for now - this ensures
+		 * that observed drift is not reset before we exit */
+		if(state != PTP_DISABLED) {
+		    initClock(rtOpts, ptpClock);
+		}
 		break;
 		
 	case PTP_PASSIVE:
@@ -942,16 +948,16 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 
 		/* update the tpDS with clockStatus leap flags - only if running PTP timescale */
-
-		if(ptpClock->timePropertiesDS.ptpTimescale) {
-		    ptpClock->timePropertiesDS.leap59 = ptpClock->clockStatus.leapDelete;
-		    ptpClock->timePropertiesDS.leap61 = ptpClock->clockStatus.leapInsert;
+		if(ptpClock->timePropertiesDS.ptpTimescale &&
+		    (secondsToMidnight() < rtOpts->leapSecondNoticePeriod)) {
+			ptpClock->timePropertiesDS.leap59 = ptpClock->clockStatus.leapDelete;
+			ptpClock->timePropertiesDS.leap61 = ptpClock->clockStatus.leapInsert;
 		} else {
 		    ptpClock->timePropertiesDS.leap59 = FALSE;
 		    ptpClock->timePropertiesDS.leap61 = FALSE;
 		}
 
-		if(ptpClock->timePropertiesDS.leap59 || 
+		if(ptpClock->timePropertiesDS.leap59 ||
 		    ptpClock->timePropertiesDS.leap61 ) {
 		    if(!ptpClock->leapSecondInProgress) {
 			ptpClock->leapSecondPending = TRUE;
