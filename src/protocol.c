@@ -3171,7 +3171,12 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 		DBGV("Sync MSG sent ! \n");
 
 #ifdef SO_TIMESTAMPING
+
+#ifdef PTPD_PCAP
 		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
+#else
+		if(!ptpClock->netPath.txTimestampFailure) {
+#endif /* PTPD_PCAP */
 			if(internalTime.seconds && internalTime.nanoseconds) {
 
 			    if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
@@ -3269,7 +3274,12 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		DBGV("DelayReq MSG sent ! \n");
 		
 #ifdef SO_TIMESTAMPING
+
+#ifdef PTPD_PCAP
 		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
+#else
+		if(!ptpClock->netPath.txTimestampFailure) {
+#endif /* PTPD_PCAP */
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
@@ -3333,7 +3343,12 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		DBGV("PdelayReq MSG sent ! \n");
 		
 #ifdef SO_TIMESTAMPING
+
+#ifdef PTPD_PCAP
 		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
+#else
+		if(!ptpClock->netPath.txTimestampFailure) {
+#endif /* PTPD_PCAP */
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
@@ -3382,7 +3397,12 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddr
 		DBGV("PdelayResp MSG sent ! \n");
 		
 #ifdef SO_TIMESTAMPING
+
+#ifdef PTPD_PCAP
 		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
+#else
+		if(!ptpClock->netPath.txTimestampFailure) {
+#endif /* PTPD_PCAP */
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			

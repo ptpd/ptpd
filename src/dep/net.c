@@ -1785,6 +1785,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
 #ifdef PTPD_PCAP
+
 	/* In PCAP Ethernet mode, we use pcapEvent for receiving all messages 
 	 * and pcapGeneral for sending all messages
 	 */
@@ -1836,7 +1837,12 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				DBGV("Error looping back unicast event message\n");
 
 #else
+
+#ifdef PTPD_PCAP
 			if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
+#else
+			if(!netPath->txTimestampFailure) {
+#endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
 					netPath->txTimestampFailure = TRUE;
 					if (tim) {
@@ -1876,7 +1882,12 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				netPath->sentPacketsTotal++;
 			}
 #ifdef SO_TIMESTAMPING
+
+#ifdef PTPD_PCAP
 			if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
+#else
+			if(!netPath->txTimestampFailure) {
+#endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
 					if (tim) {
 						clearTime(tim);
@@ -2084,7 +2095,12 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 		if (ret <= 0)
 			DBG("Error looping back unicast peer event message\n");
 #else
+
+#ifdef PTPD_PCAP
 		if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
+#else
+		if(!netPath->txTimestampFailure) {
+#endif /* PTPD_PCAP */
 			if(!getTxTimestamp(netPath, tim)) {
 				netPath->txTimestampFailure = TRUE;
 				if (tim) {
