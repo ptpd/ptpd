@@ -1106,10 +1106,15 @@ if(ptpClock->servo.runningMaxOutput)
 else {
 #ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated)
-	fprintf(out, ", mean % .03f ppm, dev % .03f ppm",
+	    fprintf(out, ", mean % .03f ppm, dev % .03f ppm",
 		ptpClock->servo.driftMean / 1000.0,
 		ptpClock->servo.driftStdDev / 1000.0
-	);
+	    );
+	if(rtOpts->servoStabilityDetection) {
+	    fprintf(out, ", dev thr % .03f ppm", 
+		ptpClock->servo.stabilityThreshold / 1000.0
+	    );
+	}
 #endif /* PTPD_STATISTICS */
 }
 	    fprintf(out,"\n");

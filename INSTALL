@@ -35,6 +35,12 @@ You will need the following tools and libraries to build ptpd2:
 
 4. ./configure
 
+   The final section of the configure script output will show
+   the results of all library dependency checks and feature checks:
+   features and dependencies can be controled using the options
+   described below. Running ./configure --help will show all available
+   options.
+
    ========= configure script options for ptpd ========================
 
    * To disable the statistics code in order to lower computational
@@ -59,7 +65,8 @@ You will need the following tools and libraries to build ptpd2:
     (both GMs and slaves) - with negotiation (signaling) and without.
     The default maximum number of unicast destinations (also the
     maximum number of slaves for a signaling GM) is set to 128. This
-    can be changed to a maximum of 2048 using:
+    setting has an impact on the amount of RAM used by PTPd. The
+    unicast table capacity can be changed to a maximum of 2048 using:
 
    ./configure --with-max-unicast-destinations=[16...2048]
 

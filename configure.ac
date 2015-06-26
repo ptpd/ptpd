@@ -51,300 +51,6 @@ if test -n "$cutpath" && test -n "$trpath"; then
     fi
 fi
 
-AC_ARG_WITH(
-    [pcap-config],
-    [AS_HELP_STRING(
-	[--with-pcap-config],
-	[+ =pcap-config]
-    )],
-    [ans=$withval],
-    [ans=yes]
-)
-case "$ans" in
- no)
-    ;;
- yes)
-    ans=pcap-config
-    ;;
- /*)
-    pcap_config_dirname=`dirname $ans`
-    pcap_config_basename=`basename $ans`
-    ans=abspath
-    ;;
- */*)
-    AC_MSG_ERROR([--with-pcap-config takes either a name or an absolute path])
-    ;;
- *)
-    ;;
-esac
-PROG_PCAP_CONFIG=$ans
-case "$PROG_PCAP_CONFIG" in
- no)
-    ;;
- abspath)
-    AC_PATH_PROG([PATH_PCAP_CONFIG], [$pcap_config_basename], [], [$pcap_config_dirname])
-    AS_UNSET([ac_cv_path_PATH_PCAP_CONFIG])
-    ;;
- *)
-    AC_PATH_PROG([PATH_PCAP_CONFIG], [$PROG_PCAP_CONFIG])
-    AS_UNSET([ac_cv_path_PATH_PCAP_CONFIG])
-    ;;
-esac
-
-AC_MSG_CHECKING([if we want to build with libpcap support])
-AC_ARG_ENABLE(
-    [pcap],
-    [AS_HELP_STRING(
-	[--disable-pcap],
-	[disable support for PCAP (enabled if we find pcap-config)]
-    )],
-    [try_pcap=$enableval; AC_MSG_RESULT([$try_pcap])],
-    [case "$PATH_PCAP_CONFIG" in
-     /*)
-	AC_MSG_RESULT([yes, pcap-config])
-	AC_CHECK_HEADERS([pcap/pcap.h pcap.h])
-	try_pcap=yes
-	;;
-     *)
-	AC_MSG_RESULT([yes, guessing flags])
-	AC_CHECK_HEADERS([pcap/pcap.h pcap.h])
-	try_pcap=guess
-	;;
-    esac]
-)
-
-ptpd_pcap_enabled=0
-
-case "$try_pcap" in
- yes)
-    case "$PATH_PCAP_CONFIG" in
-     /*)
-	PCAP_LIBS=`$PATH_PCAP_CONFIG --libs`
-	AC_SUBST([PCAP_LIBS])
-	# Separate CPPFLAGS and CFLAGS
-	foo=`$PATH_PCAP_CONFIG --cflags`
-	PCAP_CPPFLAGS=
-	PCAP_CFLAGS=
-	for i in $foo; do
-	    case "$i" in
-	     -D*|-F*|-U*|-I*)
-		PCAP_CPPFLAGS="$PCAP_CPPFLAGS $i"
-		;;
-	    *)	PCAP_CFLAGS="$PCAP_CFLAGS $i"
-		;;
-	    esac
-	done
-	AC_SUBST([PCAP_CPPFLAGS])
-	AC_SUBST([PCAP_CFLAGS])
-
-	save_CFLAGS=$CFLAGS
-	save_CPPFLAGS=$CPPFLAGS
-	save_LIBS=$LIBS
-	CFLAGS=$PCAP_CFLAGS
-	CPPFLAGS=$PCAP_CPPFLAGS
-
-
-
-	CFLAGS=$save_CFLAGS
-	AS_UNSET([save_CFLAGS])
-	CPPFLAGS=$save_CPPFLAGS
-	AS_UNSET([save_CPPFLAGS])
-	LIBS=$save_LIBS
-	AS_UNSET([save_LIBS])
-
-	AC_MSG_CHECKING([if we can build with libpcap support])
-	case "$ac_cv_header_pcap_pcap_h" in
-	 yes)
-		ptpd_pcap_enabled=1
-		PTP_PCAP="-DPTPD_PCAP"
-		AC_MSG_RESULT([yes])
-		;;
-	 no)
-		case "$ac_cv_header_pcap_h" in
-		 yes)
-			ptpd_pcap_enabled=1
-			PTP_PCAP="-DPTPD_PCAP"
-			AC_MSG_RESULT([yes])
-			;;
-		 no)
-			PTP_PCAP=""
-			PCAP_LIBS=""
-			PCAP_CPPFLAGS=""
-			PCAP_CFLAGS=""
-			AC_MSG_RESULT([no])
-			;;
-		esac
-		;;
-
-	esac
-	;;
-     *)
-	# This case can't be triggered - we won't get here unless we
-	# have an absolute path to pcap-config.
-	AC_MSG_WARN([Cannot build with libpcap support - pcap-config cannot be found])
-	;;
-    esac
-    ;;
- guess)
-	PCAP_LIBS="-lpcap"
-	AC_SUBST([PCAP_LIBS])
-
-	AC_MSG_CHECKING([if we can build with PCAP support])
-	case "$ac_cv_header_pcap_pcap_h" in
-	 yes)
-		ptpd_pcap_enabled=1
-		PTP_PCAP="-DPTPD_PCAP"
-		AC_MSG_RESULT([yes])
-		;;
-	 no)
-		case "$ac_cv_header_pcap_h" in
-		 yes)
-			ptpd_pcap_enabled=1
-			PTP_PCAP="-DPTPD_PCAP"
-			AC_MSG_RESULT([yes])
-			;;
-		 no)
-			PTP_PCAP=""
-			PCAP_LIBS=""
-			PCAP_CPPFLAGS=""
-			PCAP_CFLAGS=""
-			AC_MSG_RESULT([no])
-			;;
-		esac
-		;;
-	esac
-
-;;
-
-esac
-
-AC_SUBST(PTP_PCAP)
-AM_CONDITIONAL([PCAP], [test x$ptpd_pcap_enabled = x1])
-
-AC_ARG_WITH(
-    [net-snmp-config],
-    [AS_HELP_STRING(
-	[--with-net-snmp-config],
-	[+ =net-snmp-config]
-    )],
-    [ans=$withval],
-    [ans=yes]
-)
-case "$ans" in
- no)
-    ;;
- yes)
-    ans=net-snmp-config
-    ;;
- /*)
-    net_snmp_config_dirname=`dirname $ans`
-    net_snmp_config_basename=`basename $ans`
-    ans=abspath
-    ;;
- */*)
-    AC_MSG_ERROR([--with-net-snmp-config takes either a name or an absolute path])
-    ;;
- *)
-    ;;
-esac
-PROG_NET_SNMP_CONFIG=$ans
-case "$PROG_NET_SNMP_CONFIG" in
- no)
-    ;;
- abspath)
-    AC_PATH_PROG([PATH_NET_SNMP_CONFIG], [$net_snmp_config_basename], [], [$net_snmp_config_dirname])
-    AS_UNSET([ac_cv_path_PATH_NET_SNMP_CONFIG])
-    ;;
- *)
-    AC_PATH_PROG([PATH_NET_SNMP_CONFIG], [$PROG_NET_SNMP_CONFIG])
-    AS_UNSET([ac_cv_path_PATH_NET_SNMP_CONFIG])
-    ;;
-esac
-
-AC_MSG_CHECKING([if we want to try building SNMP support])
-AC_ARG_ENABLE(
-    [snmp],
-    [AS_HELP_STRING(
-	[--disable-snmp],
-	[disable support for SNMP (enabled if we find net-snmp-config)]
-    )],
-    [try_snmp=$enableval],
-    [case "$PATH_NET_SNMP_CONFIG" in
-     /*)
-	try_snmp=yes
-	;;
-     *)
-	try_snmp=no
-	;;
-    esac]
-)
-AC_MSG_RESULT([$try_snmp])
-
-ptpd_snmp_enabled=0
-case "$try_snmp" in
- yes)
-    case "$PATH_NET_SNMP_CONFIG" in
-     /*)
-	SNMP_LIBS=`$PATH_NET_SNMP_CONFIG --agent-libs`
-	AC_SUBST([SNMP_LIBS])
-	# HMS: we really want to separate CPPFLAGS and CFLAGS
-	foo=`$PATH_NET_SNMP_CONFIG --base-cflags`
-	SNMP_CPPFLAGS=
-	SNMP_CFLAGS=
-	for i in $foo; do
-	    case "$i" in
-	     -D*|-F*|-U*|-I*)
-		SNMP_CPPFLAGS="$SNMP_CPPFLAGS $i"
-		;;
-	    *)	SNMP_CFLAGS="$SNMP_CFLAGS $i"
-		;;
-	    esac
-	done
-	AC_SUBST([SNMP_CPPFLAGS])
-	AC_SUBST([SNMP_CFLAGS])
-
-	save_CFLAGS=$CFLAGS
-	save_CPPFLAGS=$CPPFLAGS
-	save_LIBS=$LIBS
-	CFLAGS=$SNMP_CFLAGS
-	CPPFLAGS=$SNMP_CPPFLAGS
-
-	AC_CHECK_HEADER([net-snmp/net-snmp-config.h])
-
-	CFLAGS=$save_CFLAGS
-	AS_UNSET([save_CFLAGS])
-	CPPFLAGS=$save_CPPFLAGS
-	AS_UNSET([save_CPPFLAGS])
-	LIBS=$save_LIBS
-	AS_UNSET([save_LIBS])
-
-	AC_MSG_CHECKING([if we are building SNMP support])
-	case "$ac_cv_header_net_snmp_net_snmp_config_h" in
-	 yes)
-		ptpd_snmp_enabled=1
-		PTP_SNMP="-DPTPD_SNMP"
-		AC_MSG_RESULT([yes])
-		;;
-	 no)
-		PTP_SNMP=""
-		SNMP_LIBS=""
-		SNMP_CPPFLAGS=""
-		SNMP_CFLAGS=""
-		AC_MSG_RESULT([no])
-		;;
-	esac
-	;;
-     *) 
-	# This case can't be triggered - we won't get here unless we
-	# have an absolute path to net-snmp-config.
-	AC_MSG_WARN([Cannot build with SNMP support - net-snmp-config cannot be found])
-	;;
-    esac
-    ;;
-esac
-
-AC_SUBST(PTP_SNMP)
-AM_CONDITIONAL([SNMP], [test x$ptpd_snmp_enabled = x1])
 
 case $host in
 *linux*)
@@ -508,18 +214,24 @@ AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal ntp_gettime])
 
+AC_MSG_NOTICE([************************************************************])
+AC_MSG_NOTICE([* PTPD BUILD FLAG AND LIBRARY DEPENDENCY CHECKS START HERE *])
+AC_MSG_NOTICE([************************************************************])
+
 AC_CHECK_DECLS([MSG_ERRQUEUE], [], [], [[#include <sys/socket.h>]])
 
-AC_CHECK_DECLS([PTIMERS_OK], [posix_timers=true], [posix_timers=false], [
+AC_CHECK_DECLS([POSIX_TIMERS_SUPPORTED], [posix_timers=true], [posix_timers=false], [
 #ifdef __sun && !defined(_XPG6)
 #define _XPG6
 #endif
 #include <unistd.h>
 #if _POSIX_TIMERS && (_POSIX_TIMERS - 200112L) >= 0
-#define PTIMERS_OK
+#define POSIX_TIMERS_SUPPORTED
 #else
 #endif
 ])
+
+# ALL USER-CONTROLLED KNOBS START HERE
 
 AC_ARG_ENABLE([posix_timers],
 	    AS_HELP_STRING( [--disable-posix-timers (enabled by default if supported)],
@@ -532,16 +244,329 @@ posix_timers=false
 
 AM_CONDITIONAL([PTIMERS], [test x$posix_timers = xtrue ])
 
+AC_MSG_CHECKING([if we want to build POSIX timer support])
+
 case "$posix_timers" in
      "true")
 	PTP_PTIMERS="-DPTPD_PTIMERS"
+	AC_MSG_RESULT([yes])
 	;;
      *) PTP_PTIMERS=""
+	AC_MSG_RESULT([no])
 	;;
 esac
 
-
 AC_SUBST(PTP_PTIMERS)
+
+
+AC_ARG_WITH(
+    [pcap-config],
+    [AS_HELP_STRING(
+	[--with-pcap-config],
+	[+ =pcap-config]
+    )],
+    [ans=$withval],
+    [ans=yes]
+)
+case "$ans" in
+ no)
+    ;;
+ yes)
+    ans=pcap-config
+    ;;
+ /*)
+    pcap_config_dirname=`dirname $ans`
+    pcap_config_basename=`basename $ans`
+    ans=abspath
+    ;;
+ */*)
+    AC_MSG_ERROR([--with-pcap-config takes either a name or an absolute path])
+    ;;
+ *)
+    ;;
+esac
+PROG_PCAP_CONFIG=$ans
+case "$PROG_PCAP_CONFIG" in
+ no)
+    ;;
+ abspath)
+    AC_PATH_PROG([PATH_PCAP_CONFIG], [$pcap_config_basename], [], [$pcap_config_dirname])
+    AS_UNSET([ac_cv_path_PATH_PCAP_CONFIG])
+    ;;
+ *)
+    AC_PATH_PROG([PATH_PCAP_CONFIG], [$PROG_PCAP_CONFIG])
+    AS_UNSET([ac_cv_path_PATH_PCAP_CONFIG])
+    ;;
+esac
+
+AC_MSG_CHECKING([if we want to build with libpcap support])
+AC_ARG_ENABLE(
+    [pcap],
+    [AS_HELP_STRING(
+	[--disable-pcap],
+	[disable support for PCAP (enabled by default / if we find pcap-config)]
+    )],
+    [try_pcap=$enableval],
+    [try_pcap=yes]
+)
+
+if test "x$try_pcap" = "xyes"; then
+
+case "$PATH_PCAP_CONFIG" in
+     /*)
+	AC_MSG_RESULT([yes, pcap-config])
+	AC_CHECK_HEADERS([pcap/pcap.h pcap.h])
+	try_pcap=yes
+	;;
+     *)
+	AC_MSG_RESULT([yes, guessing flags])
+	AC_CHECK_HEADERS([pcap/pcap.h pcap.h])
+	try_pcap=guess
+	;;
+esac
+
+fi
+
+ptpd_pcap_enabled=0
+
+case "$try_pcap" in
+ yes)
+    case "$PATH_PCAP_CONFIG" in
+     /*)
+	PCAP_LIBS=`$PATH_PCAP_CONFIG --libs`
+	AC_SUBST([PCAP_LIBS])
+	# Separate CPPFLAGS and CFLAGS
+	foo=`$PATH_PCAP_CONFIG --cflags`
+	PCAP_CPPFLAGS=
+	PCAP_CFLAGS=
+	for i in $foo; do
+	    case "$i" in
+	     -D*|-F*|-U*|-I*)
+		PCAP_CPPFLAGS="$PCAP_CPPFLAGS $i"
+		;;
+	    *)	PCAP_CFLAGS="$PCAP_CFLAGS $i"
+		;;
+	    esac
+	done
+	AC_SUBST([PCAP_CPPFLAGS])
+	AC_SUBST([PCAP_CFLAGS])
+
+	save_CFLAGS=$CFLAGS
+	save_CPPFLAGS=$CPPFLAGS
+	save_LIBS=$LIBS
+	CFLAGS=$PCAP_CFLAGS
+	CPPFLAGS=$PCAP_CPPFLAGS
+
+
+
+	CFLAGS=$save_CFLAGS
+	AS_UNSET([save_CFLAGS])
+	CPPFLAGS=$save_CPPFLAGS
+	AS_UNSET([save_CPPFLAGS])
+	LIBS=$save_LIBS
+	AS_UNSET([save_LIBS])
+
+	AC_MSG_CHECKING([if we can build with libpcap support])
+	case "$ac_cv_header_pcap_pcap_h" in
+	 yes)
+		ptpd_pcap_enabled=1
+		PTP_PCAP="-DPTPD_PCAP"
+		AC_MSG_RESULT([yes])
+		;;
+	 no)
+		case "$ac_cv_header_pcap_h" in
+		 yes)
+			ptpd_pcap_enabled=1
+			PTP_PCAP="-DPTPD_PCAP"
+			AC_MSG_RESULT([yes])
+			;;
+		 no)
+			PTP_PCAP=""
+			PCAP_LIBS=""
+			PCAP_CPPFLAGS=""
+			PCAP_CFLAGS=""
+			AC_MSG_RESULT([no])
+			;;
+		esac
+		;;
+
+	esac
+	;;
+     *)
+	# This case can't be triggered - we won't get here unless we
+	# have an absolute path to pcap-config.
+	AC_MSG_WARN([Cannot build with libpcap support - pcap-config cannot be found])
+	;;
+    esac
+    ;;
+ guess)
+	PCAP_LIBS="-lpcap"
+	AC_SUBST([PCAP_LIBS])
+
+	AC_MSG_CHECKING([if we can build with PCAP support])
+	case "$ac_cv_header_pcap_pcap_h" in
+	 yes)
+		ptpd_pcap_enabled=1
+		PTP_PCAP="-DPTPD_PCAP"
+		AC_MSG_RESULT([yes])
+		;;
+	 no)
+		case "$ac_cv_header_pcap_h" in
+		 yes)
+			ptpd_pcap_enabled=1
+			PTP_PCAP="-DPTPD_PCAP"
+			AC_MSG_RESULT([yes])
+			;;
+		 no)
+			PTP_PCAP=""
+			PCAP_LIBS=""
+			PCAP_CPPFLAGS=""
+			PCAP_CFLAGS=""
+			AC_MSG_RESULT([no])
+			;;
+		esac
+		;;
+	esac
+ ;;
+ no)
+			PTP_PCAP=""
+			PCAP_LIBS=""
+			PCAP_CPPFLAGS=""
+			PCAP_CFLAGS=""
+			AC_MSG_RESULT([no])
+;;
+
+esac
+
+AC_SUBST(PTP_PCAP)
+AM_CONDITIONAL([PCAP], [test x$ptpd_pcap_enabled = x1])
+
+AC_ARG_WITH(
+    [net-snmp-config],
+    [AS_HELP_STRING(
+	[--with-net-snmp-config],
+	[+ =net-snmp-config]
+    )],
+    [ans=$withval],
+    [ans=yes]
+)
+case "$ans" in
+ no)
+    ;;
+ yes)
+    ans=net-snmp-config
+    ;;
+ /*)
+    net_snmp_config_dirname=`dirname $ans`
+    net_snmp_config_basename=`basename $ans`
+    ans=abspath
+    ;;
+ */*)
+    AC_MSG_ERROR([--with-net-snmp-config takes either a name or an absolute path])
+    ;;
+ *)
+    ;;
+esac
+PROG_NET_SNMP_CONFIG=$ans
+case "$PROG_NET_SNMP_CONFIG" in
+ no)
+    ;;
+ abspath)
+    AC_PATH_PROG([PATH_NET_SNMP_CONFIG], [$net_snmp_config_basename], [], [$net_snmp_config_dirname])
+    AS_UNSET([ac_cv_path_PATH_NET_SNMP_CONFIG])
+    ;;
+ *)
+    AC_PATH_PROG([PATH_NET_SNMP_CONFIG], [$PROG_NET_SNMP_CONFIG])
+    AS_UNSET([ac_cv_path_PATH_NET_SNMP_CONFIG])
+    ;;
+esac
+
+AC_MSG_CHECKING([if we want to try building SNMP support])
+AC_ARG_ENABLE(
+    [snmp],
+    [AS_HELP_STRING(
+	[--disable-snmp],
+	[disable support for SNMP (enabled if we find net-snmp-config)]
+    )],
+    [try_snmp=$enableval],
+    [case "$PATH_NET_SNMP_CONFIG" in
+     /*)
+	try_snmp=yes
+	;;
+     *)
+	try_snmp=no
+	;;
+    esac]
+)
+AC_MSG_RESULT([$try_snmp])
+
+ptpd_snmp_enabled=0
+case "$try_snmp" in
+ yes)
+    case "$PATH_NET_SNMP_CONFIG" in
+     /*)
+	SNMP_LIBS=`$PATH_NET_SNMP_CONFIG --agent-libs`
+	AC_SUBST([SNMP_LIBS])
+	# HMS: we really want to separate CPPFLAGS and CFLAGS
+	foo=`$PATH_NET_SNMP_CONFIG --base-cflags`
+	SNMP_CPPFLAGS=
+	SNMP_CFLAGS=
+	for i in $foo; do
+	    case "$i" in
+	     -D*|-F*|-U*|-I*)
+		SNMP_CPPFLAGS="$SNMP_CPPFLAGS $i"
+		;;
+	    *)	SNMP_CFLAGS="$SNMP_CFLAGS $i"
+		;;
+	    esac
+	done
+	AC_SUBST([SNMP_CPPFLAGS])
+	AC_SUBST([SNMP_CFLAGS])
+
+	save_CFLAGS=$CFLAGS
+	save_CPPFLAGS=$CPPFLAGS
+	save_LIBS=$LIBS
+	CFLAGS=$SNMP_CFLAGS
+	CPPFLAGS=$SNMP_CPPFLAGS
+
+	AC_CHECK_HEADER([net-snmp/net-snmp-config.h])
+
+	CFLAGS=$save_CFLAGS
+	AS_UNSET([save_CFLAGS])
+	CPPFLAGS=$save_CPPFLAGS
+	AS_UNSET([save_CPPFLAGS])
+	LIBS=$save_LIBS
+	AS_UNSET([save_LIBS])
+
+	AC_MSG_CHECKING([if we are building SNMP support])
+	case "$ac_cv_header_net_snmp_net_snmp_config_h" in
+	 yes)
+		ptpd_snmp_enabled=1
+		PTP_SNMP="-DPTPD_SNMP"
+		AC_MSG_RESULT([yes])
+		;;
+	 no)
+		PTP_SNMP=""
+		SNMP_LIBS=""
+		SNMP_CPPFLAGS=""
+		SNMP_CFLAGS=""
+		AC_MSG_RESULT([no])
+		;;
+	esac
+	;;
+     *) 
+	# This case can't be triggered - we won't get here unless we
+	# have an absolute path to net-snmp-config.
+	AC_MSG_WARN([Cannot build with SNMP support - net-snmp-config cannot be found])
+	;;
+    esac
+    ;;
+esac
+
+AC_SUBST(PTP_SNMP)
+AM_CONDITIONAL([SNMP], [test x$ptpd_snmp_enabled = x1])
+
+
 
 AC_MSG_CHECKING([for RUNTIME_DEBUG])
 AC_ARG_ENABLE(
@@ -706,6 +731,11 @@ case "$enable_slave_only" in
 esac
 AC_SUBST(PTP_SLAVE_ONLY)
 AM_CONDITIONAL([SLAVE_ONLY], [test x$enable_slave_only = xyes])
+
+AC_MSG_NOTICE([************************************************************])
+AC_MSG_NOTICE([*   END OF PTPD BUILD FLAG AND LIBRARY DEPENDENCY CHECKS   *])
+AC_MSG_NOTICE([************************************************************])
+
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
