@@ -1720,6 +1720,8 @@ handleSync(const MsgHeader *header, ssize_t length,
 	case PTP_INITIALIZING:
 	case PTP_FAULTY:
 	case PTP_DISABLED:
+	case PTP_PASSIVE:
+	case PTP_LISTENING:
 		DBGV("HandleSync : disregard\n");
 		ptpClock->counters.discardedMessages++;
 		return;
