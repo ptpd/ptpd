@@ -250,6 +250,8 @@ updateDelay(one_way_delay_filter * owd_filt, const RunTimeOpts * rtOpts, PtpCloc
 		ptpClock->delaySM = ptpClock->rawDelaySM;
 	}
 
+
+
 #else
 		subTime(&ptpClock->delaySM, &ptpClock->delay_req_receive_time, 
 			&ptpClock->delay_req_send_time);
@@ -319,6 +321,8 @@ updateDelay(one_way_delay_filter * owd_filt, const RunTimeOpts * rtOpts, PtpCloc
 	}
 
 finish:
+
+DBG("UpdateDelay: Max delay hit: %d\n", maxDelayHit);
 
 #ifdef PTPD_STATISTICS
 	/* don't churn on stats containers with the old value if we've discarded an outlier */
@@ -420,6 +424,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 {
 
 	ptpClock->clockControl.offsetOK = FALSE;
+
 	Boolean maxDelayHit = FALSE;
 
 	DBGV("UTCOffset: %d | leap 59: %d |  leap61: %d\n", 
@@ -511,6 +516,8 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 
 	/* raw value before filtering */
 	subTime(&ptpClock->rawDelayMS, recv_time, send_time);
+
+DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 
 #ifdef PTPD_STATISTICS
 
@@ -1074,7 +1081,8 @@ checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
         if(ptpClock->servo.stableCount >= ptpClock->servo.stabilityPeriod) {
 
 		if(!ptpClock->servo.isStable) {
-                        NOTICE("Clock servo now stable\n");
+                        NOTICE("Clock servo now within stability threshold of %.03f ppb\n",
+				ptpClock->servo.stabilityThreshold);
 		}
 
 #ifdef HAVE_SYS_TIMEX_H
@@ -1092,14 +1100,16 @@ checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 		ptpClock->servo.updateCount = 0;
 
 		if(ptpClock->servo.isStable) {
-                        WARNING("Clock servo no longer stable\n");
+                        WARNING("Clock servo outside stability threshold (%.03f ppb dev > %.03f ppb thr). Too many warnings may mean the threshold is too low.\n",
+			    ptpClock->servo.driftStdDev,
+			    ptpClock->servo.stabilityThreshold);
                         ptpClock->servo.isStable = FALSE;
 		} else {
                         if(ptpClock->servo.runningMaxOutput) {
-				WARNING("Clock servo not stable after %d seconds - running at maximum rate.\n",
+				WARNING("Clock servo outside stability threshold after %d seconds - running at maximum rate.\n",
 					rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
                         } else {
-                                WARNING("Clock servo not stable after %d seconds since last check. Saving current observed drift.\n",
+                                WARNING("Clock servo outside stability threshold %d seconds after last check. Saving current observed drift.\n",
 					rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
 #ifdef HAVE_SYS_TIMEX_H
 				saveDrift(ptpClock, rtOpts, FALSE);
