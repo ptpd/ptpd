@@ -2080,11 +2080,11 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 
 			fclose(driftFP);
 			if(quiet)
-				DBGV("Observed drift loaded from %s: "DRIFTFORMAT"\n",
+				DBGV("Observed drift loaded from %s: "DRIFTFORMAT" ppb\n",
 					rtOpts->driftFile,
 					recovered_drift);
 			else
-				INFO("Observed drift loaded from %s: "DRIFTFORMAT"\n",
+				INFO("Observed drift loaded from %s: "DRIFTFORMAT" ppb\n",
 					rtOpts->driftFile,
 					recovered_drift);
 				break;
@@ -2100,10 +2100,10 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 				recovered_drift = 0;
 
 			if (quiet)
-				DBGV("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
+				DBGV("Observed_drift loaded from kernel: "DRIFTFORMAT" ppb\n",
 					recovered_drift);
 			else
-				INFO("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
+				INFO("Observed_drift loaded from kernel: "DRIFTFORMAT" ppb\n",
 					recovered_drift);
 
 		break;
@@ -2135,7 +2135,7 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 #endif /* HAVE_SYS_TIMEX_H */
 }
 
-#undef DRIFTFORMAT
+
 
 void
 saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
@@ -2177,12 +2177,16 @@ saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.observedDrift));
 
 	if (quiet) {
-		DBGV("Wrote observed drift to %s\n", rtOpts->driftFile);
+		DBGV("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n", 
+		    ptpClock->servo.observedDrift, rtOpts->driftFile);
 	} else {
-		INFO("Wrote observed drift to %s\n", rtOpts->driftFile);
+		INFO("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n", 
+		    ptpClock->servo.observedDrift, rtOpts->driftFile);
 	}
 	fclose(driftFP);
 }
+
+#undef DRIFTFORMAT
 
 int parseLeapFile(char *path, LeapSecondInfo *info)
 {
