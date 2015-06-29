@@ -22,9 +22,9 @@
 (var &= ~flegs)
 
 #define TIMINGSERVICE_OPERATIONAL 	0x01 /* functioning */
-#define TIMINGSERVICE_AVAILABLE 		0x02 /* ready to control the clock */
-#define TIMINGSERVICE_IN_CONTROL 	0x04 /* allowed to control the clock */
-#define TIMINGSERVICE_IDLE 		0x08 /* allowed to control the clock */
+#define TIMINGSERVICE_AVAILABLE 	0x02 /* ready to control the clock */
+#define TIMINGSERVICE_IN_CONTROL 	0x04 /* allowed to control the clock - has control */
+#define TIMINGSERVICE_IDLE 		0x08 /* not showing clock activity */
 #define TIMINGSERVICE_HOLD		0x10 /* hold timer running */
 #define TIMINGSERVICE_SINK_ONLY		0x20 /* only servers time */
 #define TIMINGSERVICE_NO_TOD		0x40 /* does not provide time of day */
