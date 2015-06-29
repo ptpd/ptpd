@@ -346,14 +346,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->panicMode = FALSE;
 		ptpClock->panicOver = FALSE;
 		timerStop(&ptpClock->timers[PANIC_MODE_TIMER]);
-		/* TODO: investigate if this is really needed */
-		/* Definitely not needed on exit, which is currently the only
-		 * place when we go into PTP_DISABLED for now - this ensures
-		 * that observed drift is not reset before we exit */
-		if(state != PTP_DISABLED) {
-		    initClock(rtOpts, ptpClock);
-		}
-		break;
+		initClock(rtOpts, ptpClock);
 		
 	case PTP_PASSIVE:
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
@@ -1720,6 +1713,8 @@ handleSync(const MsgHeader *header, ssize_t length,
 	case PTP_INITIALIZING:
 	case PTP_FAULTY:
 	case PTP_DISABLED:
+	case PTP_PASSIVE:
+	case PTP_LISTENING:
 		DBGV("HandleSync : disregard\n");
 		ptpClock->counters.discardedMessages++;
 		return;
@@ -3171,7 +3166,12 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 		DBGV("Sync MSG sent ! \n");
 
 #ifdef SO_TIMESTAMPING
+
+#ifdef PTPD_PCAP
 		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
+#else
+		if(!ptpClock->netPath.txTimestampFailure) {
+#endif /* PTPD_PCAP */
 			if(internalTime.seconds && internalTime.nanoseconds) {
 
 			    if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
@@ -3269,7 +3269,12 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		DBGV("DelayReq MSG sent ! \n");
 		
 #ifdef SO_TIMESTAMPING
+
+#ifdef PTPD_PCAP
 		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
+#else
+		if(!ptpClock->netPath.txTimestampFailure) {
+#endif /* PTPD_PCAP */
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
@@ -3333,7 +3338,12 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		DBGV("PdelayReq MSG sent ! \n");
 		
 #ifdef SO_TIMESTAMPING
+
+#ifdef PTPD_PCAP
 		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
+#else
+		if(!ptpClock->netPath.txTimestampFailure) {
+#endif /* PTPD_PCAP */
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
@@ -3382,7 +3392,12 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddr
 		DBGV("PdelayResp MSG sent ! \n");
 		
 #ifdef SO_TIMESTAMPING
+
+#ifdef PTPD_PCAP
 		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
+#else
+		if(!ptpClock->netPath.txTimestampFailure) {
+#endif /* PTPD_PCAP */
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			

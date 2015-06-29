@@ -1106,10 +1106,15 @@ if(ptpClock->servo.runningMaxOutput)
 else {
 #ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated)
-	fprintf(out, ", mean % .03f ppm, dev % .03f ppm",
+	    fprintf(out, ", mean % .03f ppm, dev % .03f ppm",
 		ptpClock->servo.driftMean / 1000.0,
 		ptpClock->servo.driftStdDev / 1000.0
-	);
+	    );
+	if(rtOpts->servoStabilityDetection) {
+	    fprintf(out, ", dev thr % .03f ppm", 
+		ptpClock->servo.stabilityThreshold / 1000.0
+	    );
+	}
 #endif /* PTPD_STATISTICS */
 }
 	    fprintf(out,"\n");
@@ -1230,71 +1235,71 @@ else {
 	if ( ptpClock->portState == PTP_SLAVE ||
 	    ptpClock->clockQuality.clockClass == 255 ) {
 
-	fprintf(out, 		STATUSPREFIX"  %d\n","Announce received",
-	    ptpClock->counters.announceMessagesReceived);
-	fprintf(out, 		STATUSPREFIX"  %d\n","Sync received",
-	    ptpClock->counters.syncMessagesReceived);
+	fprintf(out, 		STATUSPREFIX"  %lu\n","Announce received",
+	    (unsigned long)ptpClock->counters.announceMessagesReceived);
+	fprintf(out, 		STATUSPREFIX"  %lu\n","Sync received",
+	    (unsigned long)ptpClock->counters.syncMessagesReceived);
 	if(ptpClock->twoStepFlag)
-	fprintf(out, 		STATUSPREFIX"  %d\n","Follow-up received",
-	    ptpClock->counters.followUpMessagesReceived);
+	fprintf(out, 		STATUSPREFIX"  %lu\n","Follow-up received",
+	    (unsigned long)ptpClock->counters.followUpMessagesReceived);
 	if(ptpClock->delayMechanism == E2E) {
-		fprintf(out, 		STATUSPREFIX"  %d\n","DelayReq sent",
-		    ptpClock->counters.delayReqMessagesSent);
-		fprintf(out, 		STATUSPREFIX"  %d\n","DelayResp received",
-		    ptpClock->counters.delayRespMessagesReceived);
+		fprintf(out, 		STATUSPREFIX"  %lu\n","DelayReq sent",
+		    (unsigned long)ptpClock->counters.delayReqMessagesSent);
+		fprintf(out, 		STATUSPREFIX"  %lu\n","DelayResp received",
+		    (unsigned long)ptpClock->counters.delayRespMessagesReceived);
 	}
 	}
 
 	if( ptpClock->portState == PTP_MASTER ||
 	    ptpClock->clockQuality.clockClass < 128 ) {
-	fprintf(out, 		STATUSPREFIX"  %d received, %d sent \n","Announce",
-	    ptpClock->counters.announceMessagesReceived,
-	    ptpClock->counters.announceMessagesSent);
-	fprintf(out, 		STATUSPREFIX"  %d\n","Sync sent",
-	    ptpClock->counters.syncMessagesSent);
+	fprintf(out, 		STATUSPREFIX"  %lu received, %lu sent \n","Announce",
+	    (unsigned long)ptpClock->counters.announceMessagesReceived,
+	    (unsigned long)ptpClock->counters.announceMessagesSent);
+	fprintf(out, 		STATUSPREFIX"  %lu\n","Sync sent",
+	    (unsigned long)ptpClock->counters.syncMessagesSent);
 	if(ptpClock->twoStepFlag)
-	fprintf(out, 		STATUSPREFIX"  %d\n","Follow-up sent",
-	    ptpClock->counters.followUpMessagesSent);
+	fprintf(out, 		STATUSPREFIX"  %lu\n","Follow-up sent",
+	    (unsigned long)ptpClock->counters.followUpMessagesSent);
 
 	if(ptpClock->delayMechanism == E2E) {
-		fprintf(out, 		STATUSPREFIX"  %d\n","DelayReq received",
-		    ptpClock->counters.delayReqMessagesReceived);
-		fprintf(out, 		STATUSPREFIX"  %d\n","DelayResp sent",
-		    ptpClock->counters.delayRespMessagesSent);
+		fprintf(out, 		STATUSPREFIX"  %lu\n","DelayReq received",
+		    (unsigned long)ptpClock->counters.delayReqMessagesReceived);
+		fprintf(out, 		STATUSPREFIX"  %lu\n","DelayResp sent",
+		    (unsigned long)ptpClock->counters.delayRespMessagesSent);
 	}
 
 	}
 
 	if(ptpClock->delayMechanism == P2P) {
 
-		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PdelayReq",
-		    ptpClock->counters.pdelayReqMessagesReceived,
-		    ptpClock->counters.pdelayReqMessagesSent);
-		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PdelayResp",
-		    ptpClock->counters.pdelayRespMessagesReceived,
-		    ptpClock->counters.pdelayRespMessagesSent);
-		fprintf(out, 		STATUSPREFIX"  %d received, %d sent\n","PdelayRespFollowUp",
-		    ptpClock->counters.pdelayRespFollowUpMessagesReceived,
-		    ptpClock->counters.pdelayRespFollowUpMessagesSent);
+		fprintf(out, 		STATUSPREFIX"  %lu received, %lu sent\n","PdelayReq",
+		    (unsigned long)ptpClock->counters.pdelayReqMessagesReceived,
+		    (unsigned long)ptpClock->counters.pdelayReqMessagesSent);
+		fprintf(out, 		STATUSPREFIX"  %lu received, %lu sent\n","PdelayResp",
+		    (unsigned long)ptpClock->counters.pdelayRespMessagesReceived,
+		    (unsigned long)ptpClock->counters.pdelayRespMessagesSent);
+		fprintf(out, 		STATUSPREFIX"  %lu received, %lu sent\n","PdelayRespFollowUp",
+		    (unsigned long)ptpClock->counters.pdelayRespFollowUpMessagesReceived,
+		    (unsigned long)ptpClock->counters.pdelayRespFollowUpMessagesSent);
 
 	}
 
 	if(ptpClock->counters.domainMismatchErrors)
-	fprintf(out, 		STATUSPREFIX"  %d\n","Domain Mismatches",
-		    ptpClock->counters.domainMismatchErrors);
+	fprintf(out, 		STATUSPREFIX"  %lu\n","Domain Mismatches",
+		    (unsigned long)ptpClock->counters.domainMismatchErrors);
 
 	if(ptpClock->counters.ignoredAnnounce)
-	fprintf(out, 		STATUSPREFIX"  %d\n","Ignored Announce",
-		    ptpClock->counters.ignoredAnnounce);
+	fprintf(out, 		STATUSPREFIX"  %lu\n","Ignored Announce",
+		    (unsigned long)ptpClock->counters.ignoredAnnounce);
 
 	if(ptpClock->counters.unicastGrantsDenied)
-	fprintf(out, 		STATUSPREFIX"  %d\n","Denied Unicast",
-		    ptpClock->counters.unicastGrantsDenied);
+	fprintf(out, 		STATUSPREFIX"  %lu\n","Denied Unicast",
+		    (unsigned long)ptpClock->counters.unicastGrantsDenied);
 
-	fprintf(out, 		STATUSPREFIX"  %d\n","State transitions",
-		    ptpClock->counters.stateTransitions);
-	fprintf(out, 		STATUSPREFIX"  %d\n","PTP Engine resets",
-		    ptpClock->resetCount);
+	fprintf(out, 		STATUSPREFIX"  %lu\n","State transitions",
+		    (unsigned long)ptpClock->counters.stateTransitions);
+	fprintf(out, 		STATUSPREFIX"  %lu\n","PTP Engine resets",
+		    (unsigned long)ptpClock->resetCount);
 
 
 	fflush(out);
@@ -2065,16 +2070,9 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 			    } else {
 				    NOTICE("Drift file %s not found - will be initialised on write\n",rtOpts->driftFile);
 			    }
-			} else
-
-
-			if( (driftFP = fopen(rtOpts->driftFile,"r")) == NULL) {
-				PERROR("Could not open drift file: %s - using current kernel frequency offset",
-					rtOpts->driftFile);
-			} else
-
-			if (fscanf(driftFP, "%lf", &recovered_drift) != 1) {
+			} else if (fscanf(driftFP, "%lf", &recovered_drift) != 1) {
 				PERROR("Could not load saved offset from drift file - using current kernel frequency offset");
+				fclose(driftFP);
 			} else {
 
 			if(recovered_drift == 0)
@@ -2082,11 +2080,11 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 
 			fclose(driftFP);
 			if(quiet)
-				DBGV("Observed drift loaded from %s: "DRIFTFORMAT"\n",
+				DBGV("Observed drift loaded from %s: "DRIFTFORMAT" ppb\n",
 					rtOpts->driftFile,
 					recovered_drift);
 			else
-				INFO("Observed drift loaded from %s: "DRIFTFORMAT"\n",
+				INFO("Observed drift loaded from %s: "DRIFTFORMAT" ppb\n",
 					rtOpts->driftFile,
 					recovered_drift);
 				break;
@@ -2102,10 +2100,10 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 				recovered_drift = 0;
 
 			if (quiet)
-				DBGV("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
+				DBGV("Observed_drift loaded from kernel: "DRIFTFORMAT" ppb\n",
 					recovered_drift);
 			else
-				INFO("Observed_drift loaded from kernel: "DRIFTFORMAT"\n",
+				INFO("Observed_drift loaded from kernel: "DRIFTFORMAT" ppb\n",
 					recovered_drift);
 
 		break;
@@ -2137,7 +2135,7 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 #endif /* HAVE_SYS_TIMEX_H */
 }
 
-#undef DRIFTFORMAT
+
 
 void
 saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
@@ -2179,12 +2177,16 @@ saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.observedDrift));
 
 	if (quiet) {
-		DBGV("Wrote observed drift to %s\n", rtOpts->driftFile);
+		DBGV("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n", 
+		    ptpClock->servo.observedDrift, rtOpts->driftFile);
 	} else {
-		INFO("Wrote observed drift to %s\n", rtOpts->driftFile);
+		INFO("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n", 
+		    ptpClock->servo.observedDrift, rtOpts->driftFile);
 	}
 	fclose(driftFP);
 }
+
+#undef DRIFTFORMAT
 
 int parseLeapFile(char *path, LeapSecondInfo *info)
 {

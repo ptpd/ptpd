@@ -847,126 +847,126 @@ displayCounters(const PtpClock * ptpClock)
 	INFO("\n============= PTP port counters =============\n");
 
 	INFO("Message counters:\n");
-	INFO("              announceMessagesSent : %d\n",
-		ptpClock->counters.announceMessagesSent);
-	INFO("          announceMessagesReceived : %d\n",
-		ptpClock->counters.announceMessagesReceived);
-	INFO("                  syncMessagesSent : %d\n",
-		ptpClock->counters.syncMessagesSent);
-	INFO("              syncMessagesReceived : %d\n",
-		ptpClock->counters.syncMessagesReceived);
-	INFO("              followUpMessagesSent : %d\n",
-		ptpClock->counters.followUpMessagesSent);
-	INFO("          followUpMessagesReceived : %d\n",
-		ptpClock->counters.followUpMessagesReceived);
-	INFO("              delayReqMessagesSent : %d\n",
-		 ptpClock->counters.delayReqMessagesSent);
-	INFO("          delayReqMessagesReceived : %d\n",
-		ptpClock->counters.delayReqMessagesReceived);
-	INFO("             delayRespMessagesSent : %d\n",
-		ptpClock->counters.delayRespMessagesSent);
-	INFO("         delayRespMessagesReceived : %d\n",
-		ptpClock->counters.delayRespMessagesReceived);
-	INFO("             pdelayReqMessagesSent : %d\n",
-		ptpClock->counters.pdelayReqMessagesSent);
-	INFO("         pdelayReqMessagesReceived : %d\n",
-		ptpClock->counters.pdelayReqMessagesReceived);
-	INFO("            pdelayRespMessagesSent : %d\n",
-		ptpClock->counters.pdelayRespMessagesSent);
-	INFO("        pdelayRespMessagesReceived : %d\n",
-		ptpClock->counters.pdelayRespMessagesReceived);
-	INFO("    pdelayRespFollowUpMessagesSent : %d\n",
-		ptpClock->counters.pdelayRespFollowUpMessagesSent);
-	INFO("pdelayRespFollowUpMessagesReceived : %d\n",
-		ptpClock->counters.pdelayRespFollowUpMessagesReceived);
-	INFO("             signalingMessagesSent : %d\n",
-		ptpClock->counters.signalingMessagesSent);
-	INFO("         signalingMessagesReceived : %d\n",
-		ptpClock->counters.signalingMessagesReceived);
-	INFO("            managementMessagesSent : %d\n",
-		ptpClock->counters.managementMessagesSent);
-	INFO("        managementMessagesReceived : %d\n",
-		ptpClock->counters.managementMessagesReceived);
+	INFO("              announceMessagesSent : %lu\n",
+		(unsigned long)ptpClock->counters.announceMessagesSent);
+	INFO("          announceMessagesReceived : %lu\n",
+		(unsigned long)ptpClock->counters.announceMessagesReceived);
+	INFO("                  syncMessagesSent : %lu\n",
+		(unsigned long)ptpClock->counters.syncMessagesSent);
+	INFO("              syncMessagesReceived : %lu\n",
+		(unsigned long)ptpClock->counters.syncMessagesReceived);
+	INFO("              followUpMessagesSent : %lu\n",
+		(unsigned long)ptpClock->counters.followUpMessagesSent);
+	INFO("          followUpMessagesReceived : %lu\n",
+		(unsigned long)ptpClock->counters.followUpMessagesReceived);
+	INFO("              delayReqMessagesSent : %lu\n",
+		 (unsigned long)ptpClock->counters.delayReqMessagesSent);
+	INFO("          delayReqMessagesReceived : %lu\n",
+		(unsigned long)ptpClock->counters.delayReqMessagesReceived);
+	INFO("             delayRespMessagesSent : %lu\n",
+		(unsigned long)ptpClock->counters.delayRespMessagesSent);
+	INFO("         delayRespMessagesReceived : %lu\n",
+		(unsigned long)ptpClock->counters.delayRespMessagesReceived);
+	INFO("             pdelayReqMessagesSent : %lu\n",
+		(unsigned long)ptpClock->counters.pdelayReqMessagesSent);
+	INFO("         pdelayReqMessagesReceived : %lu\n",
+		(unsigned long)ptpClock->counters.pdelayReqMessagesReceived);
+	INFO("            pdelayRespMessagesSent : %lu\n",
+		(unsigned long)ptpClock->counters.pdelayRespMessagesSent);
+	INFO("        pdelayRespMessagesReceived : %lu\n",
+		(unsigned long)ptpClock->counters.pdelayRespMessagesReceived);
+	INFO("    pdelayRespFollowUpMessagesSent : %lu\n",
+		(unsigned long)ptpClock->counters.pdelayRespFollowUpMessagesSent);
+	INFO("pdelayRespFollowUpMessagesReceived : %lu\n",
+		(unsigned long)ptpClock->counters.pdelayRespFollowUpMessagesReceived);
+	INFO("             signalingMessagesSent : %lu\n",
+		(unsigned long)ptpClock->counters.signalingMessagesSent);
+	INFO("         signalingMessagesReceived : %lu\n",
+		(unsigned long)ptpClock->counters.signalingMessagesReceived);
+	INFO("            managementMessagesSent : %lu\n",
+		(unsigned long)ptpClock->counters.managementMessagesSent);
+	INFO("        managementMessagesReceived : %lu\n",
+		(unsigned long)ptpClock->counters.managementMessagesReceived);
 
     if(ptpClock->counters.signalingMessagesReceived ||
 	    ptpClock->counters.signalingMessagesSent) {
 	INFO("Unicast negotiation counters:\n");
-	INFO("            unicastGrantsRequested : %d\n",
-		ptpClock->counters.unicastGrantsRequested);
-	INFO("              unicastGrantsGranted : %d\n",
-		ptpClock->counters.unicastGrantsGranted);
-	INFO("               unicastGrantsDenied : %d\n",
-		ptpClock->counters.unicastGrantsDenied);
-	INFO("           unicastGrantsCancelSent : %d\n",
-		ptpClock->counters.unicastGrantsCancelSent);
-	INFO("       unicastGrantsCancelReceived : %d\n",
-		ptpClock->counters.unicastGrantsCancelReceived);
-	INFO("    unicastGrantsCancelAckReceived : %d\n",
-		ptpClock->counters.unicastGrantsCancelAckReceived);
+	INFO("            unicastGrantsRequested : %lu\n",
+		(unsigned long)ptpClock->counters.unicastGrantsRequested);
+	INFO("              unicastGrantsGranted : %lu\n",
+		(unsigned long)ptpClock->counters.unicastGrantsGranted);
+	INFO("               unicastGrantsDenied : %lu\n",
+		(unsigned long)ptpClock->counters.unicastGrantsDenied);
+	INFO("           unicastGrantsCancelSent : %lu\n",
+		(unsigned long)ptpClock->counters.unicastGrantsCancelSent);
+	INFO("       unicastGrantsCancelReceived : %lu\n",
+		(unsigned long)ptpClock->counters.unicastGrantsCancelReceived);
+	INFO("    unicastGrantsCancelAckReceived : %lu\n",
+		(unsigned long)ptpClock->counters.unicastGrantsCancelAckReceived);
 
     }
 /* not implemented yet */
 #if 0
 	INFO("FMR counters:\n");
-	INFO("                      foreignAdded : %d\n",
-		ptpClock->counters.foreignAdded);
-	INFO("                        foreignMax : %d\n",
-		ptpClock->counters.foreignMax);
-	INFO("                    foreignRemoved : %d\n",
-		ptpClock->counters.foreignRemoved);
-	INFO("                   foreignOverflow : %d\n",
-		ptpClock->counters.foreignOverflow);
+	INFO("                      foreignAdded : %lu\n",
+		(unsigned long)ptpClock->counters.foreignAdded);
+	INFO("                        foreignMax : %lu\n",
+		(unsigned long)ptpClock->counters.foreignMax);
+	INFO("                    foreignRemoved : %lu\n",
+		(unsigned long)ptpClock->counters.foreignRemoved);
+	INFO("                   foreignOverflow : %lu\n",
+		(unsigned long)ptpClock->counters.foreignOverflow);
 #endif /* 0 */
 
 	INFO("Protocol engine counters:\n");
-	INFO("                  stateTransitions : %d\n",
-		ptpClock->counters.stateTransitions);
-	INFO("                     masterChanges : %d\n",
-		ptpClock->counters.masterChanges);
-	INFO("                  announceTimeouts : %d\n",
-		ptpClock->counters.announceTimeouts);
+	INFO("                  stateTransitions : %lu\n",
+		(unsigned long)ptpClock->counters.stateTransitions);
+	INFO("                     masterChanges : %lu\n",
+		(unsigned long)ptpClock->counters.masterChanges);
+	INFO("                  announceTimeouts : %lu\n",
+		(unsigned long)ptpClock->counters.announceTimeouts);
 
 	INFO("Discarded / unknown message counters:\n");
-	INFO("                 discardedMessages : %d\n",
-		ptpClock->counters.discardedMessages);
-	INFO("                   unknownMessages : %d\n",
-		ptpClock->counters.unknownMessages);
-	INFO("                   ignoredAnnounce : %d\n",
-		ptpClock->counters.ignoredAnnounce);
-	INFO("    aclManagementDiscardedMessages : %d\n",
-		ptpClock->counters.aclManagementDiscardedMessages);
-	INFO("        aclTimingDiscardedMessages : %d\n",
-		ptpClock->counters.aclTimingDiscardedMessages);
+	INFO("                 discardedMessages : %lu\n",
+		(unsigned long)ptpClock->counters.discardedMessages);
+	INFO("                   unknownMessages : %lu\n",
+		(unsigned long)ptpClock->counters.unknownMessages);
+	INFO("                   ignoredAnnounce : %lu\n",
+		(unsigned long)ptpClock->counters.ignoredAnnounce);
+	INFO("    aclManagementDiscardedMessages : %lu\n",
+		(unsigned long)ptpClock->counters.aclManagementDiscardedMessages);
+	INFO("        aclTimingDiscardedMessages : %lu\n",
+		(unsigned long)ptpClock->counters.aclTimingDiscardedMessages);
 
 	INFO("Error counters:\n");
-	INFO("                 messageSendErrors : %d\n",
-		ptpClock->counters.messageSendErrors);
-	INFO("                 messageRecvErrors : %d\n",
-		ptpClock->counters.messageRecvErrors);
-	INFO("               messageFormatErrors : %d\n",
-		ptpClock->counters.messageFormatErrors);
-	INFO("                    protocolErrors : %d\n",
-		ptpClock->counters.protocolErrors);
-	INFO("             versionMismatchErrors : %d\n",
-		ptpClock->counters.versionMismatchErrors);
-	INFO("              domainMismatchErrors : %d\n",
-		ptpClock->counters.domainMismatchErrors);
-	INFO("            sequenceMismatchErrors : %d\n",
-		ptpClock->counters.sequenceMismatchErrors);
-	INFO("         consecutiveSequenceErrors : %d\n",
-		ptpClock->counters.consecutiveSequenceErrors);
-	INFO("           delayModeMismatchErrors : %d\n",
-		ptpClock->counters.delayModeMismatchErrors);
-	INFO("           maxDelayDrops : %d\n",
-		ptpClock->counters.maxDelayDrops);
+	INFO("                 messageSendErrors : %lu\n",
+		(unsigned long)ptpClock->counters.messageSendErrors);
+	INFO("                 messageRecvErrors : %lu\n",
+		(unsigned long)ptpClock->counters.messageRecvErrors);
+	INFO("               messageFormatErrors : %lu\n",
+		(unsigned long)ptpClock->counters.messageFormatErrors);
+	INFO("                    protocolErrors : %lu\n",
+		(unsigned long)ptpClock->counters.protocolErrors);
+	INFO("             versionMismatchErrors : %lu\n",
+		(unsigned long)ptpClock->counters.versionMismatchErrors);
+	INFO("              domainMismatchErrors : %lu\n",
+		(unsigned long)ptpClock->counters.domainMismatchErrors);
+	INFO("            sequenceMismatchErrors : %lu\n",
+		(unsigned long)ptpClock->counters.sequenceMismatchErrors);
+	INFO("         consecutiveSequenceErrors : %lu\n",
+		(unsigned long)ptpClock->counters.consecutiveSequenceErrors);
+	INFO("           delayModeMismatchErrors : %lu\n",
+		(unsigned long)ptpClock->counters.delayModeMismatchErrors);
+	INFO("           maxDelayDrops : %lu\n",
+		(unsigned long)ptpClock->counters.maxDelayDrops);
 
 
 #ifdef PTPD_STATISTICS
 	INFO("Outlier filter hits:\n");
-	INFO("              delayMSOutliersFound : %d\n",
-		ptpClock->counters.delayMSOutliersFound);
-	INFO("              delaySMOutliersFound : %d\n",
-		ptpClock->counters.delaySMOutliersFound);
+	INFO("              delayMSOutliersFound : %lu\n",
+		(unsigned long)ptpClock->counters.delayMSOutliersFound);
+	INFO("              delaySMOutliersFound : %lu\n",
+		(unsigned long)ptpClock->counters.delaySMOutliersFound);
 #endif /* PTPD_STATISTICS */
 
 }
@@ -1049,8 +1049,8 @@ displayStatistics(const PtpClock* ptpClock)
 {
 
 /*
-	INFO("Clock stats: ofm mean: %d, ofm median: %d,"
-	     "ofm std dev: %d, observed drift std dev: %d\n",
+	INFO("Clock stats: ofm mean: %lu, ofm median: %d,"
+	     "ofm std dev: %lu, observed drift std dev: %d\n",
 	     ptpClock->stats.ofmMean, ptpClock->stats.ofmMedian,
 	     ptpClock->stats.ofmStdDev, ptpClock->stats.driftStdDev);
 */

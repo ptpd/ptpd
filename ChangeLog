@@ -8,7 +8,7 @@
 	  + support for multiple unicast destinations for masters
 	  + feature-complete Telecom Profile support:
 	     * unicast negotiation for masters and slaves
-	     * disabling BMCA for masters
+	     * disabling BMCA for masters (also works for multicast)
 	     * support for slaves with masters in multiple domains
 	     * influencing slave BMCA with local preference
 	     * serving multiple Telecom slaves at different rates
@@ -28,14 +28,13 @@
 	  OSX and Solaris and its derivatives (OpenIndiana, OmniOS etc.)
 	- major rework of the ACL code
 	- outlier filter auto-tune to improve operation in noisy environments(high PDV)
-	- added support for statistical filters (min/mean/median)
+	- added support for statistical filters (min/mean/median) for sync 
+	  and delay messages - min or median can be used in envifonments with high PDV
 	- added small step detection (millisecond level)
 	- added ptpengine:clock_update_timeout setting to reset slave
 	  if no clock updates for a period of time
 	- when running slave-only in unicast mode, unicast address
 	  does not have to be specified - ptpd will wait for a GM and latch onto it
-	- added median filter for the delayMS component (Sync) to further improve
-	  performance under high packet delay variation
 	- automatic Delay Request override for Hybrid and Unicast modes
 	- added options allowing to step the clock on startup
 	- improved sequence and re-ordering checks
@@ -58,6 +57,12 @@
 	- support for software transmit timestamping on Linux
 	- lookup tables used for matching Sync and FollowUp when
 	  no transport information available
+	- added periodic status updates to log file (global:periodic_updates)
+	- status file will always display counters for common error events
+	  if they are non-zero (includes denied unicast grants and ignored
+	  Announce resulting from rejected UTC properties)
+	- reporting on message receive and transmit rates
+	  in the status file
 	- restored compatibility with 802.1AS
 
 	* Bug fixes / improvements since 2.3.0:
@@ -102,6 +107,11 @@
 	- remaining memory leaks fixed
 	- more code cleanup, no more ajtimex() and similar calls in protocol.c
 	- some refactoring, constified rtOpts wherever possible
+	- less "dramatic" warnings about drift file
+	  and clock stability detection
+	- fixed unnecessary TX timestamp attempts in PCAP mode
+	- fixed issue where drift file would not be correctly
+	  written on exit under certain conditions
 	- other minor bugs fixed
 
 2013-11-22  George Neville-Neil  <gnn@neville-neil.com>, Wojciech Owczarek <wojciech@owczarek.co.uk>
