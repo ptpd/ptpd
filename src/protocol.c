@@ -346,14 +346,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->panicMode = FALSE;
 		ptpClock->panicOver = FALSE;
 		timerStop(&ptpClock->timers[PANIC_MODE_TIMER]);
-		/* TODO: investigate if this is really needed */
-		/* Definitely not needed on exit, which is currently the only
-		 * place when we go into PTP_DISABLED for now - this ensures
-		 * that observed drift is not reset before we exit */
-		if(state != PTP_DISABLED) {
-		    initClock(rtOpts, ptpClock);
-		}
-		break;
+		initClock(rtOpts, ptpClock);
 		
 	case PTP_PASSIVE:
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);

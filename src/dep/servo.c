@@ -77,10 +77,10 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 
 /* do not reset frequency here - restoreDrift will do it if necessary */
-#ifdef HAVE_SYS_TIMEX_H
+/* 2.3.1: restoreDrift now always compiled - this is no longer needed */
+#if 0
 	ptpClock->servo.observedDrift = 0;
-#endif /* HAVE_SYS_TIMEX_H */
-
+#endif
 	/* clear vars */
 
 	/* clean more original filter variables */
