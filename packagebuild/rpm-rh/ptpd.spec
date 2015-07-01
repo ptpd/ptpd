@@ -1,35 +1,59 @@
 # (c) 2014-2015:  Wojciech Owczarek, PTPd project
 
+%if %{?build_slaveonly:1}%{!?build_slaveonly:0}
+%define slaveonly_build %{build_slaveonly}
+%else
+%define slaveonly_build 0
+%endif
+
 %define _use_internal_dependency_generator 0
 
 # RHEL5.5 and older don't have the /etc/rpm/macros.dist macros
 %if %{?dist:1}%{!?dist:0}
 %define distver %{dist}
 %else
-%define distver .el%(/usr/lib/rpm/redhat/dist.sh --distnum)
+%define distver %(/usr/lib/rpm/redhat/dist.sh --dist)
 %endif
 
-Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard
+%if %{slaveonly_build} == 1
+Name: ptpd-slaveonly
+Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard. Slave-only version.
+%else
 Name: ptpd
+Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard. Full version with master and slave support.
+%endif
 Version: 2.3.1
-Release: 0.99.rc5%{distver}
+Release: 2%{distver}
 License: distributable
 Group: System Environment/Daemons
 Vendor: PTPd project team
 Source0: ptpd-2.3.1.tar.gz
-Source1: ptpd.init
+
 Source2: ptpd.sysconfig
 Source3: ptpd.conf
 
 URL: http://ptpd.sf.net
 
+%if %{slaveonly_build} == 1
+Conflicts: ptpd
+%else
 Conflicts: ptpd-slaveonly
+%endif
 
 Requires(pre): /sbin/chkconfig
 Requires(pre): /bin/awk sed grep
 
 BuildRequires: libpcap-devel net-snmp-devel openssl-devel zlib-devel redhat-rpm-config
 Requires: libpcap net-snmp openssl zlib
+
+# systemd
+%if %{?_unitdir:1}%{!?_unitdir:0}
+Source1: ptpd.service
+Requires: systemd
+BuildRequires: systemd
+%else
+Source1: ptpd.init
+%endif
 
 BuildRoot: %{_tmppath}/%{name}-root
 
@@ -48,7 +72,11 @@ time synchronised via the PTP protocol or serving PTP time.
 
 %build
 
+%if %{slaveonly_build} == 1
+./configure --enable-slave-only --with-max-unicast-destinations=512
+%else
 ./configure --with-max-unicast-destinations=512
+%endif
 
 make
 
@@ -73,8 +101,13 @@ install -m 644 src/ptpd2.conf.default-full $RPM_BUILD_ROOT%{_datadir}/ptpd/ptpd2
 
 { cd $RPM_BUILD_ROOT
 
+%if %{?_unitdir:1}%{!?_unitdir:0}
+  mkdir -p .%{_unitdir}
+  install -m644 $RPM_SOURCE_DIR/ptpd.service .%{_unitdir}/ptpd.service
+%else
   mkdir -p .%{_initrddir}
   install -m755 $RPM_SOURCE_DIR/ptpd.init .%{_initrddir}/ptpd
+%endif
 
   mkdir -p .%{_sysconfdir}/sysconfig
   install -m644 %{SOURCE2} .%{_sysconfdir}/sysconfig/ptpd
@@ -90,51 +123,73 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 
+%if %{?_unitdir:1}%{!?_unitdir:0}
+/usr/bin/systemctl enable ptpd  >/dev/null 2>&1
+%else
 /sbin/chkconfig --add ptpd
-
-
-echo -e "\n===============\n"
-echo -e "**** Doing post-install checks...\n"
+%endif
+echo
+echo -e "**** PTPd - Running post-install checks...\n"
 
 grep -q : /etc/ethers >/dev/null 2>&1 || echo -e "Consider populating /etc/ethers with the MAC to host mappings of the GMs:\nexample:\t aa:bb:cc:dd:ee:ff gm-1.my.domain.net\n"
 
-echo -e "\n*** Checking NTPd status...\n"
-rpm -q ntp >/dev/null 2>&1
+for candidate in ntp chrony; do
+
+echo -e "\n*** Checking ${candidate}d status...\n"
+rpm -q $candidate >/dev/null 2>&1
 if [ $? -ne 0 ]; then
 
-    echo "** NTPd not installed."
-    echo -e "\n===============\n"
-    exit 0
+    echo "** ${candidate}d not installed."
 else
-    echo -e "** NTPd is installed.\n"
-fi
+    echo -e "** ${candidate}d is installed.\n"
 
-chkconfig --level `runlevel | awk '{print $2;}'` ntpd >/dev/null 2>&1
+%if %{?_unitdir:1}%{!?_unitdir:0}
+/usr/bin/systemctl status ${candidate}d | grep Loaded | grep enabled >/dev/null 2>&1
+%else
+chkconfig --level `runlevel | awk '{print $2;}'` ${candidate}d >/dev/null 2>&1
+%endif
 
 if [ $? == 0 ]; then
-    echo "** NTPd enabled in current runlevel - consider disabling unless:"
+    echo "** ${candidate}d enabled in current runlevel - consider disabling unless:"
     echo "- you're running a PTP master with NTP reference"
-    echo -e "- you configure NTP integration in the PTPd configuration file\n";
+    if [ "$candidate" == "ntp" ]; then
+	echo -e "- you configure NTP integration in the PTPd configuration file\n";
+    fi
 fi
-
-service ntpd status > /dev/null 2>&1
+%if %{?_unitdir:1}%{!?_unitdir:0}
+systemctl status ${candidate}d > /dev/null 2>&1
+%else
+service ${candidate}d status > /dev/null 2>&1
+%endif
 ret=$?
 if [ $ret == 3 ]; then
-    echo -e "** NTPd not running - good.\n";
+    echo -e "** ${candidate}d not running - good.\n";
 elif [ $ret == 0 ]; then
-    echo "** NTPd running - consider stopping before running ptpd unless:"
+    echo "** ${candidate}d running - consider stopping before running ptpd unless:"
     echo "- you're running a PTP master with NTP reference"
-    echo -e "- you configure NTP integration in the PTPd configuration file\n";
+    if [ "$candidate" == "ntp" ]; then
+	echo -e "- you configure NTP integration in the PTPd configuration file\n";
+    fi
+
 fi
 
-echo -e "\n===============\n"
+fi
+
+echo
+
+done
 
 :
 
 %preun
 if [ $1 = 0 ]; then
+%if %{?_unitdir:1}%{!?_unitdir:0}
+systemctl stop ptpd > /dev/null 2>&1
+systemctl disable ptpd  >/dev/null 2>&1
+%else
     service ptpd stop > /dev/null 2>&1
     /sbin/chkconfig --del ptpd
+%endif
 fi
 :
 
@@ -147,7 +202,11 @@ fi
 %files
 %defattr(-,root,root)
 %{_sbindir}/ptpd2
+%if %{?_unitdir:1}%{!?_unitdir:0}
+%{_unitdir}/ptpd.service
+%else
 %config			%{_initrddir}/ptpd
+%endif
 %config(noreplace)	%{_sysconfdir}/sysconfig/ptpd
 %config(noreplace)	%{_sysconfdir}/ptpd2.conf
 %{_mandir}/man8/*
@@ -156,6 +215,9 @@ fi
 %{_datadir}/ptpd/*
 
 %changelog
+* Wed Jul 1 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-2
+- spec updated for OSes with systemd
+- chrony detection added to postinstall checks
 * Wed Jun 24 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-1
 * Mon Jun 15 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc5
 * Mon Jun 01 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc4
@@ -167,5 +229,5 @@ fi
 * Thu Jun 26 2014 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-0.99.rc1
 * Thu Nov 21 2013 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.0-1
 - Added the PTPBASE SNMP MIB
-* Wed Nov 14 2013 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.0-0.99-rc2
+* Wed Nov 13 2013 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.0-0.99-rc2
 - Initial public spec file and scripts for RHEL

@@ -1,0 +1,17 @@
+[Unit]
+Description=Precision Time Protocol Daemon
+After=syslog.target ntpdate.service sntp.service ntp.service chronyd.service network.target
+
+[Service]
+Type=forking
+EnvironmentFile=-/etc/sysconfig/ptpd
+ExecStart=/usr/sbin/ptpd2 \
+    --global:lock_file=${PTPD_PID_FILE} \
+    --global:status_file=${PTPD_STATUS_FILE} \
+    -c ${PTPD_CONFIG_FILE} \
+    ${PTPD_EXTRA_OPTIONS}"
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
+

@@ -6,10 +6,12 @@
   The script was successfully used to build under RHEL 5.5,
   5.8, 6.2, 6.5, 7.0 but should build on any RHEL5+ system, CentOS,
   Fedora and other distributions following the RH package
-  naming (-devel suffixes etc.). The spec file is easy
-  to modify to suit your distribution. Two spec files
-  are provided (ptpd.spec and ptpd-slaveonly.specs),
-  and the rpmbuild.sh script builds both - can be modified.
+  naming (-devel suffixes etc.), using systemd when available,
+  otherwise using system V init scripts. The spec file is easy
+  to modify to suit your distribution. The rpmbuild.sh script
+  by default builds both the full build and the slave-only build.
+  To build a slave-only build, the macro build_slaveonly should be set
+  to 1 (as in rpmbuild --define "build_slaveonly 1").
   The ptpd package is the full PTP implementation,
   whereas the ptpd-slaveonly is built with --enable-slave-only,
   so is a version incapable of running as PTP master.
