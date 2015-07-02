@@ -9,7 +9,7 @@ rm *.rpm
 for slaveonly in 0 1; do
 
 PWD=`pwd`
-BUILDDIR=`mktemp -d $PWD/tmpbuild.XXXXXXXXX`
+BUILDDIR=`mktemp -d /tmp/tmpbuild.XXXXXXXXX`
 
 
 rm -rf $BUILDDIR
@@ -27,10 +27,10 @@ TARBALL=`cat $SPEC | grep ^Source0 | awk '{ print $2; }'`
 
 # hack: dist hook now removes rpms from this dir before dist packaging:
 # this is how we preserve them...
-mv *.rpm ..
+mv *.rpm ../..
 ( cd ../..; autoreconf -vi; ./configure; make dist; )
 # and in they go again...
-mv ../*.rpm .
+mv ../../*.rpm .
 
 mv ../../$TARBALL .
 
