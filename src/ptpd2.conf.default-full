@@ -1,5 +1,5 @@
 ; ========================================
-; PTPDv2 version 2.3.1-rc5 default configuration
+; PTPDv2 version 2.3.1.1 default configuration
 ; ========================================
 
 ; NOTE: the following settings are affected by ptpengine:preset selection:

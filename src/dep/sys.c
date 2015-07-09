@@ -620,7 +620,7 @@ logStatistics(PtpClock * ptpClock)
 {
 	extern RunTimeOpts rtOpts;
 	static int errorMsg = 0;
-	static char sbuf[SCREEN_BUFSZ];
+	static char sbuf[SCREEN_BUFSZ * 2];
 	int len = 0;
 	TimeInternal now;
 	time_t time_s;
@@ -641,13 +641,14 @@ logStatistics(PtpClock * ptpClock)
 		ptpClock->resetStatisticsLog = FALSE;
 		fprintf(destination,"# %s, State, Clock ID, One Way Delay, "
 		       "Offset From Master, Slave to Master, "
-		       "Master to Slave, Observed Drift, Last packet Received"
+		       "Master to Slave, Observed Drift, Last packet Received, Sequence ID"
 #ifdef PTPD_STATISTICS
 			", One Way Delay Mean, One Way Delay Std Dev, Offset From Master Mean, Offset From Master Std Dev, Observed Drift Mean, Observed Drift Std Dev, raw delayMS, raw delaySM"
 #endif
 			"\n", (rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) ? "Timestamp, Unix timestamp" : "Timestamp");
 	}
-	memset(sbuf, ' ', sizeof(sbuf));
+
+	memset(sbuf, 0, sizeof(sbuf));
 
 	getTime(&now);
 
@@ -676,7 +677,6 @@ logStatistics(PtpClock * ptpClock)
 			    break;
 		}
 	}
-
 
 	time_s = now.seconds;
 
@@ -744,9 +744,10 @@ logStatistics(PtpClock * ptpClock)
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 				&(ptpClock->delayMS));
 
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %c",
+		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %c, %05d",
 			       ptpClock->servo.observedDrift,
-			       ptpClock->char_last_msg);
+			       ptpClock->char_last_msg,
+			       ptpClock->msgTmpHeader.sequenceId);
 
 #ifdef PTPD_STATISTICS
 
@@ -796,6 +797,7 @@ logStatistics(PtpClock * ptpClock)
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
 	}
 #endif
+
 	/* fprintf may get interrupted by a signal - silently retry once */
 	if (fprintf(destination, "%s", sbuf) < len) {
 	    if (fprintf(destination, "%s", sbuf) < len) {

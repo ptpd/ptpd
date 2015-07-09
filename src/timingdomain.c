@@ -533,8 +533,13 @@ ntpServiceShutdown (TimingService* service)
 	NTPoptions *config = (NTPoptions*) service->config;
 	NTPcontrol *controller = (NTPcontrol*) service->controller;
 
-	INFO_LOCAL_ID(service,"NTP service shutting down. Restoring original NTP state\n");
-	ntpShutdown(config, controller);
+	INFO_LOCAL_ID(service,"NTP service shutting down\n");
+
+	if(controller->flagsCaptured) {
+	    INFO_LOCAL_ID(service,"Restoring original NTP state\n");
+	    ntpShutdown(config, controller);
+	}
+
 	FLAGS_UNSET(service->flags, TIMINGSERVICE_OPERATIONAL);
 	FLAGS_UNSET(service->flags, TIMINGSERVICE_AVAILABLE);
 	return 1;
@@ -693,10 +698,14 @@ timingDomainShutdown(TimingDomain *domain)
 
 	INFO_LOCAL("Timing domain shutting down\n");
 
-	for(i=0; i < domain->serviceCount; i++) {
+	for(i=domain->serviceCount - 1; i >= 0; i--) {
 		service = domain->services[i];
-		service->shutdown(service);
+		if(service != NULL) {
+		    service->shutdown(service);
+		}
 	}
+
+	INFO_LOCAL("Timing domain shutdown complete\n");
 
 	return 1;
 }
