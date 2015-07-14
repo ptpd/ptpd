@@ -356,4 +356,7 @@ struct conf_sys_flags {
 #define INITDATASIZE    (sizeof(struct resp_pkt) * 16)
 #define INCDATASIZE     (sizeof(struct resp_pkt) * 8)
 
+/* how many time select() will retry on EINTR */
+#define NTP_EINTR_RETRIES 5
+
 #endif /* NTPDCONTROL_H */

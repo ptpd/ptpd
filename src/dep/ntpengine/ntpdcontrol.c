@@ -377,7 +377,7 @@ NTPDCresponse(
 	fd_set fds;
 	int n;
 	int pad;
-
+	int retries = NTP_EINTR_RETRIES;
 
         int ntpdc_pktdatasize;
 
@@ -414,43 +414,33 @@ NTPDCresponse(
 		tvo = tvsout;
 	
 	FD_SET(control->sockFD, &fds);
-	n = select(control->sockFD+1, &fds, (fd_set *)0, (fd_set *)0, &tvo);
+	
+	do {
+	    n = select(control->sockFD+1, &fds, (fd_set *)0, (fd_set *)0, &tvo);
+	    if( n == -1 && errno == EINTR) {
+		DBG("NTPDCresponse(): EINTR caught\n");
+		retries--;
+	    }
+	} while ((n == -1) && retries);
 
 	if (n == -1) {
-	/*	warning("select fails", "", "");*/
+	    DBG("NTPDCresponse(): select failed - not EINTR: %s\n", strerror(errno));
 		return -1;
 	}
 	if (n == 0) {
-		/*
-		 * Timed out.  Return what we have
-		 */
+		DBG("NTP response select timeout");
 		if (firstpkt) {
 			return ERR_TIMEOUT;
-///timeout?
 		} else {
-/*			(void) fprintf(stderr,
-				       "%s: timed out with incomplete data\n",
-				       currenthost);
-*/
-/*			if (debug) {
-				printf("Received sequence numbers");
-				for (n = 0; n <= MAXSEQ; n++)
-				    if (haveseq[n])
-					printf(" %d,", n);
-				if (lastseq != 999)
-				    printf(" last frame received\n");
-				else
-				    printf(" last frame not received\n");
-			}
-*/
 			return ERR_INCOMPLETE;
 		}
 	}
 
 	n = recv(control->sockFD, (char *)&rpkt, sizeof(rpkt), 0);
+
 	if (n == -1) {
-	/*	warning("read", "", "");*/
-		return -1;
+	    DBG("NTP response recv failed\n");
+	    return -1;
 	}
 
 
@@ -458,10 +448,6 @@ NTPDCresponse(
 	 * Check for format errors.  Bug proofing.
 	 */
 	if (n < RESP_HEADER_SIZE) {
-/*		if (debug)
-		    printf("Short (%d byte) packet received\n", n);
-*/
-
 		goto again;
 	}
 
@@ -653,6 +639,7 @@ NTPDCquery(
 	)
 {
 	int res;
+	int retries = NTP_EINTR_RETRIES;
 	char junk[512];
 	fd_set fds;
 	struct timeval tvzero;
@@ -669,19 +656,24 @@ again:
 		res = select(control->sockFD+1, &fds, (fd_set *)0, (fd_set *)0, &tvzero);
 
 		if (res == -1) {
-//			INFO("junk cleanup - select fails");
-//			warning("polling select", "", "");
+			if((errno == EINTR) && retries ) {
+			    DBG("NTPDCquery(): select EINTR caught");
+			    retries--;
+			    res = 1;
+			    continue;
+			}
+			DBG("NTPDCquery(): select() error - not EINTR: %s\n", strerror(errno));
 			return -1;
-		} else if (res > 0)
-
+		} else if (res > 0) {
 		    (void) recv(control->sockFD, junk, sizeof junk, 0);
+		    }
 	} while (res > 0);
 
 	/*
 	 * send a request
 	 */
 	res = NTPDCrequest(options, control, reqcode, auth, qitems, qsize, qdata);
-	if (res <= 0) { 
+	if (res <= 0) {
 		return res;
 	}
 	/*
