@@ -405,21 +405,24 @@ NTPDCresponse(
 
 	lastseq = 999;	/* too big to be a sequence number */
 	memset(haveseq, 0, sizeof(haveseq));
-	FD_ZERO(&fds);
+
 
     again:
 	if (firstpkt)
 		tvo = tvout;
 	else
 		tvo = tvsout;
-	
-	FD_SET(control->sockFD, &fds);
-	
 	do {
+	    FD_ZERO(&fds);
+	    FD_SET(control->sockFD, &fds);
 	    n = select(control->sockFD+1, &fds, (fd_set *)0, (fd_set *)0, &tvo);
-	    if( n == -1 && errno == EINTR) {
+	    if(n == -1) {
+		if(errno == EINTR) {
 		DBG("NTPDCresponse(): EINTR caught\n");
-		retries--;
+		    retries--;
+		} else {
+		    retries = 0;
+		}
 	    }
 	} while ((n == -1) && retries);
 
