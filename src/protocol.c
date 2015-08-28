@@ -3416,16 +3416,18 @@ static void
 issueDelayResp(const TimeInternal *tint,MsgHeader *header,Integer32 sourceAddress, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	Timestamp requestReceiptTimestamp;
+	Integer32 dst;
+
 	fromInternalTime(tint,&requestReceiptTimestamp);
 	msgPackDelayResp(ptpClock->msgObuf,header,&requestReceiptTimestamp,
 			 ptpClock);
-
-	Integer32 dst = 0;
 
 	/* if request was unicast and we're running unicast, reply to source */
 	if ( (rtOpts->ipMode != IPMODE_MULTICAST) &&
 	     (header->flagField0 & PTP_UNICAST) == PTP_UNICAST) {
 		dst = sourceAddress;
+	} else {
+		dst = 0;
 	}
 
 	if (!netSendGeneral(ptpClock->msgObuf, DELAY_RESP_LENGTH,

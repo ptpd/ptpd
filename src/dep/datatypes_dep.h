@@ -67,12 +67,12 @@ typedef struct {
 * \brief Struct containing interface information and capabilities
  */
 typedef struct {
-        unsigned int flags;
-        int addressFamily;
+        struct sockaddr afAddress;
+        unsigned char hwAddress[14];
         Boolean hasHwAddress;
         Boolean hasAfAddress;
-        unsigned char hwAddress[14];
-        struct sockaddr afAddress;
+        int addressFamily;
+        unsigned int flags;
 } InterfaceInfo;
 
 

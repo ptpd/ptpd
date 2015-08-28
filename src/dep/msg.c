@@ -1543,7 +1543,7 @@ msgPackSync(Octet * buf, UInteger16 sequenceId, Timestamp * originTimestamp, Ptp
 	*(UInteger8 *) (buf + 32) = 0x00;
 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
-	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ipMode == IPMODE_MULTICAST)
+	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ipMode != IPMODE_UNICAST )
 		*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
 	memset((buf + 8), 0, 8);
 
@@ -1589,9 +1589,8 @@ msgPackAnnounce(Octet * buf, UInteger16 sequenceId, PtpClock * ptpClock)
 	*(UInteger16 *) (buf + 2) = flip16(ANNOUNCE_LENGTH);
 	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
 	*(UInteger8 *) (buf + 32) = 0x05;
-	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
-	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ipMode == IPMODE_MULTICAST)
-		*(Integer8 *) (buf + 33) = ptpClock->logAnnounceInterval;
+	/* Table 24: for Announce, logMessageInterval is never 0x7F */
+	*(Integer8 *) (buf + 33) = ptpClock->logAnnounceInterval;
 
 	/* Announce message */
 	memset((buf + 34), 0, 10);
@@ -1670,7 +1669,7 @@ msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpC
 	*(UInteger8 *) (buf + 32) = 0x02;
 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
-	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ipMode == IPMODE_MULTICAST)
+	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ipMode != IPMODE_UNICAST)
 		*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
 
 	/* Follow_up message */
@@ -1783,8 +1782,10 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 	*(UInteger8 *) (buf + 32) = 0x03;
 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
-	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ipMode == IPMODE_MULTICAST)
-		*(Integer8 *) (buf + 33) = ptpClock->logMinDelayReqInterval;
+	 /* really tempting to cheat here, at least for hybrid, but standard is a standard */
+	if ((header->flagField0 & PTP_UNICAST) != PTP_UNICAST) {
+	    *(Integer8 *) (buf + 33) = ptpClock->logMinDelayReqInterval;
+	}
 
 	/* Pdelay_resp message */
 	*(UInteger16 *) (buf + 34) =
