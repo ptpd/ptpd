@@ -919,9 +919,11 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	/* disabled by default */
 	rtOpts->announceTimeoutGracePeriod = 0;
-	rtOpts->alwaysRespectUtcOffset=FALSE;
-	rtOpts->preferUtcValid=FALSE;
-	rtOpts->requireUtcValid=FALSE;
+
+	/* currentUtcOffsetValid compatibility flags */
+	rtOpts->alwaysRespectUtcOffset = TRUE;
+	rtOpts->preferUtcValid = FALSE;
+	rtOpts->requireUtcValid = FALSE;
 
 	/* Try 46 for expedited forwarding */
 	rtOpts->dscpValue = 0;
