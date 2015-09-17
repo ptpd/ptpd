@@ -1,4 +1,3 @@
-#                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
 m4_include([m4/version.m4])
@@ -76,8 +75,11 @@ AM_CONDITIONAL(LINUX_KERNEL_HEADERS, test x$LINUX_KERNEL_HEADERS = xyes)
 AC_SUBST(LINUX_KERNEL_INCLUDES)
 
 # Checks for libraries.
-AC_CHECK_LIB([m], [pow])
-AC_CHECK_LIB([rt], [clock_gettime])
+AC_SEARCH_LIBS([pow], [m])
+AC_SEARCH_LIBS([clock_gettime], [rt])
+AC_SEARCH_LIBS([timer_create], [rt])
+AC_SEARCH_LIBS([connect], [socket])
+AC_SEARCH_LIBS([gethostbyname], [nsl])
 
 # Checks for header files.
 AC_HEADER_STDC
