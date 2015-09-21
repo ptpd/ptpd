@@ -150,17 +150,11 @@ Network interface to use
 \fB-i \fINUMBER\fR
 PTP domain number
 .TP 8
-\fB-g\fR
-Slave only mode
-.TP 8
 \fB-G\fR
 \'Master mode with NTP\' (master only mode)
 .TP 8
 \fB-W\fR
 \'Master mode without NTP\' (master / slave mode)
-.TP 8
-\fB-U\fR
-Hybrid mode (mixed unicast + multicast operation)
 .TP 8
 \fB-Y \fINUMBER\fR
 Delay request interval (log 2)
@@ -269,8 +263,15 @@ master clock. This value becomes stable when the clock offset has stabilised, an
 clock stability.
 .TP 8
 \fBLast Packet Received\fR
-This field shows what message was received last - this will be S for Sync and D for Delay Response. If a slave
-logs no D entries, this means it's not receiving Delay Response messages, which could be a network issue.
+This field shows what message was received last - this will be S for Sync, D for Delay Response and P for Peer
+Delay Response when using P2P delay mode. If a slave logs no D (or P) entries, this means it's not receiving 
+Delay Response messages, which could be a network issue. For two-step clocks, "S" will still be printed when
+Follow-up was received.
+.TP 8
+\fBSequence ID\fR
+Sequence number of the last received message (Sync, Follow-Up, Delay Response, Peer Delay Response). Sequence
+numbers in the statistics log file can help identify timing issues when analysing capture files; a change of
+offset or path delay can be traced to a particular packet that matches the sequence ID.
 .TP 8
 \fBOne Way Delay Mean\fR
 One-way delay mean computed over the last sampling window.

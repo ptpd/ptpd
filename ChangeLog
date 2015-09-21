@@ -1,3 +1,27 @@
+2013-09-22  Wojciech Owczarek <wojciech@owczarek.co.uk>
+
+	* 2.3.1.1 minor / bugfix release
+
+	* Bug fixes / improvements since 2.3.1:
+
+	- systemd service file added and RPM spec updated
+	  to handle systemd
+	- fixed segfault when shutting down NTP time service
+	- ptpengine:always_respect_utc_offset is now enabled
+	  by default, to protect from clock jumps when GM
+	  stops announcing currentUtcOffsetValid flag
+	- re-arranged order of InterfaceInfo fields to
+	  fix memory alignment issues (SF bug #70)
+	- corrected logMessageInterval field values
+	  for hybrid mode (SF bug #69)
+	- fixed NTPd check failures resulting from signals
+	  interrupting select()
+	- increased statistics file line buffer size to prevent
+	  truncation and merging of lines
+	- added Sequence ID to statistics log
+	- Solaris build fixes - linking lnsl and lsocket when
+	  building without SNMP support
+
 2013-06-10  Wojciech Owczarek <wojciech@owczarek.co.uk>
 
 	* 2.3.1 release
