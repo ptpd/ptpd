@@ -84,7 +84,7 @@ AC_SEARCH_LIBS([gethostbyname], [nsl])
 # Checks for header files.
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h ifaddrs.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h linux/rtc.h sys/timex.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h ifaddrs.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h unix.h linux/rtc.h sys/timex.h getopt.h])
 
 AC_CHECK_HEADERS([endian.h machine/endian.h sys/isa_defs.h])
 
@@ -174,6 +174,11 @@ m4_version_prereq(2.60,[
 )
 
 # Check for tick in the timex structure
+AC_CHECK_MEMBERS([struct utmp.ut_time], [], [], [
+#ifdef HAVE_UTMP_H
+#include <utmp.h>
+#endif
+])
 AC_CHECK_MEMBERS([struct timex.tick], [], [], [[#include <sys/timex.h>]])
 AC_CHECK_MEMBERS([struct timex.tai], [], [], [[#include <sys/timex.h>]])
 AC_CHECK_MEMBERS([struct ntptimeval.tai], [], [],
@@ -206,7 +211,7 @@ AC_CHECK_MEMBERS([struct ether_addr.octet], [], [],
 #endif
 ])
 
-# Checks for library functions.
+# Checks for library functions
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
@@ -214,7 +219,20 @@ AC_FUNC_SELECT_ARGTYPES
 AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal ntp_gettime])
+AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal ntp_gettime getopt_long])
+
+if test -n "$GCC"; then
+    AC_MSG_CHECKING(if GCC -fstack-protector is usable)
+    OLDCFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS -fstack-protector"
+    AC_TRY_LINK(,,[
+	AC_MSG_RESULT(yes)
+    ], [
+	AC_MSG_RESULT(no)
+	CFLAGS="$OLDCFLAGS"
+    ])
+fi
+
 
 AC_MSG_NOTICE([************************************************************])
 AC_MSG_NOTICE([* PTPD BUILD FLAG AND LIBRARY DEPENDENCY CHECKS START HERE *])

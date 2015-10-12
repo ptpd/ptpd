@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014      Wojciech Owczarek,
+ * Copyright (c) 2014-2015 Wojciech Owczarek,
  *                         George V. Neville-Neil
  * Copyright (c) 2012-2013 George V. Neville-Neil,
  *                         Wojciech Owczarek.
@@ -863,12 +863,12 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
 	return 0;
     }
     total = found;
-    maxCount = found;
+
     found = 0;
 
     text_=strdup(rtOpts->unicastDomains);
 
-    for(text__=text_;found < maxCount; text__=NULL) {
+    for(text__=text_;found < total; text__=NULL) {
 
 	token=strtok_r(text__,", ;\t",&stash);
 	if(token==NULL) break;
@@ -884,20 +884,23 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
 	free(text_);
     }
 
-    maxCount = found;
     found = 0;
 
     text_=strdup(rtOpts->unicastLocalPreference);
 
-    for(text__=text_;found < maxCount; text__=NULL) {
+    for(text__=text_;found < total; text__=NULL) {
 
 	token=strtok_r(text__,", ;\t",&stash);
-	if(token==NULL) break;
-	if (sscanf(token,"%d", &tmp)) {
-	    DBG("hostList %dth host: preference %d\n", found, tmp);
-	    output[found].localPreference = tmp;
-	    found++;
+	tmp = 255;
+	if(token!=NULL) {
+	    if (sscanf(token,"%d", &tmp) != 1) {
+		tmp = 255;
+	    }
 	}
+
+	DBG("hostList %dth host: preference %d\n", found, tmp);
+	output[found].localPreference = tmp;
+	found++;
 
     }
 
@@ -924,7 +927,11 @@ Boolean
 netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 
+#ifdef __QNXNTO__
+	unsigned char temp;
+#else
 	int temp;
+#endif
 	struct sockaddr_in addr;
 
 #ifdef PTPD_PCAP
@@ -1115,6 +1122,19 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				  &temp, sizeof(int)) < 0) {
 			DBG("failed to set socket reuse\n");
 		}
+
+		/* disable UDP checksum validation (Linux) */
+#ifdef SO_NO_CHECK
+		if(rtOpts->disableUdpChecksums) {
+			if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_NO_CHECK , &temp,
+			sizeof(int)) < 0
+			|| setsockopt(netPath->generalSock, SOL_SOCKET, SO_NO_CHECK , &temp,
+			    sizeof(int)) < 0) {
+			    WARNING("Could not disable UDP checksum validation\n");
+			}
+		}
+#endif /* SO_NO_CHECK */
+
 		/* bind sockets */
 		/*
 		 * need INADDR_ANY to receive both unicast and multicast,
@@ -1437,6 +1457,12 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 	const u_char *pkt_data;
 #endif
 
+#if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
+	TimeInternal tmpTime;
+	/* get system time interpolated with TSC / clockCycles as soon as we have data on the socket */
+	getTime(&tmpTime);
+#endif
+
 	union {
 		struct cmsghdr cm;
 		char	control[256];
@@ -1652,6 +1678,11 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		ret = pkt_header->caplen - netPath->headerOffset;
 	}
 #endif
+
+#if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
+	*time = tmpTime;
+#endif
+
 	return ret;
 }
 
@@ -1784,6 +1815,12 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PTP_EVENT_PORT);
 
+#if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
+	TimeInternal tmpTime;
+	/* get system time interpolated with TSC / clockCycles as soon as we have data on the socket */
+	getTime(&tmpTime);
+#endif
+
 #ifdef PTPD_PCAP
 
 	/* In PCAP Ethernet mode, we use pcapEvent for receiving all messages 
@@ -1794,7 +1831,6 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 			&netPath->etherDest,
 			(struct ether_addr *)netPath->interfaceID,
 			netPath->pcapGeneral);
-		
 		if (ret <= 0)
 			DBG("Error sending ether multicast event message\n");
 		else {
@@ -1824,17 +1860,20 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				netPath->sentPacketsTotal++;
 			}
 #ifndef SO_TIMESTAMPING
+#if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
+			*tim = tmpTime;
+#else
 			/* 
 			 * Need to forcibly loop back the packet since
 			 * we are not using multicast. 
 			 */
-
 			addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
 			ret = sendto(netPath->eventSock, buf, length, 0, 
 				     (struct sockaddr *)&addr, 
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
 				DBGV("Error looping back unicast event message\n");
+#endif
 
 #else
 

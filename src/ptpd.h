@@ -69,7 +69,9 @@
 #include <stdarg.h>
 #include <syslog.h>
 #include <limits.h>
+#ifdef HAVE_GETOPT_H
 #include <getopt.h>
+#endif /* HAVE_GETOPT_H */
 #include <ctype.h>
 #include <glob.h>
 #include <stddef.h>
@@ -85,6 +87,10 @@
 #ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>
 #endif /* HAVE_NET_ETHERNET_H */
+
+#ifdef HAVE_UNIX_H /* setlinebuf() on QNX */
+#include <unix.h>
+#endif /* HAVE_UNIX_H */
 
 #include <netinet/in.h>
 #ifdef HAVE_NETINET_IN_SYSTM_H
@@ -186,8 +192,13 @@
 #define SET_FIELD(data, bitpos) \
 	data << bitpos
 
+#ifndef min
 #define min(a,b)     (((a)<(b))?(a):(b))
+#endif /* min */
+
+#ifndef max
 #define max(a,b)     (((a)>(b))?(a):(b))
+#endif /* max */
 
 #ifdef HAVE_LINUX_RTC_H
 #include <linux/rtc.h>
@@ -344,7 +355,7 @@ void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement *outgoi
 /**
  * \brief Signaling message support
  */
-UnicastGrantTable* findUnicastGrants(const PortIdentity* portIdentity, Integer32 TransportAddress, UnicastGrantTable *grantTable, UnicastGrantTable **index, int nodeCount, Boolean update);
+UnicastGrantTable* findUnicastGrants(const PortIdentity* portIdentity, Integer32 TransportAddress, UnicastGrantTable *grantTable, UnicastGrantIndex *index, int nodeCount, Boolean update);
 void 	initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism, int nodeCount, UnicastDestination *destinations, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 void 	handleSMRequestUnicastTransmission(MsgSignaling*, MsgSignaling*, Integer32, const RunTimeOpts*, PtpClock*);
 Boolean handleSMCancelUnicastTransmission(MsgSignaling*, MsgSignaling*, Integer32, PtpClock*);

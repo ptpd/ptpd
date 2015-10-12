@@ -53,7 +53,7 @@
 
 #include "../ptpd.h"
 
-#define US_TIMER_INTERVAL (62500)
+#define US_TIMER_INTERVAL (31250)
 
 static volatile unsigned int elapsed;
 

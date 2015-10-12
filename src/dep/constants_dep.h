@@ -16,7 +16,7 @@
 /* platform dependent */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) && \
-  !defined(__APPLE__) && !defined(__OpenBSD__) && !defined(__sun)
+  !defined(__APPLE__) && !defined(__OpenBSD__) && !defined(__sun) && !defined(__QNXNTO__)
 #error PTPD hasn't been ported to this OS - should be possible \
 if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.net
 #endif
@@ -34,7 +34,7 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define octet ether_addr_octet
 #endif /* linux */
 
-#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__OpenBSD__) || defined(__sun)
+#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__OpenBSD__) || defined(__sun) || defined(__QNXNTO__)
 # include <sys/types.h>
 # include <sys/socket.h>
 #ifdef HAVE_SYS_SOCKIO_H
@@ -56,6 +56,17 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #include <ifaddrs.h>
 # define IFACE_NAME_LENGTH         IF_NAMESIZE
 # define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
+
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif /* HAVE_SYS_PARAM_H */
+
+#ifdef __QNXNTO__
+#include <sys/neutrino.h>
+#include <sys/syspage.h>
+#define BSD_INTERFACE_FUNCTIONS
+#endif /* __QNXNTO __ */
+
 
 #if !defined(ETHER_ADDR_LEN) && defined(ETHERADDRL)
 #	define ETHER_ADDR_LEN ETHERADDRL

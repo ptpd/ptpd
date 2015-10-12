@@ -618,7 +618,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 		s1(header,announce,ptpClock, rtOpts);
 		if(rtOpts->unicastNegotiation) {
 			ptpClock->parentGrants = findUnicastGrants(&ptpClock->parentPortIdentity, 0,
-						ptpClock->unicastGrants, ptpClock->unicastGrantIndex, ptpClock->unicastDestinationCount ,
+						ptpClock->unicastGrants, &ptpClock->grantIndex, ptpClock->unicastDestinationCount ,
 					    FALSE);
 		}
 		if (newBM) {
@@ -658,6 +658,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 		} else if (comp > 0) {
 			s1(header,announce,ptpClock, rtOpts);
 			if (newBM) {
+				ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
 				displayPortIdentity(&header->sourcePortIdentity,
 						    "New best master selected:");
 				ptpClock->counters.masterChanges++;
@@ -679,6 +680,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 						    "New best master selected:");
 				ptpClock->counters.masterChanges++;
 				if(ptpClock->portState == PTP_SLAVE)
+					ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
 					displayStatus(ptpClock, "State: ");
 				if(rtOpts->calibrationDelay) {
 					ptpClock->isCalibrated = FALSE;

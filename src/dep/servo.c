@@ -53,6 +53,15 @@
 
 #include "../ptpd.h"
 
+#define CLAMP(var,bound) {\
+    if(var < -bound) {\
+	var = -bound;\
+    }\
+    if(var > bound) {\
+	var = bound;\
+    }\
+}
+
 #ifdef PTPD_STATISTICS
 static void checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts);
 #endif
@@ -70,7 +79,6 @@ void
 initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	DBG("initClock\n");
-
 
 	/* If we've been suppressing ntpdc error messages, show them once again */
 	ptpClock->ntpControl.requestFailed = FALSE;
@@ -658,10 +666,9 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	initClock(rtOpts, ptpClock);
 
-#ifdef HAVE_SYS_TIMEX_H
 	if(ptpClock->clockQuality.clockClass > 127)
 		restoreDrift(ptpClock, rtOpts, TRUE);
-#endif /* HAVE_SYS_TIMEX_H */
+
 	ptpClock->servo.runningMaxOutput = FALSE;
 	toState(PTP_FAULTY, rtOpts, ptpClock);		/* make a full protocol reset */
 
@@ -705,7 +712,6 @@ warn_operator_slow_slewing(const RunTimeOpts * rtOpts, PtpClock * ptpClock )
 /*
  * this is a wrapper around adjFreq to abstract extra operations
  */
-#ifdef HAVE_SYS_TIMEX_H
 
 void
 adjFreq_wrapper(const RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
@@ -715,12 +721,50 @@ adjFreq_wrapper(const RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
 		return;
 	}
 
-	// call original adjtime
+/*
+ * adjFreq simulation for QNX: correct clock by x ns per tick over clock adjust interval,
+ * to make it equal adj ns per second. Makes sense only if intervals are regular.
+ */
+
+#ifdef __QNXNTO__
+
+      struct _clockadjust clockadj;
+      struct _clockperiod period;
+      if (ClockPeriod (CLOCK_REALTIME, 0, &period, 0) < 0)
+          return;
+
+	CLAMP(adj,ptpClock->servo.maxOutput);
+
+	/* adjust clock for the duration of 0.9 clock update period in ticks (so we're done before the next) */
+	clockadj.tick_count = 0.9 * ptpClock->servo.dT * 1E9 / (period.nsec + 0.0);
+
+	/* scale adjustment per second to adjustment per single tick */
+	clockadj.tick_nsec_inc = (adj * ptpClock->servo.dT / clockadj.tick_count) / 0.9;
+
+	DBGV("QNX: adj: %.09f, dt: %.09f, ticks per dt: %d, inc per tick %d\n",
+		adj, ptpClock->servo.dT, clockadj.tick_count, clockadj.tick_nsec_inc);
+
+	if (ClockAdjust(CLOCK_REALTIME, &clockadj, NULL) < 0) {
+	    DBGV("QNX: failed to call ClockAdjust: %s\n", strerror(errno));
+	}
+/* regular adjFreq */
+#elif defined(HAVE_SYS_TIMEX_H)
 	DBG2("     adjFreq2: call adjfreq to %.09f us \n", adj / DBG_UNIT);
 	adjFreq(adj);
-}
+/* otherwise use adjtime */
+#else
+	struct timeval tv;
 
-#endif /* HAVE_SYS_TIMEX_H */
+	CLAMP(adj,ptpClock->servo.maxOutput);
+
+	tv.tv_sec = 0;
+	tv.tv_usec = (adj / 1000);
+	if((ptpClock->servo.dT > 0) && (ptpClock->servo.dT < 1.0)) {
+	    tv.tv_usec *= ptpClock->servo.dT;
+	}
+	adjtime(&tv, NULL);
+#endif
+}
 
 /* check if it's OK to update the clock, deal with panic mode, call for clock step */
 void checkOffset(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
@@ -893,14 +937,12 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			ptpClock->clockControl.stepRequired = FALSE;
 			return;
 		} else {
-#ifdef HAVE_SYS_TIMEX_H
 			if(ptpClock->offsetFromMaster.nanoseconds > 0)
 				ptpClock->servo.observedDrift = rtOpts->servoMaxPpb;
 			else
 				ptpClock->servo.observedDrift = -rtOpts->servoMaxPpb;
 			warn_operator_slow_slewing(rtOpts, ptpClock);
 			adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->servo.observedDrift);
-#endif /* HAVE_SYS_TIMEX_H */
 			ptpClock->clockControl.stepRequired = FALSE;
 		}
 		return;
@@ -908,11 +950,6 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if (ptpClock->clockControl.granted) {
 
-
-
-#ifndef HAVE_SYS_TIMEX_H
-	adjTime(-ptpClock->offsetFromMaster.nanoseconds);
-#else
 	/* only run the servo if we are calibrted - if calibration delay configured */
 
 	if((!rtOpts->calibrationDelay) || ptpClock->isCalibrated) {
@@ -924,9 +961,8 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		/* let the clock source know it's being synced */
 		ptpClock->clockStatus.inSync = TRUE;
 		ptpClock->clockStatus.clockOffset = (ptpClock->offsetFromMaster.seconds * 1E9 +
-						ptpClock->offsetFromMaster.nanoseconds) / 1000;  
+						ptpClock->offsetFromMaster.nanoseconds) / 1000;
 		ptpClock->clockStatus.update = TRUE;
-#endif /* HAVE_SYS_TIMEX_H */
 	}
 
 	/* we are ready to control the clock */
@@ -1085,9 +1121,7 @@ checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 				ptpClock->servo.stabilityThreshold);
 		}
 
-#ifdef HAVE_SYS_TIMEX_H
                 saveDrift(ptpClock, rtOpts, ptpClock->servo.isStable);
-#endif /* HAVE_SYS_TIMEX_H */
 
 		ptpClock->servo.isStable = TRUE;
 		ptpClock->servo.stableCount = 0;
@@ -1111,9 +1145,7 @@ checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
                         } else {
                                 WARNING("Clock servo outside stability threshold %d seconds after last check. Saving current observed drift.\n",
 					rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
-#ifdef HAVE_SYS_TIMEX_H
 				saveDrift(ptpClock, rtOpts, FALSE);
-#endif /* HAVE_SYS_TIMEX_H */
                         }
 		}
 	}

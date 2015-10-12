@@ -74,6 +74,24 @@ double round (double __x);
 
 static int closeLog(LogFileHandler* handler);
 
+#ifdef __QNXNTO__
+typedef struct {
+  _uint64 counter;		/* iteration counter */
+  _uint64 prev_tsc;		/* previous clock cycles */
+  _uint64 last_clock;		/* clock reading at last timer interrupt */
+  _uint64 cps;			/* cycles per second */
+  _uint64 prev_delta;		/* previous clock cycle delta */
+  _uint64 cur_delta;		/* last clock cycle delta */
+  _uint64 filtered_delta;	/* filtered delta */
+  double ns_per_tick;		/* nanoseconds per cycle */
+} TimerIntData;
+
+/* do not access directly! tied to clock interrupt! */
+static TimerIntData tData;
+static Boolean tDataUpdated = FALSE;
+
+#endif /* __QNXNTO__ */
+
 /*
  returns a static char * for the representation of time, for debug purposes
  DO NOT call this twice in the same printf!
@@ -1349,9 +1367,92 @@ nanoSleep(TimeInternal * t)
 	return TRUE;
 }
 
-void
-getTime(TimeInternal * time)
-{
+#ifdef __QNXNTO__
+
+static const struct sigevent* timerIntHandler(void* data, int id) {
+  struct timespec tp;
+  TimerIntData* myData = (TimerIntData*)data;
+  uint64_t new_tsc = ClockCycles();
+
+  clock_gettime(CLOCK_REALTIME, &tp);
+
+  if(new_tsc > myData->prev_tsc) {
+    myData->cur_delta = new_tsc - myData->prev_tsc;
+  /* when hell freezeth over, thy TSC shall roll over */
+  } else {
+    myData->cur_delta = myData->prev_delta;
+  }
+  /* 4/6 weighted average */
+  myData->filtered_delta = (40 * myData->cur_delta + 60 * myData->prev_delta) / 100;
+  myData->prev_delta = myData->cur_delta;
+  myData->prev_tsc = new_tsc;
+
+  if(myData->counter < 2) {
+    myData->counter++;
+  }
+
+  myData->last_clock = timespec2nsec(&tp);
+  return NULL;
+
+}
+#endif
+
+ void getTime(TimeInternal *time)
+ {
+#ifdef __QNXNTO__
+  static TimerIntData tmpData;
+  int ret;
+  uint64_t delta;
+  double tick_delay;
+  uint64_t clock_offset;
+  struct timespec tp;
+  if(!tDataUpdated) {
+    memset(&tData, 0, sizeof(TimerIntData));
+    if(ThreadCtl(_NTO_TCTL_IO, 0) == -1) {
+      ERROR("QNX: could not give process I/O privileges");
+      return;
+    }
+
+    tData.cps = SYSPAGE_ENTRY(qtime)->cycles_per_sec;
+    tData.ns_per_tick = 1000000000.0 / tData.cps;
+    tData.prev_tsc = ClockCycles();
+    clock_gettime(CLOCK_REALTIME, &tp);
+    tData.last_clock = timespec2nsec(&tp); 
+    ret = InterruptAttach(0, timerIntHandler, &tData, sizeof(TimerIntData), _NTO_INTR_FLAGS_END | _NTO_INTR_FLAGS_TRK_MSK);
+
+    if(ret == -1) {
+      ERROR("QNX: could not attach to timer interrupt");
+      return ;
+    }
+    tDataUpdated = TRUE;
+    time->seconds = tp.tv_sec;
+    time->nanoseconds = tp.tv_nsec;
+    return;
+  }
+
+  memcpy(&tmpData, &tData, sizeof(TimerIntData));
+
+  delta = ClockCycles() - tmpData.prev_tsc;
+
+  /* compute time since last clock update */
+  tick_delay = (double)delta / (double)tmpData.filtered_delta;
+  clock_offset = (uint64_t)(tick_delay * tmpData.ns_per_tick * (double)tmpData.filtered_delta);
+
+  /* not filtered yet */
+  if(tData.counter < 2) {
+    clock_offset = 0;
+  }
+
+    DBGV("QNX getTime cps: %lld tick interval: %.09f, time since last tick: %lld\n",
+    tmpData.cps, tmpData.filtered_delta * tmpData.ns_per_tick, clock_offset);
+
+    nsec2timespec(&tp, tmpData.last_clock + clock_offset);
+
+    time->seconds = tp.tv_sec;
+    time->nanoseconds = tp.tv_nsec;
+  return;
+#else
+
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 
 	struct timespec tp;
@@ -1370,6 +1471,7 @@ getTime(TimeInternal * time)
 	time->nanoseconds = tv.tv_usec * 1000;
 
 #endif /* _POSIX_TIMERS */
+#endif /* __QNXNTO__ */
 }
 
 void
@@ -2018,23 +2120,7 @@ setTimexFlags(int flags, Boolean quiet)
 	}
 }
 
-#else /* SYS_TIMEX_H */
-
-void
-adjTime(Integer32 nanoseconds)
-{
-
-	struct timeval t;
-
-	t.tv_sec = 0;
-	t.tv_usec = nanoseconds / 1000;
-
-	if (adjtime(&t, NULL) < 0)
-		PERROR("failed to ajdtime");
-
-}
-
-#endif /* HAVE_SYS_TIMEX_H */
+#endif /* SYS_TIMEX_H */
 
 #define DRIFTFORMAT "%.0f"
 
@@ -2051,11 +2137,7 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	if (ptpClock->drift_saved && rtOpts->drift_recovery_method > 0 ) {
 		ptpClock->servo.observedDrift = ptpClock->last_saved_drift;
 		if (!rtOpts->noAdjust && ptpClock->clockControl.granted) {
-#ifndef HAVE_SYS_TIMEX_H
-			adjTime(-ptpClock->last_saved_drift);
-#else
 			adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->last_saved_drift);
-#endif /* HAVE_SYS_TIMEX_H */
 		}
 		DBG("loaded cached drift");
 		return;
@@ -2118,10 +2200,8 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	}
 
 	if (reset_offset) {
-#ifdef HAVE_SYS_TIMEX_H
 		if (!rtOpts->noAdjust && ptpClock->clockControl.granted)
 		  adjFreq_wrapper(rtOpts, ptpClock, 0);
-#endif /* HAVE_SYS_TIMEX_H */
 		ptpClock->servo.observedDrift = 0;
 		return;
 	}
@@ -2131,10 +2211,9 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	ptpClock->drift_saved = TRUE;
 	ptpClock->last_saved_drift = recovered_drift;
 
-#ifdef HAVE_SYS_TIMEX_H
 	if (!rtOpts->noAdjust)
-		adjFreq(-recovered_drift);
-#endif /* HAVE_SYS_TIMEX_H */
+		adjFreq_wrapper(rtOpts, ptpClock, -recovered_drift);
+
 }
 
 
@@ -2334,8 +2413,14 @@ updateXtmp (TimeInternal oldTime, TimeInternal newTime)
 #endif /* OTIME_MSG */
 
 #ifdef OLD_TIME
+
+#ifdef HAVE_STRUCT_UTMP_UT_TIME
+		ut.ut_time = oldTime.seconds;
+#else
 		ut.ut_tv.tv_sec = oldTime.seconds;
 		ut.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
+#endif /* HAVE_STRUCT_UTMP_UT_TIME */
+
 		ut.ut_type = OLD_TIME;
 #else /* no ut_type */
 		ut.ut_time = oldTime.seconds;
@@ -2412,8 +2497,13 @@ updateXtmp (TimeInternal oldTime, TimeInternal newTime)
 		strncpy(ut.ut_line, NTIME_MSG, sizeof(ut.ut_line));
 #endif /* NTIME_MSG */
 #ifdef NEW_TIME
+
+#ifdef HAVE_STRUCT_UTMP_UT_TIME
+		ut.ut_time = newTime.seconds;
+#else
 		ut.ut_tv.tv_sec = newTime.seconds;
 		ut.ut_tv.tv_usec = newTime.nanoseconds / 1000;
+#endif /* HAVE_STRUCT_UTMP_UT_TIME */
 		ut.ut_type = NEW_TIME;
 #else /* no ut_type */
 		ut.ut_time = newTime.seconds;
@@ -2448,5 +2538,83 @@ updateXtmp (TimeInternal oldTime, TimeInternal newTime)
 
 #endif /* HAVE_UTMP_H */
 #endif /* HAVE_UTMPX_H */
+
+}
+
+int setCpuAffinity(int cpu) {
+
+#ifdef __QNXNTO__
+    unsigned    num_elements = 0;
+    int         *rsizep, masksize_bytes, size;
+    int    *rmaskp, *imaskp;
+    void        *my_data;
+    uint32_t cpun;
+    num_elements = RMSK_SIZE(_syspage_ptr->num_cpu);
+
+    masksize_bytes = num_elements * sizeof(unsigned);
+
+    size = sizeof(int) + 2 * masksize_bytes;
+    if ((my_data = malloc(size)) == NULL) {
+        return -1;
+    } else {
+        memset(my_data, 0x00, size);
+
+        rsizep = (int *)my_data;
+        rmaskp = rsizep + 1;
+        imaskp = rmaskp + num_elements;
+
+        *rsizep = num_elements;
+
+	if(cpu > _syspage_ptr->num_cpu) {
+	    return -1;
+	}
+
+	if(cpu >= 0) {
+	    cpun = (uint32_t)cpu;
+	    RMSK_SET(cpun, rmaskp);
+    	    RMSK_SET(cpun, imaskp);
+	} else {
+		for(cpun = 0;  cpun < num_elements; cpun++) {
+		    RMSK_SET(cpun, rmaskp);
+		    RMSK_SET(cpun, imaskp);
+		}
+	}
+	int ret = ThreadCtl( _NTO_TCTL_RUNMASK_GET_AND_SET_INHERIT, my_data);
+	free(my_data);
+	return ret;
+    }
+
+#endif
+
+#ifdef HAVE_SYS_CPUSET_H
+	cpuset_t mask;
+    	CPU_ZERO(&mask);
+	if(cpu >= 0) {
+    	    CPU_SET(cpu,&mask);
+	} else {
+		int i;
+		for(i = 0;  i < CPU_SETSIZE; i++) {
+			CPU_SET(i, &mask);
+		}
+	}
+    	return(cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
+			      -1, sizeof(mask), &mask));
+#endif /* HAVE_SYS_CPUSET_H */
+
+#if defined(linux) && defined(HAVE_SCHED_H)
+	cpu_set_t mask;
+	CPU_ZERO(&mask);
+	if(cpu >= 0) {
+	    CPU_SET(cpu,&mask);
+	} else {
+		int i;
+		for(i = 0;  i < CPU_SETSIZE; i++) {
+			CPU_SET(i, &mask);
+		}
+	}
+	return sched_setaffinity(0, sizeof(mask), &mask);
+#endif /* linux && HAVE_SCHED_H */
+
+return -1;
 
 }

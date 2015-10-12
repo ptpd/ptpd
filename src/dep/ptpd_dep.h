@@ -383,6 +383,7 @@ void stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
 /** \name startup.c (Unix API dependent)
  * -Handle with runtime options*/
  /**\{*/
+int setCpuAffinity(int cpu);
 int logToFile(RunTimeOpts * rtOpts);
 int recordToFile(RunTimeOpts * rtOpts);
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
@@ -437,17 +438,13 @@ Boolean checkOtherLocks(RunTimeOpts *rtOpts);
 
 void recordSync(UInteger16 sequenceId, TimeInternal * time);
 
-#ifndef HAVE_SYS_TIMEX_H
-void adjTime(Integer32);
-#else
-
-
-
 void adjFreq_wrapper(const RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj);
+
 Boolean adjFreq(double);
 double getAdjFreq(void);
-void informClockSource(PtpClock* ptpClock);
 
+#ifdef HAVE_SYS_TIMEX_H
+void informClockSource(PtpClock* ptpClock);
 
 /* Helper function to manage ntpadjtime / adjtimex flags */
 void setTimexFlags(int flags, Boolean quiet);
@@ -481,5 +478,6 @@ void updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts);
 
 void writeStatusFile(PtpClock *ptpClock, const RunTimeOpts *rtOpts, Boolean quiet);
 void updateXtmp (TimeInternal oldTime, TimeInternal newTime);
+
 
 #endif /*PTPD_DEP_H_*/

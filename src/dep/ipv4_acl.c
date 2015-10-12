@@ -120,7 +120,7 @@ static int ipToArray(const char* text, uint8_t dest[], int maxOctets, Boolean is
 static int parseAclEntry(const char* line, AclEntry* acl) {
 
     int result = 1;
-    char* stash;
+    char* stash = NULL;
     char* text_;
     char* token;
     char* endptr;

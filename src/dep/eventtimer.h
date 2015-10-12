@@ -30,7 +30,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define EVENTTIMER_MAX_DESC           20
+#define EVENTTIMER_MAX_DESC		20
+#define EVENTTIMER_MIN_INTERVAL_US	250 /* 4000/sec */
 
 typedef struct EventTimer EventTimer;
 

@@ -1,4 +1,4 @@
-2013-09-22  Wojciech Owczarek <wojciech@owczarek.co.uk>
+2013-10-12  Wojciech Owczarek <wojciech@owczarek.co.uk>
 
 	* 2.3.1.1 minor / bugfix release
 
@@ -21,6 +21,45 @@
 	- added Sequence ID to statistics log
 	- Solaris build fixes - linking lnsl and lsocket when
 	  building without SNMP support
+	- critical: added minimum POSIX timer interval to prevent from
+	  timers firing to quickly for the process to handle,
+	  resulting in 100% CPU and endless signal queue
+	- improved processing of unicast destination, domain
+	  and local preference lists
+	- CPU affinity setting moved to a separate function
+	- fixed incorrect PTP_UNICAST flag setting for multicast
+	- fixed missing management or signalling message acceptance
+	  condition (clockid==clockid, portid=0xffff): ISPCS 2015 plugfest
+	- signaling.c: fixed order of grant processing for PTP messages
+	  (ann,syn,fup,dresp,pdelayresp) instead of numeric loop,
+	  to assist with interop where transmission request order
+	  makes a difference to the master
+	- signaling.c: do not reset known clock ID when changing GMs,
+	  to allow to keep accepting announce from other masters
+	- signaling.c: update unicast index when transport address
+	  match only: fix for cache misses for non-best masters
+
+	* New features since 2.3.1:
+
+	- unicast port number mask to assist with nodes
+	  using different port IDs for negotiation
+	- option to accept any GM when unicast negotiation
+	  is enabled
+	- UDP checksums disabled on Linux by default:
+	  enables interop with TCs that don't correct checksums
+	- Added QNX support:
+	    - clean build on QNX 6.5 out of the box  
+	    - adjfreq emulation using native ClockAdjust
+	    - binding to CPU cores
+	    - Experimental (but yield best results):
+		* interpolated getTime attached to IRQ0
+		* RX/TX timestamps in software on send or receive,
+    		  bypassing pcap or socket timestampint
+	- support for systems without getopt_long (like QNX)
+	- adjfreq-like behaviour on systems with adjtime only:
+	  properly scaled adjtime() pulled into PI servo
+	  (vastly improved sync on systems like OpenBSD and OSX),
+	  support for drift file for those systems
 
 2013-06-10  Wojciech Owczarek <wojciech@owczarek.co.uk>
 

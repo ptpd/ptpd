@@ -5,7 +5,7 @@ lib_LTLIBRARIES = $(LIBPTPD2_LIBS_LA)
 sbin_PROGRAMS = ptpd2
 man_MANS = ptpd2.8 ptpd2.conf.5
 
-AM_CFLAGS	= $(SNMP_CFLAGS) $(PCAP_CFLAGS) -Wall -fexceptions -fstack-protector
+AM_CFLAGS	= $(SNMP_CFLAGS) $(PCAP_CFLAGS) -Wall -fexceptions
 AM_CPPFLAGS	= $(SNMP_CPPFLAGS) $(PCAP_CPPFLAGS)
 AM_LDFLAGS	= $(SNMP_LIBS) $(PCAP_LIBS)
 

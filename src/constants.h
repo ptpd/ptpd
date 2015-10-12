@@ -285,6 +285,31 @@ enum {
 	ACKNOWLEDGE
 };
 
+/* Enterprise Profile TLV definitions */
+
+#define IETF_OUI 0x000005
+#define IETF_PROFILE 0x01
+
+/* phase adjustment units */
+
+enum {
+
+	PHASEADJ_UNKNOWN = 0x00,
+	PHASEADJ_S  = 0x01,	/* seconds 	*/
+	PHASEADJ_MS = 0x03,	/* milliseconds */
+	PHASEADJ_US = 0x06,	/* microsecondas*/
+	PHASEADJ_NS = 0x09,	/* nanoseconds 	*/
+	PHASEADJ_PS = 0x12,	/* picoseconds 	*/
+	PHASEADJ_FS = 0x15,	/* femtoseconds */
+
+	/* coming soon to a GM near you */
+
+	PHASEADJ_AS = 0x18,	/* attoseconds (haha) 		*/
+	PHASEADJ_ZS = 0x21,	/* zeptoseconds (schwiiing!) 	*/
+	PHASEADJ_YS = 0x24	/* yoctoseconds (I AM GOD) 	*/
+
+};
+
 /**
  * \brief flagField1 bit position values (Table 20 in the spec)
  */
@@ -327,6 +352,8 @@ enum {
 	/* marker only */
 	PTP_MAX_MESSAGE
 };
+
+#define PTP_MESSAGETYPE_COUNT 10
 
 /* communication technology */
 enum {

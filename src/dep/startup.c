@@ -212,74 +212,26 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		    rtOpts->restartSubsystems = -1;
 		    ERROR("Error: Cannot use %s interface as backup\n",tmpOpts.backupIfaceName);
 		}
-
-
 	}
+#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined(__QNXNTO__)
+        /* Changing the CPU affinity mask */
+        if(rtOpts->restartSubsystems & PTPD_CHANGE_CPUAFFINITY) {
+                NOTIFY("Applying CPU binding configuration: changing selected CPU core\n");
 
-
-#if defined(linux) && defined(HAVE_SCHED_H)
-                    /* Changing the CPU affinity mask */
-                    if(rtOpts->restartSubsystems & PTPD_CHANGE_CPUAFFINITY) {
-                        NOTIFY("Applying CPU binding configuration: changing selected CPU core\n");
-                        cpu_set_t mask;
-                        CPU_ZERO(&mask);
-                        if(tmpOpts.cpuNumber > -1) {
-                                CPU_SET(tmpOpts.cpuNumber,&mask);
+                if(setCpuAffinity(tmpOpts.cpuNumber) < 0) {
+                        if(tmpOpts.cpuNumber == -1) {
+                                ERROR("Could not unbind from CPU core %d\n", rtOpts->cpuNumber);
                         } else {
-				int i;
-				for(i = 0;  i < CPU_SETSIZE; i++) {
-				    CPU_SET(i, &mask);
-				}
-			}
-                        if(sched_setaffinity(0, sizeof(mask), &mask) < 0) {
-                                if(tmpOpts.cpuNumber == -1) {
-                                        PERROR("Could not unbind from CPU core %d", rtOpts->cpuNumber);
-                                } else {
-                                        PERROR("Could bind to CPU core %d", tmpOpts.cpuNumber);
-                                }
-                                rtOpts->restartSubsystems = -1;
-                        } else {
-                                if(tmpOpts.cpuNumber > -1)
-                                        INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n", tmpOpts.cpuNumber);
-                                else
-                                        INFO("Successfully unbound "PTPD_PROGNAME" from cpu core CPU core %d\n", rtOpts->cpuNumber);
+                                ERROR("Could bind to CPU core %d\n", tmpOpts.cpuNumber);
                         }
-                   }
-#endif /* linux && HAVE_SCHED_H */
-
-#ifdef HAVE_SYS_CPUSET_H
-	/* Changing the CPU affinity mask */
-		    if (rtOpts->restartSubsystems & PTPD_CHANGE_CPUAFFINITY) {
-			    NOTIFY("Applying CPU binding configuration:"
-				   "changing selected CPU core\n");
-			    cpuset_t mask;
-			    CPU_ZERO(&mask);
-			    if (tmpOpts.cpuNumber < 0) {
-				    if (cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_CPUSET, 1,
-							   sizeof(mask), &mask) < 0)
-					    PERROR("Could not get affinity.");
-				    if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
-							   -1, sizeof(mask), &mask) < 0)
-					    PERROR("Could not unbind from CPU core %d",
-						   rtOpts->cpuNumber);
-				    else
-					    INFO("Successfully unbound "
-						 PTPD_PROGNAME" from cpu core CPU core %d\n",
-						 rtOpts->cpuNumber);
-			    } else {
-				    CPU_SET(tmpOpts.cpuNumber,&mask);
-				    if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
-							   -1, sizeof(mask), &mask) < 0)  {
-					    PERROR("Could not bind to CPU core %d",
-							   tmpOpts.cpuNumber);
-					    rtOpts->restartSubsystems = -1;
-				    } else {
-					    INFO("Successfully bound "
-						 PTPD_PROGNAME" to CPU core %d\n",
-						 tmpOpts.cpuNumber);
-				    }
-			    }
-		    }
+                        rtOpts->restartSubsystems = -1;
+                } else {
+                        if(tmpOpts.cpuNumber > -1)
+                                INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n", tmpOpts.cpuNumber);
+                        else
+                                INFO("Successfully unbound "PTPD_PROGNAME" from cpu core CPU core %d\n", rtOpts->cpuNumber);
+                }
+         }
 #endif
 
 	if(rtOpts->restartSubsystems == -1) {
@@ -622,7 +574,6 @@ ptpdShutdown(PtpClock * ptpClock)
 	snmpShutdown();
 #endif /* PTPD_SNMP */
 
-#ifdef HAVE_SYS_TIMEX_H
 #ifndef PTPD_STATISTICS
 	/* Not running statistics code - write observed drift to driftfile if enabled, inform user */
 	if(ptpClock->slaveOnly && !ptpClock->servo.runningMaxOutput)
@@ -637,7 +588,6 @@ ptpdShutdown(PtpClock * ptpClock)
 	if(!rtOpts.servoStabilityDetection && !ptpClock->servo.runningMaxOutput)
 		saveDrift(ptpClock, &rtOpts, FALSE);
 #endif /* PTPD_STATISTICS */
-#endif /* HAVE_SYS_TIMEX_H */
 
 	if (rtOpts.currentConfig != NULL)
 		dictionary_del(rtOpts.currentConfig);
@@ -921,40 +871,16 @@ configcheck:
 		}
 	}
 
-#if defined(linux) && defined(HAVE_SCHED_H)
+#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined(__QNXNTO__)
 	/* Try binding to a single CPU core if configured to do so */
-
 	if(rtOpts->cpuNumber > -1) {
-
-		cpu_set_t mask;
-    		CPU_ZERO(&mask);
-    		CPU_SET(rtOpts->cpuNumber,&mask);
-    		if(sched_setaffinity(0, sizeof(mask), &mask) < 0) {
-		    PERROR("Could not bind to CPU core %d", rtOpts->cpuNumber);
+    		if(setCpuAffinity(rtOpts->cpuNumber) < 0) {
+		    ERROR("Could not bind to CPU core %d\n", rtOpts->cpuNumber);
 		} else {
 		    INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n", rtOpts->cpuNumber);
 		}
 	}
-#endif /* linux && HAVE_SCHED_H */
-
-#ifdef HAVE_SYS_CPUSET_H
-
-	/* Try binding to a single CPU core if configured to do so */
-
-	if(rtOpts->cpuNumber > -1) {
-		cpuset_t mask;
-    		CPU_ZERO(&mask);
-    		CPU_SET(rtOpts->cpuNumber,&mask);
-    		if(cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
-				      -1, sizeof(mask), &mask) < 0) {
-			PERROR("Could not bind to CPU core %d",
-			       rtOpts->cpuNumber);
-		} else {
-			INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n",
-			     rtOpts->cpuNumber);
-		}
-	}
-#endif /* HAVE_SYS_CPUSET_H */
+#endif
 
 	/* set up timers */
 	if(!timerSetup(ptpClock->timers)) {

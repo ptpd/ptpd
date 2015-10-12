@@ -215,6 +215,54 @@ and remain an active master. This behaviour is required for Telecom profile oper
 .RE
 .RS 0
 .TP 8
+\fBptpengine:unicast_any_master [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+When using unicast negotiation (slave), accept PTP messages from any grandmaster.
+By default, only messages from acceptable masters (\fIptpengine:unicast_destinations\fR)
+are accepted, and only if transmission was granted by the GM. This setting can be used
+when mixing GMs supporting G.8265.1 and manual unicast (no negotiation), or to assist
+with interoperability issues where signaling messages and timing messages come from
+different port identities.
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:unicast_port_mask [\fIINT\fB: 0 .. 65535 (0xFFFF)]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+PTP port number wildcard mask (16-bit) applied onto port identities when running unicast negotiation:
+allows multiple port identities (with the same clock ID) to be accepted as coming from the same port.
+This option can be used as a workaround where a node sends signaling messages and timing messages
+with different port identities. \fBNOTE:\fR This can also be entered in hexadecimal notation (0xNNNN).
+.TP 8
+\fBdefault\fR
+\fI0\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:disable_udp_checksums [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Disable UDP checksum validation on UDP sockets (Linux only). Workaround for situations where a node
+(like Transparent Clock) does not rewrite checksums. Enabled by default.
+.TP 8
+\fBdefault\fR
+\fIY\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:use_libpcap [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8
@@ -770,9 +818,6 @@ deliver messages to a pre-configured group of slaves.
 \fBdefault\fR
 \fI[none]\fR
 
-
-
-
 .RE
 .RE
 .RS 0
@@ -782,7 +827,7 @@ deliver messages to a pre-configured group of slaves.
 .TP 8
 \fBusage\fR
 Specify PTP domain number for each configured unicast destination (\fIptpengine:unicast_destinations\fR).
-This is only used by slave-only clocks using unicast destinations to allow for each master
+This is only used by slave-only clocks using multiple unicast destinations to allow for each master
 to be in a separate domain, such as with Telecom Profile. The number of entries should match the number
 of unicast destinations, otherwise unconfigured domains or domains set to 0 are set to domain configured in \fIptpengine:domain\fR.
 The format is a comma, tab or space-separated list of 8-bit unsigned integers (0 .. 255).
@@ -799,10 +844,10 @@ The format is a comma, tab or space-separated list of 8-bit unsigned integers (0
 .TP 8
 \fBusage\fR
 Specify a local preference for each configured unicast destination (\fIptpengine:unicast_destinations\fR).
-This is only used by slave-only clocks using unicast destinations to allow for each master's
+This is only used by slave-only clocks using multiple unicast destinations to allow for each master's
 BMC selection to be influenced locally by the slave, such as with Telecom Profile. The number of entries should match the number
-of unicast destinations, otherwise unconfigured preference is set to 0 (highest).
-The format is a comma, tab or space-separated list of 8-bit unsigned integers (0 .. 255).
+of unicast destinations, otherwise unconfigured preference is set to 255 (lowest), so that the unconfigurest entries do not
+pre-empt the configured entries. The format is a comma, tab or space-separated list of 8-bit unsigned integers (0 .. 255).
 .TP 8
 \fBdefault\fR
 \fI[none]\fR

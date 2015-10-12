@@ -44,26 +44,27 @@
 /* maximum number of missed messages of given type before we re-request */
 #define GRANT_MAX_MISSED 10
 
-static void updateUnicastIndex(UnicastGrantTable *table, UnicastGrantTable **index);
-static UnicastGrantTable* lookupUnicastIndex(const PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantTable **index);
+static void updateUnicastIndex(UnicastGrantTable *table, UnicastGrantIndex *index);
+static UnicastGrantTable* lookupUnicastIndex(PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantIndex *index);
 
 /* update index table */
 static void
-updateUnicastIndex(UnicastGrantTable *table, UnicastGrantTable **index)
+updateUnicastIndex(UnicastGrantTable *table, UnicastGrantIndex *index)
 {
     uint32_t hash = fnvHash(&table->portIdentity, sizeof(PortIdentity), UNICAST_MAX_DESTINATIONS);
 
     /* peer table normally has one entry: if we got here, we might pollute the main index */
     if(!table->isPeer && index != NULL) {
-	index[hash] = table;
+	index->data[hash] = table;
     }
 
 }
 
 /* return matching entry from index table */
 static UnicastGrantTable*
-lookupUnicastIndex(const PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantTable **index)
+lookupUnicastIndex(PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantIndex *index)
 {
+
     uint32_t hash = fnvHash((void*)portIdentity, sizeof(PortIdentity), UNICAST_MAX_DESTINATIONS);
 
     UnicastGrantTable* table;
@@ -72,9 +73,14 @@ lookupUnicastIndex(const PortIdentity *portIdentity, Integer32 transportAddress,
 	return NULL;
     }
 
-    table  = index[hash];
+    table  = index->data[hash];
 
-    if(table != NULL && (!cmpPortIdentity(portIdentity, &table->portIdentity))) {
+    if(table == NULL) {
+	DBG("lookupUnicastIndex: empty hit\n");
+	return NULL;
+    }
+
+    if(!cmpPortIdentity(portIdentity, &table->portIdentity)) {
 	DBG("lookupUnicastIndex: cache hit\n");
 	return table;
     } else {
@@ -94,7 +100,7 @@ lookupUnicastIndex(const PortIdentity *portIdentity, Integer32 transportAddress,
 */
 UnicastGrantTable*
 findUnicastGrants
-(const PortIdentity* portIdentity, Integer32 transportAddress, UnicastGrantTable *grantTable, UnicastGrantTable **index, int nodeCount, Boolean update)
+(const PortIdentity* portIdentity, Integer32 transportAddress, UnicastGrantTable *grantTable, UnicastGrantIndex *index, int nodeCount, Boolean update)
 {
 
 	int i;
@@ -104,9 +110,12 @@ findUnicastGrants
 
 	UnicastGrantTable *nodeTable;
 
+	PortIdentity tmpIdentity = *portIdentity;
+
 	/* look up the index table*/
 	if(index != NULL) {
-	    found = lookupUnicastIndex(portIdentity, transportAddress, index);
+	    tmpIdentity.portNumber |= index->portMask;
+	    found = lookupUnicastIndex(&tmpIdentity, transportAddress, index);
 	}
 	
 	if(found != NULL) {
@@ -118,7 +127,7 @@ findUnicastGrants
 		    found->transportAddress = transportAddress;
 		}
 		if(update) {
-		    found->portIdentity = *portIdentity;
+		    found->portIdentity = tmpIdentity;
 		}
 
 		if(update) {
@@ -138,7 +147,7 @@ findUnicastGrants
 	    }
 
 	    /* port identity matches */
-	    if(!cmpPortIdentity(portIdentity, &nodeTable->portIdentity)) {
+	    if(!cmpPortIdentity((const PortIdentity*)&tmpIdentity, &nodeTable->portIdentity)) {
 
 		found = nodeTable;
 
@@ -151,7 +160,7 @@ findUnicastGrants
 		}
 
 		if(update) {
-		    found->portIdentity = *portIdentity;
+		    found->portIdentity = tmpIdentity;
 		}
 
 		DBG("findUnicastGrants: cache miss - %d iterations %d\n", i);
@@ -170,7 +179,8 @@ findUnicastGrants
 
 		found = nodeTable;
 		if(update) {
-			found->portIdentity = *portIdentity;
+			found->portIdentity = tmpIdentity;
+			updateUnicastIndex(found, index);
 		}
 		break;
 	    }
@@ -183,9 +193,9 @@ findUnicastGrants
 
     /* will return NULL if there are no free slots, otherwise the first free slot */
     if(update && firstFree != NULL) {
-	firstFree->portIdentity = *portIdentity;
+	firstFree->portIdentity = tmpIdentity;
 	firstFree->transportAddress = transportAddress;
-
+	updateUnicastIndex(firstFree, index);
 	/* new set of grants - reset sequence numbers */
 	for(i=0; i < PTP_MAX_MESSAGE; i++) {
 	    firstFree->grantData[i].sentSeqId = 0;
@@ -263,7 +273,7 @@ void handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* ou
 			getMessageTypeName(messageType), portId, inet_ntoa(tmpAddr), requestData->durationField,
 			requestData->logInterMessagePeriod);
 
-	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS, TRUE);
+	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS, TRUE);
 
 	if(nodeTable == NULL) {
 		if(ptpClock->slaveCount >= UNICAST_MAX_DESTINATIONS) {
@@ -390,7 +400,7 @@ void handleSMGrantUnicastTransmission(MsgSignaling* incoming, Integer32 sourceAd
 	DBGV("Received GRANT_UNICAST_TRANSMISSION message for message %s from %s(%s)\n",
 			getMessageTypeName(messageType), portId, inet_ntoa(tmpAddr));
 
-	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, grantTable, ptpClock->unicastGrantIndex, nodeCount, TRUE);
+	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, grantTable, &ptpClock->grantIndex, nodeCount, TRUE);
 
 	if(nodeTable == NULL) {
 		DBG("GRANT_UNICAST_TRANSMISSION: did not find node in master table: %s\n", portId);
@@ -479,7 +489,7 @@ Boolean handleSMCancelUnicastTransmission(MsgSignaling* incoming, MsgSignaling* 
 
 	ptpClock->counters.unicastGrantsCancelReceived++;
 
-	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS, FALSE);
+	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS, FALSE);
 
 	if(nodeTable == NULL) {
 		DBG("CANCEL_UNICAST_TRANSMISSION: did not find node in slave table: %s\n", portId);
@@ -548,7 +558,7 @@ void handleSMAcknowledgeCancelUnicastTransmission(MsgSignaling* incoming, Intege
 	DBGV("Received ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION message for message %s from %s(%s)\n",
 			getMessageTypeName(messageType), portId, inet_ntoa(tmpAddr));
 
-	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, ptpClock->unicastGrantIndex, UNICAST_MAX_DESTINATIONS, FALSE);
+	nodeTable = findUnicastGrants(&incoming->header.sourcePortIdentity, sourceAddress, ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS, FALSE);
 
 	if(nodeTable == NULL) {
 		DBG("ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION: did not find node in slave table: %s\n", portId);
@@ -679,9 +689,11 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
 
     /* initialise the index table */
     for(i=0; i < UNICAST_MAX_DESTINATIONS; i++) {
-	ptpClock->unicastGrantIndex[i] = NULL;
+	ptpClock->grantIndex.data[i] = NULL;
 	ptpClock->syncDestIndex[i].transportAddress = 0;
     }
+
+    ptpClock->grantIndex.portMask = rtOpts->unicastPortMask;
 
     for(j=0; j<nodeCount; j++) {    
 
@@ -949,7 +961,7 @@ void
 handleSignaling(MsgHeader *header,
 		 Boolean isFromSelf, Integer32 sourceAddress, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	DBGV("Signaling message received : \n");
+	DBG("Signaling message received : \n");
 
 
 	if (isFromSelf) {
@@ -978,7 +990,7 @@ handleSignaling(MsgHeader *header,
 	/* accept the message if directed either to us or to all-ones */
         if(!acceptPortIdentity(ptpClock->portIdentity, ptpClock->msgTmp.signaling.targetPortIdentity))
         {
-                DBGV("handleSignaling: The signaling message was not accepted");
+                DBG("handleSignaling: The signaling message was not accepted");
 		ptpClock->counters.discardedMessages++;
                 goto end;
         }
@@ -1102,7 +1114,15 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 {
 
     static int everyN = 0;
-    int i,j;
+    int i,j,msgnum;
+
+    /* 
+     * forced order of grant checks, to influence order of requests, to help with interop with implementations
+     * where messages have to be requested in the order of Announce, Sync, Delay
+     */
+    static const Enumeration8 messageOrder[PTP_MESSAGETYPE_COUNT] = {
+	ANNOUNCE, SYNC, FOLLOW_UP, DELAY_RESP, PDELAY_RESP, PDELAY_RESP_FOLLOW_UP, DELAY_REQ, PDELAY_REQ, SIGNALING, MANAGEMENT
+    };
 
     UnicastGrantData *grantData = NULL;
     UnicastGrantTable *nodeTable = NULL;
@@ -1121,11 +1141,13 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 
     ptpClock->slaveCount = 0;
 
-	for(j=0; j<nodeCount; j++) {    
+	for(j=0; j<nodeCount; j++) {
 
 	    nodeTable = &grantTable[j];
 	    maxTime = 0;
-	    for(i=0; i<PTP_MAX_MESSAGE; i++) {
+
+	    for(msgnum=0; msgnum < PTP_MESSAGETYPE_COUNT; msgnum++) {
+		i = messageOrder[msgnum];
 		grantData = &nodeTable->grantData[i];
 		if(grantData->granted && !grantData->expired) {
 		    maxTime = grantData->timeLeft;
@@ -1133,7 +1155,8 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 		}
 	    }
 
-	    for(i=0; i<PTP_MAX_MESSAGE; i++) {
+	    for(msgnum=0; msgnum < PTP_MESSAGETYPE_COUNT; msgnum++) {
+		i = messageOrder[msgnum];
 
 		grantData = &nodeTable->grantData[i];
 
@@ -1226,13 +1249,16 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 	if(nodeCount == 1 && nodeTable && nodeTable->isPeer) {
 		return;
 	}
-	/* we have some old requests to cancel, we changed the GM */
+	/* we have some old requests to cancel, we changed the GM - keep the Announce coming though */
 	if(ptpClock->previousGrants != NULL) {
 	    cancelUnicastTransmission(&(ptpClock->previousGrants->grantData[SYNC]), rtOpts, ptpClock);
 	    cancelUnicastTransmission(&(ptpClock->previousGrants->grantData[DELAY_RESP]), rtOpts, ptpClock);
 	    cancelUnicastTransmission(&(ptpClock->previousGrants->grantData[PDELAY_RESP]), rtOpts, ptpClock);
+	    /* do not reset the other master's clock ID! ...you little bollocks you */
+	    /*
 	    ptpClock->previousGrants->portIdentity.portNumber = 0xFFFF;
 	    memset(&ptpClock->previousGrants->portIdentity.clockIdentity, 0xFF, CLOCK_IDENTITY_LENGTH);
+	    */
 	    ptpClock->previousGrants = NULL;
 	}
 

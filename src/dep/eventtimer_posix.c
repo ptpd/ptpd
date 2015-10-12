@@ -100,6 +100,10 @@ eventTimerStart_posix(EventTimer *timer, double interval)
 	ts.tv_sec = interval;
 	ts.tv_nsec = (interval - ts.tv_sec) * 1E9;
 
+	if(!ts.tv_sec && ts.tv_nsec < EVENTTIMER_MIN_INTERVAL_US * 1000) {
+	    ts.tv_nsec = EVENTTIMER_MIN_INTERVAL_US * 1000;
+	}
+
 	DBGV("Timer %s start requested at %d.%4d sec interval\n", timer->id, ts.tv_sec, ts.tv_nsec);
 
 	its.it_interval = ts;

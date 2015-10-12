@@ -833,10 +833,14 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->ipMode = IPMODE_MULTICAST;
 	rtOpts->dot2AS = FALSE;
 
+	rtOpts->disableUdpChecksums = TRUE;
+
 	rtOpts->unicastNegotiation = FALSE;
 	rtOpts->unicastNegotiationListening = FALSE;
 	rtOpts->disableBMCA = FALSE;
 	rtOpts->unicastGrantDuration = 300;
+	rtOpts->unicastAcceptAny = FALSE;
+	rtOpts->unicastPortMask = 0;
 
 	rtOpts->noAdjust = NO_ADJUST;  // false
 	rtOpts->logStatistics = TRUE;
@@ -928,7 +932,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* Try 46 for expedited forwarding */
 	rtOpts->dscpValue = 0;
 
-#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H)
+#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined (__QNXNTO__)
 	rtOpts-> cpuNumber = -1;
 #endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H*/
 
@@ -1276,6 +1280,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_MAP_BOOLEAN("ptpengine:unicast_negotiation",rtOpts->unicastNegotiation,rtOpts->unicastNegotiation,
 		"Enable unicast negotiation support using signaling messages\n");
 
+	CONFIG_MAP_BOOLEAN("ptpengine:unicast_any_master",rtOpts->unicastAcceptAny,rtOpts->unicastAcceptAny,
+		"When using unicast negotiation (slave), accept PTP messages from any master.\n"
+	"        By default, only messages from acceptable masters (ptpengine:unicast_destinations)\n"
+	"        are accepted, and only if transmission was granted by the master\n");
+
+	CONFIG_MAP_INT_RANGE("ptpengine:unicast_port_mask",rtOpts->unicastPortMask,rtOpts->unicastPortMask,
+		"PTP port number wildcard mask applied onto port identities when running\n"
+	"        unicast negotiation: allows multiple port identities to be accepted as one.\n"
+	"	 This option can be used as a workaround where a node sends signaling messages and\n"
+	"	 timing messages with different port identities",0,65535);
+
 	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transport == IEEE_802_3) && rtOpts->unicastNegotiation,
 	 			    "ptpengine:unicast_negotiation", 
 				"Unicast negotiation cannot be used with Ethernet transport\n");
@@ -1338,6 +1353,11 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	     "to use Ethernet transport. "PTPD_PROGNAME" was built with no libpcap support.\n");
 
 #endif /* PTPD_PCAP */
+
+	CONFIG_MAP_BOOLEAN("ptpengine:disable_udp_checksums",rtOpts->disableUdpChecksums,rtOpts->disableUdpChecksums,
+		"Disable UDP checksum validation on UDP sockets (Linux only).\n"
+	"        Workaround for situations where a node (like Transparent Clock).\n"
+	"        does not rewrite checksums\n");
 
 	CONFIG_MAP_SELECTVALUE("ptpengine:delay_mechanism",rtOpts->delayMechanism,rtOpts->delayMechanism,
 		 "Delay detection mode used - use DELAY_DISABLED for syntonisation only\n"
@@ -2383,7 +2403,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->statisticsLog.logEnabled && !rtOpts->logStatistics,
 					rtOpts->statisticsLog.logEnabled, FALSE, rtOpts->statisticsLog.logEnabled);
 
-#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H)
+#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined (__QNXNTO__)
 	CONFIG_MAP_INT_RANGE("global:cpuaffinity_cpucore",rtOpts->cpuNumber,rtOpts->cpuNumber,
 		"Bind "PTPD_PROGNAME" process to a selected CPU core number.\n"
 	"        0 = first CPU core, etc. -1 = do not bind to a single core.",
@@ -2754,8 +2774,9 @@ printSettingHelp(char* key)
 Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, char** argv, Integer16* ret) {
 
 	int c;
+#ifdef HAVE_GETOPT_LONG
 	int opt_index = 0;
-
+#endif /* HAVE_GETOPT_LONG */
 	*ret = 0;
 
 	/* there's NOTHING wrong with this */
@@ -2764,6 +2785,7 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 			goto short_help;
 	}
 
+#ifdef HAVE_GETOPT_LONG
 	/**
 	 * A minimal set of long and short CLI options,
 	 * for basic operations only. Maintained compatibility
@@ -2807,6 +2829,9 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	};
 
 	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHhe:Y:tOLEPAaR:l:p", long_options, &opt_index)) != -1) {
+#else
+	while ((c = getopt(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHhe:Y:tOLEPAaR:l:p")) != -1) {
+#endif
 	    switch(c) {
 /* non-config options first */
 
@@ -3021,6 +3046,10 @@ printShortHelp()
 			"usage: "PTPD_PROGNAME" <options> < --section:key=value...>\n"
 			"\n"
 			"WARNING: Any command-line options take priority over options from config file!\n"
+#ifndef HAVE_GETOPT_LONG
+			"WARNING: *** long options below (--some-option) are not supported on this system! \n"
+			"NOTE:    *** config file style options (--section:key=value) are still supported\n"
+#endif
 			"\n"
 			"Basic options: \n"
 			"\n"
@@ -3195,9 +3224,16 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("ptpengine:backup_interface",     	PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:preset",  		PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:ip_mode",       		PTPD_RESTART_NETWORK );
+
+#ifdef SO_NO_CHECK
+        COMPONENT_RESTART_REQUIRED("ptpengine:disable_udp_checksums",       		PTPD_RESTART_NETWORK );
+#endif /* SO_NO_CHECK */
+
         COMPONENT_RESTART_REQUIRED("ptpengine:unicast_negotiation",  		PTPD_RESTART_PROTOCOL);
         COMPONENT_RESTART_REQUIRED("ptpengine:unicast_grant_duration",  		PTPD_RESTART_PROTOCOL);
 //        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_negotiation_listening",  		PTPD_RESTART_NONE );
+//        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_any_master",  		PTPD_RESTART_NONE );
+        COMPONENT_RESTART_REQUIRED("ptpengine:unicast_port_mask",  		PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:disable_bmca",  		PTPD_RESTART_PROTOCOL );
         COMPONENT_RESTART_REQUIRED("ptpengine:transport",     		PTPD_RESTART_NETWORK );
         COMPONENT_RESTART_REQUIRED("ptpengine:dot2as",     		PTPD_UPDATE_DATASETS );
@@ -3398,7 +3434,7 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig)
         COMPONENT_RESTART_REQUIRED("global:foreground", 		PTPD_RESTART_DAEMON );
         COMPONENT_RESTART_REQUIRED("global:verbose_foreground",		PTPD_RESTART_DAEMON );
 
-#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H)
+#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined(__QNXNTO__)
         COMPONENT_RESTART_REQUIRED("global:cpuaffinity_cpucore",	PTPD_CHANGE_CPUAFFINITY );
 #endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H */
 

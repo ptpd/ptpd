@@ -669,6 +669,12 @@ struct UnicastGrantTable {
 	TimeInternal		lastSyncTimestamp;		/* last Sync message timestamp sent */
 };
 
+/* Unicast index holder: data + port mask */
+typedef struct {
+	UnicastGrantTable* data[UNICAST_MAX_DESTINATIONS];
+	UInteger16 portMask;
+} UnicastGrantIndex;
+
 /* Unicast destination configuration: Address, domain, preference, last Sync timestamp sent */
 typedef struct {
     Integer32 		transportAddress;		/* destination address */
@@ -676,6 +682,8 @@ typedef struct {
     UInteger8 		localPreference;		/* local preference to influence BMC */
     TimeInternal 	lastSyncTimestamp;			/* last Sync timestamp sent */
 } UnicastDestination;
+
+
 
 typedef struct {
     Integer32 transportAddress;
@@ -766,7 +774,7 @@ typedef struct {
 	/* unicast grant table - our own grants or our slaves' grants or grants to peers */
 	UnicastGrantTable unicastGrants[UNICAST_MAX_DESTINATIONS];
 	/* our trivial index table to speed up lookups */
-	UnicastGrantTable* unicastGrantIndex[UNICAST_MAX_DESTINATIONS];
+	UnicastGrantIndex grantIndex;
 	/* current parent from the above table */
 	UnicastGrantTable *parentGrants;
 	/* previous parent's grants when changing parents: if not null, this is what should be canceled */
@@ -1040,7 +1048,7 @@ typedef struct {
 
 	int ttl;
 	int dscpValue;
-#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H)
+#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined (__QNXNTO__)
 	int cpuNumber;
 #endif /* linux && HAVE_SCHED_H || HAVE_SYS_CPUSET_H*/
 
@@ -1102,6 +1110,8 @@ typedef struct {
 	int ipMode; /* IP transmission mode */
 	Boolean dot2AS; /* 801.2AS support -> transportSpecific field */
 
+	Boolean disableUdpChecksums; /* disable UDP checksum validation where supported */
+
 	/* list of unicast destinations for use with unicast with or without signaling */
 	char unicastDestinations[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
 	char unicastDomains[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
@@ -1116,6 +1126,13 @@ typedef struct {
 	Boolean unicastNegotiation; /* Enable unicast negotiation support */
 	Boolean	unicastNegotiationListening; /* Master: Reply to signaling messages when in LISTENING */
 	Boolean disableBMCA; /* used to achieve master-only for unicast */
+	Boolean unicastAcceptAny; /* Slave: accept messages from all GMs, regardless of grants */
+	/*
+	 * port mask to apply to portNumber when using negotiation:
+	 * treats different port numbers as the same port ID for clocks which
+	 * transmit signaling using one port ID, and rest of messages with another
+	 */
+	UInteger16  unicastPortMask; /* port mask to apply to portNumber when using negotiation */
 
 #ifdef RUNTIME_DEBUG
 	int debug_level;
