@@ -326,6 +326,85 @@ void dictionary_unset(dictionary * d, const char * key)
 
 /*-------------------------------------------------------------------------*/
 /**
+  @brief    Replace string in all values of a dictionary
+  @param    d       dictionary object to modify.
+  @param    search     string to be replaced
+  @param    replace    string to replace with
+  @return   void
+
+  This function globally replaces all occurrences of one string in the ditcionary
+  with another in key values.
+
+ */
+/*--------------------------------------------------------------------------*/
+void dictionary_replace(dictionary * d, const char * search, const char * replace)
+{
+
+    int bufsize = MAXVALSZ;
+    char out[bufsize+1];
+    char *in = NULL;
+    char *val = NULL;
+    char *found = NULL;
+    int i = 0, j = 0;
+    int maxcount = 0;
+    char *pos = NULL;
+    char *data = NULL;
+
+    if (search==NULL || replace==NULL ) return;
+
+    for(i = 0; i < d->n; i++) {
+    memset(out, 0, bufsize+1);
+	/* skip if the key is null or is a section */
+        if(d->key[i] == NULL || strstr(d->key[i],":") == NULL)
+            continue;
+
+	val = dictionary_get(d, d->key[i], "");
+	data = strdup(val);
+	in = data;
+	found=strstr(in, search);
+
+	if(found != NULL) {
+	     do {
+		pos=found;
+
+		for (j=0; j < strlen(search); j++) {
+		    *pos='\0';
+		    pos++;
+		}
+		maxcount = bufsize - strlen(out);
+		maxcount = (maxcount < 0) ? 0 : maxcount;
+		strncat(out,in,maxcount);
+
+		maxcount = bufsize - strlen(out);
+		maxcount = (maxcount < 0) ? 0 : maxcount;
+		strncat(out,replace,maxcount);
+
+		in = pos;
+
+		found=strstr(in, search);
+
+		} while (found != NULL);
+
+	    if(*pos != 0) {
+		maxcount = bufsize - strlen(out);
+		maxcount = (maxcount < 0) ? 0 : maxcount;
+		strncat(out,pos,maxcount);
+	    }
+
+	dictionary_set(d, d->key[i], out);
+//	printf("Replaced token \"%s\" with \"%s\": \"%s\" -> \"%s\"\n",
+//		search, replace, val, out);
+	}
+	free(data);
+
+    }
+
+
+}
+
+
+/*-------------------------------------------------------------------------*/
+/**
   @brief    Dump a dictionary to an opened file pointer.
   @param    d   Dictionary to dump
   @param    f   Opened file pointer.

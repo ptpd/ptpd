@@ -19,14 +19,12 @@ is reloaded and checked for changes when PTPd receives the SIGHUP signal. When r
 PTPd will always attempt to test settings before applying them and once running, will never exit as
 a result of configuration errors. If it does exit during config refresh, this is most likely a bug.
 
-.SH PRIORITY
+.SH COMMAND-LINE PRIORITY
 Any setting passed as a command line parameter will always take priority over the configuration file,
 so once ptpd is running, those settings cannot be changed - a warning will be logged on every
 attempt to change those settings using the configuration file.
 
 .SH CONFIGURATION SECTIONS
-
-.TP
 .B ptpengine
 PTP protocol specific configuration
 .TP
@@ -42,10 +40,36 @@ Global configuration - logging, etc.
 .B ntpengine
 NTP control configuration
 .TP
+.B variables
+User-defined variables
+
+.SH USER-DEFINED VARIABLES
+To allow for easier management and automated generation of configuration, PTPd supports user variables,
+which can be defined in the configuration file or in command line. They are defined as \fIvariables:[name]=[value]\fR,
+or if using .ini style format, in the \fI[variables]\fR section. Once defined, a variable can be referred to
+in the remaining configuration settings as \fI@name@\fR, and is substituted with the value of the variable 
+
+\fBExample\fR:
+
+variables:instance=server15
+
+global:status_file=/var/run/ptpd2.@instance@.status
+
+global:log_file=/var/run/ptpd2.@instance@.status
+
+\fBNote:\fR for the same effect, ptpd can be run from command line, such as \fI --config=/path/to/file --variables:instance=server15\fR
+
+.SH CONFIGURATION TEMPLATES
+As of version 2.3.1.1, ptpd enables the user to minimise the configuration effort for common scenarios, using built-in templates.
+A template is a named set of pre-defined settings whic are prepended before any other settings, so user can still overwrite
+settings provided by the template. To use this feature, set \fIglobal:config_templates=[name],[name],...\fR in the configuration file,
+or run ptpd with \fI--global:config_templates=[name],[name],...\fR. Multiple templates can be specified, separated by comma, space
+or tab; they are applied in the order they are provided, so template settings override any overlapping settings from previous
+templates specified.
+
+To see the list of available templates, run ptpd with \fI-T\fR or \fI--templates\fR
 
 .SH CONFIGURATION VARIABLES
-.BR
-.TP
 .RS 0
 .TP 8
 \fBptpengine:interface [\fISTRING\fB]\fR

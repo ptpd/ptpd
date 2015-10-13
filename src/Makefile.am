@@ -44,6 +44,8 @@ ptpd2_SOURCES =				\
 	dep/iniparser/iniparser.h	\
 	dep/iniparser/dictionary.c	\
 	dep/iniparser/iniparser.c	\
+	dep/configdefaults.h		\
+	dep/configdefaults.c		\
 	dep/daemonconfig.h		\
 	dep/daemonconfig.c		\
 	dep/startup.c			\

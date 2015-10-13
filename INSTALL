@@ -17,6 +17,9 @@ You will need the following tools and libraries to build ptpd2:
    (optional but recommended) - required for Ethernet transport
    and generally recommended for message performance
 
+   *NOTE: Libpcap seems to be broken on OpenSolaris / OmniOS,
+    builds and runs, but no data is being received.
+
 3. SNMP libraries (optional) - will allow building with SNMP
    support
 
@@ -40,6 +43,12 @@ You will need the following tools and libraries to build ptpd2:
    features and dependencies can be controled using the options
    described below. Running ./configure --help will show all available
    options.
+
+   *NOTE* On QNX systems, the configure script may not accept the
+   'rm' command implementation available, so if it complains,
+   run ./configure with the following environment variable:
+
+   export ACCEPT_INFERIOR_RM_PROGRAM=yes
 
    ========= configure script options for ptpd ========================
 
@@ -95,6 +104,26 @@ You will need the following tools and libraries to build ptpd2:
     completely, regardless of OS support, use:
 
     ./configure --disable-so-timestamping
+
+    * To enable experimental options use:
+
+    ./configure --enable-experimental-options
+
+    This enables:
+
+     - running SO_TIMESTAMPING without verifying if NIC driver
+       supports the given timestamping options
+     - running message intervals outside of PTP specification
+
+    *NOTE* On QNX systems, when experimental options are enabled,
+     a clock_gettime approximation using CPU clock counter and
+     attaching to IRQ0 is used, and this is also used to retrieve
+     packet RX and TX timestamps, ignoring PCAP timestamps and
+     socket options. This is recommended for best performance,
+     but requires more testing before becoming the default.
+     by default in QNX, clock is incremented in ticks that
+     can be as long as 10 milliseconds, and PCAP and socket
+     timestamps are only accurate to several milliseconds.
 
 5. make
 

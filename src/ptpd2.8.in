@@ -78,6 +78,16 @@ Path to log file (also \fIglobal:logfile\fR)
 .TP
 \fB-S --statistics-file \fIPATH\fR
 Path to statistics file (also \fIglobal:statistics_file\fR)
+.TP
+\fB-T --show-templates
+Display built-in configuration templates
+.TP
+\fB-t --templates \fI[name],[name],...\fR
+Apply one or more configuration templates in this order (\fIsee man(5) ptpd2.conf\fR)
+.TP
+\fB-S --statistics-file \fIPATH\fR
+Path to statistics file (also \fIglobal:statistics_file\fR)
+
 .SH BASIC PTP PROTOCOL OPTIONS
 .TP
 \fB-i --interface \fIDEV\fR

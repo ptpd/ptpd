@@ -155,6 +155,20 @@ int dictionary_set(dictionary * vd, const char * key, const char * val);
 /*--------------------------------------------------------------------------*/
 void dictionary_unset(dictionary * d, const char * key);
 
+/*-------------------------------------------------------------------------*/
+/**
+  @brief    Replace string in all values of a dictionary
+  @param    d       dictionary object to modify.
+  @param    search     string to be replaced
+  @param    replace    string to replace with
+  @return   void
+
+  This function globally replaces all occurrences of one string in the ditcionary
+  with another in key values.
+
+ */
+/*--------------------------------------------------------------------------*/
+void dictionary_replace(dictionary * d, const char * search, const char * replace);
 
 /*-------------------------------------------------------------------------*/
 /**

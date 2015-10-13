@@ -797,348 +797,37 @@ static void printComment(char* helptext)
 	}
     }
     printf("\n");
-}
-
-/* Load all rtOpts defaults */
-void
-loadDefaultSettings( RunTimeOpts* rtOpts )
-{
-
-	/* Wipe the memory first to avoid unconsistent behaviour - no need to set Boolean to FALSE, int to 0 etc. */
-	memset(rtOpts, 0, sizeof(RunTimeOpts));
-
-	rtOpts->logAnnounceInterval = DEFAULT_ANNOUNCE_INTERVAL;
-	rtOpts->logSyncInterval = DEFAULT_SYNC_INTERVAL;
-	rtOpts->logMinPdelayReqInterval = DEFAULT_PDELAYREQ_INTERVAL;
-	rtOpts->clockQuality.clockAccuracy = DEFAULT_CLOCK_ACCURACY;
-	rtOpts->clockQuality.clockClass = DEFAULT_CLOCK_CLASS;
-	rtOpts->clockQuality.offsetScaledLogVariance = DEFAULT_CLOCK_VARIANCE;
-	rtOpts->priority1 = DEFAULT_PRIORITY1;
-	rtOpts->priority2 = DEFAULT_PRIORITY2;
-	rtOpts->domainNumber = DEFAULT_DOMAIN_NUMBER;
-	rtOpts->portNumber = NUMBER_PORTS;
-
-	rtOpts->anyDomain = FALSE;
-
-	rtOpts->transport = UDP_IPV4;
-
-	/* timePropertiesDS */
-	rtOpts->timeProperties.currentUtcOffsetValid = DEFAULT_UTC_VALID;
-	rtOpts->timeProperties.currentUtcOffset = DEFAULT_UTC_OFFSET;
-	rtOpts->timeProperties.timeSource = INTERNAL_OSCILLATOR;
-	rtOpts->timeProperties.timeTraceable = FALSE;
-	rtOpts->timeProperties.frequencyTraceable = FALSE;
-	rtOpts->timeProperties.ptpTimescale = TRUE;
-
-	rtOpts->ipMode = IPMODE_MULTICAST;
-	rtOpts->dot2AS = FALSE;
-
-	rtOpts->disableUdpChecksums = TRUE;
-
-	rtOpts->unicastNegotiation = FALSE;
-	rtOpts->unicastNegotiationListening = FALSE;
-	rtOpts->disableBMCA = FALSE;
-	rtOpts->unicastGrantDuration = 300;
-	rtOpts->unicastAcceptAny = FALSE;
-	rtOpts->unicastPortMask = 0;
-
-	rtOpts->noAdjust = NO_ADJUST;  // false
-	rtOpts->logStatistics = TRUE;
-	rtOpts->statisticsTimestamp = TIMESTAMP_DATETIME;
-
-	rtOpts->periodicUpdates = FALSE; /* periodically log a status update */
-
-	/* Deep display of all packets seen by the daemon */
-	rtOpts->displayPackets = FALSE;
-
-	rtOpts->s = DEFAULT_DELAY_S;
-	rtOpts->inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
-	rtOpts->outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
-	rtOpts->max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
-	rtOpts->nonDaemon = FALSE;
-
-	/*
-	 * defaults for new options
-	 */
-	rtOpts->ignore_delayreq_interval_master = FALSE;
-	rtOpts->do_IGMP_refresh = TRUE;
-	rtOpts->useSysLog       = FALSE;
-	rtOpts->announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
-#ifdef RUNTIME_DEBUG
-	rtOpts->debug_level = LOG_INFO;			/* by default debug messages as disabled, but INFO messages and below are printed */
-#endif
-	rtOpts->ttl = 64;
-	rtOpts->delayMechanism   = DEFAULT_DELAY_MECHANISM;
-	rtOpts->noResetClock     = DEFAULT_NO_RESET_CLOCK;
-	rtOpts->stepOnce	 = FALSE;
-	rtOpts->stepForce	 = FALSE;
-#ifdef HAVE_LINUX_RTC_H
-	rtOpts->setRtc		 = FALSE;
-#endif /* HAVE_LINUX_RTC_H */
-
-	rtOpts->clearCounters = FALSE;
-	rtOpts->statisticsLogInterval = 0;
-
-	rtOpts->initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
-	rtOpts->logMinDelayReqInterval = DEFAULT_DELAYREQ_INTERVAL;
-	rtOpts->autoDelayReqInterval = TRUE;
-	rtOpts->masterRefreshInterval = 60;
-
-	/* maximum values for unicast negotiation */	
-    	rtOpts->logMaxPdelayReqInterval = 5;
-	rtOpts->logMaxDelayReqInterval = 5;
-	rtOpts->logMaxSyncInterval = 5;
-	rtOpts->logMaxAnnounceInterval = 5;
-
-
-
-	rtOpts->drift_recovery_method = DRIFT_KERNEL;
-	strncpy(rtOpts->lockDirectory, DEFAULT_LOCKDIR, PATH_MAX);
-	strncpy(rtOpts->driftFile, DEFAULT_DRIFTFILE, PATH_MAX);
-/*	strncpy(rtOpts->lockFile, DEFAULT_LOCKFILE, PATH_MAX); */
-	rtOpts->autoLockFile = FALSE;
-	rtOpts->snmp_enabled = FALSE;
-	/* This will only be used if the "none" preset is configured */
-#ifndef PTPD_SLAVE_ONLY
-	rtOpts->slaveOnly = FALSE;
-#else
-	rtOpts->slaveOnly = TRUE;
-#endif /* PTPD_SLAVE_ONLY */
-	/* Otherwise default to slave only via the preset */
-	rtOpts->selectedPreset = PTP_PRESET_SLAVEONLY;
-	rtOpts->pidAsClockId = FALSE;
-
-	/* highest possible */
-	rtOpts->logLevel = LOG_ALL;
-
-	/* ADJ_FREQ_MAX by default */
-	rtOpts->servoMaxPpb = ADJ_FREQ_MAX / 1000;
-	/* kP and kI are scaled to 10000 and are gains now - values same as originally */
-	rtOpts->servoKP = 0.1;
-	rtOpts->servoKI = 0.001;
-
-	rtOpts->servoDtMethod = DT_CONSTANT;
-	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
-	rtOpts->servoMaxdT = 5.0;
-
-	/* disabled by default */
-	rtOpts->announceTimeoutGracePeriod = 0;
-
-	/* currentUtcOffsetValid compatibility flags */
-	rtOpts->alwaysRespectUtcOffset = TRUE;
-	rtOpts->preferUtcValid = FALSE;
-	rtOpts->requireUtcValid = FALSE;
-
-	/* Try 46 for expedited forwarding */
-	rtOpts->dscpValue = 0;
-
-#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined (__QNXNTO__)
-	rtOpts-> cpuNumber = -1;
-#endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H*/
-
-#ifdef PTPD_STATISTICS
-
-	rtOpts->oFilterMSConfig.enabled = FALSE;
-	rtOpts->oFilterMSConfig.discard = TRUE;
-	rtOpts->oFilterMSConfig.autoTune = TRUE;
-	rtOpts->oFilterMSConfig.stepDelay = FALSE;
-	rtOpts->oFilterMSConfig.alwaysFilter = FALSE;
-	rtOpts->oFilterMSConfig.stepThreshold = 1000000;
-	rtOpts->oFilterMSConfig.stepLevel = 500000;
-	rtOpts->oFilterMSConfig.capacity = 20;
-	rtOpts->oFilterMSConfig.threshold = 1.0;
-	rtOpts->oFilterMSConfig.weight = 1;
-	rtOpts->oFilterMSConfig.minPercent = 20;
-	rtOpts->oFilterMSConfig.maxPercent = 95;
-	rtOpts->oFilterMSConfig.thresholdStep = 0.1;
-	rtOpts->oFilterMSConfig.minThreshold = 0.1;
-	rtOpts->oFilterMSConfig.maxThreshold = 5.0;
-	rtOpts->oFilterMSConfig.delayCredit = 200;
-	rtOpts->oFilterMSConfig.creditIncrement = 10;
-	rtOpts->oFilterMSConfig.maxDelay = 1500;
-
-	rtOpts->oFilterSMConfig.enabled = FALSE;
-	rtOpts->oFilterSMConfig.discard = TRUE;
-	rtOpts->oFilterSMConfig.autoTune = TRUE;
-	rtOpts->oFilterSMConfig.stepDelay = FALSE;
-	rtOpts->oFilterSMConfig.alwaysFilter = FALSE;
-	rtOpts->oFilterSMConfig.stepThreshold = 1000000;
-	rtOpts->oFilterSMConfig.stepLevel = 500000;
-	rtOpts->oFilterSMConfig.capacity = 20;
-	rtOpts->oFilterSMConfig.threshold = 1.0;
-	rtOpts->oFilterSMConfig.weight = 1;
-	rtOpts->oFilterSMConfig.minPercent = 20;
-	rtOpts->oFilterSMConfig.maxPercent = 95;
-	rtOpts->oFilterSMConfig.thresholdStep = 0.1;
-	rtOpts->oFilterSMConfig.minThreshold = 0.1;
-	rtOpts->oFilterSMConfig.maxThreshold = 5.0;
-	rtOpts->oFilterSMConfig.delayCredit = 200;
-	rtOpts->oFilterSMConfig.creditIncrement = 10;
-	rtOpts->oFilterSMConfig.maxDelay = 1500;
-
-	rtOpts->filterMSOpts.enabled = FALSE;
-	rtOpts->filterMSOpts.filterType = FILTER_MIN;
-	rtOpts->filterMSOpts.windowSize = 4;
-	rtOpts->filterMSOpts.windowType = WINDOW_SLIDING;
-
-	rtOpts->filterSMOpts.enabled = FALSE;
-	rtOpts->filterSMOpts.filterType = FILTER_MIN;
-	rtOpts->filterSMOpts.windowSize = 4;
-	rtOpts->filterSMOpts.windowType = WINDOW_SLIDING;
-
-	/* How often refresh statistics (seconds) */
-	rtOpts->statsUpdateInterval = 30;
-	/* Servo stability detection settings follow */
-	rtOpts->servoStabilityDetection = FALSE;
-	/* Stability threshold (ppb) - observed drift std dev value considered stable */
-	rtOpts->servoStabilityThreshold = 10;
-	/* How many consecutive statsUpdateInterval periods of observed drift std dev within threshold  means stable servo */
-	rtOpts->servoStabilityPeriod = 1;
-	/* How many minutes without servo stabilisation means servo has not stabilised */
-	rtOpts->servoStabilityTimeout = 10;
-	/* How long to wait for one-way delay prefiltering */
-	rtOpts->calibrationDelay = 0;
-	/* if set to TRUE and maxDelay is defined, only check against threshold if servo is stable */
-	rtOpts->maxDelayStableOnly = FALSE;
-	/* if set to non-zero, reset slave if more than this amount of consecutive delay measurements was above maxDelay */
-	rtOpts->maxDelayMaxRejected = 0;
-#endif
-
-	/* status file options */
-	rtOpts->statusFileUpdateInterval = 1;
-
-	/* panic mode options */
-	rtOpts->enablePanicMode = FALSE;
-	rtOpts->panicModeDuration = 2;
-	rtOpts->panicModeExitThreshold = 0;
-
-	/* full network reset after 5 times in listening */
-	rtOpts->maxListen = 5;
-
-	rtOpts->panicModeReleaseClock = FALSE;
-	rtOpts->ntpOptions.enableEngine = FALSE;
-	rtOpts->ntpOptions.enableControl = FALSE;
-	rtOpts->ntpOptions.enableFailover = FALSE;
-	rtOpts->ntpOptions.failoverTimeout = 120;
-	rtOpts->ntpOptions.checkInterval = 15;
-	rtOpts->ntpOptions.keyId = 0;
-	strncpy(rtOpts->ntpOptions.hostAddress,"localhost",MAXHOSTNAMELEN); 	/* not configurable, but could be */
-	rtOpts->preferNTP = FALSE;
-
-	rtOpts->leapSecondPausePeriod = 5;
-	/* by default, announce the leap second 12 hours before the event:
-	 * Clause 9.4 paragraph 5 */
-	rtOpts->leapSecondNoticePeriod = 43200;
-	rtOpts->leapSecondHandling = LEAP_ACCEPT;
-	rtOpts->leapSecondSmearPeriod = 86400;
-
-/* timing domain */
-	rtOpts->idleTimeout = 120; /* idle timeout */
-	rtOpts->electionDelay = 15; /* anti-flapping delay */
-
-/* Log file settings */
-
-	rtOpts->statisticsLog.logID = "statistics";
-	rtOpts->statisticsLog.openMode = "a+";
-	rtOpts->statisticsLog.logFP = NULL;
-	rtOpts->statisticsLog.truncateOnReopen = FALSE;
-	rtOpts->statisticsLog.unlinkOnClose = FALSE;
-	rtOpts->statisticsLog.maxSize = 0;
-
-	rtOpts->recordLog.logID = "record";
-	rtOpts->recordLog.openMode = "a+";
-	rtOpts->recordLog.logFP = NULL;
-	rtOpts->recordLog.truncateOnReopen = FALSE;
-	rtOpts->recordLog.unlinkOnClose = FALSE;
-	rtOpts->recordLog.maxSize = 0;
-
-	rtOpts->eventLog.logID = "log";
-	rtOpts->eventLog.openMode = "a+";
-	rtOpts->eventLog.logFP = NULL;
-	rtOpts->eventLog.truncateOnReopen = FALSE;
-	rtOpts->eventLog.unlinkOnClose = FALSE;
-	rtOpts->eventLog.maxSize = 0;
-
-	rtOpts->statusLog.logID = "status";
-	rtOpts->statusLog.openMode = "w";
-	strncpy(rtOpts->statusLog.logPath, DEFAULT_STATUSFILE, PATH_MAX);
-	rtOpts->statusLog.logFP = NULL;
-	rtOpts->statusLog.truncateOnReopen = FALSE;
-	rtOpts->statusLog.unlinkOnClose = TRUE;
-
-/* Management message support settings */
-	rtOpts->managementEnabled = TRUE;
-	rtOpts->managementSetEnable = FALSE;
-
-/* IP ACL settings */
-
-	rtOpts->timingAclEnabled = FALSE;
-	rtOpts->managementAclEnabled = FALSE;
-	rtOpts->timingAclOrder = ACL_DENY_PERMIT;
-	rtOpts->managementAclOrder = ACL_DENY_PERMIT;
-
-	// by default we don't check Sync message sequence continuity
-	rtOpts->syncSequenceChecking = FALSE;
-	rtOpts->clockUpdateTimeout = 0;
 
 }
 
-/* The PtpEnginePreset structure for reference: 
-
-typedef struct {
-
-    char* presetName;
-    Boolean slaveOnly;
-    Boolean noAdjust;
-    UInteger8_option clockClass;
-
-} PtpEnginePreset;
-*/
-
-PtpEnginePreset
-getPtpPreset(int presetNumber, RunTimeOpts* rtOpts)
+static void
+parseUserVariables(dictionary *dict, dictionary *target)
 {
 
-	PtpEnginePreset ret;
+    int i = 0;
+    char *search, *replace, *key;
+    char varname[100];
 
-	memset(&ret,0,sizeof(ret));
+    memset(varname, 0, sizeof(varname));
 
-	switch(presetNumber) {
+    if(dict == NULL) return;
 
-	case PTP_PRESET_SLAVEONLY:
-		ret.presetName="slaveonly";
-		ret.slaveOnly = TRUE;
-		ret.noAdjust = FALSE;
-		ret.clockClass.minValue = SLAVE_ONLY_CLOCK_CLASS;
-		ret.clockClass.maxValue = SLAVE_ONLY_CLOCK_CLASS;
-		ret.clockClass.defaultValue = SLAVE_ONLY_CLOCK_CLASS;
-		break;
-	case PTP_PRESET_MASTERSLAVE:
-		ret.presetName = "masterslave";
-		ret.slaveOnly = FALSE;
-		ret.noAdjust = FALSE;
-		ret.clockClass.minValue = 128;
-		ret.clockClass.maxValue = 254;
-		ret.clockClass.defaultValue = DEFAULT_CLOCK_CLASS;
-		break;
-	case PTP_PRESET_MASTERONLY:
-		ret.presetName = "masteronly";
-		ret.slaveOnly = FALSE;
-		ret.noAdjust = TRUE;
-		ret.clockClass.minValue = 0;
-		ret.clockClass.maxValue = 127;
-		ret.clockClass.defaultValue = DEFAULT_CLOCK_CLASS__APPLICATION_SPECIFIC_TIME_SOURCE;
-		break;
-	default:
-		ret.presetName = "none";
-		ret.slaveOnly = rtOpts->slaveOnly;
-		ret.noAdjust = rtOpts->noAdjust;
-		ret.clockClass.minValue = 0;
-		ret.clockClass.maxValue = 255;
-		ret.clockClass.defaultValue = rtOpts->clockQuality.clockClass;
+    for(i = 0; i < dict->n; i++) {
+	key = dict->key[i];
+	/* key starts with "variables" */
+        if(strstr(key,"variables:") == key) {
+		/* this cannot fail if we are here */
+		search = strstr(key,":");
+		search++;
+		replace = dictionary_get(dict, key, "");
+		snprintf(varname, sizeof(varname), "@%s@", search);
+		DBG("replacing %s with %s in config\n", varname, replace);
+		dictionary_replace(dict, varname, replace);
+		dictionary_set(target, key, replace);
 	}
 
-	return ret;
+    }
+
 }
 
 /**
@@ -1198,6 +887,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 * is complete and free of any unknown options. In the end, warning
 	 * is issued for unknown options. On any errors, NULL is returned
 	 */
+
 	dictionary* target = dictionary_new(0);
 
 	Boolean parseResult = TRUE;
@@ -1207,6 +897,19 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	if(!IS_QUIET()) {
 		INFO("Checking configuration\n");
 	}
+
+	/*
+	 * apply the configuration template(s) as statically defined in configdefaults.c
+	 * The list of templates is a comma, space or tab separated names. Any templates
+	 * are applied before anything else: so any settings after this can override
+	 */
+	if (CONFIG_ISPRESENT("global:config_templates")) {
+	    applyConfigTemplates(dictionary_get(dict, "global:config_templates", ""), dict);
+	    /* also set the template names in the target dictionary */
+	    dictionary_set(target, "global:config_templates", dictionary_get(dict, "global:config_templates", ""));
+	}
+
+	parseUserVariables(dict, target);
 
 /* ============= BEGIN CONFIG MAPPINGS, TRIGGERS AND DEPENDENCIES =========== */
 
@@ -2822,15 +2525,17 @@ Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, 
 	    {"long-help",	no_argument,	   0, 'H'},
 	    {"explain",		required_argument, 0, 'e'},
 	    {"default-config",  optional_argument, 0, 'O'},
+	    {"templates",	required_argument, 0, 't'},
+	    {"show-templates",  no_argument,	   0, 'T'},
 	    {"unicast",		optional_argument, 0, 'U'},
 	    {"unicast-negotiation",		optional_argument, 0, 'g'},
 	    {"unicast-destinations",		required_argument, 0, 'u'},
 	    {0,			0		 , 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHhe:Y:tOLEPAaR:l:p", long_options, &opt_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHTt:he:Y:tOLEPAaR:l:p", long_options, &opt_index)) != -1) {
 #else
-	while ((c = getopt(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHhe:Y:tOLEPAaR:l:p")) != -1) {
+	while ((c = getopt(argc, argv, "?c:kb:i:d:sgmGMWyUu:nf:S:r:DvCVHTt:he:Y:tOLEPAaR:l:p")) != -1) {
 #endif
 	    switch(c) {
 /* non-config options first */
@@ -2855,6 +2560,9 @@ short_help:
 			return FALSE;
 		case 'O':
 			printDefaultConfig();
+			return FALSE;
+		case 'T':
+			dumpConfigTemplates();
 			return FALSE;
 /* regular ptpd options */
 
@@ -2911,8 +2619,6 @@ short_help:
 			dictionary_set(dict,"ptpengine:ip_mode", "unicast");
 			dictionary_set(dict,"ptpengine:unicast_destinations", optarg);
 			break;
-		case 't':
-			WARN_DEPRECATED('t', 'n', "noadjust", "clock:no_adjust");
 		case 'n':
 			dictionary_set(dict,"clock:no_adjust", "Y");
 			break;
@@ -2924,6 +2630,8 @@ short_help:
 		case 'S':
 			dictionary_set(dict,"global:statistics_file", optarg);
 			break;
+		case 't':
+			dictionary_set(dict,"global:config_templates", optarg);
 		/* Override delay request interval from master */
 		case 'a':
 			dictionary_set(dict,"ptpengine:log_delayreq_override", "Y");
@@ -3067,6 +2775,9 @@ printShortHelp()
 			"-R --lock-directory [path]	Directory to store lock files\n"
 			"-f --log-file [path]		global:log_file=[path]		Log file\n"
 			"-S --statistics-file [path]	global:statistics_file=[path]	Statistics file\n"
+			"-T --show-templates		display available configuration templates\n"
+			"-t --templates [name],[name],[...]\n"
+			"                               apply configuration template(s) - see man(5) ptpd2.conf\n"
 			"\n"
 			"Basic PTP protocol and daemon configuration options: \n"
 			"\n"
@@ -3143,6 +2854,18 @@ printLongHelp()
 	printConfigHelp();
 
 	printPresetHelp();
+
+	printf("\n"
+		"                  Configuration templates available (see man(5) ptpd2.conf):\n"
+		"\n usage:\n"
+		"                         -t [name],[name],...\n"
+		"                --templates [name],[name],...\n"
+		"  --global:config_templates=[name],[name],...\n\n");
+
+	dumpConfigTemplates();
+
+	printf("========================\n");
+
 
 	printf("\n"
 		"Possible internal states:\n"

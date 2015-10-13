@@ -10,6 +10,7 @@
 #define PTPD_DAEMONCONFIG_H_
 
 #include "iniparser/iniparser.h"
+#include "configdefaults.h"
 
 /* Config reload - component restart status flags */
 
@@ -41,31 +42,9 @@
 
 #define LOG2_HELP "(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)"
 
-/* Structure defining a PTP engine preset */
-typedef struct {
-
-    char* presetName;
-    Boolean slaveOnly;
-    Boolean noAdjust;
-    UInteger8_option clockClass;
-
-} PtpEnginePreset;
-
-/* Preset definitions */
-enum {
-    PTP_PRESET_NONE,
-    PTP_PRESET_SLAVEONLY,
-    PTP_PRESET_MASTERSLAVE,
-    PTP_PRESET_MASTERONLY,
-    PTP_PRESET_MAX
-};
-
-
-void loadDefaultSettings(RunTimeOpts*);
 Boolean loadConfigFile (dictionary**, RunTimeOpts*);
 void loadCommandLineKeys(dictionary*, int, char**);
 Boolean loadCommandLineOptions(RunTimeOpts*, dictionary*, int, char** , Integer16*);
-PtpEnginePreset getPtpPreset(int presetNumber, RunTimeOpts* rtOpts);
 dictionary* parseConfig (dictionary*, RunTimeOpts*);
 int reloadConfig ( RunTimeOpts*, PtpClock* );
 Boolean compareConfig(dictionary* source, dictionary* target);

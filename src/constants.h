@@ -64,7 +64,7 @@
 /* number of announces we need to lose until a time out occurs. Thus it is 12 seconds */
 #define DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT 6     /* 3 by default */
 
-#define DEFAULT_FAILURE_WAITTIME	10     /* sleep for 5 seconds on failure once operational */
+#define DEFAULT_FAILURE_WAITTIME	10     /* sleep for 10 seconds on failure once operational */
 
 #define DEFAULT_QUALIFICATION_TIMEOUT	2
 #define DEFAULT_FOREIGN_MASTER_TIME_WINDOW 4
