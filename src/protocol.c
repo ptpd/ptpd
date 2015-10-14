@@ -686,7 +686,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	UInteger8 state;
 	
 	ptpClock->message_activity = FALSE;
-	
+
 	/* Process record_update (BMC algorithm) before everything else */
 	switch (ptpClock->portState)
 	{

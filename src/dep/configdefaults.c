@@ -95,7 +95,7 @@ static const ConfigTemplate configTemplates[] = {
 	{"ptpengine:ptp_timescale","PTP"},
 	{"ptpengine:time_traceable","y"},
 	{"ptpengine:frequency_traceable","y"},
-	{"clock:leap_seconds_file",""},
+	{"clock:leap_seconds_file", DATADIR"/"PACKAGE_NAME"/leap-seconds.list"},
 	{NULL}}
     },
 

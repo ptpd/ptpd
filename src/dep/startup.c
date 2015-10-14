@@ -167,7 +167,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* Try reloading the config file */
 	NOTIFY("Reloading configuration file: %s\n",rtOpts->configFile);
             if(!loadConfigFile(&tmpConfig, rtOpts)) {
-		dictionary_del(tmpConfig);
+		dictionary_del(&tmpConfig);
 		goto end;
         }
 		dictionary_merge(rtOpts->cliConfig, tmpConfig, 1, "from command line");
@@ -178,7 +178,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* Check the new configuration for errors, fill in the blanks from defaults */
 	if( ( rtOpts->candidateConfig = parseConfig(tmpConfig,&tmpOpts)) == NULL ) {
 	    WARNING("Configuration file has errors, reload aborted\n");
-	    dictionary_del(tmpConfig);
+	    dictionary_del(&tmpConfig);
 	    goto end;
 	}
 
@@ -254,7 +254,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		 * disable quiet mode to show what went wrong, then die.
 		 */
 		if (rtOpts->currentConfig) {
-			dictionary_del(rtOpts->currentConfig);
+			dictionary_del(&rtOpts->currentConfig);
 		}
 		if ( (rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL) {
 			CRITICAL("************ "PTPD_PROGNAME": parseConfig returned NULL during config commit"
@@ -274,8 +274,8 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* clean up */
 	cleanup:
 
-		dictionary_del(tmpConfig);
-		dictionary_del(rtOpts->candidateConfig);
+		dictionary_del(&tmpConfig);
+		dictionary_del(&rtOpts->candidateConfig);
 
 	end:
 
@@ -592,9 +592,9 @@ ptpdShutdown(PtpClock * ptpClock)
 #endif /* PTPD_STATISTICS */
 
 	if (rtOpts.currentConfig != NULL)
-		dictionary_del(rtOpts.currentConfig);
+		dictionary_del(&rtOpts.currentConfig);
 	if(rtOpts.cliConfig != NULL)
-		dictionary_del(rtOpts.cliConfig);
+		dictionary_del(&rtOpts.cliConfig);
 
 	timerShutdown(ptpClock->timers);
 
@@ -651,6 +651,7 @@ PtpClock *
 ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 {
 	PtpClock * ptpClock;
+	TimeInternal tmpTime;
 	int i = 0;
 
 	/* 
@@ -659,6 +660,10 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * and allows to use FILE* vs. fds everywhere
 	 */
 	umask(~DEFAULT_FILE_PERMS);
+
+	/* get some entropy in... */
+	getTime(&tmpTime);
+	srand(tmpTime.seconds ^ tmpTime.nanoseconds);
 
 	/** 
 	 * If a required setting, such as interface name, or a setting
@@ -669,8 +674,10 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * Config parameter evaluation priority order:
 	 * 	1. Any dictionary keys set in the getopt_long loop
 	 * 	2. CLI long section:key type options
-	 * 	3. Config file (parsed last), merged with 2. and 3 - will be overwritten by CLI options
-	 * 	4. Defaults and any rtOpts fields set in the getopt_long loop
+	 * 	3. Any built-in config templates
+	 *	4. Any templates loaded from template file
+	 * 	5. Config file (parsed last), merged with 2. and 3 - will be overwritten by CLI options
+	 * 	6. Defaults and any rtOpts fields set in the getopt_long loop
 	**/
 
 	/**
@@ -726,7 +733,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 */
 	if( ( rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL ) {
 	    *ret = 1;
-	    dictionary_del(rtOpts->candidateConfig);
+	    dictionary_del(&rtOpts->candidateConfig);
 	    goto configcheck;
 	}
 
@@ -738,7 +745,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	}
 
 	/* we don't need the candidate config any more */
-	dictionary_del(rtOpts->candidateConfig);
+	dictionary_del(&rtOpts->candidateConfig);
 
 	/* Check network before going into background */
 	if(!testInterface(rtOpts->primaryIfaceName, rtOpts)) {
@@ -764,12 +771,12 @@ configcheck:
 		}
 	    else
 		printf("Configuration OK\n");
-	    return 0;
+	    goto fail;
 	}
 
 	/* Previous errors - exit */
 	if(*ret !=0)
-		return 0;
+		goto fail;
 
 	/* First lock check, just to be user-friendly to the operator */
 	if(!rtOpts->ignore_daemon_lock) {
@@ -777,12 +784,12 @@ configcheck:
 			/* check and create Lock */
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
 			*ret = 3;
-			return 0;
+			goto fail;
 		}
 		/* check for potential conflicts when automatic lock files are used */
 		if(!checkOtherLocks(rtOpts)) {
 			*ret = 3;
-			return 0;
+			goto fail;
 		}
 	}
 
@@ -794,7 +801,7 @@ configcheck:
 	if (!ptpClock) {
 		PERROR("Error: Failed to allocate memory for protocol engine data");
 		*ret = 2;
-		return 0;
+		goto fail;
 	} else {
 		DBG("allocated %d bytes for protocol engine data\n", 
 		    (int)sizeof(PtpClock));
@@ -808,7 +815,7 @@ configcheck:
 			       "master data");
 			*ret = 2;
 			free(ptpClock);
-			return 0;
+			goto fail;
 		} else {
 			DBG("allocated %d bytes for foreign master data\n", 
 			    (int)(rtOpts->max_foreign_records * 
@@ -847,7 +854,7 @@ configcheck:
 		if (daemon(1,0) == -1) {
 			PERROR("Failed to start as daemon");
 			*ret = 3;
-			return 0;
+			goto fail;
 		}
 		INFO("  Info:    Now running as a daemon\n");
 		/*
@@ -869,7 +876,7 @@ configcheck:
 		if(!writeLockFile(rtOpts)){
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
 			*ret = 3;
-			return 0;
+			goto fail;
 		}
 	}
 
@@ -889,7 +896,7 @@ configcheck:
 		PERROR("failed to set up event timers");
 		*ret = 2;
 		free(ptpClock);
-		return 0;
+		goto fail;
 	}
 
 	/* establish signal handlers */
@@ -940,12 +947,15 @@ configcheck:
 
 		ptpClock->netPath.generalSock = -1;
 		ptpClock->netPath.eventSock = -1;
- 
+
 	*ret = 0;
+
 	return ptpClock;
 	
 fail:
-	dictionary_del(rtOpts->candidateConfig);
+	dictionary_del(&rtOpts->cliConfig);
+	dictionary_del(&rtOpts->candidateConfig);
+	dictionary_del(&rtOpts->currentConfig);
 	return 0;
 }
 

@@ -133,6 +133,7 @@ typedef struct {
 	Boolean truncateOnReopen;
 	Boolean unlinkOnClose;
 
+	uint32_t lastHash;
 	UInteger32 maxSize;
 	UInteger32 fileSize;
 	int maxFiles;

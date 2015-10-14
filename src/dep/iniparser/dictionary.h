@@ -95,7 +95,7 @@ dictionary * dictionary_new(int size);
   Deallocate a dictionary object and all memory associated to it.
  */
 /*--------------------------------------------------------------------------*/
-void dictionary_del(dictionary * vd);
+void dictionary_del(dictionary ** vd);
 
 /*-------------------------------------------------------------------------*/
 /**

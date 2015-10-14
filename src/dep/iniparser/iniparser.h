@@ -302,6 +302,6 @@ dictionary * iniparser_load(const char * ininame);
   gets out of the current context.
  */
 /*--------------------------------------------------------------------------*/
-void iniparser_freedict(dictionary * d);
+void iniparser_freedict(dictionary ** d);
 
 #endif

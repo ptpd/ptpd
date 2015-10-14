@@ -19,7 +19,7 @@ EXTRA_DIST =			\
 	src/ptpd2.conf.minimal\
 	src/ptpd2.8\
 	src/ptpd2.conf.5\
-	src/leap-seconds.list.28dec2015\
+	src/leap-seconds.list\
 	src/dep/iniparser/AUTHORS\
 	src/dep/iniparser/LICENSE\
 	src/dep/iniparser/README\
@@ -37,7 +37,7 @@ BUILT_SOURCES =				\
 	$(NULL)
 
 ptpd2dir = $(datadir)/$(PACKAGE)
-ptpd2_DATA = 	src/leap-seconds.list.28dec2015	\
+ptpd2_DATA = 	src/leap-seconds.list		\
 		src/ptpd2.conf.minimal		\
 		src/ptpd2.conf.default-full	\
 		doc/PTPBASE-MIB.txt		\

@@ -334,14 +334,19 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 }
 
 /* Write a formatted string to file pointer */
-int writeMessage(FILE* destination, int priority, const char * format, va_list ap) {
+int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char * format, va_list ap) {
 
+	char buf[PATH_MAX +1];
 	extern RunTimeOpts rtOpts;
 	extern Boolean startupInProgress;
 
 	int written;
 	char time_str[MAXTIMESTR];
 	struct timeval now;
+#ifndef RUNTIME_DEBUG
+	uint32_t hash;
+	va_list ap1;
+#endif /* RUNTIME_DEBUG */
 
 	extern char *translatePortState(PtpClock *ptpClock);
 	extern PtpClock *G_ptpClock;
@@ -355,6 +360,24 @@ int writeMessage(FILE* destination, int priority, const char * format, va_list a
 		(priority > LOG_WARNING)){
 		    return 1;
 		}
+
+#ifndef RUNTIME_DEBUG
+	/* check if this message produces the same hash as last */
+	memset(buf, 0, sizeof(buf));
+	va_copy(ap1, ap);
+	vsnprintf(buf, PATH_MAX, format, ap1);
+	hash = fnvHash(buf, sizeof(buf), 0);
+	if(lastHash != NULL) {
+	    if(format[0] != '\n' && lastHash != NULL) {
+		    /* last message was the same - don't print the next one */
+		    if( (lastHash != 0) && (hash == *lastHash)) {
+		    return 0;
+		}
+	    }
+	    *lastHash = hash;
+	}
+#endif /* RUNTIME_DEBUG */
+
 	/* Print timestamps and prefixes only if we're running in foreground or logging to file*/
 	if( rtOpts.nonDaemon || destination != stderr) {
 
@@ -432,7 +455,7 @@ logMessage(int priority, const char * format, ...)
 
 	/* If we're using a log file and the message has been written OK, we're done*/
 	if(rtOpts.eventLog.logEnabled && rtOpts.eventLog.logFP != NULL) {
-	    if(writeMessage(rtOpts.eventLog.logFP, priority, format, ap) > 0) {
+	    if(writeMessage(rtOpts.eventLog.logFP, &rtOpts.eventLog.lastHash, priority, format, ap) > 0) {
 		maintainLogSize(&rtOpts.eventLog);
 		if(!startupInProgress)
 		    goto end;
@@ -472,7 +495,7 @@ logMessage(int priority, const char * format, ...)
 std_err:
 	va_start(ap, format);
 	/* Either all else failed or we're running in foreground - or we also log to stderr */
-	writeMessage(stderr, priority, format, ap);
+	writeMessage(stderr, &rtOpts.eventLog.lastHash, priority, format, ap);
 
 end:
 	va_end(ap);
@@ -487,6 +510,7 @@ restartLog(LogFileHandler* handler, Boolean quiet)
 
         /* The FP is open - close it */
         if(handler->logFP != NULL) {
+		handler->lastHash=0;
                 fclose(handler->logFP);
 		/*
 		 * fclose doesn't do this at least on Linux - changes the underlying FD to -1,

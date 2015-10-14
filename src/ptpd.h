@@ -186,6 +186,12 @@
 		exit(1); \
 	}
 
+#define SAFE_FREE(pointer) \
+	if(pointer != NULL) { \
+		free(pointer); \
+		pointer = NULL; \
+	}
+
 #define IS_SET(data, bitpos) \
 	((data & ( 0x1 << bitpos )) == (0x1 << bitpos))
 
