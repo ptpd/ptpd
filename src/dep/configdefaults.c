@@ -114,17 +114,16 @@ static const ConfigTemplate configTemplates[] = {
 
     { "full-logging-instance", {
 	{"global:log_status", "y"},
-	{"global:status_file", "/var/run/ptpd2.%instance%.status"},
+	{"global:status_file", "@rundir@/ptpd2.@instance@.status"},
 	{"global:statistics_log_interval", "1"},
-	{"global:lock_file", "/var/run/ptpd2.%instance%.pid"},
+	{"global:lock_file", "@rundir@/ptpd2.@instance@.pid"},
 	{"global:log_statistics", "y"},
-	{"global:statistics_file", "/var/log/ptpd2.%instance%.statistics"},
+	{"global:statistics_file", "@logdir@/ptpd2.@instance@.statistics"},
 //	{"global:statistics_file_truncate", "n"},
-	{"global:log_file", "/var/log/ptpd2.%instance%.log"},
+	{"global:log_file", "@logdir@/ptpd2.@instance@.log"},
 	{"global:statistics_timestamp_format", "both"},
 	{NULL}}
     },
-
 
     {NULL}
 };
