@@ -56,7 +56,7 @@ static const ConfigTemplate configTemplates[] = {
 	{"ptpengine:unicast_negotiation", "y"},
 	{"ptpengine:domain", "4"},
 	{"ptpengine:disable_bmca", "y"},
-	{"ptpentine:delay_mechanism", "E2E"},
+	{"ptpengine:delay_mechanism", "E2E"},
 	{"ptpengine:log_sync_interval", "-6"},
 	{"ptpengine:log_delayreq_interval", "-6"},
 	{"ptpengine:announce_receipt_timeout", "3"},

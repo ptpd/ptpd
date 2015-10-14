@@ -147,6 +147,8 @@ void
 do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 
+	Boolean reloadSuccessful = TRUE;
+
 	NOTIFY("SIGHUP received\n");
 
 #ifdef RUNTIME_DEBUG
@@ -198,14 +200,14 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* If we're told to re-check lock files, do it: tmpOpts already has what rtOpts should */
 	if( (rtOpts->restartSubsystems & PTPD_CHECK_LOCKS) &&
 	    tmpOpts.autoLockFile && !checkOtherLocks(&tmpOpts)) {
-		rtOpts->restartSubsystems = -1;
+		reloadSuccessful = FALSE;
 	}
 
 	/* If the network configuration has changed, check if the interface is OK */
 	if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
 		INFO("Network configuration changed - checking interface(s)\n");
 		if(!testInterface(tmpOpts.primaryIfaceName, &tmpOpts)) {
-		    rtOpts->restartSubsystems = -1;
+		    reloadSuccessful = FALSE;
 		    ERROR("Error: Cannot use %s interface\n",tmpOpts.primaryIfaceName);
 		}
 		if(rtOpts->backupIfaceEnabled && !testInterface(tmpOpts.backupIfaceName, &tmpOpts)) {
@@ -224,7 +226,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
                         } else {
                                 ERROR("Could bind to CPU core %d\n", tmpOpts.cpuNumber);
                         }
-                        rtOpts->restartSubsystems = -1;
+			reloadSuccessful = FALSE;
                 } else {
                         if(tmpOpts.cpuNumber > -1)
                                 INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n", tmpOpts.cpuNumber);
@@ -234,7 +236,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
          }
 #endif
 
-	if(rtOpts->restartSubsystems == -1) {
+	if(!reloadSuccessful) {
 		ERROR("New configuration cannot be applied - aborting reload\n");
 		rtOpts->restartSubsystems = 0;
 		goto cleanup;
@@ -889,8 +891,8 @@ configcheck:
 		free(ptpClock);
 		return 0;
 	}
-    
-	/* use new synchronous signal handlers */
+
+	/* establish signal handlers */
 	signal(SIGINT,  catchSignals);
 	signal(SIGTERM, catchSignals);
 	signal(SIGHUP,  catchSignals);
