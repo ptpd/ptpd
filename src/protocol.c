@@ -192,7 +192,7 @@ findSyncDestination(TimeInternal *timeStamp, const RunTimeOpts *rtOpts, PtpClock
 
 }
 
-void addForeign(Octet*,MsgHeader*,PtpClock*, UInteger8);
+void addForeign(Octet*,MsgHeader*,PtpClock*, UInteger8, UInteger32);
 
 /* loop forever. doState() has a switch for the actions and events to be
    checked for 'port_state'. the actions and events may or may not change
@@ -1570,7 +1570,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			}
 
 			/* save the master address for display purposes or hybrid mode */
-			ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
+			ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
 
 			break;
 
@@ -1587,7 +1587,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			 * the slave will  sit idle if current parent
 			 * is not announcing, but another GM is
 			 */
-			addForeign(ptpClock->msgIbuf,header,ptpClock,localPreference);
+			addForeign(ptpClock->msgIbuf,header,ptpClock,localPreference,ptpClock->netPath.lastSourceAddr);
 			break;
 
 		default:
@@ -1633,7 +1633,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			/* update datasets (file bmc.c) */
 			s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
 
-			ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
+			ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
 
 			DBG("___ Announce: received Announce from current Master, so reset the Announce timer\n\n");
 
@@ -1650,7 +1650,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 
 			DBG("___ Announce: received Announce from another master, will add to the list, as it might be better\n\n");
 			DBGV("this is to be decided immediatly by bmc())\n\n");
-			addForeign(ptpClock->msgIbuf,header,ptpClock,localPreference);
+			addForeign(ptpClock->msgIbuf,header,ptpClock,localPreference,ptpClock->netPath.lastSourceAddr);
 		}
 		break;
 
@@ -1668,7 +1668,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 		}
 		ptpClock->counters.announceMessagesReceived++;
 		DBGV("Announce message from another foreign master\n");
-		addForeign(ptpClock->msgIbuf,header,ptpClock, localPreference);
+		addForeign(ptpClock->msgIbuf,header,ptpClock, localPreference,ptpClock->netPath.lastSourceAddr);
 		ptpClock->record_update = TRUE;    /* run BMC() as soon as possible */
 		break;
 
@@ -1732,7 +1732,6 @@ handleSync(const MsgHeader *header, ssize_t length,
 			/* We only start our own delayReq timer after receiving the first sync */
 			if (ptpClock->syncWaiting) {
 				ptpClock->syncWaiting = FALSE;
-
 
 				NOTICE("Received first Sync from Master\n");
 
@@ -3564,7 +3563,7 @@ issueManagementErrorStatus(MsgManagement *outgoing, const RunTimeOpts *rtOpts, P
 }
 
 void
-addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPreference)
+addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPreference, UInteger32 sourceAddr)
 {
 	int i,j;
 	Boolean found = FALSE;
@@ -3616,7 +3615,7 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPrefe
 			header->sourcePortIdentity.portNumber;
 		ptpClock->foreign[j].foreignMasterAnnounceMessages = 0;
 		ptpClock->foreign[j].localPreference = localPreference;
-		
+		ptpClock->foreign[j].sourceAddr = sourceAddr;		
 		/*
 		 * header and announce field of each Foreign Master are
 		 * usefull to run Best Master Clock Algorithm

@@ -1719,6 +1719,7 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 #endif
 		ret=recvfrom(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT, (struct sockaddr*)&from_addr, &from_addr_len);
 		netPath->lastSourceAddr = from_addr.sin_addr.s_addr;
+
 		/* do not report "from self" */
 		if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
 		    netPath->receivedPackets++;

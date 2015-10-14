@@ -623,7 +623,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 		}
 		if (newBM) {
 
-			ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
+			ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
 
 			displayPortIdentity(&header->sourcePortIdentity,
 					    "New best master selected:");
@@ -658,7 +658,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 		} else if (comp > 0) {
 			s1(header,announce,ptpClock, rtOpts);
 			if (newBM) {
-				ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
+				ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
 				displayPortIdentity(&header->sourcePortIdentity,
 						    "New best master selected:");
 				ptpClock->counters.masterChanges++;
@@ -680,7 +680,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 						    "New best master selected:");
 				ptpClock->counters.masterChanges++;
 				if(ptpClock->portState == PTP_SLAVE)
-					ptpClock->masterAddr = ptpClock->netPath.lastSourceAddr;
+					ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
 					displayStatus(ptpClock, "State: ");
 				if(rtOpts->calibrationDelay) {
 					ptpClock->isCalibrated = FALSE;
@@ -733,25 +733,11 @@ bmc(ForeignMasterRecord *foreignMaster,
 				 rtOpts,ptpClock));
 }
 
+/* retrieve curent best master */
+ForeignMasterRecord
+*getBestMaster(PtpClock *ptpClock) {
 
+    return(&(ptpClock->foreign[ptpClock->foreign_record_best]));
 
-/*
+}
 
-13.3.2.6, page 126
-
-PTPv2 valid flags per packet type:
-
-ALL:
-   .... .0.. .... .... = PTP_UNICAST
-SYNC+Pdelay Resp:
-   .... ..0. .... .... = PTP_TWO_STEP
-
-Announce only:
-   .... .... ..0. .... = FREQUENCY_TRACEABLE
-   .... .... ...0 .... = TIME_TRACEABLE
-   .... .... .... 0... = PTP_TIMESCALE
-   .... .... .... .0.. = PTP_UTC_REASONABLE
-   .... .... .... ..0. = PTP_LI_59
-   .... .... .... ...0 = PTP_LI_61
-
-*/
