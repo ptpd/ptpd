@@ -112,7 +112,8 @@ typedef struct {
 	/* used for tracking the last TTL set */
 	int ttlGeneral;
 	int ttlEvent;
-	Boolean joinedMulticast;
+	Boolean joinedPeer;
+	Boolean joinedGeneral;
 	struct ether_addr etherDest;
 	struct ether_addr peerEtherDest;
 	Boolean txTimestampFailure;

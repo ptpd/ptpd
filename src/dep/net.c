@@ -98,6 +98,10 @@ netShutdownMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 {
 	struct ip_mreq imr;
 
+	if(!multicastAddr || !netPath->interfaceAddr.s_addr) {
+		return TRUE;
+	}
+
 	/* Close General Multicast */
 	imr.imr_multiaddr.s_addr = multicastAddr;
 	imr.imr_interface.s_addr = netPath->interfaceAddr.s_addr;
@@ -106,7 +110,7 @@ netShutdownMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 		   &imr, sizeof(struct ip_mreq));
 	setsockopt(netPath->generalSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
 		   &imr, sizeof(struct ip_mreq));
-	
+
 	return TRUE;
 }
 
@@ -133,7 +137,7 @@ netShutdownMulticast(NetPath * netPath)
 
 /*
  * For future use: Check if IPv4 address is multiast -
- * If last 4 bits of an address are 0xE (1110), it's multicast
+ * If first 4 bits of an address are 0xE (1110), it's multicast
  */
 /*
 static Boolean
@@ -560,7 +564,7 @@ netInitMulticast(NetPath * netPath,  const RunTimeOpts * rtOpts)
 	}
 
 	/* this allows for leaving groups only if joined */
-	netPath->joinedMulticast = TRUE;
+	netPath->joinedGeneral = TRUE;
 
 	netPath->multicastAddr = netAddr.s_addr;
 	if(!netInitMulticastIPv4(netPath, netPath->multicastAddr)) {
@@ -569,6 +573,9 @@ netInitMulticast(NetPath * netPath,  const RunTimeOpts * rtOpts)
 
 	/* End of General multicast Ip address init */
 
+	if(rtOpts->delayMechanism != P2P) {
+		return TRUE;
+	}
 
 	/* Init Peer multicast IP address */
 	strncpy(addrStr, PEER_PTP_DOMAIN_ADDRESS, NET_ADDRESS_LENGTH);
@@ -576,6 +583,10 @@ netInitMulticast(NetPath * netPath,  const RunTimeOpts * rtOpts)
 		ERROR("failed to encode multicast address: %s\n", addrStr);
 		return FALSE;
 	}
+
+	/* track if we have joined the p2p mcast group */
+	netPath->joinedPeer = TRUE;
+
 	netPath->peerMulticastAddr = netAddr.s_addr;
 	if(!netInitMulticastIPv4(netPath, netPath->peerMulticastAddr)) {
 		return FALSE;
@@ -2211,15 +2222,23 @@ Boolean
 netRefreshIGMP(NetPath * netPath, const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 	DBG("netRefreshIGMP\n");
-	
-	if(netPath->joinedMulticast)
-	    netShutdownMulticast(netPath);
-	
+
+	if(netPath->joinedGeneral) {
+		netShutdownMulticastIPv4(netPath, netPath->multicastAddr);
+		netPath->multicastAddr = 0;
+	}
+
+	if(netPath->joinedPeer) {
+		netShutdownMulticastIPv4(netPath, netPath->peerMulticastAddr);
+		netPath->peerMulticastAddr = 0;
+	}
+
 	/* suspend process 100 milliseconds, to make sure the kernel sends the IGMP_leave properly */
 	usleep(100*1000);
 
 	if (!netInitMulticast(netPath, rtOpts)) {
 		return FALSE;
 	}
+
 	return TRUE;
 }
