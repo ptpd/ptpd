@@ -291,6 +291,10 @@ int iniparser_find_entry(dictionary * ini, const char * entry) ;
 /*--------------------------------------------------------------------------*/
 dictionary * iniparser_load(const char * ininame);
 
+int iniparser_merge_file(dictionary *dict, const char * filename, int overwrite);
+
+dictionary * iniparser_load_list(const char* list);
+
 /*-------------------------------------------------------------------------*/
 /**
   @brief    Free all memory associated to an ini dictionary

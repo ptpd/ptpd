@@ -12,6 +12,8 @@
 #include <stddef.h>
 #include "iniparser/iniparser.h"
 
+#define DEFAULT_TEMPLATE_FILE DATADIR"/"PACKAGE_NAME"/templates.conf"
+
 typedef struct {
     char * name;
     char * value;
@@ -19,6 +21,7 @@ typedef struct {
 
 typedef struct {
     char * name;
+    char * description;
     TemplateOption options[100];
 } ConfigTemplate;
 
@@ -42,7 +45,7 @@ enum {
 };
 
 void loadDefaultSettings( RunTimeOpts* rtOpts );
-int applyConfigTemplates(char *templateNames, dictionary *dict);
+int applyConfigTemplates(dictionary *dict, char *templateNames, char *files);
 PtpEnginePreset getPtpPreset(int presetNumber, RunTimeOpts* rtOpts);
 void dumpConfigTemplates();
 

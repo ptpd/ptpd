@@ -1,5 +1,4 @@
-/*-
- * Copyright (c) 2013-2015 Wojciech Owczarek,
+/* Copyright (c) 2013-2015 Wojciech Owczarek,
  *
  * All Rights Reserved
  * 
@@ -38,6 +37,9 @@
 #define CONFIG_ISTRUE(key) \
 	(iniparser_getboolean(dict,key,FALSE)==TRUE)
 
+#define CONFIG_ISSET(key) \
+	(strcmp(iniparser_getstring(dict, key, ""),"") != 0)
+
 #define IS_QUIET()\
 	( CONFIG_ISTRUE("%quiet%:%quiet%") )
 
@@ -50,7 +52,7 @@
 
 static const ConfigTemplate configTemplates[] = {
 
-    { "g8265-e2e-master", {
+    { "g8265-e2e-master", "ITU-T G.8265.1 (Telecom profile) unicast master", {
 	{"ptpengine:preset", "masteronly"},
 	{"ptpengine:ip_mode", "unicast"},
 	{"ptpengine:unicast_negotiation", "y"},
@@ -65,7 +67,7 @@ static const ConfigTemplate configTemplates[] = {
 	{NULL}}
     },
 
-    { "g8265-e2e-slave", {
+    { "g8265-e2e-slave", "ITU-T G.8265.1 (Telecom profile) unicast slave", {
 	{"ptpengine:preset", "slaveonly"},
 	{"ptpengine:ip_mode", "unicast"},
 	{"ptpengine:unicast_negotiation", "y"},
@@ -75,7 +77,7 @@ static const ConfigTemplate configTemplates[] = {
 	{NULL}}
     },
 
-    { "layer2-p2p-master", {
+    { "layer2-p2p-master", "Layer 2 master using Peer to Peer", {
 	{"ptpengine:transport","ethernet"},
 	{"ptpengine:delay_mechanism","P2P"},
 	{"ptpengine:preset","masteronly"},
@@ -83,7 +85,7 @@ static const ConfigTemplate configTemplates[] = {
 	{NULL}}
     },
 
-    { "layer2-p2p-slave", {
+    { "layer2-p2p-slave", "Layer 2 slave running End to End", {
 	{"ptpengine:transport","ethernet"},
 	{"ptpengine:delay_mechanism","E2E"},
 	{"ptpengine:preset","slaveonly"},
@@ -91,7 +93,7 @@ static const ConfigTemplate configTemplates[] = {
 	{NULL}}
     },
 
-    { "valid-utc-properties", {
+    { "valid-utc-properties", "Basic property set to announce valid UTC, UTC offset and leap seconds", {
 	{"ptpengine:ptp_timescale","PTP"},
 	{"ptpengine:time_traceable","y"},
 	{"ptpengine:frequency_traceable","y"},
@@ -99,7 +101,7 @@ static const ConfigTemplate configTemplates[] = {
 	{NULL}}
     },
 
-    { "full-logging", {
+    { "full-logging", "Enable logging for all facilities (statistics, status, log file)", {
 	{"global:log_status", "y"},
 	{"global:status_file", "/var/run/ptpd2.status"},
 	{"global:statistics_log_interval", "1"},
@@ -112,7 +114,7 @@ static const ConfigTemplate configTemplates[] = {
 	{NULL}}
     },
 
-    { "full-logging-instance", {
+    { "full-logging-instance", "Logging for all facilities using 'instance' variable which user should provide", {
 	{"global:log_status", "y"},
 	{"global:status_file", "@rundir@/ptpd2.@instance@.status"},
 	{"global:statistics_log_interval", "1"},
@@ -133,13 +135,13 @@ static const ConfigTemplate configTemplates[] = {
 /* template of a template looks like this... */
 
 /*
-    { "template-name", {
+    { "template-name", "template description", {
 	{"section:key","value"},
 	{"",""},
 	{NULL}}
     },
 
-    { "", {
+    { "", "", {
 	{"",""},
 	{"",""},
 	{NULL}}
@@ -488,53 +490,139 @@ getPtpPreset(int presetNumber, RunTimeOpts* rtOpts)
 	return ret;
 }
 
+/* Apply template search from dictionary src to dictionary dst */
+static int
+applyTemplateFromDictionary(dictionary *dict, dictionary *src, char *search, int overwrite) {
+
+	char *key, *value, *pos;
+	int i = 0;
+	int found;
+
+	/* -1 on not found, 0+ on actual applies */
+	found = -1;
+
+	for(i=0; i<src->n; i++) {
+	    key = src->key[i];
+	    value = src->val[i];
+	    pos = strstr(key, ":");
+	    if(value != NULL  && pos != NULL) {
+		*pos =  '\0';
+		pos++;
+		if(!strcmp(search, key) && (strstr(pos,":") != NULL)) {
+		    if(found < 0) found = 0;
+		    if( overwrite || !CONFIG_ISSET(pos)) {
+			DBG("template %s setting %s to %s\n", search, pos, value);
+			dictionary_set(dict, pos, value);
+			found++;
+		    }
+		}
+		/* reverse the damage - no need for strdup() */
+		pos--;
+		*pos = ':';
+	    }
+	}
+
+	return found;
+
+}
+
+static void loadFileList(dictionary *dict, char *list) {
+
+    char* stash;
+    char* text_;
+    char* text__;
+    char *filename;
+
+    if(dict == NULL) return;
+    if(!strlen(list)) return;
+
+    text_=strdup(list);
+
+    for(text__=text_;; text__=NULL) {
+	filename=strtok_r(text__,", ;\t",&stash);
+	if(filename==NULL) break;
+	if(!iniparser_merge_file(dict, filename,1)) {
+	    ERROR("Could not load template file %s\n", filename);
+	} else {
+	    INFO("Loaded template file %s\n",filename);
+	}
+    }
+
+    if(text_ != NULL) {
+	free(text_);
+    }
+
+}
 
 /* split list to tokens, look for each template and apply it if found */
 int
-applyConfigTemplates(char *templateNames, dictionary *dict) {
+applyConfigTemplates(dictionary *target, char *templateNames, char *files) {
 
     ConfigTemplate *template = NULL;
     TemplateOption *option = NULL;
     char *templateName = NULL;
-    Boolean found = 0;
+    int iFound = -1;
+    int fFound = -1;
+
+    dictionary *fileDict;
+    dictionary *dict;
 
     char* stash;
     char* text_;
     char* text__;
 
-    if(dict == NULL) {
+    if(target == NULL) {
 	return 0;
     }
 
-    if(strlen(templateNames)==0) return 0;
+    if(!strlen(templateNames)) return 0;
+
+    fileDict = dictionary_new(0);
+    dict = dictionary_new(0);
+//INFO("tf: %s",DEFAULT_TEMPLATE_FILE);
+    loadFileList(fileDict, DEFAULT_TEMPLATE_FILE);
+    loadFileList(fileDict, files);
 
     text_=strdup(templateNames);
 
     for(text__=text_;; text__=NULL) {
 
+	iFound = -1;
+	fFound = -1;
+
+	/* apply from built-in templates */
 	templateName=strtok_r(text__,", ;\t",&stash);
 	if(templateName==NULL) break;
 
-	found = 0;
 	template = (ConfigTemplate*)configTemplates;
 	while(template->name != NULL) {
 	    if(!strcmp(template->name, templateName)) {
-		DBG("Loading config template %s\n", template->name);
+		if(iFound < 0) iFound = 0;
+		DBG("Loading built-in config template %s\n", template->name);
 		option = (TemplateOption*)template->options;
 		    while(option->name != NULL) {
 			dictionary_set(dict, option->name, option->value);
 			DBG("----> %s = %s",option->name, option->value);
 			option++;
+			iFound++;
 		    }
-		found = 1;
-		if (!IS_QUIET()) NOTICE("Applied configuration template \"%s\"\n", templateName);
 		break;
 	    }
 	    template++;
 	}
 
-	if(!found) {
-	    if (!IS_QUIET()) WARNING("Configuration template \"%s\" not found\n", templateName);
+	/* apply from previously loaded files */
+	fFound = applyTemplateFromDictionary(dict, fileDict, templateName, 1);
+
+	if (!IS_QUIET()) {
+	    if((iFound < 0) && (fFound < 0)) {
+		WARNING("Configuration template \"%s\" not found\n", templateName);
+	    } else {
+		if(iFound < 0) iFound = 0;
+		if(fFound < 0) fFound = 0;
+		NOTICE("Applied configuration template \"%s\" (%d matches)\n", templateName,
+			iFound + fFound);
+	    }
 	}
 
     }
@@ -543,6 +631,10 @@ applyConfigTemplates(char *templateNames, dictionary *dict) {
 	free(text_);
     }
 
+    /* preserve existing settings */
+    dictionary_merge(dict, target, 0 , !IS_QUIET(), NULL);
+    dictionary_del(&fileDict);
+    dictionary_del(&dict);
     return 0;
 
 }
@@ -553,17 +645,18 @@ dumpConfigTemplates() {
 
     ConfigTemplate *template = NULL;
     TemplateOption *option = NULL;
-
+	printf("\n");
 	template = (ConfigTemplate*)configTemplates;
 	while(template->name != NULL) {
-		printf("Template: %s\n\n", template->name);
+		printf("   Template: %s\n", template->name);
+		printf("Description: %s\n\n", template->description);
 		option = (TemplateOption*)template->options;
 		    while(option->name != NULL) {
 			printf("\t\t%s=\"%s\"\n", option->name, option->value);
 			option++;
 		    }
 	    template++;
-	    printf("\n");
+	    printf("\n-\n\n");
 	}
 
 }

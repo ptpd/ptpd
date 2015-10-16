@@ -435,13 +435,15 @@ void dictionary_dump(dictionary * d, FILE * out)
     return ;
 }
 
-int dictionary_merge(dictionary* source, dictionary* dest, int warn, const char* warnStr)
+int dictionary_merge(dictionary* source, dictionary* dest, int overwrite, int warn, const char* warnStr)
 {
 
     int i = 0;
+    int clobber = 1;
 
     if( source == NULL || dest == NULL) return -1;
 
+    if(warnStr == NULL) warnStr = "";
     for(i = 0; i < source->n; i++) {
 
         if(source->key[i] == NULL)
@@ -450,19 +452,27 @@ int dictionary_merge(dictionary* source, dictionary* dest, int warn, const char*
 	if((source->val[i] == NULL) || (strlen(source->val[i])==0))
 	    continue;
 	/* no need to warn for settings whose value will not change */
-	if(warn && (strcmp(dictionary_get(dest,source->key[i],""),"") != 0) &&
+	if((strcmp(dictionary_get(dest,source->key[i],""),"") != 0) &&
 		    (strcmp(dictionary_get(dest,source->key[i],""),source->val[i]) != 0)) {
-		WARNING("Warning: %s=\"%s\" : setting will be overwritten with value \"%s\" %s\n",
-				source->key[i], dictionary_get(dest,source->key[i],""),
-				source->val[i], warnStr);
+		if(!overwrite && warn) {
+		    WARNING("Warning: %s=\"%s\" : value \"%s\" takes priority %s\n",
+				source->key[i], source->val[i],
+				dictionary_get(dest,source->key[i],""), warnStr);
+		}
+		clobber = 1;
+		if(!overwrite) {
+		    clobber = 0;
+		}
 	}
-        if ( dictionary_set( dest, source->key[i], source->val[i]) != 0)
-	    return -1;
+        if (clobber) {
+	    if(dictionary_set( dest, source->key[i], source->val[i]) != 0) {
+		return -1;
+	    }
+	}
     }
 
     return 0;
 }
-
 
 /* Test code */
 #ifdef TESTDIC

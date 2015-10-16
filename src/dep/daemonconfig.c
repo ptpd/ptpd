@@ -830,6 +830,7 @@ parseUserVariables(dictionary *dict, dictionary *target)
 
 }
 
+
 /**
  * Iterate through dictionary dict (template) and check for keys in source
  * that are not present in the template - display only.
@@ -870,6 +871,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
  * Therefore loadDefaultSettings should normally be used before parseConfig
  */
 
+
  /*-
   * WARNING: for ease of use, a limited number of keys is set 
   * via getopt in loadCommanLineOptions(). When renaming settings, make sure
@@ -900,13 +902,19 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	/*
 	 * apply the configuration template(s) as statically defined in configdefaults.c
-	 * The list of templates is a comma, space or tab separated names. Any templates
-	 * are applied before anything else: so any settings after this can override
+	 * and in template files. The list of templates and files is comma, space or tab separated.
+	 * names. Any templates are applied before anything else: so any settings after this can override
 	 */
 	if (CONFIG_ISPRESENT("global:config_templates")) {
-	    applyConfigTemplates(dictionary_get(dict, "global:config_templates", ""), dict);
+	    applyConfigTemplates(
+		    dict,
+		    dictionary_get(dict, "global:config_templates", ""),
+		    dictionary_get(dict, "global:template_files", "")
+		);
+
 	    /* also set the template names in the target dictionary */
 	    dictionary_set(target, "global:config_templates", dictionary_get(dict, "global:config_templates", ""));
+	    dictionary_set(target, "global:template_files", dictionary_get(dict, "global:template_files", ""));
 	}
 
 	parseUserVariables(dict, target);
@@ -2304,7 +2312,7 @@ loadConfigFile(dictionary **target, RunTimeOpts *rtOpts)
 	/* make sure the %x% special keys are unset */
 	HELP_END();
 
-	dictionary_merge( dict, *target, 0, NULL);
+	dictionary_merge( dict, *target, 0, 0, NULL);
 	dictionary_del(&dict);
 
 	return TRUE;
@@ -2663,10 +2671,12 @@ short_help:
 			return FALSE;
 		/* run in foreground */
 		case 'C':
+			rtOpts->nonDaemon=1;
 			dictionary_set(dict,"global:foreground", "Y");
 			break;
 		/* verbose mode */
 		case 'V':
+			rtOpts->nonDaemon=1;
 			dictionary_set(dict,"global:foreground", "Y");
 			dictionary_set(dict,"global:verbose_foreground", "Y");
 			break;

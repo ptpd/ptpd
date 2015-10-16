@@ -735,6 +735,23 @@ dictionary * iniparser_load(const char * ininame)
     return dict ;
 }
 
+
+int iniparser_merge_file(dictionary *dict, const char *filename, int overwrite) {
+
+    dictionary *src;
+
+    if ((src = iniparser_load(filename)) == NULL) {
+	return 0;
+    }
+
+    dictionary_merge(src, dict, overwrite, 0, NULL);
+
+    dictionary_del(&src);
+
+    return 1;
+
+}
+
 /*-------------------------------------------------------------------------*/
 /**
   @brief    Free all memory associated to an ini dictionary

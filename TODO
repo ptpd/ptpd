@@ -1,0 +1,9 @@
+# not part of distribution - TODO notes to implement before next release
+
+2.3.1.1 / 2.3.2:
+
+- man page updates for template files
+- clock ID printed in reverse in L2 mode
+  with (grandmasterID present?)
+- complete built-in templates
+- add dummy or populated default template file

@@ -184,6 +184,6 @@ void dictionary_replace(dictionary * d, const char * search, const char * replac
 /*--------------------------------------------------------------------------*/
 void dictionary_dump(dictionary * d, FILE * out);
 
-int dictionary_merge(dictionary * source, dictionary * dest, int warn, const char* warnStr);
+int dictionary_merge(dictionary * source, dictionary * dest, int overwrite, int warn, const char* warnStr);
 
 #endif

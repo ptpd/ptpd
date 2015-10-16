@@ -440,7 +440,10 @@ logMessage(int priority, const char * format, ...)
 {
 	extern RunTimeOpts rtOpts;
 	extern Boolean startupInProgress;
-	va_list ap;
+	va_list ap , ap1;
+
+	va_copy(ap1, ap);
+	va_start(ap1, format);
 	va_start(ap, format);
 
 #ifdef RUNTIME_DEBUG
@@ -450,17 +453,19 @@ logMessage(int priority, const char * format, ...)
 #endif
 
 	/* log level filter */
-	if(priority > rtOpts.logLevel)
+	if(priority > rtOpts.logLevel) {
 	    goto end;
-
+	}
 	/* If we're using a log file and the message has been written OK, we're done*/
 	if(rtOpts.eventLog.logEnabled && rtOpts.eventLog.logFP != NULL) {
 	    if(writeMessage(rtOpts.eventLog.logFP, &rtOpts.eventLog.lastHash, priority, format, ap) > 0) {
 		maintainLogSize(&rtOpts.eventLog);
 		if(!startupInProgress)
 		    goto end;
-		else
+		else {
+		    rtOpts.eventLog.lastHash = 0;
 		    goto std_err;
+		    }
 	    }
 	}
 
@@ -487,17 +492,21 @@ logMessage(int priority, const char * format, ...)
 			syslogOpened = TRUE;
 		}
 		vsyslog(priority, format, ap);
-		if (!startupInProgress)
+		if (!startupInProgress) {
 			goto end;
-		else
+		}
+		else {
+			rtOpts.eventLog.lastHash = 0;
 			goto std_err;
+		}
 	}
 std_err:
-	va_start(ap, format);
+
 	/* Either all else failed or we're running in foreground - or we also log to stderr */
-	writeMessage(stderr, &rtOpts.eventLog.lastHash, priority, format, ap);
+	writeMessage(stderr, &rtOpts.eventLog.lastHash, priority, format, ap1);
 
 end:
+	va_end(ap1);
 	va_end(ap);
 	return;
 }

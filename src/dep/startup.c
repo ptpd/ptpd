@@ -170,7 +170,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		dictionary_del(&tmpConfig);
 		goto end;
         }
-		dictionary_merge(rtOpts->cliConfig, tmpConfig, 1, "from command line");
+		dictionary_merge(rtOpts->cliConfig, tmpConfig, 0, 1, "from command line");
 	/* Load default config to fill in the blanks in the config file */
 	RunTimeOpts tmpOpts;
 	loadDefaultSettings(&tmpOpts);
@@ -716,14 +716,14 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		/* config file settings overwrite all others, except for empty strings */
 		INFO("Loading configuration file: %s\n",rtOpts->configFile);
 		if(loadConfigFile(&rtOpts->candidateConfig, rtOpts)) {
-			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, "from command line");
+			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 0, 1, "from command line");
 		} else {
 		    *ret = 1;
-			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, "from command line");
+			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 0, 1, "from command line");
 		    goto configcheck;
 		}
 	} else {
-		dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, "from command line");
+		dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 0, 1, "from command line");
 	}
 	/**
 	 * This is where the final checking  of the candidate settings container happens.
