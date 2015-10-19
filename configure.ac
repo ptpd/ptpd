@@ -458,6 +458,8 @@ case "$try_pcap" in
 
 esac
 
+
+
 AC_SUBST(PTP_PCAP)
 AM_CONDITIONAL([PCAP], [test x$ptpd_pcap_enabled = x1])
 
@@ -749,6 +751,7 @@ case "$enable_slave_only" in
     PTP_SLAVE_ONLY="-DPTPD_SLAVE_ONLY"
     ;;
 esac
+
 AC_SUBST(PTP_SLAVE_ONLY)
 AM_CONDITIONAL([SLAVE_ONLY], [test x$enable_slave_only = xyes])
 

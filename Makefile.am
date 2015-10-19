@@ -23,6 +23,7 @@ EXTRA_DIST =			\
 	src/dep/iniparser/AUTHORS\
 	src/dep/iniparser/LICENSE\
 	src/dep/iniparser/README\
+	src/templates.conf\
 	\
 	$(NULL)
 
@@ -40,6 +41,7 @@ ptpd2dir = $(datadir)/$(PACKAGE)
 ptpd2_DATA = 	src/leap-seconds.list		\
 		src/ptpd2.conf.minimal		\
 		src/ptpd2.conf.default-full	\
+		src/templates.conf		\
 		doc/PTPBASE-MIB.txt		\
 		$(NULL)
 

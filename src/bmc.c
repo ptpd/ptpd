@@ -85,6 +85,7 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    memcpy(ptpClock->clockIdentity + 3, &pid, 2);
 	}
 
+	ptpClock->bestMaster = NULL;
 	ptpClock->numberPorts = NUMBER_PORTS;
 
 	ptpClock->clockQuality.clockAccuracy = 
@@ -451,30 +452,40 @@ copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
  * return similar to memcmp() */
 
 static Integer8 
-bmcDataSetComparison(const MsgHeader *headerA, const MsgAnnounce *announceA, UInteger8 localPrefA,
-		     const MsgHeader *headerB, const MsgAnnounce *announceB, UInteger8 localPrefB,
-		     const PtpClock *ptpClock, const RunTimeOpts * rtOpts)
+bmcDataSetComparison(const ForeignMasterRecord *a, const ForeignMasterRecord *b, const PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 {
 
 
 	DBGV("Data set comparison \n");
 	short comp = 0;
+
+
+	/* disqualification comes above anything else */
+
+	if(a->disqualified > b->disqualified) {
+	    return -1;
+	}
+
+	if(a->disqualified < b->disqualified) {
+	    return 1;
+	}
+
 	/*Identity comparison*/
-	comp = memcmp(announceA->grandmasterIdentity,announceB->grandmasterIdentity,CLOCK_IDENTITY_LENGTH);
+	comp = memcmp(a->announce.grandmasterIdentity,b->announce.grandmasterIdentity,CLOCK_IDENTITY_LENGTH);
 
 	if (comp!=0)
 		goto dataset_comp_part_1;
 
 	  /* Algorithm part2 Fig 28 */
-	if (announceA->stepsRemoved > announceB->stepsRemoved+1)
+	if (a->announce.stepsRemoved > b->announce.stepsRemoved+1)
 		return 1;
-	if (announceA->stepsRemoved+1 < announceB->stepsRemoved)
+	if (a->announce.stepsRemoved+1 < b->announce.stepsRemoved)
 		return -1;
 
 	/* A within 1 of B */
 
-	if (announceA->stepsRemoved > announceB->stepsRemoved) {
-		comp = memcmp(headerA->sourcePortIdentity.clockIdentity,ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
+	if (a->announce.stepsRemoved > b->announce.stepsRemoved) {
+		comp = memcmp(a->header.sourcePortIdentity.clockIdentity,ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
 		if(comp < 0)
 			return -1;
 		if(comp > 0)
@@ -483,8 +494,8 @@ bmcDataSetComparison(const MsgHeader *headerA, const MsgAnnounce *announceA, UIn
 		return 0;
 	}
 
-	if (announceA->stepsRemoved < announceB->stepsRemoved) {
-		comp = memcmp(headerB->sourcePortIdentity.clockIdentity,ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
+	if (a->announce.stepsRemoved < b->announce.stepsRemoved) {
+		comp = memcmp(b->header.sourcePortIdentity.clockIdentity,ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
 
 		if(comp < 0)
 			return -1;
@@ -494,7 +505,7 @@ bmcDataSetComparison(const MsgHeader *headerA, const MsgAnnounce *announceA, UIn
 		return 0;
 	}
 	/*  steps removed A = steps removed B */
-	comp = memcmp(headerA->sourcePortIdentity.clockIdentity,headerB->sourcePortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
+	comp = memcmp(a->header.sourcePortIdentity.clockIdentity,b->header.sourcePortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH);
 
 	if (comp<0) {
 		return -1;
@@ -506,9 +517,9 @@ bmcDataSetComparison(const MsgHeader *headerA, const MsgAnnounce *announceA, UIn
 
 	/* identity A = identity B */
 
-	if (headerA->sourcePortIdentity.portNumber < headerB->sourcePortIdentity.portNumber)
+	if (a->header.sourcePortIdentity.portNumber < b->header.sourcePortIdentity.portNumber)
 		return -1;
-	if (headerA->sourcePortIdentity.portNumber > headerB->sourcePortIdentity.portNumber)
+	if (a->header.sourcePortIdentity.portNumber > b->header.sourcePortIdentity.portNumber)
 		return 1;
 
 	DBG("Sender=Receiver : Error -2");
@@ -521,38 +532,38 @@ dataset_comp_part_1:
 	
 	if(rtOpts->anyDomain) {
 	    /* part 1: preferred domain wins */
-	    if(headerA->domainNumber == rtOpts->domainNumber && headerB->domainNumber != ptpClock->domainNumber)
+	    if(a->header.domainNumber == rtOpts->domainNumber && b->header.domainNumber != ptpClock->domainNumber)
 		return -1;
-	    if(headerA->domainNumber != rtOpts->domainNumber && headerB->domainNumber == ptpClock->domainNumber)
+	    if(a->header.domainNumber != rtOpts->domainNumber && b->header.domainNumber == ptpClock->domainNumber)
 		return 1;
 	
 	    /* part 2: lower domain wins */
-	    if(headerA->domainNumber < headerB->domainNumber)
+	    if(a->header.domainNumber < b->header.domainNumber)
 		return -1;
 
-	    if(headerA->domainNumber > headerB->domainNumber)
+	    if(a->header.domainNumber > b->header.domainNumber)
 		return 1;
 	}
 
 	/* Compare localPreference - only used by slaves when using unicast negotiation */
-	DBGV("bmcDataSetComparison localPrefA: %d, localPrefB: %d\n", localPrefA, localPrefB);
-	if(localPrefA < localPrefB) {
+	DBGV("bmcDataSetComparison a->localPreference: %d, b->localPreference: %d\n", a->localPreference, b->localPreference);
+	if(a->localPreference < b->localPreference) {
 	    return -1;
 	}
-	if(localPrefA > localPrefB) {
+	if(a->localPreference > b->localPreference) {
 	    return 1;
 	}
 
 	/* Compare GM priority1 */
-	if (announceA->grandmasterPriority1 < announceB->grandmasterPriority1)
+	if (a->announce.grandmasterPriority1 < b->announce.grandmasterPriority1)
 		return -1;
-	if (announceA->grandmasterPriority1 > announceB->grandmasterPriority1)
+	if (a->announce.grandmasterPriority1 > b->announce.grandmasterPriority1)
 		return 1;
 
 	/* non-standard BMC extension to prioritise GMs with UTC valid */
 	if(rtOpts->preferUtcValid) {
-		Boolean utcA = IS_SET(headerA->flagField1, UTCV);
-		Boolean utcB = IS_SET(headerB->flagField1, UTCV);
+		Boolean utcA = IS_SET(a->header.flagField1, UTCV);
+		Boolean utcB = IS_SET(b->header.flagField1, UTCV);
 		if(utcA > utcB)
 			return -1;
 		if(utcA < utcB)
@@ -560,33 +571,33 @@ dataset_comp_part_1:
 	}
 
 	/* Compare GM class */
-	if (announceA->grandmasterClockQuality.clockClass <
-			announceB->grandmasterClockQuality.clockClass)
+	if (a->announce.grandmasterClockQuality.clockClass <
+			b->announce.grandmasterClockQuality.clockClass)
 		return -1;
-	if (announceA->grandmasterClockQuality.clockClass >
-			announceB->grandmasterClockQuality.clockClass)
+	if (a->announce.grandmasterClockQuality.clockClass >
+			b->announce.grandmasterClockQuality.clockClass)
 		return 1;
 	
 	/* Compare GM accuracy */
-	if (announceA->grandmasterClockQuality.clockAccuracy <
-			announceB->grandmasterClockQuality.clockAccuracy)
+	if (a->announce.grandmasterClockQuality.clockAccuracy <
+			b->announce.grandmasterClockQuality.clockAccuracy)
 		return -1;
-	if (announceA->grandmasterClockQuality.clockAccuracy >
-			announceB->grandmasterClockQuality.clockAccuracy)
+	if (a->announce.grandmasterClockQuality.clockAccuracy >
+			b->announce.grandmasterClockQuality.clockAccuracy)
 		return 1;
 
 	/* Compare GM offsetScaledLogVariance */
-	if (announceA->grandmasterClockQuality.offsetScaledLogVariance <
-			announceB->grandmasterClockQuality.offsetScaledLogVariance)
+	if (a->announce.grandmasterClockQuality.offsetScaledLogVariance <
+			b->announce.grandmasterClockQuality.offsetScaledLogVariance)
 		return -1;
-	if (announceA->grandmasterClockQuality.offsetScaledLogVariance >
-			announceB->grandmasterClockQuality.offsetScaledLogVariance)
+	if (a->announce.grandmasterClockQuality.offsetScaledLogVariance >
+			b->announce.grandmasterClockQuality.offsetScaledLogVariance)
 		return 1;
 	
 	/* Compare GM priority2 */
-	if (announceA->grandmasterPriority2 < announceB->grandmasterPriority2)
+	if (a->announce.grandmasterPriority2 < b->announce.grandmasterPriority2)
 		return -1;
-	if (announceA->grandmasterPriority2 > announceB->grandmasterPriority2)
+	if (a->announce.grandmasterPriority2 > b->announce.grandmasterPriority2)
 		return 1;
 
 	/* Compare GM identity */
@@ -598,16 +609,19 @@ dataset_comp_part_1:
 }
 
 /*State decision algorithm 9.3.3 Fig 26*/
-static UInteger8 
-bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPreference,
-		 const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+static UInteger8
+bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	Integer8 comp;
 	Boolean newBM;
-	UInteger8 currentLocalPref = 0;	
-	newBM = ((memcmp(header->sourcePortIdentity.clockIdentity,
+	ForeignMasterRecord me;
+
+	memset(&me, 0, sizeof(me));
+	me.localPreference = LOWEST_LOCALPREFERENCE;
+
+	newBM = ((memcmp(foreign->header.sourcePortIdentity.clockIdentity,
 			    ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH)) ||
-		(header->sourcePortIdentity.portNumber != ptpClock->parentPortIdentity.portNumber));
+		(foreign->header.sourcePortIdentity.portNumber != ptpClock->parentPortIdentity.portNumber));
 
 	
 	if (ptpClock->slaveOnly) {
@@ -615,17 +629,17 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 		if(newBM && (ptpClock->parentGrants != NULL)) {
 		    ptpClock->previousGrants = ptpClock->parentGrants;
 		}
-		s1(header,announce,ptpClock, rtOpts);
+		s1(&foreign->header,&foreign->announce,ptpClock, rtOpts);
 		if(rtOpts->unicastNegotiation) {
 			ptpClock->parentGrants = findUnicastGrants(&ptpClock->parentPortIdentity, 0,
-						ptpClock->unicastGrants, &ptpClock->grantIndex, ptpClock->unicastDestinationCount ,
+						ptpClock->unicastGrants, &ptpClock->grantIndex, ptpClock->unicastDestinationCount,
 					    FALSE);
 		}
 		if (newBM) {
 
 			ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
 
-			displayPortIdentity(&header->sourcePortIdentity,
+			displayPortIdentity(&foreign->header.sourcePortIdentity,
 					    "New best master selected:");
 			ptpClock->counters.masterChanges++;
 			if (ptpClock->portState == PTP_SLAVE)
@@ -637,7 +651,7 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 		}
                 if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL) {
                         ptpClock->logAnnounceInterval = ptpClock->parentGrants->grantData[ANNOUNCE].logInterval;
-			currentLocalPref = ptpClock->parentGrants->localPreference;
+			me.localPreference = ptpClock->parentGrants->localPreference;
                 }
 		return PTP_SLAVE;
 	}
@@ -646,20 +660,21 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 	    (ptpClock->portState == PTP_LISTENING))
 		return PTP_LISTENING;
 
-	copyD0(&ptpClock->msgTmpHeader,&ptpClock->msgTmp.announce,ptpClock);
+//	copyD0(&me.headerk->msgTmpHeader,&ptpClock->msgTmp.announce,ptpClock);
+	copyD0(&me.header, &me.announce, ptpClock);
 
 	DBGV("local clockQuality.clockClass: %d \n", ptpClock->clockQuality.clockClass);
 
-	comp = bmcDataSetComparison(&ptpClock->msgTmpHeader, &ptpClock->msgTmp.announce, currentLocalPref, header, announce, localPreference, ptpClock, rtOpts);
+	comp = bmcDataSetComparison(&me, foreign, ptpClock, rtOpts);
 	if (ptpClock->clockQuality.clockClass < 128) {
 		if (comp < 0) {
 			m1(rtOpts, ptpClock);
 			return PTP_MASTER;
 		} else if (comp > 0) {
-			s1(header,announce,ptpClock, rtOpts);
+			s1(&foreign->header, &foreign->announce, ptpClock, rtOpts);
 			if (newBM) {
 				ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
-				displayPortIdentity(&header->sourcePortIdentity,
+				displayPortIdentity(&foreign->header.sourcePortIdentity,
 						    "New best master selected:");
 				ptpClock->counters.masterChanges++;
 				if(ptpClock->portState == PTP_PASSIVE)
@@ -674,9 +689,9 @@ bmcStateDecision(MsgHeader *header, MsgAnnounce *announce, UInteger8 localPrefer
 			m1(rtOpts,ptpClock);
 			return PTP_MASTER;
 		} else if (comp > 0) {
-			s1(header,announce,ptpClock, rtOpts);
+			s1(&foreign->header, &foreign->announce,ptpClock, rtOpts);
 			if (newBM) {
-				displayPortIdentity(&header->sourcePortIdentity,
+				displayPortIdentity(&foreign->header.sourcePortIdentity,
 						    "New best master selected:");
 				ptpClock->counters.masterChanges++;
 				if(ptpClock->portState == PTP_SLAVE)
@@ -716,20 +731,14 @@ bmc(ForeignMasterRecord *foreignMaster,
 		}
 
 	for (i=1,best = 0; i<ptpClock->number_foreign_records;i++)
-		if ((bmcDataSetComparison(&foreignMaster[i].header,
-					  &foreignMaster[i].announce,
-					    foreignMaster[i].localPreference,
-					  &foreignMaster[best].header,
-					  &foreignMaster[best].announce,
-					    foreignMaster[best].localPreference,
+		if ((bmcDataSetComparison(&foreignMaster[i], &foreignMaster[best],
 					  ptpClock, rtOpts)) < 0)
 			best = i;
 
 	DBGV("Best record : %d \n",best);
 	ptpClock->foreign_record_best = best;
-	return (bmcStateDecision(&foreignMaster[best].header,
-				 &foreignMaster[best].announce,
-				 foreignMaster[best].localPreference,
+	ptpClock->bestMaster = &foreignMaster[best];
+	return (bmcStateDecision(ptpClock->bestMaster,
 				 rtOpts,ptpClock));
 }
 

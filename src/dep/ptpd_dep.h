@@ -188,6 +188,29 @@ static inline Integer32 flip32(x)
 #define clearFlag(x,y)  ( *(UInteger8*)((x)+((y)<8?1:0)) &= ~(1<<((y)<8?(y):(y)-8)) )
 /** \}*/
 
+#define DEFAULT_TOKEN_DELIM ", ;\t"
+
+/*
+ * foreach loop across substrings from var, delimited by delim, placing
+ * each token in targetvar on iteration, using id variable name prefix
+ * to allow nesting (each loop uses an individual set of variables)
+ */
+#define foreach_token_begin(id, var, targetvar, delim) {\
+    char* id_stash; \
+    char* id_text_; \
+    char* id_text__; \
+    char* targetvar; \
+    id_text_=strdup(var); \
+    for(id_text__ = id_text_;; id_text__=NULL) { \
+	targetvar = strtok_r(id_text__, delim, &id_stash); \
+	if(targetvar==NULL) break;
+
+#define foreach_token_end(id) } \
+    if(id_text_ != NULL) { \
+	free(id_text_); \
+    }\
+}
+
 /** \name msg.c
  *-Pack and unpack PTP messages */
  /**\{*/

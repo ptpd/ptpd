@@ -46,6 +46,18 @@ ptpengine:ip_mode = multicast
 ; 
 ptpengine:unicast_negotiation = N
 
+; When using unicast negotiation (slave), accept PTP messages from any master.
+; By default, only messages from acceptable masters (ptpengine:unicast_destinations)
+; are accepted, and only if transmission was granted by the master
+; 
+ptpengine:unicast_any_master = N
+
+; PTP port number wildcard mask applied onto port identities when running
+; unicast negotiation: allows multiple port identities to be accepted as one.
+; This option can be used as a workaround where a node sends signaling messages and
+; timing messages with different port identities
+ptpengine:unicast_port_mask = 0
+
 ; Disable Best Master Clock Algorithm for unicast masters:
 ; Only effective for masteronly preset - all Announce messages
 ; will be ignored and clock will transition directly into MASTER state.
@@ -59,6 +71,12 @@ ptpengine:unicast_negotiation_listening = N
 ; Use libpcap for sending and receiving traffic (automatically enabled
 ; in Ethernet mode).
 ptpengine:use_libpcap = N
+
+; Disable UDP checksum validation on UDP sockets (Linux only).
+; Workaround for situations where a node (like Transparent Clock).
+; does not rewrite checksums
+; 
+ptpengine:disable_udp_checksums = Y
 
 ; Delay detection mode used - use DELAY_DISABLED for syntonisation only
 ; (no full synchronisation).
@@ -100,7 +118,7 @@ ptpengine:offset_shift = 0
 ; announced by best master, even if the the
 ; currrentUtcOffsetValid flag is announced FALSE.
 ; NOTE: this behaviour is not part of the standard.
-ptpengine:always_respect_utc_offset = N
+ptpengine:always_respect_utc_offset = Y
 
 ; Compatibility extension to BMC algorithm: when enabled,
 ; BMC for both master and save clocks will prefer masters

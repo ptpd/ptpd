@@ -70,6 +70,8 @@
 #define DEFAULT_FOREIGN_MASTER_TIME_WINDOW 4
 #define DEFAULT_FOREIGN_MASTER_THRESHOLD 2
 
+/* g.8265.1 local preference, lowest value */
+#define LOWEST_LOCALPREFERENCE 255
 
 /*
 section 7.6.2.4, page 55:

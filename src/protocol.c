@@ -745,6 +745,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   ptpClock->clockQuality.clockClass != SLAVE_ONLY_CLOCK_CLASS) {
 				ptpClock->number_foreign_records = 0;
 				ptpClock->foreign_record_i = 0;
+				ptpClock->bestMaster = NULL;
 				m1(rtOpts,ptpClock);
 				toState(PTP_MASTER, rtOpts, ptpClock);
 
@@ -761,15 +762,8 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				* otherwise, timer will cycle and we will reset.
 				* Also don't clear the FMR just yet.
 				*/
-				if (ptpClock->grandmasterClockQuality.clockClass != 255 &&
-				    ptpClock->grandmasterPriority1 != 255 &&
-				    ptpClock->grandmasterPriority2 != 255) {
-					ptpClock->grandmasterClockQuality.clockClass = 255;
-					ptpClock->grandmasterPriority1 = 255;
-					ptpClock->grandmasterPriority2 = 255;
-					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterPriority1=255;
-					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterPriority2=255;
-					ptpClock->foreign[ptpClock->foreign_record_best].announce.grandmasterClockQuality.clockClass=255;
+				if (!ptpClock->bestMaster->disqualified) {
+					ptpClock->bestMaster->disqualified = TRUE;
 					WARNING("GM announce timeout, disqualified current best GM\n");
 					ptpClock->counters.announceTimeouts++;
 				}
@@ -790,7 +784,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					WARNING("No active masters present. Resetting port.\n");
 					ptpClock->number_foreign_records = 0;
 					ptpClock->foreign_record_i = 0;
-
+					ptpClock->bestMaster = NULL;
 					/* if flipping between primary and backup interface, a full nework re-init is required */
 					if(rtOpts->backupIfaceEnabled) {
 						ptpClock->runningBackupInterface = !ptpClock->runningBackupInterface;
@@ -1436,7 +1430,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 {
 
 	UnicastGrantTable *nodeTable = NULL;
-	UInteger8 localPreference = 0;
+	UInteger8 localPreference = LOWEST_LOCALPREFERENCE;
 
 	DBGV("HandleAnnounce : Announce message received : \n");
 
@@ -1563,7 +1557,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 
 			if (rtOpts->announceTimeoutGracePeriod &&
 				ptpClock->announceTimeouts > 0) {
-					NOTICE("Received Announce message from master - cancelling timeout\n");
+					NOTICE("Received Announce message from current master - cancelling timeout\n");
 					ptpClock->announceTimeouts = 0;
 					/* we are available for clock control again */
 					ptpClock->clockControl.available = TRUE;
@@ -2689,7 +2683,8 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 	}
 }
 
-/* Only accept the management / signaling message if it satisfies 15.3.1 Table 36 */ 
+/* Only accept the management / signaling message if it satisfies 15.3.1 Table 36 */
+/* Also 13.12.1 table 32 */
 Boolean
 acceptPortIdentity(PortIdentity thisPort, PortIdentity targetPort)
 {
@@ -2703,9 +2698,15 @@ acceptPortIdentity(PortIdentity thisPort, PortIdentity targetPort)
 	    return TRUE;
 	}
 
-	/* equal clockIDs and target port number is wildcard - this was missing up to 12oct15 */
+	/* equal clockIDs and target port number is wildcard */
 	if(!memcmp(targetPort.clockIdentity, thisPort.clockIdentity, CLOCK_IDENTITY_LENGTH) &&
 	    (targetPort.portNumber == allOnesPortNumber)) {
+	    return TRUE;
+	}
+
+	/* target clock ID is wildcard, port number matches */
+        if(!memcmp(targetPort.clockIdentity, allOnesClkIdentity, CLOCK_IDENTITY_LENGTH) &&
+            (targetPort.portNumber == thisPort.portNumber)) {
 	    return TRUE;
 	}
 
@@ -3586,6 +3587,7 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPrefe
 			DBGV("addForeign : AnnounceMessage incremented \n");
 			msgUnpackHeader(buf,&ptpClock->foreign[j].header);
 			msgUnpackAnnounce(buf,&ptpClock->foreign[j].announce);
+			ptpClock->foreign[j].disqualified = FALSE;
 			ptpClock->foreign[j].localPreference = localPreference;
 			break;
 		}
@@ -3600,7 +3602,7 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPrefe
 			ptpClock->number_foreign_records++;
 		}
 		
-		/* Preserve best master record from overwriting (sf FR #22) - use next slot*/
+		/* Preserve best master record from overwriting (sf FR #22) - use next slot */
 		if (ptpClock->foreign_record_i == ptpClock->foreign_record_best) {
 			ptpClock->foreign_record_i++;
 			ptpClock->foreign_record_i %= ptpClock->number_foreign_records;
@@ -3615,7 +3617,8 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPrefe
 			header->sourcePortIdentity.portNumber;
 		ptpClock->foreign[j].foreignMasterAnnounceMessages = 0;
 		ptpClock->foreign[j].localPreference = localPreference;
-		ptpClock->foreign[j].sourceAddr = sourceAddr;		
+		ptpClock->foreign[j].sourceAddr = sourceAddr;
+		ptpClock->foreign[j].disqualified = FALSE;
 		/*
 		 * header and announce field of each Foreign Master are
 		 * usefull to run Best Master Clock Algorithm

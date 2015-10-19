@@ -902,10 +902,10 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
     for(text__=text_;found < total; text__=NULL) {
 
 	token=strtok_r(text__,", ;\t",&stash);
-	tmp = 255;
+	tmp = LOWEST_LOCALPREFERENCE;
 	if(token!=NULL) {
 	    if (sscanf(token,"%d", &tmp) != 1) {
-		tmp = 255;
+		tmp = LOWEST_LOCALPREFERENCE;
 	    }
 	}
 

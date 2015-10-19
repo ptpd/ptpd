@@ -495,7 +495,8 @@ typedef struct
 	MsgAnnounce  announce;	/* announce message -> all datasets */
 	MsgHeader    header;	/* header -> some datasets */
 	UInteger8    localPreference; /* local preference - only used by telecom profile */
-	UInteger32    sourceAddr; /* source address */
+	UInteger32   sourceAddr; /* source address */
+	Boolean	     disqualified; /* if true, this one always loses */
 } ForeignMasterRecord;
 
 /**
@@ -761,6 +762,8 @@ typedef struct {
 
 	/* Foreign master data set */
 	ForeignMasterRecord *foreign;
+	/* Current best master (unless it's us) */
+	ForeignMasterRecord *bestMaster;
 
 	/* Other things we need for the protocol */
 	UInteger16 number_foreign_records;

@@ -98,6 +98,10 @@ static const ConfigTemplate configTemplates[] = {
 	{"ptpengine:time_traceable","y"},
 	{"ptpengine:frequency_traceable","y"},
 	{"clock:leap_seconds_file", DATADIR"/"PACKAGE_NAME"/leap-seconds.list"},
+	/*
+	 * UTC offset value and UTC offset valid flag 
+	 * will be announced if leap file is parsed and up to date
+	 */
 	{NULL}}
     },
 
@@ -114,7 +118,7 @@ static const ConfigTemplate configTemplates[] = {
 	{NULL}}
     },
 
-    { "full-logging-instance", "Logging for all facilities using 'instance' variable which user should provide", {
+    { "full-logging-instance", "Logging for all facilities using 'instance' variable which the user should provide", {
 	{"global:log_status", "y"},
 	{"global:status_file", "@rundir@/ptpd2.@instance@.status"},
 	{"global:statistics_log_interval", "1"},
@@ -579,7 +583,7 @@ applyConfigTemplates(dictionary *target, char *templateNames, char *files) {
 
     fileDict = dictionary_new(0);
     dict = dictionary_new(0);
-//INFO("tf: %s",DEFAULT_TEMPLATE_FILE);
+
     loadFileList(fileDict, DEFAULT_TEMPLATE_FILE);
     loadFileList(fileDict, files);
 

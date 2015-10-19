@@ -98,6 +98,7 @@ install -m 644 doc/PTPBASE-MIB.txt $RPM_BUILD_ROOT%{_datadir}/snmp/mibs/PTPBASE-
 install -m 644 src/leap-seconds.list $RPM_BUILD_ROOT%{_datadir}/ptpd/leap-seconds.list
 install -m 644 src/ptpd2.conf.minimal $RPM_BUILD_ROOT%{_datadir}/ptpd/ptpd2.conf.minimal
 install -m 644 src/ptpd2.conf.default-full $RPM_BUILD_ROOT%{_datadir}/ptpd/ptpd2.conf.default-full
+install -m 644 src/templates.conf $RPM_BUILD_ROOT%{_datadir}/ptpd/templates.conf
 
 { cd $RPM_BUILD_ROOT
 

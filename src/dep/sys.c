@@ -336,7 +336,7 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 /* Write a formatted string to file pointer */
 int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char * format, va_list ap) {
 
-	char buf[PATH_MAX +1];
+
 	extern RunTimeOpts rtOpts;
 	extern Boolean startupInProgress;
 
@@ -344,6 +344,7 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 	char time_str[MAXTIMESTR];
 	struct timeval now;
 #ifndef RUNTIME_DEBUG
+	char buf[PATH_MAX +1];
 	uint32_t hash;
 	va_list ap1;
 #endif /* RUNTIME_DEBUG */
@@ -1065,7 +1066,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL ) {
 	    	fprintf(out, ", localPref %d", ptpClock->parentGrants->localPreference);
 	}
-	fprintf(out, "\n");
+	fprintf(out, "%s\n", (ptpClock->bestMaster != NULL && ptpClock->bestMaster->disqualified) ? " (timeout)" : "");
 	}
 
 	if(ptpClock->clockQuality.clockClass < 128 ||

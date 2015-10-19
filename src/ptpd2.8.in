@@ -83,7 +83,8 @@ Path to statistics file (also \fIglobal:statistics_file\fR)
 Display built-in configuration templates
 .TP
 \fB-t --templates \fI[name],[name],...\fR
-Apply one or more configuration templates in this order (\fIsee man(5) ptpd2.conf\fR)
+Apply one or more configuration templates in this order (\fIsee man(5) ptpd2.conf\fR),
+also see \fIptpengine:template_files\fR and the \
 .TP
 \fB-S --statistics-file \fIPATH\fR
 Path to statistics file (also \fIglobal:statistics_file\fR)

@@ -59,15 +59,33 @@ global:log_file=/var/run/ptpd2.@instance@.status
 
 \fBNote:\fR for the same effect, ptpd can be run from command line, such as \fI --config=/path/to/file --variables:instance=server15\fR
 
-.SH CONFIGURATION TEMPLATES
-As of version 2.3.1.1, ptpd enables the user to minimise the configuration effort for common scenarios, using built-in templates.
-A template is a named set of pre-defined settings whic are prepended before any other settings, so user can still overwrite
-settings provided by the template. To use this feature, set \fIglobal:config_templates=[name],[name],...\fR in the configuration file,
-or run ptpd with \fI--global:config_templates=[name],[name],...\fR. Multiple templates can be specified, separated by comma, space
-or tab; they are applied in the order they are provided, so template settings override any overlapping settings from previous
-templates specified.
+.SH CONFIGURATION TEMPLATES AND TEMPLATE FILES
+As of version 2.3.1.1, ptpd enables the user to minimise the configuration effort for common scenarios, using built-in templates
+and template files. A template is a named set of pre-defined settings whic are prepended before any other settings, so user can
+still overwrite settings provided by the template. To use this feature, set \fIglobal:config_templates=[name],[name],...\fR in the
+configuration file, or run ptpd with \fI--global:config_templates=[name],[name],...\fR. Multiple templates can be specified,
+separated by comma, space or tab; they are applied in the order they are provided, so template settings override any overlapping
+settings from previous templates specified. Templates can include \fIuser-defined variables\fR.
 
-To see the list of available templates, run ptpd with \fI-T\fR or \fI--templates\fR
+A number of \fItemplate files\fR can also be supplied with the \fIglobal:template_files\fR setting
+(comma, space or tab separated lis of file paths). The template files will be processed in the order they are provided in,
+so for overlapping settings, the last template applied overrides settings applied by any previous 
+templates. PTPd will also try to load a default template file on startup: \fItemplates.conf\fR 
+from the default data directory: \fI@prefix@/share/@PACKAGE_NAME@/templates.conf\fR
+
+The template file is formatted in .ini style - each template is a section defined as
+\fI[template-name]\fR, followed by a number of settings specified as \fIsection:setting\fR.
+
+\fBExample\fR:
+
+[my-template]
+
+global:verbose_foreground=Y
+
+ptpengine:preset=slaveonly
+
+
+To see the list of available built-in templates, run ptpd with \fI-T\fR or \fI--show-templates\fR
 
 .SH CONFIGURATION VARIABLES
 .RS 0
@@ -181,7 +199,8 @@ uses multicast for all messages
 uses  multicast for sync and announce, and unicast for delay request and response
 .TP 12
 \fIunicast\fR
-uses unicast for all transmission. When unicast mode is selected, destination IP(s) (\fIptpengine:unicast_destinations\fR) must be configured
+uses unicast for all transmission. When unicast mode is selected, destination IP(s) (\fIptpengine:unicast_
+destinations\fR) must be configured
 depending on unicast negotiation setting (\fIptpengine:unicast_negotiation\fR) and master or slave role
 (see: \fIptpengine:unicast_destinations\fR)
 .RE
@@ -2378,6 +2397,42 @@ Do not reset the clock if offset from master is greater than this value (nanosec
 .TP 8
 \fBdefault\fR
 \fI0\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBglobal:config_templates [\fISTRING\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Comma, space or tab-separated list of template names to be applied to the configuration
+(see \fICONFIGURATION TEMPLATES AND TEMPLATE FILES\fR section). Templates are applied in the order
+they are specified, so any overlapping settings from one template are overridden with settings
+from the following template(s). PTPd provides some built-in templates - see the templates section
+above; to see the built-in templates, run ptpd with \fI-T\fR or \fI--show-templates\fR.
+.TP 8
+\fBdefault\fR
+\fI[none]\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBglobal:template_files [\fISTRING\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Comma, space or tab-separated list of template file paths to be loaded
+(see \fICONFIGURATION TEMPLATES AND TEMPLATE FILES\fR section). Template
+files are also loaded in the order they are provided, so templates in one file
+can be extended by templates in the next file(s); any overlapping settings are overridden
+by following files. PTPd will not exit when one or more template files cannot be opened.
+PTPd will always try to load \fI@prefix@/share/@PACKAGE_NAME@/templates.conf\fR on startup.
+.TP 8
+\fBdefault\fR
+\fI[none]\fR
+
 
 .RE
 .RE
