@@ -39,33 +39,6 @@
 
 #include "../ptpd.h"
 
-/* -
- * Variadic macro argument count trick -> comp.std.c __VA_NARG__
- * Laurent Deniau et al, January 2006. Works from 1 argument up,
- * but in this code you will always have at least 2.
- */
-
-#define NUMARGS(...) \
-         PP_NARG_(__VA_ARGS__,PP_RSEQ_N())
-#define PP_NARG_(...) \
-         PP_ARG_N(__VA_ARGS__)
-#define PP_ARG_N( \
-          _1, _2, _3, _4, _5, _6, _7, _8, _9,_10, \
-         _11,_12,_13,_14,_15,_16,_17,_18,_19,_20, \
-         _21,_22,_23,_24,_25,_26,_27,_28,_29,_30, \
-         _31,_32,_33,_34,_35,_36,_37,_38,_39,_40, \
-         _41,_42,_43,_44,_45,_46,_47,_48,_49,_50, \
-         _51,_52,_53,_54,_55,_56,_57,_58,_59,_60, \
-         _61,_62,_63,N,...) N
-#define PP_RSEQ_N() \
-         63,62,61,60,                   \
-         59,58,57,56,55,54,53,52,51,50, \
-         49,48,47,46,45,44,43,42,41,40, \
-         39,38,37,36,35,34,33,32,31,30, \
-         29,28,27,26,25,24,23,22,21,20, \
-         19,18,17,16,15,14,13,12,11,10, \
-         9,8,7,6,5,4,3,2,1,0
-
 /*-
  * Helper macros - this is effectively the API for using the new config file interface.
  * The macros below cover all operations required in parsing the configuration.
@@ -74,7 +47,6 @@
  * complexity of the parseConfig fuction. A lot of the macros are designed to work
  * within parseConfig - they assume the existence of the "dictionary*" dict variable.
  */
-
 
 /* Basic helper macros */
 
@@ -251,363 +223,6 @@
 	    parseResult = FALSE;\
 	 }
 
-/* Range check macros */
-
-/* surrounded with {}s to limit the scope of the temporary variable */
-#define CONFIG_KEY_RANGECHECK_INT(key,min,max) \
-	{\
-	int tmpint = iniparser_getint(dict,key,min);\
-	if (tmpint < min || tmpint > max) { \
-	    if(!IS_QUIET())\
-		ERROR("Configuration error: option \"%s=%d\" not within allowed range: %d..%d\n", key, tmpint, min, max); \
-	    parseResult = FALSE;\
-	}\
-	}
-
-/* surrounded with {}s to limit the scope of the temporary variable */
-#define CONFIG_KEY_MIN_INT(key,min) \
-	{\
-	int tmpint = iniparser_getint(dict,key,min);\
-	if (tmpint < min) { \
-	    if(!IS_QUIET())\
-		ERROR("Configuration error: option \"%s=%d\" should be equal or greater than %d\n", key, tmpint, min); \
-	    parseResult = FALSE;\
-	}\
-	}
-
-/* surrounded with {}s to limit the scope of the temporary variable */
-#define CONFIG_KEY_MAX_INT(key,max) \
-	{\
-	int tmpint = iniparser_getint(dict,key,max);\
-	if (tmpint > max) { \
-	    if(!IS_QUIET())\
-		ERROR("Configuration error: option \"%s=%d\" should be equal or less than %d\n", key, tmpint, max); \
-	    parseResult = FALSE;\
-	}\
-	}
-
-/* surrounded with {}s to limit the scope of the temporary variable */
-#define CONFIG_KEY_RANGECHECK_DOUBLE(key,min,max) \
-	{\
-	double tmpdouble = iniparser_getdouble(dict,key,min);\
-	if (tmpdouble < min || tmpdouble > max) { \
-	    if(!IS_QUIET())\
-		ERROR("Configuration error: option \"%s=%f\" not within allowed range: %f..%f\n", key, tmpdouble, min, max); \
-	    parseResult = FALSE;\
-	}\
-	}
-
-/* surrounded with {}s to limit the scope of the temporary variable */
-#define CONFIG_KEY_MIN_DOUBLE(key,min) \
-	{\
-	double tmpdouble = iniparser_getdouble(dict,key,min);\
-	if (tmpdouble < min) { \
-	    if(!IS_QUIET())\
-		ERROR("Configuration error: option \"%s=%f\" should be equal or greater than %f\n", key, tmpdouble, min); \
-	    parseResult = FALSE;\
-	}\
-	}
-
-/* surrounded with {}s to limit the scope of the temporary variable */
-#define CONFIG_KEY_MAX_DOUBLE(key,max) \
-	{\
-	double tmpdouble = iniparser_getdouble(dict,key,max);\
-	if (tmpdouble > max) { \
-	    if(!IS_QUIET())\
-		ERROR("Configuration error: option \"%s=%f\" should be equal or less than %f\n", key, tmpdouble, max); \
-	    parseResult = FALSE;\
-	}\
-	}
-
-/* 
- * Config mapping macros - effectively functions turned into macros. Because of
- * the use of varargs and argument counting, it made sense to make at least some
- * of them macros.  To make parseConfig more consistent, all the mapping is done
- * via macros. Moving to functions would require handling the return values for
- * range checks, so again different calls for different mappings. With macros,
- * parseResult is set where needed. There may be a better way of doing this
- * (macros generate a huge amount of code), but this makes parseConfig very
- * simple
- */
-
-#define CONFIG_MAP_STRING(key,variable,default,helptext) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: STRING\n");\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %s\n", (strcmp(default, "") == 0) ? "[none]" : default);\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {\
-		variable = iniparser_getstring(dict,key,default);\
-		dictionary_set(target, key, variable);\
-		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-			printComment(helptext);\
-			printf("%s = %s\n\n", key,variable);\
-		}\
-	}
-
-/* double {}s to limit the scope of the temporary variable */
-#define CONFIG_MAP_CHARARRAY(key,variable,default,helptext) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: STRING\n");\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %s\n", (strcmp(default, "") == 0) ? "[none]" : default);\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {{\
-		char *tmpstring = iniparser_getstring(dict,key,default); \
-		if (variable!=tmpstring) strncpy(variable,tmpstring,sizeof(variable) / sizeof(char));\
-		dictionary_set(target, key, tmpstring);\
-		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-			printComment(helptext);\
-			printf("%s = %s\n", key,tmpstring);\
-		}\
-	}}
-
-#define CONFIG_MAP_BOOLEAN(key,variable,default,helptext) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: BOOLEAN (value must start with t/T/y/Y/1/f/F/n/N/0)\n");\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %s\n", default ? "Y" : "N");\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {\
-		if (!CONFIG_ISPRESENT(key)) {\
-		    variable = default;\
-		    dictionary_set(target,key,(variable)?"Y":"N");\
-		    if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-			    printComment(helptext);\
-			    printf("%s = %s\n", key,(variable)?"Y":"N");\
-		    }\
-		} else if(!CONFIG_ISSET(key) || iniparser_getboolean(dict,key,-1) == -1) {\
-		    ERROR("Configuration error: option \"%s='%s'\" has unknown boolean value:  must start with 0/1/t/T/f/F/y/Y/n/N\n",key,iniparser_getstring(dict,key,""));\
-		    dictionary_set(target,key,""); /* suppress the "unknown entry" warning for malformed boolean values */ \
-		    parseResult = FALSE;\
-		} else {\
-		    variable=iniparser_getboolean(dict,key,default);\
-		    dictionary_set(target,key,(variable)?"Y":"N");\
-		    if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-			    printComment(helptext);\
-			    printf("%s = %s\n", key,(variable)?"Y":"N");\
-		    }\
-		}\
-	}
-
-#define CONFIG_MAP_INT(key,variable,default,helptext) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: INT\n");\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %d\n", default);\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {{\
-		variable = iniparser_getint(dict,key,default);\
-		char buf[50];\
-		memset(buf, 0, 50);\
-		snprintf(buf, 50, "%d", variable);\
-		dictionary_set(target,key,buf);\
-		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-		    printComment(helptext);\
-		    printf("%s = %s\n", key,buf);\
-		}\
-	}}
-
-#define CONFIG_MAP_INT_RANGE(key,variable,default,helptext,min,max) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: INT ");\
-		if( min!=max )\
-		    printf("(min: %d, max: %d)\n", min, max);\
-		else\
-		    printf("(only value of %d allowed)\n", min);\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %d\n", default);\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {{\
-		variable = iniparser_getint(dict,key,default);\
-		CONFIG_KEY_RANGECHECK_INT(key,min,max);\
-		char buf[50];\
-		memset(buf, 0, 50);\
-		snprintf(buf, 50, "%d", variable);\
-		dictionary_set(target,key,buf);\
-		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-		    printComment(helptext);\
-		    printf("%s = %s\n", key,buf);\
-		}\
-	}}
-
-#define CONFIG_MAP_INT_MIN(key,variable,default,helptext,min) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: INT (min: %d)\n",min);\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %d\n", default);\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {{\
-		variable = iniparser_getint(dict,key,default);\
-		CONFIG_KEY_MIN_INT(key,min);\
-		char buf[50];\
-		memset(buf, 0, 50);\
-		snprintf(buf, 50, "%d", variable);\
-		dictionary_set(target,key,buf);\
-		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-		    printComment(helptext);\
-		    printf("%s = %s\n", key,buf);\
-		}\
-	}}
-
-#define CONFIG_MAP_INT_MAX(key,variable,default,helptext,max) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: INT (max: %d)\n",max);\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %d\n", default);\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {{\
-		variable = iniparser_getint(dict,key,default);\
-		CONFIG_KEY_MAX_INT(key,max);\
-		char buf[50];\
-		memset(buf, 0, 50);\
-		snprintf(buf, 50, "%d", variable);\
-		dictionary_set(target,key,buf);\
-		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-		    printComment(helptext);\
-		    printf("%s = %s\n", key,buf);\
-		}\
-	}}
-
-#define CONFIG_MAP_DOUBLE(key,variable,default,helptext) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: FLOAT\n");\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %d\n", default);\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {{\
-		variable = iniparser_getdouble(dict,key,default);\
-		char buf[50];\
-		memset(buf, 0, 50);\
-		snprintf(buf, 50, "%f", variable);\
-		dictionary_set(target,key,buf);\
-		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-		    printComment(helptext);\
-		    printf("%s = %s\n", key,buf);\
-		}\
-	}}
-
-#define CONFIG_MAP_DOUBLE_RANGE(key,variable,default,helptext,min,max) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: FLOAT ");\
-		if( min!=max )\
-		    printf("(min: %f, max: %f)\n", min, max);\
-		else\
-		    printf("(only value of %f allowed)", min);\
-		printf("\n");\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %f\n", default);\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {{\
-		variable = iniparser_getdouble(dict,key,default);\
-		CONFIG_KEY_RANGECHECK_DOUBLE(key,min,max);\
-		char buf[50];\
-		memset(buf, 0, 50);\
-		snprintf(buf, 50, "%f", variable);\
-		dictionary_set(target,key,buf);\
-		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-		    printComment(helptext);\
-		    printf("%s = %s\n", key,buf);\
-		}\
-	}}
-
-#define CONFIG_MAP_DOUBLE_MIN(key,variable,default,helptext,min) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: FLOAT(min: %f)\n", min);\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %f\n", default);\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {{\
-		variable = iniparser_getdouble(dict,key,default);\
-		CONFIG_KEY_MIN_DOUBLE(key,min); \
-		char buf[50];\
-		memset(buf, 0, 50);\
-		snprintf(buf, 50, "%f", variable);\
-		dictionary_set(target,key,buf);\
-		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-		    printComment(helptext);\
-		    printf("%s = %s\n", key,buf);\
-		}\
-	}}
-
-#define CONFIG_MAP_DOUBLE_MAX(key,variable,default,helptext,max) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: FLOAT(max: %f)\n", max);\
-		printf("  usage: %s\n", helptext);\
-		printf("default: %f\n", default);\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {{\
-		variable = iniparser_getdouble(dict,key,default);\
-		CONFIG_KEY_MIN_DOUBLE(key,max);\
-		char buf[50];\
-		memset(buf, 0, 50);\
-		snprintf(buf, 50, "%f", variable);\
-		dictionary_set(target,key,buf);\
-		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-		    printComment(helptext);\
-		    printf("%s = %s\n", key,buf);\
-		}\
-		}}
-
-#define CONFIG_MAP_SELECTVALUE(key,variable,default,helptext, ... ) \
-	if(IS_HELP(key, helptext)) {\
-		printf("setting: %s (--%s)\n", key, key);\
-		printf("   type: SELECT\n");\
-		printf("  usage: %s\n", helptext);\
-		printf("options: ");\
-		printKeyOptions (NUMARGS(__VA_ARGS__), __VA_ARGS__);\
-		printf("\n");\
-		printf("default: %s\n",\
-			selectOptionName(default,NUMARGS(__VA_ARGS__),\
-			    __VA_ARGS__));\
-		printf("\n");\
-		HELP_ITEM_COMPLETE(); \
-	} else {\
-		int res;\
-		if ( (res = selectKeyValue(\
-			dict, key, default,NUMARGS(__VA_ARGS__),\
-			    __VA_ARGS__\
-			 )) == -1) {\
-				    variable = default;\
-				    parseResult = FALSE;\
-					} else {\
-						variable=res;\
-					}\
-			    {\
-				dictionary_set(target, key, selectOptionName(\
-				    variable,NUMARGS(__VA_ARGS__), __VA_ARGS__));\
-				if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {\
-				    printComment(helptext);\
-				    printf("; Options: ");\
-				    printKeyOptions (NUMARGS(__VA_ARGS__), __VA_ARGS__);\
-				    printf("\n%s = %s\n", key,selectOptionName(\
-				    variable,NUMARGS(__VA_ARGS__), __VA_ARGS__));\
-				}\
-			    }\
-		}
-
 /* Macro printing a warning for a deprecated command-line option */
 #define WARN_DEPRECATED_COMMENT( old,new,long,key,comment )\
 printf("Note: The use of '-%c' option is deprecated %s- consider using '-%c' (--%s) or the %s setting\n",\
@@ -640,143 +255,8 @@ printf("Note: The use of '-%c' option is deprecated %s- consider using '-%c' (--
 		}\
 	}
 
-/* concatenate every second vararg argument for string, int pairs and print it */
-static void
-printKeyOptions( int count, ... )
-{
-
-
-    char *optionvalue;
-    va_list va;
-    int i;
-
-    /* if we got an incomplete argument list, cut it down to the last pair or nothing */
-    if(count % 2 == 1) {
-
-	count--;
-
-    }
-
-    count/=2;
-
-    va_start(va, count);
-
-    for(i = 0; i < count; i++) {
-
-	optionvalue = (char *)va_arg(va, char *);
-	(void)va_arg(va, int);
-
-	printf("%s ", optionvalue);
-
-    }
-
-    va_end(va);
-
-}
-
-/* Return the number corresponding to a string from a number of string, int pairs */
-static int
-selectKeyValue( dictionary* dict, const char* keyname, int default_option, int count, ... )
-{
-
-    char sbuf[SCREEN_BUFSZ];
-    int len = 0;
-
-    char *keyvalue, *optionvalue;
-    va_list va;
-    int ret, i, optionnumber;
-
-    /* if we got an incomplete argument list, cut it down to the last pair or nothing */
-    if(count % 2 == 1) {
-
-	count--;
-
-    }
-
-    count/=2;
-
-    if ( !CONFIG_ISPRESENT(keyname) ) {
-	ret = default_option;
-	goto end;
-    }
-
-    memset(sbuf, 0, sizeof(sbuf));
-
-    keyvalue = iniparser_getstring(dict, keyname, "");
-
-    va_start(va, count);
-
-    for(i = 0; i < count; i++) {
-
-	optionvalue = (char *)va_arg(va, char *);
-	optionnumber = (int)va_arg(va, int);
-
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s ", optionvalue);
-
-	if ( strcmp(keyvalue, optionvalue) == 0) {
-
-	    ret = optionnumber;
-	    goto end; /* must call va_end */
-
-	}
-
-    }
-
-    ERROR("Configuration error: option \"%s\" has unknown value: %s - allowed values: %s\n", keyname, keyvalue,sbuf);
-
-    ret = -1;
-
-end:
-
-    va_end(va);
-    return ret;
-
-}
-
-/* Return the string value for the given number value of string, int pairs */
-static char*
-selectOptionName( int value, int count, ... )
-{
-    char *ret, *optionvalue;
-    int i, optionnumber;
-    va_list va;
-
-    /* if we got an incomplete argument list, cut it down to the last pair or nothing */
-    if(count % 2 == 1) {
-
-	count--;
-
-    }
-
-    ret = "[none]";
-
-    count/=2;
-
-    va_start(va, count);
-
-    for(i = 0; i < count; i++) {
-
-	optionvalue = (char *)va_arg(va, char *);
-	optionnumber = (int)va_arg(va, int);
-
-	if ( optionnumber == value ) {
-
-	    ret = optionvalue;
-	    goto end; /* must call va_end */
-
-	}
-
-    }
-
-end:
-
-    va_end(va);
-    return ret;
-
-}
-
 /* Output a potentially multi-line string, prefixed with ;s */
-static void printComment(char* helptext)
+static void printComment(const char* helptext)
 {
     int i, len;
     len = strlen(helptext);
@@ -797,6 +277,359 @@ static void printComment(char* helptext)
 	}
     }
     printf("\n");
+
+}
+
+static int
+configMapBoolean(dictionary* dict, dictionary *target, const char * key, Boolean *var, Boolean def, const char* helptext)
+{
+	if(IS_HELP(key, helptext)) {
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: BOOLEAN (value must start with t/T/y/Y/1/f/F/n/N/0)\n");
+		printf("  usage: %s\n", helptext);
+		printf("default: %s\n", def ? "Y" : "N");
+		printf("\n");
+		HELP_ITEM_COMPLETE();
+		return 1;
+	} else {
+		if (!CONFIG_ISPRESENT(key)) {
+		    *var = def;
+		    dictionary_set(target,key,(*var)?"Y":"N");
+		    if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {
+			    printComment(helptext);
+			    printf("%s = %s\n", key,(*var)?"Y":"N");
+		    }
+		    return 1;
+		} else if(!CONFIG_ISSET(key) || iniparser_getboolean(dict,key,-1) == -1) {
+		    ERROR("Configuration error: option \"%s='%s'\" has unknown boolean value:  must start with 0/1/t/T/f/F/y/Y/n/N\n",key,iniparser_getstring(dict,key,""));
+		    dictionary_set(target,key,""); /* suppress the "unknown entry" warning for malformed boolean values */ \
+		    return 0;
+		} else {
+		    *var=iniparser_getboolean(dict,key,def);
+		    dictionary_set(target,key,(*var)?"Y":"N");
+		    if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {
+			    printComment(helptext);\
+			    printf("%s = %s\n", key,(*var)?"Y":"N");
+		    }
+		    return 1;
+		}
+	}
+}
+
+static int
+configMapString(dictionary *dict, dictionary *target, const char *key, char *var, char *def, const char* helptext)
+{
+
+
+	if(IS_HELP(key, helptext)) {
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: STRING\n");
+		printf("  usage: %s\n", helptext);
+		printf("default: %s\n", (strcmp(def, "") == 0) ? "[none]" : def);
+		printf("\n");\
+		HELP_ITEM_COMPLETE();
+		return 1;
+	} else {
+		char *tmpstring = iniparser_getstring(dict,key,def);
+		if (strncmp(var, tmpstring, MAX_LINE_SIZE)) strncpy(var, tmpstring, sizeof(var) / sizeof(char));
+		dictionary_set(target, key, tmpstring);
+		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {
+			printComment(helptext);
+			printf("%s = %s\n", key,tmpstring);
+		}
+		return 1;
+	}
+}
+
+static int checkRangeInt(dictionary *dict, const char *key, int rangeFlags, int minBound, int maxBound)
+{
+	int tmpdouble = iniparser_getint(dict,key,minBound);
+
+	int ret = 1;
+
+	switch(rangeFlags) {
+	    case RANGECHECK_NONE:
+		return ret;
+	    case RANGECHECK_RANGE:
+		ret = !(tmpdouble < minBound || tmpdouble > maxBound);
+		break;
+	    case RANGECHECK_MIN:
+		ret = !(tmpdouble < minBound);
+		break;
+	    case RANGECHECK_MAX:
+		ret = !(tmpdouble > maxBound);
+		break;
+	    default:
+		return 0;
+	}
+
+	if(!ret && !IS_QUIET()) {
+		ERROR("Configuration error: option \"%s=%d\" not within allowed range: %d..%d\n", key, tmpdouble, minBound, maxBound);
+	}
+
+	return ret;
+}
+
+
+static int configMapInt(dictionary *dict, dictionary *target, const char *key, int intType,
+		    void *var, int def, const char *helptext, int rangeFlags,
+		    int minBound, int maxBound)
+{
+	if(IS_HELP(key, helptext)) {
+	    switch(rangeFlags) {
+	    case RANGECHECK_NONE:
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: INT\n");\
+		printf("  usage: %s\n", helptext);
+		printf("default: %d\n", def);
+		printf("\n");
+		HELP_ITEM_COMPLETE();
+		return 1;
+	    case RANGECHECK_RANGE:
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: INT ");
+		if( minBound != maxBound )
+		    printf("(min: %d, max: %d)\n", minBound, maxBound);
+		else
+		    printf("(only value of %d allowed)", minBound);
+		printf("\n");
+		printf("  usage: %s\n", helptext);
+		printf("default: %d\n", def);
+		printf("\n");
+		HELP_ITEM_COMPLETE();
+		return 1;
+	    case RANGECHECK_MIN:
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: INT (min: %d)\n", minBound);
+		printf("  usage: %s\n", helptext);
+		printf("default: %d\n", def);
+		printf("\n");
+		HELP_ITEM_COMPLETE();
+		return 1;
+	    case RANGECHECK_MAX:
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: FLOAT (max: %d)\n", maxBound);
+		printf("  usage: %s\n", helptext);
+		printf("default: %d\n", def);
+		printf("\n");
+		HELP_ITEM_COMPLETE();
+		return 1;
+	    default:
+		return 0;
+	    }
+	} else {
+		char buf[50];
+		int userVar = iniparser_getint(dict,key,def);
+
+		switch(intType) {
+		    case INTTYPE_INT:
+			*(int*)var = userVar;
+			break;
+		    case INTTYPE_I8:
+			*(int8_t*)var = (int8_t)userVar;
+			break;
+		    case INTTYPE_U8:
+			*(uint8_t*)var = (uint8_t)userVar;
+			break;
+		    case INTTYPE_I16:
+			*(int16_t*)var = (int16_t)userVar;
+			break;
+		    case INTTYPE_U16:
+			*(uint16_t*)var = (uint16_t)userVar;
+			break;
+		    case INTTYPE_I32:
+			*(int32_t*)var = (int32_t)userVar;
+			break;
+		    case INTTYPE_U32:
+			*(uint32_t*)var = (uint32_t)userVar;
+			break;
+		    default:
+			break;
+		}
+
+
+		memset(buf, 0, 50);
+		snprintf(buf, 50, "%d", userVar);
+		dictionary_set(target,key,buf);
+		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {
+		    printComment(helptext);
+		    printf("%s = %s\n", key,buf);
+		}
+		return checkRangeInt(dict, key, rangeFlags, minBound, maxBound);
+	}
+}
+
+static int checkRangeDouble(dictionary *dict, const char *key, int rangeFlags, double minBound, double maxBound)
+{
+	double tmpdouble = iniparser_getdouble(dict,key,minBound);
+
+	int ret = 1;
+
+	switch(rangeFlags) {
+	    case RANGECHECK_NONE:
+		return ret;
+	    case RANGECHECK_RANGE:
+		ret = !(tmpdouble < minBound || tmpdouble > maxBound);
+		break;
+	    case RANGECHECK_MIN:
+		ret = !(tmpdouble < minBound);
+		break;
+	    case RANGECHECK_MAX:
+		ret = !(tmpdouble > maxBound);
+		break;
+	    default:
+		return 0;
+	}
+
+	if(!ret && !IS_QUIET()) {
+		ERROR("Configuration error: option \"%s=%f\" not within allowed range: %f..%f\n", key, tmpdouble, minBound, maxBound);
+	}
+
+	return ret;
+}
+
+static int configMapDouble(dictionary *dict, dictionary *target, const char *key,
+		    double *var, double def, const char *helptext, int rangeFlags,
+		    double minBound, double maxBound)
+{
+	if(IS_HELP(key, helptext)) {
+	    switch(rangeFlags) {
+	    case RANGECHECK_NONE:
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: FLOAT\n");\
+		printf("  usage: %s\n", helptext);
+		printf("default: %f\n", def);
+		printf("\n");
+		HELP_ITEM_COMPLETE();
+		return 1;
+	    case RANGECHECK_RANGE:
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: FLOAT ");
+		if( minBound != maxBound )
+		    printf("(min: %f, max: %f)\n", minBound, maxBound);
+		else
+		    printf("(only value of %f allowed)", minBound);
+		printf("\n");
+		printf("  usage: %s\n", helptext);
+		printf("default: %f\n", def);
+		printf("\n");
+		HELP_ITEM_COMPLETE();
+		return 1;
+	    case RANGECHECK_MIN:
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: FLOAT(min: %f)\n", minBound);
+		printf("  usage: %s\n", helptext);
+		printf("default: %f\n", def);
+		printf("\n");
+		HELP_ITEM_COMPLETE();
+		return 1;
+	    case RANGECHECK_MAX:
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: FLOAT(max: %f)\n", maxBound);
+		printf("  usage: %s\n", helptext);
+		printf("default: %f\n", def);
+		printf("\n");
+		HELP_ITEM_COMPLETE();
+		return 1;
+	    default:
+		return 0;
+	    }
+	} else {
+		char buf[50];
+		*var = iniparser_getdouble(dict,key,def);
+		memset(buf, 0, 50);
+		snprintf(buf, 50, "%f", *var);
+		dictionary_set(target,key,buf);
+		if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {
+		    printComment(helptext);
+		    printf("%s = %s\n", key,buf);
+		}
+		return checkRangeDouble(dict, key, rangeFlags, minBound, maxBound);
+	}
+}
+
+static int
+configMapSelectValue(dictionary *dict, dictionary *target, const char* key, uint8_t *input, int def, const char *helptext, ...)
+{
+
+    int ret;
+    int i;
+    /* fixed maximum to avoid while(1) */
+    int maxCount = 100;
+    char *name = NULL;
+    char *keyValue;
+    char *defValue = NULL;
+    int value;
+    va_list ap;
+    int selectedValue = -1;
+
+    char sbuf[SCREEN_BUFSZ];
+    int len = 0;
+
+    memset(sbuf, 0, sizeof(sbuf));
+
+    keyValue = iniparser_getstring(dict, key, "");
+
+    va_start(ap, helptext);
+
+    for(i=0; i < maxCount; i++) {
+
+	name = (char*)va_arg(ap, char*);
+	if(name == NULL) break;
+
+	value = (int)va_arg(ap, int);
+
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s ", name);
+
+	if(value == def) {
+	    defValue = strdup(name);
+	}
+
+	if(!strcmp(name, keyValue)) {
+	    selectedValue = value;
+	}
+
+    }
+
+    if(!strcmp(keyValue, "")) {
+	selectedValue = def;
+	keyValue = iniparser_getstring(dict, key, defValue);
+    }
+
+    va_end(ap);
+
+	if(IS_HELP(key, helptext)) {
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: SELECT\n");
+		printf("  usage: %s\n", helptext);
+		printf("options: %s\n", sbuf);
+		printf("default: %s\n", defValue);
+		printf("\n");
+		HELP_ITEM_COMPLETE();
+		ret = 1;
+		goto result;
+	} else {
+		dictionary_set(target, key, keyValue);
+		if(selectedValue < 0) {
+		    ERROR("Configuration error: option \"%s\" has unknown value: %s - allowed values: %s\n", key, keyValue, sbuf);
+		    ret = 0;
+		} else {
+
+		    if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {
+		        printComment(helptext);
+		        printf("; Options: %s\n", sbuf);
+		        printf("%s = %s\n", key,keyValue);
+		    }
+		    ret = 1;
+		}
+	}
+result:
+
+    if(defValue != NULL) {
+	free(defValue);
+    }
+
+    return ret;
 
 }
 
@@ -925,17 +758,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_KEY_REQUIRED("ptpengine:interface");
 
-	CONFIG_MAP_CHARARRAY("ptpengine:interface",rtOpts->primaryIfaceName,rtOpts->primaryIfaceName,
+	parseResult &= configMapString(dict, target, "ptpengine:interface",rtOpts->primaryIfaceName,rtOpts->primaryIfaceName,
 	"Network interface to use - eth0, igb0 etc. (required).");
 
-	CONFIG_MAP_CHARARRAY("ptpengine:backup_interface",rtOpts->backupIfaceName,rtOpts->backupIfaceName,
+	parseResult &= configMapString(dict, target, "ptpengine:backup_interface",rtOpts->backupIfaceName,rtOpts->backupIfaceName,
 		"Backup network interface to use - eth0, igb0 etc. When no GM available, \n"
 	"	 slave will keep alternating between primary and secondary until a GM is found.\n");
 
 	CONFIG_KEY_TRIGGER("ptpengine:backup_interface",rtOpts->backupIfaceEnabled,TRUE,FALSE);
 
 	/* Preset option names have to be mapped to defined presets - no free strings here */
-	CONFIG_MAP_SELECTVALUE("ptpengine:preset",rtOpts->selectedPreset,rtOpts->selectedPreset,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:preset", &rtOpts->selectedPreset,rtOpts->selectedPreset,
 		"PTP engine preset:\n"
 	"	 none	     = Defaults, no clock class restrictions\n"
 	"        masteronly  = Master, passive when not best master (clock class 0..127)\n"
@@ -948,7 +781,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				(getPtpPreset(PTP_PRESET_MASTERONLY,rtOpts)).presetName,	PTP_PRESET_MASTERONLY,
 				(getPtpPreset(PTP_PRESET_MASTERSLAVE,rtOpts)).presetName,	PTP_PRESET_MASTERSLAVE,
 #endif /* PTPD_SLAVE_ONLY */
-				(getPtpPreset(PTP_PRESET_SLAVEONLY,rtOpts)).presetName,		PTP_PRESET_SLAVEONLY
+				(getPtpPreset(PTP_PRESET_SLAVEONLY,rtOpts)).presetName,		PTP_PRESET_SLAVEONLY, NULL
 				);
 
 	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:preset",
@@ -959,16 +792,16 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	ptpPreset = getPtpPreset(rtOpts->selectedPreset, rtOpts);
 
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:transport",rtOpts->transport,rtOpts->transport,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:transport", &rtOpts->transport,rtOpts->transport,
 		"Transport type for PTP packets. Ethernet transport requires libpcap support.",
 				"ipv4",		UDP_IPV4,
 #if 0
 				"ipv6",		UDP_IPV6,
 #endif
-				"ethernet", 	IEEE_802_3
+				"ethernet", 	IEEE_802_3, NULL
 				);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:dot2as",rtOpts->dot2AS,rtOpts->dot2AS,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:dot2as", &rtOpts->dot2AS,rtOpts->dot2AS,
 		"Enable TransportSpecific field compatibility with 802.1AS / AVB (requires Ethernet transport)");
 
 	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transport != IEEE_802_3) && rtOpts->dot2AS,
@@ -977,7 +810,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport != IEEE_802_3,rtOpts->dot2AS,FALSE,rtOpts->dot2AS);
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:ip_mode", rtOpts->ipMode, rtOpts->ipMode,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:ip_mode", &rtOpts->ipMode, rtOpts->ipMode,
 		"IP transmission mode (requires IP transport) - hybrid mode uses\n"
 	"	 multicast for sync and announce, and unicast for delay request and\n"
 	"	 response; unicast mode uses unicast for all transmission.\n"
@@ -985,22 +818,22 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"	(ptpengine:unicast_destinations).",
 				"multicast", 	IPMODE_MULTICAST,
 				"unicast", 	IPMODE_UNICAST,
-				"hybrid", 	IPMODE_HYBRID
+				"hybrid", 	IPMODE_HYBRID, NULL
 				);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:unicast_negotiation",rtOpts->unicastNegotiation,rtOpts->unicastNegotiation,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:unicast_negotiation", &rtOpts->unicastNegotiation,rtOpts->unicastNegotiation,
 		"Enable unicast negotiation support using signaling messages\n");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:unicast_any_master",rtOpts->unicastAcceptAny,rtOpts->unicastAcceptAny,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:unicast_any_master", &rtOpts->unicastAcceptAny,rtOpts->unicastAcceptAny,
 		"When using unicast negotiation (slave), accept PTP messages from any master.\n"
 	"        By default, only messages from acceptable masters (ptpengine:unicast_destinations)\n"
 	"        are accepted, and only if transmission was granted by the master\n");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:unicast_port_mask",rtOpts->unicastPortMask,rtOpts->unicastPortMask,
+	parseResult &= configMapInt(dict, target, "ptpengine:unicast_port_mask", INTTYPE_U16, &rtOpts->unicastPortMask,rtOpts->unicastPortMask,
 		"PTP port number wildcard mask applied onto port identities when running\n"
 	"        unicast negotiation: allows multiple port identities to be accepted as one.\n"
 	"	 This option can be used as a workaround where a node sends signaling messages and\n"
-	"	 timing messages with different port identities",0,65535);
+	"	 timing messages with different port identities", RANGECHECK_RANGE, 0,65535);
 
 	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transport == IEEE_802_3) && rtOpts->unicastNegotiation,
 	 			    "ptpengine:unicast_negotiation", 
@@ -1014,12 +847,12 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3,rtOpts->unicastNegotiation,FALSE,rtOpts->unicastNegotiation);
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->ipMode != IPMODE_UNICAST,rtOpts->unicastNegotiation,FALSE,rtOpts->unicastNegotiation);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:disable_bmca",rtOpts->disableBMCA,rtOpts->disableBMCA,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:disable_bmca", &rtOpts->disableBMCA,rtOpts->disableBMCA,
 		"Disable Best Master Clock Algorithm for unicast masters:\n"
 	"        Only effective for masteronly preset - all Announce messages\n"
 	"        will be ignored and clock will transition directly into MASTER state.\n");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:unicast_negotiation_listening",rtOpts->unicastNegotiationListening,rtOpts->unicastNegotiationListening,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:unicast_negotiation_listening", &rtOpts->unicastNegotiationListening,rtOpts->unicastNegotiationListening,
 		"When unicast negotiation enabled on a master clock, \n"
 	"	 reply to transmission requests also in LISTENING state.");
 
@@ -1028,7 +861,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	INFO("Libpcap support is currently marked broken/experimental on Solaris platforms.\n"
 	     "To test it, please build with --enable-experimental-options\n");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:use_libpcap",rtOpts->pcap,FALSE,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:use_libpcap", &rtOpts->pcap,FALSE,
 		"Use libpcap for sending and receiving traffic (automatically enabled\n"
 	"	 in Ethernet mode).");
 
@@ -1039,7 +872,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	    "Libpcap support is currently marked broken/experimental on Solaris platforms.\n"
 	    "To test it and use the Ethernet transport, please build with --enable-experimental-options\n");
 #elif defined(PTPD_PCAP)
-	CONFIG_MAP_BOOLEAN("ptpengine:use_libpcap",rtOpts->pcap,rtOpts->pcap,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:use_libpcap", &rtOpts->pcap,rtOpts->pcap,
 		"Use libpcap for sending and receiving traffic (automatically enabled\n"
 	"	 in Ethernet mode).");
 
@@ -1051,7 +884,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	     "build without --disable-pcap, or try building with ---with-pcap-config\n"
 	     " to use ptpengine:use_libpcap.\n");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:use_libpcap",rtOpts->pcap,FALSE,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:use_libpcap", &rtOpts->pcap,FALSE,
 		"Use libpcap for sending and receiving traffic (automatically enabled\n"
 	"	 in Ethernet mode).");
 
@@ -1065,201 +898,201 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #endif /* PTPD_PCAP */
 
-	CONFIG_MAP_BOOLEAN("ptpengine:disable_udp_checksums",rtOpts->disableUdpChecksums,rtOpts->disableUdpChecksums,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:disable_udp_checksums", &rtOpts->disableUdpChecksums,rtOpts->disableUdpChecksums,
 		"Disable UDP checksum validation on UDP sockets (Linux only).\n"
 	"        Workaround for situations where a node (like Transparent Clock).\n"
 	"        does not rewrite checksums\n");
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:delay_mechanism",rtOpts->delayMechanism,rtOpts->delayMechanism,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:delay_mechanism", &rtOpts->delayMechanism,rtOpts->delayMechanism,
 		 "Delay detection mode used - use DELAY_DISABLED for syntonisation only\n"
 	"	 (no full synchronisation).",
 				"E2E",		E2E,	
 				"P2P",		P2P,
-				"DELAY_DISABLED", DELAY_DISABLED
+				"DELAY_DISABLED", DELAY_DISABLED, NULL
 				);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:domain",rtOpts->domainNumber,rtOpts->domainNumber,
-		"PTP domain number.",0,127);
+	parseResult &= configMapInt(dict, target, "ptpengine:domain", INTTYPE_U8, &rtOpts->domainNumber,rtOpts->domainNumber,
+		"PTP domain number.", RANGECHECK_RANGE, 0,127);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:port_number",rtOpts->portNumber,rtOpts->portNumber,
+	parseResult &= configMapInt(dict, target, "ptpengine:port_number", INTTYPE_U16, &rtOpts->portNumber,rtOpts->portNumber,
 			    "PTP port number (part of PTP Port Identity - not UDP port).\n"
 		    "        For ordinary clocks (single port), the default should be used, \n"
 		    "        but when running multiple instances to simulate a boundary clock, \n"
-		    "        The port number can be changed.",1,65534);
+		    "        The port number can be changed.",RANGECHECK_RANGE,1,65534);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:any_domain",rtOpts->anyDomain, rtOpts->anyDomain,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:any_domain", &rtOpts->anyDomain, rtOpts->anyDomain,
 		"Usability extension: if enabled, a slave-only clock will accept\n"
 	"	 masters from any domain, while preferring the configured domain,\n"
 	"	 and preferring lower domain number.\n"
 	"	 NOTE: this behaviour is not part of the standard.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:slave_only",rtOpts->slaveOnly, ptpPreset.slaveOnly,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:slave_only", &rtOpts->slaveOnly, ptpPreset.slaveOnly,
 		 "Slave only mode (sets clock class to 255, overriding value from preset).");
 
-	CONFIG_MAP_INT( "ptpengine:inbound_latency",rtOpts->inboundLatency.nanoseconds,rtOpts->inboundLatency.nanoseconds,
-	"Specify latency correction (nanoseconds) for incoming packets.");
+	parseResult &= configMapInt(dict, target,  "ptpengine:inbound_latency", INTTYPE_I32, &rtOpts->inboundLatency.nanoseconds,rtOpts->inboundLatency.nanoseconds,
+	"Specify latency correction (nanoseconds) for incoming packets.", RANGECHECK_NONE, 0,0);
 
-	CONFIG_MAP_INT( "ptpengine:outbound_latency",rtOpts->outboundLatency.nanoseconds,rtOpts->outboundLatency.nanoseconds,
-	"Specify latency correction (nanoseconds) for outgoing packets.");
+	parseResult &= configMapInt(dict, target,  "ptpengine:outbound_latency",INTTYPE_I32, &rtOpts->outboundLatency.nanoseconds,rtOpts->outboundLatency.nanoseconds,
+	"Specify latency correction (nanoseconds) for outgoing packets.", RANGECHECK_NONE,0,0);
 
-	CONFIG_MAP_INT( "ptpengine:offset_shift",rtOpts->ofmShift.nanoseconds,rtOpts->ofmShift.nanoseconds,
+	parseResult &= configMapInt(dict, target,  "ptpengine:offset_shift", INTTYPE_I32, &rtOpts->ofmShift.nanoseconds,rtOpts->ofmShift.nanoseconds,
 	"Apply an arbitrary shift (nanoseconds) to offset from master when\n"
 	"	 in slave state. Value can be positive or negative - useful for\n"
 	"	 correcting for antenna latencies, delay assymetry\n"
 	"	 and IP stack latencies. This will not be visible in the offset \n"
-	"	 from master value - only in the resulting clock correction.");
+	"	 from master value - only in the resulting clock correction.", RANGECHECK_NONE, 0,0);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:always_respect_utc_offset",rtOpts->alwaysRespectUtcOffset, rtOpts->alwaysRespectUtcOffset,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:always_respect_utc_offset", &rtOpts->alwaysRespectUtcOffset, rtOpts->alwaysRespectUtcOffset,
 		"Compatibility option: In slave state, always respect UTC offset\n"
 	"	 announced by best master, even if the the\n"
 	"	 currrentUtcOffsetValid flag is announced FALSE.\n"
 	"	 NOTE: this behaviour is not part of the standard.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:prefer_utc_offset_valid",rtOpts->preferUtcValid, rtOpts->preferUtcValid,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:prefer_utc_offset_valid", &rtOpts->preferUtcValid, rtOpts->preferUtcValid,
 		"Compatibility extension to BMC algorithm: when enabled,\n"
 	"	 BMC for both master and save clocks will prefer masters\n"
 	"	 nannouncing currrentUtcOffsetValid as TRUE.\n"
 	"	 NOTE: this behaviour is not part of the standard.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:require_utc_offset_valid",rtOpts->requireUtcValid, rtOpts->requireUtcValid,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:require_utc_offset_valid", &rtOpts->requireUtcValid, rtOpts->requireUtcValid,
 		"Compatibility option: when enabled, ptpd2 will ignore\n"
 	"	 Announce messages from masters announcing currentUtcOffsetValid\n"
 	"	 as FALSE.\n"
 	"	 NOTE: this behaviour is not part of the standard.");
 
 	/* from 30 seconds to 7 days */
-	CONFIG_MAP_INT_RANGE("ptpengine:unicast_grant_duration", rtOpts->unicastGrantDuration, rtOpts->unicastGrantDuration,
+	parseResult &= configMapInt(dict, target, "ptpengine:unicast_grant_duration", INTTYPE_U32, &rtOpts->unicastGrantDuration, rtOpts->unicastGrantDuration,
 		"Time (seconds) unicast messages are requested for by slaves\n"
 	"	 when using unicast negotiation, and maximum time unicast message\n"
-	"	 transmission is granted to slaves by masters\n", 30, 604800);
+	"	 transmission is granted to slaves by masters\n", RANGECHECK_RANGE, 30, 604800);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:log_announce_interval",rtOpts->logAnnounceInterval,rtOpts->logAnnounceInterval,
+	parseResult &= configMapInt(dict, target, "ptpengine:log_announce_interval", INTTYPE_I8, &rtOpts->logAnnounceInterval,rtOpts->logAnnounceInterval,
 		"PTP announce message interval in master state. When using unicast negotiation, for\n"
 	"	 slaves this is the minimum interval requested, and for masters\n"
 	"	 this is the only interval granted.\n"
 #ifdef PTPD_EXPERIMENTAL
-    "	"LOG2_HELP,-30,30);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
-    "	"LOG2_HELP,-4,7);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-4,7);
 #endif
 
-	CONFIG_MAP_INT_RANGE("ptpengine:log_announce_interval_max",rtOpts->logMaxAnnounceInterval,rtOpts->logMaxAnnounceInterval,
+	parseResult &= configMapInt(dict, target, "ptpengine:log_announce_interval_max",INTTYPE_I8,&rtOpts->logMaxAnnounceInterval,rtOpts->logMaxAnnounceInterval,
 		"Maximum Announce message interval requested by slaves "
 		"when using unicast negotiation,\n"
 #ifdef PTPD_EXPERIMENTAL
-    "	"LOG2_HELP,-30,30);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
-    "	"LOG2_HELP,-1,7);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-1,7);
 #endif
 
 	CONFIG_CONDITIONAL_ASSERTION(rtOpts->logAnnounceInterval >= rtOpts->logMaxAnnounceInterval,
 					"ptpengine:log_announce_interval value must be lower than ptpengine:log_announce_interval_max\n");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:announce_receipt_timeout",rtOpts->announceReceiptTimeout,rtOpts->announceReceiptTimeout,
-		"PTP announce receipt timeout announced in master state.",2,255);
+	parseResult &= configMapInt(dict, target, "ptpengine:announce_receipt_timeout",INTTYPE_I8, &rtOpts->announceReceiptTimeout,rtOpts->announceReceiptTimeout,
+		"PTP announce receipt timeout announced in master state.",RANGECHECK_RANGE,2,255);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:announce_receipt_grace_period",rtOpts->announceTimeoutGracePeriod,rtOpts->announceTimeoutGracePeriod,
+	parseResult &= configMapInt(dict, target, "ptpengine:announce_receipt_grace_period",INTTYPE_INT,&rtOpts->announceTimeoutGracePeriod,rtOpts->announceTimeoutGracePeriod,
 		"PTP announce receipt timeout grace period in slave state:\n"
 	"	 when announce receipt timeout occurs, disqualify current best GM,\n"
 	"	 then wait n times announce receipt timeout before resetting.\n"
 	"	 Allows for a seamless GM failover when standby GMs are slow\n"
-	"	 to react. When set to 0, this option is not used.",
+	"	 to react. When set to 0, this option is not used.", RANGECHECK_RANGE,
 	0,20);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:log_sync_interval",rtOpts->logSyncInterval,rtOpts->logSyncInterval,
+	parseResult &= configMapInt(dict, target, "ptpengine:log_sync_interval",INTTYPE_I8,&rtOpts->logSyncInterval,rtOpts->logSyncInterval,
 		"PTP sync message interval in master state. When using unicast negotiation, for\n"
 	"	 slaves this is the minimum interval requested, and for masters\n"
 	"	 this is the only interval granted.\n"
 #ifdef PTPD_EXPERIMENTAL
-    "	"LOG2_HELP,-30,30);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
-    "	"LOG2_HELP,-7,7);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-7,7);
 #endif
 
-	CONFIG_MAP_INT_RANGE("ptpengine:log_sync_interval_max",rtOpts->logMaxSyncInterval,rtOpts->logMaxSyncInterval,
+	parseResult &= configMapInt(dict, target, "ptpengine:log_sync_interval_max",INTTYPE_I8,&rtOpts->logMaxSyncInterval,rtOpts->logMaxSyncInterval,
 		"Maximum Sync message interval requested by slaves "
 		"when using unicast negotiation,\n"
 #ifdef PTPD_EXPERIMENTAL
-    "	"LOG2_HELP,-30,30);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
-    "	"LOG2_HELP,-1,7);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-1,7);
 #endif
 
 	CONFIG_CONDITIONAL_ASSERTION(rtOpts->logSyncInterval >= rtOpts->logMaxSyncInterval,
 					"ptpengine:log_sync_interval value must be lower than ptpengine:log_sync_interval_max\n");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:log_delayreq_override", rtOpts->ignore_delayreq_interval_master,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:log_delayreq_override", &rtOpts->ignore_delayreq_interval_master,
 	rtOpts->ignore_delayreq_interval_master,
 		 "Override the Delay Request interval announced by best master.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:log_delayreq_auto", rtOpts->autoDelayReqInterval,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:log_delayreq_auto", &rtOpts->autoDelayReqInterval,
 	rtOpts->autoDelayReqInterval,
 		 "Automatically override the Delay Request interval\n"
 	"         if the announced value is 127 (0X7F), such as in\n"
 	"         unicast messages (unless using unicast negotiation)");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:log_delayreq_interval_initial",rtOpts->initial_delayreq,rtOpts->initial_delayreq,
+	parseResult &= configMapInt(dict, target, "ptpengine:log_delayreq_interval_initial",INTTYPE_I8,&rtOpts->initial_delayreq,rtOpts->initial_delayreq,
 		"Delay request interval used before receiving first delay response\n"
 #ifdef PTPD_EXPERIMENTAL
-    "	"LOG2_HELP,-30,30);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
-    "	"LOG2_HELP,-7,7);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-7,7);
 #endif
 
 	/* take the delayreq_interval from config, otherwise use the initial setting as default */
-	CONFIG_MAP_INT_RANGE("ptpengine:log_delayreq_interval",rtOpts->logMinDelayReqInterval,rtOpts->initial_delayreq,
+	parseResult &= configMapInt(dict, target, "ptpengine:log_delayreq_interval",INTTYPE_I8,&rtOpts->logMinDelayReqInterval,rtOpts->initial_delayreq,
 		"Minimum delay request interval announced when in master state,\n"
 	"	 in slave state overrides the master interval,\n"
 	"	 required in hybrid mode. When using unicast negotiation, for\n"
 	"	 slaves this is the minimum interval requested, and for masters\n"
 	"	 this is the minimum interval granted.\n"
 #ifdef PTPD_EXPERIMENTAL
-    "	"LOG2_HELP,-30,30);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
-    "	"LOG2_HELP,-7,7);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-7,7);
 #endif
 
-	CONFIG_MAP_INT_RANGE("ptpengine:log_delayreq_interval_max",rtOpts->logMaxDelayReqInterval,rtOpts->logMaxDelayReqInterval,
+	parseResult &= configMapInt(dict, target, "ptpengine:log_delayreq_interval_max",INTTYPE_I8,&rtOpts->logMaxDelayReqInterval,rtOpts->logMaxDelayReqInterval,
 		"Maximum Delay Response interval requested by slaves "
 		"when using unicast negotiation,\n"
 #ifdef PTPD_EXPERIMENTAL
-    "	"LOG2_HELP,-30,30);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
-    "	"LOG2_HELP,-1,7);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-1,7);
 #endif
 
 	CONFIG_CONDITIONAL_ASSERTION(rtOpts->logMinDelayReqInterval >= rtOpts->logMaxDelayReqInterval,
 					"ptpengine:log_delayreq_interval value must be lower than ptpengine:log_delayreq_interval_max\n");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:log_peer_delayreq_interval",rtOpts->logMinPdelayReqInterval,rtOpts->logMinPdelayReqInterval,
+	parseResult &= configMapInt(dict, target, "ptpengine:log_peer_delayreq_interval",INTTYPE_I8,&rtOpts->logMinPdelayReqInterval,rtOpts->logMinPdelayReqInterval,
 		"Minimum peer delay request message interval in peer to peer delay mode.\n"
 	"        When using unicast negotiation, this is the minimum interval requested, \n"
 	"	 and the only interval granted.\n"
 #ifdef PTPD_EXPERIMENTAL
-    "	"LOG2_HELP,-30,30);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
-    "	"LOG2_HELP,-7,7);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-7,7);
 #endif
 
-	CONFIG_MAP_INT_RANGE("ptpengine:log_peer_delayreq_interval_max",rtOpts->logMaxPdelayReqInterval,rtOpts->logMaxPdelayReqInterval,
+	parseResult &= configMapInt(dict, target, "ptpengine:log_peer_delayreq_interval_max",INTTYPE_I8,&rtOpts->logMaxPdelayReqInterval,rtOpts->logMaxPdelayReqInterval,
 		"Maximum Peer Delay Response interval requested by slaves "
 		"when using unicast negotiation,\n"
 #ifdef PTPD_EXPERIMENTAL
-    "	"LOG2_HELP,-30,30);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
-    "	"LOG2_HELP,-1,7);
+    "	"LOG2_HELP,RANGECHECK_RANGE,-1,7);
 #endif
 
 	CONFIG_CONDITIONAL_ASSERTION(rtOpts->logMinPdelayReqInterval >= rtOpts->logMaxPdelayReqInterval,
 					"ptpengine:log_peer_delayreq_interval value must be lower than ptpengine:log_peer_delayreq_interval_max\n");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:foreignrecord_capacity",rtOpts->max_foreign_records,rtOpts->max_foreign_records,
-	"Foreign master record size (Maximum number of foreign masters).",5,10);
+	parseResult &= configMapInt(dict, target, "ptpengine:foreignrecord_capacity",INTTYPE_I16,&rtOpts->max_foreign_records,rtOpts->max_foreign_records,
+	"Foreign master record size (Maximum number of foreign masters).",RANGECHECK_RANGE,5,10);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:ptp_allan_variance",rtOpts->clockQuality.offsetScaledLogVariance,rtOpts->clockQuality.offsetScaledLogVariance,
-	"Specify Allan variance announced in master state.",0,65535);
+	parseResult &= configMapInt(dict, target, "ptpengine:ptp_allan_variance",INTTYPE_U16,&rtOpts->clockQuality.offsetScaledLogVariance,rtOpts->clockQuality.offsetScaledLogVariance,
+	"Specify Allan variance announced in master state.",RANGECHECK_RANGE,0,65535);
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:ptp_clock_accuracy",rtOpts->clockQuality.clockAccuracy,rtOpts->clockQuality.clockAccuracy,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:ptp_clock_accuracy", &rtOpts->clockQuality.clockAccuracy,rtOpts->clockQuality.clockAccuracy,
 	"Clock accuracy range announced in master state.",
 				"ACC_25NS",		0x20,
 				"ACC_100NS",		0x21,
@@ -1279,33 +1112,33 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"ACC_1S", 		0x2F,
 				"ACC_10S", 		0x30,
 				"ACC_10SPLUS", 		0x31,
-				"ACC_UNKNOWN", 		0xFE
+				"ACC_UNKNOWN", 		0xFE, NULL
 				);
 
-	CONFIG_MAP_INT( "ptpengine:utc_offset",rtOpts->timeProperties.currentUtcOffset,rtOpts->timeProperties.currentUtcOffset,
-		 "Underlying time source UTC offset announced in master state.");
+	parseResult &= configMapInt(dict, target,  "ptpengine:utc_offset",INTTYPE_I16,&rtOpts->timeProperties.currentUtcOffset,rtOpts->timeProperties.currentUtcOffset,
+		 "Underlying time source UTC offset announced in master state.", RANGECHECK_NONE,0,0);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:utc_offset_valid",rtOpts->timeProperties.currentUtcOffsetValid,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:utc_offset_valid", &rtOpts->timeProperties.currentUtcOffsetValid,
 	rtOpts->timeProperties.currentUtcOffsetValid,
 		 "Underlying time source UTC offset validity announced in master state.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:time_traceable",rtOpts->timeProperties.timeTraceable,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:time_traceable", &rtOpts->timeProperties.timeTraceable,
 	rtOpts->timeProperties.timeTraceable,
 		 "Underlying time source time traceability announced in master state.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:frequency_traceable",rtOpts->timeProperties.frequencyTraceable,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:frequency_traceable", &rtOpts->timeProperties.frequencyTraceable,
 	rtOpts->timeProperties.frequencyTraceable,
 		 "Underlying time source frequency traceability announced in master state.");
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:ptp_timescale",rtOpts->timeProperties.ptpTimescale,rtOpts->timeProperties.ptpTimescale,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:ptp_timescale", (uint8_t*)&rtOpts->timeProperties.ptpTimescale,rtOpts->timeProperties.ptpTimescale,
 		"Time scale announced in master state (with ARB, UTC properties\n"
 	"	 are ignored by slaves). When clock class is set to 13 (application\n"
 	"	 specific), this value is ignored and ARB is used.",
 				"PTP",		TRUE,
-				"ARB",			FALSE
+				"ARB",			FALSE, NULL
 				);
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:ptp_timesource",rtOpts->timeProperties.timeSource,rtOpts->timeProperties.timeSource,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:ptp_timesource", &rtOpts->timeProperties.timeSource,rtOpts->timeProperties.timeSource,
 	"Time source announced in master state.",
 				"ATOMIC_CLOCK",		ATOMIC_CLOCK,
 				"GPS",			GPS,
@@ -1314,17 +1147,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"NTP",			NTP,
 				"HAND_SET",		HAND_SET,
 				"OTHER",		OTHER,
-				"INTERNAL_OSCILLATOR",	INTERNAL_OSCILLATOR
+				"INTERNAL_OSCILLATOR",	INTERNAL_OSCILLATOR, NULL
 				);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:clock_class",rtOpts->clockQuality.clockClass,ptpPreset.clockClass.defaultValue,
+	parseResult &= configMapInt(dict, target, "ptpengine:clock_class",INTTYPE_U8,&rtOpts->clockQuality.clockClass,ptpPreset.clockClass.defaultValue,
 		"Clock class - announced in master state. Always 255 for slave-only.\n"
 	"	 Minimum, maximum and default values are controlled by presets.\n"
 	"	 If set to 13 (application specific time source), announced \n"
 	"	 time scale is always set to ARB. This setting controls the\n"
 	"	 states a PTP port can be in. If below 128, port will only\n"
 	"	 be in MASTER or PASSIVE states (master only). If above 127,\n"
-	"	 port will be in MASTER or SLAVE states.",
+	"	 port will be in MASTER or SLAVE states.", RANGECHECK_RANGE,
 	ptpPreset.clockClass.minValue,ptpPreset.clockClass.maxValue);
 
 	/* ClockClass = 13 triggers ARB */
@@ -1348,16 +1181,16 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	/* ...and vice versa */
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->slaveOnly==TRUE,rtOpts->clockQuality.clockClass,SLAVE_ONLY_CLOCK_CLASS,rtOpts->clockQuality.clockClass);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:priority1",rtOpts->priority1,rtOpts->priority1,
+	parseResult &= configMapInt(dict, target, "ptpengine:priority1",INTTYPE_U8,&rtOpts->priority1,rtOpts->priority1,
 		"Priority 1 announced in master state,used for Best Master\n"
-	"	 Clock selection.",0,248);
+	"	 Clock selection.",RANGECHECK_RANGE,0,248);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:priority2",rtOpts->priority2,rtOpts->priority2,
+	parseResult &= configMapInt(dict, target, "ptpengine:priority2",INTTYPE_U8,&rtOpts->priority2,rtOpts->priority2,
 		"Priority 2 announced in master state, used for Best Master\n"
-	"	 Clock selection.",0,248);
+	"	 Clock selection.",RANGECHECK_RANGE,0,248);
 
-	CONFIG_MAP_INT_MIN( "ptpengine:max_listen",rtOpts->maxListen,rtOpts->maxListen,
-		 "Number of consecutive resets to LISTENING before full network reset\n",1);
+	parseResult &= configMapInt(dict, target,  "ptpengine:max_listen",INTTYPE_INT,&rtOpts->maxListen,rtOpts->maxListen,
+		 "Number of consecutive resets to LISTENING before full network reset\n",RANGECHECK_MIN,1,0);
 
 	/* 
 	 * TODO: in unicast and hybrid mode, automativally override master delayreq interval with a default,
@@ -1397,20 +1230,20 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_KEY_TRIGGER("ptpengine:unicast_destinations",rtOpts->unicastDestinationsSet,TRUE,rtOpts->unicastDestinationsSet);
 
-	CONFIG_MAP_CHARARRAY("ptpengine:unicast_destinations",rtOpts->unicastDestinations,rtOpts->unicastDestinations,
+	parseResult &= configMapString(dict, target, "ptpengine:unicast_destinations",rtOpts->unicastDestinations,rtOpts->unicastDestinations,
 		"Specify unicast slave addresses for unicast master operation, or unicast\n"
 	"	 master addresses for slave operation. Format is similar to an ACL: comma,\n"
 	"        tab or space-separated IPv4 unicast addresses, one or more. For a slave,\n"
 	"        when unicast negotiation is used, setting this is mandatory.");
 
-	CONFIG_MAP_CHARARRAY("ptpengine:unicast_domains",rtOpts->unicastDomains,rtOpts->unicastDomains,
+	parseResult &= configMapString(dict, target, "ptpengine:unicast_domains",rtOpts->unicastDomains,rtOpts->unicastDomains,
 		"Specify PTP domain number for each configured unicast destination (ptpengine:unicast_destinations).\n"
 	"	 This is only used by slave-only clocks using unicast destinations to allow for each master\n"
 	"        to be in a separate domain, such as with Telecom Profile. The number of entries should match the number\n"
 	"        of unicast destinations, otherwise unconfigured domains or domains set to 0 are set to domain configured in\n"
 	"        ptpengine:domain. The format is a comma, tab or space-separated list of 8-bit unsigned integers (0 .. 255)");
 
-	CONFIG_MAP_CHARARRAY("ptpengine:unicast_local_preference",rtOpts->unicastLocalPreference,rtOpts->unicastLocalPreference,
+	parseResult &= configMapString(dict, target, "ptpengine:unicast_local_preference",rtOpts->unicastLocalPreference,rtOpts->unicastLocalPreference,
 		"Specify a local preference for each configured unicast destination (ptpengine:unicast_destinations).\n"
 	"	 This is only used by slave-only clocks using unicast destinations to allow for each master's\n"
 	"        BMC selection to be influenced by the slave, such as with Telecom Profile. The number of entries should match the number\n"
@@ -1426,39 +1259,39 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	CONFIG_KEY_TRIGGER("ptpengine:unicast_peer_destination",rtOpts->unicastPeerDestinationSet,TRUE,rtOpts->unicastPeerDestinationSet);
 
-	CONFIG_MAP_CHARARRAY("ptpengine:unicast_peer_destination",rtOpts->unicastPeerDestination,rtOpts->unicastPeerDestination,
+	parseResult &= configMapString(dict, target, "ptpengine:unicast_peer_destination",rtOpts->unicastPeerDestination,rtOpts->unicastPeerDestination,
 		"Specify peer unicast adress for P2P unicast. Mandatory when\n"
 	"	 running unicast mode and P2P delay mode.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:management_enable",rtOpts->managementEnabled,rtOpts->managementEnabled,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:management_enable", &rtOpts->managementEnabled,rtOpts->managementEnabled,
 	"Enable handling of PTP management messages.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:management_set_enable",rtOpts->managementSetEnable,rtOpts->managementSetEnable,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:management_set_enable", &rtOpts->managementSetEnable,rtOpts->managementSetEnable,
 	"Accept SET and COMMAND management messages.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:igmp_refresh",rtOpts->do_IGMP_refresh,rtOpts->do_IGMP_refresh,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:igmp_refresh", &rtOpts->do_IGMP_refresh,rtOpts->do_IGMP_refresh,
 	"Send explicit IGMP joins between engine resets and periodically\n"
 	"	 in master state.");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:master_igmp_refresh_interval",rtOpts->masterRefreshInterval,rtOpts->masterRefreshInterval,
+	parseResult &= configMapInt(dict, target, "ptpengine:master_igmp_refresh_interval",INTTYPE_I8,&rtOpts->masterRefreshInterval,rtOpts->masterRefreshInterval,
 		"Periodic IGMP join interval (seconds) in master state when running\n"
 		"	 IPv4 multicast: when set below 10 or when ptpengine:igmp_refresh\n"
-		"	 is disabled, this setting has no effect.",0,255);
+		"	 is disabled, this setting has no effect.",RANGECHECK_RANGE,0,255);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:multicast_ttl",rtOpts->ttl,rtOpts->ttl,
+	parseResult &= configMapInt(dict, target, "ptpengine:multicast_ttl",INTTYPE_INT,&rtOpts->ttl,rtOpts->ttl,
 		"Multicast time to live for multicast PTP packets (ignored and set to 1\n"
-	"	 for peer to peer messages).",1,64);
+	"	 for peer to peer messages).",RANGECHECK_RANGE,1,64);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:ip_dscp",rtOpts->dscpValue,rtOpts->dscpValue,
+	parseResult &= configMapInt(dict, target, "ptpengine:ip_dscp",INTTYPE_INT,&rtOpts->dscpValue,rtOpts->dscpValue,
 		"DiffServ CodepPoint for packet prioritisation (decimal). When set to zero, \n"
-	"	 this option is not used. Use 46 for Expedited Forwarding (0x2e).",0,63);
+	"	 this option is not used. Use 46 for Expedited Forwarding (0x2e).",RANGECHECK_RANGE,0,63);
 
 #ifdef PTPD_STATISTICS
 
-	CONFIG_MAP_BOOLEAN("ptpengine:sync_stat_filter_enable",rtOpts->filterMSOpts.enabled,rtOpts->filterMSOpts.enabled,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:sync_stat_filter_enable", &rtOpts->filterMSOpts.enabled,rtOpts->filterMSOpts.enabled,
 		 "Enable statistical filter for Sync messages.");
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:sync_stat_filter_type",rtOpts->filterMSOpts.filterType,rtOpts->filterMSOpts.filterType,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:sync_stat_filter_type", &rtOpts->filterMSOpts.filterType,rtOpts->filterMSOpts.filterType,
 		"Type of filter used for Sync message filtering",
 	"none", FILTER_NONE,
 	"mean", FILTER_MEAN,
@@ -1466,21 +1299,21 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"max", FILTER_MAX,
 	"absmin", FILTER_ABSMIN,
 	"absmax", FILTER_ABSMAX,
-	"median", FILTER_MEDIAN);
+	"median", FILTER_MEDIAN, NULL);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:sync_stat_filter_window",rtOpts->filterMSOpts.windowSize, rtOpts->filterMSOpts.windowSize,
-		"Number of samples used for the Sync statistical filter",3,128);
+	parseResult &= configMapInt(dict, target, "ptpengine:sync_stat_filter_window",INTTYPE_INT,&rtOpts->filterMSOpts.windowSize, rtOpts->filterMSOpts.windowSize,
+		"Number of samples used for the Sync statistical filter",RANGECHECK_RANGE,3,128);
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:sync_stat_filter_window_type",rtOpts->filterMSOpts.windowType, rtOpts->filterMSOpts.windowType,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:sync_stat_filter_window_type",&rtOpts->filterMSOpts.windowType, rtOpts->filterMSOpts.windowType,
 		"Sample window type used for Sync message statistical filter. Delay Response outlier filter action.\n"
 	"        Sliding window is continuous, interval passes every n-th sample only.",
 	"sliding", WINDOW_SLIDING,
-	"interval", WINDOW_INTERVAL);
+	"interval", WINDOW_INTERVAL, NULL);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:delay_stat_filter_enable",rtOpts->filterSMOpts.enabled,rtOpts->filterSMOpts.enabled,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:delay_stat_filter_enable", &rtOpts->filterSMOpts.enabled,rtOpts->filterSMOpts.enabled,
 		 "Enable statistical filter for Delay messages.");
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:delay_stat_filter_type",rtOpts->filterSMOpts.filterType,rtOpts->filterSMOpts.filterType,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:delay_stat_filter_type", &rtOpts->filterSMOpts.filterType,rtOpts->filterSMOpts.filterType,
 		"Type of filter used for Delay message statistical filter",
 	"none", FILTER_NONE,
 	"mean", FILTER_MEAN,
@@ -1488,61 +1321,61 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"max", FILTER_MAX,
 	"absmin", FILTER_ABSMIN,
 	"absmax", FILTER_ABSMAX,
-	"median", FILTER_MEDIAN);
+	"median", FILTER_MEDIAN, NULL);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_stat_filter_window",rtOpts->filterSMOpts.windowSize, rtOpts->filterSMOpts.windowSize,
-		"Number of samples used for the Delay statistical filter",3,128);
+	parseResult &= configMapInt(dict, target, "ptpengine:delay_stat_filter_window",INTTYPE_INT,&rtOpts->filterSMOpts.windowSize, rtOpts->filterSMOpts.windowSize,
+		"Number of samples used for the Delay statistical filter",RANGECHECK_RANGE,3,128);
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:delay_stat_filter_window_type",rtOpts->filterSMOpts.windowType, rtOpts->filterSMOpts.windowType,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:delay_stat_filter_window_type",&rtOpts->filterSMOpts.windowType, rtOpts->filterSMOpts.windowType,
 		"Sample window type used for Delay message statistical filter\n"
 	"        Sliding window is continuous, interval passes every n-th sample only",
 	"sliding", WINDOW_SLIDING,
-	"interval", WINDOW_INTERVAL);
+	"interval", WINDOW_INTERVAL, NULL);
 
 
-	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_enable",rtOpts->oFilterSMConfig.enabled,rtOpts->oFilterSMConfig.enabled,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:delay_outlier_filter_enable", &rtOpts->oFilterSMConfig.enabled,rtOpts->oFilterSMConfig.enabled,
 		 "Enable outlier filter for the Delay Response component in slave state");
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:delay_outlier_filter_action",rtOpts->oFilterSMConfig.discard,rtOpts->oFilterSMConfig.discard,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:delay_outlier_filter_action", (uint8_t*)&rtOpts->oFilterSMConfig.discard,rtOpts->oFilterSMConfig.discard,
 		"Delay Response outlier filter action. If set to 'filter', outliers are\n"
 	"	 replaced with moving average.",
 	"discard", TRUE,
-	"filter", FALSE);
+	"filter", FALSE, NULL);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_capacity",rtOpts->oFilterSMConfig.capacity,rtOpts->oFilterSMConfig.capacity,
-		"Number of samples in the Delay Response outlier filter buffer",10,STATCONTAINER_MAX_SAMPLES);
+	parseResult &= configMapInt(dict, target, "ptpengine:delay_outlier_filter_capacity",INTTYPE_INT,&rtOpts->oFilterSMConfig.capacity,rtOpts->oFilterSMConfig.capacity,
+		"Number of samples in the Delay Response outlier filter buffer",RANGECHECK_RANGE,10,STATCONTAINER_MAX_SAMPLES);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_threshold",rtOpts->oFilterSMConfig.threshold,rtOpts->oFilterSMConfig.threshold,
+	parseResult &= configMapDouble(dict, target, "ptpengine:delay_outlier_filter_threshold", &rtOpts->oFilterSMConfig.threshold,rtOpts->oFilterSMConfig.threshold,
 		"Delay Response outlier filter threshold (: multiplier for Peirce's maximum\n"
 	"	 standard deviation. When set below 1.0, filter is tighter, when set above\n"
 	"	 1.0, filter is looser than standard Peirce's test.\n"
-	"        When autotune enabled, this is the starting threshold.", 0.001, 1000.0);
+	"        When autotune enabled, this is the starting threshold.", RANGECHECK_RANGE, 0.001, 1000.0);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_always_filter",rtOpts->oFilterSMConfig.alwaysFilter,rtOpts->oFilterSMConfig.alwaysFilter,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:delay_outlier_filter_always_filter", &rtOpts->oFilterSMConfig.alwaysFilter,rtOpts->oFilterSMConfig.alwaysFilter,
 		"Always run the Delay Response outlier filter, even if clock is being slewed at maximum rate");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_autotune_enable",rtOpts->oFilterSMConfig.autoTune,rtOpts->oFilterSMConfig.autoTune,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:delay_outlier_filter_autotune_enable", &rtOpts->oFilterSMConfig.autoTune,rtOpts->oFilterSMConfig.autoTune,
 		"Enable automatic threshold control for Delay Response outlier filter.");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_autotune_minpercent",rtOpts->oFilterSMConfig.minPercent,rtOpts->oFilterSMConfig.minPercent,
+	parseResult &= configMapInt(dict, target, "ptpengine:delay_outlier_filter_autotune_minpercent",INTTYPE_INT,&rtOpts->oFilterSMConfig.minPercent,rtOpts->oFilterSMConfig.minPercent,
 		"Delay Response outlier filter autotune low watermark - minimum percentage\n"
 	"	 of discarded samples in the update period before filter is tightened\n"
-	"	 by the autotune step value.",0,99);
+	"	 by the autotune step value.",RANGECHECK_RANGE,0,99);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_autotune_maxpercent",rtOpts->oFilterSMConfig.maxPercent,rtOpts->oFilterSMConfig.maxPercent,
+	parseResult &= configMapInt(dict, target, "ptpengine:delay_outlier_filter_autotune_maxpercent",INTTYPE_INT,&rtOpts->oFilterSMConfig.maxPercent,rtOpts->oFilterSMConfig.maxPercent,
 		"Delay Response outlier filter autotune high watermark - maximum percentage\n"
 	"	 of discarded samples in the update period before filter is loosened\n"
-	"	 by the autotune step value.",1,100);
+	"	 by the autotune step value.",RANGECHECK_RANGE,1,100);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_autotune_step",rtOpts->oFilterSMConfig.thresholdStep,rtOpts->oFilterSMConfig.thresholdStep,
+	parseResult &= configMapDouble(dict, target, "ptpengine:delay_outlier_autotune_step", &rtOpts->oFilterSMConfig.thresholdStep,rtOpts->oFilterSMConfig.thresholdStep,
 		"The value the Delay Response outlier filter threshold is increased\n"
-	"	 or decreased by when auto-tuning.",0.01,10.0);
+	"	 or decreased by when auto-tuning.", RANGECHECK_RANGE, 0.01,10.0);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_autotune_minthreshold",rtOpts->oFilterSMConfig.minThreshold,rtOpts->oFilterSMConfig.minThreshold,
-		"Minimum Delay Response filter threshold value used when auto-tuning", 0.01,10.0);
+	parseResult &= configMapDouble(dict, target, "ptpengine:delay_outlier_filter_autotune_minthreshold", &rtOpts->oFilterSMConfig.minThreshold,rtOpts->oFilterSMConfig.minThreshold,
+		"Minimum Delay Response filter threshold value used when auto-tuning", RANGECHECK_RANGE, 0.01,10.0);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_filter_autotune_maxthreshold",rtOpts->oFilterSMConfig.maxThreshold,rtOpts->oFilterSMConfig.maxThreshold,
-		"Maximum Delay Response filter threshold value used when auto-tuning", 0.01,10.0);
+	parseResult &= configMapDouble(dict, target, "ptpengine:delay_outlier_filter_autotune_maxthreshold", &rtOpts->oFilterSMConfig.maxThreshold,rtOpts->oFilterSMConfig.maxThreshold,
+		"Maximum Delay Response filter threshold value used when auto-tuning", RANGECHECK_RANGE, 0.01,10.0);
 
 	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterSMConfig.maxPercent <= rtOpts->oFilterSMConfig.minPercent,
 					"ptpengine:delay_outlier_filter_autotune_maxpercent value has to be greater "
@@ -1552,72 +1385,72 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 					"ptpengine:delay_outlier_filter_autotune_maxthreshold value has to be greater "
 					"than ptpengine:delay_outlier_filter_autotune_minthreshold\n");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:delay_outlier_filter_stepdetect_enable",rtOpts->oFilterSMConfig.stepDelay,rtOpts->oFilterSMConfig.stepDelay,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:delay_outlier_filter_stepdetect_enable", &rtOpts->oFilterSMConfig.stepDelay,rtOpts->oFilterSMConfig.stepDelay,
 		"Enable Delay filter step detection (delaySM) to block when certain level exceeded");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_stepdetect_threshold",rtOpts->oFilterSMConfig.stepThreshold,rtOpts->oFilterSMConfig.stepThreshold,
+	parseResult &= configMapInt(dict, target, "ptpengine:delay_outlier_filter_stepdetect_threshold",INTTYPE_I32,&rtOpts->oFilterSMConfig.stepThreshold,rtOpts->oFilterSMConfig.stepThreshold,
 		"Delay Response step detection threshold. Step detection is performed\n"
-	"	 only when delaySM is below this threshold (nanoseconds)", 50000, NANOSECONDS_MAX);
+	"	 only when delaySM is below this threshold (nanoseconds)", RANGECHECK_RANGE, 50000, NANOSECONDS_MAX);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_stepdetect_level",rtOpts->oFilterSMConfig.stepLevel,rtOpts->oFilterSMConfig.stepLevel,
+	parseResult &= configMapInt(dict, target, "ptpengine:delay_outlier_filter_stepdetect_level",INTTYPE_I32,&rtOpts->oFilterSMConfig.stepLevel,rtOpts->oFilterSMConfig.stepLevel,
 		"Delay Response step level. When step detection enabled and operational,\n"
-	"	 delaySM above this level (nanosecond) is considered a clock step and updates are paused", 50000, NANOSECONDS_MAX);
+	"	 delaySM above this level (nanosecond) is considered a clock step and updates are paused", RANGECHECK_RANGE,50000, NANOSECONDS_MAX);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_stepdetect_credit",rtOpts->oFilterSMConfig.delayCredit,rtOpts->oFilterSMConfig.delayCredit,
+	parseResult &= configMapInt(dict, target, "ptpengine:delay_outlier_filter_stepdetect_credit",INTTYPE_I32,&rtOpts->oFilterSMConfig.delayCredit,rtOpts->oFilterSMConfig.delayCredit,
 		"Initial credit (number of samples) the Delay step detection filter can block for\n"
-	"	 When credit is exhausted, filter stops blocking. Credit is gradually restored",50,1000);
+	"	 When credit is exhausted, filter stops blocking. Credit is gradually restored",RANGECHECK_RANGE,50,1000);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:delay_outlier_filter_stepdetect_credit_increment",rtOpts->oFilterSMConfig.creditIncrement,rtOpts->oFilterSMConfig.creditIncrement,
-		"Amount of credit for the Delay step detection filter restored every full sample window",1,100);
+	parseResult &= configMapInt(dict, target, "ptpengine:delay_outlier_filter_stepdetect_credit_increment",INTTYPE_INT,&rtOpts->oFilterSMConfig.creditIncrement,rtOpts->oFilterSMConfig.creditIncrement,
+		"Amount of credit for the Delay step detection filter restored every full sample window",RANGECHECK_RANGE,1,100);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:delay_outlier_weight",rtOpts->oFilterSMConfig.weight,rtOpts->oFilterSMConfig.weight,
+	parseResult &= configMapDouble(dict, target, "ptpengine:delay_outlier_weight", &rtOpts->oFilterSMConfig.weight,rtOpts->oFilterSMConfig.weight,
 		"Delay Response outlier weight: if an outlier is detected, determines\n"
 	"	 the amount of its deviation from mean that is used to build the standard\n"
 	"	 deviation statistics and influence further outlier detection.\n"
-	"	 When set to 1.0, the outlier is used as is.", 0.01, 2.0);
+	"	 When set to 1.0, the outlier is used as is.", RANGECHECK_RANGE, 0.01, 2.0);
 
-    CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_enable",rtOpts->oFilterMSConfig.enabled,rtOpts->oFilterMSConfig.enabled,
+    parseResult &= configMapBoolean(dict, target,"ptpengine:sync_outlier_filter_enable", &rtOpts->oFilterMSConfig.enabled,rtOpts->oFilterMSConfig.enabled,
 		"Enable outlier filter for the Sync component in slave state.");
 
-    CONFIG_MAP_SELECTVALUE("ptpengine:sync_outlier_filter_action",rtOpts->oFilterMSConfig.discard,rtOpts->oFilterMSConfig.discard,
+    parseResult &= configMapSelectValue(dict, target, "ptpengine:sync_outlier_filter_action", (uint8_t*)&rtOpts->oFilterMSConfig.discard,rtOpts->oFilterMSConfig.discard,
 		"Sync outlier filter action. If set to 'filter', outliers are replaced\n"
 	"	 with moving average.",
      "discard", TRUE,
-     "filter", FALSE);
+     "filter", FALSE, NULL);
 
-     CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_capacity",rtOpts->oFilterMSConfig.capacity,rtOpts->oFilterMSConfig.capacity,
-    "Number of samples in the Sync outlier filter buffer.",10,STATCONTAINER_MAX_SAMPLES);
+     parseResult &= configMapInt(dict, target, "ptpengine:sync_outlier_filter_capacity",INTTYPE_INT,&rtOpts->oFilterMSConfig.capacity,rtOpts->oFilterMSConfig.capacity,
+    "Number of samples in the Sync outlier filter buffer.",RANGECHECK_RANGE,10,STATCONTAINER_MAX_SAMPLES);
 
-    CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_threshold",rtOpts->oFilterMSConfig.threshold,rtOpts->oFilterMSConfig.threshold,
+    parseResult &= configMapDouble(dict, target, "ptpengine:sync_outlier_filter_threshold", &rtOpts->oFilterMSConfig.threshold,rtOpts->oFilterMSConfig.threshold,
 		"Sync outlier filter threshold: multiplier for the Peirce's maximum standard\n"
 	"	 deviation. When set below 1.0, filter is tighter, when set above 1.0,\n"
-	"	 filter is looser than standard Peirce's test.", 0.001, 1000.0);
+	"	 filter is looser than standard Peirce's test.", RANGECHECK_RANGE, 0.001, 1000.0);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_always_filter",rtOpts->oFilterMSConfig.alwaysFilter,rtOpts->oFilterMSConfig.alwaysFilter,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:sync_outlier_filter_always_filter", &rtOpts->oFilterMSConfig.alwaysFilter,rtOpts->oFilterMSConfig.alwaysFilter,
 		"Always run the Sync outlier filter, even if clock is being slewed at maximum rate");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_autotune_enable",rtOpts->oFilterMSConfig.autoTune,rtOpts->oFilterMSConfig.autoTune,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:sync_outlier_filter_autotune_enable", &rtOpts->oFilterMSConfig.autoTune,rtOpts->oFilterMSConfig.autoTune,
 		"Enable automatic threshold control for Sync outlier filter.");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_autotune_minpercent",rtOpts->oFilterMSConfig.minPercent,rtOpts->oFilterMSConfig.minPercent,
+	parseResult &= configMapInt(dict, target, "ptpengine:sync_outlier_filter_autotune_minpercent",INTTYPE_INT,&rtOpts->oFilterMSConfig.minPercent,rtOpts->oFilterMSConfig.minPercent,
 		"Sync outlier filter autotune low watermark - minimum percentage\n"
 	"	 of discarded samples in the update period before filter is tightened\n"
-	"	 by the autotune step value.",0,99);
+	"	 by the autotune step value.",RANGECHECK_RANGE,0,99);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_autotune_maxpercent",rtOpts->oFilterMSConfig.maxPercent,rtOpts->oFilterMSConfig.maxPercent,
+	parseResult &= configMapInt(dict, target, "ptpengine:sync_outlier_filter_autotune_maxpercent",INTTYPE_INT,&rtOpts->oFilterMSConfig.maxPercent,rtOpts->oFilterMSConfig.maxPercent,
 		"Sync outlier filter autotune high watermark - maximum percentage\n"
 	"	 of discarded samples in the update period before filter is loosened\n"
-	"	 by the autotune step value.",1,100);
+	"	 by the autotune step value.",RANGECHECK_RANGE,1,100);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_autotune_step",rtOpts->oFilterMSConfig.thresholdStep,rtOpts->oFilterMSConfig.thresholdStep,
+	parseResult &= configMapDouble(dict, target, "ptpengine:sync_outlier_autotune_step", &rtOpts->oFilterMSConfig.thresholdStep,rtOpts->oFilterMSConfig.thresholdStep,
 		"Value the Sync outlier filter threshold is increased\n"
-	"	 or decreased by when auto-tuning.",0.01,10.0);
+	"	 or decreased by when auto-tuning.", RANGECHECK_RANGE, 0.01,10.0);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_autotune_minthreshold",rtOpts->oFilterMSConfig.minThreshold,rtOpts->oFilterMSConfig.minThreshold,
-		"Minimum Sync outlier filter threshold value used when auto-tuning", 0.01,10.0);
+	parseResult &= configMapDouble(dict, target, "ptpengine:sync_outlier_filter_autotune_minthreshold", &rtOpts->oFilterMSConfig.minThreshold,rtOpts->oFilterMSConfig.minThreshold,
+		"Minimum Sync outlier filter threshold value used when auto-tuning", RANGECHECK_RANGE, 0.01,10.0);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_filter_autotune_maxthreshold",rtOpts->oFilterMSConfig.maxThreshold,rtOpts->oFilterMSConfig.maxThreshold,
-		"Maximum Sync outlier filter threshold value used when auto-tuning", 0.01,10.0);
+	parseResult &= configMapDouble(dict, target, "ptpengine:sync_outlier_filter_autotune_maxthreshold", &rtOpts->oFilterMSConfig.maxThreshold,rtOpts->oFilterMSConfig.maxThreshold,
+		"Maximum Sync outlier filter threshold value used when auto-tuning", RANGECHECK_RANGE, 0.01,10.0);
 
 	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterMSConfig.maxPercent <= rtOpts->oFilterMSConfig.minPercent,
 					"ptpengine:sync_outlier_filter_autotune_maxpercent value has to be greater "
@@ -1627,91 +1460,90 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 					"ptpengine:sync_outlier_filter_autotune_maxthreshold value has to be greater "
 					"than ptpengine:sync_outlier_filter_autotune_minthreshold\n");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:sync_outlier_filter_stepdetect_enable",rtOpts->oFilterMSConfig.stepDelay,rtOpts->oFilterMSConfig.stepDelay,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:sync_outlier_filter_stepdetect_enable", &rtOpts->oFilterMSConfig.stepDelay,rtOpts->oFilterMSConfig.stepDelay,
 		"Enable Sync filter step detection (delayMS) to block when certain level exceeded.");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_stepdetect_threshold",rtOpts->oFilterMSConfig.stepThreshold,rtOpts->oFilterMSConfig.stepThreshold,
+	parseResult &= configMapInt(dict, target, "ptpengine:sync_outlier_filter_stepdetect_threshold",INTTYPE_I32,&rtOpts->oFilterMSConfig.stepThreshold,rtOpts->oFilterMSConfig.stepThreshold,
 		"Sync step detection threshold. Step detection is performed\n"
-	"	 only when delayMS is below this threshold (nanoseconds)", 100000, NANOSECONDS_MAX);
+	"	 only when delayMS is below this threshold (nanoseconds)", RANGECHECK_RANGE,100000, NANOSECONDS_MAX);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_stepdetect_level",rtOpts->oFilterMSConfig.stepLevel,rtOpts->oFilterMSConfig.stepLevel,
+	parseResult &= configMapInt(dict, target, "ptpengine:sync_outlier_filter_stepdetect_level",INTTYPE_I32,&rtOpts->oFilterMSConfig.stepLevel,rtOpts->oFilterMSConfig.stepLevel,
 		"Sync step level. When step detection enabled and operational,\n"
-	"	 delayMS above this level (nanosecond) is considered a clock step and updates are paused", 100000, NANOSECONDS_MAX);
+	"	 delayMS above this level (nanosecond) is considered a clock step and updates are paused", RANGECHECK_RANGE,100000, NANOSECONDS_MAX);
 
 	CONFIG_CONDITIONAL_ASSERTION(rtOpts->oFilterMSConfig.stepThreshold <= (rtOpts->oFilterMSConfig.stepLevel + 100000),
 					"ptpengine:sync_outlier_filter_stepdetect_threshold  has to be at least "
 					"100 us (100000) greater than ptpengine:sync_outlier_filter_stepdetect_level\n");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_stepdetect_credit",rtOpts->oFilterMSConfig.delayCredit,rtOpts->oFilterMSConfig.delayCredit,
+	parseResult &= configMapInt(dict, target, "ptpengine:sync_outlier_filter_stepdetect_credit",INTTYPE_INT,&rtOpts->oFilterMSConfig.delayCredit,rtOpts->oFilterMSConfig.delayCredit,
 		"Initial credit (number of samples) the Sync step detection filter can block for.\n"
-	"	 When credit is exhausted, filter stops blocking. Credit is gradually restored",50,1000);
+	"	 When credit is exhausted, filter stops blocking. Credit is gradually restored",RANGECHECK_RANGE,50,1000);
 
-	CONFIG_MAP_INT_RANGE("ptpengine:sync_outlier_filter_stepdetect_credit_increment",rtOpts->oFilterMSConfig.creditIncrement,rtOpts->oFilterMSConfig.creditIncrement,
-		"Amount of credit for the Sync step detection filter restored every full sample window",1,100);
+	parseResult &= configMapInt(dict, target, "ptpengine:sync_outlier_filter_stepdetect_credit_increment",INTTYPE_INT,&rtOpts->oFilterMSConfig.creditIncrement,rtOpts->oFilterMSConfig.creditIncrement,
+		"Amount of credit for the Sync step detection filter restored every full sample window",RANGECHECK_RANGE,1,100);
 
-	CONFIG_MAP_DOUBLE_RANGE("ptpengine:sync_outlier_weight",rtOpts->oFilterMSConfig.weight,rtOpts->oFilterMSConfig.weight,
+	parseResult &= configMapDouble(dict, target, "ptpengine:sync_outlier_weight", &rtOpts->oFilterMSConfig.weight,rtOpts->oFilterMSConfig.weight,
 		"Sync outlier weight: if an outlier is detected, this value determines the\n"
 	"	 amount of its deviation from mean that is used to build the standard \n"
 	"	 deviation statistics and influence further outlier detection.\n"
-	"	 When set to 1.0, the outlier is used as is.", 0.01, 2.0);
+	"	 When set to 1.0, the outlier is used as is.", RANGECHECK_RANGE, 0.01, 2.0);
 
-        CONFIG_MAP_INT_RANGE("ptpengine:calibration_delay",rtOpts->calibrationDelay,rtOpts->calibrationDelay,
+        parseResult &= configMapInt(dict, target, "ptpengine:calibration_delay",INTTYPE_INT,&rtOpts->calibrationDelay,rtOpts->calibrationDelay,
 		"Delay between moving to slave state and enabling clock updates (seconds).\n"
 	"	 This allows one-way delay to stabilise before starting clock updates.\n"
 	"	 Activated when going into slave state and during slave's GM failover.\n"
-	"	 0 - not used.",0,300);
+	"	 0 - not used.",RANGECHECK_RANGE,0,300);
 
 #endif /* PTPD_STATISTICS */
 
 
-        CONFIG_MAP_INT_RANGE("ptpengine:idle_timeout",rtOpts->idleTimeout,rtOpts->idleTimeout,
+        parseResult &= configMapInt(dict, target, "ptpengine:idle_timeout",INTTYPE_INT,&rtOpts->idleTimeout,rtOpts->idleTimeout,
 		"PTP idle timeout: if PTPd is in SLAVE state and there have been no clock\n"
-	"	 updates for this amout of time, PTPd releases clock control.\n", 10,3600);
+	"	 updates for this amout of time, PTPd releases clock control.\n", RANGECHECK_RANGE,10,3600);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:panic_mode",rtOpts->enablePanicMode,rtOpts->enablePanicMode,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:panic_mode", &rtOpts->enablePanicMode,rtOpts->enablePanicMode,
 		"Enable panic mode: when offset from master is above 1 second, stop updating\n"
 	"	 the clock for a period of time and then step the clock if offset remains\n"
 	"	 above 1 second.");
 
-    CONFIG_MAP_INT_RANGE("ptpengine:panic_mode_duration",rtOpts->panicModeDuration,rtOpts->panicModeDuration,
+    parseResult &= configMapInt(dict, target, "ptpengine:panic_mode_duration",INTTYPE_INT,&rtOpts->panicModeDuration,rtOpts->panicModeDuration,
 		"Duration (minutes) of the panic mode period (no clock updates) when offset\n"
-	"	 above 1 second detected.",1,60);
+	"	 above 1 second detected.",RANGECHECK_RANGE,1,60);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:panic_mode_release_clock",rtOpts->panicModeReleaseClock,rtOpts->panicModeReleaseClock,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:panic_mode_release_clock", &rtOpts->panicModeReleaseClock,rtOpts->panicModeReleaseClock,
 		"When entering panic mode, release clock control while panic mode lasts\n"
  	"	 if ntpengine:* configured, this will fail over to NTP,\n"
 	"	 if not set, PTP will hold clock control during panic mode.");
 
-    CONFIG_MAP_INT_RANGE("ptpengine:panic_mode_exit_threshold",rtOpts->panicModeExitThreshold,rtOpts->panicModeExitThreshold,
+    parseResult &= configMapInt(dict, target, "ptpengine:panic_mode_exit_threshold",INTTYPE_U32,&rtOpts->panicModeExitThreshold,rtOpts->panicModeExitThreshold,
 		"Do not exit panic mode until offset drops below this value (nanoseconds).\n"
-	"	 0 = not used.",0,NANOSECONDS_MAX);
+	"	 0 = not used.",RANGECHECK_RANGE,0,NANOSECONDS_MAX);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:pid_as_clock_identity",rtOpts->pidAsClockId,rtOpts->pidAsClockId,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:pid_as_clock_identity", &rtOpts->pidAsClockId,rtOpts->pidAsClockId,
 	"Use PTPd's process ID as the middle part of the PTP clock ID - useful for running multiple instances.");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:ntp_failover",rtOpts->ntpOptions.enableFailover,rtOpts->ntpOptions.enableFailover,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:ntp_failover", &rtOpts->ntpOptions.enableFailover,rtOpts->ntpOptions.enableFailover,
 		"Fail over to NTP when PTP time sync not available - requires\n"
 	"	 ntpengine:enabled, but does not require the rest of NTP configuration:\n"
 	"	 will warn instead of failing over if cannot control ntpd.");
 
 	CONFIG_KEY_DEPENDENCY("ptpengine:ntp_failover", "ntpengine:enabled");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:ntp_failover_timeout",rtOpts->ntpOptions.failoverTimeout,
+	parseResult &= configMapInt(dict, target, "ptpengine:ntp_failover_timeout",INTTYPE_INT,&rtOpts->ntpOptions.failoverTimeout,
 								rtOpts->ntpOptions.failoverTimeout,	
 		"NTP failover timeout in seconds: time between PTP slave going into\n"
-	"	 LISTENING state, and releasing clock control. 0 = fail over immediately.", 0, 1800);
+	"	 LISTENING state, and releasing clock control. 0 = fail over immediately.", RANGECHECK_RANGE,0, 1800);
 
-	CONFIG_MAP_BOOLEAN("ptpengine:prefer_ntp",rtOpts->preferNTP,rtOpts->preferNTP,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:prefer_ntp", &rtOpts->preferNTP,rtOpts->preferNTP,
 		"Prefer NTP time synchronisation. Only use PTP when NTP not available,\n"
 	"	 could be used when NTP runs with a local GPS receiver or another reference");
 
-
-	CONFIG_MAP_BOOLEAN("ptpengine:panic_mode_ntp",rtOpts->panicModeReleaseClock,rtOpts->panicModeReleaseClock,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:panic_mode_ntp", &rtOpts->panicModeReleaseClock,rtOpts->panicModeReleaseClock,
 		"Legacy option from 2.3.0: same as ptpengine:panic_mode_release_clock");
 
 	CONFIG_KEY_DEPENDENCY("ptpengine:panic_mode_ntp", "ntpengine:enabled");
 
-	CONFIG_MAP_BOOLEAN("ptpengine:sigusr2_clears_counters",rtOpts->clearCounters,rtOpts->clearCounters,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:sigusr2_clears_counters", &rtOpts->clearCounters,rtOpts->clearCounters,
 		"Clear counters after dumping all counter values on SIGUSR2.");
 
 	/* Defining the ACLs enables ACL matching */
@@ -1720,28 +1552,28 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_TRIGGER("ptpengine:management_acl_permit",rtOpts->managementAclEnabled,TRUE,rtOpts->managementAclEnabled);
 	CONFIG_KEY_TRIGGER("ptpengine:management_acl_deny",rtOpts->managementAclEnabled,TRUE,rtOpts->managementAclEnabled);
 
-	CONFIG_MAP_CHARARRAY("ptpengine:timing_acl_permit",rtOpts->timingAclPermitText, rtOpts->timingAclPermitText,
+	parseResult &= configMapString(dict, target, "ptpengine:timing_acl_permit",rtOpts->timingAclPermitText, rtOpts->timingAclPermitText,
 		"Permit access control list for timing packets. Format is a series of \n"
         "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
         "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
         "        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
         "        incoming messages. IP access lists are only supported when using the IP transport.");
 
-	CONFIG_MAP_CHARARRAY("ptpengine:timing_acl_deny",rtOpts->timingAclDenyText, rtOpts->timingAclDenyText,
+	parseResult &= configMapString(dict, target, "ptpengine:timing_acl_deny",rtOpts->timingAclDenyText, rtOpts->timingAclDenyText,
 		"Deny access control list for timing packets. Format is a series of \n"
         "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
         "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
         "        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
         "        incoming messages. IP access lists are only supported when using the IP transport.");
 
-	CONFIG_MAP_CHARARRAY("ptpengine:management_acl_permit",rtOpts->managementAclPermitText, rtOpts->managementAclPermitText,
+	parseResult &= configMapString(dict, target, "ptpengine:management_acl_permit",rtOpts->managementAclPermitText, rtOpts->managementAclPermitText,
 		"Permit access control list for management messages. Format is a series of \n"
 	"	 comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
 	"	 where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
 	"        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
 	"        incoming messages. IP access lists are only supported when using the IP transport.");
 
-	CONFIG_MAP_CHARARRAY("ptpengine:management_acl_deny",rtOpts->managementAclDenyText, rtOpts->managementAclDenyText,
+	parseResult &= configMapString(dict, target, "ptpengine:management_acl_deny",rtOpts->managementAclDenyText, rtOpts->managementAclDenyText,
 		"Deny access control list for management messages. Format is a series of \n"
         "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
         "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
@@ -1749,18 +1581,18 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
         "        incoming messages. IP access lists are only supported when using the IP transport.");
 
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:timing_acl_order",rtOpts->timingAclOrder,rtOpts->timingAclOrder,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:timing_acl_order", &rtOpts->timingAclOrder,rtOpts->timingAclOrder,
 		"Order in which permit and deny access lists are evaluated for timing\n"
 	"	 packets, the evaluation process is the same as for Apache httpd.",
 				"permit-deny", 	ACL_PERMIT_DENY,
-				"deny-permit", 	ACL_DENY_PERMIT
+				"deny-permit", 	ACL_DENY_PERMIT, NULL
 				);
 
-	CONFIG_MAP_SELECTVALUE("ptpengine:management_acl_order",rtOpts->managementAclOrder,rtOpts->managementAclOrder,
+	parseResult &= configMapSelectValue(dict, target, "ptpengine:management_acl_order",&rtOpts->managementAclOrder,rtOpts->managementAclOrder,
 		"Order in which permit and deny access lists are evaluated for management\n"
 	"	 messages, the evaluation process is the same as for Apache httpd.",
 				"permit-deny", 	ACL_PERMIT_DENY,
-				"deny-permit", 	ACL_DENY_PERMIT
+				"deny-permit", 	ACL_DENY_PERMIT, NULL
 				);
 
 
@@ -1772,22 +1604,22 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 /* ===== clock section ===== */
 
-	CONFIG_MAP_BOOLEAN("clock:no_adjust",rtOpts->noAdjust,ptpPreset.noAdjust,
+	parseResult &= configMapBoolean(dict, target,"clock:no_adjust", &rtOpts->noAdjust,ptpPreset.noAdjust,
 	"Do not adjust the clock");
 
-	CONFIG_MAP_BOOLEAN("clock:no_reset",rtOpts->noResetClock,rtOpts->noResetClock,
+	parseResult &= configMapBoolean(dict, target,"clock:no_reset", &rtOpts->noResetClock,rtOpts->noResetClock,
 	"Do not step the clock - only slew");
 
-	CONFIG_MAP_BOOLEAN("clock:step_startup_force",rtOpts->stepForce,rtOpts->stepForce,
+	parseResult &= configMapBoolean(dict, target,"clock:step_startup_force", &rtOpts->stepForce,rtOpts->stepForce,
 	"Force clock step on first sync after startup regardless of offset and clock:no_reset");
 
-	CONFIG_MAP_BOOLEAN("clock:step_startup",rtOpts->stepOnce,rtOpts->stepOnce,
+	parseResult &= configMapBoolean(dict, target,"clock:step_startup", &rtOpts->stepOnce,rtOpts->stepOnce,
 		"Step clock on startup if offset >= 1 second, ignoring\n"
 	"        panic mode and clock:no_reset");
 
 
 #ifdef HAVE_LINUX_RTC_H
-	CONFIG_MAP_BOOLEAN("clock:set_rtc_on_step",rtOpts->setRtc,rtOpts->setRtc,
+	parseResult &= configMapBoolean(dict, target,"clock:set_rtc_on_step", &rtOpts->setRtc,rtOpts->setRtc,
 	"Attempt setting the RTC when stepping clock (Linux only - FreeBSD does \n"
 	"        this for us. WARNING: this will always set the RTC to OS clock time,\n"
 	"        regardless of time zones, so this assumes that RTC runs in UTC or \n"
@@ -1795,7 +1627,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"        single-boot x86 Linux systems.");
 #endif /* HAVE_LINUX_RTC_H */
 
-	CONFIG_MAP_SELECTVALUE("clock:drift_handling",rtOpts->drift_recovery_method,rtOpts->drift_recovery_method,
+	parseResult &= configMapSelectValue(dict, target, "clock:drift_handling", &rtOpts->drift_recovery_method,rtOpts->drift_recovery_method,
 		"Observed drift handling method between servo restarts:\n"
 	"	 reset: set to zero (not recommended)\n"
 	"	 preserve: use kernel value,\n"
@@ -1804,28 +1636,28 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	,
 				"reset", 	DRIFT_RESET,
 				"preserve", 	DRIFT_KERNEL,
-				"file", 	DRIFT_FILE
+				"file", 	DRIFT_FILE, NULL
 				);
 
-	CONFIG_MAP_CHARARRAY("clock:drift_file",rtOpts->driftFile,rtOpts->driftFile,
+	parseResult &= configMapString(dict, target, "clock:drift_file",rtOpts->driftFile,rtOpts->driftFile,
 	"Specify drift file");
 
-	CONFIG_MAP_INT_RANGE("clock:leap_second_pause_period",rtOpts->leapSecondPausePeriod,
+	parseResult &= configMapInt(dict, target, "clock:leap_second_pause_period",INTTYPE_INT,&rtOpts->leapSecondPausePeriod,
 		rtOpts->leapSecondPausePeriod,
 		"Time (seconds) before and after midnight that clock updates should pe suspended for\n"
 	"	 during a leap second event. The total duration of the pause is twice\n"
-	"        the configured duration",5,600);
+	"        the configured duration",RANGECHECK_RANGE,5,600);
 
-	CONFIG_MAP_INT_RANGE("clock:leap_second_notice_period",rtOpts->leapSecondNoticePeriod,
+	parseResult &= configMapInt(dict, target, "clock:leap_second_notice_period",INTTYPE_INT,&rtOpts->leapSecondNoticePeriod,
 		rtOpts->leapSecondNoticePeriod,
 		"Time (seconds) before midnight that PTPd starts announcing the leap second\n"
-	"	 if it's running as master",3600,86400);
+	"	 if it's running as master",RANGECHECK_RANGE,3600,86400);
 
-	CONFIG_MAP_CHARARRAY("clock:leap_seconds_file",rtOpts->leapFile,rtOpts->leapFile,
+	parseResult &= configMapString(dict, target, "clock:leap_seconds_file",rtOpts->leapFile,rtOpts->leapFile,
 	"Specify leap second file location - up to date version can be downloaded from \n"
 	"        http://www.ietf.org/timezones/data/leap-seconds.list");
 
-	CONFIG_MAP_SELECTVALUE("clock:leap_second_handling",rtOpts->leapSecondHandling,rtOpts->leapSecondHandling,
+	parseResult &= configMapSelectValue(dict, target, "clock:leap_second_handling", &rtOpts->leapSecondHandling,rtOpts->leapSecondHandling,
 		"Behaviour during a leap second event:\n"
 	"	 accept: inform the OS kernel of the event\n"
 	"	 ignore: do nothing - ends up with a 1-second offset which is then slewed\n"
@@ -1835,23 +1667,23 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"accept", 	LEAP_ACCEPT,
 				"ignore", 	LEAP_IGNORE,
 				"step", 	LEAP_STEP,
-				"smear",	LEAP_SMEAR
+				"smear",	LEAP_SMEAR, NULL
 				);
 
-	CONFIG_MAP_INT_RANGE("clock:leap_second_smear_period",rtOpts->leapSecondSmearPeriod,
+	parseResult &= configMapInt(dict, target, "clock:leap_second_smear_period",INTTYPE_INT,&rtOpts->leapSecondSmearPeriod,
 		rtOpts->leapSecondSmearPeriod,
 		"Time period (Seconds) over which the leap second is introduced before the event.\n"
 	"	 Example: when set to 86400 (24 hours), an extra 11.5 microseconds is added every second"
-	,3600,86400);
+	,RANGECHECK_RANGE,3600,86400);
 
 
 #ifdef HAVE_STRUCT_TIMEX_TICK
 	/* This really is clock specific - different clocks may allow different ranges */
-	CONFIG_MAP_INT_RANGE("clock:max_offset_ppm",rtOpts->servoMaxPpb,rtOpts->servoMaxPpb,
+	parseResult &= configMapInt(dict, target, "clock:max_offset_ppm",INTTYPE_INT,&rtOpts->servoMaxPpb,rtOpts->servoMaxPpb,
 		"Maximum absolute frequency shift which can be applied to the clock servo\n"
 	"	 when slewing the clock. Expressed in parts per million (1 ppm = shift of\n"
 	"	 1 us per second. Values above 512 will use the tick duration correction\n"
-	"	 to allow even faster slewing. Default maximum is 512 without using tick.",
+	"	 to allow even faster slewing. Default maximum is 512 without using tick.", RANGECHECK_RANGE,
 	ADJ_FREQ_MAX/1000,ADJ_FREQ_MAX/500);
 #endif /* HAVE_STRUCT_TIMEX_TICK */
 
@@ -1865,152 +1697,151 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 /* ===== servo section ===== */
 
-	CONFIG_MAP_INT( "servo:delayfilter_stiffness",rtOpts->s,rtOpts->s,
-	"One-way delay filter stiffness.");
+	parseResult &= configMapInt(dict, target,  "servo:delayfilter_stiffness",INTTYPE_I16,&rtOpts->s,rtOpts->s,
+	"One-way delay filter stiffness.", RANGECHECK_NONE,0,0);
 
-	CONFIG_MAP_DOUBLE_MIN("servo:kp",rtOpts->servoKP,rtOpts->servoKP,
-	"Clock servo PI controller proportional component gain (kP).",0.000001);
-	CONFIG_MAP_DOUBLE_MIN("servo:ki",rtOpts->servoKI,rtOpts->servoKI,
-	"Clock servo PI controller integral component gain (kI).",0.000001);
+	parseResult &= configMapDouble(dict, target, "servo:kp", &rtOpts->servoKP,rtOpts->servoKP,
+	"Clock servo PI controller proportional component gain (kP).", RANGECHECK_MIN, 0.000001, 0);
+	parseResult &= configMapDouble(dict, target, "servo:ki", &rtOpts->servoKI,rtOpts->servoKI,
+	"Clock servo PI controller integral component gain (kI).", RANGECHECK_MIN, 0.000001,0);
 
-	CONFIG_MAP_SELECTVALUE("servo:dt_method",rtOpts->servoDtMethod,rtOpts->servoDtMethod,
+	parseResult &= configMapSelectValue(dict, target, "servo:dt_method", &rtOpts->servoDtMethod,rtOpts->servoDtMethod,
 		"How servo update interval (delta t) is calculated:\n"
 	"	 none:     servo not corrected for update interval (dt always 1),\n"
 	"	 constant: constant value (target servo update rate - sync interval for PTP,\n"
 	"	 measured: servo measures how often it's updated and uses this interval.",
 			"none", DT_NONE,
 			"constant", DT_CONSTANT,
-			"measured", DT_MEASURED
+			"measured", DT_MEASURED, NULL
 	);
 
-	CONFIG_MAP_DOUBLE_RANGE("servo:dt_max",rtOpts->servoMaxdT,rtOpts->servoMaxdT,
+	parseResult &= configMapDouble(dict, target, "servo:dt_max", &rtOpts->servoMaxdT,rtOpts->servoMaxdT,
 		"Maximum servo update interval (delta t) when using measured servo update interval\n"
-	"	 (servo:dt_method = measured), specified as sync interval multiplier.",1.5,100.0);
+	"	 (servo:dt_method = measured), specified as sync interval multiplier.", RANGECHECK_RANGE, 1.5,100.0);
 
 #ifdef PTPD_STATISTICS
-	CONFIG_MAP_BOOLEAN("servo:stability_detection",rtOpts->servoStabilityDetection,
+	parseResult &= configMapBoolean(dict, target,"servo:stability_detection", &rtOpts->servoStabilityDetection,
 							rtOpts->servoStabilityDetection,
 		 "Enable clock synchronisation servo stability detection\n"
 	"	 (based on standard deviation of the observed drift value)\n"
 	"	 - drift will be saved to drift file / cached when considered stable,\n"
 	"	 also clock stability status will be logged.");
 
-	CONFIG_MAP_DOUBLE_RANGE("servo:stability_threshold",rtOpts->servoStabilityThreshold,
+	parseResult &= configMapDouble(dict, target, "servo:stability_threshold", &rtOpts->servoStabilityThreshold,
 							rtOpts->servoStabilityThreshold,
 		"Specify the observed drift standard deviation threshold in parts per\n"
 	"	 billion (ppb) - if stanard deviation is within the threshold, servo\n"
-	"	 is considered stable.",
-	1.0,10000.0);
+	"	 is considered stable.", RANGECHECK_RANGE, 1.0,10000.0);
 
-	CONFIG_MAP_INT_RANGE("servo:stability_period",rtOpts->servoStabilityPeriod,
+	parseResult &= configMapInt(dict, target, "servo:stability_period",INTTYPE_INT,&rtOpts->servoStabilityPeriod,
 							rtOpts->servoStabilityPeriod,
 		"Specify for how many statistics update intervals the observed drift\n"
-	"	standard deviation has to stay within threshold to be considered stable.",
+	"	standard deviation has to stay within threshold to be considered stable.", RANGECHECK_RANGE,
 	1,100);
 
-	CONFIG_MAP_INT_RANGE("servo:stability_timeout",rtOpts->servoStabilityTimeout,
+	parseResult &= configMapInt(dict, target, "servo:stability_timeout",INTTYPE_INT,&rtOpts->servoStabilityTimeout,
 							rtOpts->servoStabilityTimeout,
 		"Specify after how many minutes without stabilisation servo is considered\n"
 	"	 unstable. Assists with logging servo stability information and\n"
-	"	 allows to preserve observed drift if servo cannot stabilise.\n",
+	"	 allows to preserve observed drift if servo cannot stabilise.\n", RANGECHECK_RANGE,
 	1,60);
 
 #endif
 
-	CONFIG_MAP_INT_RANGE("servo:max_delay",rtOpts->maxDelay,rtOpts->maxDelay,
+	parseResult &= configMapInt(dict, target, "servo:max_delay",INTTYPE_I32,&rtOpts->maxDelay,rtOpts->maxDelay,
 		"Do accept master to slave delay (delayMS - from Sync message) or slave to master delay\n"
-	"	 (delaySM - from Delay messages) if greater than this value (nanoseconds). 0 = not used."
-	,0,NANOSECONDS_MAX);
+	"	 (delaySM - from Delay messages) if greater than this value (nanoseconds). 0 = not used.", RANGECHECK_RANGE,
+	0,NANOSECONDS_MAX);
 
-	CONFIG_MAP_INT_MIN("servo:max_delay_max_rejected",rtOpts->maxDelayMaxRejected,rtOpts->maxDelayMaxRejected,
+	parseResult &= configMapInt(dict, target, "servo:max_delay_max_rejected",INTTYPE_INT,&rtOpts->maxDelayMaxRejected,rtOpts->maxDelayMaxRejected,
 		"Maximum number of consecutive delay measurements exceeding maxDelay threshold,\n"
-	"	 before slave is reset.", 0);
+	"	 before slave is reset.", RANGECHECK_MIN,0,0);
 
 #ifdef PTPD_STATISTICS
-	CONFIG_MAP_BOOLEAN("servo:max_delay_stable_only",rtOpts->maxDelayStableOnly,rtOpts->maxDelayStableOnly,
+	parseResult &= configMapBoolean(dict, target,"servo:max_delay_stable_only", &rtOpts->maxDelayStableOnly,rtOpts->maxDelayStableOnly,
 		"If servo:max_delay is set, perform the check only if clock servo has stabilised.\n");
 #endif
 
-	CONFIG_MAP_BOOLEAN("ptpengine:sync_sequence_checking",rtOpts->syncSequenceChecking,rtOpts->syncSequenceChecking,
+	parseResult &= configMapBoolean(dict, target,"ptpengine:sync_sequence_checking", &rtOpts->syncSequenceChecking,rtOpts->syncSequenceChecking,
 		"When enabled, Sync messages will only be accepted if sequence ID is increasing."
 	"        This is limited to 50 dropped messages.\n");
 
-	CONFIG_MAP_INT_RANGE("ptpengine:clock_update_timeout",rtOpts->clockUpdateTimeout,rtOpts->clockUpdateTimeout,
-		"If set to non-zero, timeout in seconds, after which the slave resets if no clock updates made. \n",
+	parseResult &= configMapInt(dict, target, "ptpengine:clock_update_timeout",INTTYPE_INT,&rtOpts->clockUpdateTimeout,rtOpts->clockUpdateTimeout,
+		"If set to non-zero, timeout in seconds, after which the slave resets if no clock updates made. \n", RANGECHECK_RANGE,
 		0, 3600);
 
-	CONFIG_MAP_INT_RANGE("servo:max_offset",rtOpts->maxOffset,rtOpts->maxOffset,
+	parseResult &= configMapInt(dict, target, "servo:max_offset",INTTYPE_I32,&rtOpts->maxOffset,rtOpts->maxOffset,
 		"Do not reset the clock if offset from master is greater\n"
-	"        than this value (nanoseconds). 0 = not used.",
+	"        than this value (nanoseconds). 0 = not used.", RANGECHECK_RANGE,
 	0,NANOSECONDS_MAX);
 
 /* ===== global section ===== */
 
 #ifdef PTPD_SNMP
-	CONFIG_MAP_BOOLEAN("global:enable_snmp",rtOpts->snmp_enabled,rtOpts->snmp_enabled,
+	parseResult &= configMapBoolean(dict, target,"global:enable_snmp", &rtOpts->snmp_enabled,rtOpts->snmp_enabled,
 	"Enable SNMP agent (if compiled with PTPD_SNMP).");
 #else
 	if(!IS_QUIET() && CONFIG_ISTRUE("global:enable_snmp"))
 	    INFO("SNMP support not enabled. Please compile with PTPD_SNMP to use global:enable_snmp\n");
 #endif /* PTPD_SNMP */
 
-	CONFIG_MAP_BOOLEAN("global:use_syslog",rtOpts->useSysLog,rtOpts->useSysLog,
+	parseResult &= configMapBoolean(dict, target,"global:use_syslog", &rtOpts->useSysLog,rtOpts->useSysLog,
 		"Send log messages to syslog. Disabling this\n"
 	"        sends all messages to stdout (or speficied log file).");
 
-	CONFIG_MAP_CHARARRAY("global:lock_file",rtOpts->lockFile,rtOpts->lockFile,
+	parseResult &= configMapString(dict, target, "global:lock_file",rtOpts->lockFile,rtOpts->lockFile,
 	"Lock file location");
 
-	CONFIG_MAP_BOOLEAN("global:auto_lockfile",rtOpts->autoLockFile,rtOpts->autoLockFile,
+	parseResult &= configMapBoolean(dict, target,"global:auto_lockfile", &rtOpts->autoLockFile,rtOpts->autoLockFile,
 	"	 Use mode specific and interface specific lock file\n"
 	"	 (overrides global:lock_file).");
 
-	CONFIG_MAP_CHARARRAY("global:lock_directory",rtOpts->lockDirectory,rtOpts->lockDirectory,
+	parseResult &= configMapString(dict, target, "global:lock_directory",rtOpts->lockDirectory,rtOpts->lockDirectory,
 		 "Lock file directory: used with automatic mode-specific lock files,\n"
 	"	 also used when no lock file is specified. When lock file\n"
 	"	 is specified, it's expected to be an absolute path.");
 
-	CONFIG_MAP_BOOLEAN("global:ignore_lock",rtOpts->ignore_daemon_lock,rtOpts->ignore_daemon_lock,
+	parseResult &= configMapBoolean(dict, target,"global:ignore_lock", &rtOpts->ignore_daemon_lock,rtOpts->ignore_daemon_lock,
 	"Skip lock file checking and locking.");
 
 	/* if quality file specified, enable quality recording  */
 	CONFIG_KEY_TRIGGER("global:quality_file",rtOpts->recordLog.logEnabled,TRUE,FALSE);
-	CONFIG_MAP_CHARARRAY("global:quality_file",rtOpts->recordLog.logPath,rtOpts->recordLog.logPath,
+	parseResult &= configMapString(dict, target, "global:quality_file",rtOpts->recordLog.logPath,rtOpts->recordLog.logPath,
 		"File used to record data about sync packets. Enables recording when set.");
 
-	CONFIG_MAP_INT_MIN("global:quality_file_max_size",rtOpts->recordLog.maxSize,rtOpts->recordLog.maxSize,
+	parseResult &= configMapInt(dict, target, "global:quality_file_max_size",INTTYPE_U32,&rtOpts->recordLog.maxSize,rtOpts->recordLog.maxSize,
 		"Maximum sync packet record file size (in kB) - file will be truncated\n"
-	"	if size exceeds the limit. 0 - no limit.", 0);
+	"	if size exceeds the limit. 0 - no limit.", RANGECHECK_MIN,0,0);
 
-	CONFIG_MAP_INT_RANGE("global:quality_file_max_files",rtOpts->recordLog.maxFiles,rtOpts->recordLog.maxFiles,
+	parseResult &= configMapInt(dict, target, "global:quality_file_max_files",INTTYPE_INT,&rtOpts->recordLog.maxFiles,rtOpts->recordLog.maxFiles,
 		"Enable log rotation of the sync packet record file up to n files.\n"
-	"	 0 - do not rotate.\n", 0, 100);
+	"	 0 - do not rotate.\n", RANGECHECK_RANGE,0, 100);
 
-	CONFIG_MAP_BOOLEAN("global:quality_file_truncate",rtOpts->recordLog.truncateOnReopen,rtOpts->recordLog.truncateOnReopen,
+	parseResult &= configMapBoolean(dict, target,"global:quality_file_truncate", &rtOpts->recordLog.truncateOnReopen,rtOpts->recordLog.truncateOnReopen,
 		"Truncate the sync packet record file every time it is (re) opened:\n"
 	"	 startup and SIGHUP.");
 
 	/* if status file specified, enable status logging*/
 	CONFIG_KEY_TRIGGER("global:status_file",rtOpts->statusLog.logEnabled,TRUE,FALSE);
-	CONFIG_MAP_CHARARRAY("global:status_file",rtOpts->statusLog.logPath,rtOpts->statusLog.logPath,
+	parseResult &= configMapString(dict, target, "global:status_file",rtOpts->statusLog.logPath,rtOpts->statusLog.logPath,
 	"File used to log "PTPD_PROGNAME" status information.");
 	/* status file can be disabled even if specified */
-	CONFIG_MAP_BOOLEAN("global:log_status",rtOpts->statusLog.logEnabled, rtOpts->statusLog.logEnabled,
+	parseResult &= configMapBoolean(dict, target,"global:log_status", &rtOpts->statusLog.logEnabled, rtOpts->statusLog.logEnabled,
 		"Enable / disable writing status information to file.");
 
-	CONFIG_MAP_INT_RANGE("global:status_update_interval",rtOpts->statusFileUpdateInterval,rtOpts->statusFileUpdateInterval,
-		"Status file update interval in seconds.",
+	parseResult &= configMapInt(dict, target, "global:status_update_interval",INTTYPE_INT,&rtOpts->statusFileUpdateInterval,rtOpts->statusFileUpdateInterval,
+		"Status file update interval in seconds.", RANGECHECK_RANGE,
 	1,30);
 
 #ifdef RUNTIME_DEBUG
-	CONFIG_MAP_SELECTVALUE("global:debug_level",rtOpts->debug_level,rtOpts->debug_level,
+	parseResult &= configMapSelectValue(dict, target, "global:debug_level", (uint8_t*)&rtOpts->debug_level,rtOpts->debug_level,
 	"Specify debug level (if compiled with RUNTIME_DEBUG).",
 				"LOG_INFO", 	LOG_INFO,
 				"LOG_DEBUG", 	LOG_DEBUG,
 				"LOG_DEBUG1", 	LOG_DEBUG1,
 				"LOG_DEBUG2", 	LOG_DEBUG2,
 				"LOG_DEBUG3", 	LOG_DEBUG3,
-				"LOG_DEBUGV", 	LOG_DEBUGV
+				"LOG_DEBUGV", 	LOG_DEBUGV, NULL
 				);
 #else
 	if (!IS_QUIET() && CONFIG_ISSET("global:debug_level"))
@@ -2019,21 +1850,21 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 	/* if log file specified, enable file logging - otherwise disable */
 	CONFIG_KEY_TRIGGER("global:log_file",rtOpts->eventLog.logEnabled,TRUE,FALSE);
-	CONFIG_MAP_CHARARRAY("global:log_file",rtOpts->eventLog.logPath, rtOpts->eventLog.logPath,
+	parseResult &= configMapString(dict, target, "global:log_file",rtOpts->eventLog.logPath, rtOpts->eventLog.logPath,
 		"Specify log file path (event log). Setting this enables logging to file.");
 
-	CONFIG_MAP_INT_MIN("global:log_file_max_size",rtOpts->eventLog.maxSize,rtOpts->eventLog.maxSize,
+	parseResult &= configMapInt(dict, target, "global:log_file_max_size",INTTYPE_U32,&rtOpts->eventLog.maxSize,rtOpts->eventLog.maxSize,
 		"Maximum log file size (in kB) - log file will be truncated if size exceeds\n"
-	"	 the limit. 0 - no limit.", 0);
+	"	 the limit. 0 - no limit.", RANGECHECK_MIN,0,0);
 
-	CONFIG_MAP_INT_RANGE("global:log_file_max_files",rtOpts->eventLog.maxFiles,rtOpts->eventLog.maxFiles,
+	parseResult &= configMapInt(dict, target, "global:log_file_max_files",INTTYPE_INT,&rtOpts->eventLog.maxFiles,rtOpts->eventLog.maxFiles,
 		"Enable log rotation of the sync packet record file up to n files.\n"
-	"	 0 - do not rotate.\n", 0, 100);
+	"	 0 - do not rotate.\n", RANGECHECK_RANGE,0, 100);
 
-	CONFIG_MAP_BOOLEAN("global:log_file_truncate",rtOpts->eventLog.truncateOnReopen,rtOpts->eventLog.truncateOnReopen,
+	parseResult &= configMapBoolean(dict, target,"global:log_file_truncate", &rtOpts->eventLog.truncateOnReopen,rtOpts->eventLog.truncateOnReopen,
 		"Truncate the log file every time it is (re) opened: startup and SIGHUP.");
 
-	CONFIG_MAP_SELECTVALUE("global:log_level",rtOpts->logLevel,rtOpts->logLevel,
+	parseResult &= configMapSelectValue(dict, target, "global:log_level", &rtOpts->logLevel,rtOpts->logLevel,
 		"Specify log level (only messages at this priority or higer will be logged).\n"
 	"	 The minimal level is LOG_ERR. LOG_ALL enables debug output if compiled with\n"
 	"	 RUNTIME_DEBUG.",
@@ -2041,35 +1872,35 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 				"LOG_WARNING", 	LOG_WARNING,
 				"LOG_NOTICE", 	LOG_NOTICE,
 				"LOG_INFO", 	LOG_INFO,
-				"LOG_ALL",	LOG_ALL
+				"LOG_ALL",	LOG_ALL, NULL
 				);
 
 	/* if statistics file specified, enable statistics logging - otherwise disable  - log_statistics also controlled further below*/
 	CONFIG_KEY_TRIGGER("global:statistics_file",rtOpts->statisticsLog.logEnabled,TRUE,FALSE);
 	CONFIG_KEY_TRIGGER("global:statistics_file",rtOpts->logStatistics,TRUE,FALSE);
-	CONFIG_MAP_CHARARRAY("global:statistics_file",rtOpts->statisticsLog.logPath,rtOpts->statisticsLog.logPath,
+	parseResult &= configMapString(dict, target, "global:statistics_file",rtOpts->statisticsLog.logPath,rtOpts->statisticsLog.logPath,
 		"Specify statistics log file path. Setting this enables logging of \n"
 	"	 statistics, but can be overriden with global:log_statistics.");
 
-	CONFIG_MAP_INT_MIN("global:statistics_log_interval",rtOpts->statisticsLogInterval,rtOpts->statisticsLogInterval,
+	parseResult &= configMapInt(dict, target, "global:statistics_log_interval",INTTYPE_INT,&rtOpts->statisticsLogInterval,rtOpts->statisticsLogInterval,
 		 "Log timing statistics every n seconds for Sync and Delay messages\n"
-	"	 (0 - log all).",0);
+	"	 (0 - log all).",RANGECHECK_MIN,0,0);
 
-	CONFIG_MAP_INT_MIN("global:statistics_file_max_size",rtOpts->statisticsLog.maxSize,rtOpts->statisticsLog.maxSize,
+	parseResult &= configMapInt(dict, target, "global:statistics_file_max_size",INTTYPE_U32,&rtOpts->statisticsLog.maxSize,rtOpts->statisticsLog.maxSize,
 		"Maximum statistics log file size (in kB) - log file will be truncated\n"
-	"	 if size exceeds the limit. 0 - no limit.", 0);
+	"	 if size exceeds the limit. 0 - no limit.",RANGECHECK_MIN,0,0);
 
-	CONFIG_MAP_INT_RANGE("global:statistics_file_max_files",rtOpts->statisticsLog.maxFiles,rtOpts->statisticsLog.maxFiles,
-		"Enable log rotation of the statistics file up to n files. 0 - do not rotate.", 0, 100);
+	parseResult &= configMapInt(dict, target, "global:statistics_file_max_files",INTTYPE_INT,&rtOpts->statisticsLog.maxFiles,rtOpts->statisticsLog.maxFiles,
+		"Enable log rotation of the statistics file up to n files. 0 - do not rotate.", RANGECHECK_RANGE,0, 100);
 
-	CONFIG_MAP_BOOLEAN("global:statistics_file_truncate",rtOpts->statisticsLog.truncateOnReopen,rtOpts->statisticsLog.truncateOnReopen,
+	parseResult &= configMapBoolean(dict, target,"global:statistics_file_truncate", &rtOpts->statisticsLog.truncateOnReopen,rtOpts->statisticsLog.truncateOnReopen,
 		"Truncate the statistics file every time it is (re) opened: startup and SIGHUP.");
 
-	CONFIG_MAP_BOOLEAN("global:dump_packets",rtOpts->displayPackets,rtOpts->displayPackets,
+	parseResult &= configMapBoolean(dict, target,"global:dump_packets", &rtOpts->displayPackets,rtOpts->displayPackets,
 		"Dump the contents of every PTP packet");
 
 	/* this also checks if the verbose_foreground flag is set correctly */
-	CONFIG_MAP_BOOLEAN("global:verbose_foreground",rtOpts->nonDaemon,rtOpts->nonDaemon,
+	parseResult &= configMapBoolean(dict, target,"global:verbose_foreground", &rtOpts->nonDaemon,rtOpts->nonDaemon,
 		"Run in foreground with statistics and all messages logged to stdout.\n"
 	"	 Overrides log file and statistics file settings and disables syslog.\n");
 
@@ -2087,7 +1918,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	 * but we don't want foreground=y to switch on verbose_foreground if not set.
 	 */
 
-	CONFIG_MAP_BOOLEAN("global:foreground",rtOpts->nonDaemon,rtOpts->nonDaemon,
+	parseResult &= configMapBoolean(dict, target,"global:foreground", &rtOpts->nonDaemon,rtOpts->nonDaemon,
 		"Run in foreground - ignored when global:verbose_foreground is set");
 
 	if(CONFIG_ISTRUE("global:verbose_foreground")) {
@@ -2095,10 +1926,10 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	}
 
 	/* If this is processed after verbose_foreground, we can still control logStatistics */
-	CONFIG_MAP_BOOLEAN("global:log_statistics", rtOpts->logStatistics, rtOpts->logStatistics,
+	parseResult &= configMapBoolean(dict, target,"global:log_statistics", &rtOpts->logStatistics, rtOpts->logStatistics,
 		"Log timing statistics for every PTP packet received\n");
 
-	CONFIG_MAP_SELECTVALUE("global:statistics_timestamp_format", rtOpts->statisticsTimestamp, rtOpts->statisticsTimestamp,
+	parseResult &= configMapSelectValue(dict, target, "global:statistics_timestamp_format", &rtOpts->statisticsTimestamp, rtOpts->statisticsTimestamp,
 		"Timestamp format used when logging timing statistics\n"
 	"        (when global:log_statistics is enabled):\n"
 	"        datetime - formatttted date and time: YYYY-MM-DD hh:mm:ss.uuuuuu\n"
@@ -2107,7 +1938,7 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 	"               (adds one extra field  to the log)\n",
 		"datetime",	TIMESTAMP_DATETIME,
 		"unix",		TIMESTAMP_UNIX,
-		"both",		TIMESTAMP_BOTH
+		"both",		TIMESTAMP_BOTH, NULL
 		);
 
 	/* If statistics file is enabled but logStatistics isn't, disable logging to file */
@@ -2115,17 +1946,17 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 					rtOpts->statisticsLog.logEnabled, FALSE, rtOpts->statisticsLog.logEnabled);
 
 #if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined (__QNXNTO__)
-	CONFIG_MAP_INT_RANGE("global:cpuaffinity_cpucore",rtOpts->cpuNumber,rtOpts->cpuNumber,
+	parseResult &= configMapInt(dict, target, "global:cpuaffinity_cpucore",INTTYPE_INT,&rtOpts->cpuNumber,rtOpts->cpuNumber,
 		"Bind "PTPD_PROGNAME" process to a selected CPU core number.\n"
-	"        0 = first CPU core, etc. -1 = do not bind to a single core.",
+	"        0 = first CPU core, etc. -1 = do not bind to a single core.", RANGECHECK_RANGE,
 	-1,255);
 #endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H */
 
-	CONFIG_MAP_INT_RANGE("global:statistics_update_interval",rtOpts->statsUpdateInterval,
+	parseResult &= configMapInt(dict, target, "global:statistics_update_interval",INTTYPE_INT,&rtOpts->statsUpdateInterval,
 								rtOpts->statsUpdateInterval,
-		"Clock synchronisation statistics update interval in seconds\n", 1, 60);
+		"Clock synchronisation statistics update interval in seconds\n", RANGECHECK_RANGE,1, 60);
 
-	CONFIG_MAP_BOOLEAN("global:periodic_updates", rtOpts->periodicUpdates, rtOpts->periodicUpdates,
+	parseResult &= configMapBoolean(dict, target,"global:periodic_updates", &rtOpts->periodicUpdates, rtOpts->periodicUpdates,
 		"Log a status update every time statistics are updated (global:statistics_update_interval).\n"
 	"        The updates are logged even when ptpd is configured without statistics support");
 
@@ -2139,30 +1970,30 @@ parseConfig ( dictionary* dict, RunTimeOpts *rtOpts )
 
 #endif /* PTPD_STATISTICS */
 
-	CONFIG_MAP_INT_RANGE("global:timingdomain_election_delay",rtOpts->electionDelay,rtOpts->electionDelay,
+	parseResult &= configMapInt(dict, target, "global:timingdomain_election_delay",INTTYPE_INT,&rtOpts->electionDelay,rtOpts->electionDelay,
 		" Delay (seconds) before releasing a time service (NTP or PTP)"
-	"        and electing a new one to control a clock. 0 = elect immediately\n", 0, 3600);
+	"        and electing a new one to control a clock. 0 = elect immediately\n", RANGECHECK_RANGE,0, 3600);
 
 
 /* ===== ntpengine section ===== */
 
-	CONFIG_MAP_BOOLEAN("ntpengine:enabled",rtOpts->ntpOptions.enableEngine,rtOpts->ntpOptions.enableEngine,
+	parseResult &= configMapBoolean(dict, target,"ntpengine:enabled", &rtOpts->ntpOptions.enableEngine,rtOpts->ntpOptions.enableEngine,
 	"Enable NTPd integration");
 
-	CONFIG_MAP_BOOLEAN("ntpengine:control_enabled",rtOpts->ntpOptions.enableControl,rtOpts->ntpOptions.enableControl,
+	parseResult &= configMapBoolean(dict, target,"ntpengine:control_enabled", &rtOpts->ntpOptions.enableControl,rtOpts->ntpOptions.enableControl,
 	"Enable control over local NTPd daemon");
 
 	CONFIG_KEY_DEPENDENCY("ntpengine:control_enabled", "ntpengine:enabled");
 
-	CONFIG_MAP_INT_RANGE("ntpengine:check_interval",rtOpts->ntpOptions.checkInterval,
+	parseResult &= configMapInt(dict, target, "ntpengine:check_interval",INTTYPE_INT,&rtOpts->ntpOptions.checkInterval,
 								rtOpts->ntpOptions.checkInterval,
-		"NTP control check interval in seconds\n", 5, 600);
+		"NTP control check interval in seconds\n", RANGECHECK_RANGE, 5, 600);
 
-	CONFIG_MAP_INT_RANGE("ntpengine:key_id",rtOpts->ntpOptions.keyId, rtOpts->ntpOptions.keyId,
+	parseResult &= configMapInt(dict, target, "ntpengine:key_id",INTTYPE_INT,&rtOpts->ntpOptions.keyId, rtOpts->ntpOptions.keyId,
 		 "NTP key number - must be configured as a trusted control key in ntp.conf,\n"
-	"	  and be non-zero for the ntpengine:control_enabled setting to take effect.\n", 0, 65535);
+	"	  and be non-zero for the ntpengine:control_enabled setting to take effect.\n", RANGECHECK_RANGE,0, 65535);
 
-	CONFIG_MAP_CHARARRAY("ntpengine:key",rtOpts->ntpOptions.key, rtOpts->ntpOptions.key,
+	parseResult &= configMapString(dict, target, "ntpengine:key",rtOpts->ntpOptions.key, rtOpts->ntpOptions.key,
 		"NTP key (plain text, max. 20 characters) - must match the key configured in\n"
 	"	 ntpd's keys file, and must be non-zero for the ntpengine:control_enabled\n"
 	"	 setting to take effect.\n");

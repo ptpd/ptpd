@@ -474,7 +474,7 @@ IntMovingStatFilter* createIntMovingStatFilter(StatFilterOptions *config, const 
 
 	IntMovingStatFilter* container;
 
-	if((config->filterType < 0) || (config->filterType > FILTER_MAXVALUE)) {
+	if(config->filterType > FILTER_MAXVALUE) {
 		return NULL;
 	}
 
@@ -633,7 +633,7 @@ DoubleMovingStatFilter* createDoubleMovingStatFilter(StatFilterOptions *config, 
 {
 	DoubleMovingStatFilter* container;
 
-	if((config->filterType < 0) || (config->filterType > FILTER_MAXVALUE)) {
+	if(config->filterType > FILTER_MAXVALUE) {
 		return NULL;
 	}
 

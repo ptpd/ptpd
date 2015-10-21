@@ -110,8 +110,8 @@ typedef struct {
 	int32_t* sortedSamples;
 	char identifier[10];
 	int counter;
-	int filterType;
-	int windowType;
+	uint8_t filterType;
+	uint8_t windowType;
 
 } IntMovingStatFilter;
 
@@ -122,17 +122,17 @@ typedef struct {
 	double* sortedSamples;
 	char identifier[10];
 	int counter;
-	int filterType;
-	int windowType;
+	uint8_t filterType;
+	uint8_t windowType;
 
 } DoubleMovingStatFilter;
 
 typedef struct {
 
 	Boolean enabled;
-	int	filterType;
+	uint8_t	filterType;
 	int	windowSize;
-	int	windowType;
+	uint8_t	windowType;
 
 } StatFilterOptions;
 

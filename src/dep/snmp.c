@@ -465,8 +465,8 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 	case PTPBASE_CLOCK_PORT_CURRENT_PEER_ADDRESS:
 		if(snmpRtOpts->transport != UDP_IPV4)
 		    return SNMP_IPADDR(0);
-		if (snmpPtpClock->masterAddr)
-		return SNMP_IPADDR(snmpPtpClock->masterAddr);
+		if (snmpPtpClock->bestMaster->sourceAddr)
+		return SNMP_IPADDR(snmpPtpClock->bestMaster->sourceAddr);
 		if (snmpPtpClock->unicastDestinations[1].transportAddress)
 			return SNMP_IPADDR(snmpPtpClock->unicastDestinations[1].transportAddress);
 		if(snmpRtOpts->ipMode != IPMODE_MULTICAST) {

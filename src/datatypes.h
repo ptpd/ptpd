@@ -903,7 +903,6 @@ typedef struct {
 	/* user description is max size + 1 to leave space for a null terminator */
 	Octet user_description[USER_DESCRIPTION_MAX + 1];
 
-	Integer32 	masterAddr;                           // used for hybrid mode, when receiving announces
 	Integer32 	LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
 	Integer32	lastSyncDst;		/* captures the destination address for last sync, so we know where to send the followUp */
 	Integer32	lastPdelayRespDst;	/* captures the destination address of last pdelayResp so we know where to send the pdelayRespfollowUp */
@@ -1070,15 +1069,15 @@ typedef struct {
 	LogFileHandler statusLog;
 
 	int leapSecondPausePeriod;
-	int leapSecondHandling;
+	Enumeration8 leapSecondHandling;
 	Integer32 leapSecondSmearPeriod;
 	int leapSecondNoticePeriod;
 
 	Boolean periodicUpdates;
 	Boolean logStatistics;
-	int statisticsTimestamp;
+	Enumeration8 statisticsTimestamp;
 
-	int logLevel;
+	Enumeration8 logLevel;
 	int statisticsLogInterval;
 
 	int statusFileUpdateInterval;
@@ -1099,7 +1098,7 @@ typedef struct {
 	char lockFile[PATH_MAX]; /* lock file location */
 	char driftFile[PATH_MAX]; /* drift file location */
 	char leapFile[PATH_MAX]; /* leap seconds file location */
-	int drift_recovery_method; /* how the observed drift is managed 
+	Enumeration8 drift_recovery_method; /* how the observed drift is managed 
 				      between restarts */
 
 	LeapSecondInfo	leapInfo;
@@ -1109,8 +1108,8 @@ typedef struct {
 
 	Boolean pcap; /* Receive and send packets using libpcap, bypassing the
 			 network stack. */
-	int transport; /* transport type */
-	int ipMode; /* IP transmission mode */
+	Enumeration8 transport; /* transport type */
+	Enumeration8 ipMode; /* IP transmission mode */
 	Boolean dot2AS; /* 801.2AS support -> transportSpecific field */
 
 	Boolean disableUdpChecksums; /* disable UDP checksum validation where supported */
@@ -1152,12 +1151,12 @@ typedef struct {
 	/* config dictionary containers - current, candidate and from CLI*/
 	dictionary *currentConfig, *candidateConfig, *cliConfig;
 
-	int selectedPreset;
+	Enumeration8 selectedPreset;
 
 	int servoMaxPpb;
 	double servoKP;
 	double servoKI;
-	int servoDtMethod;
+	Enumeration8 servoDtMethod;
 	double servoMaxdT;
 
 	/**
@@ -1221,8 +1220,8 @@ typedef struct {
 	char timingAclDenyText[PATH_MAX];
 	char managementAclPermitText[PATH_MAX];
 	char managementAclDenyText[PATH_MAX];
-	int timingAclOrder;
-	int managementAclOrder;
+	Enumeration8 timingAclOrder;
+	Enumeration8 managementAclOrder;
 
 } RunTimeOpts;
 

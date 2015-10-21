@@ -9,11 +9,12 @@
 - add dummy or populated default template file x
 - 16.1.1: may be granted in listening state or passive state <- but g.8265 is no BMCA x
 - sig/msg message acceptance 4 options: all1,port, clockid,port, clock,all1, all1,all1 x
-- rework config option parsing
+- rework config option parsing x
+- rework parseConfig to support an opcode, get rid of remaining macros
 - SET messages to refresh the config properly
 - NVRAM write?
 - pointer to best master x
 - disqualification flag x
-- remove masteraddr in favour of bestMaster->sourceAddr
+- remove masteraddr in favour of bestMaster->sourceAddr x
 - use split token loop
-- use pointer to best master
+- use pointer to best master x

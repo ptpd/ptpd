@@ -637,8 +637,6 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 		}
 		if (newBM) {
 
-			ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
-
 			displayPortIdentity(&foreign->header.sourcePortIdentity,
 					    "New best master selected:");
 			ptpClock->counters.masterChanges++;
@@ -673,7 +671,6 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 		} else if (comp > 0) {
 			s1(&foreign->header, &foreign->announce, ptpClock, rtOpts);
 			if (newBM) {
-				ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
 				displayPortIdentity(&foreign->header.sourcePortIdentity,
 						    "New best master selected:");
 				ptpClock->counters.masterChanges++;
@@ -695,7 +692,6 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 						    "New best master selected:");
 				ptpClock->counters.masterChanges++;
 				if(ptpClock->portState == PTP_SLAVE)
-					ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
 					displayStatus(ptpClock, "State: ");
 				if(rtOpts->calibrationDelay) {
 					ptpClock->isCalibrated = FALSE;
@@ -741,12 +737,3 @@ bmc(ForeignMasterRecord *foreignMaster,
 	return (bmcStateDecision(ptpClock->bestMaster,
 				 rtOpts,ptpClock));
 }
-
-/* retrieve curent best master */
-ForeignMasterRecord
-*getBestMaster(PtpClock *ptpClock) {
-
-    return(&(ptpClock->foreign[ptpClock->foreign_record_best]));
-
-}
-

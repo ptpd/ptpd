@@ -41,6 +41,25 @@
 #define PTPD_RESTART_NTPCONFIG	1 << 11
 
 #define LOG2_HELP "(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)"
+#define MAX_LINE_SIZE 1024
+
+/* range check flags */
+enum {
+    RANGECHECK_NONE,
+    RANGECHECK_RANGE,
+    RANGECHECK_MIN,
+    RANGECHECK_MAX
+};
+
+enum {
+    INTTYPE_INT,
+    INTTYPE_I8,
+    INTTYPE_U8,
+    INTTYPE_I16,
+    INTTYPE_U16,
+    INTTYPE_I32,
+    INTTYPE_U32
+};
 
 Boolean loadConfigFile (dictionary**, RunTimeOpts*);
 void loadCommandLineKeys(dictionary*, int, char**);

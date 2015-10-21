@@ -280,8 +280,6 @@ int cmpPortIdentity(const PortIdentity *a, const PortIdentity *b);
 Boolean portIdentityEmpty(PortIdentity *portIdentity);
 /* check if portIdentity is all ones */
 Boolean portIdentityAllOnes(PortIdentity *portIdentity);
-/* retrieve best master */
-ForeignMasterRecord *getBestMaster(PtpClock *ptpClock);
 
 /**
  * \brief When recommended state is Master, copy local data into parent and grandmaster dataset

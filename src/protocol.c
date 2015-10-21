@@ -426,7 +426,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    cancelAllGrants(ptpClock->unicastGrants, ptpClock->unicastDestinationCount,
 				rtOpts, ptpClock);
 		}
-		ptpClock->masterAddr = 0;
+		ptpClock->bestMaster = NULL;
 		/* see? NOW we're in disabled state */
 		ptpClock->portState = PTP_DISABLED;
 
@@ -492,7 +492,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				(pow(2,ptpClock->logAnnounceInterval)));
 				ptpClock->announceTimeouts = 0;
 
-		ptpClock->masterAddr = 0;
+		ptpClock->bestMaster = NULL;
 
 		/* 
 		 * Log status update only once - condition must be checked before we write the new state,
@@ -528,7 +528,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->portState = PTP_MASTER;
 		displayStatus(ptpClock, "Now in state: ");
 
-		ptpClock->masterAddr = 0;
+		ptpClock->bestMaster = NULL;
 
 		break;
 #endif /* PTPD_SLAVE_ONLY */
@@ -1499,9 +1499,9 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 	   		s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
 
 			/* update current master in the fmr as well */
-			memcpy(&ptpClock->foreign[ptpClock->foreign_record_best].header,
+			memcpy(&ptpClock->bestMaster->header,
 			       header,sizeof(MsgHeader));
-			memcpy(&ptpClock->foreign[ptpClock->foreign_record_best].announce,
+			memcpy(&ptpClock->bestMaster->announce,
 			       &ptpClock->msgTmp.announce,sizeof(MsgAnnounce));
 
 			if(ptpClock->leapSecondInProgress) {
@@ -1563,9 +1563,6 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 					ptpClock->clockControl.available = TRUE;
 			}
 
-			/* save the master address for display purposes or hybrid mode */
-			ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
-
 			break;
 
 		case FALSE:
@@ -1626,8 +1623,6 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			 */
 			/* update datasets (file bmc.c) */
 			s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
-
-			ptpClock->masterAddr = getBestMaster(ptpClock)->sourceAddr;
 
 			DBG("___ Announce: received Announce from current Master, so reset the Announce timer\n\n");
 
@@ -3278,7 +3273,9 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	  /* in hybrid mode  or unicast mode, send delayReq to current master */
         if (rtOpts->ipMode == IPMODE_HYBRID || rtOpts->ipMode == IPMODE_UNICAST) {
-    		dst = ptpClock->masterAddr;
+		if(ptpClock->bestMaster) {
+    		    dst = ptpClock->bestMaster->sourceAddr;
+		}
         }
 
 	if (!netSendEvent(ptpClock->msgObuf,DELAY_REQ_LENGTH,

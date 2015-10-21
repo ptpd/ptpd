@@ -883,10 +883,10 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
     len += snprint_PortIdentity(masterIdBuf + len, sizeof(masterIdBuf) - len,
 	    &ptpClock->parentPortIdentity);
-    if(ptpClock->masterAddr) {
+    if(ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
 	char strAddr[MAXHOSTNAMELEN];
 	struct in_addr tmpAddr;
-	tmpAddr.s_addr = ptpClock->masterAddr;
+	tmpAddr.s_addr = ptpClock->bestMaster->sourceAddr;
 	inet_ntop(AF_INET, (struct sockaddr_in *)(&tmpAddr), strAddr, MAXHOSTNAMELEN);
 	len += snprintf(masterIdBuf + len, sizeof(masterIdBuf) - len, " (IPv4:%s)",strAddr);
     }
@@ -961,9 +961,9 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", Best master: ");
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 			&ptpClock->parentPortIdentity);
-		if(ptpClock->masterAddr) {
+		if(ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
 		    struct in_addr tmpAddr;
-		    tmpAddr.s_addr = ptpClock->masterAddr;
+		    tmpAddr.s_addr = ptpClock->bestMaster->sourceAddr;
 		    inet_ntop(AF_INET, (struct sockaddr_in *)(&tmpAddr), strAddr, MAXHOSTNAMELEN);
 		    len += snprintf(sbuf + len, sizeof(sbuf) - len, " (IPv4:%s)",strAddr);
 		}
@@ -1053,10 +1053,10 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	}
 	if(rtOpts->transport == UDP_IPV4 &&
 	    ptpClock->portState > PTP_MASTER &&
-	    ptpClock->masterAddr) {
+	    ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
 	    {
 	    struct in_addr tmpAddr;
-	    tmpAddr.s_addr = ptpClock->masterAddr;
+	    tmpAddr.s_addr = ptpClock->bestMaster->sourceAddr;
 	    fprintf(out, 		STATUSPREFIX"  %s\n","Best master IP", inet_ntoa(tmpAddr));
 	    }
 	}
