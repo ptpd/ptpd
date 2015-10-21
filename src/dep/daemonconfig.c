@@ -549,7 +549,7 @@ static int configMapDouble(dictionary *dict, dictionary *target, const char *key
 }
 
 static int
-configMapSelectValue(dictionary *dict, dictionary *target, const char* key, uint8_t *input, int def, const char *helptext, ...)
+configMapSelectValue(dictionary *dict, dictionary *target, const char* key, uint8_t *var, int def, const char *helptext, ...)
 {
 
     int ret;
@@ -614,7 +614,7 @@ configMapSelectValue(dictionary *dict, dictionary *target, const char* key, uint
 		    ERROR("Configuration error: option \"%s\" has unknown value: %s - allowed values: %s\n", key, keyValue, sbuf);
 		    ret = 0;
 		} else {
-
+		    *var = (uint8_t)selectedValue;
 		    if(!STRING_EMPTY(helptext) && IS_SHOWDEFAULT()) {
 		        printComment(helptext);
 		        printf("; Options: %s\n", sbuf);
