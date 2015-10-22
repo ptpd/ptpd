@@ -43,7 +43,7 @@
 #define LOG2_HELP "(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)"
 #define MAX_LINE_SIZE 1024
 
-/* range check flags */
+/* int/double range check flags */
 enum {
     RANGECHECK_NONE,
     RANGECHECK_RANGE,
@@ -51,6 +51,7 @@ enum {
     RANGECHECK_MAX
 };
 
+/* int type to cast parsed config data to */
 enum {
     INTTYPE_INT,
     INTTYPE_I8,
@@ -61,13 +62,22 @@ enum {
     INTTYPE_U32
 };
 
+/* config parser operations */
+
+#define    CFGOP_PARSE 		1<<0	/* parse all config options, return success/failure */
+#define    CFGOP_PARSE_QUIET	1<<1	/* parse config but display no warnings */
+#define    CFGOP_PRINT_DEFAULT	1<<2	/* print default settings only */
+#define    CFGOP_HELP_FULL	1<<3	/* print help for all settings */
+#define    CFGOP_HELP_SINGLE	1<<4	/* print help for one entry */
+#define    CFGOP_RESTART_FLAGS	1<<5	/* return subsystems affected by config changes */
+
 Boolean loadConfigFile (dictionary**, RunTimeOpts*);
 void loadCommandLineKeys(dictionary*, int, char**);
 Boolean loadCommandLineOptions(RunTimeOpts*, dictionary*, int, char** , Integer16*);
-dictionary* parseConfig (dictionary*, RunTimeOpts*);
+dictionary* parseConfig (int, void*, dictionary*, RunTimeOpts*);
 int reloadConfig ( RunTimeOpts*, PtpClock* );
 Boolean compareConfig(dictionary* source, dictionary* target);
-int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig);
+int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig, RunTimeOpts *rtOpts);
 void printConfigHelp();
 void printDefaultConfig();
 void printShortHelp();

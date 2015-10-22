@@ -94,7 +94,7 @@ To see the list of available built-in templates, run ptpd with \fI-T\fR or \fI--
 .RS 8
 .TP 8
 \fBusage\fR
-Network interface to use - eth0, igb0 etc. (\fBrequired\fR).
+Network interface to use - eth0, igb0 etc. (\fBrequired\fR). See also \fIptpengine:backup_interface\fR.
 .TP 8
 \fBdefault\fR
 \fI[none]\fR

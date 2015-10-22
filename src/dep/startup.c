@@ -176,7 +176,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	loadDefaultSettings(&tmpOpts);
 
 	/* Check the new configuration for errors, fill in the blanks from defaults */
-	if( ( rtOpts->candidateConfig = parseConfig(tmpConfig,&tmpOpts)) == NULL ) {
+	if( ( rtOpts->candidateConfig = parseConfig(CFGOP_PARSE, NULL, tmpConfig,&tmpOpts)) == NULL ) {
 	    WARNING("Configuration file has errors, reload aborted\n");
 	    dictionary_del(&tmpConfig);
 	    goto end;
@@ -195,7 +195,7 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 */
 
 	rtOpts->restartSubsystems =
-	    checkSubsystemRestart(rtOpts->candidateConfig, rtOpts->currentConfig);
+	    checkSubsystemRestart(rtOpts->candidateConfig, rtOpts->currentConfig, rtOpts);
 
 	/* If we're told to re-check lock files, do it: tmpOpts already has what rtOpts should */
 	if( (rtOpts->restartSubsystems & PTPD_CHECK_LOCKS) &&
@@ -243,9 +243,6 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 
-		/* Tell parseConfig to shut up - it's had its chance already */
-		dictionary_set(rtOpts->candidateConfig,"%quiet%:%quiet%","Y");
-
 		/**
 		 * Commit changes to rtOpts and currentConfig
 		 * (this should never fail as the config has already been checked if we're here)
@@ -256,13 +253,11 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		if (rtOpts->currentConfig) {
 			dictionary_del(&rtOpts->currentConfig);
 		}
-		if ( (rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL) {
+		if ( (rtOpts->currentConfig = parseConfig(CFGOP_PARSE_QUIET, NULL, rtOpts->candidateConfig,rtOpts)) == NULL) {
 			CRITICAL("************ "PTPD_PROGNAME": parseConfig returned NULL during config commit"
 				 "  - this is a BUG - report the following: \n");
 
-			dictionary_unset(rtOpts->candidateConfig,"%quiet%:%quiet%");
-
-			if ((rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL)
+			if ((rtOpts->currentConfig = parseConfig(CFGOP_PARSE, NULL, rtOpts->candidateConfig,rtOpts)) == NULL)
 			    CRITICAL("*****************" PTPD_PROGNAME" shutting down **********************\n");
 			/*
 			 * Could be assert(), but this should be done any time this happens regardless of
@@ -731,7 +726,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * if not present. NULL is returned on any config error - parameters missing, out of range,
 	 * etc. The getopt loop in loadCommandLineOptions() only sets keys verified here.
 	 */
-	if( ( rtOpts->currentConfig = parseConfig(rtOpts->candidateConfig,rtOpts)) == NULL ) {
+	if( ( rtOpts->currentConfig = parseConfig(CFGOP_PARSE, NULL, rtOpts->candidateConfig,rtOpts)) == NULL ) {
 	    *ret = 1;
 	    dictionary_del(&rtOpts->candidateConfig);
 	    goto configcheck;
