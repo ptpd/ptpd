@@ -22,12 +22,12 @@ Summary: Synchronises system time using the Precision Time Protocol (PTP) implem
 Name: ptpd
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard. Full version with master and slave support.
 %endif
-Version: 2.3.1.1
+Version: 2.3.2
 Release: 1%{distver}
 License: distributable
 Group: System Environment/Daemons
 Vendor: PTPd project team
-Source0: ptpd-2.3.1.1.tar.gz
+Source0: ptpd-2.3.2.tar.gz
 
 Source2: ptpd.sysconfig
 Source3: ptpd.conf
@@ -68,7 +68,7 @@ time synchronised via the PTP protocol or serving PTP time.
 
 %prep 
 
-%setup -n ptpd-2.3.1.1
+%setup -n ptpd-2.3.2
 
 %build
 
@@ -210,14 +210,15 @@ fi
 %endif
 %config(noreplace)	%{_sysconfdir}/sysconfig/ptpd
 %config(noreplace)	%{_sysconfdir}/ptpd2.conf
+%config(noreplace)	%{_datadir}/ptpd/templates.conf
 %{_mandir}/man8/*
 %{_mandir}/man5/*
 %{_datadir}/snmp/mibs/*
 %{_datadir}/ptpd/*
 
 %changelog
-* Thu Jul 09 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1.1-1
-- minor version 2.3.1.1 with NTP shutdown fix
+* Thu Oct 23 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.2-1
+- version 2.3.2
 * Wed Jul 1 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-2
 - spec updated for OSes with systemd
 - chrony detection added to postinstall checks

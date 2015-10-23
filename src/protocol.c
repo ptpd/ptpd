@@ -315,16 +315,16 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {
 			/* do not cancel, just start re-requesting so we can still send a cancel on exit */
-			ptpClock->parentGrants->grantData[ANNOUNCE].timeLeft = 0;
-			ptpClock->parentGrants->grantData[SYNC].timeLeft = 0;
+			ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].timeLeft = 0;
+			ptpClock->parentGrants->grantData[SYNC_INDEXED].timeLeft = 0;
 			if(ptpClock->delayMechanism == E2E) {
-			    ptpClock->parentGrants->grantData[DELAY_RESP].timeLeft = 0;
+			    ptpClock->parentGrants->grantData[DELAY_RESP_INDEXED].timeLeft = 0;
 			}
 
 			ptpClock->parentGrants = NULL;
 
 			if(ptpClock->delayMechanism == P2P) {
-			    cancelUnicastTransmission(&ptpClock->peerGrants.grantData[PDELAY_RESP], rtOpts, ptpClock);
+			    cancelUnicastTransmission(&ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED], rtOpts, ptpClock);
 			    cancelAllGrants(&ptpClock->peerGrants, 1, rtOpts, ptpClock);
 			}
 		}
@@ -852,7 +852,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				/* if unicast negotiation is enabled, only request if granted */
 				if(!rtOpts->unicastNegotiation || 
 					(ptpClock->parentGrants && 
-					    ptpClock->parentGrants->grantData[DELAY_RESP].granted)) {
+					    ptpClock->parentGrants->grantData[DELAY_RESP_INDEXED].granted)) {
 						issueDelayReq(rtOpts,ptpClock);
 				}
 			}
@@ -861,7 +861,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				DBGV("event PDELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
 				/* if unicast negotiation is enabled, only request if granted */
 				if(!rtOpts->unicastNegotiation || 
-					( ptpClock->peerGrants.grantData[PDELAY_RESP].granted)) {
+					( ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].granted)) {
 					    issuePdelayReq(rtOpts,ptpClock);
 				}
 			}
@@ -999,7 +999,7 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				DBGV("event PDELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
 				/* if unicast negotiation is enabled, only request if granted */
 				if(!rtOpts->unicastNegotiation || 
-					( ptpClock->peerGrants.grantData[PDELAY_RESP].granted)) {
+					( ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].granted)) {
 					    issuePdelayReq(rtOpts,ptpClock);
 				}
 			}
@@ -1452,7 +1452,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 		nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0,
 							ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS,
 							FALSE);
-		if(nodeTable == NULL || !(nodeTable->grantData[ANNOUNCE].granted)) {
+		if(nodeTable == NULL || !(nodeTable->grantData[ANNOUNCE_INDEXED].granted)) {
 			if(!rtOpts->unicastAcceptAny) {
 			    DBG("Ignoring announce from master: unicast transmission not granted\n");
 			    ptpClock->counters.discardedMessages++;
@@ -1460,7 +1460,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			}
 		} else {
 		    localPreference = nodeTable->localPreference;
-		    nodeTable->grantData[ANNOUNCE].receiving = header->sequenceId;
+		    nodeTable->grantData[ANNOUNCE_INDEXED].receiving = header->sequenceId;
 		}
 	}
 
@@ -1695,7 +1695,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 			ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS,
 			FALSE);
 	    if(nodeTable != NULL) {
-		nodeTable->grantData[SYNC].receiving = header->sequenceId;
+		nodeTable->grantData[SYNC_INDEXED].receiving = header->sequenceId;
 	    }
 	}
 
@@ -1759,8 +1759,8 @@ handleSync(const MsgHeader *header, ssize_t length,
 
 			/* this will be 0x7F for unicast so if we have a grant, use the granted value */
 			if(rtOpts->unicastNegotiation && ptpClock->parentGrants 
-				&& ptpClock->parentGrants->grantData[SYNC].granted) {
-				ptpClock->logSyncInterval =  ptpClock->parentGrants->grantData[SYNC].logInterval;
+				&& ptpClock->parentGrants->grantData[SYNC_INDEXED].granted) {
+				ptpClock->logSyncInterval =  ptpClock->parentGrants->grantData[SYNC_INDEXED].logInterval;
 			}
 			
 
@@ -1933,8 +1933,8 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 			ptpClock->logSyncInterval = header->logMessageInterval;
 			/* this will be 0x7F for unicast so if we have a grant, use the granted value */
 			if(rtOpts->unicastNegotiation && ptpClock->parentGrants 
-				&& ptpClock->parentGrants->grantData[SYNC].granted) {
-				ptpClock->logSyncInterval =  ptpClock->parentGrants->grantData[SYNC].logInterval;
+				&& ptpClock->parentGrants->grantData[SYNC_INDEXED].granted) {
+				ptpClock->logSyncInterval =  ptpClock->parentGrants->grantData[SYNC_INDEXED].logInterval;
 			}
 
 			if (ptpClock->waitingForFollow)	{
@@ -2018,7 +2018,7 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0,
 				ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS,
 				FALSE);
-		    if(nodeTable == NULL || !(nodeTable->grantData[DELAY_RESP].granted)) {
+		    if(nodeTable == NULL || !(nodeTable->grantData[DELAY_RESP_INDEXED].granted)) {
 			DBG("Ignoring Delay Request from slave: unicast transmission not granted\n");
 			ptpClock->counters.discardedMessages++;
 			    return;
@@ -2152,7 +2152,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 				ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS,
 				FALSE);
 		    if(nodeTable != NULL) {
-			nodeTable->grantData[DELAY_RESP].receiving = header->sequenceId;
+			nodeTable->grantData[DELAY_RESP_INDEXED].receiving = header->sequenceId;
 		    } else { 
 			DBG("delayResp - unicast master not identified\n");
 		    }
@@ -2241,12 +2241,12 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
                     			if(header->logMessageInterval == UNICAST_MESSAGEINTERVAL &&
 						rtOpts->autoDelayReqInterval) {
 
-						if(rtOpts->unicastNegotiation && ptpClock->parentGrants && ptpClock->parentGrants->grantData[DELAY_RESP].granted) {
+						if(rtOpts->unicastNegotiation && ptpClock->parentGrants && ptpClock->parentGrants->grantData[DELAY_RESP_INDEXED].granted) {
 						    if(ptpClock->delayRespWaiting) {
 							    NOTICE("Received Delay Interval %d from master\n",
-							    ptpClock->parentGrants->grantData[DELAY_RESP].logInterval);
+							    ptpClock->parentGrants->grantData[DELAY_RESP_INDEXED].logInterval);
 						    }
-						    ptpClock->logMinDelayReqInterval = ptpClock->parentGrants->grantData[DELAY_RESP].logInterval;
+						    ptpClock->logMinDelayReqInterval = ptpClock->parentGrants->grantData[DELAY_RESP_INDEXED].logInterval;
 						} else {
 
 						    if(ptpClock->delayRespWaiting) {
@@ -2311,12 +2311,12 @@ handlePdelayReq(MsgHeader *header, ssize_t length,
 		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0, 
 				ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS,
 				FALSE);
-		    if(nodeTable == NULL || !(nodeTable->grantData[PDELAY_RESP].granted)) {
+		    if(nodeTable == NULL || !(nodeTable->grantData[PDELAY_RESP_INDEXED].granted)) {
 			DBG("Ignoring Peer Delay Request from peer: unicast transmission not granted\n");
 			ptpClock->counters.discardedMessages++;
 			    return;
 		    } else {
-			nodeTable->grantData[PDELAY_RESP].receiving = header->sequenceId;
+			nodeTable->grantData[PDELAY_RESP_INDEXED].receiving = header->sequenceId;
 		    }
 
 		}
@@ -2477,12 +2477,12 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
                     			if(header->logMessageInterval == UNICAST_MESSAGEINTERVAL &&
 						rtOpts->autoDelayReqInterval) {
 
-						if(rtOpts->unicastNegotiation && ptpClock->peerGrants.grantData[PDELAY_RESP].granted) {
+						if(rtOpts->unicastNegotiation && ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].granted) {
 						    if(ptpClock->delayRespWaiting) {
 							    NOTICE("Received Peer Delay Interval %d from peer\n",
-							    ptpClock->peerGrants.grantData[PDELAY_RESP].logInterval);
+							    ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].logInterval);
 						    }
-						    ptpClock->logMinPdelayReqInterval = ptpClock->peerGrants.grantData[PDELAY_RESP].logInterval;
+						    ptpClock->logMinPdelayReqInterval = ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].logInterval;
 						} else {
 
 						    if(ptpClock->delayRespWaiting) {
@@ -2616,12 +2616,12 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
                     			if(header->logMessageInterval == UNICAST_MESSAGEINTERVAL &&
 						rtOpts->autoDelayReqInterval) {
 
-						if(rtOpts->unicastNegotiation && ptpClock->peerGrants.grantData[PDELAY_RESP].granted) {
+						if(rtOpts->unicastNegotiation && ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].granted) {
 						    if(ptpClock->delayRespWaiting) {
 							    NOTICE("Received Peer Delay Interval %d from peer\n",
-							    ptpClock->peerGrants.grantData[PDELAY_RESP].logInterval);
+							    ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].logInterval);
 						    }
-						    ptpClock->logMinPdelayReqInterval = ptpClock->peerGrants.grantData[PDELAY_RESP].logInterval;
+						    ptpClock->logMinPdelayReqInterval = ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].logInterval;
 						} else {
 
 						    if(ptpClock->delayRespWaiting) {
@@ -3021,7 +3021,7 @@ issueAnnounce(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	    /* send to granted only */
 	    if(rtOpts->unicastNegotiation) {
 		for(i = 0; i < UNICAST_MAX_DESTINATIONS; i++) {
-		    grant = &(ptpClock->unicastGrants[i].grantData[ANNOUNCE]);
+		    grant = &(ptpClock->unicastGrants[i].grantData[ANNOUNCE_INDEXED]);
 		    okToSend = TRUE;
 		    if(grant->logInterval > ptpClock->logAnnounceInterval ) {
 			grant->intervalCounter %= (UInteger32)(pow(2,grant->logInterval - ptpClock->logAnnounceInterval));
@@ -3041,7 +3041,7 @@ issueAnnounce(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	    } else {
 		for(i = 0; i < ptpClock->unicastDestinationCount; i++) {
 			issueAnnounceSingle(ptpClock->unicastDestinations[i].transportAddress,
-			&(ptpClock->unicastGrants[i].grantData[ANNOUNCE].sentSeqId),
+			&(ptpClock->unicastGrants[i].grantData[ANNOUNCE_INDEXED].sentSeqId),
 						rtOpts, ptpClock);
 		    }
 		}
@@ -3091,7 +3091,7 @@ issueSync(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	    /* send to granted only */
 	    if(rtOpts->unicastNegotiation) {
 		for(i = 0; i < UNICAST_MAX_DESTINATIONS; i++) {
-		    grant = &(ptpClock->unicastGrants[i].grantData[SYNC]);
+		    grant = &(ptpClock->unicastGrants[i].grantData[SYNC_INDEXED]);
 		    okToSend = TRUE;
 		    /* handle different intervals */
 		    if(grant->logInterval > ptpClock->logSyncInterval ) {
@@ -3116,7 +3116,7 @@ issueSync(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		for(i = 0; i < ptpClock->unicastDestinationCount; i++) {
 			ptpClock->unicastDestinations[i].lastSyncTimestamp =
 			    issueSyncSingle(ptpClock->unicastDestinations[i].transportAddress,
-			    &(ptpClock->unicastGrants[i].grantData[SYNC].sentSeqId),
+			    &(ptpClock->unicastGrants[i].grantData[SYNC_INDEXED].sentSeqId),
 						rtOpts, ptpClock);
 		    }
 		}

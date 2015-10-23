@@ -2766,6 +2766,7 @@ short_help:
 			printf(PTPD_PROGNAME" version "USER_VERSION
 #ifdef CODE_REVISION
 			CODE_REVISION
+			" built on "BUILD_DATE
 #endif
 			"\n");
 

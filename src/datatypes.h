@@ -664,7 +664,7 @@ struct UnicastGrantTable {
 	UInteger8		domainNumber;		/* domain of the master - as used by Telecom Profile */
 	UInteger8		localPreference;		/* local preference - as used by Telecom profile */
 	PortIdentity    	portIdentity;		/* master: port ID of grantee, slave: portID of grantor */
-	UnicastGrantData	grantData[PTP_MAX_MESSAGE];/* master: grantee's grants, slave: grantor's grant status */
+	UnicastGrantData	grantData[PTP_MAX_MESSAGE_INDEXED];/* master: grantee's grants, slave: grantor's grant status */
 	UInteger32		timeLeft;		/* time until expiry of last grant (max[grants.timeLeft]. when runs out and no renewal, entry can be re-used */
 	Boolean			isPeer;			/* this entry is peer only */
 	TimeInternal		lastSyncTimestamp;		/* last Sync message timestamp sent */
@@ -1061,7 +1061,7 @@ typedef struct {
 	Boolean checkConfigOnly;
 	Boolean printLockFile;
 
-	char configFile[PATH_MAX];
+	char configFile[PATH_MAX+1];
 
 	LogFileHandler statisticsLog;
 	LogFileHandler recordLog;
@@ -1093,11 +1093,11 @@ typedef struct {
 
 	Boolean autoLockFile; /* mode and interface specific lock files are used
 				    * when set to TRUE */
-	char lockDirectory[PATH_MAX]; /* Directory to store lock files 
+	char lockDirectory[PATH_MAX+1]; /* Directory to store lock files 
 				       * When automatic lock files used */
-	char lockFile[PATH_MAX]; /* lock file location */
-	char driftFile[PATH_MAX]; /* drift file location */
-	char leapFile[PATH_MAX]; /* leap seconds file location */
+	char lockFile[PATH_MAX+1]; /* lock file location */
+	char driftFile[PATH_MAX+1]; /* drift file location */
+	char leapFile[PATH_MAX+1]; /* leap seconds file location */
 	Enumeration8 drift_recovery_method; /* how the observed drift is managed 
 				      between restarts */
 
@@ -1216,10 +1216,10 @@ typedef struct {
 	/* Access list settings */
 	Boolean timingAclEnabled;
 	Boolean managementAclEnabled;
-	char timingAclPermitText[PATH_MAX];
-	char timingAclDenyText[PATH_MAX];
-	char managementAclPermitText[PATH_MAX];
-	char managementAclDenyText[PATH_MAX];
+	char timingAclPermitText[PATH_MAX+1];
+	char timingAclDenyText[PATH_MAX+1];
+	char managementAclPermitText[PATH_MAX+1];
+	char managementAclDenyText[PATH_MAX+1];
 	Enumeration8 timingAclOrder;
 	Enumeration8 managementAclOrder;
 

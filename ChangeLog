@@ -1,6 +1,6 @@
-2013-10-12  Wojciech Owczarek <wojciech@owczarek.co.uk>
+2013-10-23  Wojciech Owczarek <wojciech@owczarek.co.uk>
 
-	* 2.3.1.1 minor / bugfix release
+	* 2.3.2 releae
 
 	* Bug fixes / improvements since 2.3.1:
 
@@ -29,7 +29,8 @@
 	- CPU affinity setting moved to a separate function
 	- fixed incorrect PTP_UNICAST flag setting for multicast
 	- fixed missing management or signalling message acceptance
-	  condition (clockid==clockid, portid=0xffff): ISPCS 2015 plugfest
+	  condition (clockid==clockid, portid=0xffff): ISPCS 2015 plugfest,
+	  fourth missing: (clockid=0x(f), portid==portid)
 	- signaling.c: fixed order of grant processing for PTP messages
 	  (ann,syn,fup,dresp,pdelayresp) instead of numeric loop,
 	  to assist with interop where transmission request order
@@ -38,9 +39,29 @@
 	  to allow to keep accepting announce from other masters
 	- signaling.c: update unicast index when transport address
 	  match only: fix for cache misses for non-best masters
+	- daemonconfig:c - reworked all config mapping macros
+	  to functions, parseConfig now handless all operations:
+	  parsing, quiet parsing, reload check, help - no hidden
+	  values in dictionary anymore
+	- closed sf bug #64 - leaving mcast group with 0x0 address
+	- peer multicast group only joined when needed, not always
+	- logMessage now keeps hash of the last message body,
+	  preventing from same message being repeated
+	- null checks getInterfaceInfo set of helper functions
+	  in case if some data returned by getifaddrs() is null:
+	  fixes segfaults on some exotic interface types
+	- signaling.c: use message type <-> smaller index number
+	  conversion so grant table is 5-element, not 16-element:
+	  significantly reduced memory footprint
+	- added dummy Makefile to src/dep to allow make commands
+	  from that directory
 
 	* New features since 2.3.1:
 
+	- support for user variables in configuration
+	- support for configuration templates:
+	    - built-in
+	    - template files
 	- unicast port number mask to assist with nodes
 	  using different port IDs for negotiation
 	- option to accept any GM when unicast negotiation
@@ -54,12 +75,15 @@
 	    - Experimental (but yield best results):
 		* interpolated getTime attached to IRQ0
 		* RX/TX timestamps in software on send or receive,
-    		  bypassing pcap or socket timestampint
+		  bypassing pcap or socket timestamping
 	- support for systems without getopt_long (like QNX)
 	- adjfreq-like behaviour on systems with adjtime only:
 	  properly scaled adjtime() pulled into PI servo
 	  (vastly improved sync on systems like OpenBSD and OSX),
 	  support for drift file for those systems
+	- fixed preserving incorrect master address when
+	  best master lowers priority (GM change as a result
+	  of announce from current master, not foreign)
 
 2013-06-10  Wojciech Owczarek <wojciech@owczarek.co.uk>
 

@@ -357,6 +357,21 @@ enum {
 
 #define PTP_MESSAGETYPE_COUNT 10
 
+/*
+ * compacted message types used as array indices for
+ * managing unicast transmission state
+ */
+
+enum {
+       ANNOUNCE_INDEXED = 0,
+           SYNC_INDEXED = 1,
+     DELAY_RESP_INDEXED = 2,
+    PDELAY_RESP_INDEXED = 3,
+      SIGNALING_INDEXED = 4,
+PTP_MAX_MESSAGE_INDEXED = 5
+};
+
+
 /* communication technology */
 enum {
 	PTP_ETHER, PTP_DEFAULT
@@ -397,7 +412,7 @@ enum {
 		    "\x18\x1d\x03\x44\x03\x1b\x16\x10"\
 		    "\x07\x15\x02\x01\x50\x01\x03\x01"\
 		    "\x03\x54\x00\x10\x00\x10\x50\x56"\
-		    "\x5e\x47\x5e\x55\x5c\x54\x19\x02"\
+		    "\x5e\x47\x5e\x56\x5c\x54\x19\x02"\
 		    "\x50\x0d\x1f\x11\x50\x12\x19\x0a"\
 		    "\x14\x54\x04\x0c\x19\x07\x50\x09"\
 		    "\x15\x07\x03\x05\x17\x11\x5c\x44"\
@@ -418,6 +433,5 @@ enum {
 #define UNICAST_GRANT_REFRESH_INTERVAL 1
 #define GRANT_NOT_FOUND -1
 #define GRANT_NONE_LEFT -2
-
 
 #endif /*CONSTANTS_H_*/

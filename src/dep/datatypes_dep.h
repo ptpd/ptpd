@@ -127,7 +127,7 @@ typedef struct {
 
 	char* logID;
 	char* openMode;
-	char logPath[PATH_MAX];
+	char logPath[PATH_MAX+1];
 	FILE* logFP;
 
 	Boolean logEnabled;

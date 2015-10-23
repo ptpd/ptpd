@@ -204,7 +204,7 @@ interfaceExists(char* ifaceName)
     }
 
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-
+	if(ifa->ifa_name == NULL) continue;
 	if(!strcmp(ifaceName, ifa->ifa_name)) {
 	    ret = 1;
 	    goto end;
@@ -240,7 +240,7 @@ getInterfaceFlags(char* ifaceName, unsigned int* flags)
     }
 
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-
+	if(ifa->ifa_name == NULL) continue;
 	if(!strcmp(ifaceName, ifa->ifa_name)) {
 	    *flags = ifa->ifa_flags;
 	    ret = 1;
@@ -275,6 +275,10 @@ getInterfaceAddress(char* ifaceName, int family, struct sockaddr* addr) {
     }
 
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+
+	if(ifa->ifa_name == NULL) continue;
+	/* ifa_addr not always present - link layer may come first */
+	if(ifa->ifa_addr == NULL) continue;
 
 	if(!strcmp(ifaceName, ifa->ifa_name) && ifa->ifa_addr->sa_family == family) {
 
@@ -321,7 +325,8 @@ getHwAddress (char* ifaceName, unsigned char* hwAddr, int hwAddrSize)
     }
 
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-
+	if(ifa->ifa_name == NULL) continue;
+	if(ifa->ifa_addr == NULL) continue;
 	if(!strcmp(ifaceName, ifa->ifa_name) && ifa->ifa_addr->sa_family == AF_LINK) {
 
 		struct sockaddr_dl* sdl = (struct sockaddr_dl *)ifa->ifa_addr;

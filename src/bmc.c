@@ -297,8 +297,8 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	ptpClock->grandmasterPriority2 = announce->grandmasterPriority2;
 
 	/* use the granted interval if using signaling, otherwise we would try to arm a timer for 2^127! */
-	if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL && ptpClock->parentGrants->grantData[ANNOUNCE].granted) {
-            ptpClock->logAnnounceInterval = ptpClock->parentGrants->grantData[ANNOUNCE].logInterval;
+	if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL && ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].granted) {
+            ptpClock->logAnnounceInterval = ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].logInterval;
         } else if (header->logMessageInterval != UNICAST_MESSAGEINTERVAL) {
     	    ptpClock->logAnnounceInterval = header->logMessageInterval;
 	}
@@ -648,7 +648,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 				}
 		}
                 if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL) {
-                        ptpClock->logAnnounceInterval = ptpClock->parentGrants->grantData[ANNOUNCE].logInterval;
+                        ptpClock->logAnnounceInterval = ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].logInterval;
 			me.localPreference = ptpClock->parentGrants->localPreference;
                 }
 		return PTP_SLAVE;

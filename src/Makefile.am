@@ -89,6 +89,9 @@ DOXYGEN = doxygen
 
 TAGFILES = GPATH GRTAGS GSYMS GTAGS cscope.in.out cscope.out cscope.po.out
 
+dist:
+	cd .. && make dist
+
 #tags:
 #	$(CSCOPE) -R -q -b
 #	$(GTAGS)

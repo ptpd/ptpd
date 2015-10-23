@@ -32,6 +32,12 @@ AM_PROG_CC_C_O
 
 AC_PATH_PROG(cutpath, cut)
 AC_PATH_PROG(trpath, tr)
+AC_PATH_PROG(datepath, date)
+
+if test -n "$datepath"; then
+    build_date=`$datepath +%Y%m%d`
+    AC_DEFINE_UNQUOTED(BUILD_DATE, ["$build_date"], [build date year-month-day])
+fi
 
 # Set CODE_REVISION if svnversion found, version is suffixed with "-svn" and code is versioned
 if test -n "$cutpath" && test -n "$trpath"; then
@@ -49,7 +55,6 @@ if test -n "$cutpath" && test -n "$trpath"; then
 	fi
     fi
 fi
-
 
 case $host in
 *linux*)
@@ -639,7 +644,7 @@ AC_MSG_CHECKING([for maximum unicast destination table size])
 AC_ARG_WITH(
     [max-unicast-destinations],
     [AS_HELP_STRING(
-	[--with-max-unicast-destinations = [ 16 .. 2048]],
+	[--with-max-unicast-destinations = [ 16 .. 2048 (default: 128)]],
 	[Change maximum supported number of unicast destinations - 
 	    this determines the maximum supported number of slaves 
 	    in unicast mode (with and without signaling)]
@@ -731,8 +736,6 @@ esac
 AC_SUBST(PTP_DISABLE_SOTIMESTAMPING)
 
 AM_CONDITIONAL([DISABLE_SOTIMESTAMPING], [test x$enable_so_timestamping = xno])
-
-
 
 AC_MSG_CHECKING([if we're building a slave-only build])
 
