@@ -262,7 +262,7 @@ warnRestart(const char *key, int flags)
 	if(flags & PTPD_RESTART_DAEMON) {
 		NOTIFY("Change of %s setting requires "PTPD_PROGNAME" restart\n",key);
 	} else {
-		DBG("Setting %s changed, restart of subystem %d required\n",key,flags);
+		DBG("Setting %s changed, restart of subsystem %d required\n",key,flags);
 	}
 }
 
