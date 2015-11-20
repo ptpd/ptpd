@@ -186,7 +186,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->timeProperties.ptpTimescale = TRUE;
 
 	rtOpts->ipMode = IPMODE_MULTICAST;
-	rtOpts->dot2AS = FALSE;
+	rtOpts->dot1AS = FALSE;
 
 	rtOpts->disableUdpChecksums = TRUE;
 
@@ -225,6 +225,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->ttl = 64;
 	rtOpts->delayMechanism   = DEFAULT_DELAY_MECHANISM;
 	rtOpts->noResetClock     = DEFAULT_NO_RESET_CLOCK;
+	rtOpts->portDisabled	 = FALSE;
 	rtOpts->stepOnce	 = FALSE;
 	rtOpts->stepForce	 = FALSE;
 #ifdef HAVE_LINUX_RTC_H
@@ -260,6 +261,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* Otherwise default to slave only via the preset */
 	rtOpts->selectedPreset = PTP_PRESET_SLAVEONLY;
 	rtOpts->pidAsClockId = FALSE;
+
+	strncpy(rtOpts->portDescription,"ptpd", sizeof(rtOpts->portDescription));
 
 	/* highest possible */
 	rtOpts->logLevel = LOG_ALL;

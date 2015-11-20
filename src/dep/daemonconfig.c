@@ -283,11 +283,14 @@ configMapBoolean(int opCode, void *opArg,  dictionary* dict, dictionary *target,
 
 		char *helpKey = (char*)opArg;
 
-		if(opCode & CFGOP_HELP_SINGLE && strcmp(key, helpKey)) {
-		    return 1;
+		if((opCode & CFGOP_HELP_SINGLE)){
+		    if (strcmp(key, helpKey)) {
+			return 1;
+		    } else {
+			/* this way we tell the caller that we have already found the setting we were looking for */
+			helpKey[0] = '\0';
+		    }
 		}
-
-		helpKey[0] = '\0';
 
 		printf("setting: %s (--%s)\n", key, key);
 		printf("   type: BOOLEAN (value must start with t/T/y/Y/1/f/F/n/N/0)\n");
@@ -299,7 +302,7 @@ configMapBoolean(int opCode, void *opArg,  dictionary* dict, dictionary *target,
 		if (!CONFIG_ISPRESENT(key)) {
 		    *var = def;
 		    dictionary_set(target,key,(*var)?"Y":"N");
-		    if(!strcmp(helptext, "") && opCode & CFGOP_PRINT_DEFAULT) {
+		    if(strcmp(helptext, "") && opCode & CFGOP_PRINT_DEFAULT) {
 			    printComment(helptext);
 			    printf("%s = %s\n", key,(*var)?"Y":"N");
 		    }
@@ -338,11 +341,14 @@ configMapString(int opCode, void *opArg,  dictionary *dict, dictionary *target,
 
 		char *helpKey = (char*)opArg;
 
-		if(opCode & CFGOP_HELP_SINGLE && strcmp(key, helpKey)) {
-		    return 1;
+		if((opCode & CFGOP_HELP_SINGLE)){
+		    if (strcmp(key, helpKey)) {
+			return 1;
+		    } else {
+			/* this way we tell the caller that we have already found the setting we were looking for */
+			helpKey[0] = '\0';
+		    }
 		}
-
-		helpKey[0] = '\0';
 
 		printf("setting: %s (--%s)\n", key, key);
 		printf("   type: STRING\n");
@@ -412,11 +418,14 @@ configMapInt(int opCode, void *opArg,  dictionary *dict, dictionary *target, con
 
 	    char *helpKey = (char*)opArg;
 
-	    if(opCode & CFGOP_HELP_SINGLE && strcmp(key, helpKey)) {
-		return 1;
+	    if((opCode & CFGOP_HELP_SINGLE)){
+		if (strcmp(key, helpKey)) {
+		    return 1;
+		} else {
+		    /* this way we tell the caller that we have already found the setting we were looking for */
+		    helpKey[0] = '\0';
+		}
 	    }
-
-	    helpKey[0] = '\0';
 
 	    switch(rangeFlags) {
 	    case RANGECHECK_NONE:
@@ -559,11 +568,14 @@ configMapDouble(int opCode, void *opArg,  dictionary *dict, dictionary *target, 
 
 	    char *helpKey = (char*)opArg;
 
-	    if(opCode & CFGOP_HELP_SINGLE && strcmp(key, helpKey)) {
-		return 1;
+	    if((opCode & CFGOP_HELP_SINGLE)){
+		if (strcmp(key, helpKey)) {
+		    return 1;
+		} else {
+		    /* this way we tell the caller that we have already found the setting we were looking for */
+		    helpKey[0] = '\0';
+		}
 	    }
-
-	    helpKey[0] = '\0';
 
 	    switch(rangeFlags) {
 	    case RANGECHECK_NONE:
@@ -697,11 +709,14 @@ const char* key, int restartFlags, uint8_t *var, int def, const char *helptext, 
 
 		char *helpKey = (char*)opArg;
 
-		if(opCode & CFGOP_HELP_SINGLE && strcmp(key, helpKey)) {
-		    return 1;
+		if((opCode & CFGOP_HELP_SINGLE)){
+		    if (strcmp(key, helpKey)) {
+			return 1;
+		    } else {
+			/* this way we tell the caller that we have already found the setting we were looking for */
+			helpKey[0] = '\0';
+		    }
 		}
-
-		helpKey[0] = '\0';
 
 		printf("setting: %s (--%s)\n", key, key);
 		printf("   type: SELECT\n");
@@ -738,6 +753,17 @@ result:
 
 }
 
+void setConfig(dictionary *dict, const char* key, const char *value)
+{
+
+    if(dict == NULL) {
+	return;
+    }
+
+    dictionary_set(dict, key, value);
+
+}
+
 static void
 parseUserVariables(dictionary *dict, dictionary *target)
 {
@@ -749,6 +775,7 @@ parseUserVariables(dictionary *dict, dictionary *target)
     memset(varname, 0, sizeof(varname));
 
     if(dict == NULL) return;
+
 
     for(i = 0; i < dict->n; i++) {
 	key = dict->key[i];
@@ -767,7 +794,6 @@ parseUserVariables(dictionary *dict, dictionary *target)
     }
 
 }
-
 
 /**
  * Iterate through dictionary dict (template) and check for keys in source
@@ -856,7 +882,26 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	    dictionary_set(target, "global:template_files", dictionary_get(dict, "global:template_files", ""));
 	}
 
+	/* set automatic variables */
+
+	/* @pid@ */
+	tmpsnprintf(tmpStr, 20, "%d", (uint32_t)getpid());
+	dictionary_set(dict, "variables:pid", tmpStr);
+
+	/* @hostname@ */
+	char hostName[MAXHOSTNAMELEN+1];
+	memset(hostName, 0, MAXHOSTNAMELEN + 1);
+        gethostname(hostName, MAXHOSTNAMELEN);
+	dictionary_set(dict, "variables:hostname", hostName);
+
 	parseUserVariables(dict, target);
+
+	dictionary_unset(dict, "variables:pid");
+	dictionary_unset(target, "variables:pid");
+
+	dictionary_unset(dict, "variables:hostname");
+	dictionary_unset(target, "variables:hostname");
+
 
 /* ============= BEGIN CONFIG MAPPINGS, TRIGGERS AND DEPENDENCIES =========== */
 
@@ -911,14 +956,19 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 				"ethernet", 	IEEE_802_3, NULL
 				);
 
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:dot2as", PTPD_UPDATE_DATASETS, &rtOpts->dot2AS, rtOpts->dot2AS,
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:dot1as", PTPD_UPDATE_DATASETS, &rtOpts->dot1AS, rtOpts->dot1AS,
 		"Enable TransportSpecific field compatibility with 802.1AS / AVB (requires Ethernet transport)");
 
-	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transport != IEEE_802_3) && rtOpts->dot2AS,
-	 			    "ptpengine:dot2as",
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:disabled", PTPD_RESTART_PROTOCOL, &rtOpts->portDisabled, rtOpts->portDisabled,
+		"Disable PTP port. Causes the PTP state machine to stay in PTP_DISABLED state indefinitely,\n"
+	"        until it is re-enabled via configuration change or ENABLE_PORT management message.");
+
+
+	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transport != IEEE_802_3) && rtOpts->dot1AS,
+	 			    "ptpengine:dot1as",
 				"802.1AS compatibility can only be used with the Ethernet transport\n");
 
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport != IEEE_802_3, rtOpts->dot2AS,FALSE, rtOpts->dot2AS);
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport != IEEE_802_3, rtOpts->dot1AS,FALSE, rtOpts->dot1AS);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:ip_mode",
 		PTPD_RESTART_NETWORK, &rtOpts->ipMode, rtOpts->ipMode,
@@ -1027,9 +1077,9 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_PROTOCOL, &rtOpts->delayMechanism, rtOpts->delayMechanism,
 		 "Delay detection mode used - use DELAY_DISABLED for syntonisation only\n"
 	"	 (no full synchronisation).",
-				"E2E",		E2E,	
-				"P2P",		P2P,
-				"DELAY_DISABLED", DELAY_DISABLED, NULL
+				delayMechToString(E2E),		E2E,
+				delayMechToString(P2P),		P2P,
+				delayMechToString(DELAY_DISABLED), DELAY_DISABLED, NULL
 				);
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:domain",
@@ -1041,6 +1091,14 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		    "        For ordinary clocks (single port), the default should be used, \n"
 		    "        but when running multiple instances to simulate a boundary clock, \n"
 		    "        The port number can be changed.",RANGECHECK_RANGE,1,65534);
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:port_description",
+		PTPD_UPDATE_DATASETS, rtOpts->portDescription, sizeof(rtOpts->portDescription), rtOpts->portDescription, 
+	"Port description (returned in the userDescription field of PORT_DESCRIPTION management message and USER_DESCRIPTION"
+	"        management message) - maximum 64 characters");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "variables:product_description",
+		PTPD_UPDATE_DATASETS, rtOpts->productDescription, sizeof(rtOpts->productDescription), rtOpts->productDescription,"");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:any_domain",
 		PTPD_RESTART_PROTOCOL, &rtOpts->anyDomain, rtOpts->anyDomain,
@@ -1230,25 +1288,25 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:ptp_clock_accuracy", PTPD_UPDATE_DATASETS, &rtOpts->clockQuality.clockAccuracy, rtOpts->clockQuality.clockAccuracy,
 	"Clock accuracy range announced in master state.",
-				"ACC_25NS",		0x20,
-				"ACC_100NS",		0x21,
-				"ACC_250NS",		0x22,
-				"ACC_1US",		0x23,
-				"ACC_2.5US", 		0x24,
-				"ACC_10US", 		0x25,
-				"ACC_25US", 		0x26,
-				"ACC_100US", 		0x27,
-				"ACC_250US", 		0x28,
-				"ACC_1MS", 		0x29,
-				"ACC_2.5MS", 		0x2A,
-				"ACC_10MS", 		0x2B,
-				"ACC_25MS",		0X2C,
-				"ACC_100MS", 		0x2D,
-				"ACC_250MS", 		0x2E,
-				"ACC_1S", 		0x2F,
-				"ACC_10S", 		0x30,
-				"ACC_10SPLUS", 		0x31,
-				"ACC_UNKNOWN", 		0xFE, NULL
+				accToString(ACC_25NS),		ACC_25NS,
+				accToString(ACC_100NS),		ACC_100NS,
+				accToString(ACC_250NS),		ACC_250NS,
+				accToString(ACC_1US),		ACC_1US,
+				accToString(ACC_2_5US),		ACC_2_5US,
+				accToString(ACC_10US), 		ACC_10US,
+				accToString(ACC_25US), 		ACC_25US,
+				accToString(ACC_100US),		ACC_100US,
+				accToString(ACC_250US),		ACC_250US,
+				accToString(ACC_1MS), 		ACC_1MS,
+				accToString(ACC_2_5MS),		ACC_2_5MS,
+				accToString(ACC_10MS), 		ACC_10MS,
+				accToString(ACC_25MS),		ACC_25MS,
+				accToString(ACC_100MS),		ACC_100MS,
+				accToString(ACC_250MS),		ACC_250MS,
+				accToString(ACC_1S), 		ACC_1S,
+				accToString(ACC_10S), 		ACC_10S,
+				accToString(ACC_10SPLUS),	ACC_10SPLUS,
+				accToString(ACC_UNKNOWN),	ACC_UNKNOWN, NULL
 				);
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:utc_offset", PTPD_UPDATE_DATASETS, INTTYPE_I16, &rtOpts->timeProperties.currentUtcOffset, rtOpts->timeProperties.currentUtcOffset,
@@ -1337,17 +1395,15 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	/* hybrid mode -> should specify delayreq interval: override set in the bottom of this function */
 	CONFIG_KEY_CONDITIONAL_WARNING_NOTSET(rtOpts->ipMode == IPMODE_HYBRID,
     		    "ptpengine:log_delayreq_interval",
-		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in hybrid mode"
+		    "It is recommended to manually set the delay request interval (ptpengine:log_delayreq_interval) to required value in hybrid mode"
 	);
 
 	/* unicast mode -> should specify delayreq interval if we can become a slave */
 	CONFIG_KEY_CONDITIONAL_WARNING_NOTSET(rtOpts->ipMode == IPMODE_UNICAST &&
 		    rtOpts->clockQuality.clockClass > 127,
 		    "ptpengine:log_delayreq_interval",
-		    "It is recommended to set the delay request interval (ptpengine:log_delayreq_interval) in unicast mode"
+		    "It is recommended to manually set the delay request interval (ptpengine:log_delayreq_interval) to required value in unicast mode"
 	);
-
-
 
 	CONFIG_KEY_ALIAS("ptpengine:unicast_address","ptpengine:unicast_destinations");
 
@@ -2513,7 +2569,7 @@ printDefaultConfig()
 		"; To see all preset settings, run "PTPD_PROGNAME" -H (--long-help)\n");
 
 	/* NULL will always be returned in this mode */
-	parseConfig(CFGOP_PRINT_DEFAULT, NULL, dict, &rtOpts);
+	parseConfig(CFGOP_PRINT_DEFAULT | CFGOP_PARSE_QUIET, NULL, dict, &rtOpts);
 	dictionary_del(&dict);
 
 	printf("\n; ========= newline required in the end ==========\n\n");
@@ -2567,6 +2623,7 @@ printSettingHelp(char* key)
 	/* NULL will always be returned in this mode */
 	parseConfig(CFGOP_HELP_SINGLE | CFGOP_PARSE_QUIET, key, dict, &rtOpts);
 	
+	/* if the setting has been found (and help printed), the first byte will be cleared */
 	if(key[0] != '\0') {
 	    printf("Unknown setting: %s\n\n", origKey);
 	}
@@ -2951,7 +3008,7 @@ printShortHelp()
 			"-t 				Do not adjust the clock\n"
 			"\n"
 			"Note 1: the above parameters are deprecated and their use will issue a warning.\n"
-			"Note 2: -U and -g options have been re-purposed in 2.3.1\n."
+			"Note 2: -U and -g options have been re-purposed in 2.3.1.\n"
 			"\n\n"
 		);
 }

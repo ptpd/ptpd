@@ -116,7 +116,7 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define CLOCK_IDENTITY_LENGTH	  8
 #define FLAG_FIELD_LENGTH         2
 
-#define PACKET_SIZE  300 //ptpdv1 value kept because of use of TLV...
+#define PACKET_SIZE  300
 #define PACKET_BEGIN_UDP (ETHER_HDR_LEN + sizeof(struct ip) + \
 	    sizeof(struct udphdr))
 #define PACKET_BEGIN_ETHER (ETHER_HDR_LEN)

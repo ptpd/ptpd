@@ -59,6 +59,13 @@ global:log_file=/var/run/ptpd2.@instance@.status
 
 \fBNote:\fR for the same effect, ptpd can be run from command line, such as \fI --config=/path/to/file --variables:instance=server15\fR
 
+.SH BUILT_IN VARIABLES
+PTPd includes suppport for built-in variables, automatically defined. The following variables are automatically substituted:
+
+@pid@ - current PTPd process ID
+@hostname@ - current host name
+
+
 .SH CONFIGURATION TEMPLATES AND TEMPLATE FILES
 As of version 2.3.1.1, ptpd enables the user to minimise the configuration effort for common scenarios, using built-in templates
 and template files. A template is a named set of pre-defined settings whic are prepended before any other settings, so user can
@@ -168,7 +175,7 @@ and cannot be enabled on those systems unless ptpd is compiled with \fB--enable-
 .RE
 .RS 0
 .TP 8
-\fBptpengine:dot2as [\fIBOOLEAN\fB]\fR
+\fBptpengine:dot1as [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8
 \fBusage\fR
@@ -207,6 +214,20 @@ depending on unicast negotiation setting (\fIptpengine:unicast_negotiation\fR) a
 .TP 8
 \fBdefault\fR
 \fImulticast\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:disabled [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Disable PTP port. Causes the PTP state machine to stay in PTP_DISABLED state indefinitely,
+until it is re-enabled via configuration change or ENABLE_PORT management message.
+.TP 8
+\fBdefault\fR
+\fIN\fR
 
 .RE
 .RE
@@ -328,7 +349,8 @@ not attempt to use libpcap unless compiled with \fB--enable-experimental-options
 \fIE2E P2P DELAY_DISABLED \fR
 .TP 8
 \fBusage\fR
-Delay detection mode used - use DELAY_DISABLED for syntonisation only (no synchronisation).
+Delay detection mechanism used - use DELAY_DISABLED for syntonisation only (no synchronisation). E2E uses Delay Request messages,
+P2P uses Peer Delay Request messages.
 .TP 8
 \fBdefault\fR
 \fIE2E\fR
@@ -377,6 +399,20 @@ The port number can be changed.
 .TP 8
 \fBdefault\fR
 \fI1\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBptpengine:port_description [\fISTRING: 64 characters max\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+User description of the PTP port - this value is returned in response to USER_DESCRIPTION management message and
+CLOCK_DESCRIPTION management message.
+.TP 8
+\fBdefault\fR
+\fI[ptpd]\fR
 
 .RE
 .RE

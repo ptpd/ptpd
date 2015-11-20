@@ -30,7 +30,7 @@
  * @file   signaling.c
  * @date   Mon Jan 14 00:40:12 GMT 2014
  *
- * @brief  Routines to handle incoming signaling messages
+ * @brief  Routines to handle unicast negotiation and processing of signaling messages
  *
  *
  */
@@ -351,7 +351,6 @@ handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* outgoin
 	}
 
 	myGrant = &nodeTable->grantData[msgIndex(messageType)];
-
 
 	myGrant->requested = TRUE;
 
@@ -1058,6 +1057,7 @@ handleSignaling(MsgHeader *header,
 	int tlvOffset = 0;
 	int tlvFound = 0;
 
+	/* loop over all supported TLVs as if they came in separate messages */
 	while(msgUnpackSignaling(ptpClock->msgIbuf,&ptpClock->msgTmp.signaling, header, ptpClock, tlvOffset)) {
 
 	if(ptpClock->msgTmp.signaling.tlv == NULL) {
@@ -1126,6 +1126,7 @@ handleSignaling(MsgHeader *header,
 		/* send back the cancel acknowledgment - if we have something to acknowledge*/
 		if(handleSMCancelUnicastTransmission(&ptpClock->msgTmp.signaling, &ptpClock->outgoingSignalingTmp, sourceAddress, ptpClock)) {
 			issueSignaling(&ptpClock->outgoingSignalingTmp, sourceAddress,rtOpts, ptpClock);
+			ptpClock->counters.unicastGrantsCancelAckSent++;
 		} 
 		break;
 	case TLV_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:

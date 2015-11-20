@@ -354,7 +354,8 @@ void dictionary_replace(dictionary * d, const char * search, const char * replac
     if (search==NULL || replace==NULL ) return;
 
     for(i = 0; i < d->n; i++) {
-    memset(out, 0, bufsize+1);
+
+	memset(out, 0, bufsize+1);
 	/* skip if the key is null or is a section */
         if(d->key[i] == NULL || strstr(d->key[i],":") == NULL)
             continue;
@@ -393,8 +394,10 @@ void dictionary_replace(dictionary * d, const char * search, const char * replac
 	    }
 
 	dictionary_set(d, d->key[i], out);
-//	printf("Replaced token \"%s\" with \"%s\": \"%s\" -> \"%s\"\n",
-//		search, replace, val, out);
+/*
+	printf("Replaced token \"%s\" with \"%s\": \"%s\" -> \"%s\"\n",
+		search, replace, val, out);
+*/
 	}
 	free(data);
 
@@ -445,7 +448,7 @@ int dictionary_merge(dictionary* source, dictionary* dest, int overwrite, int wa
 
     if(warnStr == NULL) warnStr = "";
     for(i = 0; i < source->n; i++) {
-
+	clobber = 1;
         if(source->key[i] == NULL)
             continue;
 	/* do not overwrite with an empty key */
@@ -454,12 +457,11 @@ int dictionary_merge(dictionary* source, dictionary* dest, int overwrite, int wa
 	/* no need to warn for settings whose value will not change */
 	if((strcmp(dictionary_get(dest,source->key[i],""),"") != 0) &&
 		    (strcmp(dictionary_get(dest,source->key[i],""),source->val[i]) != 0)) {
-		if(!overwrite && warn) {
+		if(overwrite && warn) {
 		    WARNING("Warning: %s=\"%s\" : value \"%s\" takes priority %s\n",
-				source->key[i], source->val[i],
-				dictionary_get(dest,source->key[i],""), warnStr);
+				source->key[i], dictionary_get(dest,source->key[i],""),
+				source->val[i], warnStr);
 		}
-		clobber = 1;
 		if(!overwrite) {
 		    clobber = 0;
 		}

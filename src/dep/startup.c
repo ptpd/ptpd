@@ -137,49 +137,21 @@ do_signal_close(PtpClock * ptpClock)
 	exit(0);
 }
 
-/** 
- * Signal handler for HUP which tells us to swap the log file
- * and reload configuration file if specified
- *
- * @param sig 
- */
-void 
-do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+void
+applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
 	Boolean reloadSuccessful = TRUE;
 
-	NOTIFY("SIGHUP received\n");
 
-#ifdef RUNTIME_DEBUG
-	if(rtOpts->transport == UDP_IPV4 && rtOpts->ipMode != IPMODE_UNICAST) {
-		DBG("SIGHUP - running an ipv4 multicast based mode, re-sending IGMP joins\n");
-		netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
-	}
-#endif /* RUNTIME_DEBUG */
-
-
-	/* if we don't have a config file specified, we're done - just reopen log files*/
-	if(strlen(rtOpts->configFile) ==  0)
-	    goto end;
-
-	dictionary* tmpConfig = dictionary_new(0);
-	/* Try reloading the config file */
-	NOTIFY("Reloading configuration file: %s\n",rtOpts->configFile);
-            if(!loadConfigFile(&tmpConfig, rtOpts)) {
-		dictionary_del(&tmpConfig);
-		goto end;
-        }
-		dictionary_merge(rtOpts->cliConfig, tmpConfig, 0, 1, "from command line");
 	/* Load default config to fill in the blanks in the config file */
 	RunTimeOpts tmpOpts;
 	loadDefaultSettings(&tmpOpts);
 
 	/* Check the new configuration for errors, fill in the blanks from defaults */
-	if( ( rtOpts->candidateConfig = parseConfig(CFGOP_PARSE, NULL, tmpConfig,&tmpOpts)) == NULL ) {
-	    WARNING("Configuration file has errors, reload aborted\n");
-	    dictionary_del(&tmpConfig);
-	    goto end;
+	if( ( rtOpts->candidateConfig = parseConfig(CFGOP_PARSE, NULL, baseConfig, &tmpOpts)) == NULL ) {
+	    WARNING("Configuration has errors, reload aborted\n");
+	    return;
 	}
 
 	/* Check for changes between old and new configuration */
@@ -269,10 +241,52 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* clean up */
 	cleanup:
 
-		dictionary_del(&tmpConfig);
 		dictionary_del(&rtOpts->candidateConfig);
+}
 
-	end:
+
+/** 
+ * Signal handler for HUP which tells us to swap the log file
+ * and reload configuration file if specified
+ *
+ * @param sig 
+ */
+void 
+do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+{
+
+
+
+	NOTIFY("SIGHUP received\n");
+
+#ifdef RUNTIME_DEBUG
+	if(rtOpts->transport == UDP_IPV4 && rtOpts->ipMode != IPMODE_UNICAST) {
+		DBG("SIGHUP - running an ipv4 multicast based mode, re-sending IGMP joins\n");
+		netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+	}
+#endif /* RUNTIME_DEBUG */
+
+
+	/* if we don't have a config file specified, we're done - just reopen log files*/
+	if(strlen(rtOpts->configFile) !=  0) {
+
+	    dictionary* tmpConfig = dictionary_new(0);
+
+	    /* Try reloading the config file */
+	    NOTIFY("Reloading configuration file: %s\n",rtOpts->configFile);
+
+            if(!loadConfigFile(&tmpConfig, rtOpts)) {
+
+		    dictionary_del(&tmpConfig);
+
+	    } else {
+		    dictionary_merge(rtOpts->cliConfig, tmpConfig, 1, 1, "from command line");
+		    applyConfig(tmpConfig, rtOpts, ptpClock);
+		    dictionary_del(&tmpConfig);
+
+	    }
+
+	}
 
 	/* tell the service it can perform any HUP-triggered actions */
 	ptpClock->timingService.reloadRequested = TRUE;
@@ -297,21 +311,25 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    /* So far, PTP_INITIALIZING is required for both network and protocol restart */
 		    if((rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) ||
 			(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK)) {
-			    if(rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) {
-				INFO("Applying protocol configuration: going into PTP_INITIALIZING\n");
-			    }
 
 			    if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
 				NOTIFY("Applying network configuration: going into PTP_INITIALIZING\n");
 			    }
-			    /* Those two parameters have to be passed to ptpClock before re-init */
+
+			    /* These parameters have to be passed to ptpClock before re-init */
 			    ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
 			    ptpClock->slaveOnly = rtOpts->slaveOnly;
+			    ptpClock->disabled = rtOpts->portDisabled;
+
+			    if(rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) {
+				INFO("Applying protocol configuration: going into %s\n",
+				ptpClock->disabled ? "PTP_DISABLED" : "PTP_INITIALIZING");
+			    }
 
 			    /* Move back to primary interface only during configuration changes. */
 			    ptpClock->runningBackupInterface = FALSE;
+			    toState(ptpClock->disabled ? PTP_DISABLED : PTP_INITIALIZING, rtOpts, ptpClock);
 
-			    toState(PTP_INITIALIZING, rtOpts, ptpClock);
 		    } else {
 		    /* Nothing happens here for now - SIGHUP handler does this anyway */
 		    if(rtOpts->restartSubsystems & PTPD_UPDATE_DATASETS) {
@@ -684,9 +702,10 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	/* initialise the config dictionary */
 	rtOpts->candidateConfig = dictionary_new(0);
 	rtOpts->cliConfig = dictionary_new(0);
+
 	/* parse all long section:key options and clean up argv for getopt */
 	loadCommandLineKeys(rtOpts->cliConfig,argc,argv);
-	/* parse the normal short and long option, exit on error */
+	/* parse the normal short and long options, exit on error */
 	if (!loadCommandLineOptions(rtOpts, rtOpts->cliConfig, argc, argv, ret)) {
 	    goto fail;
 	}
@@ -711,14 +730,14 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		/* config file settings overwrite all others, except for empty strings */
 		INFO("Loading configuration file: %s\n",rtOpts->configFile);
 		if(loadConfigFile(&rtOpts->candidateConfig, rtOpts)) {
-			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 0, 1, "from command line");
+			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, 1, "from command line");
 		} else {
 		    *ret = 1;
-			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 0, 1, "from command line");
+			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, 1, "from command line");
 		    goto configcheck;
 		}
 	} else {
-		dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 0, 1, "from command line");
+		dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, 1, "from command line");
 	}
 	/**
 	 * This is where the final checking  of the candidate settings container happens.
@@ -824,10 +843,6 @@ configcheck:
 	/* Init to 0 net buffer */
 	memset(ptpClock->msgIbuf, 0, PACKET_SIZE);
 	memset(ptpClock->msgObuf, 0, PACKET_SIZE);
-
-	/* Init user_description */
-	memset(ptpClock->user_description, 0, sizeof(ptpClock->user_description));
-	memcpy(ptpClock->user_description, &USER_DESCRIPTION, sizeof(USER_DESCRIPTION));
 	
 	/* Init outgoing management message */
 	ptpClock->outgoingManageTmp.tlv = NULL;

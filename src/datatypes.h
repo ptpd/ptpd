@@ -534,26 +534,25 @@ typedef struct
 	uint32_t managementMessagesReceived;
 
 /* not implemented yet */
-#if 0
+
 	/* FMR counters */
 	uint32_t foreignAdded; // implement me! /* number of insertions to FMR */
-	uint32_t foreignMax; // implement me! /* maximum foreign masters seen */
+	uint32_t foreignCount; // implement me! /* number of foreign masters seen */
 	uint32_t foreignRemoved; // implement me! /* number of FMR records deleted */
-	uint32_t foreignOverflow; // implement me! /* how many times the FMR was full */
-#endif /* 0 */
+	uint32_t foreignOverflows; // implement me! /* how many times the FMR was full */
 
 	/* protocol engine counters */
 
 	uint32_t stateTransitions;	  /* number of state changes */
-	uint32_t masterChanges;		  /* number of BM changes as result of BMC */
+	uint32_t bestMasterChanges;		  /* number of BM changes as result of BMC */
 	uint32_t announceTimeouts;	  /* number of announce receipt timeouts */
 
 	/* discarded / uknown / ignored */
 	uint32_t discardedMessages;	  /* only messages we shouldn't be receiving - ignored from self don't count */
 	uint32_t unknownMessages;	  /* unknown type - also increments discarded */
 	uint32_t ignoredAnnounce;	  /* ignored Announce messages: acl / security / preference */
-	uint32_t aclTimingDiscardedMessages;	  /* Timing messages discarded by access lists */
-	uint32_t aclManagementDiscardedMessages;	  /* Timing messages discarded by access lists */
+	uint32_t aclTimingMessagesDiscarded;	  /* Timing messages discarded by access lists */
+	uint32_t aclManagementMessagesDiscarded;	  /* Timing messages discarded by access lists */
 
 	/* error counters */
 	uint32_t messageRecvErrors;	  /* message receive errors */
@@ -563,7 +562,7 @@ typedef struct
 	uint32_t versionMismatchErrors;	  /* V1 received, V2 expected - also increments discarded */
 	uint32_t domainMismatchErrors;	  /* different domain than configured - also increments discarded */
 	uint32_t sequenceMismatchErrors;  /* mismatched sequence IDs - also increments discarded */
-	uint32_t delayModeMismatchErrors; /* P2P received, E2E expected or vice versa - incremets discarded */
+	uint32_t delayMechanismMismatchErrors; /* P2P received, E2E expected or vice versa - incremets discarded */
 	uint32_t consecutiveSequenceErrors;    /* number of consecutive sequence mismatch errors */
 
 	/* unicast sgnaling counters */
@@ -572,6 +571,7 @@ typedef struct
 	uint32_t unicastGrantsDenied;	 /* slave: how many we got denied, master: how many we denied */
 	uint32_t unicastGrantsCancelSent;   /* how many we canceled */
 	uint32_t unicastGrantsCancelReceived; /* how many cancels we received */
+	uint32_t unicastGrantsCancelAckSent; /* how many cancel ack we sent */
 	uint32_t unicastGrantsCancelAckReceived; /* how many cancel ack we received */
 
 #ifdef PTPD_STATISTICS
@@ -580,8 +580,8 @@ typedef struct
 #endif /* PTPD_STATISTICS */
 	uint32_t maxDelayDrops; /* number of samples dropped due to maxDelay threshold */
 
-	uint32_t sentMessageRate;	/* RX message rate per sec */
-	uint32_t receivedMessageRate;	/* TX message rate per sec */
+	uint32_t messageSendRate;	/* RX message rate per sec */
+	uint32_t messageReceiveRate;	/* TX message rate per sec */
 
 } PtpdCounters;
 
@@ -773,6 +773,7 @@ typedef struct {
 	UInteger32 random_seed;
 	Boolean  record_update;    /* should we run bmc() after receiving an announce message? */
 
+	Boolean disabled;	/* port is permanently disabled */
 
 	/* unicast grant table - our own grants or our slaves' grants or grants to peers */
 	UnicastGrantTable unicastGrants[UNICAST_MAX_DESTINATIONS];
@@ -901,10 +902,10 @@ typedef struct {
 	Boolean drift_saved;                            /* Did we save a drift value already? */
 
 	/* user description is max size + 1 to leave space for a null terminator */
-	Octet user_description[USER_DESCRIPTION_MAX + 1];
+	Octet userDescription[USER_DESCRIPTION_MAX + 1];
+	Octet profileIdentity[6];
 
-	Integer32 	LastSlaveAddr;                        // used for hybrid mode, when receiving delayreqs
-	Integer32	lastSyncDst;		/* captures the destination address for last sync, so we know where to send the followUp */
+	Integer32	lastSyncDst;		/* destination address for last sync, so we know where to send the followUp - last resort: we should capture the dst address ourselves */
 	Integer32	lastPdelayRespDst;	/* captures the destination address of last pdelayResp so we know where to send the pdelayRespfollowUp */
 
 	/*
@@ -968,6 +969,9 @@ typedef struct {
 
 	/* accumulating offset correction added when smearing leap second */
 	double leapSmearFudge;
+
+	/* configuration applied by management messages */
+	dictionary *managementConfig;
 
 	/* testing only - used to add a 1ms offset */
 #if 0
@@ -1048,6 +1052,8 @@ typedef struct {
 	Integer16 max_foreign_records;
 	Enumeration8 delayMechanism;
 
+	Boolean portDisabled;
+
 	int ttl;
 	int dscpValue;
 #if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined (__QNXNTO__)
@@ -1110,7 +1116,7 @@ typedef struct {
 			 network stack. */
 	Enumeration8 transport; /* transport type */
 	Enumeration8 ipMode; /* IP transmission mode */
-	Boolean dot2AS; /* 801.2AS support -> transportSpecific field */
+	Boolean dot1AS; /* 801.2AS support -> transportSpecific field */
 
 	Boolean disableUdpChecksums; /* disable UDP checksum validation where supported */
 
@@ -1118,6 +1124,9 @@ typedef struct {
 	char unicastDestinations[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
 	char unicastDomains[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
 	char unicastLocalPreference[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
+
+	char productDescription[65];
+	char portDescription[65];
 
 	Boolean		unicastDestinationsSet;
 	char unicastPeerDestination[MAXHOSTNAMELEN];
@@ -1148,7 +1157,7 @@ typedef struct {
 	 * 0 = no change
 	 */
 	UInteger32 restartSubsystems;
-	/* config dictionary containers - current, candidate and from CLI*/
+	/* config dictionary containers - current, candidate, and from CLI */
 	dictionary *currentConfig, *candidateConfig, *cliConfig;
 
 	Enumeration8 selectedPreset;
@@ -1199,6 +1208,7 @@ typedef struct {
 	UInteger32 panicModeExitThreshold;
 	int idleTimeout;
 
+	UInteger32 ofmAlarmThreshold;
 
 	NTPoptions ntpOptions;
 	Boolean preferNTP;

@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2012-2015 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer, 
  *                         Martin Burnicki, 
@@ -135,6 +136,28 @@ FREE ( Enumeration4 )
 FREE ( UInteger4 )
 FREE ( Nibble )
 
+static inline int bufGuard(int max, long base, int len, long beginning, int size);
+
+/*
+ * check if data we want to read is within the allocated buffer,
+ * and if it is within the message length given.
+ */
+static inline int
+bufGuard(int max, long base, int len, long beginning, int size)
+{
+#ifdef RUNTIME_DEBUG
+	int ok = ((beginning - base) < len) && ((beginning + size - base) < len) &&
+		((beginning - base) < max) && ((beginning + size - base) < max);
+	printf("bufGuard: beginning %ld end %ld: maxlen: %d size %d (%ld %ld %d): %s\n",
+		beginning - base, beginning + size - base, len, size, base,
+		beginning, size, ok ? "OK" : "!");
+#endif
+	return(
+	    ((beginning - base) < len) && ((beginning + size - base) < len) &&
+	    ((beginning - base) < max) && ((beginning + size - base) < max)
+	);
+}
+
 void
 unpackUInteger48( void *buf, void *i, PtpClock *ptpClock)
 {
@@ -165,15 +188,16 @@ packInteger64( void* i, void *buf )
 }
 
 /* NOTE: the unpack functions for management messages can probably be refactored into a macro */
-void
-unpackMMSlaveOnly( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int
+unpackMMSlaveOnly( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
 	int offset = 0;
 	XMALLOC(m->tlv->dataField, sizeof(MMSlaveOnly));
 	MMSlaveOnly* data = (MMSlaveOnly*)m->tlv->dataField;
 	/* see src/def/README for a note on this X-macro */
 	#define OPERATE( name, size, type ) \
-		unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+		unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
 			      &data->name, ptpClock ); \
 		offset = offset + size;
 	#include "../def/managementTLV/slaveOnly.def"
@@ -181,6 +205,9 @@ unpackMMSlaveOnly( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 	#ifdef PTPD_DBG
 	mMSlaveOnly_display(data, ptpClock);
 	#endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 /* NOTE: the pack functions for management messsages can probably be refactored into a macro */
@@ -199,15 +226,16 @@ packMMSlaveOnly( MsgManagement* m, Octet *buf)
 	return offset;
 }
 
-void
-unpackMMClockDescription( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int
+unpackMMClockDescription( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
 	int offset = 0;
 	XMALLOC(m->tlv->dataField, sizeof(MMClockDescription));
 	MMClockDescription* data = (MMClockDescription*)m->tlv->dataField;
 	memset(data, 0, sizeof(MMClockDescription));
 	#define OPERATE( name, size, type ) \
-		unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+		unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
 			      &data->name, ptpClock ); \
 		offset = offset + size;
 	#include "../def/managementTLV/clockDescription.def"
@@ -215,6 +243,9 @@ unpackMMClockDescription( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 	#ifdef PTPD_DBG
 	mMClockDescription_display(data, ptpClock);
 	#endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -249,15 +280,16 @@ freeMMClockDescription( MMClockDescription* data)
 	#include "../def/managementTLV/clockDescription.def"
 }
 
-void
-unpackMMUserDescription( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int
+unpackMMUserDescription( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
 	int offset = 0;
 	XMALLOC(m->tlv->dataField, sizeof(MMUserDescription));
 	MMUserDescription* data = (MMUserDescription*)m->tlv->dataField;
 	memset(data, 0, sizeof(MMUserDescription));
 	#define OPERATE( name, size, type ) \
-		unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+		unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
 			      &data->name, ptpClock ); \
 		offset = offset + size;
 	#include "../def/managementTLV/userDescription.def"
@@ -265,6 +297,9 @@ unpackMMUserDescription( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
 	#ifdef PTPD_DBG
 	/* mMUserDescription_display(data, ptpClock); */
 	#endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -298,13 +333,14 @@ freeMMUserDescription( MMUserDescription* data)
 	#include "../def/managementTLV/userDescription.def"
 }
 
-void unpackMMInitialize( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMInitialize( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMInitialize));
         MMInitialize* data = (MMInitialize*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/initialize.def"
@@ -312,6 +348,9 @@ void unpackMMInitialize( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMInitialize_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -329,13 +368,14 @@ packMMInitialize( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMDefaultDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMDefaultDataSet( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMDefaultDataSet));
         MMDefaultDataSet* data = (MMDefaultDataSet*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/defaultDataSet.def"
@@ -343,6 +383,9 @@ void unpackMMDefaultDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMDefaultDataSet_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -360,13 +403,14 @@ packMMDefaultDataSet( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMCurrentDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMCurrentDataSet( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMCurrentDataSet));
         MMCurrentDataSet* data = (MMCurrentDataSet*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/currentDataSet.def"
@@ -374,6 +418,9 @@ void unpackMMCurrentDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMCurrentDataSet_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -391,13 +438,14 @@ packMMCurrentDataSet( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMParentDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMParentDataSet( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMParentDataSet));
         MMParentDataSet* data = (MMParentDataSet*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/parentDataSet.def"
@@ -405,6 +453,9 @@ void unpackMMParentDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMParentDataSet_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -422,13 +473,14 @@ packMMParentDataSet( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMTimePropertiesDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMTimePropertiesDataSet( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMTimePropertiesDataSet));
         MMTimePropertiesDataSet* data = (MMTimePropertiesDataSet*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/timePropertiesDataSet.def"
@@ -436,6 +488,9 @@ void unpackMMTimePropertiesDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpC
         #ifdef PTPD_DBG
         mMTimePropertiesDataSet_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -453,13 +508,14 @@ packMMTimePropertiesDataSet( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMPortDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMPortDataSet( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMPortDataSet));
         MMPortDataSet* data = (MMPortDataSet*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/portDataSet.def"
@@ -467,6 +523,9 @@ void unpackMMPortDataSet( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMPortDataSet_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -484,13 +543,14 @@ packMMPortDataSet( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMPriority1( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMPriority1( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMPriority1));
         MMPriority1* data = (MMPriority1*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/priority1.def"
@@ -498,6 +558,9 @@ void unpackMMPriority1( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMPriority1_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -515,13 +578,14 @@ packMMPriority1( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMPriority2( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMPriority2( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMPriority2));
         MMPriority2* data = (MMPriority2*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/priority2.def"
@@ -529,6 +593,9 @@ void unpackMMPriority2( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMPriority2_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -546,13 +613,14 @@ packMMPriority2( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMDomain( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMDomain( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMDomain));
         MMDomain* data = (MMDomain*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/domain.def"
@@ -560,6 +628,9 @@ void unpackMMDomain( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMDomain_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -577,13 +648,14 @@ packMMDomain( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMLogAnnounceInterval( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMLogAnnounceInterval( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMLogAnnounceInterval));
         MMLogAnnounceInterval* data = (MMLogAnnounceInterval*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/logAnnounceInterval.def"
@@ -591,6 +663,9 @@ void unpackMMLogAnnounceInterval( Octet *buf, MsgManagement* m, PtpClock* ptpClo
         #ifdef PTPD_DBG
         mMLogAnnounceInterval_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -608,13 +683,14 @@ packMMLogAnnounceInterval( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMAnnounceReceiptTimeout( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMAnnounceReceiptTimeout( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField,sizeof(MMAnnounceReceiptTimeout));
         MMAnnounceReceiptTimeout* data = (MMAnnounceReceiptTimeout*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/announceReceiptTimeout.def"
@@ -622,6 +698,9 @@ void unpackMMAnnounceReceiptTimeout( Octet *buf, MsgManagement* m, PtpClock* ptp
         #ifdef PTPD_DBG
         mMAnnounceReceiptTimeout_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -639,13 +718,14 @@ packMMAnnounceReceiptTimeout( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMLogSyncInterval( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMLogSyncInterval( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMLogSyncInterval));
         MMLogSyncInterval* data = (MMLogSyncInterval*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/logSyncInterval.def"
@@ -653,6 +733,9 @@ void unpackMMLogSyncInterval( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMLogSyncInterval_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -670,13 +753,14 @@ packMMLogSyncInterval( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMVersionNumber( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMVersionNumber( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMVersionNumber));
         MMVersionNumber* data = (MMVersionNumber*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/versionNumber.def"
@@ -684,6 +768,9 @@ void unpackMMVersionNumber( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMVersionNumber_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -701,13 +788,14 @@ packMMVersionNumber( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMTime( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMTime( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMTime));
         MMTime* data = (MMTime*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/time.def"
@@ -715,6 +803,9 @@ void unpackMMTime( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMTime_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -732,13 +823,14 @@ packMMTime( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMClockAccuracy( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMClockAccuracy( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMClockAccuracy));
         MMClockAccuracy* data = (MMClockAccuracy*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/clockAccuracy.def"
@@ -746,6 +838,9 @@ void unpackMMClockAccuracy( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMClockAccuracy_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -763,13 +858,14 @@ packMMClockAccuracy( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMUtcProperties( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMUtcProperties( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMUtcProperties));
         MMUtcProperties* data = (MMUtcProperties*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/utcProperties.def"
@@ -777,6 +873,9 @@ void unpackMMUtcProperties( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMUtcProperties_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -794,13 +893,14 @@ packMMUtcProperties( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMTraceabilityProperties( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMTraceabilityProperties( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMTraceabilityProperties));
         MMTraceabilityProperties* data = (MMTraceabilityProperties*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/traceabilityProperties.def"
@@ -808,6 +908,9 @@ void unpackMMTraceabilityProperties( Octet *buf, MsgManagement* m, PtpClock* ptp
         #ifdef PTPD_DBG
         mMTraceabilityProperties_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -825,13 +928,14 @@ packMMTraceabilityProperties( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMDelayMechanism( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMDelayMechanism( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMDelayMechanism));
         MMDelayMechanism* data = (MMDelayMechanism*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/delayMechanism.def"
@@ -839,6 +943,9 @@ void unpackMMDelayMechanism( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMDelayMechanism_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -848,7 +955,7 @@ packMMDelayMechanism( MsgManagement* m, Octet *buf)
         MMDelayMechanism* data = (MMDelayMechanism*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
                 pack##type( &data->name,\
-                            buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
+                            buf +  MANAGEMENT_LENGTH + TLV_LENGTH + offset ); \
                 offset = offset + size;
         #include "../def/managementTLV/delayMechanism.def"
 
@@ -856,13 +963,14 @@ packMMDelayMechanism( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMLogMinPdelayReqInterval( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMLogMinPdelayReqInterval( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMLogMinPdelayReqInterval));
         MMLogMinPdelayReqInterval* data = (MMLogMinPdelayReqInterval*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/logMinPdelayReqInterval.def"
@@ -870,6 +978,9 @@ void unpackMMLogMinPdelayReqInterval( Octet *buf, MsgManagement* m, PtpClock* pt
         #ifdef PTPD_DBG
         mMLogMinPdelayReqInterval_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 UInteger16
@@ -887,13 +998,14 @@ packMMLogMinPdelayReqInterval( MsgManagement* m, Octet *buf)
         return offset;
 }
 
-void unpackMMErrorStatus( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
+int unpackMMErrorStatus( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClock)
 {
         int offset = 0;
         XMALLOC(m->tlv->dataField, sizeof(MMErrorStatus));
         MMErrorStatus* data = (MMErrorStatus*)m->tlv->dataField;
         #define OPERATE( name, size, type ) \
-                unpack##type( buf + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
+		if(!bufGuard(PACKET_SIZE, (long)buf, m->header.messageLength, (long)(buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset), size)) return 0;\
+                unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + TLV_LENGTH + offset,\
                               &data->name, ptpClock ); \
                 offset = offset + size;
         #include "../def/managementTLV/errorStatus.def"
@@ -901,6 +1013,9 @@ void unpackMMErrorStatus( Octet *buf, MsgManagement* m, PtpClock* ptpClock)
         #ifdef PTPD_DBG
         mMErrorStatus_display(data, ptpClock);
         #endif /* PTPD_DBG */
+
+	return 1;
+
 }
 
 void
@@ -1340,13 +1455,13 @@ packMsgHeader(MsgHeader *h, Octet *buf)
 }
 
 void
-unpackManagementTLV(Octet *buf, MsgManagement *m, PtpClock* ptpClock)
+unpackManagementTLV(Octet *buf, int baseOffset, MsgManagement *m, PtpClock* ptpClock)
 {
 	int offset = 0;
 	XMALLOC(m->tlv, sizeof(ManagementTLV));
 	/* read the management TLV */
 	#define OPERATE( name, size, type ) \
-		unpack##type( buf + MANAGEMENT_LENGTH + offset, &m->tlv->name, ptpClock ); \
+		unpack##type( buf + baseOffset + MANAGEMENT_LENGTH + offset, &m->tlv->name, ptpClock ); \
 		offset = offset + size;
 	#include "../def/managementTLV/managementTLV.def"
 }
@@ -2262,23 +2377,29 @@ msgPackManagement(Octet *buf, MsgManagement *outgoing, PtpClock *ptpClock)
 
 }
 
-/*Unpack Management message from IN buffer of ptpClock to msgtmp.manage*/
-void
-msgUnpackManagement(Octet *buf, MsgManagement * manage, MsgHeader * header, PtpClock *ptpClock)
+/*
+ * Unpack Management message from IN buffer of ptpClock to msgtmp.manage
+ * return TRUE if there are more packed TLVs left in the message
+ */
+Boolean
+msgUnpackManagement(Octet *buf, MsgManagement * manage, MsgHeader * header, PtpClock *ptpClock, const int tlvOffset)
 {
 	unpackMsgManagement(buf, manage, ptpClock);
 
-	if ( manage->header.messageLength > MANAGEMENT_LENGTH )
+	if ( manage->header.messageLength >= (MANAGEMENT_LENGTH + tlvOffset + TL_LENGTH) )
 	{
-		unpackManagementTLV(buf, manage, ptpClock);
+		unpackManagementTLV(buf, tlvOffset, manage, ptpClock);
 
 		/* at this point, we know what managementTLV we have, so return and
 		 * let someone else handle the data */
 		manage->tlv->dataField = NULL;
+		return TRUE;
 	}
-	else /* no TLV attached to this message */
+	else /* no (more) TLV attached to this message */
 	{
 		manage->tlv = NULL;
+		return FALSE;
+		
 	}
 
 }
@@ -2290,7 +2411,8 @@ msgPackSignaling(Octet *buf, MsgSignaling *outgoing, PtpClock *ptpClock)
 	packMsgSignaling(outgoing, buf);
 }
 
-/* Unpack Signaling message from IN buffer of ptpClock to msgtmp.signaling
+/* 
+ * Unpack Signaling message from IN buffer of ptpClock to msgtmp.signaling
  * return TRUE if there are more packed TLVs left in the message.
  */
 Boolean

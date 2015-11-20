@@ -63,8 +63,8 @@ internalTime_to_integer64(TimeInternal internal, Integer64 *bigint)
 	scaledNanoseconds += internal.nanoseconds;
 	scaledNanoseconds <<= 16;
 
-	bigint->msb = (scaledNanoseconds >> 32) & 0xffffffff;
-	bigint->lsb = scaledNanoseconds & 0xffffffff;
+	bigint->msb = (scaledNanoseconds >> 32) & 0x00000000ffffffff;
+	bigint->lsb = scaledNanoseconds & 0x00000000ffffffff;
 }
 
 void 

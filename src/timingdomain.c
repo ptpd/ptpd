@@ -289,8 +289,8 @@ ptpServiceUpdate (TimingService* service)
 	RunTimeOpts *rtOpts = (RunTimeOpts*)service->config;
 	PtpClock *ptpClock  = (PtpClock*)service->controller;
 
-	ptpClock->counters.sentMessageRate = ptpClock->netPath.sentPackets / service->updateInterval;
-	ptpClock->counters.receivedMessageRate = ptpClock->netPath.receivedPackets / service->updateInterval;
+	ptpClock->counters.messageSendRate = ptpClock->netPath.sentPackets / service->updateInterval;
+	ptpClock->counters.messageReceiveRate = ptpClock->netPath.receivedPackets / service->updateInterval;
 
 	ptpClock->netPath.sentPackets = 0;
 	ptpClock->netPath.receivedPackets = 0;

@@ -54,9 +54,9 @@
 #include "ptpd.h"
 
 Boolean doInit(RunTimeOpts*,PtpClock*);
-static void doState(const RunTimeOpts*,PtpClock*);
+static void doState(RunTimeOpts*,PtpClock*);
 
-void handle(const RunTimeOpts*,PtpClock*);
+void handle(RunTimeOpts*,PtpClock*);
 
 static void handleAnnounce(MsgHeader*, ssize_t,Boolean, const RunTimeOpts*,PtpClock*);
 static void handleSync(const MsgHeader*, ssize_t,TimeInternal*,Boolean,Integer32, Integer32, const RunTimeOpts*,PtpClock*);
@@ -66,8 +66,8 @@ static void handleDelayReq(const MsgHeader*, ssize_t, const TimeInternal*,Intege
 static void handlePdelayResp(const MsgHeader*, TimeInternal* ,ssize_t,Boolean, Integer32, Integer32, const RunTimeOpts*,PtpClock*);
 static void handleDelayResp(const MsgHeader*, ssize_t, const RunTimeOpts*,PtpClock*);
 static void handlePdelayRespFollowUp(const MsgHeader*, ssize_t, Boolean, const RunTimeOpts*,PtpClock*);
-static void handleManagement(MsgHeader*, Boolean,const RunTimeOpts*,PtpClock*);
 
+/* handleManagement in management.c */
 /* handleSignaling in signaling.c */
 
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
@@ -82,13 +82,8 @@ static void issueDelayReq(const RunTimeOpts*,PtpClock*);
 static void issuePdelayResp(const TimeInternal*,MsgHeader*,Integer32,const RunTimeOpts*,PtpClock*);
 static void issueDelayResp(const TimeInternal*,MsgHeader*,Integer32,const RunTimeOpts*,PtpClock*);
 static void issuePdelayRespFollowUp(const TimeInternal*,MsgHeader*, Integer32, const RunTimeOpts*,PtpClock*, const UInteger16);
-#if 0
-static void issueManagement(MsgHeader*,MsgManagement*,const RunTimeOpts*,PtpClock*);
-#endif
-static void issueManagementRespOrAck(MsgManagement*,const RunTimeOpts*,PtpClock*);
-static void issueManagementErrorStatus(MsgManagement*,const RunTimeOpts*,PtpClock*);
 
-static void processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp, ssize_t length);
+static void processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp, ssize_t length);
 
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
 static void processSyncFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 dst, const UInteger16 sequenceId);
@@ -205,7 +200,14 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	timerStart(&ptpClock->timers[TIMINGDOMAIN_UPDATE_TIMER],timingDomain.updateInterval);
 
-	toState(PTP_INITIALIZING, rtOpts, ptpClock);
+	ptpClock->disabled = rtOpts->portDisabled;
+
+	if(ptpClock->disabled) {
+	    toState(PTP_DISABLED, rtOpts, ptpClock);
+	    WARNING("PTP port starting in DISABLED state. Awaiting config change or management message\n");
+	} else {
+	    toState(PTP_INITIALIZING, rtOpts, ptpClock);
+	}
 	if(rtOpts->statusLog.logEnabled)
 		writeStatusFile(ptpClock, rtOpts, TRUE);
 
@@ -221,6 +223,14 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	for (;;)
 	{
 		/* 20110701: this main loop was rewritten to be more clear */
+
+		if(ptpClock->disabled && ptpClock->portState != PTP_DISABLED) {
+			toState(PTP_DISABLED, rtOpts, ptpClock);
+		}
+
+		if(!ptpClock->disabled && ptpClock->portState == PTP_DISABLED) {
+			toState(PTP_INITIALIZING, rtOpts, ptpClock);
+		}
 
 		if (ptpClock->portState == PTP_INITIALIZING) {
 
@@ -249,6 +259,10 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			
 		} else {
 			doState(rtOpts, ptpClock);
+		}
+
+		if(ptpClock->disabled && ptpClock->portState != PTP_DISABLED) {
+			toState(PTP_DISABLED, rtOpts, ptpClock);
 		}
 
 		if (ptpClock->message_activity)
@@ -487,10 +501,11 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
                     }
 		}
 		
-			timerStart(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER], 
+		timerStart(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER], 
 				(ptpClock->announceReceiptTimeout) * 
 				(pow(2,ptpClock->logAnnounceInterval)));
-				ptpClock->announceTimeouts = 0;
+
+		ptpClock->announceTimeouts = 0;
 
 		ptpClock->bestMaster = NULL;
 
@@ -681,7 +696,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 /* handle actions and events for 'port_state' */
 static void 
-doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	UInteger8 state;
 	
@@ -1055,6 +1070,9 @@ doState(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	case PTP_DISABLED:
 		handle(rtOpts, ptpClock);
+		if(!ptpClock->disabled) {
+		    toState(PTP_LISTENING, rtOpts, ptpClock);
+		}
 		break;
 		
 	default:
@@ -1124,7 +1142,7 @@ timestampCorrection(const RunTimeOpts * rtOpts, PtpClock *ptpClock, TimeInternal
 
 
 void
-processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp, ssize_t length)
+processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp, ssize_t length)
 {
 
     Boolean isFromSelf;
@@ -1172,7 +1190,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 				ptpClock->netPath.managementAcl, 
 				ntohl(ptpClock->netPath.lastSourceAddr))) {
 					DBG("ACL dropped management message from %s\n", inet_ntoa(tmpAddr));
-					ptpClock->counters.aclManagementDiscardedMessages++;
+					ptpClock->counters.aclManagementMessagesDiscarded++;
 					return;
 				} else
 					DBG("ACL Accepted management message from %s\n", inet_ntoa(tmpAddr));
@@ -1181,7 +1199,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 			if(!matchIpv4AccessList(ptpClock->netPath.timingAcl, 
 			    ntohl(ptpClock->netPath.lastSourceAddr))) {
 				DBG("ACL dropped timing message from %s\n", inet_ntoa(tmpAddr));
-				ptpClock->counters.aclTimingDiscardedMessages++;
+				ptpClock->counters.aclTimingMessagesDiscarded++;
 				return;
 			} else
 				DBG("ACL accepted timing message from %s\n", inet_ntoa(tmpAddr));
@@ -1232,7 +1250,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
     	    if((rtOpts->ipMode == IPMODE_MULTICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) ||
     		(rtOpts->ipMode == IPMODE_HYBRID && ptpClock->msgTmpHeader.messageType != DELAY_REQ && 
 		    ptpClock->msgTmpHeader.messageType != DELAY_RESP)) {
-			DBG("ignord unicast message in multicast mode%d\n");
+			DBG("ignored unicast message in multicast mode%d\n");
 			ptpClock->counters.discardedMessages++;
 			return;
 	    }
@@ -1240,7 +1258,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 	} else {
 	/* in unicast mode, accept only management multicast messages */
 		if(rtOpts->ipMode == IPMODE_UNICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) {
-		    DBG("ignord multicast message in unicast mode%d\n");
+		    DBG("ignored multicast message in unicast mode%d\n");
 		    ptpClock->counters.discardedMessages++;
 		    return;
 		}
@@ -1306,7 +1324,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 	break;
     case MANAGEMENT:
 	handleManagement(&ptpClock->msgTmpHeader,
-		 isFromSelf, rtOpts, ptpClock);
+		 isFromSelf, ptpClock->netPath.lastSourceAddr, rtOpts, ptpClock);
 	break;
     case SIGNALING:
        handleSignaling(&ptpClock->msgTmpHeader, isFromSelf,
@@ -1328,7 +1346,7 @@ processMessage(const RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* time
 
 /* check and handle received messages */
 void
-handle(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
     int ret;
     ssize_t length = -1;
@@ -1351,7 +1369,7 @@ handle(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	/* else length > 0 */
     }
 
-    DBGV("handle: something\n");
+    DBG("handle: something\n");
 
 #ifdef PTPD_PCAP
     if (rtOpts->pcap == TRUE) {
@@ -2091,9 +2109,6 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 					&ptpClock->delayReqHeader);
 			ptpClock->counters.delayReqMessagesReceived++;
 
-			// remember IP address of this client for hybrid mode
-			ptpClock->LastSlaveAddr = ptpClock->netPath.lastSourceAddr;
-
 			issueDelayResp(tint,&ptpClock->delayReqHeader, sourceAddress,
 				       rtOpts,ptpClock);
 			break;
@@ -2106,7 +2121,7 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 	} else if (ptpClock->delayMechanism == P2P) {/* (Peer to Peer mode) */
 		DBG("Delay messages are ignored in Peer to Peer mode\n");
 		ptpClock->counters.discardedMessages++;
-		ptpClock->counters.delayModeMismatchErrors++;
+		ptpClock->counters.delayMechanismMismatchErrors++;
 	/* no delay mechanism */
 	} else {
 		DBG("DelayReq ignored - we are in DELAY_DISABLED mode");
@@ -2287,7 +2302,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 	} else if (ptpClock->delayMechanism == P2P) { /* (Peer to Peer mode) */
 		DBG("Delay messages are disregarded in Peer to Peer mode \n");
 		ptpClock->counters.discardedMessages++;
-		ptpClock->counters.delayModeMismatchErrors++;
+		ptpClock->counters.delayMechanismMismatchErrors++;
 	/* no delay mechanism */
 	} else {
 		DBG("DelayResp ignored - we are in DELAY_DISABLED mode");
@@ -2363,7 +2378,7 @@ handlePdelayReq(MsgHeader *header, ssize_t length,
 		DBG("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 		ptpClock->counters.discardedMessages++;
-		ptpClock->counters.delayModeMismatchErrors++;
+		ptpClock->counters.delayMechanismMismatchErrors++;
 	/* no delay mechanism */
 	} else {
 		DBG("PdelayReq ignored - we are in DELAY_DISABLED mode");
@@ -2532,7 +2547,7 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 		DBG("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 		ptpClock->counters.discardedMessages++;
-		ptpClock->counters.delayModeMismatchErrors++;
+		ptpClock->counters.delayMechanismMismatchErrors++;
 	/* no delay mechanism */
 	} else {
 		DBG("PdelayResp ignored - we are in DELAY_DISABLED mode");
@@ -2670,7 +2685,7 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 		DBG("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 		ptpClock->counters.discardedMessages++;
-		ptpClock->counters.delayModeMismatchErrors++;
+		ptpClock->counters.delayMechanismMismatchErrors++;
 	/* no delay mechanism */
 	} else {
 		DBG("PdelayRespFollowUp ignored - we are in DELAY_DISABLED mode");
@@ -2712,293 +2727,6 @@ acceptPortIdentity(PortIdentity thisPort, PortIdentity targetPort)
 	}
 
 	return FALSE;
-}
-
-
-static void
-handleManagement(MsgHeader *header,
-		 Boolean isFromSelf, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
-{
-	DBGV("Management message received : \n");
-
-	if(!rtOpts->managementEnabled) {
-		DBGV("Dropping management message - management message support disabled");
-		ptpClock->counters.discardedMessages++;
-		return;
-	}
-
-	if (isFromSelf) {
-		DBGV("handleManagement: Ignore message from self \n");
-		return;
-	}
-
-	msgUnpackManagement(ptpClock->msgIbuf,&ptpClock->msgTmp.manage, header, ptpClock);
-
-	if(ptpClock->msgTmp.manage.tlv == NULL) {
-		DBGV("handleManagement: TLV is empty\n");
-		ptpClock->counters.messageFormatErrors++;
-		return;
-	}
-
-        if(!acceptPortIdentity(ptpClock->portIdentity, ptpClock->msgTmp.manage.targetPortIdentity))
-        {
-                DBGV("handleManagement: The management message was not accepted");
-		ptpClock->counters.discardedMessages++;
-                /* cleanup msgTmp managementTLV */
-                freeManagementTLV(&ptpClock->msgTmp.manage);
-                return;
-        }
-
-	if(!rtOpts->managementSetEnable &&
-	    (ptpClock->msgTmp.manage.actionField == SET ||
-	    ptpClock->msgTmp.manage.actionField == COMMAND)) {
-		DBGV("Dropping SET/COMMAND management message - read-only mode enabled");
-		ptpClock->counters.discardedMessages++;
-                /* cleanup msgTmp managementTLV */
-                freeManagementTLV(&ptpClock->msgTmp.manage);
-		return;
-	}
-
-	/* is this an error status management TLV? */
-	if(ptpClock->msgTmp.manage.tlv->tlvType == TLV_MANAGEMENT_ERROR_STATUS) {
-		DBGV("handleManagement: Error Status TLV\n");
-		unpackMMErrorStatus(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-		handleMMErrorStatus(&ptpClock->msgTmp.manage);
-		ptpClock->counters.managementMessagesReceived++;
-		/* cleanup msgTmp managementTLV */
-		if(ptpClock->msgTmp.manage.tlv) {
-			DBGV("cleanup ptpClock->msgTmp.manage message \n");
-			if(ptpClock->msgTmp.manage.tlv->dataField) {
-				freeMMErrorStatusTLV(ptpClock->msgTmp.manage.tlv);
-				free(ptpClock->msgTmp.manage.tlv->dataField);
-			}
-			free(ptpClock->msgTmp.manage.tlv);
-		}
-		return;
-	} else if (ptpClock->msgTmp.manage.tlv->tlvType != TLV_MANAGEMENT) {
-		/* do nothing, implemention specific handling */
-		DBGV("handleManagement: Currently unsupported management TLV type\n");
-		ptpClock->counters.discardedMessages++;
-                /* cleanup msgTmp managementTLV */
-                freeManagementTLV(&ptpClock->msgTmp.manage);
-		return;
-	}
-
-	switch(ptpClock->msgTmp.manage.tlv->managementId)
-	{
-	case MM_NULL_MANAGEMENT:
-		DBGV("handleManagement: Null Management\n");
-		handleMMNullManagement(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-		break;
-	case MM_CLOCK_DESCRIPTION:
-		DBGV("handleManagement: Clock Description\n");
-		unpackMMClockDescription(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-		handleMMClockDescription(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-		break;
-	case MM_USER_DESCRIPTION:
-		DBGV("handleManagement: User Description\n");
-		unpackMMUserDescription(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-		handleMMUserDescription(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-		break;
-	case MM_SAVE_IN_NON_VOLATILE_STORAGE:
-		DBGV("handleManagement: Save In Non-Volatile Storage\n");
-		handleMMSaveInNonVolatileStorage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-		break;
-	case MM_RESET_NON_VOLATILE_STORAGE:
-		DBGV("handleManagement: Reset Non-Volatile Storage\n");
-		handleMMResetNonVolatileStorage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-		break;
-	case MM_INITIALIZE:
-		DBGV("handleManagement: Initialize\n");
-		unpackMMInitialize(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-		handleMMInitialize(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-		break;
-	case MM_DEFAULT_DATA_SET:
-		DBGV("handleManagement: Default Data Set\n");
-		unpackMMDefaultDataSet(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-		handleMMDefaultDataSet(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-		break;
-	case MM_CURRENT_DATA_SET:
-		DBGV("handleManagement: Current Data Set\n");
-		unpackMMCurrentDataSet(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-		handleMMCurrentDataSet(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-		break;
-        case MM_PARENT_DATA_SET:
-                DBGV("handleManagement: Parent Data Set\n");
-                unpackMMParentDataSet(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMParentDataSet(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_TIME_PROPERTIES_DATA_SET:
-                DBGV("handleManagement: TimeProperties Data Set\n");
-                unpackMMTimePropertiesDataSet(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMTimePropertiesDataSet(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_PORT_DATA_SET:
-                DBGV("handleManagement: Port Data Set\n");
-                unpackMMPortDataSet(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMPortDataSet(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_PRIORITY1:
-                DBGV("handleManagement: Priority1\n");
-                unpackMMPriority1(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMPriority1(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_PRIORITY2:
-                DBGV("handleManagement: Priority2\n");
-                unpackMMPriority2(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMPriority2(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_DOMAIN:
-                DBGV("handleManagement: Domain\n");
-                unpackMMDomain(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMDomain(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-	case MM_SLAVE_ONLY:
-		DBGV("handleManagement: Slave Only\n");
-		unpackMMSlaveOnly(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-		handleMMSlaveOnly(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-		break;
-        case MM_LOG_ANNOUNCE_INTERVAL:
-                DBGV("handleManagement: Log Announce Interval\n");
-                unpackMMLogAnnounceInterval(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMLogAnnounceInterval(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_ANNOUNCE_RECEIPT_TIMEOUT:
-                DBGV("handleManagement: Announce Receipt Timeout\n");
-                unpackMMAnnounceReceiptTimeout(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMAnnounceReceiptTimeout(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_LOG_SYNC_INTERVAL:
-                DBGV("handleManagement: Log Sync Interval\n");
-                unpackMMLogSyncInterval(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMLogSyncInterval(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_VERSION_NUMBER:
-                DBGV("handleManagement: Version Number\n");
-                unpackMMVersionNumber(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMVersionNumber(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_ENABLE_PORT:
-                DBGV("handleManagement: Enable Port\n");
-                handleMMEnablePort(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_DISABLE_PORT:
-                DBGV("handleManagement: Disable Port\n");
-                handleMMDisablePort(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_TIME:
-                DBGV("handleManagement: Time\n");
-                unpackMMTime(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMTime(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock, rtOpts);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_CLOCK_ACCURACY:
-                DBGV("handleManagement: Clock Accuracy\n");
-                unpackMMClockAccuracy(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMClockAccuracy(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_UTC_PROPERTIES:
-                DBGV("handleManagement: Utc Properties\n");
-                unpackMMUtcProperties(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMUtcProperties(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_TRACEABILITY_PROPERTIES:
-                DBGV("handleManagement: Traceability Properties\n");
-                unpackMMTraceabilityProperties(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMTraceabilityProperties(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_DELAY_MECHANISM:
-                DBGV("handleManagement: Delay Mechanism\n");
-                unpackMMDelayMechanism(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMDelayMechanism(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-        case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
-                DBGV("handleManagement: Log Min Pdelay Req Interval\n");
-                unpackMMLogMinPdelayReqInterval(ptpClock->msgIbuf, &ptpClock->msgTmp.manage, ptpClock);
-                handleMMLogMinPdelayReqInterval(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp, ptpClock);
-		ptpClock->counters.managementMessagesReceived++;
-                break;
-	case MM_FAULT_LOG:
-	case MM_FAULT_LOG_RESET:
-	case MM_TIMESCALE_PROPERTIES:
-	case MM_UNICAST_NEGOTIATION_ENABLE:
-	case MM_PATH_TRACE_LIST:
-	case MM_PATH_TRACE_ENABLE:
-	case MM_GRANDMASTER_CLUSTER_TABLE:
-	case MM_UNICAST_MASTER_TABLE:
-	case MM_UNICAST_MASTER_MAX_TABLE_SIZE:
-	case MM_ACCEPTABLE_MASTER_TABLE:
-	case MM_ACCEPTABLE_MASTER_TABLE_ENABLED:
-	case MM_ACCEPTABLE_MASTER_MAX_TABLE_SIZE:
-	case MM_ALTERNATE_MASTER:
-	case MM_ALTERNATE_TIME_OFFSET_ENABLE:
-	case MM_ALTERNATE_TIME_OFFSET_NAME:
-	case MM_ALTERNATE_TIME_OFFSET_MAX_KEY:
-	case MM_ALTERNATE_TIME_OFFSET_PROPERTIES:
-	case MM_TRANSPARENT_CLOCK_DEFAULT_DATA_SET:
-	case MM_TRANSPARENT_CLOCK_PORT_DATA_SET:
-	case MM_PRIMARY_DOMAIN:
-		DBGV("handleManagement: Currently unsupported managementTLV %d\n",
-				ptpClock->msgTmp.manage.tlv->managementId);
-		handleErrorManagementMessage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp,
-			ptpClock, ptpClock->msgTmp.manage.tlv->managementId,
-			NOT_SUPPORTED);
-		ptpClock->counters.discardedMessages++;
-		break;
-	default:
-		DBGV("handleManagement: Unknown managementTLV %d\n",
-				ptpClock->msgTmp.manage.tlv->managementId);
-		handleErrorManagementMessage(&ptpClock->msgTmp.manage, &ptpClock->outgoingManageTmp,
-			ptpClock, ptpClock->msgTmp.manage.tlv->managementId,
-			NO_SUCH_ID);
-		ptpClock->counters.discardedMessages++;
-	}
-
-        /* If the management message we received was unicast, we also reply with unicast */
-        if((header->flagField0 & PTP_UNICAST) == PTP_UNICAST)
-                ptpClock->LastSlaveAddr = ptpClock->netPath.lastSourceAddr;
-        else ptpClock->LastSlaveAddr = 0;
-
-	/* send management message response or acknowledge */
-	if(ptpClock->outgoingManageTmp.tlv->tlvType == TLV_MANAGEMENT) {
-		if(ptpClock->outgoingManageTmp.actionField == RESPONSE ||
-				ptpClock->outgoingManageTmp.actionField == ACKNOWLEDGE) {
-			issueManagementRespOrAck(&ptpClock->outgoingManageTmp, rtOpts, ptpClock);
-		}
-	} else if(ptpClock->outgoingManageTmp.tlv->tlvType == TLV_MANAGEMENT_ERROR_STATUS) {
-		issueManagementErrorStatus(&ptpClock->outgoingManageTmp, rtOpts, ptpClock);
-	}
-
-	/* cleanup msgTmp managementTLV */
-	freeManagementTLV(&ptpClock->msgTmp.manage);
-	/* cleanup outgoing managementTLV */
-	freeManagementTLV(&ptpClock->outgoingManageTmp);
-
 }
 
 /* This code does not get built in the slave-only build */
@@ -3488,78 +3216,6 @@ issuePdelayRespFollowUp(const TimeInternal *tint, MsgHeader *header, Integer32 d
 	}
 }
 
-#if 0
-static void 
-issueManagement(MsgHeader *header,MsgManagement *manage,const RunTimeOpts *rtOpts,
-		PtpClock *ptpClock)
-{
-
-	ptpClock->counters.managementMessagesSent++;
-
-}
-#endif
-
-static void 
-issueManagementRespOrAck(MsgManagement *outgoing, const RunTimeOpts *rtOpts,
-		PtpClock *ptpClock)
-{
-	Integer32 dst = 0;
-
-	/* pack ManagementTLV */
-	msgPackManagementTLV( ptpClock->msgObuf, outgoing, ptpClock);
-
-	/* set header messageLength, the outgoing->tlv->lengthField is now valid */
-	outgoing->header.messageLength = MANAGEMENT_LENGTH +
-					TL_LENGTH +
-					outgoing->tlv->lengthField;
-
-	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
-
-	/* If LastSlaveAddr was populated, we reply via Unicast */
-	if (ptpClock->LastSlaveAddr > 0)
-		dst = ptpClock->LastSlaveAddr;
-
-	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-			   &ptpClock->netPath, rtOpts, dst)) {
-		DBGV("Management response/acknowledge can't be sent -> FAULTY state \n");
-		ptpClock->counters.messageSendErrors++;
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-	} else {
-		DBGV("Management response/acknowledge msg sent \n");
-		ptpClock->counters.managementMessagesSent++;
-	}
-}
-
-static void
-issueManagementErrorStatus(MsgManagement *outgoing, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
-{
-	Integer32 dst = 0;
-
-	/* pack ManagementErrorStatusTLV */
-	msgPackManagementErrorStatusTLV( ptpClock->msgObuf, outgoing, ptpClock);
-
-	/* set header messageLength, the outgoing->tlv->lengthField is now valid */
-	outgoing->header.messageLength = MANAGEMENT_LENGTH +
-					TL_LENGTH +
-					outgoing->tlv->lengthField;
-
-	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
-
-	if (ptpClock->LastSlaveAddr > 0)
-		dst = ptpClock->LastSlaveAddr;
-
-	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-			   &ptpClock->netPath, rtOpts, dst)) {
-		DBGV("Management error status can't be sent -> FAULTY state \n");
-		ptpClock->counters.messageSendErrors++;
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-	} else {
-		DBGV("Management error status msg sent \n");
-		ptpClock->counters.managementMessagesSent++;
-	}
-
-}
-
 void
 addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPreference, UInteger32 sourceAddr)
 {
@@ -3645,12 +3301,15 @@ updateDatasets(PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 		}
 	}
 
+	memset(ptpClock->userDescription, 0, sizeof(ptpClock->userDescription));
+	memcpy(ptpClock->userDescription, rtOpts->portDescription, strlen(rtOpts->portDescription));
+
 	switch(ptpClock->portState) {
 
 		/* We are master so update both the port and the parent dataset */
 		case PTP_MASTER:
 
-			if(rtOpts->dot2AS) {
+			if(rtOpts->dot1AS) {
 			    ptpClock->transportSpecific = TSP_ETHERNET_AVB;
 			} else {
 			    ptpClock->transportSpecific = TSP_DEFAULT;
@@ -3706,7 +3365,7 @@ updateDatasets(PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 			ptpClock->numberPorts = NUMBER_PORTS;
 			ptpClock->portIdentity.portNumber = rtOpts->portNumber;
 
-			if(rtOpts->dot2AS) {
+			if(rtOpts->dot1AS) {
 			    ptpClock->transportSpecific = TSP_ETHERNET_AVB;
 			} else {
 			    ptpClock->transportSpecific = TSP_DEFAULT;

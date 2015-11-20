@@ -1,5 +1,5 @@
 ; ========================================
-; PTPDv2 version 2.3.1.1 default configuration
+; PTPDv2 version 2.3.2 default configuration
 ; ========================================
 
 ; NOTE: the following settings are affected by ptpengine:preset selection:
@@ -32,7 +32,11 @@ ptpengine:preset = slaveonly
 ptpengine:transport = ipv4
 
 ; Enable TransportSpecific field compatibility with 802.1AS / AVB (requires Ethernet transport)
-ptpengine:dot2as = N
+ptpengine:dot1as = N
+
+; Disable PTP port. Causes the PTP state machine to stay in PTP_DISABLED state indefinitely,
+; until it is re-enabled via configuration change or ENABLE_PORT management message.
+ptpengine:disabled = N
 
 ; IP transmission mode (requires IP transport) - hybrid mode uses
 ; multicast for sync and announce, and unicast for delay request and
@@ -91,6 +95,9 @@ ptpengine:domain = 0
 ; but when running multiple instances to simulate a boundary clock, 
 ; The port number can be changed.
 ptpengine:port_number = 1
+
+; Port description (returned in the userDescription field of PORT_DESCRIPTION management message and USER_DESCRIPTION        management message) - maximum 64 characters
+ptpengine:port_description = ptpd
 
 ; Usability extension: if enabled, a slave-only clock will accept
 ; masters from any domain, while preferring the configured domain,
@@ -209,7 +216,7 @@ ptpengine:foreignrecord_capacity = 5
 ptpengine:ptp_allan_variance = 65535
 
 ; Clock accuracy range announced in master state.
-; Options: ACC_25NS ACC_100NS ACC_250NS ACC_1US ACC_2.5US ACC_10US ACC_25US ACC_100US ACC_250US ACC_1MS ACC_2.5MS ACC_10MS ACC_25MS ACC_100MS ACC_250MS ACC_1S ACC_10S ACC_10SPLUS ACC_UNKNOWN 
+; Options: ACC_25NS ACC_100NS ACC_250NS ACC_1US ACC_2_5US ACC_10US ACC_25US ACC_100US ACC_250US ACC_1MS ACC_2_5MS ACC_10MS ACC_25MS ACC_100MS ACC_250MS ACC_1S ACC_10S ACC_10SPLUS ACC_UNKNOWN 
 ptpengine:ptp_clock_accuracy = ACC_UNKNOWN
 
 ; Underlying time source UTC offset announced in master state.

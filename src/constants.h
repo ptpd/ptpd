@@ -12,8 +12,8 @@
 #define PTPD_PROGNAME "ptpd2"
 
 /* FIXME: make these parameterized, either through command-line options or make variables */
- #define MANUFACTURER_ID \
-  "ptpd.sf.net;2.3.1\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+/* wowczarek@25oct15: fixed: product description suffix is variables:product_description */
+/* user description is ptpengine:port_description */
 #define MANUFACTURER_ID_OUI0 \
   0xFF
 #define MANUFACTURER_ID_OUI1 \
@@ -23,9 +23,7 @@
 #define PROTOCOL \
   "IEEE 802.3"
 #define PRODUCT_DESCRIPTION \
-  ";;"
-#define REVISION \
-  ";;2.3"
+  "ptpd;"PACKAGE_VERSION";%s"
 #ifndef PTPD_SLAVE_ONLY
 
 #define USER_VERSION \
@@ -38,9 +36,17 @@
 
 #endif /* PTPD_SLAVE_ONLY */
 
+#define REVISION \
+  ";;"USER_VERSION""
+
+
+#define PROFILE_ID_DEFAULT_E2E "\x00\x1B\x19\x00\x01\x00"
+#define PROFILE_ID_DEFAULT_P2P "\x00\x1B\x19\x00\x02\x00"
+#define PROFILE_ID_TELECOM     "\x00\x19\xA7\x00\x01\x02"
+#define PROFILE_ID_802_1AS     "\x00\x80\xC2\x00\x01\x00"
 
 #define USER_DESCRIPTION \
-  "PTPDv2"
+  "PTPd"
 #define USER_DESCRIPTION_MAX 128
 /* implementation specific constants */
 #define DEFAULT_INBOUND_LATENCY      	0       /* in nsec */
@@ -160,6 +166,31 @@ enum {
 enum {
 	E2E=1,P2P=2,DELAY_DISABLED=0xFE
 };
+
+/* clock accuracy constant definitions (table 6) */
+enum {
+
+	ACC_25NS	= 0x20,
+	ACC_100NS 	= 0x21,
+	ACC_250NS	= 0x22,
+	ACC_1US		= 0x23,
+	ACC_2_5US	= 0x24,
+	ACC_10US	= 0x25,
+	ACC_25US	= 0x26,
+	ACC_100US	= 0x27,
+	ACC_250US	= 0x28,
+	ACC_1MS		= 0x29,
+	ACC_2_5MS	= 0x2A,
+	ACC_10MS	= 0x2B,
+	ACC_25MS	= 0x2C,
+	ACC_100MS	= 0x2D,
+	ACC_250MS	= 0x2E,
+	ACC_1S		= 0x2F,
+	ACC_10S		= 0x30,
+	ACC_10SPLUS	= 0x31,
+	ACC_UNKNOWN	= 0xFE
+};
+
 
 /**
  * \brief PTP Management Message managementId values (Table 40 in the spec)

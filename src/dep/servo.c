@@ -82,7 +82,7 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	/* If we've been suppressing ntpdc error messages, show them once again */
 	ptpClock->ntpControl.requestFailed = FALSE;
-
+	ptpClock->disabled = rtOpts->portDisabled;
 
 /* do not reset frequency here - restoreDrift will do it if necessary */
 /* 2.3.1: restoreDrift now always compiled - this is no longer needed */

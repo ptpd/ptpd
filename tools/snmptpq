@@ -1,0 +1,303 @@
+#!/bin/bash
+
+# PTPBASE-MIB SNMP poller
+# (c) 2015: Wojciech Owczarek, PTPd project
+
+# constants
+myver=0.9
+timeout=1
+retries=3
+
+# initial values
+firsthost=""
+community=public
+version=2c
+quiet=0
+pollcount=1
+pollinterval=0
+clearscreen=0
+hostlist=""
+hostcount=0
+domainnumber=-1
+
+function usage() {
+    echo "usage: `basename $0` [-h] [-q] [-x] [-v <1|2c>] [-c <community>] [-n <pollcount>] [-i <pollinterval>] [pollhost1] [pollhost2] ... [pollhostN]"
+}
+
+# print help
+[ "$1" == "-h" ] && {
+
+echo
+
+usage
+
+echo
+
+echo "PTP(d)BASE-MIB SNMP poller version $myver, (c) 2015: Wojciech Owczarek, PTPd project"
+echo
+echo "options:"
+echo
+echo "		-h			: print this help screen"
+echo "		-q			: CSV style output with headers"
+echo "		-x			: clear screen on every poll"
+echo "		-v <1|2c>		: SNMP version to use"
+echo "		-c <community> 		: SNMP community string"
+echo "		-n <pollcount>		: number of SNMP polls to execute"
+echo "					  0 = run indefinitely"
+echo
+echo "		-i <pollinterval>	: polling interval in seconds"
+echo "					  0 = don't wait. When poll count = 0, poll"
+echo "					  interval is set to 1"
+echo
+echo "		[pollhost] [...]	: one or more hosts to poll."
+echo "					  when no hostname given, localhost is used"
+echo
+echo "		-d			: PTP domain number (default: any)"
+
+exit 1
+
+}
+
+
+
+# parse cmdline arguments (no getopt, silly me)
+
+
+#while  [ "${1:0:1}" == "-" ]; do
+while  [ "$1x" != "x" ]; do
+
+    argcount=$#
+
+    [ "$1" == "-q" ] && { quiet=1; shift 1; }
+
+    [ "$1" == "-x" ] && { clearscreen=1; shift 1; }
+
+    [ "$1" == "-c" ] && [ "$2x" == "x" ] && usage && exit 1
+
+    [ "$1" == "-c" ] && [ "$2x" != "x" ] && { community=$2; shift 2; }
+
+    [ "$1" == "-v" ] && [ "$2x" == "x" ] && usage && exit 1
+
+    [ "$1" == "-v" ] && [ "$2x" != "x" ] && { version=v$2; shift 2; }
+
+    [ "$1" == "-n" ] && [ "$2x" == "x" ] && usage && exit 1
+
+    [ "$1" == "-n" ] && [ "$2x" != "x" ] && { pollcount=$2; shift 2; }
+
+    [ "$1" == "-i" ] && [ "$2x" == "x" ] && usage && exit 1
+
+    [ "$1" == "-i" ] && [ "$2x" != "x" ] && { pollinterval=$2; shift 2; }
+
+    [ "$1" == "-d" ] && [ "$2x" != "x" ] && { domainnumber=$2; shift 2; }
+
+    [ $argcount -eq $# ] && { hostlist="$hostlist $1"; shift 1; hostcount=$(( $hostcount + 1 )); }
+
+done;
+
+[ $hostcount -eq 0 ] && hostlist="localhost"
+
+[ "$version" != "2c" ] && [ "$version" != "1" ] && echo "Invalid SNMP version: $version" && exit 1
+
+
+[ "$pollcount" -eq "$pollcount" ] 2>/dev/null || { echo "Invalid poll count: $pollcount"; exit 1; }
+[ "$pollinterval" -eq "$pollinterval" ] 2>/dev/null || { echo "Invalid poll interval: $pollinterval"; exit 1; }
+[ "$domainnumber" -eq "$domainnumber" ] 2>/dev/null || { echo "Invalid domain number: $domainnumber"; exit 1; }
+
+if [ $domainnumber == -1 ]; then domainnumber=""; else domainnumber=".$domainnumber"; fi
+
+
+# prevent from flooding if we have an infinite loop
+[ $pollcount -eq 0 ] && [ $pollinterval -eq 0 ] && pollinterval=1
+
+# OIDs to be polled
+
+# in PTPBASE-MIB
+ofm_oid=PTPBASE-MIB::ptpbaseClockCurrentDSOffsetFromMaster$domainnumber
+mpd_oid=PTPBASE-MIB::ptpbaseClockCurrentDSMeanPathDelay$domainnumber
+state_oid=PTPBASE-MIB::ptpbaseClockPortRunningState$domainnumber
+parentid_oid=PTPBASE-MIB::ptpbaseClockParentDSGMClockIdentity$domainnumber
+ptpaddr_oid=PTPBASE-MIB::ptpbaseClockPortCurrentPeerAddress$domainnumber
+# PTPd-specific
+parentaddr_oid=PTPBASE-MIB::ptpbaseClockParentDSParentPortAddress$domainnumber
+
+function getoid() {
+    oidval=`snmpgetnext -v$version -r $retries -t $timeout -c $community -O qUvx $pollhost $* 2>/dev/null` || exit 1
+}
+
+function printoid() {
+    snmpgetnext -v$version -r $retries -t $timeout -c $community -O qUvx $pollhost $* 2>/dev/null || exit 1
+    snmpgetnext -v$version -r $retries -t $timeout -c $community -O qUx $pollhost $1 2>/dev/null || exit 1
+    return $?
+}
+
+function hextoip() {
+
+    # remove quotes and spaces
+    tmp=`echo $* | tr -d " "\"`
+    [ ${#tmp} -ne 8 ] && return
+    octet1=0x${tmp:0:2}
+    octet2=0x${tmp:2:2}
+    octet3=0x${tmp:4:2}
+    octet4=0x${tmp:6:2}
+
+    retval=`printf "%d.%d.%d.%d" $octet1 $octet2 $octet3 $octet4`
+}
+
+function intervaltoint() {
+
+    # remove quotes and spaces
+    tmp=`echo $* | tr -d " "\"`
+    # extract int64
+    [ ${#tmp} -ne 32 ] && retval=" -" && return
+    tmp=${tmp:0:8}${tmp:16:8}
+    # convert to dec
+    tmp=$((16#$tmp)) 2>/dev/null
+    # scale down
+    tmp=$(( $tmp / 65536 ))
+    # get sign and set absolute value if negative
+    sign=""
+    [ $quiet -eq 0 ] && sign="\x20"
+    [ $tmp -lt 0 ] && { sign="-"; tmp=$(( 0 - $tmp )); }
+    # get seconds and nanoseconds value
+    sec=$(( $tmp / 1000000000 ))
+    nsec=$(( $tmp % 1000000000 ))
+    # output in %.09f format
+    retval=`printf "%s%d.%09d" "$sign" $sec $nsec`
+
+}
+
+function getofm() {
+    getoid $ofm_oid
+    intervaltoint $oidval
+    echo -n $retval
+}
+
+function getmpd() {
+    getoid $mpd_oid
+    intervaltoint $oidval
+    echo -n $retval
+}
+
+function getstate() {
+    getoid $state_oid
+    echo -n $oidval
+}
+
+function getparentid() {
+    getoid $parentid_oid
+    echo -n $oidval | tr -d " "\"
+}
+
+function getparentaddr() {
+    getoid $parentaddr_oid
+    hextoip $oidval
+    echo -n $retval
+}
+
+function getptpaddr() {
+    getoid $ptpaddr_oid
+    hextoip $oidval
+    echo -n $retval
+}
+
+
+#ptp_ofm=`getofm`
+#ptp_mpd=`getmpd`
+#ptp_state=`getstate`
+#ptp_parent_id=`getparentid`
+#ptp_parent_addr=`getparentaddr`
+#ptp_addr=`getptpaddr`
+
+function oneshot() {
+
+    lineno=1
+
+    while read line; do
+
+    notfound=0
+
+    [[ "$line" =~ "No Such Object" ]] && notfound=1
+
+    [ "$linex" == "x" ] && echo "$pollhost: no data received" && return 1
+
+	case $lineno in
+	    1)
+		intervaltoint $line
+		ptp_ofm="$retval"
+		[ $notfound -eq 1 ] && ptp_ofm=" -"
+		;;
+	    2)
+		intervaltoint $line
+		ptp_mpd="$retval"
+		[ $notfound -eq 1 ] && ptp_mpd=" -"
+		;;
+	    3)
+		ptp_state="$line"
+		[ $notfound -eq 1 ] && ptp_state="-"
+		;;
+	    4)
+		ptp_parent_id=` echo $line | tr -d " "\"`
+		[ $notfound -eq 1 ] && ptp_parent_id="-"
+		;;
+	    5)
+		hextoip $line
+		ptp_parent_addr="$retval"
+		[ $notfound -eq 1 ] && ptp_parent_addr="-"
+		;;
+	    6)
+		hextoip $line
+		ptp_addr="$retval"
+		[ $notfound -eq 1 ] && ptp_addr="-"
+		;;
+	    7)
+		ptp_domain=`echo $line | awk '{ print $1; }' | awk 'BEGIN{FS=".";} {print $(NF-2);}'`
+		[ $notfound -eq 1 ] && ptp_domain="-"
+		;;
+
+	    *)
+		;;
+	esac
+
+	lineno=$(( lineno + 1 ))
+
+    done < <(printoid $ofm_oid $mpd_oid $state_oid $parentid_oid $parentaddr_oid $ptpaddr_oid)
+
+    [ $lineno == 1 ] && echo "$pollhost: no data received" && return 1
+
+    return 0
+}
+
+function displayloop() {
+
+    header_printed=0
+
+    while [ "$1x" != "x" ]; do
+
+	pollhost=$1
+
+	oneshot && {
+
+	    if [ $quiet -eq 0 ]; then
+		echo -e "Hostname\t\t:  $pollhost\nPTP Address\t\t:  $ptp_addr\nPTP domain\t\t:  $ptp_domain\nPTP state\t\t:  $ptp_state\nParent Address\t\t:  $ptp_parent_addr\nParent Clock ID\t\t:  $ptp_parent_id\nOffset from Master\t: $ptp_ofm s\nMean Path Delay\t\t: $ptp_mpd s\n"
+	    else
+		[ $clearscreen -eq 0 ] && [ $# == 1 ] && [ $iter -gt 0 ] && header_printed=1
+		[ $header_printed -eq 0 ] && echo "# Hostname, PTP Address, PTP domain, PTP state, Parent Address, Parent Clock ID, Offset From Master, Mean Path Delay" 1>&2
+		[ $clearscreen -eq 0 ] && header_printed=1
+		echo "$pollhost, $ptp_addr, $ptp_domain, $ptp_state, $ptp_parent_addr, $ptp_parent_id, $ptp_ofm, $ptp_mpd"
+	    fi
+	}
+
+    shift 1
+    [ "${1:0:1}" == "-" ] && echo "\"$1\" hostname given: ignoring the rest of host list" && echo && break
+    done
+
+}
+
+iter=0
+
+while [ $pollcount -eq 0 ] || [ $iter -lt $pollcount ]; do
+    [ $clearscreen -eq 1 ] && clear
+    displayloop $hostlist
+    iter=$(( iter + 1 ))
+    [ $pollcount > 1 ] &&  sleep $pollinterval
+done

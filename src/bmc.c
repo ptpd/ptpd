@@ -88,6 +88,29 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->bestMaster = NULL;
 	ptpClock->numberPorts = NUMBER_PORTS;
 
+	ptpClock->disabled = rtOpts->portDisabled;
+
+	memset(ptpClock->userDescription, 0, sizeof(ptpClock->userDescription));
+	memcpy(ptpClock->userDescription, rtOpts->portDescription, strlen(rtOpts->portDescription));
+
+	memset(&ptpClock->profileIdentity,0,6);
+
+	if(rtOpts->ipMode == IPMODE_UNICAST && rtOpts->unicastNegotiation) {
+		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_TELECOM,6);
+	}
+
+	if(rtOpts->ipMode == IPMODE_MULTICAST &&rtOpts->delayMechanism == E2E) {
+		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_DEFAULT_E2E,6);
+	}
+
+	if(rtOpts->ipMode == IPMODE_MULTICAST &&rtOpts->delayMechanism == P2P) {
+		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_DEFAULT_P2P,6);
+	}
+
+	if(rtOpts->dot1AS) {
+		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_802_1AS,6);
+	}
+
 	ptpClock->clockQuality.clockAccuracy = 
 		rtOpts->clockQuality.clockAccuracy;
 	ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
@@ -128,7 +151,7 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
 	ptpClock->versionNumber = VERSION_PTP;
 
-	if(rtOpts->dot2AS) {
+	if(rtOpts->dot1AS) {
 	    ptpClock->transportSpecific = TSP_ETHERNET_AVB;
 	} else {
 	    ptpClock->transportSpecific = TSP_DEFAULT;
@@ -639,7 +662,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 
 			displayPortIdentity(&foreign->header.sourcePortIdentity,
 					    "New best master selected:");
-			ptpClock->counters.masterChanges++;
+			ptpClock->counters.bestMasterChanges++;
 			if (ptpClock->portState == PTP_SLAVE)
 				displayStatus(ptpClock, "State: ");
 				if(rtOpts->calibrationDelay) {
@@ -673,7 +696,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 			if (newBM) {
 				displayPortIdentity(&foreign->header.sourcePortIdentity,
 						    "New best master selected:");
-				ptpClock->counters.masterChanges++;
+				ptpClock->counters.bestMasterChanges++;
 				if(ptpClock->portState == PTP_PASSIVE)
 					displayStatus(ptpClock, "State: ");
 			}
@@ -690,7 +713,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 			if (newBM) {
 				displayPortIdentity(&foreign->header.sourcePortIdentity,
 						    "New best master selected:");
-				ptpClock->counters.masterChanges++;
+				ptpClock->counters.bestMasterChanges++;
 				if(ptpClock->portState == PTP_SLAVE)
 					displayStatus(ptpClock, "State: ");
 				if(rtOpts->calibrationDelay) {

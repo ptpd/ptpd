@@ -1274,8 +1274,8 @@ else {
 				    timingDomain.controlCount > 1 ? " (!)":"");
 
 	fprintf(out, 		STATUSPREFIX"  ","Performance");
-	fprintf(out,"Message RX %d/s, TX %d/s", ptpClock->counters.receivedMessageRate,
-						  ptpClock->counters.sentMessageRate);
+	fprintf(out,"Message RX %d/s, TX %d/s", ptpClock->counters.messageReceiveRate,
+						  ptpClock->counters.messageSendRate);
 	if(ptpClock->portState == PTP_MASTER) {
 		if(rtOpts->unicastNegotiation) {
 		    fprintf(out,", slaves %d", ptpClock->slaveCount);

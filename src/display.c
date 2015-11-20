@@ -903,6 +903,8 @@ displayCounters(const PtpClock * ptpClock)
 		(unsigned long)ptpClock->counters.unicastGrantsCancelReceived);
 	INFO("    unicastGrantsCancelAckReceived : %lu\n",
 		(unsigned long)ptpClock->counters.unicastGrantsCancelAckReceived);
+	INFO("        unicastGrantsCancelAckSent : %lu\n",
+		(unsigned long)ptpClock->counters.unicastGrantsCancelAckSent);
 
     }
 /* not implemented yet */
@@ -921,8 +923,8 @@ displayCounters(const PtpClock * ptpClock)
 	INFO("Protocol engine counters:\n");
 	INFO("                  stateTransitions : %lu\n",
 		(unsigned long)ptpClock->counters.stateTransitions);
-	INFO("                     masterChanges : %lu\n",
-		(unsigned long)ptpClock->counters.masterChanges);
+	INFO("                     bestMasterChanges : %lu\n",
+		(unsigned long)ptpClock->counters.bestMasterChanges);
 	INFO("                  announceTimeouts : %lu\n",
 		(unsigned long)ptpClock->counters.announceTimeouts);
 
@@ -933,10 +935,10 @@ displayCounters(const PtpClock * ptpClock)
 		(unsigned long)ptpClock->counters.unknownMessages);
 	INFO("                   ignoredAnnounce : %lu\n",
 		(unsigned long)ptpClock->counters.ignoredAnnounce);
-	INFO("    aclManagementDiscardedMessages : %lu\n",
-		(unsigned long)ptpClock->counters.aclManagementDiscardedMessages);
-	INFO("        aclTimingDiscardedMessages : %lu\n",
-		(unsigned long)ptpClock->counters.aclTimingDiscardedMessages);
+	INFO("    aclManagementMessagesDiscarded : %lu\n",
+		(unsigned long)ptpClock->counters.aclManagementMessagesDiscarded);
+	INFO("        aclTimingMessagesDiscarded : %lu\n",
+		(unsigned long)ptpClock->counters.aclTimingMessagesDiscarded);
 
 	INFO("Error counters:\n");
 	INFO("                 messageSendErrors : %lu\n",
@@ -955,8 +957,8 @@ displayCounters(const PtpClock * ptpClock)
 		(unsigned long)ptpClock->counters.sequenceMismatchErrors);
 	INFO("         consecutiveSequenceErrors : %lu\n",
 		(unsigned long)ptpClock->counters.consecutiveSequenceErrors);
-	INFO("           delayModeMismatchErrors : %lu\n",
-		(unsigned long)ptpClock->counters.delayModeMismatchErrors);
+	INFO("           delayMechanismMismatchErrors : %lu\n",
+		(unsigned long)ptpClock->counters.delayMechanismMismatchErrors);
 	INFO("           maxDelayDrops : %lu\n",
 		(unsigned long)ptpClock->counters.maxDelayDrops);
 
@@ -1041,7 +1043,68 @@ getMessageTypeName(Enumeration8 messageType)
 
 }
 
+const char* accToString(uint8_t acc) {
 
+	switch(acc) {
+
+	    case ACC_25NS:
+		return "ACC_25NS";
+	    case ACC_100NS:
+		return "ACC_100NS";
+	    case ACC_250NS:
+		return "ACC_250NS";
+	    case ACC_1US:
+		return "ACC_1US";
+	    case ACC_2_5US:
+		return "ACC_2_5US";
+	    case ACC_10US:
+		return "ACC_10US";
+	    case ACC_25US:
+		return "ACC_25US";
+	    case ACC_100US:
+		return "ACC_100US";
+	    case ACC_250US:
+		return "ACC_250US";
+	    case ACC_1MS:
+		return "ACC_1MS";
+	    case ACC_2_5MS:
+		return "ACC_2_5MS";
+	    case ACC_10MS:
+		return "ACC_10MS";
+	    case ACC_25MS:
+		return "ACC_25MS";
+	    case ACC_100MS:
+		return "ACC_100MS";
+	    case ACC_250MS:
+		return "ACC_250MS";
+	    case ACC_1S:
+		return "ACC_1S";
+	    case ACC_10S:
+		return "ACC_10S";
+	    case ACC_10SPLUS:
+		return "ACC_10SPLUS";
+	    case ACC_UNKNOWN:
+		return "ACC_UNKNOWN";
+	    default:
+		return NULL;
+
+	}
+}
+
+const char* delayMechToString(uint8_t mech) {
+
+	switch(mech) {
+	    case E2E:
+		return "E2E";
+	    case P2P:
+		return "P2P";
+	    case DELAY_DISABLED:
+		return "DELAY_DISABLED";
+	    default:
+		return NULL;
+	}
+
+}
 
 /**\brief Display all PTP clock (port) statistics*/
 void

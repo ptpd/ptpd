@@ -55,10 +55,16 @@
 	  significantly reduced memory footprint
 	- added dummy Makefile to src/dep to allow make commands
 	  from that directory
+	- added buffer overflow protection for management
+	  TLVs: protects against read past message length,
+	  and against read past buffer space
 
 	* New features since 2.3.1:
 
-	- support for user variables in configuration
+	- support for user variables in configuration:
+	    - variables specified variables:name=val, and
+	      used as @name@
+	    - built-in variables: @pid@, @hostname@
 	- support for configuration templates:
 	    - built-in
 	    - template files
@@ -84,6 +90,14 @@
 	- fixed preserving incorrect master address when
 	  best master lowers priority (GM change as a result
 	  of announce from current master, not foreign)
+	- PTP MIB enhanced with string values, counter support,
+	  clearing counters and more, added some missing items
+	  from previously supported items
+	- SNMP trap support for common alarm conditions
+	- enhanced management message support: enable/disable port,
+	  some missing values, PTPd now properly applies
+	  configuration when receiving SET messages
+	- added simple SNMP poller script: snmptpq
 
 2013-06-10  Wojciech Owczarek <wojciech@owczarek.co.uk>
 

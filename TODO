@@ -13,10 +13,17 @@
 - rework config option parsing x
 - rework parseConfig to support an opcode, get rid of remaining macros x
 - rework trigger and dependency macros: 2nd pass?
-- SET messages to refresh the config properly
+- SET messages to refresh the config properly x/-
 - NVRAM write?
 - pointer to best master x
 - disqualification flag x
 - remove masteraddr in favour of bestMaster->sourceAddr x
 - use split token loop
 - use pointer to best master x
+- management TLV buffer guard and don't unpack GET x
+- SNMP - implement statistics tables
+- SNMP - implement remaining traps
+- add alarm events -> trigger SNMP traps
+- add offset alarm threshold to config
+- remaining management message SET handling
+- clean up object order in the MIB

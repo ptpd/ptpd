@@ -321,37 +321,9 @@ Boolean acceptPortIdentity(PortIdentity thisPort, PortIdentity targetPort);
 /**
  * \brief Management message support
  */
-void handleMMNullManagement(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMClockDescription(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMSlaveOnly(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMUserDescription(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMSaveInNonVolatileStorage(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMResetNonVolatileStorage(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMInitialize(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMDefaultDataSet(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMCurrentDataSet(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMParentDataSet(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMTimePropertiesDataSet(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMPortDataSet(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMPriority1(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMPriority2(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMDomain(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMLogAnnounceInterval(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMAnnounceReceiptTimeout(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMLogSyncInterval(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMVersionNumber(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMEnablePort(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMDisablePort(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMTime(MsgManagement*, MsgManagement*, PtpClock*, const RunTimeOpts*);
-void handleMMClockAccuracy(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMUtcProperties(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMTraceabilityProperties(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMDelayMechanism(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMLogMinPdelayReqInterval(MsgManagement*, MsgManagement*, PtpClock*);
-void handleMMErrorStatus(MsgManagement*);
-void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement *outgoing,
-                                PtpClock *ptpClock, Enumeration16 mgmtId,
-                                Enumeration16 errorId);
+void handleManagement(MsgHeader *header,
+		 Boolean isFromSelf, Integer32 sourceAddress, RunTimeOpts *rtOpts, PtpClock *ptpClock);
+
 /** \}*/
 
 /** \name signaling.c
@@ -371,6 +343,13 @@ void 	handleSignaling(MsgHeader*, Boolean, Integer32, const RunTimeOpts*,PtpCloc
 
 void 	refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 void 	updateUnicastGrantTable(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts);
+
+
+/* quick shortcut to defining a temporary char array for the purpose of snprintf to it */
+#define tmpsnprintf(var,len, ...) \
+	char var[len+1]; \
+	memset(var, 0, len+1); \
+	snprintf(var, len, __VA_ARGS__);
 
 /*
  * \brief Packing and Unpacking macros
@@ -421,6 +400,8 @@ void iFaceName_display(const Octet*);
 void unicast_display(const Octet*);
 const char *portState_getName(Enumeration8 portState);
 const char *getMessageTypeName(Enumeration8 messageType);
+const char* accToString(uint8_t acc);
+const char* delayMechToString(uint8_t mech);
 void timestamp_display(const Timestamp * timestamp);
 
 void displayCounters(const PtpClock*);
