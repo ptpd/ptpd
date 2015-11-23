@@ -87,7 +87,7 @@ You will need the following tools and libraries to build ptpd2:
     performance. When running high numbers of slaves, it is recommended
     to use libpcap (ptpengine:use_libpcap=y) to allow easier matching
     of Sync and FollowUp, unless the NIC supports software transmit
-    timestamps. Without those and without libpcap, ptpd loops packets 
+    timestamps. Without those and without libpcap, ptpd loops packets
     back into its own socket, so the followUp destination cannot be
     matched with the Sync destination, and a lookup table is used.
     Hash collissions are low, but they may happen, in which case
@@ -96,10 +96,10 @@ You will need the following tools and libraries to build ptpd2:
 
     * With certain NIC drivers on Linux providing the SO_TIMESTAMPING
     functionality with software transmit timestamps (SOF_TIMESTAMPING_
-    TX_SOFTWARE), unpredictable transmit timestamp failures can occur, 
+    TX_SOFTWARE), unpredictable transmit timestamp failures can occur,
     which may cause unstable operation and in some cases high CPU usage
     (see https://sourceforge.net/p/ptpd/discussion/469208/thread/4aea6e47).
-    While fixes have been implemented and have shown success, 
+    While fixes have been implemented and have shown success,
     there is still some risk. To disable SO_TIMESTAMPING support on Linux
     completely, regardless of OS support, use:
 
