@@ -186,7 +186,7 @@ handleManagement(MsgHeader *header,
 	case MM_CLOCK_DESCRIPTION:
 		DBGV("handleManagement: Clock Description\n");
 		if(mgmtMsg->actionField != GET && !unpackMMClockDescription(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -195,7 +195,7 @@ handleManagement(MsgHeader *header,
 	case MM_USER_DESCRIPTION:
 		DBGV("handleManagement: User Description\n");
 		if(mgmtMsg->actionField != GET && !unpackMMUserDescription(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -212,7 +212,7 @@ handleManagement(MsgHeader *header,
 	case MM_INITIALIZE:
 		DBGV("handleManagement: Initialize\n");
 		if(mgmtMsg->actionField != GET && !unpackMMInitialize(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -221,7 +221,7 @@ handleManagement(MsgHeader *header,
 	case MM_DEFAULT_DATA_SET:
 		DBGV("handleManagement: Default Data Set\n");
 		if(mgmtMsg->actionField != GET && !unpackMMDefaultDataSet(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -230,7 +230,7 @@ handleManagement(MsgHeader *header,
 	case MM_CURRENT_DATA_SET:
 		DBGV("handleManagement: Current Data Set\n");
 		if(mgmtMsg->actionField != GET && !unpackMMCurrentDataSet(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -239,7 +239,7 @@ handleManagement(MsgHeader *header,
         case MM_PARENT_DATA_SET:
                 DBGV("handleManagement: Parent Data Set\n");
                 if(mgmtMsg->actionField != GET && !unpackMMParentDataSet(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -248,7 +248,7 @@ handleManagement(MsgHeader *header,
         case MM_TIME_PROPERTIES_DATA_SET:
                 DBGV("handleManagement: TimeProperties Data Set\n");
                 if(mgmtMsg->actionField != GET && !unpackMMTimePropertiesDataSet(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -257,7 +257,7 @@ handleManagement(MsgHeader *header,
         case MM_PORT_DATA_SET:
                 DBGV("handleManagement: Port Data Set\n");
                 if(mgmtMsg->actionField != GET && !unpackMMPortDataSet(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -266,7 +266,7 @@ handleManagement(MsgHeader *header,
         case MM_PRIORITY1:
                 DBGV("handleManagement: Priority1\n");
                 if(mgmtMsg->actionField != GET && !unpackMMPriority1(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -275,7 +275,7 @@ handleManagement(MsgHeader *header,
         case MM_PRIORITY2:
                 DBGV("handleManagement: Priority2\n");
                 if(mgmtMsg->actionField != GET && !unpackMMPriority2(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -284,7 +284,7 @@ handleManagement(MsgHeader *header,
         case MM_DOMAIN:
                 DBGV("handleManagement: Domain\n");
                 if(mgmtMsg->actionField != GET && !unpackMMDomain(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -293,7 +293,7 @@ handleManagement(MsgHeader *header,
 	case MM_SLAVE_ONLY:
 		DBGV("handleManagement: Slave Only\n");
 		if(mgmtMsg->actionField != GET && !unpackMMSlaveOnly(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -302,7 +302,7 @@ handleManagement(MsgHeader *header,
         case MM_LOG_ANNOUNCE_INTERVAL:
                 DBGV("handleManagement: Log Announce Interval\n");
                 if(mgmtMsg->actionField != GET && !unpackMMLogAnnounceInterval(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -311,7 +311,7 @@ handleManagement(MsgHeader *header,
         case MM_ANNOUNCE_RECEIPT_TIMEOUT:
                 DBGV("handleManagement: Announce Receipt Timeout\n");
                 if(mgmtMsg->actionField != GET && !unpackMMAnnounceReceiptTimeout(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -320,7 +320,7 @@ handleManagement(MsgHeader *header,
         case MM_LOG_SYNC_INTERVAL:
                 DBGV("handleManagement: Log Sync Interval\n");
                 if(mgmtMsg->actionField != GET && !unpackMMLogSyncInterval(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -329,7 +329,7 @@ handleManagement(MsgHeader *header,
         case MM_VERSION_NUMBER:
                 DBGV("handleManagement: Version Number\n");
                 if(mgmtMsg->actionField != GET && !unpackMMVersionNumber(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -346,7 +346,7 @@ handleManagement(MsgHeader *header,
         case MM_TIME:
                 DBGV("handleManagement: Time\n");
                 if(mgmtMsg->actionField != GET && !unpackMMTime(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -355,7 +355,7 @@ handleManagement(MsgHeader *header,
         case MM_CLOCK_ACCURACY:
                 DBGV("handleManagement: Clock Accuracy\n");
                 if(mgmtMsg->actionField != GET && !unpackMMClockAccuracy(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -364,7 +364,7 @@ handleManagement(MsgHeader *header,
         case MM_UTC_PROPERTIES:
                 DBGV("handleManagement: Utc Properties\n");
                 if(mgmtMsg->actionField != GET && !unpackMMUtcProperties(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -373,7 +373,7 @@ handleManagement(MsgHeader *header,
         case MM_TRACEABILITY_PROPERTIES:
                 DBGV("handleManagement: Traceability Properties\n");
                 if(mgmtMsg->actionField != GET && !unpackMMTraceabilityProperties(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -382,7 +382,7 @@ handleManagement(MsgHeader *header,
         case MM_DELAY_MECHANISM:
                 DBGV("handleManagement: Delay Mechanism\n");
                 if(mgmtMsg->actionField != GET && !unpackMMDelayMechanism(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
@@ -391,7 +391,7 @@ handleManagement(MsgHeader *header,
         case MM_LOG_MIN_PDELAY_REQ_INTERVAL:
                 DBGV("handleManagement: Log Min Pdelay Req Interval\n");
                 if(mgmtMsg->actionField != GET && !unpackMMLogMinPdelayReqInterval(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
-			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", tlv mgmtMsg->tlv->managementId);
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
