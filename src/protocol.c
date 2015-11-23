@@ -652,7 +652,6 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	char filterMask[200];
 
-	DBG("manufacturerIdentity: %s\n", MANUFACTURER_ID);
 	DBG("manufacturerOUI: %02hhx:%02hhx:%02hhx \n",
 		MANUFACTURER_ID_OUI0,
 		MANUFACTURER_ID_OUI1,

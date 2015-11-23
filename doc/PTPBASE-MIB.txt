@@ -905,6 +905,199 @@ ptpbaseMIBNotifs OBJECT IDENTIFIER
 	-- 1.3.6.1.4.1.46649.1.1.0
 ::= { ptpbaseMIB 0 }
 
+ptpBasePortUnexpectedState NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockPortRunningState}
+	STATUS  current
+	DESCRIPTION
+		"Alarm: port has gone into a state other than expected in current configuration."
+	-- 1.3.6.1.4.1.46649.1.1.0.1
+::= { ptpbaseMIBNotifs 1 }
+
+
+ptpBasePortExpectedState NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockPortRunningState}
+	STATUS  current
+	DESCRIPTION
+		"Alarm cleared: port has returned to expected state."
+	-- 1.3.6.1.4.1.46649.1.1.0.2
+::= { ptpbaseMIBNotifs 2 }
+
+
+ptpBaseSlaveOfmThresholdExceeded NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockCurrentDSOffsetFromMaster,
+		ptpbaseClockCurrentDSOffsetFromMasterString,
+		ptpbaseClockCurrentDSOffsetFromMasterThresholdNs}
+	STATUS  current
+	DESCRIPTION
+		"Alarm: slave Offset From Master has exceeded defined threshold."
+	-- 1.3.6.1.4.1.46649.1.1.0.3
+::= { ptpbaseMIBNotifs 3 }
+
+
+ptpBaseSlaveOfmThresholdAcceptable NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockCurrentDSOffsetFromMaster,
+		ptpbaseClockCurrentDSOffsetFromMasterString,
+		ptpbaseClockCurrentDSOffsetFromMasterThresholdNs}
+	STATUS  current
+	DESCRIPTION
+		"Alarm cleared: slave Offset From Master has returned to a value below threshold."
+	-- 1.3.6.1.4.1.46649.1.1.0.4
+::= { ptpbaseMIBNotifs 4 }
+
+
+ptpBaseSaveClockStep NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockCurrentDSOffsetFromMaster,
+		ptpbaseClockCurrentDSOffsetFromMasterString}
+	STATUS  current
+	DESCRIPTION
+		"Event: Clock has been stepped"
+	-- 1.3.6.1.4.1.46649.1.1.0.5
+::= { ptpbaseMIBNotifs 5 }
+
+
+ptpBaseSlaveNoSync NOTIFICATION-TYPE
+	STATUS  current
+	DESCRIPTION
+		"Alarm: PTP slave stopped receiving Sync messages"
+	-- 1.3.6.1.4.1.46649.1.1.0.6
+::= { ptpbaseMIBNotifs 6 }
+
+
+ptpBaseSlaveReceivingSync NOTIFICATION-TYPE
+	STATUS  current
+	DESCRIPTION
+		"Alarm cleared: PTP slave is receiving sync after loss of sync."
+	-- 1.3.6.1.4.1.46649.1.1.0.7
+::= { ptpbaseMIBNotifs 7 }
+
+
+ptpBaseSlaveNoDelay NOTIFICATION-TYPE
+	STATUS  current
+	DESCRIPTION
+		"Alarm: PTP slave is not receiving Delay / pDelay response."
+	-- 1.3.6.1.4.1.46649.1.1.0.8
+::= { ptpbaseMIBNotifs 8 }
+
+
+ptpBaseSlaveReceivingDelay NOTIFICATION-TYPE
+	STATUS  current
+	DESCRIPTION
+		"Alarm cleared: PTP slave is receiving Delay / pDelay response after loss of Delay / pDelay."
+	-- 1.3.6.1.4.1.46649.1.1.0.9
+::= { ptpbaseMIBNotifs 9 }
+
+
+ptpBaseBestMasterChange NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockParentDSParentPortIdentity,
+		ptpbaseClockParentDSParentPortAddressType,
+		ptpbaseClockParentDSParentPortAddress,
+		ptpbaseClockParentDSGMClockIdentity,
+		ptpbaseClockParentDSGMClockPriority1,
+		ptpbaseClockParentDSGMClockPriority2,
+		ptpbaseClockParentDSGMClockQualityClass,
+		ptpbaseClockTimePropertiesDSCurrentUTCOffsetValid,
+		ptpbaseClockTimePropertiesDSCurrentUTCOffset,
+		ptpbaseClockPortRunningState}
+	STATUS  current
+	DESCRIPTION
+		"Event: PTP node has changed its Best Master (can be self)."
+	-- 1.3.6.1.4.1.46649.1.1.0.10
+::= { ptpbaseMIBNotifs 10 }
+
+
+ptpBasePortNetworkFault NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockPortRunningInterfaceIndex}
+	STATUS  current
+	DESCRIPTION
+		"Alarm: a network fault has occured and PTP port is not usable."
+	-- 1.3.6.1.4.1.46649.1.1.0.11
+::= { ptpbaseMIBNotifs 11 }
+
+
+ptpBasePortNetworkFaultCleared NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockPortRunningInterfaceIndex}
+	STATUS  current
+	DESCRIPTION
+		"Alarm cleared: PTP port has recovered from a network fault."
+	-- 1.3.6.1.4.1.46649.1.1.0.12
+::= { ptpbaseMIBNotifs 12 }
+
+
+ptpBaseClockFreqAdjFast NOTIFICATION-TYPE
+	OBJECTS {
+		freqAdjCurrentValue,
+		freqAdjStatsUpdateInterval,
+		freqAdjStatsMean,
+		freqAdjStatsStatsMedian,
+		freqAdjStatsStdDev}
+	STATUS  current
+	DESCRIPTION
+		"Alarm: PTP Slave clock frequency adjustment is changing rapidly."
+	-- 1.3.6.1.4.1.46649.1.1.0.13
+::= { ptpbaseMIBNotifs 13 }
+
+
+ptpBaseClockFreqAdjNormal NOTIFICATION-TYPE
+	OBJECTS {
+		freqAdjCurrentValue,
+		freqAdjStatsUpdateInterval,
+		freqAdjStatsMean,
+		freqAdjStatsStatsMedian,
+		freqAdjStatsStdDev}
+	STATUS  current
+	DESCRIPTION
+		"Alarm cleared: PTP Slave clock frequency adjustment has returned to stable levels."
+	-- 1.3.6.1.4.1.46649.1.1.0.14
+::= { ptpbaseMIBNotifs 14 }
+
+
+ptpBaseSlaveOffsetFromMasterSeconds NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockCurrentDSOffsetFromMaster,
+		ptpbaseClockCurrentDSOffsetFromMasterString}
+	STATUS  current
+	DESCRIPTION
+		"Alarm: PTP Slave Offset From Master has reached over 1 second."
+	-- 1.3.6.1.4.1.46649.1.1.0.15
+::= { ptpbaseMIBNotifs 15 }
+
+
+ptpBaseSlaveOffsetFromMasterSubSeconds NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockCurrentDSOffsetFromMaster,
+		ptpbaseClockCurrentDSOffsetFromMasterString}
+	STATUS  current
+	DESCRIPTION
+		"Alarm cleared: PTP Slave Offset From Master dropped below 1 second after a previous value of over 1 second."
+	-- 1.3.6.1.4.1.46649.1.1.0.16
+::= { ptpbaseMIBNotifs 16 }
+
+
+ptpBaseTimePropertiesChange NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockTimePropertiesDSCurrentUTCOffsetValid,
+		ptpbaseClockTimePropertiesDSCurrentUTCOffset,
+		ptpbaseClockTimePropertiesDSLeap59,
+		ptpbaseClockTimePropertiesDSLeap61,
+		ptpbaseClockTimePropertiesDSTimeTraceable,
+		ptpbaseClockTimePropertiesDSFreqTraceable,
+		ptpbaseClockTimePropertiesDSPTPTimescale,
+		ptpbaseClockTimePropertiesDSSource}
+	STATUS  current
+	DESCRIPTION
+		"Event: change in the Time Properties dataset."
+	-- 1.3.6.1.4.1.46649.1.1.0.17
+::= { ptpbaseMIBNotifs 17 }
+
+
 ptpbaseMIBObjects OBJECT IDENTIFIER 
 	-- 1.3.6.1.4.1.46649.1.1.1
 ::= { ptpbaseMIB 1 }
@@ -916,6 +1109,7 @@ ptpbaseMIBSystemInfo OBJECT IDENTIFIER
 ptpbaseMIBClockInfo OBJECT IDENTIFIER 
 	-- 1.3.6.1.4.1.46649.1.1.1.2
 ::= { ptpbaseMIBObjects 2 }
+
 
 ptpbaseSystemTable OBJECT-TYPE
 	SYNTAX  SEQUENCE OF PtpbaseSystemEntry
@@ -1228,7 +1422,7 @@ ptpbaseClockCurrentDSOffsetFromMasterThresholdNs OBJECT-TYPE
 	DESCRIPTION
 		"Offset from master alarm threshold value in nanoseconds (absolute value is checked against the threshold)."
 	-- 1.3.6.1.4.1.46649.1.1.1.2.1.1.9
-	::= { ptpbaseClockCurrentDSEntry 9 }
+::= { ptpbaseClockCurrentDSEntry 9 }
 
 
 ptpbaseClockParentDSTable OBJECT-TYPE
@@ -1524,7 +1718,8 @@ PtpbaseClockDefaultDSEntry ::= SEQUENCE {
 	ptpbaseClockDefaultDSSlaveOnly       TruthValue,
 	ptpbaseClockDefaultDSQualityClass    ClockQualityClassType,
 	ptpbaseClockDefaultDSQualityAccuracy ClockQualityAccuracyType,
-	ptpbaseClockDefaultDSQualityOffset   Integer32 }
+	ptpbaseClockDefaultDSQualityOffset   Integer32,
+	ptpbaseClockDefaultDSDomainNumber    ClockDomainType }
 
 
 ptpbaseClockDefaultDSDomainIndex OBJECT-TYPE
@@ -1638,6 +1833,18 @@ ptpbaseClockDefaultDSQualityOffset OBJECT-TYPE
 		"This object specifies the default dataset Quality offset."
 	-- 1.3.6.1.4.1.46649.1.1.1.2.3.1.11
 ::= { ptpbaseClockDefaultDSEntry 11 }
+
+
+ptpbaseClockDefaultDSDomainNumber OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"The number of PTP domain the clock is part of."
+	REFERENCE
+		"IEEE 1588-2008 7.1, 8.2.1.1"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.3.1.12
+	::= { ptpbaseClockDefaultDSEntry 12 }
 
 
 ptpbaseClockRunningTable OBJECT-TYPE
@@ -2293,7 +2500,8 @@ PtpbaseClockPortDSEntry ::= SEQUENCE {
 	ptpbaseClockPortDSDelayMech            ClockMechanismType,
 	ptpbaseClockPortDSPeerMeanPathDelay    ClockTimeInterval,
 	ptpbaseClockPortDSGrantDuration        Unsigned32,
-	ptpbaseClockPortDSPTPVersion           Integer32 }
+	ptpbaseClockPortDSPTPVersion           Integer32,
+	ptpBaseClockPortDSPeerMeanPathDelayString DisplayString }
 
 
 ptpbaseClockPortDSDomainIndex OBJECT-TYPE
@@ -2455,6 +2663,15 @@ ptpbaseClockPortDSPTPVersion OBJECT-TYPE
 		"This object specifies the PTP version being used."
 	-- 1.3.6.1.4.1.46649.1.1.1.2.8.1.15
 ::= { ptpbaseClockPortDSEntry 15 }
+
+ptpBaseClockPortDSPeerMeanPathDelayString OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Current value of Peer Mean Path Delay, presented as text."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.8.1.16
+::= { ptpbaseClockPortDSEntry 16 }
 
 
 ptpbaseClockPortRunningTable OBJECT-TYPE
@@ -2994,28 +3211,14 @@ ptpbaseClockPortAssociateOutErrors OBJECT-TYPE
 ::= { ptpbaseClockPortAssociateEntry 11 }
 
 
-ptpbasePortMessageCountersClockPortNumberIndex OBJECT-TYPE
-	SYNTAX  ClockPortNumber
+ptpbasePtpPortMessageCountersTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbasePtpPortMessageCountersEntry
 	MAX-ACCESS not-accessible
 	STATUS  current
 	DESCRIPTION
-		""
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.4
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.4
-	::= { ptpbasePtpPortMessageCountersEntry 4 }
-
-
-ptpbasePortMessageCountersInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.3
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.3
-	::= { ptpbasePtpPortMessageCountersEntry 3 }
-
+		"Table describing counters for sent and received messages of different types for a given port."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12
+::= { ptpbaseMIBClockInfo 12 }
 
 ptpbasePtpPortMessageCountersEntry OBJECT-TYPE
 	SYNTAX  PtpbasePtpPortMessageCountersEntry
@@ -3029,7 +3232,7 @@ ptpbasePtpPortMessageCountersEntry OBJECT-TYPE
 		ptpbasePortMessageCountersInstanceIndex,
 		ptpbasePortMessageCountersClockPortNumberIndex }
 	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1
-	::= { ptpbasePtpPortMessageCountersTable 1 }
+::= { ptpbasePtpPortMessageCountersTable 1 }
 
 
 PtpbasePtpPortMessageCountersEntry ::= SEQUENCE {
@@ -3066,14 +3269,48 @@ PtpbasePtpPortMessageCountersEntry ::= SEQUENCE {
 	unknownMessages                                Unsigned32 }
 
 
-ptpbasePtpPortMessageCountersTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbasePtpPortMessageCountersEntry
+
+
+ptpbasePortMessageCountersDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
 	MAX-ACCESS not-accessible
 	STATUS  current
 	DESCRIPTION
-		"Table describing counters for sent and received messages of different types for a given port."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12
-::= { ptpbaseMIBClockInfo 12 }
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.1
+::= { ptpbasePtpPortMessageCountersEntry 1 }
+
+
+ptpbasePortMessageCountersClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.2
+::= { ptpbasePtpPortMessageCountersEntry 2 }
+
+
+ptpbasePortMessageCountersInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.3
+::= { ptpbasePtpPortMessageCountersEntry 3 }
+
+
+ptpbasePortMessageCountersClockPortNumberIndex OBJECT-TYPE
+	SYNTAX  ClockPortNumber
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION ""
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.4
+::= { ptpbasePtpPortMessageCountersEntry 4 }
 
 
 ptpbasePortMessageCountersClearAll OBJECT-TYPE
@@ -3083,7 +3320,7 @@ ptpbasePortMessageCountersClearAll OBJECT-TYPE
 	DESCRIPTION
 		"Handle allowing to clear all PTP counters"
 	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.5
-	::= { ptpbasePtpPortMessageCountersEntry 5 }
+::= { ptpbasePtpPortMessageCountersEntry 5 }
 
 
 ptpbasePortMessageCountersClear OBJECT-TYPE
@@ -3093,7 +3330,1824 @@ ptpbasePortMessageCountersClear OBJECT-TYPE
 	DESCRIPTION
 		"Handle allowing to clear PTP message counters"
 	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.6
-	::= { ptpbasePtpPortMessageCountersEntry 6 }
+::= { ptpbasePtpPortMessageCountersEntry 6 }
+
+
+totalMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"total number of messages sent by PTP port"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.7
+::= { ptpbasePtpPortMessageCountersEntry 7 }
+
+
+totalMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Total number of messages received by PTP port"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.8
+::= { ptpbasePtpPortMessageCountersEntry 8 }
+
+
+announceMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of sent Announce messages"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.9
+::= { ptpbasePtpPortMessageCountersEntry 9 }
+
+
+announceMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of Announce messages received"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.10
+::= { ptpbasePtpPortMessageCountersEntry 10 }
+
+
+syncMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of sent Sync messages."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.11
+::= { ptpbasePtpPortMessageCountersEntry 11 }
+
+
+syncMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of Sync messages sent"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.12
+::= { ptpbasePtpPortMessageCountersEntry 12 }
+
+
+followUpMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of FollowUp messages sent (two-step operation)"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.13
+::= { ptpbasePtpPortMessageCountersEntry 13 }
+
+
+followUpMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of received FollowUp messages (two-step operation)"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.14
+::= { ptpbasePtpPortMessageCountersEntry 14 }
+
+
+delayReqMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of sent Delay Request messages"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.15
+::= { ptpbasePtpPortMessageCountersEntry 15 }
+
+
+delayReqMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of Delay Request messages received"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.16
+::= { ptpbasePtpPortMessageCountersEntry 16 }
+
+
+delayRespMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of sent Delay Response messages"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.17
+::= { ptpbasePtpPortMessageCountersEntry 17 }
+
+
+delayRespMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of Delay Response messages received"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.18
+::= { ptpbasePtpPortMessageCountersEntry 18 }
+
+
+pdelayReqMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of sent Peer Delay Request messages (P2P operation)"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.19
+::= { ptpbasePtpPortMessageCountersEntry 19 }
+
+
+pdelayReqMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of Peer Delay Request messages received"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.20
+::= { ptpbasePtpPortMessageCountersEntry 20 }
+
+
+pdelayRespMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of sent Peer Delay Response messages"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.21
+::= { ptpbasePtpPortMessageCountersEntry 21 }
+
+
+pdelayRespMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of Peer Delay Response messages received"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.22
+::= { ptpbasePtpPortMessageCountersEntry 22 }
+
+
+pdelayRespFollowUpMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of Peer Delay Response FollowUp messages sent (two-step operation)"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.23
+::= { ptpbasePtpPortMessageCountersEntry 23 }
+
+
+pdelayRespFollowUpMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of received Peer Delay Response Follow-Up messages"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.24
+::= { ptpbasePtpPortMessageCountersEntry 24 }
+
+
+signalingMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of sent Signaling messages (unicast negotiation)"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.25
+::= { ptpbasePtpPortMessageCountersEntry 25 }
+
+
+signalingMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of received Signaling messages (unicast negotiation)"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.26
+::= { ptpbasePtpPortMessageCountersEntry 26 }
+
+
+managementMessagesSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of sent Management messages"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.27
+::= { ptpbasePtpPortMessageCountersEntry 27 }
+
+
+managementMessagesReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of Management messages received"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.28
+::= { ptpbasePtpPortMessageCountersEntry 28 }
+
+
+discardedMessages OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of discarded PTP messages"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.29
+::= { ptpbasePtpPortMessageCountersEntry 29 }
+
+
+unknownMessages OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of unknown type PTP messages received"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.30
+::= { ptpbasePtpPortMessageCountersEntry 30 }
+
+
+ptpbasePtpProtocolCountersTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbasePtpProtocolCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Table describing common PTP protocol counters."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13
+::= { ptpbaseMIBClockInfo 13 }
+
+ptpbasePtpProtocolCountersEntry OBJECT-TYPE
+	SYNTAX  PtpbasePtpProtocolCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"An entry in a table describing common PTP protocol counters."
+	INDEX {
+		ptpbaseProtocolCountersDomainIndex,
+		ptpbaseProtocolCountersClockTypeIndex,
+		ptpbaseProtocolCountersInstanceIndex,
+		ptpbaseProtocolCountersClockPortNumberIndex }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1
+::= { ptpbasePtpProtocolCountersTable 1 }
+
+PtpbasePtpProtocolCountersEntry ::= SEQUENCE {
+
+	ptpbaseProtocolCountersDomainIndex          ClockDomainType,
+	ptpbaseProtocolCountersClockTypeIndex       ClockType,
+	ptpbaseProtocolCountersInstanceIndex        ClockInstanceType,
+	ptpbaseProtocolCountersClockPortNumberIndex ClockPortNumber,
+	ptpbaseProtocolCountersClear                TruthValue,
+	foreignAdded                                Unsigned32,
+	foreignCount                                Unsigned32,
+	foreignRemoved                              Unsigned32,
+	foreignOverflows                            Unsigned32,
+	stateTransitions                            Unsigned32,
+	bestMasterChanges                           Unsigned32,
+	announceTimeouts                            Unsigned32 }
+
+
+ptpbaseProtocolCountersDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.1
+::= { ptpbasePtpProtocolCountersEntry 1 }
+
+
+ptpbaseProtocolCountersClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.2
+::= { ptpbasePtpProtocolCountersEntry 2 }
+
+
+ptpbaseProtocolCountersInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.3
+::= { ptpbasePtpProtocolCountersEntry 3 }
+
+
+ptpbaseProtocolCountersClockPortNumberIndex OBJECT-TYPE
+	SYNTAX  ClockPortNumber
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION ""
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.4
+::= { ptpbasePtpProtocolCountersEntry 4 }
+
+
+ptpbaseProtocolCountersClear OBJECT-TYPE
+	SYNTAX  TruthValue
+	MAX-ACCESS read-write
+	STATUS  current
+	DESCRIPTION
+		"Handle allowing to clear PTP protocol counters"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.5
+::= { ptpbasePtpProtocolCountersEntry 5 }
+
+
+foreignAdded OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of additions to Foreign Master Record"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.6
+::= { ptpbasePtpProtocolCountersEntry 6 }
+
+
+foreignCount OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Total number of foreign masters seen"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.7
+::= { ptpbasePtpProtocolCountersEntry 7 }
+
+
+foreignRemoved OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Total number of foreign masters removed because of inactivity"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.8
+::= { ptpbasePtpProtocolCountersEntry 8 }
+
+
+foreignOverflows OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of overwritten Foreign Master entries due to lack of space in the record"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.9
+::= { ptpbasePtpProtocolCountersEntry 9 }
+
+
+stateTransitions OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of PTP protocol state transitions"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.10
+::= { ptpbasePtpProtocolCountersEntry 10 }
+
+
+bestMasterChanges OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of PTP best master changes"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.11
+::= { ptpbasePtpProtocolCountersEntry 11 }
+
+
+announceTimeouts OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of Announce Timeout events"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.12
+::= { ptpbasePtpProtocolCountersEntry 12 }
+
+
+ptpbasePtpErrorCountersTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbasePtpErrorCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Table describing common PTP protocol error counters."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14
+::= { ptpbaseMIBClockInfo 14 }
+
+
+ptpbasePtpErrorCountersEntry OBJECT-TYPE
+	SYNTAX  PtpbasePtpErrorCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"An entry in a table describing common PTP protocol error counters."
+	INDEX {
+		ptpbaseErrorCountersDomainIndex,
+		ptpbaseErrorCountersClockTypeIndex,
+		ptpbaseErrorCountersInstanceIndex,
+		ptpbaseErrorCountersClockPortNumberIndex }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1
+::= { ptpbasePtpErrorCountersTable 1 }
+
+
+PtpbasePtpErrorCountersEntry ::= SEQUENCE {
+
+	ptpbaseErrorCountersDomainIndex          ClockDomainType,
+	ptpbaseErrorCountersClockTypeIndex       ClockType,
+	ptpbaseErrorCountersInstanceIndex        ClockInstanceType,
+	ptpbaseErrorCountersClockPortNumberIndex ClockPortNumber,
+	ptpbaseErrorCountersClear                TruthValue,
+	messageRecvErrors                        Unsigned32,
+	messageSendErrors                        Unsigned32,
+	messageFormatErrors                      Unsigned32,
+	protocolErrors                           Unsigned32,
+	versionMismatchErrors                    Unsigned32,
+	domainMismatchErrors                     Unsigned32,
+	sequenceMismatchErrors                   Unsigned32,
+	delayMechanismMismatchErrors             Unsigned32 }
+
+
+ptpbaseErrorCountersDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.1
+::= { ptpbasePtpErrorCountersEntry 1 }
+
+
+ptpbaseErrorCountersClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.2
+::= { ptpbasePtpErrorCountersEntry 2 }
+
+
+ptpbaseErrorCountersInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.3
+::= { ptpbasePtpErrorCountersEntry 3 }
+
+
+ptpbaseErrorCountersClockPortNumberIndex OBJECT-TYPE
+	SYNTAX  ClockPortNumber
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION ""
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.4
+::= { ptpbasePtpErrorCountersEntry 4 }
+
+
+ptpbaseErrorCountersClear OBJECT-TYPE
+	SYNTAX  TruthValue
+	MAX-ACCESS read-write
+	STATUS  current
+	DESCRIPTION
+		"Handle allowing to clear PTP error counters"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.5
+::= { ptpbasePtpErrorCountersEntry 5 }
+
+
+messageRecvErrors OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of message receive errors"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.6
+::= { ptpbasePtpErrorCountersEntry 6 }
+
+
+messageSendErrors OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of message send errors"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.7
+::= { ptpbasePtpErrorCountersEntry 7 }
+
+
+messageFormatErrors OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of message format errors"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.8
+::= { ptpbasePtpErrorCountersEntry 8 }
+
+
+protocolErrors OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of PTP protocol errors - condition which should not happen"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.9
+::= { ptpbasePtpErrorCountersEntry 9 }
+
+
+versionMismatchErrors OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of messages with incorrect PTP version received"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.10
+::= { ptpbasePtpErrorCountersEntry 10 }
+
+
+domainMismatchErrors OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of messages received from different PTP domains than configured"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.11
+::= { ptpbasePtpErrorCountersEntry 11 }
+
+
+sequenceMismatchErrors OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of sequence mismatch errors observed"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.12
+::= { ptpbasePtpErrorCountersEntry 12 }
+
+
+delayMechanismMismatchErrors OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of delay mechanism mismatch errors - P2P messages seen when E2E operation used or vice versa"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.13
+::= { ptpbasePtpErrorCountersEntry 13 }
+
+
+ptpbasePtpUnicastNegotiationCountersTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbasePtpUnicastNegotiationCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Table describing PTP unicast negotiation counters."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15
+::= { ptpbaseMIBClockInfo 15 }
+
+
+ptpbasePtpUnicastNegotiationCountersEntry OBJECT-TYPE
+	SYNTAX  PtpbasePtpUnicastNegotiationCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"An entry in a table describing PTP unicast negotiation counters."
+	INDEX {
+		ptpbaseUnicastNegotiationCountersDomainIndex,
+		ptpbaseUnicastNegotiationCountersClockTypeIndex,
+		ptpbaseUnicastNegotiationCountersInstanceIndex,
+		ptpbaseUnicastNegotiationCountersClockPortNumberIndex }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1
+::= { ptpbasePtpUnicastNegotiationCountersTable 1 }
+
+
+PtpbasePtpUnicastNegotiationCountersEntry ::= SEQUENCE {
+
+	ptpbaseUnicastNegotiationCountersDomainIndex          ClockDomainType,
+	ptpbaseUnicastNegotiationCountersClockTypeIndex       ClockType,
+	ptpbaseUnicastNegotiationCountersInstanceIndex        ClockInstanceType,
+	ptpbaseUnicastNegotiationCountersClockPortNumberIndex ClockPortNumber,
+	ptpbaseUnicastNegotiationCountersClear                TruthValue,
+	unicastGrantsRequested                                Unsigned32,
+	unicastGrantsGranted                                  Unsigned32,
+	unicastGrantsDenied                                   Unsigned32,
+	unicastGrantsCancelSent                               Unsigned32,
+	unicastGrantsCancelReceived                           Unsigned32,
+	unicastGrantsCancelAckSent                            Unsigned32,
+	unicastGrantsCancelAckReceived                        Unsigned32 }
+
+
+ptpbaseUnicastNegotiationCountersDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.1
+::= { ptpbasePtpUnicastNegotiationCountersEntry 1 }
+
+
+ptpbaseUnicastNegotiationCountersClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.2
+::= { ptpbasePtpUnicastNegotiationCountersEntry 2 }
+
+
+ptpbaseUnicastNegotiationCountersInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.3
+::= { ptpbasePtpUnicastNegotiationCountersEntry 3 }
+
+
+ptpbaseUnicastNegotiationCountersClockPortNumberIndex OBJECT-TYPE
+	SYNTAX  ClockPortNumber
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION ""
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.4
+::= { ptpbasePtpUnicastNegotiationCountersEntry 4 }
+
+
+ptpbaseUnicastNegotiationCountersClear OBJECT-TYPE
+	SYNTAX  TruthValue
+	MAX-ACCESS read-write
+	STATUS  current
+	DESCRIPTION
+		"Handle allowing to clear PTP unicast negotiation counters"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.5
+::= { ptpbasePtpUnicastNegotiationCountersEntry 5 }
+
+
+unicastGrantsRequested OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of unicast grants requested by slave, or requested from master"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.6
+::= { ptpbasePtpUnicastNegotiationCountersEntry 6 }
+
+
+unicastGrantsGranted OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of unicast grants successfully granted to slaves (master), or received from master(s) (slave)"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.7
+::= { ptpbasePtpUnicastNegotiationCountersEntry 7 }
+
+
+unicastGrantsDenied OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of unicast grants denied to slaves (master), or denied by master(s) (slave)"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.8
+::= { ptpbasePtpUnicastNegotiationCountersEntry 8 }
+
+
+unicastGrantsCancelSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of unicast grants cancelations sent"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.9
+::= { ptpbasePtpUnicastNegotiationCountersEntry 9 }
+
+
+unicastGrantsCancelReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of unicast grant cancellations received"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.10
+::= { ptpbasePtpUnicastNegotiationCountersEntry 10 }
+
+
+unicastGrantsCancelAckSent OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of sent acknowledgments to unicast grant cancellation"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.11
+::= { ptpbasePtpUnicastNegotiationCountersEntry 11 }
+
+
+unicastGrantsCancelAckReceived OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of received acknowledgments to unicast grant cancellation."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.12
+::= { ptpbasePtpUnicastNegotiationCountersEntry 12 }
+
+
+ptpbasePtpPerformanceCountersTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbasePtpPerformanceCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Table describing common PTP protocol message performance counters."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.16
+::= { ptpbaseMIBClockInfo 16 }
+
+
+ptpbasePtpPerformanceCountersEntry OBJECT-TYPE
+	SYNTAX  PtpbasePtpPerformanceCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"An entry in a table describing common PTP protocol message performance counters."
+	INDEX {
+		ptpbasePerformanceCountersDomainIndex,
+		ptpbasePerformanceCountersClockTypeIndex,
+		ptpbasePerformanceCountersInstanceIndex,
+		ptpbasePerformanceCountersClockPortNumberIndex }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1
+::= { ptpbasePtpPerformanceCountersTable 1 }
+
+
+PtpbasePtpPerformanceCountersEntry ::= SEQUENCE {
+
+	ptpbasePerformanceCountersDomainIndex          ClockDomainType,
+	ptpbasePerformanceCountersClockTypeIndex       ClockType,
+	ptpbasePerformanceCountersInstanceIndex        ClockInstanceType,
+	ptpbasePerformanceCountersClockPortNumberIndex ClockPortNumber,
+	messageSendRate                                Unsigned32,
+	messageReceiveRate                             Unsigned32 }
+
+
+ptpbasePerformanceCountersDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.1
+::= { ptpbasePtpPerformanceCountersEntry 1 }
+
+
+ptpbasePerformanceCountersClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.2
+::= { ptpbasePtpPerformanceCountersEntry 2 }
+
+
+ptpbasePerformanceCountersInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.3
+::= { ptpbasePtpPerformanceCountersEntry 3 }
+
+
+ptpbasePerformanceCountersClockPortNumberIndex OBJECT-TYPE
+	SYNTAX  ClockPortNumber
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION ""
+	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.4
+::= { ptpbasePtpPerformanceCountersEntry 4 }
+
+
+messageSendRate OBJECT-TYPE
+	SYNTAX  Unsigned32
+	UNITS	"Messages per second"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Message transmission rate (messages per second)"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.5
+::= { ptpbasePtpPerformanceCountersEntry 5 }
+
+
+messageReceiveRate OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Message receive rate (messages per second)"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.6
+::= { ptpbasePtpPerformanceCountersEntry 6 }
+
+
+ptpbasePtpSecurityCountersTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbasePtpSecurityCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Table describing PTP message security (access control) counters."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.17
+::= { ptpbaseMIBClockInfo 17 }
+
+
+ptpbasePtpSecurityCountersEntry OBJECT-TYPE
+	SYNTAX  PtpbasePtpSecurityCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Entry in a table describing PTP message security (access control) counters."
+	INDEX {
+		ptpbaseSecurityCountersDomainIndex,
+		ptpbaseSecurityCountersClockTypeIndex,
+		ptpbaseSecurityCountersInstanceIndex,
+		ptpbaseSecurityCountersClockPortNumberIndex }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1
+::= { ptpbasePtpSecurityCountersTable 1 }
+
+
+PtpbasePtpSecurityCountersEntry ::= SEQUENCE {
+
+	ptpbaseSecurityCountersDomainIndex          ClockDomainType,
+	ptpbaseSecurityCountersClockTypeIndex       ClockType,
+	ptpbaseSecurityCountersInstanceIndex        ClockInstanceType,
+	ptpbaseSecurityCountersClockPortNumberIndex ClockPortNumber,
+	ptpbaseSecurityCountersClear                TruthValue,
+	aclTimingMessagesDiscarded                  Unsigned32,
+	aclManagementMessagesDiscarded              Unsigned32 }
+
+
+ptpbaseSecurityCountersDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.1
+::= { ptpbasePtpSecurityCountersEntry 1 }
+
+
+ptpbaseSecurityCountersClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.2
+::= { ptpbasePtpSecurityCountersEntry 2 }
+
+
+ptpbaseSecurityCountersInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.3
+::= { ptpbasePtpSecurityCountersEntry 3 }
+
+
+ptpbaseSecurityCountersClockPortNumberIndex OBJECT-TYPE
+	SYNTAX  ClockPortNumber
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION ""
+	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.4
+::= { ptpbasePtpSecurityCountersEntry 4 }
+
+
+ptpbaseSecurityCountersClear OBJECT-TYPE
+	SYNTAX  TruthValue
+	MAX-ACCESS read-write
+	STATUS  current
+	DESCRIPTION
+		"Handle allowing to clear PTP access control counters"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.5
+::= { ptpbasePtpSecurityCountersEntry 5 }
+
+
+aclTimingMessagesDiscarded OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of timing (non-management) messages discarded by access control (includes signaling messages)."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.6
+::= { ptpbasePtpSecurityCountersEntry 6 }
+
+
+aclManagementMessagesDiscarded OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of management messages discarded by access control"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.7
+::= { ptpbasePtpSecurityCountersEntry 7 }
+
+
+ptpbaseSlaveOfmStatisticsTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbaseSlaveOfmStatisticsEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Table of statistics describing PTP slave Offset from Master."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18
+::= { ptpbaseMIBClockInfo 18 }
+
+
+ptpbaseSlaveOfmStatisticsEntry OBJECT-TYPE
+	SYNTAX  PtpbaseSlaveOfmStatisticsEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"An entry in a table of statistics describing PTP slave Offset from Master."
+	INDEX {
+		ptpbaseSlaveOfmStatisticsDomainIndex,
+		ptpbaseSlaveOfmStatisticsClockTypeIndex,
+		ptpbaseSlaveOfmStatisticsInstanceIndex }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1
+::= { ptpbaseSlaveOfmStatisticsTable 1 }
+
+
+PtpbaseSlaveOfmStatisticsEntry ::= SEQUENCE {
+
+	ptpbaseSlaveOfmStatisticsDomainIndex    ClockDomainType,
+	ptpbaseSlaveOfmStatisticsClockTypeIndex ClockType,
+	ptpbaseSlaveOfmStatisticsInstanceIndex  ClockInstanceType,
+	ofmCurrentValue                         ClockTimeInterval,
+	ofmCurrentStringValue                   DisplayString,
+	ofmStatsUpdateInterval                  Unsigned32,
+	ofmStatsValid                           TruthValue,
+	ofmStatsMin                             ClockTimeInterval,
+	ofmStatsMax                             ClockTimeInterval,
+	ofmStatsMean                            ClockTimeInterval,
+	ofmStatsStdDev                          ClockTimeInterval,
+	ofmStatsMedian                          ClockTimeInterval,
+	ofmStatsMinStringValue                  DisplayString,
+	ofmStatsMaxStringValue                  DisplayString,
+	ofmStatsMeanStringValue                 DisplayString,
+	ofmStatsStdDevStringValue               DisplayString,
+	ofmStatsMedianStringValue               DisplayString }
+
+
+ptpbaseSlaveOfmStatisticsDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.1
+::= { ptpbaseSlaveOfmStatisticsEntry 1 }
+
+
+ptpbaseSlaveOfmStatisticsClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.2
+::= { ptpbaseSlaveOfmStatisticsEntry 2 }
+
+
+ptpbaseSlaveOfmStatisticsInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.3
+::= { ptpbaseSlaveOfmStatisticsEntry 3 }
+
+
+ofmCurrentValue OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Current value of Offset From Master."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.5
+::= { ptpbaseSlaveOfmStatisticsEntry 5 }
+
+
+ofmCurrentStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Current value of Offset From Master, presented as text."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.6
+::= { ptpbaseSlaveOfmStatisticsEntry 6 }
+
+
+ofmStatsUpdateInterval OBJECT-TYPE
+	SYNTAX  Unsigned32
+	UNITS	"Seconds"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Update interval for Offset From Master statistics."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.7
+::= { ptpbaseSlaveOfmStatisticsEntry 7 }
+
+
+ofmStatsValid OBJECT-TYPE
+	SYNTAX  TruthValue
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Determines if current Offset From Master statistics are valid."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.8
+::= { ptpbaseSlaveOfmStatisticsEntry 8 }
+
+
+ofmStatsMin OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	UNITS	"Time Interval"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Minimum Offset From Master in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.9
+::= { ptpbaseSlaveOfmStatisticsEntry 9 }
+
+
+ofmStatsMax OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Maximum Offset From Master in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.10
+::= { ptpbaseSlaveOfmStatisticsEntry 10 }
+
+
+ofmStatsMean OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	UNITS	"Time Interval"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Mean Offset From Master in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.11
+::= { ptpbaseSlaveOfmStatisticsEntry 11 }
+
+
+ofmStatsStdDev OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	UNITS	"Time Interval"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Standard deviation of Offset From Master in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.12
+::= { ptpbaseSlaveOfmStatisticsEntry 12 }
+
+
+ofmStatsMedian OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	UNITS	"Time Interval"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Median of Offset From Master in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.13
+::= { ptpbaseSlaveOfmStatisticsEntry 13 }
+
+
+ofmStatsMinStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Minimum Offset From Master in the last statistics update window, presented as textual value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.14
+::= { ptpbaseSlaveOfmStatisticsEntry 14 }
+
+
+ofmStatsMaxStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Maximum Offset From Master in the last statistics update window, presented as textual value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.15
+::= { ptpbaseSlaveOfmStatisticsEntry 15 }
+
+
+ofmStatsMeanStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Mean of Offset From Master in the last statistics update window, presented as textual value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.16
+::= { ptpbaseSlaveOfmStatisticsEntry 16 }
+
+
+ofmStatsStdDevStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Standard deviation of Offset From Master in the last statistics update window, presented as textual value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.17
+::= { ptpbaseSlaveOfmStatisticsEntry 17 }
+
+
+ofmStatsMedianStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Median of Offset From Master in the last statistics update window, presented as textual value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.18
+::= { ptpbaseSlaveOfmStatisticsEntry 18 }
+
+
+ptpbaseSlaveMpdStatisticsTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbaseSlaveMpdStatisticsEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Table of statistics describing PTP slave Mean Path Delay."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19
+::= { ptpbaseMIBClockInfo 19 }
+
+
+ptpbaseSlaveMpdStatisticsEntry OBJECT-TYPE
+	SYNTAX  PtpbaseSlaveMpdStatisticsEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"An entry in a table of statistics describing PTP slave Mean Path Delay."
+	INDEX {
+		ptpbaseSlaveMpdStatisticsDomainIndex,
+		ptpbaseSlaveMpdStatisticsClockTypeIndex,
+		ptpbaseSlaveMpdStatisticsInstanceIndex }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1
+::= { ptpbaseSlaveMpdStatisticsTable 1 }
+
+
+PtpbaseSlaveMpdStatisticsEntry ::= SEQUENCE {
+
+	ptpbaseSlaveMpdStatisticsDomainIndex    ClockDomainType,
+	ptpbaseSlaveMpdStatisticsClockTypeIndex ClockType,
+	ptpbaseSlaveMpdStatisticsInstanceIndex  ClockInstanceType,
+	mpdCurrentValue                         ClockTimeInterval,
+	mpdCurrentStringValue                   DisplayString,
+	mpdStatsUpdateInterval                  Integer32,
+	mpdStatsValid                           TruthValue,
+	mpdStatsMin                             ClockTimeInterval,
+	mpdStatsMax                             ClockTimeInterval,
+	mpdStatsMean                            ClockTimeInterval,
+	mpdStatsStdDev                          ClockTimeInterval,
+	mpdStatsMedian                          ClockTimeInterval,
+	mpdStatsMinStringValue                  DisplayString,
+	mpdStatsMaxStringValue                  DisplayString,
+	mpdStatsMeanStringValue                 DisplayString,
+	mpdStatsStdDevStringValue               DisplayString,
+	mpdStatsMedianStringValue               DisplayString }
+
+
+ptpbaseSlaveMpdStatisticsDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.1
+::= { ptpbaseSlaveMpdStatisticsEntry 1 }
+
+
+ptpbaseSlaveMpdStatisticsClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.2
+::= { ptpbaseSlaveMpdStatisticsEntry 2 }
+
+
+ptpbaseSlaveMpdStatisticsInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.3
+::= { ptpbaseSlaveMpdStatisticsEntry 3 }
+
+
+mpdCurrentValue OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	UNITS	"Time Interval"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Current value of Mean Path Delay."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.4
+::= { ptpbaseSlaveMpdStatisticsEntry 4 }
+
+
+mpdCurrentStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Current value of Mean Path Delay, presented as text."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.5
+::= { ptpbaseSlaveMpdStatisticsEntry 5 }
+
+
+mpdStatsUpdateInterval OBJECT-TYPE
+	SYNTAX  Integer32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Update interval for Mean Path Delay statistics."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.6
+::= { ptpbaseSlaveMpdStatisticsEntry 6 }
+
+
+mpdStatsValid OBJECT-TYPE
+	SYNTAX  TruthValue
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Determines if current Mean Path Delay statistics are valid."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.7
+::= { ptpbaseSlaveMpdStatisticsEntry 7 }
+
+
+mpdStatsMin OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	UNITS	"Time Interval"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Minimum Mean Path Delay in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.8
+::= { ptpbaseSlaveMpdStatisticsEntry 8 }
+
+
+mpdStatsMax OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	UNITS	"Time Interval"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Maximum Mean Path Delay in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.9
+::= { ptpbaseSlaveMpdStatisticsEntry 9 }
+
+
+mpdStatsMean OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	UNITS	"Time Interval"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Mean of Mean Path Delay in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.10
+::= { ptpbaseSlaveMpdStatisticsEntry 10 }
+
+
+mpdStatsStdDev OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	UNITS	"Time Interval"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Standard Deviation of Mean Path Delay in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.11
+::= { ptpbaseSlaveMpdStatisticsEntry 11 }
+
+
+mpdStatsMedian OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	UNITS	"Time Interval"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Median of Mean Path Delay in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.12
+::= { ptpbaseSlaveMpdStatisticsEntry 12 }
+
+
+mpdStatsMinStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Minimum Mean Path Delay in the last statistics update window, presented as textual value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.13
+::= { ptpbaseSlaveMpdStatisticsEntry 13 }
+
+
+mpdStatsMaxStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Maximum Mean Path Delay in the last statistics update window, presented as textual value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.14
+::= { ptpbaseSlaveMpdStatisticsEntry 14 }
+
+
+mpdStatsMeanStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Mean of Mean Path Delay in the last statistics update window, presented as textual value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.15
+::= { ptpbaseSlaveMpdStatisticsEntry 15 }
+
+
+mpdStatsStdDevStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Standard Deviation Path Delay in the last statistics update window, presented as textual value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.16
+::= { ptpbaseSlaveMpdStatisticsEntry 16 }
+
+
+mpdStatsMedianStringValue OBJECT-TYPE
+	SYNTAX  DisplayString (SIZE (1..64))
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Median of Mean Path Delay in the last statistics update window, presented as textual value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.17
+::= { ptpbaseSlaveMpdStatisticsEntry 17 }
+
+
+ptpbaseSlaveFreqAdjStatisticsTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbaseSlaveFreqAdjStatisticsEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Table of statistics describing PTP slave clock frequency adjustment."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20
+::= { ptpbaseMIBClockInfo 20 }
+
+
+ptpbaseSlaveFreqAdjStatisticsEntry OBJECT-TYPE
+	SYNTAX  PtpbaseSlaveFreqAdjStatisticsEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"An entry in a table of statistics describing PTP slave clock frequency adjustment."
+	INDEX {
+		ptpbaseSlaveFreqAdjStatisticsDomainIndex,
+		ptpbaseSlaveFreqAdjStatisticsClockTypeIndex,
+		ptpbaseSlaveFreqAdjStatisticsInstanceIndex }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1
+::= { ptpbaseSlaveFreqAdjStatisticsTable 1 }
+
+
+PtpbaseSlaveFreqAdjStatisticsEntry ::= SEQUENCE {
+
+	ptpbaseSlaveFreqAdjStatisticsDomainIndex    ClockDomainType,
+	ptpbaseSlaveFreqAdjStatisticsClockTypeIndex ClockType,
+	ptpbaseSlaveFreqAdjStatisticsInstanceIndex  ClockInstanceType,
+	freqAdjCurrentValue                         Integer32,
+	freqAdjStatsUpdateInterval                  Unsigned32,
+	freqAdjStatsValid                           TruthValue,
+	freqAdjStatsMin                             Integer32,
+	freqAdjStatsMax                             Integer32,
+	freqAdjStatsMean                            Integer32,
+	freqAdjStatsStdDev                          Integer32,
+	freqAdjStatsStatsMedian                     Integer32 }
+
+
+ptpbaseSlaveFreqAdjStatisticsDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.1
+::= { ptpbaseSlaveFreqAdjStatisticsEntry 1 }
+
+
+ptpbaseSlaveFreqAdjStatisticsClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.2
+::= { ptpbaseSlaveFreqAdjStatisticsEntry 2 }
+
+
+ptpbaseSlaveFreqAdjStatisticsInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.3
+::= { ptpbaseSlaveFreqAdjStatisticsEntry 3 }
+
+
+freqAdjCurrentValue OBJECT-TYPE
+	SYNTAX  Integer32
+	UNITS	"Parts per Billion / 10E-9"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Current clock frequency adjustment value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.4
+::= { ptpbaseSlaveFreqAdjStatisticsEntry 4 }
+
+
+freqAdjStatsUpdateInterval OBJECT-TYPE
+	SYNTAX  Unsigned32
+	UNITS	"Seconds"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Update interval for clock frequency adjustment statistics."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.5 --
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.5
+	::= { ptpbaseSlaveFreqAdjStatisticsEntry 5 }
+
+
+freqAdjStatsValid OBJECT-TYPE
+	SYNTAX  TruthValue
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Determines if current clock frequency adjustment statistics are valid."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.6 --
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.6
+	::= { ptpbaseSlaveFreqAdjStatisticsEntry 6 }
+
+
+freqAdjStatsMin OBJECT-TYPE
+	SYNTAX  Integer32
+	UNITS	"Parts per Billion / 10E-9"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Minimum clock frequency adjustment in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.7 --
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.7
+	::= { ptpbaseSlaveFreqAdjStatisticsEntry 7 }
+
+
+freqAdjStatsMax OBJECT-TYPE
+	SYNTAX  Integer32
+	UNITS	"Parts per Billion / 10E-9"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Maximum clock frequency adjustment in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.8 --
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.8
+	::= { ptpbaseSlaveFreqAdjStatisticsEntry 8 }
+
+
+freqAdjStatsMean OBJECT-TYPE
+	SYNTAX  Integer32
+	UNITS	"Parts per Billion / 10E-9"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Mean clock frequency adjustment in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.9 --
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.9
+	::= { ptpbaseSlaveFreqAdjStatisticsEntry 9 }
+
+
+freqAdjStatsStdDev OBJECT-TYPE
+	SYNTAX  Integer32
+	UNITS	"Parts per Billion / 10E-9"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Standard deviation of clock frequency adjustment in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.10 --
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.10
+	::= { ptpbaseSlaveFreqAdjStatisticsEntry 10 }
+
+
+freqAdjStatsStatsMedian OBJECT-TYPE
+	SYNTAX  Integer32
+	UNITS	"Parts per Billion / 10E-9"
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Median of clock frequency adjustment in the last statistics update window."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.11 --
+	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.11
+	::= { ptpbaseSlaveFreqAdjStatisticsEntry 11 }
+
+
+ptpbasePtpdSpecificCountersTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbasePtpdSpecificCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Table describing PTPd-specific counters."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21
+::= { ptpbaseMIBClockInfo 21 }
+
+
+ptpbasePtpdSpecificCountersEntry OBJECT-TYPE
+	SYNTAX  PtpbasePtpdSpecificCountersEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"An entry in a table describing PTPd-specific counters."
+	INDEX {
+		ptpbasePtpdSpecificCountersDomainIndex,
+		ptpbasePtpdSpecificCountersClockTypeIndex,
+		ptpbasePtpdSpecificCountersInstanceIndex,
+		ptpbasePtpdSpecificCountersClockPortNumberIndex }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1
+::= { ptpbasePtpdSpecificCountersTable 1 }
+
+
+PtpbasePtpdSpecificCountersEntry ::= SEQUENCE {
+
+	ptpbasePtpdSpecificCountersDomainIndex          ClockDomainType,
+	ptpbasePtpdSpecificCountersClockTypeIndex       ClockType,
+	ptpbasePtpdSpecificCountersInstanceIndex        ClockInstanceType,
+	ptpbasePtpdSpecificCountersClockPortNumberIndex ClockPortNumber,
+	ptpbasePtpdSpecificCountersClear                TruthValue,
+	consecutiveSequenceErrors                       Unsigned32,
+	ignoredAnnounce                                 Unsigned32,
+	delayMSOutliersFound                            Unsigned32,
+	delaySMOutliersFound                            Unsigned32,
+	maxDelayDrops                                   Unsigned32 }
+
+
+ptpbasePtpdSpecificCountersDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.1
+::= { ptpbasePtpdSpecificCountersEntry 1 }
+
+
+ptpbasePtpdSpecificCountersClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.2
+::= { ptpbasePtpdSpecificCountersEntry 2 }
+
+
+ptpbasePtpdSpecificCountersInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.3
+::= { ptpbasePtpdSpecificCountersEntry 3 }
+
+
+ptpbasePtpdSpecificCountersClockPortNumberIndex OBJECT-TYPE
+	SYNTAX  ClockPortNumber
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION ""
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.4
+::= { ptpbasePtpdSpecificCountersEntry 4 }
+
+
+ptpbasePtpdSpecificCountersClear OBJECT-TYPE
+	SYNTAX  TruthValue
+	MAX-ACCESS read-write
+	STATUS  current
+	DESCRIPTION
+		"Handle allowing to clear all PTPd-specific counters"
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.5
+::= { ptpbasePtpdSpecificCountersEntry 5 }
+
+
+consecutiveSequenceErrors OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of consecutive message sequence errors."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.6
+::= { ptpbasePtpdSpecificCountersEntry 6 }
+
+
+ignoredAnnounce OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of ignored Announce messages (BMCA disabled or UTC parameter preference)."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.7
+::= { ptpbasePtpdSpecificCountersEntry 7 }
+
+
+delayMSOutliersFound OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of DelayMS (Sync or FollowUp) outliers found."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.8
+::= { ptpbasePtpdSpecificCountersEntry 8 }
+
+
+delaySMOutliersFound OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of delaySM (Delay / pDelay response) outliers found."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.9
+::= { ptpbasePtpdSpecificCountersEntry 9 }
+
+
+maxDelayDrops OBJECT-TYPE
+	SYNTAX  Unsigned32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Number of messages ignored because of maximum delay setting."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.10
+::= { ptpbasePtpdSpecificCountersEntry 10 }
+
+
+ptpbasePtpdSpecificDataTable OBJECT-TYPE
+	SYNTAX  SEQUENCE OF PtpbasePtpdSpecificDataEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"Table describing other PTPd-specific data."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22
+::= { ptpbaseMIBClockInfo 22 }
+
+
+ptpbasePtpdSpecificDataEntry OBJECT-TYPE
+	SYNTAX  PtpbasePtpdSpecificDataEntry
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"An entry in a table describing other PTPd-specific data."
+	INDEX {
+		ptpbasePtpdSpecificDataDomainIndex,
+		ptpbasePtpdSpecificDataClockTypeIndex,
+		ptpbasePtpdSpecificDataInstanceIndex,
+		ptpbasePtpdSpecificDataClockPortNumberIndex }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1
+::= { ptpbasePtpdSpecificDataTable 1 }
+
+
+PtpbasePtpdSpecificDataEntry ::= SEQUENCE {
+
+	ptpbasePtpdSpecificDataDomainIndex          ClockDomainType,
+	ptpbasePtpdSpecificDataClockTypeIndex       ClockType,
+	ptpbasePtpdSpecificDataInstanceIndex        ClockInstanceType,
+	ptpbasePtpdSpecificDataClockPortNumberIndex ClockPortNumber,
+	rawDelayMS                                  ClockTimeInterval,
+	rawDelayMSStringValue                       DisplayString,
+	rawDelaySM                                  ClockTimeInterval,
+	rawDelaySMStringValue                       DisplayString }
+
+
+ptpbasePtpdSpecificDataDomainIndex OBJECT-TYPE
+	SYNTAX  ClockDomainType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the domain number used to create logical
+		group of PTP devices."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.1
+::= { ptpbasePtpdSpecificDataEntry 1 }
+
+
+ptpbasePtpdSpecificDataClockTypeIndex OBJECT-TYPE
+	SYNTAX  ClockType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the clock type as defined in the
+		Textual convention description."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.2
+::= { ptpbasePtpdSpecificDataEntry 2 }
+
+
+ptpbasePtpdSpecificDataInstanceIndex OBJECT-TYPE
+	SYNTAX  ClockInstanceType
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION
+		"This object specifies the instance of the clock for this clock
+		type in the given domain."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.3
+::= { ptpbasePtpdSpecificDataEntry 3 }
+
+
+ptpbasePtpdSpecificDataClockPortNumberIndex OBJECT-TYPE
+	SYNTAX  ClockPortNumber
+	MAX-ACCESS not-accessible
+	STATUS  current
+	DESCRIPTION ""
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.4
+::= { ptpbasePtpdSpecificDataEntry 4 }
+
+
+rawDelayMS OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Last raw (unfiltered) value of Master to Slave delay (Sync / FollowUp): T2 - T1."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.5
+::= { ptpbasePtpdSpecificDataEntry 5 }
+
+
+rawDelayMSStringValue OBJECT-TYPE
+	SYNTAX  DisplayString
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Last raw (unfiltered) value of Master to Slave delay (Sync / FollowUp): T2 - T1, presented as text value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.6
+::= { ptpbasePtpdSpecificDataEntry 6 }
+
+
+rawDelaySM OBJECT-TYPE
+	SYNTAX  ClockTimeInterval
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Last raw (unfiltered) value of Slave to Master delay (Delay Request / Response): T4 - T3."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.7
+::= { ptpbasePtpdSpecificDataEntry 7 }
+
+
+rawDelaySMStringValue OBJECT-TYPE
+	SYNTAX  DisplayString
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"Last raw (unfiltered) value of Slave to Master delay (Delay Request / Response): T4 - T3, presented as text value."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.8
+::= { ptpbasePtpdSpecificDataEntry 8 }
 
 
 ptpbaseMIBConformance OBJECT IDENTIFIER 
@@ -3194,13 +5248,26 @@ ptpbaseMIBCompliances4 MODULE-COMPLIANCE
 	-- 1.3.6.1.4.1.46649.1.1.2.1.4
 ::= { ptpbaseMIBCompliances 4 }
 
+ptpbaseMIBSystemInfoGroup OBJECT-GROUP
+	OBJECTS {
+		ptpbaseSystemDomainTotals,
+		ptpDomainClockPortsTotal,
+		ptpbaseSystemProfile }
+	STATUS  current
+	DESCRIPTION
+		"Group which aggregates objects describing system-wide
+		information"
+	-- 1.3.6.1.4.1.46649.1.1.2.2.1
+::= { ptpbaseMIBGroups 1 }
+
 ptpbaseMIBClockCurrentDSGroup OBJECT-GROUP
 	OBJECTS {
 		ptpbaseClockCurrentDSStepsRemoved,
 		ptpbaseClockCurrentDSOffsetFromMaster,
 		ptpbaseClockCurrentDSMeanPathDelay,
 		ptpbaseClockCurrentDSOffsetFromMasterString,
-		ptpbaseClockCurrentDSMeanPathDelayString }
+		ptpbaseClockCurrentDSMeanPathDelayString,
+		ptpbaseClockCurrentDSOffsetFromMasterThresholdNs }
 	STATUS  current
 	DESCRIPTION
 		"Group which aggregates objects describing PTP Current Dataset
@@ -3238,7 +5305,8 @@ ptpbaseMIBClockDefaultDSGroup OBJECT-GROUP
 		ptpbaseClockDefaultDSSlaveOnly,
 		ptpbaseClockDefaultDSQualityClass,
 		ptpbaseClockDefaultDSQualityAccuracy,
-		ptpbaseClockDefaultDSQualityOffset }
+		ptpbaseClockDefaultDSQualityOffset,
+		ptpbaseClockDefaultDSDomainNumber }
 	STATUS  current
 	DESCRIPTION
 		"Group which aggregates objects describing PTP Default Dataset
@@ -3289,6 +5357,42 @@ ptpbaseMIBClockTranparentDSGroup OBJECT-GROUP
 	-- 1.3.6.1.4.1.46649.1.1.2.2.7
 ::= { ptpbaseMIBGroups 7 }
 
+ptpbaseMIBClockPortGroup OBJECT-GROUP
+	OBJECTS {
+		ptpbaseClockPortCurrentPeerAddress,
+		ptpbaseClockPortCurrentPeerAddressType,
+		ptpbaseClockPortName,
+		ptpbaseClockPortSyncOneStep,
+		ptpbaseClockPortNumOfAssociatedPorts,
+		ptpbaseClockPortRole }
+	STATUS  current
+	DESCRIPTION
+		"Group which aggregates objects describing information for a
+		given PTP Port."
+	-- 1.3.6.1.4.1.46649.1.1.2.2.8
+::= { ptpbaseMIBGroups 8 }
+
+ptpbaseMIBClockPortDSGroup OBJECT-GROUP
+	OBJECTS {
+		ptpbaseClockPortDSName,
+		ptpbaseClockPortDSPortIdentity,
+		ptpbaseClockPortDSAnnouncementInterval,
+		ptpbaseClockPortDSAnnounceRctTimeout,
+		ptpbaseClockPortDSSyncInterval,
+		ptpbaseClockPortDSMinDelayReqInterval,
+		ptpbaseClockPortDSPeerDelayReqInterval,
+		ptpbaseClockPortDSDelayMech,
+		ptpbaseClockPortDSPeerMeanPathDelay,
+		ptpbaseClockPortDSGrantDuration,
+		ptpbaseClockPortDSPTPVersion,
+		ptpBaseClockPortDSPeerMeanPathDelayString }
+	STATUS  current
+	DESCRIPTION
+		"Group which aggregates objects describing PTP Port Dataset
+		information"
+	-- 1.3.6.1.4.1.46649.1.1.2.2.9
+::= { ptpbaseMIBGroups 9 }
+
 ptpbaseMIBClockPortRunningGroup OBJECT-GROUP
 	OBJECTS {
 		ptpbaseClockPortRunningName,
@@ -3337,1944 +5441,6 @@ ptpbaseMIBClockPortAssociateGroup OBJECT-GROUP
 	-- 1.3.6.1.4.1.46649.1.1.2.2.12
 ::= { ptpbaseMIBGroups 12 }
 
-ofmStatsMean OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	UNITS	"Time Interval"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Mean Offset From Master in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.14
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.14
-	::= { ptpbaseSlaveOfmStatisticsEntry 14 }
-
-
-ptpbaseProtocolCountersClockPortNumberIndex OBJECT-TYPE
-	SYNTAX  ClockPortNumber
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION ""
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.4
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.4
-	::= { ptpbasePtpProtocolCountersEntry 4 }
-
-
-ptpbaseMIBSystemInfoGroup OBJECT-GROUP
-	OBJECTS {
-		ptpbaseSystemDomainTotals,
-		ptpDomainClockPortsTotal,
-		ptpbaseSystemProfile }
-	STATUS  current
-	DESCRIPTION
-		"Group which aggregates objects describing system-wide
-		information"
-	-- 1.3.6.1.4.1.46649.1.1.2.2.1
-::= { ptpbaseMIBGroups 1 }
-
-ptpbaseMIBClockPortGroup OBJECT-GROUP
-	OBJECTS {
-		ptpbaseClockPortCurrentPeerAddress,
-		ptpbaseClockPortCurrentPeerAddressType,
-		ptpbaseClockPortName,
-		ptpbaseClockPortSyncOneStep,
-		ptpbaseClockPortNumOfAssociatedPorts,
-		ptpbaseClockPortRole }
-	STATUS  current
-	DESCRIPTION
-		"Group which aggregates objects describing information for a
-		given PTP Port."
-	-- 1.3.6.1.4.1.46649.1.1.2.2.8
-::= { ptpbaseMIBGroups 8 }
-
-ptpbaseMIBClockPortDSGroup OBJECT-GROUP
-	OBJECTS {
-		ptpbaseClockPortDSName,
-		ptpbaseClockPortDSPortIdentity,
-		ptpbaseClockPortDSAnnouncementInterval,
-		ptpbaseClockPortDSAnnounceRctTimeout,
-		ptpbaseClockPortDSSyncInterval,
-		ptpbaseClockPortDSMinDelayReqInterval,
-		ptpbaseClockPortDSPeerDelayReqInterval,
-		ptpbaseClockPortDSDelayMech,
-		ptpbaseClockPortDSPeerMeanPathDelay,
-		ptpbaseClockPortDSGrantDuration,
-		ptpbaseClockPortDSPTPVersion }
-	STATUS  current
-	DESCRIPTION
-		"Group which aggregates objects describing PTP Port Dataset
-		information"
-	-- 1.3.6.1.4.1.46649.1.1.2.2.9
-::= { ptpbaseMIBGroups 9 }
-
-ptpbaseErrorCountersClockPortNumberIndex OBJECT-TYPE
-	SYNTAX  ClockPortNumber
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION ""
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.4
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.4
-	::= { ptpbasePtpErrorCountersEntry 4 }
-
-
-ptpbaseUnicastNegotiationCountersClockPortNumberIndex OBJECT-TYPE
-	SYNTAX  ClockPortNumber
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION ""
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.4
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.4
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 4 }
-
-
-ptpbasePerformanceCountersClockPortNumberIndex OBJECT-TYPE
-	SYNTAX  ClockPortNumber
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION ""
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.4
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.4
-	::= { ptpbasePtpPerformanceCountersEntry 4 }
-
-
-ptpbaseSecurityCountersClockPortNumberIndex OBJECT-TYPE
-	SYNTAX  ClockPortNumber
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION ""
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.4
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.4
-	::= { ptpbasePtpSecurityCountersEntry 4 }
-
-
-ptpbasePtpdSpecificDataClockPortNumberIndex OBJECT-TYPE
-	SYNTAX  ClockPortNumber
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION ""
-	-- 1.3.6.1.4.1.46649.1.1.1.2.30.1.4 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.4
-	::= { ptpbasePtpdSpecificDataEntry 4 }
-
-
-ptpbasePtpdSpecificDataInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.30.1.3 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.3
-	::= { ptpbasePtpdSpecificDataEntry 3 }
-
-
-ptpbasePtpdSpecificDataClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.30.1.2 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.2
-	::= { ptpbasePtpdSpecificDataEntry 2 }
-
-
-ptpbasePtpdSpecificDataDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.30.1.1 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.1
-	::= { ptpbasePtpdSpecificDataEntry 1 }
-
-
-maxDelayDrops OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of messages ignored because of maximum delay setting."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.29.1.10 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.10
-	::= { ptpbasePtpdSpecificCountersEntry 10 }
-
-
-delaySMOutliersFound OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of delaySM (Delay / pDelay response) outliers found."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.29.1.9 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.9
-	::= { ptpbasePtpdSpecificCountersEntry 9 }
-
-
-delayMSOutliersFound OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of DelayMS (Sync or FollowUp) outliers found."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.29.1.8 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.8
-	::= { ptpbasePtpdSpecificCountersEntry 8 }
-
-
-ignoredAnnounce OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of ignored Announce messages (BMCA disabled or UTC parameter preference)."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.29.1.7 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.7
-	::= { ptpbasePtpdSpecificCountersEntry 7 }
-
-
-consecutiveSequenceErrors OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of consecutive message sequence errors."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.29.1.6 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.6
-	::= { ptpbasePtpdSpecificCountersEntry 6 }
-
-
-ptpbasePtpdSpecificCountersClockPortNumberIndex OBJECT-TYPE
-	SYNTAX  ClockPortNumber
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION ""
-	-- 1.3.6.1.4.1.46649.1.1.1.2.29.1.4 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.4
-	::= { ptpbasePtpdSpecificCountersEntry 4 }
-
-
-ptpbasePtpdSpecificCountersInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.29.1.3 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.3
-	::= { ptpbasePtpdSpecificCountersEntry 3 }
-
-
-ptpbasePtpdSpecificCountersClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.29.1.2 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.2
-	::= { ptpbasePtpdSpecificCountersEntry 2 }
-
-
-ptpbasePtpdSpecificCountersDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.29.1.1 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.1
-	::= { ptpbasePtpdSpecificCountersEntry 1 }
-
-
-freqAdjStatsStatsMedian OBJECT-TYPE
-	SYNTAX  Integer32
-	UNITS	"Parts per Billion / 10E-9"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Median of clock frequency adjustment in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.40 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.40
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 40 }
-
-
-freqAdjStatsStdDev OBJECT-TYPE
-	SYNTAX  Integer32
-	UNITS	"Parts per Billion / 10E-9"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Standard deviation of clock frequency adjustment in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.39 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.39
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 39 }
-
-
-freqAdjStatsMean OBJECT-TYPE
-	SYNTAX  Integer32
-	UNITS	"Parts per Billion / 10E-9"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Mean clock frequency adjustment in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.38 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.38
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 38 }
-
-
-freqAdjStatsMax OBJECT-TYPE
-	SYNTAX  Integer32
-	UNITS	"Parts per Billion / 10E-9"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Maximum clock frequency adjustment in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.37 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.37
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 37 }
-
-
-freqAdjStatsMin OBJECT-TYPE
-	SYNTAX  Integer32
-	UNITS	"Parts per Billion / 10E-9"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Minimum clock frequency adjustment in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.36 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.36
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 36 }
-
-
-freqAdjStatsValid OBJECT-TYPE
-	SYNTAX  TruthValue
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Determines if current clock frequency adjustment statistics are valid."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.35 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.35
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 35 }
-
-
-freqAdjStatsUpdateInterval OBJECT-TYPE
-	SYNTAX  Unsigned32
-	UNITS	"Seconds"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Update interval for clock frequency adjustment statistics."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.34 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.34
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 34 }
-
-
-freqAdjCurrentValue OBJECT-TYPE
-	SYNTAX  Integer32
-	UNITS	"Parts per Billion / 10E-9"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Current clock frequency adjustment value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.9 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.9
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 9 }
-
-
-ptpbaseSlaveFreqAdjStatisticsInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.3 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.3
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 3 }
-
-
-ptpbaseSlaveFreqAdjStatisticsClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.2 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.2
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 2 }
-
-
-ptpbaseSlaveFreqAdjStatisticsDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.28.1.1 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1.1
-	::= { ptpbaseSlaveFreqAdjStatisticsEntry 1 }
-
-
-mpdStatsMedianStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Median of Mean Path Delay in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.33 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.33
-	::= { ptpbaseSlaveMpdStatisticsEntry 33 }
-
-
-mpdStatsStdDevStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Standard Deviation Path Delay in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.32 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.32
-	::= { ptpbaseSlaveMpdStatisticsEntry 32 }
-
-
-mpdStatsMeanStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Mean of Mean Path Delay in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.31 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.31
-	::= { ptpbaseSlaveMpdStatisticsEntry 31 }
-
-
-mpdStatsMaxStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Maximum Mean Path Delay in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.30 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.30
-	::= { ptpbaseSlaveMpdStatisticsEntry 30 }
-
-
-mpdStatsMinStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Minimum Mean Path Delay in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.29 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.29
-	::= { ptpbaseSlaveMpdStatisticsEntry 29 }
-
-
-mpdStatsMedian OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	UNITS	"Time Interval"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Median of Mean Path Delay in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.28 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.28
-	::= { ptpbaseSlaveMpdStatisticsEntry 28 }
-
-
-mpdStatsStdDev OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	UNITS	"Time Interval"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Standard Deviation of Mean Path Delay in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.27 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.27
-	::= { ptpbaseSlaveMpdStatisticsEntry 27 }
-
-
-mpdStatsMean OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	UNITS	"Time Interval"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Mean of Mean Path Delay in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.26 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.26
-	::= { ptpbaseSlaveMpdStatisticsEntry 26 }
-
-
-mpdStatsMax OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	UNITS	"Time Interval"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Maximum Mean Path Delay in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.25 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.25
-	::= { ptpbaseSlaveMpdStatisticsEntry 25 }
-
-
-mpdStatsMin OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	UNITS	"Time Interval"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Minimum Mean Path Delay in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.24 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.24
-	::= { ptpbaseSlaveMpdStatisticsEntry 24 }
-
-
-mpdStatsValid OBJECT-TYPE
-	SYNTAX  TruthValue
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Determines if current Mean Path Delay statistics are valid."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.23 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.23
-	::= { ptpbaseSlaveMpdStatisticsEntry 23 }
-
-
-mpdStatsUpdateInterval OBJECT-TYPE
-	SYNTAX  Integer32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Update interval for Mean Path Delay statistics."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.22 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.22
-	::= { ptpbaseSlaveMpdStatisticsEntry 22 }
-
-
-mpdCurrentStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Current value of Mean Path Delay, presented as text."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.8 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.8
-	::= { ptpbaseSlaveMpdStatisticsEntry 8 }
-
-
-mpdCurrentValue OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	UNITS	"Time Interval"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Current value of Mean Path Delay."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.6 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.6
-	::= { ptpbaseSlaveMpdStatisticsEntry 6 }
-
-
-ptpbaseSlaveMpdStatisticsInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.3 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.3
-	::= { ptpbaseSlaveMpdStatisticsEntry 3 }
-
-
-ptpbaseSlaveMpdStatisticsClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.2 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.2
-	::= { ptpbaseSlaveMpdStatisticsEntry 2 }
-
-
-ptpbaseSlaveMpdStatisticsDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.27.1.1 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1.1
-	::= { ptpbaseSlaveMpdStatisticsEntry 1 }
-
-
-ofmStatsMedianStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Median of Offset From Master in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.21 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.21
-	::= { ptpbaseSlaveOfmStatisticsEntry 21 }
-
-
-ofmStatsStdDevStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Standard deviation of Offset From Master in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.20 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.20
-	::= { ptpbaseSlaveOfmStatisticsEntry 20 }
-
-
-ofmStatsMeanStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Mean of Offset From Master in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.19 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.19
-	::= { ptpbaseSlaveOfmStatisticsEntry 19 }
-
-
-ofmStatsMaxStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Maximum Offset From Master in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.18 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.18
-	::= { ptpbaseSlaveOfmStatisticsEntry 18 }
-
-
-ofmStatsMinStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Minimum Offset From Master in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.17 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.17
-	::= { ptpbaseSlaveOfmStatisticsEntry 17 }
-
-
-ofmStatsMedian OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	UNITS	"Time Interval"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Median of Offset From Master in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.16 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.16
-	::= { ptpbaseSlaveOfmStatisticsEntry 16 }
-
-
-ofmStatsStdDev OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	UNITS	"Time Interval"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Standard deviation of Offset From Master in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.15 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.15
-	::= { ptpbaseSlaveOfmStatisticsEntry 15 }
-
-
-ofmStatsMax OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Maximum Offset From Master in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.13 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.13
-	::= { ptpbaseSlaveOfmStatisticsEntry 13 }
-
-
-ofmStatsMin OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	UNITS	"Time Interval"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Minimum Offset From Master in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.12 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.12
-	::= { ptpbaseSlaveOfmStatisticsEntry 12 }
-
-
-ofmStatsValid OBJECT-TYPE
-	SYNTAX  TruthValue
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Determines if current Offset From Master statistics are valid."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.11 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.11
-	::= { ptpbaseSlaveOfmStatisticsEntry 11 }
-
-
-ofmStatsUpdateInterval OBJECT-TYPE
-	SYNTAX  Unsigned32
-	UNITS	"Seconds"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Update interval for Offset From Master statistics."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.10 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.10
-	::= { ptpbaseSlaveOfmStatisticsEntry 10 }
-
-
-ofmCurrentStringValue OBJECT-TYPE
-	SYNTAX  DisplayString (SIZE (1..64))
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Current value of Offset From Master, presented as text."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.7 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.7
-	::= { ptpbaseSlaveOfmStatisticsEntry 7 }
-
-
-ofmCurrentValue OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Current value of Offset From Master."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.5 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.5
-	::= { ptpbaseSlaveOfmStatisticsEntry 5 }
-
-
-ptpbaseSlaveOfmStatisticsInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.3 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.3
-	::= { ptpbaseSlaveOfmStatisticsEntry 3 }
-
-
-ptpbaseSlaveOfmStatisticsClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.2 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.2
-	::= { ptpbaseSlaveOfmStatisticsEntry 2 }
-
-
-ptpbaseSlaveOfmStatisticsDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.26.1.1 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.1
-	::= { ptpbaseSlaveOfmStatisticsEntry 1 }
-
-
-aclManagementMessagesDiscarded OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of management messages discarded by access control"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.7 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.7
-	::= { ptpbasePtpSecurityCountersEntry 7 }
-
-
-aclTimingMessagesDiscarded OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of timing (non-management) messages discarded by access control (includes signaling messages)."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.6 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.6
-	::= { ptpbasePtpSecurityCountersEntry 6 }
-
-
-ptpbaseSecurityCountersInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.3
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.3
-	::= { ptpbasePtpSecurityCountersEntry 3 }
-
-
-ptpbaseSecurityCountersClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.2
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.2
-	::= { ptpbasePtpSecurityCountersEntry 2 }
-
-
-ptpbaseSecurityCountersDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.1
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.1
-	::= { ptpbasePtpSecurityCountersEntry 1 }
-
-
-ptpbasePerformanceCountersInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.3
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.3
-	::= { ptpbasePtpPerformanceCountersEntry 3 }
-
-
-ptpbasePerformanceCountersClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.2
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.2
-	::= { ptpbasePtpPerformanceCountersEntry 2 }
-
-
-ptpbasePerformanceCountersDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.1
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.1
-	::= { ptpbasePtpPerformanceCountersEntry 1 }
-
-
-ptpbaseUnicastNegotiationCountersInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.3
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.3
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 3 }
-
-
-ptpbaseUnicastNegotiationCountersClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.2
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.2
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 2 }
-
-
-ptpbaseUnicastNegotiationCountersDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.1
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.1
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 1 }
-
-
-delayMechanismMismatchErrors OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of delay mechanism mismatch errors - P2P messages seen when E2E operation used or vice versa"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.13 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.13
-	::= { ptpbasePtpErrorCountersEntry 13 }
-
-
-sequenceMismatchErrors OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of sequence mismatch errors observed"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.12 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.12
-	::= { ptpbasePtpErrorCountersEntry 12 }
-
-
-domainMismatchErrors OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of messages received from different PTP domains than configured"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.11 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.11
-	::= { ptpbasePtpErrorCountersEntry 11 }
-
-
-versionMismatchErrors OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of messages with incorrect PTP version received"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.10 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.10
-	::= { ptpbasePtpErrorCountersEntry 10 }
-
-
-protocolErrors OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of PTP protocol errors - condition which should not happen"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.9 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.9
-	::= { ptpbasePtpErrorCountersEntry 9 }
-
-
-messageFormatErrors OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of message format errors"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.8 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.8
-	::= { ptpbasePtpErrorCountersEntry 8 }
-
-
-messageSendErrors OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of message send errors"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.7 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.7
-	::= { ptpbasePtpErrorCountersEntry 7 }
-
-
-messageRecvErrors OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of message receive errors"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.6 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.6
-	::= { ptpbasePtpErrorCountersEntry 6 }
-
-
-ptpbaseErrorCountersInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.3
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.3
-	::= { ptpbasePtpErrorCountersEntry 3 }
-
-
-ptpbaseErrorCountersClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.2
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.2
-	::= { ptpbasePtpErrorCountersEntry 2 }
-
-
-ptpbaseErrorCountersDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.1
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.1
-	::= { ptpbasePtpErrorCountersEntry 1 }
-
-
-announceTimeouts OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of Announce Timeout events"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.12 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.12
-	::= { ptpbasePtpProtocolCountersEntry 12 }
-
-
-bestMasterChanges OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of PTP best master changes"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.11 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.11
-	::= { ptpbasePtpProtocolCountersEntry 11 }
-
-
-stateTransitions OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of PTP protocol state transitions"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.10 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.10
-	::= { ptpbasePtpProtocolCountersEntry 10 }
-
-
-foreignOverflows OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of overwritten Foreign Master entries due to lack of space in the record"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.9 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.9
-	::= { ptpbasePtpProtocolCountersEntry 9 }
-
-
-foreignRemoved OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Total number of foreign masters removed because of inactivity"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.8 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.8
-	::= { ptpbasePtpProtocolCountersEntry 8 }
-
-
-foreignCount OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Total number of foreign masters seen"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.7 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.7
-	::= { ptpbasePtpProtocolCountersEntry 7 }
-
-
-foreignAdded OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of additions to Foreign Master Record"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.6 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.6
-	::= { ptpbasePtpProtocolCountersEntry 6 }
-
-
-ptpbaseProtocolCountersInstanceIndex OBJECT-TYPE
-	SYNTAX  ClockInstanceType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the instance of the clock for this clock
-		type in the given domain."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.3
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.3
-	::= { ptpbasePtpProtocolCountersEntry 3 }
-
-
-ptpbaseProtocolCountersClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.2
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.2
-	::= { ptpbasePtpProtocolCountersEntry 2 }
-
-
-ptpbaseProtocolCountersDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.1
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.1
-	::= { ptpbasePtpProtocolCountersEntry 1 }
-
-
-unknownMessages OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of unknown type PTP messages received"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.30 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.30
-	::= { ptpbasePtpPortMessageCountersEntry 30 }
-
-
-discardedMessages OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of discarded PTP messages"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.29 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.29
-	::= { ptpbasePtpPortMessageCountersEntry 29 }
-
-
-managementMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of Management messages received"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.28 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.28
-	::= { ptpbasePtpPortMessageCountersEntry 28 }
-
-
-managementMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of sent Management messages"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.27 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.27
-	::= { ptpbasePtpPortMessageCountersEntry 27 }
-
-
-signalingMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of received Signaling messages (unicast negotiation)"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.26 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.26
-	::= { ptpbasePtpPortMessageCountersEntry 26 }
-
-
-signalingMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of sent Signaling messages (unicast negotiation)"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.25 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.25
-	::= { ptpbasePtpPortMessageCountersEntry 25 }
-
-
-pdelayRespFollowUpMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of received Peer Delay Response Follow-Up messages"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.24 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.24
-	::= { ptpbasePtpPortMessageCountersEntry 24 }
-
-
-pdelayRespFollowUpMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of Peer Delay Response FollowUp messages sent (two-step operation)"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.23 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.23
-	::= { ptpbasePtpPortMessageCountersEntry 23 }
-
-
-pdelayRespMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of Peer Delay Response messages received"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.22 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.22
-	::= { ptpbasePtpPortMessageCountersEntry 22 }
-
-
-pdelayRespMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of sent Peer Delay Response messages"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.21 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.21
-	::= { ptpbasePtpPortMessageCountersEntry 21 }
-
-
-pdelayReqMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of Peer Delay Request messages received"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.20 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.20
-	::= { ptpbasePtpPortMessageCountersEntry 20 }
-
-
-pdelayReqMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of sent Peer Delay Request messages (P2P operation)"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.19 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.19
-	::= { ptpbasePtpPortMessageCountersEntry 19 }
-
-
-delayRespMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of Delay Response messages received"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.18 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.18
-	::= { ptpbasePtpPortMessageCountersEntry 18 }
-
-
-delayRespMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of sent Delay Response messages"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.17 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.17
-	::= { ptpbasePtpPortMessageCountersEntry 17 }
-
-
-delayReqMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of Delay Request messages received"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.16 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.16
-	::= { ptpbasePtpPortMessageCountersEntry 16 }
-
-
-delayReqMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of sent Delay Request messages"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.15 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.15
-	::= { ptpbasePtpPortMessageCountersEntry 15 }
-
-
-followUpMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of received FollowUp messages (two-step operation)"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.14 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.14
-	::= { ptpbasePtpPortMessageCountersEntry 14 }
-
-
-followUpMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of FollowUp messages sent (two-step operation)"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.13 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.13
-	::= { ptpbasePtpPortMessageCountersEntry 13 }
-
-
-syncMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of Sync messages sent"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.12 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.12
-	::= { ptpbasePtpPortMessageCountersEntry 12 }
-
-
-syncMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of sent Sync messages."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.11 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.11
-	::= { ptpbasePtpPortMessageCountersEntry 11 }
-
-
-announceMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of Announce messages received"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.10 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.10
-	::= { ptpbasePtpPortMessageCountersEntry 10 }
-
-
-announceMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of sent Announce messages"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.9 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.9
-	::= { ptpbasePtpPortMessageCountersEntry 9 }
-
-
-totalMessagesReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Total number of messages received by PTP port"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.8 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.8
-	::= { ptpbasePtpPortMessageCountersEntry 8 }
-
-
-totalMessagesSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"total number of messages sent by PTP port"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.7 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.7
-	::= { ptpbasePtpPortMessageCountersEntry 7 }
-
-
-ptpbasePortMessageCountersClockTypeIndex OBJECT-TYPE
-	SYNTAX  ClockType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the clock type as defined in the
-		Textual convention description."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.2
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.2
-	::= { ptpbasePtpPortMessageCountersEntry 2 }
-
-
-ptpbasePortMessageCountersDomainIndex OBJECT-TYPE
-	SYNTAX  ClockDomainType
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"This object specifies the domain number used to create logical
-		group of PTP devices."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.1
-	-- 1.3.6.1.4.1.46649.1.1.1.2.12.1.1
-	::= { ptpbasePtpPortMessageCountersEntry 1 }
-
-
-ptpbaseProtocolCountersClear OBJECT-TYPE
-	SYNTAX  TruthValue
-	MAX-ACCESS read-write
-	STATUS  current
-	DESCRIPTION
-		"Handle allowing to clear PTP protocol counters"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1.5
-	::= { ptpbasePtpProtocolCountersEntry 5 }
-
-
-ptpbasePtpdSpecificDataEntry OBJECT-TYPE
-	SYNTAX  PtpbasePtpdSpecificDataEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"An entry in a table describing other PTPd-specific data."
-	INDEX {
-		ptpbasePtpdSpecificDataDomainIndex,
-		ptpbasePtpdSpecificDataClockTypeIndex,
-		ptpbasePtpdSpecificDataInstanceIndex,
-		ptpbasePtpdSpecificDataClockPortNumberIndex }
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1
-	::= { ptpbasePtpdSpecificDataTable 1 }
-
-
-PtpbasePtpdSpecificDataEntry ::= SEQUENCE {
-
-	ptpbasePtpdSpecificDataDomainIndex          ClockDomainType,
-	ptpbasePtpdSpecificDataClockTypeIndex       ClockType,
-	ptpbasePtpdSpecificDataInstanceIndex        ClockInstanceType,
-	ptpbasePtpdSpecificDataClockPortNumberIndex ClockPortNumber,
-	rawDelayMS                                  ClockTimeInterval,
-	rawDelayMSStringValue                       DisplayString,
-	rawDelaySM                                  ClockTimeInterval,
-	rawDelaySMStringValue                       DisplayString }
-
-
-ptpbasePtpdSpecificCountersEntry OBJECT-TYPE
-	SYNTAX  PtpbasePtpdSpecificCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"An entry in a table describing PTPd-specific counters."
-	INDEX {
-		ptpbasePtpdSpecificCountersDomainIndex,
-		ptpbasePtpdSpecificCountersClockTypeIndex,
-		ptpbasePtpdSpecificCountersInstanceIndex,
-		ptpbasePtpdSpecificCountersClockPortNumberIndex }
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1
-	::= { ptpbasePtpdSpecificCountersTable 1 }
-
-
-PtpbasePtpdSpecificCountersEntry ::= SEQUENCE {
-
-	ptpbasePtpdSpecificCountersDomainIndex          ClockDomainType,
-	ptpbasePtpdSpecificCountersClockTypeIndex       ClockType,
-	ptpbasePtpdSpecificCountersInstanceIndex        ClockInstanceType,
-	ptpbasePtpdSpecificCountersClockPortNumberIndex ClockPortNumber,
-	ptpbasePtpdSpecificCountersClear                TruthValue,
-	consecutiveSequenceErrors                       Unsigned32,
-	ignoredAnnounce                                 Unsigned32,
-	delayMSOutliersFound                            Unsigned32,
-	delaySMOutliersFound                            Unsigned32,
-	maxDelayDrops                                   Unsigned32 }
-
-
-ptpbaseSlaveFreqAdjStatisticsEntry OBJECT-TYPE
-	SYNTAX  PtpbaseSlaveFreqAdjStatisticsEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"An entry in a table of statistics describing PTP slave clock frequency adjustment."
-	INDEX {
-		ptpbaseSlaveFreqAdjStatisticsDomainIndex,
-		ptpbaseSlaveFreqAdjStatisticsClockTypeIndex,
-		ptpbaseSlaveFreqAdjStatisticsInstanceIndex }
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20.1
-	::= { ptpbaseSlaveFreqAdjStatisticsTable 1 }
-
-
-PtpbaseSlaveFreqAdjStatisticsEntry ::= SEQUENCE {
-
-	ptpbaseSlaveFreqAdjStatisticsDomainIndex    ClockDomainType,
-	ptpbaseSlaveFreqAdjStatisticsClockTypeIndex ClockType,
-	ptpbaseSlaveFreqAdjStatisticsInstanceIndex  ClockInstanceType,
-	freqAdjCurrentValue                         Integer32,
-	freqAdjStatsUpdateInterval                  Unsigned32,
-	freqAdjStatsValid                           TruthValue,
-	freqAdjStatsMin                             Integer32,
-	freqAdjStatsMax                             Integer32,
-	freqAdjStatsMean                            Integer32,
-	freqAdjStatsStdDev                          Integer32,
-	freqAdjStatsStatsMedian                     Integer32 }
-
-
-ptpbaseSlaveMpdStatisticsEntry OBJECT-TYPE
-	SYNTAX  PtpbaseSlaveMpdStatisticsEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"An entry in a table of statistics describing PTP slave Mean Path Delay."
-	INDEX {
-		ptpbaseSlaveMpdStatisticsDomainIndex,
-		ptpbaseSlaveMpdStatisticsClockTypeIndex,
-		ptpbaseSlaveMpdStatisticsInstanceIndex }
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19.1
-	::= { ptpbaseSlaveMpdStatisticsTable 1 }
-
-
-PtpbaseSlaveMpdStatisticsEntry ::= SEQUENCE {
-
-	ptpbaseSlaveMpdStatisticsDomainIndex    ClockDomainType,
-	ptpbaseSlaveMpdStatisticsClockTypeIndex ClockType,
-	ptpbaseSlaveMpdStatisticsInstanceIndex  ClockInstanceType,
-	mpdCurrentValue                         ClockTimeInterval,
-	mpdCurrentStringValue                   DisplayString,
-	mpdStatsUpdateInterval                  Integer32,
-	mpdStatsValid                           TruthValue,
-	mpdStatsMin                             ClockTimeInterval,
-	mpdStatsMax                             ClockTimeInterval,
-	mpdStatsMean                            ClockTimeInterval,
-	mpdStatsStdDev                          ClockTimeInterval,
-	mpdStatsMedian                          ClockTimeInterval,
-	mpdStatsMinStringValue                  DisplayString,
-	mpdStatsMaxStringValue                  DisplayString,
-	mpdStatsMeanStringValue                 DisplayString,
-	mpdStatsStdDevStringValue               DisplayString,
-	mpdStatsMedianStringValue               DisplayString }
-
-
-ptpbaseSlaveOfmStatisticsEntry OBJECT-TYPE
-	SYNTAX  PtpbaseSlaveOfmStatisticsEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"An entry in a table of statistics describing PTP slave Offset from Master."
-	INDEX {
-		ptpbaseSlaveOfmStatisticsDomainIndex,
-		ptpbaseSlaveOfmStatisticsClockTypeIndex,
-		ptpbaseSlaveOfmStatisticsInstanceIndex }
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1
-	::= { ptpbaseSlaveOfmStatisticsTable 1 }
-
-
-PtpbaseSlaveOfmStatisticsEntry ::= SEQUENCE {
-
-	ptpbaseSlaveOfmStatisticsDomainIndex    ClockDomainType,
-	ptpbaseSlaveOfmStatisticsClockTypeIndex ClockType,
-	ptpbaseSlaveOfmStatisticsInstanceIndex  ClockInstanceType,
-	ofmCurrentValue                         ClockTimeInterval,
-	ofmCurrentStringValue                   DisplayString,
-	ofmStatsUpdateInterval                  Unsigned32,
-	ofmStatsValid                           TruthValue,
-	ofmStatsMin                             ClockTimeInterval,
-	ofmStatsMax                             ClockTimeInterval,
-	ofmStatsMean                            ClockTimeInterval,
-	ofmStatsStdDev                          ClockTimeInterval,
-	ofmStatsMedian                          ClockTimeInterval,
-	ofmStatsMinStringValue                  DisplayString,
-	ofmStatsMaxStringValue                  DisplayString,
-	ofmStatsMeanStringValue                 DisplayString,
-	ofmStatsStdDevStringValue               DisplayString,
-	ofmStatsMedianStringValue               DisplayString }
-
-
-ptpbasePtpSecurityCountersEntry OBJECT-TYPE
-	SYNTAX  PtpbasePtpSecurityCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Entry in a table describing PTP message security (access control) counters."
-	INDEX {
-		ptpbaseSecurityCountersDomainIndex,
-		ptpbaseSecurityCountersClockTypeIndex,
-		ptpbaseSecurityCountersInstanceIndex,
-		ptpbaseSecurityCountersClockPortNumberIndex }
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1
-	::= { ptpbasePtpSecurityCountersTable 1 }
-
-
-PtpbasePtpSecurityCountersEntry ::= SEQUENCE {
-
-	ptpbaseSecurityCountersDomainIndex          ClockDomainType,
-	ptpbaseSecurityCountersClockTypeIndex       ClockType,
-	ptpbaseSecurityCountersInstanceIndex        ClockInstanceType,
-	ptpbaseSecurityCountersClockPortNumberIndex ClockPortNumber,
-	ptpbaseSecurityCountersClear                TruthValue,
-	aclTimingMessagesDiscarded                  Unsigned32,
-	aclManagementMessagesDiscarded              Unsigned32 }
-
-
-ptpbasePtpPerformanceCountersEntry OBJECT-TYPE
-	SYNTAX  PtpbasePtpPerformanceCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"An entry in a table describing common PTP protocol message performance counters."
-	INDEX {
-		ptpbasePerformanceCountersDomainIndex,
-		ptpbasePerformanceCountersClockTypeIndex,
-		ptpbasePerformanceCountersInstanceIndex,
-		ptpbasePerformanceCountersClockPortNumberIndex }
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1
-	::= { ptpbasePtpPerformanceCountersTable 1 }
-
-
-PtpbasePtpPerformanceCountersEntry ::= SEQUENCE {
-
-	ptpbasePerformanceCountersDomainIndex          ClockDomainType,
-	ptpbasePerformanceCountersClockTypeIndex       ClockType,
-	ptpbasePerformanceCountersInstanceIndex        ClockInstanceType,
-	ptpbasePerformanceCountersClockPortNumberIndex ClockPortNumber,
-	messageSendRate                                Unsigned32,
-	messageReceiveRate                             Unsigned32 }
-
-
-ptpbasePtpUnicastNegotiationCountersEntry OBJECT-TYPE
-	SYNTAX  PtpbasePtpUnicastNegotiationCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"An entry in a table describing PTP unicast negotiation counters."
-	INDEX {
-		ptpbaseUnicastNegotiationCountersDomainIndex,
-		ptpbaseUnicastNegotiationCountersClockTypeIndex,
-		ptpbaseUnicastNegotiationCountersInstanceIndex,
-		ptpbaseUnicastNegotiationCountersClockPortNumberIndex }
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1
-	::= { ptpbasePtpUnicastNegotiationCountersTable 1 }
-
-
-PtpbasePtpUnicastNegotiationCountersEntry ::= SEQUENCE {
-
-	ptpbaseUnicastNegotiationCountersDomainIndex          ClockDomainType,
-	ptpbaseUnicastNegotiationCountersClockTypeIndex       ClockType,
-	ptpbaseUnicastNegotiationCountersInstanceIndex        ClockInstanceType,
-	ptpbaseUnicastNegotiationCountersClockPortNumberIndex ClockPortNumber,
-	ptpbaseUnicastNegotiationCountersClear                TruthValue,
-	unicastGrantsRequested                                Unsigned32,
-	unicastGrantsGranted                                  Unsigned32,
-	unicastGrantsDenied                                   Unsigned32,
-	unicastGrantsCancelSent                               Unsigned32,
-	unicastGrantsCancelReceived                           Unsigned32,
-	unicastGrantsCancelAckSent                            Unsigned32,
-	unicastGrantsCancelAckReceived                        Unsigned32 }
-
-
-ptpbasePtpErrorCountersEntry OBJECT-TYPE
-	SYNTAX  PtpbasePtpErrorCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"An entry in a table describing common PTP protocol error counters."
-	INDEX {
-		ptpbaseErrorCountersDomainIndex,
-		ptpbaseErrorCountersClockTypeIndex,
-		ptpbaseErrorCountersInstanceIndex,
-		ptpbaseErrorCountersClockPortNumberIndex }
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1
-	::= { ptpbasePtpErrorCountersTable 1 }
-
-
-PtpbasePtpErrorCountersEntry ::= SEQUENCE {
-
-	ptpbaseErrorCountersDomainIndex          ClockDomainType,
-	ptpbaseErrorCountersClockTypeIndex       ClockType,
-	ptpbaseErrorCountersInstanceIndex        ClockInstanceType,
-	ptpbaseErrorCountersClockPortNumberIndex ClockPortNumber,
-	ptpbaseErrorCountersClear                TruthValue,
-	messageRecvErrors                        Unsigned32,
-	messageSendErrors                        Unsigned32,
-	messageFormatErrors                      Unsigned32,
-	protocolErrors                           Unsigned32,
-	versionMismatchErrors                    Unsigned32,
-	domainMismatchErrors                     Unsigned32,
-	sequenceMismatchErrors                   Unsigned32,
-	delayMechanismMismatchErrors             Unsigned32 }
-
-
-ptpbasePtpProtocolCountersEntry OBJECT-TYPE
-	SYNTAX  PtpbasePtpProtocolCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"An entry in a table describing common PTP protocol counters."
-	INDEX {
-		ptpbaseProtocolCountersDomainIndex,
-		ptpbaseProtocolCountersClockTypeIndex,
-		ptpbaseProtocolCountersInstanceIndex,
-		ptpbaseProtocolCountersClockPortNumberIndex }
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13.1
-	::= { ptpbasePtpProtocolCountersTable 1 }
-
-
-PtpbasePtpProtocolCountersEntry ::= SEQUENCE {
-
-	ptpbaseProtocolCountersDomainIndex          ClockDomainType,
-	ptpbaseProtocolCountersClockTypeIndex       ClockType,
-	ptpbaseProtocolCountersInstanceIndex        ClockInstanceType,
-	ptpbaseProtocolCountersClockPortNumberIndex ClockPortNumber,
-	ptpbaseProtocolCountersClear                TruthValue,
-	foreignAdded                                Unsigned32,
-	foreignCount                                Unsigned32,
-	foreignRemoved                              Unsigned32,
-	foreignOverflows                            Unsigned32,
-	stateTransitions                            Unsigned32,
-	bestMasterChanges                           Unsigned32,
-	announceTimeouts                            Unsigned32 }
-
-
-ptpbaseErrorCountersClear OBJECT-TYPE
-	SYNTAX  TruthValue
-	MAX-ACCESS read-write
-	STATUS  current
-	DESCRIPTION
-		"Handle allowing to clear PTP error counters"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14.1.5
-	::= { ptpbasePtpErrorCountersEntry 5 }
-
-
-ptpbaseUnicastNegotiationCountersClear OBJECT-TYPE
-	SYNTAX  TruthValue
-	MAX-ACCESS read-write
-	STATUS  current
-	DESCRIPTION
-		"Handle allowing to clear PTP unicast negotiation counters"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.5
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 5 }
-
-
-unicastGrantsRequested OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of unicast grants requested by slave, or requested from master"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.6 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.6
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 6 }
-
-
-unicastGrantsGranted OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of unicast grants successfully granted to slaves (master), or received from master(s) (slave)"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.7 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.7
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 7 }
-
-
-unicastGrantsDenied OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of unicast grants denied to slaves (master), or denied by master(s) (slave)"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.8 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.8
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 8 }
-
-
-unicastGrantsCancelSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of unicast grants cancelations sent"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.9 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.9
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 9 }
-
-
-unicastGrantsCancelReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of unicast grant cancellations received"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.10 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.10
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 10 }
-
-
-unicastGrantsCancelAckSent OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of sent acknowledgments to unicast grant cancellation"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.11 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.11
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 11 }
-
-
-unicastGrantsCancelAckReceived OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Number of received acknowledgments to unicast grant cancellation."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.12 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15.1.12
-	::= { ptpbasePtpUnicastNegotiationCountersEntry 12 }
-
-
-ptpbasePtpProtocolCountersTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbasePtpProtocolCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Table describing common PTP protocol counters."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.13
-	::= { ptpbaseMIBClockInfo 13 }
-
-
-ptpbasePtpErrorCountersTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbasePtpErrorCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Table describing common PTP protocol error counters."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.14
-	::= { ptpbaseMIBClockInfo 14 }
-
-
-ptpbasePtpUnicastNegotiationCountersTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbasePtpUnicastNegotiationCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Table describing PTP unicast negotiation counters."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.15
-	::= { ptpbaseMIBClockInfo 15 }
-
-
-ptpbasePtpPerformanceCountersTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbasePtpPerformanceCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Table describing common PTP protocol message performance counters."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16
-	::= { ptpbaseMIBClockInfo 16 }
-
-
-ptpbasePtpSecurityCountersTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbasePtpSecurityCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Table describing PTP message security (access control) counters."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17
-	::= { ptpbaseMIBClockInfo 17 }
-
-
-ptpbaseSlaveOfmStatisticsTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbaseSlaveOfmStatisticsEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Table of statistics describing PTP slave Offset from Master."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18
-	::= { ptpbaseMIBClockInfo 18 }
-
-
-ptpbaseSlaveMpdStatisticsTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbaseSlaveMpdStatisticsEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Table of statistics describing PTP slave Mean Path Delay."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.19
-	::= { ptpbaseMIBClockInfo 19 }
-
-
-ptpbaseSlaveFreqAdjStatisticsTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbaseSlaveFreqAdjStatisticsEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Table of statistics describing PTP slave clock frequency adjustment."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.20
-	::= { ptpbaseMIBClockInfo 20 }
-
-
-ptpbasePtpdSpecificCountersTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbasePtpdSpecificCountersEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Table describing PTPd-specific counters."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21
-	::= { ptpbaseMIBClockInfo 21 }
-
-
-ptpbasePtpdSpecificDataTable OBJECT-TYPE
-	SYNTAX  SEQUENCE OF PtpbasePtpdSpecificDataEntry
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION
-		"Table describing other PTPd-specific data."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22
-	::= { ptpbaseMIBClockInfo 22 }
-
-
 ptpbaseMIBPtpPortMessageCountersGroup OBJECT-GROUP
 	OBJECTS {
 		ptpbasePortMessageCountersClearAll,
@@ -5306,9 +5472,8 @@ ptpbaseMIBPtpPortMessageCountersGroup OBJECT-GROUP
 	STATUS  current
 	DESCRIPTION
 		"A grouping of PTP port message counters."
-	-- 1.3.6.1.4.1.46649.1.1.2.2.13 --
-	-- 1.3.6.1.4.1.46649.1.1.2.2.13
-	::= { ptpbaseMIBGroups 13 }
+	-- 1.3.6.1.4.1.46649.1.1.2.2.13 ---- 1.3.6.1.4.1.46649.1.1.2.2.13
+::= { ptpbaseMIBGroups 13 }
 
 ptpbaseMIBPtpProtocolCountersGroup OBJECT-GROUP
 	OBJECTS {
@@ -5323,9 +5488,8 @@ ptpbaseMIBPtpProtocolCountersGroup OBJECT-GROUP
 	STATUS  current
 	DESCRIPTION
 		"A grouping of PTP protocol counters."
-	-- 1.3.6.1.4.1.46649.1.1.2.2.14 --
-	-- 1.3.6.1.4.1.46649.1.1.2.2.14
-	::= { ptpbaseMIBGroups 14 }
+	-- 1.3.6.1.4.1.46649.1.1.2.2.14 ---- 1.3.6.1.4.1.46649.1.1.2.2.14
+::= { ptpbaseMIBGroups 14 }
 
 ptpbaseMIBPtpErrorCountersGroup OBJECT-GROUP
 	OBJECTS {
@@ -5341,9 +5505,8 @@ ptpbaseMIBPtpErrorCountersGroup OBJECT-GROUP
 	STATUS  current
 	DESCRIPTION
 		"A grouping of PTP protocol error counters."
-	-- 1.3.6.1.4.1.46649.1.1.2.2.15 --
-	-- 1.3.6.1.4.1.46649.1.1.2.2.15
-	::= { ptpbaseMIBGroups 15 }
+	-- 1.3.6.1.4.1.46649.1.1.2.2.15 ---- 1.3.6.1.4.1.46649.1.1.2.2.15
+::= { ptpbaseMIBGroups 15 }
 
 ptpbaseMIBPtpUnicastNegotiationCountersGroup OBJECT-GROUP
 	OBJECTS {
@@ -5358,9 +5521,8 @@ ptpbaseMIBPtpUnicastNegotiationCountersGroup OBJECT-GROUP
 	STATUS  current
 	DESCRIPTION
 		"A grouping of PTP unicast negotiation counters."
-	-- 1.3.6.1.4.1.46649.1.1.2.2.16 --
-	-- 1.3.6.1.4.1.46649.1.1.2.2.16
-	::= { ptpbaseMIBGroups 16 }
+	-- 1.3.6.1.4.1.46649.1.1.2.2.16 ---- 1.3.6.1.4.1.46649.1.1.2.2.16
+::= { ptpbaseMIBGroups 16 }
 
 ptpbaseMIBPtpPerformanceCountersGroup OBJECT-GROUP
 	OBJECTS {
@@ -5369,9 +5531,8 @@ ptpbaseMIBPtpPerformanceCountersGroup OBJECT-GROUP
 	STATUS  current
 	DESCRIPTION
 		"A grouping of PTP message performance counters."
-	-- 1.3.6.1.4.1.46649.1.1.2.2.17 --
-	-- 1.3.6.1.4.1.46649.1.1.2.2.17
-	::= { ptpbaseMIBGroups 17 }
+	-- 1.3.6.1.4.1.46649.1.1.2.2.17 ---- 1.3.6.1.4.1.46649.1.1.2.2.17
+::= { ptpbaseMIBGroups 17 }
 
 ptpbaseMIBPtpSecurityCountersGroup OBJECT-GROUP
 	OBJECTS {
@@ -5381,280 +5542,8 @@ ptpbaseMIBPtpSecurityCountersGroup OBJECT-GROUP
 	STATUS  current
 	DESCRIPTION
 		"A grouping of PTP security (access control) counters."
-	-- 1.3.6.1.4.1.46649.1.1.2.2.18 --
-	-- 1.3.6.1.4.1.46649.1.1.2.2.18
-	::= { ptpbaseMIBGroups 18 }
-
-ptpbaseMIBPtpdCountersGroup OBJECT-GROUP
-	OBJECTS {
-		ptpbasePtpdSpecificCountersClear,
-		consecutiveSequenceErrors,
-		ignoredAnnounce,
-		delayMSOutliersFound,
-		delaySMOutliersFound,
-		maxDelayDrops }
-	STATUS  current
-	DESCRIPTION
-		"A grouping of PTPd-specific counters."
-	-- 1.3.6.1.4.1.46649.1.1.2.2.22 --
-	-- 1.3.6.1.4.1.46649.1.1.2.2.22
-	::= { ptpbaseMIBGroups 22 }
-
-messageSendRate OBJECT-TYPE
-	SYNTAX  Unsigned32
-	UNITS	"Messages per second"
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Message transmission rate (messages per second)"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.5 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.5
-	::= { ptpbasePtpPerformanceCountersEntry 5 }
-
-
-messageReceiveRate OBJECT-TYPE
-	SYNTAX  Unsigned32
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Message receive rate (messages per second)"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.6 --
-	-- 1.3.6.1.4.1.46649.1.1.1.2.16.1.6
-	::= { ptpbasePtpPerformanceCountersEntry 6 }
-
-
-ptpbaseSecurityCountersClear OBJECT-TYPE
-	SYNTAX  TruthValue
-	MAX-ACCESS read-write
-	STATUS  current
-	DESCRIPTION
-		"Handle allowing to clear PTP access control counters"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.17.1.5
-	::= { ptpbasePtpSecurityCountersEntry 5 }
-
-
-ptpbasePtpdSpecificCountersClear OBJECT-TYPE
-	SYNTAX  TruthValue
-	MAX-ACCESS read-write
-	STATUS  current
-	DESCRIPTION
-		"Handle allowing to clear all PTPd-specific counters"
-	-- 1.3.6.1.4.1.46649.1.1.1.2.21.1.5
-	::= { ptpbasePtpdSpecificCountersEntry 5 }
-
-
-rawDelayMS OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Last raw (unfiltered) value of Master to Slave delay (Sync / FollowUp): T2 - T1."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.5
-	::= { ptpbasePtpdSpecificDataEntry 5 }
-
-
-rawDelayMSStringValue OBJECT-TYPE
-	SYNTAX  DisplayString
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Last raw (unfiltered) value of Master to Slave delay (Sync / FollowUp): T2 - T1, presented as text value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.6
-	::= { ptpbasePtpdSpecificDataEntry 6 }
-
-
-rawDelaySM OBJECT-TYPE
-	SYNTAX  ClockTimeInterval
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Last raw (unfiltered) value of Slave to Master delay (Delay Request / Response): T4 - T3."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.7
-	::= { ptpbasePtpdSpecificDataEntry 7 }
-
-
-rawDelaySMStringValue OBJECT-TYPE
-	SYNTAX  DisplayString
-	MAX-ACCESS read-only
-	STATUS  current
-	DESCRIPTION
-		"Last raw (unfiltered) value of Slave to Master delay (Delay Request / Response): T4 - T3, presented as text value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.8
-	::= { ptpbasePtpdSpecificDataEntry 8 }
-
-
-
-ptpBasePortUnexpectedState NOTIFICATION-TYPE
-	OBJECTS {
-		ptpbaseClockPortRunningState}
-	STATUS  current
-	DESCRIPTION
-		"Alarm: port has gone into a state other than expected in current configuration."
-	-- 1.3.6.1.4.1.46649.1.1.0.1
-	::= { ptpbaseMIBNotifs 1 }
-
-
-ptpBasePortExpectedState NOTIFICATION-TYPE
-	OBJECTS {
-		ptpbaseClockPortRunningState}
-	STATUS  current
-	DESCRIPTION
-		"Alarm cleared: port has returned to expected state."
-	-- 1.3.6.1.4.1.46649.1.1.0.2
-	::= { ptpbaseMIBNotifs 2 }
-
-
-ptpBaseSlaveOfmThresholdExceeded NOTIFICATION-TYPE
-	OBJECTS {
-		ptpbaseClockCurrentDSOffsetFromMaster,
-		ptpbaseClockCurrentDSOffsetFromMasterString}
-	STATUS  current
-	DESCRIPTION
-		"Alarm: slave Offset From Master has exceeded defined threshold."
-	-- 1.3.6.1.4.1.46649.1.1.0.3
-	::= { ptpbaseMIBNotifs 3 }
-
-
-ptpBaseSlaveOfmThresholdAcceptable NOTIFICATION-TYPE
-	OBJECTS {
-		ptpbaseClockCurrentDSOffsetFromMaster,
-		ptpbaseClockCurrentDSOffsetFromMasterString}
-	STATUS  current
-	DESCRIPTION
-		"Alarm cleared: slave Offset From Master has returned to a value below threshold."
-	-- 1.3.6.1.4.1.46649.1.1.0.4
-	::= { ptpbaseMIBNotifs 4 }
-
-
-ptpBaseSaveClockStep NOTIFICATION-TYPE
-	OBJECTS {
-		ptpbaseClockCurrentDSOffsetFromMaster,
-		ptpbaseClockCurrentDSOffsetFromMasterString}
-	STATUS  current
-	DESCRIPTION
-		"Event: Clock has been stepped"
-	-- 1.3.6.1.4.1.46649.1.1.0.5
-	::= { ptpbaseMIBNotifs 5 }
-
-
-ptpBaseSlaveNoSync NOTIFICATION-TYPE
-	STATUS  current
-	DESCRIPTION
-		"Alarm: PTP slave stopped receiving Sync messages"
-	-- 1.3.6.1.4.1.46649.1.1.0.6
-	::= { ptpbaseMIBNotifs 6 }
-
-
-ptpBaseSlaveReceivingSync NOTIFICATION-TYPE
-	STATUS  current
-	DESCRIPTION
-		"Alarm cleared: PTP slave is receiving sync after loss of sync."
-	-- 1.3.6.1.4.1.46649.1.1.0.7
-	::= { ptpbaseMIBNotifs 7 }
-
-
-ptpBaseSlaveNoDelay NOTIFICATION-TYPE
-	STATUS  current
-	DESCRIPTION
-		"Alarm: PTP slave is not receiving Delay / pDelay response."
-	-- 1.3.6.1.4.1.46649.1.1.0.8
-	::= { ptpbaseMIBNotifs 8 }
-
-
-ptpBaseSlaveReceivingDelay NOTIFICATION-TYPE
-	STATUS  current
-	DESCRIPTION
-		"Alarm cleared: PTP slave is receiving Delay / pDelay response after loss of Delay / pDelay."
-	-- 1.3.6.1.4.1.46649.1.1.0.9
-	::= { ptpbaseMIBNotifs 9 }
-
-
-ptpBaseBestMasterChange NOTIFICATION-TYPE
-	OBJECTS {
-		ptpbaseClockParentDSParentPortIdentity,
-		ptpbaseClockParentDSParentPortAddressType,
-		ptpbaseClockParentDSParentPortAddress,
-		ptpbaseClockParentDSGMClockIdentity,
-		ptpbaseClockParentDSGMClockPriority1,
-		ptpbaseClockParentDSGMClockPriority2,
-		ptpbaseClockParentDSGMClockQualityClass,
-		ptpbaseClockTimePropertiesDSCurrentUTCOffsetValid,
-		ptpbaseClockPortRunningState}
-	STATUS  current
-	DESCRIPTION
-		"Event: PTP node has changed its Best Master (can be self)."
-	-- 1.3.6.1.4.1.46649.1.1.0.10
-	::= { ptpbaseMIBNotifs 10 }
-
-
-ptpBasePortNetworkFault NOTIFICATION-TYPE
-	OBJECTS {
-		ptpbaseClockPortRunningInterfaceIndex}
-	STATUS  current
-	DESCRIPTION
-		"Alarm: a network fault has occured and PTP port is not usable."
-	-- 1.3.6.1.4.1.46649.1.1.0.11
-	::= { ptpbaseMIBNotifs 11 }
-
-
-ptpBasePortNetworkFaultCleared NOTIFICATION-TYPE
-	OBJECTS {
-		ptpbaseClockPortRunningInterfaceIndex}
-	STATUS  current
-	DESCRIPTION
-		"Alarm cleared: PTP port has recovered from a network fault."
-	-- 1.3.6.1.4.1.46649.1.1.0.12
-	::= { ptpbaseMIBNotifs 12 }
-
-
-ptpBaseClockFreqAdjFast NOTIFICATION-TYPE
-	OBJECTS {
-		freqAdjCurrentValue,
-		freqAdjStatsUpdateInterval,
-		freqAdjStatsMean,
-		freqAdjStatsStatsMedian,
-		freqAdjStatsStdDev}
-	STATUS  current
-	DESCRIPTION
-		"Alarm: PTP Slave clock frequency adjustment is changing rapidly."
-	-- 1.3.6.1.4.1.46649.1.1.0.13
-	::= { ptpbaseMIBNotifs 13 }
-
-
-ptpBaseClockFreqAdjNormal NOTIFICATION-TYPE
-	OBJECTS {
-		freqAdjCurrentValue,
-		freqAdjStatsUpdateInterval,
-		freqAdjStatsMean,
-		freqAdjStatsStatsMedian,
-		freqAdjStatsStdDev}
-	STATUS  current
-	DESCRIPTION
-		"Alarm cleared: PTP Slave clock frequency adjustment has returned to stable levels."
-	-- 1.3.6.1.4.1.46649.1.1.0.14
-	::= { ptpbaseMIBNotifs 14 }
-
-
-ptpBaseSlaveOffsetFromMasterSeconds NOTIFICATION-TYPE
-	OBJECTS {
-		ptpbaseClockCurrentDSOffsetFromMaster,
-		ptpbaseClockCurrentDSOffsetFromMasterString}
-	STATUS  current
-	DESCRIPTION
-		"Alarm: PTP Slave Offset From Master has reached over 1 second."
-	-- 1.3.6.1.4.1.46649.1.1.0.15
-	::= { ptpbaseMIBNotifs 15 }
-
-
-ptpBaseSlaveOffsetFromMasterSubSeconds NOTIFICATION-TYPE
-	OBJECTS {
-		ptpbaseClockCurrentDSOffsetFromMaster,
-		ptpbaseClockCurrentDSOffsetFromMasterString}
-	STATUS  current
-	DESCRIPTION
-		"Alarm cleared: PTP Slave Offset From Master dropped below 1 second after a previous value of over 1 second."
-	-- 1.3.6.1.4.1.46649.1.1.0.16
-	::= { ptpbaseMIBNotifs 16 }
+	-- 1.3.6.1.4.1.46649.1.1.2.2.18 ---- 1.3.6.1.4.1.46649.1.1.2.2.18
+::= { ptpbaseMIBGroups 18 }
 
 ptpbaseMIBSlaveOfmStatisticsGroup OBJECT-GROUP
 	OBJECTS {
@@ -5676,7 +5565,7 @@ ptpbaseMIBSlaveOfmStatisticsGroup OBJECT-GROUP
 	DESCRIPTION
 		"A grouping of PTP slave Offset from Master statistics."
 	-- 1.3.6.1.4.1.46649.1.1.2.2.19
-	::= { ptpbaseMIBGroups 19 }
+::= { ptpbaseMIBGroups 19 }
 
 ptpbaseMIBSlaveMpdStatisticsGroup OBJECT-GROUP
 	OBJECTS {
@@ -5698,7 +5587,7 @@ ptpbaseMIBSlaveMpdStatisticsGroup OBJECT-GROUP
 	DESCRIPTION
 		"A grouping of PTP slave Mean Path Delay statistics."
 	-- 1.3.6.1.4.1.46649.1.1.2.2.20
-	::= { ptpbaseMIBGroups 20 }
+::= { ptpbaseMIBGroups 20 }
 
 ptpbaseMIBSlaveFreqAdjStatisticsGroup OBJECT-GROUP
 	OBJECTS {
@@ -5714,7 +5603,21 @@ ptpbaseMIBSlaveFreqAdjStatisticsGroup OBJECT-GROUP
 	DESCRIPTION
 		"A grouping of PTP slave clock frequency adjustment statistics."
 	-- 1.3.6.1.4.1.46649.1.1.2.2.21
-	::= { ptpbaseMIBGroups 21 }
+::= { ptpbaseMIBGroups 21 }
+
+ptpbaseMIBPtpdCountersGroup OBJECT-GROUP
+	OBJECTS {
+		ptpbasePtpdSpecificCountersClear,
+		consecutiveSequenceErrors,
+		ignoredAnnounce,
+		delayMSOutliersFound,
+		delaySMOutliersFound,
+		maxDelayDrops }
+	STATUS  current
+	DESCRIPTION
+		"A grouping of PTPd-specific counters."
+	-- 1.3.6.1.4.1.46649.1.1.2.2.22 ---- 1.3.6.1.4.1.46649.1.1.2.2.22
+::= { ptpbaseMIBGroups 22 }
 
 ptpbaseMIBPtpdSpecificDataGroup OBJECT-GROUP
 	OBJECTS {
@@ -5726,16 +5629,31 @@ ptpbaseMIBPtpdSpecificDataGroup OBJECT-GROUP
 	DESCRIPTION
 		"A grouping of PTPd-specific data."
 	-- 1.3.6.1.4.1.46649.1.1.2.2.23
-	::= { ptpbaseMIBGroups 23 }
+::= { ptpbaseMIBGroups 23 }
 
 ptpbaseMIBNotificationGroup NOTIFICATION-GROUP
 	NOTIFICATIONS {
 		ptpBasePortExpectedState,
-		ptpBasePortUnexpectedState }
+		ptpBasePortUnexpectedState,
+		ptpBaseSlaveOfmThresholdExceeded,
+		ptpBaseSlaveOfmThresholdAcceptable,
+		ptpBaseSaveClockStep,
+		ptpBaseSlaveNoSync,
+		ptpBaseSlaveReceivingSync,
+		ptpBaseSlaveNoDelay,
+		ptpBaseSlaveReceivingDelay,
+		ptpBaseBestMasterChange,
+		ptpBasePortNetworkFault,
+		ptpBasePortNetworkFaultCleared,
+		ptpBaseClockFreqAdjFast,
+		ptpBaseClockFreqAdjNormal,
+		ptpBaseSlaveOffsetFromMasterSeconds,
+		ptpBaseSlaveOffsetFromMasterSubSeconds,
+		ptpBaseTimePropertiesChange }
 	STATUS  current
 	DESCRIPTION
 		"A grouping of notification objects defined in the PTPBASE-MIB MIB."
 	-- 1.3.6.1.4.1.46649.1.1.2.2.24
-	::= { ptpbaseMIBGroups 24 }
+::= { ptpbaseMIBGroups 24 }
 
 END

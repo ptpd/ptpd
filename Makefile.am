@@ -9,7 +9,7 @@ SUBDIRS =		\
 EXTRA_DIST =			\
 	COPYRIGHT		\
 	ChangeLog		\
-	README			\
+	README.md		\
 	\
 	doc			\
 	tools			\
@@ -24,7 +24,6 @@ EXTRA_DIST =			\
 	src/dep/iniparser/LICENSE\
 	src/dep/iniparser/README\
 	src/templates.conf\
-	src/dep/Makefile\
 	\
 	$(NULL)
 

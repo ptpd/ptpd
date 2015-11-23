@@ -15,7 +15,7 @@ limited platforms.
 
 The 'ptpd' program can be built from the included source code.  To use the
 program, run 'ptpd' on a group of LAN connected computers. Compile with
-'PTPD_DBG' defined and run with the '-c' argument to watch what's going on.
+'PTPD_DBG' defined and run with the '-C' or -V argument to watch what's going on.
 
 If you are just looking for software to update the time on your desktop, you
 probably want something that implements the Network Time Protocol. It can

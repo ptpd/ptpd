@@ -41,7 +41,7 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
-static void sendNotif(int event);
+//static void sendNotif(int event);
 
 /* Hard to get header... */
 extern int header_generic(struct variable *, oid *, size_t *, int,
@@ -75,6 +75,7 @@ enum {
     PTPBASE_CLOCK_DEFAULT_DS_QUALITY_CLASS,
     PTPBASE_CLOCK_DEFAULT_DS_QUALITY_ACCURACY,
     PTPBASE_CLOCK_DEFAULT_DS_QUALITY_OFFSET,
+    PTPBASE_CLOCK_DEFAULT_DS_DOMAIN_NUMBER,     /* PTPd addition */
     PTPBASE_CLOCK_TIME_PROPERTIES_DS_CURRENT_UTC_OFFSET_VALID,
     PTPBASE_CLOCK_TIME_PROPERTIES_DS_CURRENT_UTC_OFFSET,
     PTPBASE_CLOCK_TIME_PROPERTIES_DS_LEAP59,
@@ -100,6 +101,7 @@ enum {
     PTPBASE_CLOCK_PORT_DS_PEER_MEAN_PATH_DELAY,
     PTPBASE_CLOCK_PORT_DS_GRANT_DURATION,
     PTPBASE_CLOCK_PORT_DS_PTP_VERSION,
+    PTPBASE_CLOCK_PORT_DS_PEER_MEAN_PATH_DELAY_STRING,     /* PTPd addition */
     PTPBASE_CLOCK_PORT_RUNNING_NAME,
     PTPBASE_CLOCK_PORT_RUNNING_STATE,
     PTPBASE_CLOCK_PORT_RUNNING_ROLE,
@@ -208,6 +210,7 @@ enum {
 	PTPBASE_NOTIFS_FREQADJ_NORMAL,
 	PTPBASE_NOTIFS_OFFSET_SECONDS,
 	PTPBASE_NOTIFS_OFFSET_SUB_SECONDS,
+	PTPBASE_NOTIFS_TIMEPROPERTIESDS_CHANGE
 };
 
 #define SNMP_PTP_ORDINARY_CLOCK 1
@@ -221,6 +224,9 @@ enum {
 
 #define TRUTHVALUE_TRUE 1
 #define TRUTHVALUE_FALSE 2
+
+#define TO_TRUTHVALUE(a) \
+	(a ? TRUTHVALUE_TRUE : TRUTHVALUE_FALSE)
 
 #define PTPBASE_MIB_OID \
 	1, 3, 6, 1, 4, 1, 46649, 1, 1
@@ -547,6 +553,9 @@ snmpClockDSTable(SNMP_SIGNATURE) {
 		return SNMP_INTEGER(snmpPtpClock->clockQuality.clockAccuracy);
 	case PTPBASE_CLOCK_DEFAULT_DS_QUALITY_OFFSET:
 		return SNMP_INTEGER(snmpPtpClock->clockQuality.offsetScaledLogVariance);
+	/* PTPd addition */
+	case PTPBASE_CLOCK_DEFAULT_DS_DOMAIN_NUMBER:
+		return SNMP_INTEGER(snmpPtpClock->domainNumber);
 	/* ptpbaseClockTimePropertiesDSTable */
 	case PTPBASE_CLOCK_TIME_PROPERTIES_DS_CURRENT_UTC_OFFSET_VALID:
 		return SNMP_BOOLEAN(snmpPtpClock->timePropertiesDS.currentUtcOffsetValid);
@@ -641,7 +650,9 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		return SNMP_UNSIGNED(0);
 	case PTPBASE_CLOCK_PORT_DS_PTP_VERSION:
 		return SNMP_INTEGER(snmpPtpClock->versionNumber);
-
+	case PTPBASE_CLOCK_PORT_DS_PEER_MEAN_PATH_DELAY_STRING:
+		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->peerMeanPathDelay));
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 	/* ptpbaseClockPortRunningTable */
 	case PTPBASE_CLOCK_PORT_RUNNING_STATE:
 		return SNMP_INTEGER(snmpPtpClock->portState);
@@ -666,6 +677,7 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 			return SNMP_INTEGER(SNMP_PTP_TX_MULTICAST_MIX);
 		return SNMP_INTEGER(SNMP_PTP_TX_MULTICAST);
 	case PTPBASE_CLOCK_PORT_RUNNING_PACKETS_RECEIVED:
+
 		return SNMP_COUNTER64(snmpPtpClock->netPath.receivedPacketsTotal);
 	case PTPBASE_CLOCK_PORT_RUNNING_PACKETS_SENT:
 		return SNMP_COUNTER64(snmpPtpClock->netPath.sentPacketsTotal);
@@ -833,9 +845,9 @@ snmpPtpPortMessageCountersTable(SNMP_SIGNATURE) {
 	    *write_method = snmpWriteClearCounters;
 	    return SNMP_FALSE;
 	case PTPBASE_PORT_MESSAGE_COUNTERS_TOTAL_SENT:
-	    return SNMP_INTEGER(0);
+	    return SNMP_INTEGER(snmpPtpClock->netPath.sentPacketsTotal);
 	case PTPBASE_PORT_MESSAGE_COUNTERS_TOTAL_RECEIVED:
-	    return SNMP_INTEGER(0);
+	    return SNMP_INTEGER(snmpPtpClock->netPath.receivedPacketsTotal);
 	case PTPBASE_PORT_MESSAGE_COUNTERS_ANNOUNCE_SENT:
 	    return SNMP_INTEGER(snmpPtpClock->counters.announceMessagesSent);
 	case PTPBASE_PORT_MESSAGE_COUNTERS_ANNOUNCE_RECEIVED:
@@ -1183,6 +1195,9 @@ static struct variable7 snmpVariables[] = {
 	  snmpClockDSTable, 5, {1, 2, 3, 1, 10}},
 	{ PTPBASE_CLOCK_DEFAULT_DS_QUALITY_OFFSET, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpClockDSTable, 5, {1, 2, 3, 1, 11}},
+	/* PTPd addition - this is part of the index, but if you use snmpgetnext, you guess the indexes */
+	{ PTPBASE_CLOCK_DEFAULT_DS_DOMAIN_NUMBER, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpClockDSTable, 5, {1, 2, 3, 1, 12}},
 	/* ptpbaseClockRunningTable: no data available for this table? */
 	/* ptpbaseClockTimePropertiesDSTable */
 	{ PTPBASE_CLOCK_TIME_PROPERTIES_DS_CURRENT_UTC_OFFSET_VALID, ASN_INTEGER, HANDLER_CAN_RONLY,
@@ -1237,6 +1252,8 @@ static struct variable7 snmpVariables[] = {
 	   snmpClockPortTable, 5, {1, 2, 8, 1, 14}},
 	{ PTPBASE_CLOCK_PORT_DS_PTP_VERSION, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpClockPortTable, 5, {1, 2, 8, 1, 15}},
+	{ PTPBASE_CLOCK_PORT_DS_PEER_MEAN_PATH_DELAY_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpClockPortTable, 5, {1, 2, 8, 1, 16}},
 	/* ptpbaseClockPortRunningTable */
 	{ PTPBASE_CLOCK_PORT_RUNNING_NAME, ASN_OCTET_STR, HANDLER_CAN_RONLY,
 	  snmpClockPortTable, 5, {1, 2, 9, 1, 5}},
@@ -1453,6 +1470,8 @@ getNotifIndex(int eventType) {
 		    return 15;
 		case PTPBASE_NOTIFS_OFFSET_SUB_SECONDS:
 		    return 16;
+		case PTPBASE_NOTIFS_TIMEPROPERTIESDS_CHANGE:
+		    return 17;
 		default:
 		    return 0;
 	}
@@ -1494,29 +1513,145 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			    ASN_INTEGER, (u_char *) &snmpRtOpts->ofmAlarmThreshold, sizeof(snmpRtOpts->ofmAlarmThreshold));
 		    }
 		    return;
-		case PTPBASE_NOTIFS_SLAVE_CLOCK_STEP:
-		    return;
 		case PTPBASE_NOTIFS_SLAVE_NO_SYNC:
-		    return;
 		case PTPBASE_NOTIFS_SLAVE_RECEIVING_SYNC:
 		    return;
 		case PTPBASE_NOTIFS_SLAVE_NO_DELAY:
-		    return;
 		case PTPBASE_NOTIFS_SLAVE_RECEIVING_DELAY:
 		    return;
 		case PTPBASE_NOTIFS_BEST_MASTER_CHANGE:
+		    {
+			oid portIdOid[] = { PTPBASE_MIB_OID, 1, 2, 2, 1, 4 , PTPBASE_MIB_INDEX3 };
+			oid portAddrTypeOid[] = { PTPBASE_MIB_OID, 1, 2, 2, 1, 14, PTPBASE_MIB_INDEX3 };
+			oid portAddrOid[] = { PTPBASE_MIB_OID, 1, 2, 2, 1, 15, PTPBASE_MIB_INDEX3 };
+			oid gmClockIdOid[] = { PTPBASE_MIB_OID, 1, 2, 2, 1, 8, PTPBASE_MIB_INDEX3 };
+			oid gmPriority1Oid[] = { PTPBASE_MIB_OID, 1, 2, 2, 1, 9, PTPBASE_MIB_INDEX3 };
+			oid gmPriority2Oid[] = { PTPBASE_MIB_OID, 1, 2, 2, 1, 10, PTPBASE_MIB_INDEX3 };
+			oid gmClockClassOid[] = { PTPBASE_MIB_OID, 1, 2, 2, 1, 11, PTPBASE_MIB_INDEX3 };
+			oid utcOffsetOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1 , 5, PTPBASE_MIB_INDEX3 };
+			oid utcOffsetValidOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1, 4, PTPBASE_MIB_INDEX3 };
+			oid portStateOid[] = { PTPBASE_MIB_OID, 1, 2, 9, 1, 6, PTPBASE_MIB_INDEX4 };
+
+			unsigned long addrType = SNMP_IPv4;
+
+			uint32_t sa = 0;
+			if(snmpPtpClock->bestMaster) { 
+			    sa = snmpPtpClock->bestMaster->sourceAddr;
+			}
+
+			unsigned long priority1 = snmpPtpClock->grandmasterPriority1;
+			unsigned long priority2 = snmpPtpClock->grandmasterPriority2;
+			unsigned long clockClass = snmpPtpClock->grandmasterClockQuality.clockClass;
+			unsigned long utcOffset = snmpPtpClock->timePropertiesDS.currentUtcOffset;
+			unsigned long utcOffsetValid = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.currentUtcOffsetValid);
+
+			snmp_varlist_add_variable(varBinds, portIdOid, OID_LENGTH(portIdOid),
+			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->parentPortIdentity, sizeof(PortIdentity));
+
+			snmp_varlist_add_variable(varBinds, portAddrTypeOid, OID_LENGTH(portAddrTypeOid),
+			    ASN_INTEGER, (u_char *) &addrType, sizeof(addrType));
+
+			snmp_varlist_add_variable(varBinds, portAddrOid, OID_LENGTH(portAddrOid),
+			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->bestMaster->sourceAddr, sizeof(snmpPtpClock->bestMaster->sourceAddr));
+
+			snmp_varlist_add_variable(varBinds, gmClockIdOid, OID_LENGTH(gmClockIdOid),
+			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->grandmasterIdentity, sizeof(ClockIdentity));
+
+			snmp_varlist_add_variable(varBinds, gmPriority1Oid, OID_LENGTH(gmPriority1Oid),
+			    ASN_UNSIGNED, (u_char *) &priority1, sizeof(priority1));
+
+			snmp_varlist_add_variable(varBinds, gmPriority2Oid, OID_LENGTH(gmPriority2Oid),
+			    ASN_UNSIGNED, (u_char *) &priority2, sizeof(priority2));
+
+			snmp_varlist_add_variable(varBinds, gmClockClassOid, OID_LENGTH(gmClockClassOid),
+			    ASN_UNSIGNED, (u_char *) &clockClass, sizeof(clockClass));
+
+			snmp_varlist_add_variable(varBinds, utcOffsetOid, OID_LENGTH(utcOffsetOid),
+			    ASN_INTEGER, (u_char *) &utcOffset, sizeof(utcOffset));
+
+			snmp_varlist_add_variable(varBinds, utcOffsetValidOid, OID_LENGTH(utcOffsetValidOid),
+			    ASN_INTEGER, (u_char *) &utcOffsetValid, sizeof(utcOffsetValid));
+
+			snmp_varlist_add_variable(varBinds, portStateOid, OID_LENGTH(portStateOid),
+			    ASN_INTEGER, (u_char *) &snmpPtpClock->portState, sizeof(snmpPtpClock->portState));
+		    }
 		    return;
 		case PTPBASE_NOTIFS_NETWORK_FAULT:
-		    return;
 		case PTPBASE_NOTIFS_NETWORK_FAULT_CLEARED:
 		    return;
 		case PTPBASE_NOTIFS_FREQADJ_FAST:
-		    return;
 		case PTPBASE_NOTIFS_FREQADJ_NORMAL:
 		    return;
+		case PTPBASE_NOTIFS_SLAVE_CLOCK_STEP:
 		case PTPBASE_NOTIFS_OFFSET_SECONDS:
-		    return;
 		case PTPBASE_NOTIFS_OFFSET_SUB_SECONDS:
+		    {
+			U64 ofmNum;
+			Integer64  tmpi64;
+			internalTime_to_integer64(snmpPtpClock->offsetFromMaster, &tmpi64);
+			ofmNum.low = htonl(tmpi64.lsb);
+			ofmNum.high = htonl(tmpi64.msb);
+
+			tmpsnprintf(ofmStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->offsetFromMaster));
+
+			oid ofmOid[] = { PTPBASE_MIB_OID, 1, 2, 1, 1, 5, PTPBASE_MIB_INDEX3 };
+			oid ofmStringOid[] = { PTPBASE_MIB_OID, 1, 2, 1, 1, 8, PTPBASE_MIB_INDEX3 };
+
+			snmp_varlist_add_variable(varBinds, ofmOid, OID_LENGTH(ofmOid),
+			    ASN_OCTET_STR, (u_char *) &ofmNum, sizeof(ofmNum));
+			snmp_varlist_add_variable(varBinds, ofmStringOid, OID_LENGTH(ofmStringOid),
+			    ASN_OCTET_STR, (u_char *) ofmStr, strlen(ofmStr));
+		    }
+		    return;
+
+		case PTPBASE_NOTIFS_TIMEPROPERTIESDS_CHANGE:
+		    {
+			oid utcOffsetValidOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1, 4, PTPBASE_MIB_INDEX3 };
+			oid utcOffsetOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1 , 5, PTPBASE_MIB_INDEX3 };
+			oid leap59Oid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1 , 6, PTPBASE_MIB_INDEX3 };
+			oid leap61Oid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1 , 7, PTPBASE_MIB_INDEX3 };
+			oid timeTraceableOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1 , 8, PTPBASE_MIB_INDEX3 };
+			oid frequencyTraceableOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1 , 9, PTPBASE_MIB_INDEX3 };
+			oid ptpTimescaleOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1 , 10, PTPBASE_MIB_INDEX3 };
+			oid timeSourceOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1 , 11, PTPBASE_MIB_INDEX3 };
+
+			unsigned long utcOffset = snmpPtpClock->timePropertiesDS.currentUtcOffset;
+			unsigned long utcOffsetValid = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.currentUtcOffsetValid);
+			unsigned long leap59 = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.leap61);
+			unsigned long leap61 = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.leap61);
+			unsigned long timeTraceable = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.timeTraceable);
+			unsigned long frequencyTraceable = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.frequencyTraceable);
+			unsigned long ptpTimescale = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.ptpTimescale);
+			unsigned long timeSource = snmpPtpClock->timePropertiesDS.timeSource;
+
+			snmp_varlist_add_variable(varBinds, utcOffsetValidOid, OID_LENGTH(utcOffsetValidOid),
+			    ASN_INTEGER, (u_char *) &utcOffsetValid, sizeof(utcOffsetValid));
+
+			snmp_varlist_add_variable(varBinds, utcOffsetOid, OID_LENGTH(utcOffsetOid),
+			    ASN_INTEGER, (u_char *) &utcOffset, sizeof(utcOffset));
+
+			snmp_varlist_add_variable(varBinds, leap59Oid, OID_LENGTH(leap59Oid),
+			    ASN_INTEGER, (u_char *) &leap59, sizeof(leap59));
+
+			snmp_varlist_add_variable(varBinds, leap61Oid, OID_LENGTH(leap61Oid),
+			    ASN_INTEGER, (u_char *) &leap61, sizeof(leap61));
+
+			snmp_varlist_add_variable(varBinds, timeTraceableOid, OID_LENGTH(timeTraceableOid),
+			    ASN_INTEGER, (u_char *) &timeTraceable, sizeof(timeTraceable));
+
+			snmp_varlist_add_variable(varBinds, frequencyTraceableOid, OID_LENGTH(frequencyTraceableOid),
+			    ASN_INTEGER, (u_char *) &frequencyTraceable, sizeof(frequencyTraceable));
+
+			snmp_varlist_add_variable(varBinds, ptpTimescaleOid, OID_LENGTH(ptpTimescaleOid),
+			    ASN_INTEGER, (u_char *) &ptpTimescale, sizeof(ptpTimescale));
+
+			snmp_varlist_add_variable(varBinds, ptpTimescaleOid, OID_LENGTH(ptpTimescaleOid),
+			    ASN_INTEGER, (u_char *) &ptpTimescale, sizeof(ptpTimescale));
+
+			snmp_varlist_add_variable(varBinds, timeSourceOid, OID_LENGTH(timeSourceOid),
+			    ASN_INTEGER, (u_char *) &timeSource, sizeof(timeSource));
+
+		    }
 		    return;
 		default:
 		    return;
@@ -1524,7 +1659,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 
 }
 
-static void
+void
 sendNotif(int eventType) {
 
     /* snmpTrapOID.0 */
