@@ -675,11 +675,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
                         ptpClock->logAnnounceInterval = ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].logInterval;
 			me.localPreference = ptpClock->parentGrants->localPreference;
 		}
-/*
-	if(newBM) {
-		sendNotif(16);
-	}
-*/
+
 		return PTP_SLAVE;
 	}
 
