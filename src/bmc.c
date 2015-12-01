@@ -646,6 +646,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 			    ptpClock->parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH)) ||
 		(foreign->header.sourcePortIdentity.portNumber != ptpClock->parentPortIdentity.portNumber));
 
+
 	
 	if (ptpClock->slaveOnly) {
 		/* master has changed: mark old grants for cancellation - refreshUnicastGrants will pick this up */
@@ -673,7 +674,8 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
                 if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL) {
                         ptpClock->logAnnounceInterval = ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].logInterval;
 			me.localPreference = ptpClock->parentGrants->localPreference;
-                }
+		}
+
 		return PTP_SLAVE;
 	}
 

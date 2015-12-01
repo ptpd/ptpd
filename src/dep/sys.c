@@ -2173,7 +2173,7 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 		if (!rtOpts->noAdjust && ptpClock->clockControl.granted) {
 			adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->last_saved_drift);
 		}
-		DBG("loaded cached drift");
+		DBG("loaded cached drift\n");
 		return;
 	}
 
