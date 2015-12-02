@@ -1157,7 +1157,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		 * but only need interface address for unicast
 		 */
 
-		if(rtOpts->ipMode == IPMODE_UNICAST) {
+		if(rtOpts->ipMode == IPMODE_UNICAST ||
+		   rtOpts->ignore_daemon_lock) {
 			addr.sin_addr = netPath->interfaceAddr;
 		} else {
 			addr.sin_addr.s_addr = htonl(INADDR_ANY);
