@@ -4361,8 +4361,8 @@ ofmCurrentValue OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Current value of Offset From Master."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.5
-::= { ptpbaseSlaveOfmStatisticsEntry 5 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.4
+::= { ptpbaseSlaveOfmStatisticsEntry 4 }
 
 
 ofmCurrentStringValue OBJECT-TYPE
@@ -4371,8 +4371,8 @@ ofmCurrentStringValue OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Current value of Offset From Master, presented as text."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.6
-::= { ptpbaseSlaveOfmStatisticsEntry 6 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.5
+::= { ptpbaseSlaveOfmStatisticsEntry 5 }
 
 
 ofmStatsUpdateInterval OBJECT-TYPE
@@ -4382,8 +4382,8 @@ ofmStatsUpdateInterval OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Update interval for Offset From Master statistics."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.7
-::= { ptpbaseSlaveOfmStatisticsEntry 7 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.6
+::= { ptpbaseSlaveOfmStatisticsEntry 6 }
 
 
 ofmStatsValid OBJECT-TYPE
@@ -4392,8 +4392,8 @@ ofmStatsValid OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Determines if current Offset From Master statistics are valid."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.8
-::= { ptpbaseSlaveOfmStatisticsEntry 8 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.7
+::= { ptpbaseSlaveOfmStatisticsEntry 7 }
 
 
 ofmStatsMin OBJECT-TYPE
@@ -4403,8 +4403,8 @@ ofmStatsMin OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Minimum Offset From Master in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.9
-::= { ptpbaseSlaveOfmStatisticsEntry 9 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.8
+::= { ptpbaseSlaveOfmStatisticsEntry 8 }
 
 
 ofmStatsMax OBJECT-TYPE
@@ -4413,8 +4413,8 @@ ofmStatsMax OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Maximum Offset From Master in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.10
-::= { ptpbaseSlaveOfmStatisticsEntry 10 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.9
+::= { ptpbaseSlaveOfmStatisticsEntry 9 }
 
 
 ofmStatsMean OBJECT-TYPE
@@ -4424,8 +4424,8 @@ ofmStatsMean OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Mean Offset From Master in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.11
-::= { ptpbaseSlaveOfmStatisticsEntry 11 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.10
+::= { ptpbaseSlaveOfmStatisticsEntry 10 }
 
 
 ofmStatsStdDev OBJECT-TYPE
@@ -4435,8 +4435,8 @@ ofmStatsStdDev OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Standard deviation of Offset From Master in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.12
-::= { ptpbaseSlaveOfmStatisticsEntry 12 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.11
+::= { ptpbaseSlaveOfmStatisticsEntry 11 }
 
 
 ofmStatsMedian OBJECT-TYPE
@@ -4446,8 +4446,8 @@ ofmStatsMedian OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Median of Offset From Master in the last statistics update window."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.13
-::= { ptpbaseSlaveOfmStatisticsEntry 13 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.12
+::= { ptpbaseSlaveOfmStatisticsEntry 12 }
 
 
 ofmStatsMinStringValue OBJECT-TYPE
@@ -4456,8 +4456,8 @@ ofmStatsMinStringValue OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Minimum Offset From Master in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.14
-::= { ptpbaseSlaveOfmStatisticsEntry 14 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.13
+::= { ptpbaseSlaveOfmStatisticsEntry 13 }
 
 
 ofmStatsMaxStringValue OBJECT-TYPE
@@ -4466,8 +4466,8 @@ ofmStatsMaxStringValue OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Maximum Offset From Master in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.15
-::= { ptpbaseSlaveOfmStatisticsEntry 15 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.14
+::= { ptpbaseSlaveOfmStatisticsEntry 14 }
 
 
 ofmStatsMeanStringValue OBJECT-TYPE
@@ -4476,8 +4476,8 @@ ofmStatsMeanStringValue OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Mean of Offset From Master in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.16
-::= { ptpbaseSlaveOfmStatisticsEntry 16 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.15
+::= { ptpbaseSlaveOfmStatisticsEntry 15 }
 
 
 ofmStatsStdDevStringValue OBJECT-TYPE
@@ -4486,8 +4486,8 @@ ofmStatsStdDevStringValue OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Standard deviation of Offset From Master in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.17
-::= { ptpbaseSlaveOfmStatisticsEntry 17 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.16
+::= { ptpbaseSlaveOfmStatisticsEntry 16 }
 
 
 ofmStatsMedianStringValue OBJECT-TYPE
@@ -4496,8 +4496,8 @@ ofmStatsMedianStringValue OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Median of Offset From Master in the last statistics update window, presented as textual value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.18
-::= { ptpbaseSlaveOfmStatisticsEntry 18 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.18.1.17
+::= { ptpbaseSlaveOfmStatisticsEntry 17 }
 
 
 ptpbaseSlaveMpdStatisticsTable OBJECT-TYPE
@@ -5050,8 +5050,7 @@ ptpbasePtpdSpecificDataEntry OBJECT-TYPE
 	INDEX {
 		ptpbasePtpdSpecificDataDomainIndex,
 		ptpbasePtpdSpecificDataClockTypeIndex,
-		ptpbasePtpdSpecificDataInstanceIndex,
-		ptpbasePtpdSpecificDataClockPortNumberIndex }
+		ptpbasePtpdSpecificDataInstanceIndex}
 	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1
 ::= { ptpbasePtpdSpecificDataTable 1 }
 
@@ -5061,7 +5060,6 @@ PtpbasePtpdSpecificDataEntry ::= SEQUENCE {
 	ptpbasePtpdSpecificDataDomainIndex          ClockDomainType,
 	ptpbasePtpdSpecificDataClockTypeIndex       ClockType,
 	ptpbasePtpdSpecificDataInstanceIndex        ClockInstanceType,
-	ptpbasePtpdSpecificDataClockPortNumberIndex ClockPortNumber,
 	rawDelayMS                                  ClockTimeInterval,
 	rawDelayMSStringValue                       DisplayString,
 	rawDelaySM                                  ClockTimeInterval,
@@ -5101,23 +5099,14 @@ ptpbasePtpdSpecificDataInstanceIndex OBJECT-TYPE
 ::= { ptpbasePtpdSpecificDataEntry 3 }
 
 
-ptpbasePtpdSpecificDataClockPortNumberIndex OBJECT-TYPE
-	SYNTAX  ClockPortNumber
-	MAX-ACCESS not-accessible
-	STATUS  current
-	DESCRIPTION ""
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.4
-::= { ptpbasePtpdSpecificDataEntry 4 }
-
-
 rawDelayMS OBJECT-TYPE
 	SYNTAX  ClockTimeInterval
 	MAX-ACCESS read-only
 	STATUS  current
 	DESCRIPTION
 		"Last raw (unfiltered) value of Master to Slave delay (Sync / FollowUp): T2 - T1."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.5
-::= { ptpbasePtpdSpecificDataEntry 5 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.4
+::= { ptpbasePtpdSpecificDataEntry 4 }
 
 
 rawDelayMSStringValue OBJECT-TYPE
@@ -5126,8 +5115,8 @@ rawDelayMSStringValue OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Last raw (unfiltered) value of Master to Slave delay (Sync / FollowUp): T2 - T1, presented as text value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.6
-::= { ptpbasePtpdSpecificDataEntry 6 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.5
+::= { ptpbasePtpdSpecificDataEntry 5 }
 
 
 rawDelaySM OBJECT-TYPE
@@ -5136,8 +5125,8 @@ rawDelaySM OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Last raw (unfiltered) value of Slave to Master delay (Delay Request / Response): T4 - T3."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.7
-::= { ptpbasePtpdSpecificDataEntry 7 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.6
+::= { ptpbasePtpdSpecificDataEntry 6 }
 
 
 rawDelaySMStringValue OBJECT-TYPE
@@ -5146,8 +5135,8 @@ rawDelaySMStringValue OBJECT-TYPE
 	STATUS  current
 	DESCRIPTION
 		"Last raw (unfiltered) value of Slave to Master delay (Delay Request / Response): T4 - T3, presented as text value."
-	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.8
-::= { ptpbasePtpdSpecificDataEntry 8 }
+	-- 1.3.6.1.4.1.46649.1.1.1.2.22.1.7
+::= { ptpbasePtpdSpecificDataEntry 7 }
 
 
 ptpbaseMIBConformance OBJECT IDENTIFIER 

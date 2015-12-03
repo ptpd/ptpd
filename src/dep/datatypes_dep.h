@@ -73,6 +73,7 @@ typedef struct {
         Boolean hasAfAddress;
         int addressFamily;
         unsigned int flags;
+	int ifIndex;
 } InterfaceInfo;
 
 

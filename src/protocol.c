@@ -633,6 +633,8 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->servo.stableCount = 0;
 		ptpClock->servo.updateCount = 0;
 		ptpClock->servo.statsCalculated = FALSE;
+		ptpClock->servo.statsUpdated = FALSE;
+		resetDoublePermanentMedian(&ptpClock->servo.driftMedianContainer);
 		resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
 		timerStart(&ptpClock->timers[STATISTICS_UPDATE_TIMER], rtOpts->statsUpdateInterval);
 #endif /* PTPD_STATISTICS */
@@ -2239,7 +2241,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 					recv_time = requestReceiptTimestamp (received inside delayResp)
 				*/
 
-				updateDelay(&ptpClock->owd_filt,
+				updateDelay(&ptpClock->mpd_filt,
 					    rtOpts,ptpClock, &correctionField);
 				if (ptpClock->delayRespWaiting) {
 
@@ -2481,7 +2483,7 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 					ptpClock->pdelay_resp_receive_time.nanoseconds = tint->nanoseconds;
 					
 					integer64_to_internalTime(header->correctionField,&correctionField);
-					updatePeerDelay (&ptpClock->owd_filt,rtOpts,ptpClock,&correctionField,FALSE);
+					updatePeerDelay (&ptpClock->mpd_filt,rtOpts,ptpClock,&correctionField,FALSE);
 				if (rtOpts->ignore_delayreq_interval_master == 0) {
 					DBGV("current pdelay_req: %d  new pdelay req: %d \n",
 						ptpClock->logMinPdelayReqInterval,
@@ -2616,7 +2618,7 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 					&correctionField);
 				addTime(&correctionField,&correctionField,
 					&ptpClock->lastPdelayRespCorrectionField);
-				updatePeerDelay (&ptpClock->owd_filt,
+				updatePeerDelay (&ptpClock->mpd_filt,
 						 rtOpts, ptpClock,
 						 &correctionField,TRUE);
 

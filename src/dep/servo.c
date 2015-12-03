@@ -100,7 +100,7 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	ptpClock->ofm_filt.y           = 0;
 	ptpClock->ofm_filt.nsec_prev   = 0;
 
-	ptpClock->owd_filt.s_exp       = 0;  /* clears one-way delay filter */
+	ptpClock->mpd_filt.s_exp       = 0;  /* clears one-way delay filter */
 	ptpClock->offsetFirstUpdated   = FALSE;
 
 	ptpClock->char_last_msg='I';
@@ -115,7 +115,7 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 }
 
 void
-updateDelay(one_way_delay_filter * owd_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
+updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
 	/* updates paused, leap second pending - do nothing */
@@ -281,7 +281,7 @@ updateDelay(one_way_delay_filter * owd_filt, const RunTimeOpts * rtOpts, PtpCloc
 				"clearing filter\n");
 			INFO("Servo: Ignoring delayResp because of large OFM\n");
 			
-			owd_filt->s_exp = owd_filt->nsec_prev = 0;
+			mpd_filt->s_exp = mpd_filt->nsec_prev = 0;
 			/* revert back to previous value */
 			ptpClock->meanPathDelay = prev_meanPathDelay;
 			goto finish;
@@ -298,31 +298,31 @@ updateDelay(one_way_delay_filter * owd_filt, const RunTimeOpts * rtOpts, PtpCloc
 
 		/* avoid overflowing filter */
 		s = rtOpts->s;
-		while (abs(owd_filt->y) >> (31 - s))
+		while (abs(mpd_filt->y) >> (31 - s))
 			--s;
 
 		/* crank down filter cutoff by increasing 's_exp' */
-		if (owd_filt->s_exp < 1)
-			owd_filt->s_exp = 1;
-		else if (owd_filt->s_exp < 1 << s)
-			++owd_filt->s_exp;
-		else if (owd_filt->s_exp > 1 << s)
-			owd_filt->s_exp = 1 << s;
+		if (mpd_filt->s_exp < 1)
+			mpd_filt->s_exp = 1;
+		else if (mpd_filt->s_exp < 1 << s)
+			++mpd_filt->s_exp;
+		else if (mpd_filt->s_exp > 1 << s)
+			mpd_filt->s_exp = 1 << s;
 
 		/* filter 'meanPathDelay' */
 		double fy =
-			(double)((owd_filt->s_exp - 1.0) *
-			owd_filt->y / (owd_filt->s_exp + 0.0) +
+			(double)((mpd_filt->s_exp - 1.0) *
+			mpd_filt->y / (mpd_filt->s_exp + 0.0) +
 			(ptpClock->meanPathDelay.nanoseconds / 2.0 + 
-			 owd_filt->nsec_prev / 2.0) / (owd_filt->s_exp + 0.0));
+			 mpd_filt->nsec_prev / 2.0) / (mpd_filt->s_exp + 0.0));
 
-		owd_filt->nsec_prev = ptpClock->meanPathDelay.nanoseconds;
+		mpd_filt->nsec_prev = ptpClock->meanPathDelay.nanoseconds;
 
-		owd_filt->y = round(fy);
+		mpd_filt->y = round(fy);
 
-		ptpClock->meanPathDelay.nanoseconds = owd_filt->y;
+		ptpClock->meanPathDelay.nanoseconds = mpd_filt->y;
 
-		DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
+		DBGV("delay filter %d, %d\n", mpd_filt->y, mpd_filt->s_exp);
 	} else {
 		DBG("Ignoring delayResp because we didn't receive any sync yet\n");
 		ptpClock->counters.discardedMessages++;
@@ -335,7 +335,18 @@ DBG("UpdateDelay: Max delay hit: %d\n", maxDelayHit);
 #ifdef PTPD_STATISTICS
 	/* don't churn on stats containers with the old value if we've discarded an outlier */
 	if(!(ptpClock->oFilterSM.config.enabled && ptpClock->oFilterSM.config.discard && ptpClock->oFilterSM.lastOutlier)) {
-		feedDoublePermanentStdDev(&ptpClock->slaveStats.owdStats, timeInternalToDouble(&ptpClock->meanPathDelay));
+		feedDoublePermanentStdDev(&ptpClock->slaveStats.mpdStats, timeInternalToDouble(&ptpClock->meanPathDelay));
+		feedDoublePermanentMedian(&ptpClock->slaveStats.mpdMedianContainer, timeInternalToDouble(&ptpClock->meanPathDelay));
+		if(!ptpClock->slaveStats.mpdStatsUpdated) {
+			if(timeInternalToDouble(&ptpClock->meanPathDelay) != 0.0){
+			ptpClock->slaveStats.mpdMax = timeInternalToDouble(&ptpClock->meanPathDelay);
+			ptpClock->slaveStats.mpdMin = timeInternalToDouble(&ptpClock->meanPathDelay);
+			ptpClock->slaveStats.mpdStatsUpdated = TRUE;
+			}
+		} else {
+		    ptpClock->slaveStats.mpdMax = max(ptpClock->slaveStats.mpdMax, timeInternalToDouble(&ptpClock->meanPathDelay));
+		    ptpClock->slaveStats.mpdMin = min(ptpClock->slaveStats.mpdMin, timeInternalToDouble(&ptpClock->meanPathDelay));
+		}
 	}
 #endif /* PTPD_STATISTICS */
 
@@ -344,7 +355,7 @@ DBG("UpdateDelay: Max delay hit: %d\n", maxDelayHit);
 }
 
 void
-updatePeerDelay(one_way_delay_filter * owd_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField, Boolean twoStep)
+updatePeerDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField, Boolean twoStep)
 {
 	Integer16 s;
 
@@ -394,32 +405,32 @@ updatePeerDelay(one_way_delay_filter * owd_filt, const RunTimeOpts * rtOpts, Ptp
 
 	if (ptpClock->peerMeanPathDelay.seconds) {
 		/* cannot filter with secs, clear filter */
-		owd_filt->s_exp = owd_filt->nsec_prev = 0;
+		mpd_filt->s_exp = mpd_filt->nsec_prev = 0;
 		return;
 	}
 	/* avoid overflowing filter */
 	s = rtOpts->s;
-	while (abs(owd_filt->y) >> (31 - s))
+	while (abs(mpd_filt->y) >> (31 - s))
 		--s;
 
 	/* crank down filter cutoff by increasing 's_exp' */
-	if (owd_filt->s_exp < 1)
-		owd_filt->s_exp = 1;
-	else if (owd_filt->s_exp < 1 << s)
-		++owd_filt->s_exp;
-	else if (owd_filt->s_exp > 1 << s)
-		owd_filt->s_exp = 1 << s;
+	if (mpd_filt->s_exp < 1)
+		mpd_filt->s_exp = 1;
+	else if (mpd_filt->s_exp < 1 << s)
+		++mpd_filt->s_exp;
+	else if (mpd_filt->s_exp > 1 << s)
+		mpd_filt->s_exp = 1 << s;
 
 	/* filter 'meanPathDelay' */
-	owd_filt->y = (owd_filt->s_exp - 1) * 
-		owd_filt->y / owd_filt->s_exp +
+	mpd_filt->y = (mpd_filt->s_exp - 1) * 
+		mpd_filt->y / mpd_filt->s_exp +
 		(ptpClock->peerMeanPathDelay.nanoseconds / 2 + 
-		 owd_filt->nsec_prev / 2) / owd_filt->s_exp;
+		 mpd_filt->nsec_prev / 2) / mpd_filt->s_exp;
 
-	owd_filt->nsec_prev = ptpClock->peerMeanPathDelay.nanoseconds;
-	ptpClock->peerMeanPathDelay.nanoseconds = owd_filt->y;
+	mpd_filt->nsec_prev = ptpClock->peerMeanPathDelay.nanoseconds;
+	ptpClock->peerMeanPathDelay.nanoseconds = mpd_filt->y;
 
-	DBGV("delay filter %d, %d\n", owd_filt->y, owd_filt->s_exp);
+	DBGV("delay filter %d, %d\n", mpd_filt->y, mpd_filt->s_exp);
 
 
 	if(ptpClock->portState == PTP_SLAVE)
@@ -615,6 +626,19 @@ DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 #ifdef PTPD_STATISTICS
 	if(!ptpClock->oFilterMS.lastOutlier) {
             feedDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats, timeInternalToDouble(&ptpClock->offsetFromMaster));
+            feedDoublePermanentMedian(&ptpClock->slaveStats.ofmMedianContainer, timeInternalToDouble(&ptpClock->offsetFromMaster));
+		if(!ptpClock->slaveStats.ofmStatsUpdated) {
+			if(timeInternalToDouble(&ptpClock->offsetFromMaster) != 0.0){
+			ptpClock->slaveStats.ofmMax = timeInternalToDouble(&ptpClock->offsetFromMaster);
+			ptpClock->slaveStats.ofmMin = timeInternalToDouble(&ptpClock->offsetFromMaster);
+			ptpClock->slaveStats.ofmStatsUpdated = TRUE;
+			}
+		} else {
+		    ptpClock->slaveStats.ofmMax = max(ptpClock->slaveStats.ofmMax, timeInternalToDouble(&ptpClock->offsetFromMaster));
+		    ptpClock->slaveStats.ofmMin = min(ptpClock->slaveStats.ofmMin, timeInternalToDouble(&ptpClock->offsetFromMaster));
+		}
+
+
 	}
 #endif /* PTPD_STATISTICS */
 
@@ -978,6 +1002,17 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	ptpClock->pastStartup = TRUE;
 #ifdef PTPD_STATISTICS
 	feedDoublePermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
+	feedDoublePermanentMedian(&ptpClock->servo.driftMedianContainer, ptpClock->servo.observedDrift);
+	if(!ptpClock->servo.statsUpdated) {
+	    if(ptpClock->servo.observedDrift != 0.0){
+		ptpClock->servo.driftMax = ptpClock->servo.observedDrift;
+		ptpClock->servo.driftMin = ptpClock->servo.observedDrift;
+		ptpClock->servo.statsUpdated = TRUE;
+	    }
+	} else {
+	ptpClock->servo.driftMax = max(ptpClock->servo.driftMax, ptpClock->servo.observedDrift);
+	ptpClock->servo.driftMin = min(ptpClock->servo.driftMin, ptpClock->servo.observedDrift);
+	}
 #endif
 
 }
@@ -1160,24 +1195,34 @@ updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 	
 		DBG("samples used: %d/%d = %.03f\n", ptpClock->acceptedUpdates, ptpClock->offsetUpdates, (ptpClock->acceptedUpdates + 0.0) / (ptpClock->offsetUpdates + 0.0));
 
-	ptpClock->slaveStats.owdMean = ptpClock->slaveStats.owdStats.meanContainer.mean;
-	ptpClock->slaveStats.owdStdDev = ptpClock->slaveStats.owdStats.stdDev;
+	ptpClock->slaveStats.mpdMean = ptpClock->slaveStats.mpdStats.meanContainer.mean;
+	ptpClock->slaveStats.mpdStdDev = ptpClock->slaveStats.mpdStats.stdDev;
+	ptpClock->slaveStats.mpdMedian = ptpClock->slaveStats.mpdMedianContainer.median;
 	ptpClock->slaveStats.ofmMean = ptpClock->slaveStats.ofmStats.meanContainer.mean;
 	ptpClock->slaveStats.ofmStdDev = ptpClock->slaveStats.ofmStats.stdDev;
+	ptpClock->slaveStats.ofmMedian = ptpClock->slaveStats.ofmMedianContainer.median;
+
 	ptpClock->slaveStats.statsCalculated = TRUE;
 	ptpClock->servo.driftMean = ptpClock->servo.driftStats.meanContainer.mean;
 	ptpClock->servo.driftStdDev = ptpClock->servo.driftStats.stdDev;
+	ptpClock->servo.driftMedian = ptpClock->servo.driftMedianContainer.median;
 	ptpClock->servo.statsCalculated = TRUE;
 
 	resetDoublePermanentMean(&ptpClock->oFilterMS.acceptedStats);
 	resetDoublePermanentMean(&ptpClock->oFilterSM.acceptedStats);
 
-	if(ptpClock->slaveStats.owdStats.meanContainer.count >= 10.0)
-		resetDoublePermanentStdDev(&ptpClock->slaveStats.owdStats);
-	if(ptpClock->slaveStats.ofmStats.meanContainer.count >= 10.0)
+	if(ptpClock->slaveStats.mpdStats.meanContainer.count >= 10.0) {
+		resetDoublePermanentStdDev(&ptpClock->slaveStats.mpdStats);
+		resetDoublePermanentMedian(&ptpClock->slaveStats.mpdMedianContainer);
+	}
+	if(ptpClock->slaveStats.ofmStats.meanContainer.count >= 10.0) {
 		resetDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats);
+		resetDoublePermanentMedian(&ptpClock->slaveStats.ofmMedianContainer);
+	}
 	if(ptpClock->servo.driftStats.meanContainer.count >= 10.0)
 		resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
+
+	resetDoublePermanentMedian(&ptpClock->servo.driftMedianContainer);
 
 	if(rtOpts->servoStabilityDetection && ptpClock->clockControl.granted) {
 		checkServoStable(ptpClock, rtOpts);

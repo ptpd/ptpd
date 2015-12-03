@@ -604,6 +604,7 @@ typedef struct{
 #ifdef PTPD_STATISTICS
     int updateCount;
     int stableCount;
+    Boolean statsUpdated;
     Boolean statsCalculated;
     Boolean isStable;
     double stabilityThreshold;
@@ -611,7 +612,11 @@ typedef struct{
     int stabilityTimeout;
     double driftMean;
     double driftStdDev;
+    double driftMedian;
+    double driftMin;
+    double driftMax;
     DoublePermanentStdDev driftStats;
+    DoublePermanentMedian driftMedianContainer;
 #endif /* PTPD_STATISTICS */
 } PIservo;
 
@@ -859,7 +864,7 @@ typedef struct {
 	Boolean  waitingForDelayResp;
 	
 	offset_from_master_filter  ofm_filt;
-	one_way_delay_filter  owd_filt;
+	one_way_delay_filter  mpd_filt;
 
 	Boolean message_activity;
 

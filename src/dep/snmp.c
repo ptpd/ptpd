@@ -183,13 +183,57 @@ enum {
     PTPBASE_PORT_SECURITY_COUNTERS_CLEAR,
     PTPBASE_PORT_SECURITY_COUNTERS_TIMING_ACL_DISCARDED,
     PTPBASE_PORT_SECURITY_COUNTERS_MANAGEMENT_ACL_DISCARDED,
+    /* ptpBaseSlaveOfmStatistics */
+    PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE,
+    PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE_STRING,
+    PTPBASE_SLAVE_OFM_STATS_UPDATE_INTERVAL,
+    PTPBASE_SLAVE_OFM_STATS_VALID,
+    PTPBASE_SLAVE_OFM_STATS_MIN,
+    PTPBASE_SLAVE_OFM_STATS_MAX,
+    PTPBASE_SLAVE_OFM_STATS_MEAN,
+    PTPBASE_SLAVE_OFM_STATS_STDDEV,
+    PTPBASE_SLAVE_OFM_STATS_MEDIAN,
+    PTPBASE_SLAVE_OFM_STATS_MIN_STRING,
+    PTPBASE_SLAVE_OFM_STATS_MAX_STRING,
+    PTPBASE_SLAVE_OFM_STATS_MEAN_STRING,
+    PTPBASE_SLAVE_OFM_STATS_STDDEV_STRING,
+    PTPBASE_SLAVE_OFM_STATS_MEDIAN_STRING,
+    /* ptpBaseSlaveMpdStatistics */
+    PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE,
+    PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE_STRING,
+    PTPBASE_SLAVE_MPD_STATS_UPDATE_INTERVAL,
+    PTPBASE_SLAVE_MPD_STATS_VALID,
+    PTPBASE_SLAVE_MPD_STATS_MIN,
+    PTPBASE_SLAVE_MPD_STATS_MAX,
+    PTPBASE_SLAVE_MPD_STATS_MEAN,
+    PTPBASE_SLAVE_MPD_STATS_STDDEV,
+    PTPBASE_SLAVE_MPD_STATS_MEDIAN,
+    PTPBASE_SLAVE_MPD_STATS_MIN_STRING,
+    PTPBASE_SLAVE_MPD_STATS_MAX_STRING,
+    PTPBASE_SLAVE_MPD_STATS_MEAN_STRING,
+    PTPBASE_SLAVE_MPD_STATS_STDDEV_STRING,
+    PTPBASE_SLAVE_MPD_STATS_MEDIAN_STRING,
+    /* ptpBaseSlaveFreqAdjStatistics */
+    PTPBASE_SLAVE_FREQADJ_STATS_CURRENT_VALUE,
+    PTPBASE_SLAVE_FREQADJ_STATS_UPDATE_INTERVAL,
+    PTPBASE_SLAVE_FREQADJ_STATS_VALID,
+    PTPBASE_SLAVE_FREQADJ_STATS_MIN,
+    PTPBASE_SLAVE_FREQADJ_STATS_MAX,
+    PTPBASE_SLAVE_FREQADJ_STATS_MEAN,
+    PTPBASE_SLAVE_FREQADJ_STATS_STDDEV,
+    PTPBASE_SLAVE_FREQADJ_STATS_MEDIAN,
     /* ptpBasePtpdSpecificCounters */
     PTPBASE_PTPD_SPECIFIC_COUNTERS_CLEAR,
     PTPBASE_PTPD_SPECIFIC_COUNTERS_IGNORED_ANNOUNCE,
     PTPBASE_PTPD_SPECIFIC_COUNTERS_CONSECUTIVE_SEQUENCE_ERRORS,
     PTPBASE_PTPD_SPECIFIC_COUNTERS_DELAYMS_OUTLIERS_FOUND,
     PTPBASE_PTPD_SPECIFIC_COUNTERS_DELAYSM_OUTLIERS_FOUND,
-    PTPBASE_PTPD_SPECIFIC_COUNTERS_MAX_DELAY_DROPS
+    PTPBASE_PTPD_SPECIFIC_COUNTERS_MAX_DELAY_DROPS,
+    /* ptpBasePtpdSpecificData */
+    PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYMS,
+    PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYMS_STRING,
+    PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYSM,
+    PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYSM_STRING
 };
 
 /* trap / notification definitions */
@@ -660,11 +704,9 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		return SNMP_INTEGER((snmpPtpClock->portState == PTP_MASTER)?
 				    SNMP_PTP_PORT_MASTER:SNMP_PTP_PORT_SLAVE);
 	case PTPBASE_CLOCK_PORT_RUNNING_INTERFACE_INDEX:
-		/* TODO: maybe we can have it from the general configuration? */
-		return SNMP_INTEGER(0);
+		return SNMP_INTEGER(snmpPtpClock->netPath.interfaceInfo.ifIndex);
 	case PTPBASE_CLOCK_PORT_RUNNING_IPVERSION:
 		/* IPv4 only */
-		/* TODO: shouldn't we return SNMP_IPv4??? */
 		return SNMP_INTEGER(4);
 	case PTPBASE_CLOCK_PORT_RUNNING_ENCAPSULATION_TYPE:
 		/* None. Moreover, the format is not really described in the MIB... */
@@ -799,8 +841,10 @@ snmpWriteClearCounters (int action, u_char *var_val, u_char var_val_type, size_t
 				if(myOid2 == 5) {
 					snmpPtpClock->counters.consecutiveSequenceErrors = 0;
 					snmpPtpClock->counters.ignoredAnnounce = 0;
+#ifdef PTPD_STATISTICS
 					snmpPtpClock->counters.delayMSOutliersFound = 0;
 					snmpPtpClock->counters.delaySMOutliersFound = 0;
+#endif
 					snmpPtpClock->counters.maxDelayDrops = 0;
 					return SNMP_ERR_NOERROR;
 				}
@@ -1085,6 +1129,173 @@ snmpPtpPortSecurityCountersTable(SNMP_SIGNATURE) {
 }
 
 /**
+ * Handle slaveOfmStatisticsTable
+ */
+static u_char*
+snmpSlaveOfmStatsTable(SNMP_SIGNATURE) {
+	oid index[3];
+	SNMP_LOCAL_VARIABLES;
+	SNMP_INDEXED_TABLE;
+
+	memset(tmpStr, 0, sizeof(tmpStr));
+
+	/* We only have one valid index */
+	index[0] = snmpPtpClock->domainNumber;
+	index[1] = SNMP_PTP_ORDINARY_CLOCK;
+	index[2] = SNMP_PTP_CLOCK_INSTANCE;
+	SNMP_ADD_INDEX(index, 3, snmpPtpClock);
+
+	if (!SNMP_BEST_MATCH) return NULL;
+
+	switch (vp->magic) {
+	case PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE:
+		return SNMP_TIMEINTERNAL(snmpPtpClock->offsetFromMaster);
+	case PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE_STRING:
+		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->offsetFromMaster));
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+#ifdef PTPD_STATISTICS
+	case PTPBASE_SLAVE_OFM_STATS_UPDATE_INTERVAL:
+		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
+	case PTPBASE_SLAVE_OFM_STATS_VALID:
+		return SNMP_BOOLEAN(snmpPtpClock->slaveStats.statsCalculated);
+	case PTPBASE_SLAVE_OFM_STATS_MIN:
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmMin));
+	case PTPBASE_SLAVE_OFM_STATS_MAX:
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmMax));
+	case PTPBASE_SLAVE_OFM_STATS_MEAN:
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmMean));
+	case PTPBASE_SLAVE_OFM_STATS_STDDEV:
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmStdDev));
+	case PTPBASE_SLAVE_OFM_STATS_MEDIAN:
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmMedian));
+	case PTPBASE_SLAVE_OFM_STATS_MIN_STRING:
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmMin);
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	case PTPBASE_SLAVE_OFM_STATS_MAX_STRING:
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmMax);
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	case PTPBASE_SLAVE_OFM_STATS_MEAN_STRING:
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmMean);
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	case PTPBASE_SLAVE_OFM_STATS_STDDEV_STRING:
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmStdDev);
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	case PTPBASE_SLAVE_OFM_STATS_MEDIAN_STRING:
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmMedian);
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+#endif
+	}
+
+	return NULL;
+}
+
+/**
+ * Handle slaveMpdStatisticsTable
+ */
+static u_char*
+snmpSlaveMpdStatsTable(SNMP_SIGNATURE) {
+	oid index[3];
+	SNMP_LOCAL_VARIABLES;
+	SNMP_INDEXED_TABLE;
+
+	memset(tmpStr, 0, sizeof(tmpStr));
+
+	/* We only have one valid index */
+	index[0] = snmpPtpClock->domainNumber;
+	index[1] = SNMP_PTP_ORDINARY_CLOCK;
+	index[2] = SNMP_PTP_CLOCK_INSTANCE;
+	SNMP_ADD_INDEX(index, 3, snmpPtpClock);
+
+	if (!SNMP_BEST_MATCH) return NULL;
+
+	switch (vp->magic) {
+	case PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE:
+		return SNMP_TIMEINTERNAL(snmpPtpClock->meanPathDelay);
+	case PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE_STRING:
+		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->meanPathDelay));
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+#ifdef PTPD_STATISTICS
+	case PTPBASE_SLAVE_MPD_STATS_UPDATE_INTERVAL:
+		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
+	case PTPBASE_SLAVE_MPD_STATS_VALID:
+		return SNMP_BOOLEAN(snmpPtpClock->slaveStats.statsCalculated);
+	case PTPBASE_SLAVE_MPD_STATS_MIN:
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdMin));
+	case PTPBASE_SLAVE_MPD_STATS_MAX:
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdMax));
+	case PTPBASE_SLAVE_MPD_STATS_MEAN:
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdMean));
+	case PTPBASE_SLAVE_MPD_STATS_STDDEV:
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdStdDev));
+	case PTPBASE_SLAVE_MPD_STATS_MEDIAN:
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdMedian));
+	case PTPBASE_SLAVE_MPD_STATS_MIN_STRING:
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdMin);
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	case PTPBASE_SLAVE_MPD_STATS_MAX_STRING:
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdMax);
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	case PTPBASE_SLAVE_MPD_STATS_MEAN_STRING:
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdMean);
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	case PTPBASE_SLAVE_MPD_STATS_STDDEV_STRING:
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdStdDev);
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	case PTPBASE_SLAVE_MPD_STATS_MEDIAN_STRING:
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdMedian);
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+#endif
+	}
+
+	return NULL;
+}
+
+/**
+ * Handle slaveFreqAdjStatisticsTable
+ */
+static u_char*
+snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
+	oid index[3];
+	SNMP_LOCAL_VARIABLES;
+	SNMP_INDEXED_TABLE;
+
+	memset(tmpStr, 0, sizeof(tmpStr));
+
+	/* We only have one valid index */
+	index[0] = snmpPtpClock->domainNumber;
+	index[1] = SNMP_PTP_ORDINARY_CLOCK;
+	index[2] = SNMP_PTP_CLOCK_INSTANCE;
+	SNMP_ADD_INDEX(index, 3, snmpPtpClock);
+
+	if (!SNMP_BEST_MATCH) return NULL;
+
+	switch (vp->magic) {
+	    case PTPBASE_SLAVE_FREQADJ_STATS_CURRENT_VALUE:
+		return SNMP_INTEGER(snmpPtpClock->servo.observedDrift);
+#ifdef PTPD_STATISTICS
+	    case PTPBASE_SLAVE_FREQADJ_STATS_UPDATE_INTERVAL:
+		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
+	    case PTPBASE_SLAVE_FREQADJ_STATS_VALID:
+		return SNMP_BOOLEAN(snmpPtpClock->servo.statsCalculated);
+	    case PTPBASE_SLAVE_FREQADJ_STATS_MIN:
+		return SNMP_INTEGER(snmpPtpClock->servo.driftMin);
+	    case PTPBASE_SLAVE_FREQADJ_STATS_MAX:
+		return SNMP_INTEGER(snmpPtpClock->servo.driftMax);
+	    case PTPBASE_SLAVE_FREQADJ_STATS_MEAN:
+		return SNMP_INTEGER(snmpPtpClock->servo.driftMean);
+	    case PTPBASE_SLAVE_FREQADJ_STATS_STDDEV:
+		return SNMP_INTEGER(snmpPtpClock->servo.driftStdDev);
+	    case PTPBASE_SLAVE_FREQADJ_STATS_MEDIAN:
+		return SNMP_INTEGER(snmpPtpClock->servo.driftMedian);
+#endif
+	}
+
+	return NULL;
+}
+
+
+
+/**
  * Handle ptpbasePtpdSpecificCounters
  */
 static u_char*
@@ -1110,16 +1321,56 @@ snmpPtpdSpecificCountersTable(SNMP_SIGNATURE) {
 	return SNMP_INTEGER(snmpPtpClock->counters.ignoredAnnounce);
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_CONSECUTIVE_SEQUENCE_ERRORS:
 	return SNMP_INTEGER(snmpPtpClock->counters.consecutiveSequenceErrors);
+#ifdef PTPD_STATISTICS
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_DELAYMS_OUTLIERS_FOUND:
 	return SNMP_INTEGER(snmpPtpClock->counters.delayMSOutliersFound);
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_DELAYSM_OUTLIERS_FOUND:
 	return SNMP_INTEGER(snmpPtpClock->counters.delaySMOutliersFound);
+#endif
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_MAX_DELAY_DROPS:
 	return SNMP_INTEGER(snmpPtpClock->counters.maxDelayDrops);
 	}
 
 	return NULL;
 }
+
+/**
+ * Handle ptpBasePtpdSpecificData
+ */
+static u_char*
+snmpPtpdSpecificDataTable(SNMP_SIGNATURE) {
+	oid index[3];
+	SNMP_LOCAL_VARIABLES;
+	SNMP_INDEXED_TABLE;
+
+	memset(tmpStr, 0, sizeof(tmpStr));
+
+	/* We only have one valid index */
+	index[0] = snmpPtpClock->domainNumber;
+	index[1] = SNMP_PTP_ORDINARY_CLOCK;
+	index[2] = SNMP_PTP_CLOCK_INSTANCE;
+	SNMP_ADD_INDEX(index, 3, snmpPtpClock);
+
+	if (!SNMP_BEST_MATCH) return NULL;
+
+#ifdef PTPD_STATISTICS
+	switch (vp->magic) {
+	    case PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYMS:
+		return SNMP_TIMEINTERNAL(snmpPtpClock->rawDelayMS);
+	    case PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYMS_STRING:
+		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->rawDelayMS));
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	    case PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYSM:
+		return SNMP_TIMEINTERNAL(snmpPtpClock->rawDelaySM);
+	    case PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYSM_STRING:
+		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->rawDelaySM));
+		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	}
+#endif
+
+	return NULL;
+}
+
 
 
 /**
@@ -1261,12 +1512,12 @@ static struct variable7 snmpVariables[] = {
 	  snmpClockPortTable, 5, {1, 2, 9, 1, 6}},
 	{ PTPBASE_CLOCK_PORT_RUNNING_ROLE, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpClockPortTable, 5, {1, 2, 9, 1, 7}},
-	/* { PTPBASE_CLOCK_PORT_RUNNING_INTERFACE_INDEX, ASN_INTEGER, HANDLER_CAN_RONLY, */
-	/*   snmpClockPortTable, 5, {1, 2, 9, 1, 8}}, */
+	{ PTPBASE_CLOCK_PORT_RUNNING_INTERFACE_INDEX, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpClockPortTable, 5, {1, 2, 9, 1, 8}},
 	{ PTPBASE_CLOCK_PORT_RUNNING_IPVERSION, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpClockPortTable, 5, {1, 2, 9, 1, 9}},
-	/* { PTPBASE_CLOCK_PORT_RUNNING_ENCAPSULATION_TYPE, ASN_INTEGER, HANDLER_CAN_RONLY, */
-	/*   snmpClockPortTable, 5, {1, 2, 9, 1, 10}}, */
+	{ PTPBASE_CLOCK_PORT_RUNNING_ENCAPSULATION_TYPE, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpClockPortTable, 5, {1, 2, 9, 1, 10}},
 	{ PTPBASE_CLOCK_PORT_RUNNING_TX_MODE, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpClockPortTable, 5, {1, 2, 9, 1, 11}},
 	{ PTPBASE_CLOCK_PORT_RUNNING_RX_MODE, ASN_INTEGER, HANDLER_CAN_RONLY,
@@ -1393,6 +1644,81 @@ static struct variable7 snmpVariables[] = {
 	  snmpPtpPortSecurityCountersTable, 5, {1, 2, 17, 1, 6}},
 	{ PTPBASE_PORT_SECURITY_COUNTERS_MANAGEMENT_ACL_DISCARDED, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpPtpPortSecurityCountersTable, 5, {1, 2, 17, 1, 7}},
+	/* ptpBaseSlaveOfmStatistics */
+	{ PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 4}},
+	{ PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 5}},
+	{ PTPBASE_SLAVE_OFM_STATS_UPDATE_INTERVAL, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 6}},
+	{ PTPBASE_SLAVE_OFM_STATS_VALID, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 7}},
+	{ PTPBASE_SLAVE_OFM_STATS_MIN, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 8}},
+	{ PTPBASE_SLAVE_OFM_STATS_MAX, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 9}},
+	{ PTPBASE_SLAVE_OFM_STATS_MEAN, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 10}},
+	{ PTPBASE_SLAVE_OFM_STATS_STDDEV, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 11}},
+	{ PTPBASE_SLAVE_OFM_STATS_MEDIAN, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 12}},
+	{ PTPBASE_SLAVE_OFM_STATS_MIN_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 13}},
+	{ PTPBASE_SLAVE_OFM_STATS_MAX_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 14}},
+	{ PTPBASE_SLAVE_OFM_STATS_MEAN_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 15}},
+	{ PTPBASE_SLAVE_OFM_STATS_STDDEV_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 16}},
+	{ PTPBASE_SLAVE_OFM_STATS_MEDIAN_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 17}},
+	/* ptpBaseSlaveMpdStatistics */
+	{ PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 4}},
+	{ PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 5}},
+	{ PTPBASE_SLAVE_MPD_STATS_UPDATE_INTERVAL, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 6}},
+	{ PTPBASE_SLAVE_MPD_STATS_VALID, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 7}},
+	{ PTPBASE_SLAVE_MPD_STATS_MIN, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 8}},
+	{ PTPBASE_SLAVE_MPD_STATS_MAX, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 9}},
+	{ PTPBASE_SLAVE_MPD_STATS_MEAN, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 10}},
+	{ PTPBASE_SLAVE_MPD_STATS_STDDEV, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 11}},
+	{ PTPBASE_SLAVE_MPD_STATS_MEDIAN, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 12}},
+	{ PTPBASE_SLAVE_MPD_STATS_MIN_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 13}},
+	{ PTPBASE_SLAVE_MPD_STATS_MAX_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 14}},
+	{ PTPBASE_SLAVE_MPD_STATS_MEAN_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 15}},
+	{ PTPBASE_SLAVE_MPD_STATS_STDDEV_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 16}},
+	{ PTPBASE_SLAVE_MPD_STATS_MEDIAN_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 17}},
+	/* ptpBaseSlaveFreqAdjStatistics */
+	{ PTPBASE_SLAVE_FREQADJ_STATS_CURRENT_VALUE, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 4}},
+	{ PTPBASE_SLAVE_FREQADJ_STATS_UPDATE_INTERVAL, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 5}},
+	{ PTPBASE_SLAVE_FREQADJ_STATS_VALID, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 6}},
+	{ PTPBASE_SLAVE_FREQADJ_STATS_MIN, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 7}},
+	{ PTPBASE_SLAVE_FREQADJ_STATS_MAX, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 8}},
+	{ PTPBASE_SLAVE_FREQADJ_STATS_MEAN, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 9}},
+	{ PTPBASE_SLAVE_FREQADJ_STATS_STDDEV, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 10}},
+	{ PTPBASE_SLAVE_FREQADJ_STATS_MEDIAN, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 11}},
 	/* ptpbasePtpdSpecificCounters */
 	{ PTPBASE_PTPD_SPECIFIC_COUNTERS_CLEAR, ASN_INTEGER, HANDLER_CAN_RWRITE,
 	  snmpPtpdSpecificCountersTable, 5, {1, 2, 21, 1, 5}},
@@ -1405,7 +1731,16 @@ static struct variable7 snmpVariables[] = {
 	{ PTPBASE_PTPD_SPECIFIC_COUNTERS_DELAYSM_OUTLIERS_FOUND, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpPtpdSpecificCountersTable, 5, {1, 2, 21, 1, 9}},
 	{ PTPBASE_PTPD_SPECIFIC_COUNTERS_MAX_DELAY_DROPS, ASN_INTEGER, HANDLER_CAN_RONLY,
-	  snmpPtpdSpecificCountersTable, 5, {1, 2, 21, 1, 10}}
+	  snmpPtpdSpecificCountersTable, 5, {1, 2, 21, 1, 10}},
+	/* ptpBasePtpdSpecificData*/
+	{ PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYMS, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpPtpdSpecificDataTable, 5, {1, 2, 22, 1, 4}},
+	{ PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYMS_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpPtpdSpecificDataTable, 5, {1, 2, 22, 1, 5}},
+	{ PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYSM, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpPtpdSpecificDataTable, 5, {1, 2, 22, 1, 6}},
+	{ PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYSM_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
+	  snmpPtpdSpecificDataTable, 5, {1, 2, 22, 1, 7}}
 };
 
 /**
