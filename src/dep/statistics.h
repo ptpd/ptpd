@@ -49,15 +49,31 @@ typedef struct {
 
 } DoublePermanentStdDev;
 
+typedef struct {
+	int32_t median;
+	int32_t bucket[3];
+	uint8_t count;
+} IntPermanentMedian;
+
+typedef struct {
+	double median;
+	double bucket[3];
+	uint8_t count;
+} DoublePermanentMedian;
+
 void 	resetIntPermanentMean(IntPermanentMean* container);
 int32_t feedIntPermanentMean(IntPermanentMean* container, int32_t sample);
 void 	resetIntPermanentStdDev(IntPermanentStdDev* container);
 int32_t feedIntPermanentStdDev(IntPermanentStdDev* container, int32_t sample);
+void 	resetIntPermanentMedian(IntPermanentMedian* container);
+int32_t feedIntPermanentMedian(IntPermanentMedian* container, int32_t sample);
 
 void 	resetDoublePermanentMean(DoublePermanentMean* container);
 double 	feedDoublePermanentMean(DoublePermanentMean* container, double sample);
 void 	resetDoublePermanentStdDev(DoublePermanentStdDev* container);
 double 	feedDoublePermanentStdDev(DoublePermanentStdDev* container, double sample);
+void 	resetDoublePermanentMedian(DoublePermanentMedian* container);
+double 	feedDoublePermanentMedian(DoublePermanentMedian* container, double sample);
 
 /* Moving statistics - up to last n samples */
 
@@ -181,15 +197,25 @@ Boolean isDoublePeircesOutlier(DoubleMovingStdDev *container, double sample, dou
 typedef struct
 {
     Boolean statsCalculated;
+    Boolean ofmStatsUpdated;
+    Boolean mpdStatsUpdated;
     double ofmMean;
     double ofmStdDev;
-    double owdMean;
-    double owdStdDev;
-    Boolean owdIsStable;
-    double owdStabilityThreshold;
-    int owdStabilityPeriod;
+    double ofmMedian;
+    double ofmMin;
+    double ofmMax;
+    double mpdMean;
+    double mpdStdDev;
+    double mpdMedian;
+    double mpdMin;
+    double mpdMax;
+    Boolean mpdIsStable;
+    double mpdStabilityThreshold;
+    int mpdStabilityPeriod;
     DoublePermanentStdDev ofmStats;
-    DoublePermanentStdDev owdStats;
+    DoublePermanentStdDev mpdStats;
+    DoublePermanentMedian ofmMedianContainer;
+    DoublePermanentMedian mpdMedianContainer;
 } PtpEngineSlaveStats;
 
 void clearPtpEngineSlaveStats(PtpEngineSlaveStats* stats);

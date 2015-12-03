@@ -804,8 +804,8 @@ logStatistics(PtpClock * ptpClock)
 #ifdef PTPD_STATISTICS
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %.00f, %.09f, %.00f",
-			       ptpClock->slaveStats.owdMean,
-			       ptpClock->slaveStats.owdStdDev * 1E9,
+			       ptpClock->slaveStats.mpdMean,
+			       ptpClock->slaveStats.mpdStdDev * 1E9,
 			       ptpClock->slaveStats.ofmMean,
 			       ptpClock->slaveStats.ofmStdDev * 1E9);
 
@@ -911,8 +911,8 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    portState_getName(ptpClock->portState),
 		    masterIdBuf,
 		    tmpBuf,
-		    ptpClock->slaveStats.owdMean,
-		    ptpClock->slaveStats.owdStdDev);
+		    ptpClock->slaveStats.mpdMean,
+		    ptpClock->slaveStats.mpdStdDev);
 	    } else if(ptpClock->delayMechanism == P2P) {
 		INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
 	    }
@@ -1112,8 +1112,8 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 #ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated)
 	fprintf(out, ", mean % .09f s, dev % .09f s",
-		ptpClock->slaveStats.owdMean,
-		ptpClock->slaveStats.owdStdDev
+		ptpClock->slaveStats.mpdMean,
+		ptpClock->slaveStats.mpdStdDev
 	);
 #endif /* PTPD_STATISTICS */
 	fprintf(out,"\n");

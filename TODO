@@ -21,9 +21,9 @@
 - use split token loop
 - use pointer to best master x
 - management TLV buffer guard and don't unpack GET x
-- SNMP - implement statistics tables
-- SNMP - implement remaining traps
+- SNMP - implement statistics tables x
+- SNMP - implement remaining traps x
 - add alarm events -> trigger SNMP traps
 - add offset alarm threshold to config
 - remaining management message SET handling
-- clean up object order in the MIB
+- clean up object order in the MIB x

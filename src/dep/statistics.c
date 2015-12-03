@@ -67,7 +67,49 @@ static int cmpAbsDouble (const void *vA, const void *vB) {
 	return ((a < b) ? -1 : (a > b) ? 1 : 0);
 }
 
+static int32_t median3Int(int32_t *bucket, int count)
+{
 
+	int32_t sortedSamples[count];
+	memcpy(sortedSamples, bucket, count * sizeof(int32_t));
+
+	switch (count) {
+
+	    case 1:
+		return bucket[0];
+	    case 2:
+		return (bucket[0] + bucket[1]) / 2;
+	    case 3:
+		qsort(sortedSamples, count, sizeof(int32_t), cmpInt32);
+		return sortedSamples[1];
+	    default:
+		return 0;
+
+	}
+
+}
+
+static double median3Double(double *bucket, int count)
+{
+
+	double sortedSamples[count];
+	memcpy(sortedSamples, bucket, count * sizeof(double));
+
+	switch (count) {
+
+	    case 1:
+		return bucket[0];
+	    case 2:
+		return (bucket[0] + bucket[1]) / 2.0;
+	    case 3:
+		qsort(sortedSamples, count, sizeof(double), cmpInt32);
+		return sortedSamples[1];
+	    default:
+		return 0;
+
+	}
+
+}
 
 void
 resetIntPermanentMean(IntPermanentMean* container) {
@@ -120,6 +162,33 @@ feedIntPermanentStdDev(IntPermanentStdDev* container, int32_t sample)
 	return container->stdDev;
 
 }
+
+void
+resetIntPermanentMedian(IntPermanentMedian* container) {
+
+	memset(container, 0, sizeof(IntPermanentMedian));
+
+}
+
+int32_t
+feedIntPermanentMedian(IntPermanentMedian* container, int32_t sample)
+{
+
+	    container->bucket[container->count] = sample;
+	    container->count++;
+
+	    container->median = median3Int(container->bucket, container->count);
+
+	    if(container->count == 3) {
+		container->count=1;
+		container->bucket[1] = container->bucket[2] = 0;
+		container->bucket[0] = container->median;
+	    }
+
+	    return container->median;
+
+}
+
 
 void
 resetDoublePermanentMean(DoublePermanentMean* container)
@@ -177,6 +246,34 @@ feedDoublePermanentStdDev(DoublePermanentStdDev* container, double sample)
 	return container->stdDev;
 
 }
+
+void
+resetDoublePermanentMedian(DoublePermanentMedian* container)
+{
+
+	memset(container, 0, sizeof(DoublePermanentMedian));
+
+}
+
+double
+feedDoublePermanentMedian(DoublePermanentMedian* container, double sample)
+{
+
+	container->bucket[container->count] = sample;
+	container->count++;
+
+	container->median = median3Double(container->bucket, container->count);
+
+	if(container->count == 3) {
+	    container->count=1;
+	    container->bucket[1] = container->bucket[2] = 0;
+	    container->bucket[0] = container->median;
+	}
+
+	return container->median;
+
+}
+
 
 /* Moving statistics - up to last n samples */
 
@@ -942,6 +1039,9 @@ void
 resetPtpEngineSlaveStats(PtpEngineSlaveStats* stats) {
 
 	resetDoublePermanentStdDev(&stats->ofmStats);
-	resetDoublePermanentStdDev(&stats->owdStats);
-
+	resetDoublePermanentStdDev(&stats->mpdStats);
+	resetDoublePermanentMedian(&stats->ofmMedianContainer);
+	resetDoublePermanentMedian(&stats->mpdMedianContainer);
+	stats->ofmStatsUpdated = FALSE;
+	stats->mpdStatsUpdated = FALSE;
 }

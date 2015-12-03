@@ -408,6 +408,37 @@ end:
 
 }
 
+static int getInterfaceIndex(char *ifaceName)
+{
+
+#ifndef SIOCGIFINDEX
+    return -1;
+#else
+    int sockfd;
+    struct ifreq ifr;
+
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if(sockfd < 0) {
+	PERROR("Could not retrieve interface index for %s",ifaceName);
+	return -1;
+    }
+
+    memset(&ifr, 0, sizeof(ifr));
+
+    strncpy(ifr.ifr_name, ifaceName, IFACE_NAME_LENGTH);
+
+    if (ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0) {
+            DBGV("failed to request hardware address for %s", ifaceName);
+	    return -1;
+
+    }
+
+    return ifr.ifr_ifindex;
+#endif
+
+}
+
 static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 {
 
@@ -453,7 +484,16 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 
     }
 
+    res  = getInterfaceIndex(ifaceName);
+
+    if(res == -1) {
+	ifaceInfo->ifIndex = 0;
+    } else {
+	ifaceInfo->ifIndex = res;
+    }
+
     return TRUE;
+
 
 }
 
