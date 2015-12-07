@@ -1,0 +1,8 @@
+language: c
+compiler:
+  - clang
+  - gcc
+os:
+  - linux
+before_install: "autoreconf -vfi"
+install: "./configure && make"
