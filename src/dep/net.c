@@ -434,8 +434,15 @@ static int getInterfaceIndex(char *ifaceName)
 
     }
 
+#if defined(HAVE_STRUCT_IFREQ_IFR_INDEX)
+    return ifr.ifr_index;
+#elif defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
     return ifr.ifr_ifindex;
+#else
+    return 0;
 #endif
+
+#endif /* !SIOCGIFINDEX */
 
 }
 

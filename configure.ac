@@ -196,6 +196,12 @@ AC_CHECK_MEMBERS([struct ntptimeval.tai], [], [],
 # Check for ifr_hwaddr in the ifreq structure
 AC_CHECK_MEMBERS([struct ifreq.ifr_hwaddr], [], [], [[#include <net/if.h>]])
 
+# Check for ifr_index in the ifreq structure
+AC_CHECK_MEMBERS([struct ifreq.ifr_index], [], [], [[#include <net/if.h>]])
+
+# Check for ifr_ifindex in the ifreq structure
+AC_CHECK_MEMBERS([struct ifreq.ifr_ifindex], [], [], [[#include <net/if.h>]])
+
 # ether_add: octet vs. ether_addr_octet - FreeBSD, any others?
 AC_CHECK_MEMBERS([struct ether_addr.octet], [], [],
 [
