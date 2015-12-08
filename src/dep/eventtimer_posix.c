@@ -2,7 +2,7 @@
  * Copyright (c) 2015      Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -28,9 +28,9 @@
 /**
  * @file   eventtimer_posix.c
  * @date   Wed Oct 1 00:41:26 2014
- * 
+ *
  * @brief  EventTimer implementation using POSIX timers
- * 
+ *
  * The less signal intensive timer implementation,
  * allowing for high(er) message intervals.
  */
@@ -94,7 +94,7 @@ eventTimerStart_posix(EventTimer *timer, double interval)
 
 	struct timespec ts;
 	struct itimerspec its;
-    
+   
 	memset(&its, 0, sizeof(its));
 
 	ts.tv_sec = interval;
@@ -186,7 +186,7 @@ eventTimerIsExpired_posix(EventTimer *timer)
 
 }
 
-void 
+void
 startEventTimers(void)
 {
 	struct sigaction sa;
@@ -208,7 +208,7 @@ startEventTimers(void)
 
 }
 
-void 
+void
 shutdownEventTimers(void)
 {
 
@@ -220,7 +220,7 @@ shutdownEventTimers(void)
 }
 
 /* this only ever gets called when a timer expires */
-static void 
+static void
 timerSignalHandler(int sig, siginfo_t *info, void *usercontext)
 {
 

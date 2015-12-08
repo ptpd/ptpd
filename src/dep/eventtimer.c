@@ -2,7 +2,7 @@
  * Copyright (c) 2015      Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -28,9 +28,9 @@
 /**
  * @file   timer.c
  * @date   Wed Oct 1 00:41:26 2014
- * 
+ *
  * @brief  Common code for the EventTimer object
- * 
+ *
  * Creation and deletion plus maintaining a linked list of
  * all created instances.
  */
@@ -60,7 +60,7 @@ EventTimer
 
 	if(_first == NULL) {
 		_first = timer;
-	} 
+	}
 
 	if(_last != NULL) {
 	    timer->_prev = _last;
@@ -122,7 +122,7 @@ freeEventTimer
 			ptimer->_next->_prev = NULL;
 		}
 
-	} 
+	}
 
 	if(*timer != NULL) {
 	    free(*timer);

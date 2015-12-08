@@ -2,7 +2,7 @@
  * Copyright (c) 2014      Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -28,9 +28,9 @@
 /**
  * @file   outlierfilter.c
  * @date   Fri Aug 22 16:18:33 2014
- * 
+ *
  * @brief  Code to handle outlier filter routines
- * 
+ *
  * Outlier filter mechanics extracted into separate source
  * in preparation for 2.4's OOP-like model
  */
@@ -247,7 +247,7 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 					    if(!filter->blocking) {
 						INFO_LOCAL_ID(filter,"%.03f us step detected, filter will now block\n", step * 1E6);
 					    }
-					    DBG_LOCAL_ID(filter,"step: %.09f, credit left %d, requesting %d\n",step, 
+					    DBG_LOCAL_ID(filter,"step: %.09f, credit left %d, requesting %d\n",step,
 						    filter->delayCredit, filter->consecutiveOutliers);
 					    filter->delay = filter->consecutiveOutliers;
 					    filter->totalDelay += filter->consecutiveOutliers;

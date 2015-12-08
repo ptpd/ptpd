@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2014 Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -28,11 +28,11 @@
 /**
  * @file 	   ipv4_acl.c
  * @date   Sun Oct 13 21:02:23 2013
- * 
+ *
  * @brief  Code to handle IPv4 access control lists
- * 
+ *
  * Functions in this file parse, create and match IPv4 ACLs.
- * 
+ *
  */
 
 #include "../ptpd.h"
@@ -314,7 +314,7 @@ static void freeMaskTable(MaskTable** table)
 }
 
 /* Destroy an Ipv4AccessList structure */
-void 
+void
 freeIpv4AccessList(Ipv4AccessList** acl)
 {
 	if(*acl == NULL)

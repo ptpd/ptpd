@@ -1753,6 +1753,22 @@ updates for this amout of time, PTPd releases clock control.\n
 .RE
 .RS 0
 .TP 8
+\fBptpengine:offset_alarm_threshold [\fIINT\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+PTP Slave Offset from Master alarm threshold (nanoseconds) - absolute value. When set to non-zero, an alarm is raised
+when PTP slave's offset from master crosses this value. The alarm is logged, indicated in the status file, and SNMP
+traps are sent if SNMP is enabled. Similar notifications are created when offset returns within the threshold.
+When zet to 0, offset is not checked against the threshold.
+.TP 8
+\fBdefault\fR
+\fI0\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:panic_mode [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8

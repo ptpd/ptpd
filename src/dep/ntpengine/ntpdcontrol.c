@@ -217,7 +217,7 @@ get_systime(
         /*
          * Renormalize to seconds past 1900 and fraction.
          */
-                                                     
+                                                    
 //        dtemp += sys_residual;
         if (dtemp >= 1) {
                 dtemp -= 1;
@@ -287,7 +287,7 @@ NTPDCrequest(
 	maclen = MD5authencrypt(key, (void *)&qpkt, reqsize,options->keyId);
 	free(key);
 	if (!maclen || (maclen != (16 + sizeof(keyid_t))))
-	 {  
+	 { 
 		ERROR("Error while computing NTP MD5 hash\n");
 		return 1;
 	}
@@ -533,7 +533,7 @@ NTPDCresponse(
 	size = INFO_ITEMSIZE(rpkt.mbz_itemsize);
 	if (esize > size)
 		pad = esize - size;
-	else 
+	else
 		pad = 0;
 	datasize = items * size;
 
@@ -594,7 +594,7 @@ NTPDCresponse(
 		*rdata = ntpdc_pktdata; /* might have been realloced ! */
 		datap = ntpdc_pktdata + offset;
 	}
-	/* 
+	/*
 	 * We now move the pointer along according to size and number of
 	 * items.  This is so we can play nice with older implementations
 	 */

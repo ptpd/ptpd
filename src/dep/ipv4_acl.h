@@ -1,8 +1,8 @@
 /**
  * @file   ipv4_acl.h
- * 
+ *
  * @brief  definitions related to IPv4 access control list handling
- * 
+ *
  */
 
 #ifndef PTPD_IPV4_ACL_H_

@@ -4,25 +4,25 @@
  * Copyright (c) 2012-2013 George V. Neville-Neil,
  *                         Wojciech Owczarek.
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -31,7 +31,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -90,7 +90,7 @@
  *
  * @param netPath
  * @param multicastAddr
- * 
+ *
  * @return TRUE if successful
  */
 static Boolean
@@ -106,9 +106,9 @@ netShutdownMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 	imr.imr_multiaddr.s_addr = multicastAddr;
 	imr.imr_interface.s_addr = netPath->interfaceAddr.s_addr;
 
-	setsockopt(netPath->eventSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
+	setsockopt(netPath->eventSock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
 		   &imr, sizeof(struct ip_mreq));
-	setsockopt(netPath->generalSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
+	setsockopt(netPath->generalSock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
 		   &imr, sizeof(struct ip_mreq));
 
 	return TRUE;
@@ -117,8 +117,8 @@ netShutdownMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 /**
  * shutdown the multicast (both General and Peer)
  *
- * @param netPath 
- * 
+ * @param netPath
+ *
  * @return TRUE if successful
  */
 static Boolean
@@ -150,7 +150,7 @@ isIpMulticast(struct in_addr in)
 */
 
 /* shut down the UDP stuff */
-Boolean 
+Boolean
 netShutdown(NetPath * netPath)
 {
 	netShutdownMulticast(netPath);
@@ -536,8 +536,8 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
     if(info.flags & IFF_LOOPBACK)
 	    WARNING("Interface %s is a loopback interface.\n", ifaceName);
 
-    if(!(info.flags & IFF_MULTICAST) 
-	    && rtOpts->transport==UDP_IPV4 
+    if(!(info.flags & IFF_MULTICAST)
+	    && rtOpts->transport==UDP_IPV4
 	    && rtOpts->ipMode != IPMODE_UNICAST) {
 	    WARNING("Interface %s is not multicast capable.\n", ifaceName);
     }
@@ -548,10 +548,10 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
 
 /**
  * Init the multcast for specific IPv4 address
- * 
- * @param netPath 
- * @param multicastAddr 
- * 
+ *
+ * @param netPath
+ * @param multicastAddr
+ *
  * @return TRUE if successful
  */
 static Boolean
@@ -563,19 +563,19 @@ netInitMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 	imr.imr_multiaddr.s_addr = multicastAddr;
 	imr.imr_interface.s_addr = netPath->interfaceAddr.s_addr;
 
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_IF, 
+	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_IF,
 		       &netPath->interfaceAddr, sizeof(struct in_addr)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_IF, 
-			  &netPath->interfaceAddr, sizeof(struct in_addr)) 
+	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_MULTICAST_IF,
+			  &netPath->interfaceAddr, sizeof(struct in_addr))
 	    < 0) {
 		PERROR("error while setting outgoig multicast interface "
 			"(IP_MULTICAST_IF)");
 		return FALSE;
 	}
 	/* join multicast group (for receiving) on specified interface */
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
+	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 		       &imr, sizeof(struct ip_mreq)) < 0
-	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
+	    || setsockopt(netPath->generalSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 			  &imr, sizeof(struct ip_mreq)) < 0) {
 		PERROR("failed to join the multicast group");
 		return FALSE;
@@ -585,10 +585,10 @@ netInitMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 
 /**
  * Init the multcast (both General and Peer)
- * 
- * @param netPath 
- * @param rtOpts 
- * 
+ *
+ * @param netPath
+ * @param rtOpts
+ *
  * @return TRUE if successful
  */
 static Boolean
@@ -667,7 +667,7 @@ netSetMulticastLoopback(NetPath * netPath, Boolean value) {
 #endif
 	DBG("Going to set multicast loopback with %d \n", temp);
 
-	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP, 
+	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_LOOP,
 	       &temp, sizeof(temp)) < 0) {
 		PERROR("Failed to set multicast loopback");
 		return FALSE;
@@ -750,11 +750,11 @@ failure:
 /**
  * Initialize timestamping of packets
  *
- * @param netPath 
- * 
+ * @param netPath
+ *
  * @return TRUE if successful
  */
-static Boolean 
+static Boolean
 netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 {
 
@@ -865,7 +865,7 @@ hostLookup(const char* hostname, Integer32* addr)
 				       "address");
 				return FALSE;
 			}
-			*addr = 
+			*addr =
 				*(uint32_t *)host->h_addr_list[0];
 			return TRUE;
 		} else {
@@ -973,13 +973,13 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
 /**
  * Init all network transports
  *
- * @param netPath 
- * @param rtOpts 
- * @param ptpClock 
- * 
+ * @param netPath
+ * @param rtOpts
+ * @param ptpClock
+ *
  * @return TRUE if successful
  */
-Boolean 
+Boolean
 netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 
@@ -1021,9 +1021,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		netPath->headerOffset = PACKET_BEGIN_UDP;
 
 	/* open sockets */
-	if ((netPath->eventSock = socket(PF_INET, SOCK_DGRAM, 
+	if ((netPath->eventSock = socket(PF_INET, SOCK_DGRAM,
 					 IPPROTO_UDP)) < 0
-	    || (netPath->generalSock = socket(PF_INET, SOCK_DGRAM, 
+	    || (netPath->generalSock = socket(PF_INET, SOCK_DGRAM,
 					      IPPROTO_UDP)) < 0) {
 		PERROR("failed to initialize sockets");
 		return FALSE;
@@ -1062,7 +1062,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		memcpy(netPath->interfaceID + 4, &addr + 2, 2);
 	/* Initialise interfaceID with hardware address */
 	} else {
-		    memcpy(&netPath->interfaceID, &netPath->interfaceInfo.hwAddress, 
+		    memcpy(&netPath->interfaceID, &netPath->interfaceInfo.hwAddress,
 			    sizeof(netPath->interfaceID) <= sizeof(netPath->interfaceInfo.hwAddress) ?
 				    sizeof(netPath->interfaceID) : sizeof(netPath->interfaceInfo.hwAddress)
 			    );
@@ -1095,7 +1095,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		pcap_set_buffer_size(netPath->pcapEvent, 1024 * 2 * UNICAST_MAX_DESTINATIONS);
 		pcap_activate(netPath->pcapEvent);
 */
-		if (pcap_compile(netPath->pcapEvent, &program, 
+		if (pcap_compile(netPath->pcapEvent, &program,
 				 ( rtOpts->transport == IEEE_802_3 ) ?
 				    "ether proto 0x88f7":
 				( rtOpts->ipMode == IPMODE_UNICAST ) ?
@@ -1113,7 +1113,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 		pcap_freecode(&program);
-		if ((netPath->pcapEventSock = 
+		if ((netPath->pcapEventSock =
 		     pcap_get_selectable_fd(netPath->pcapEvent)) < 0) {
 			PERROR("failed to get pcap event fd");
 			return FALSE;
@@ -1142,7 +1142,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				return FALSE;
 			}
 			pcap_freecode(&program);
-			if ((netPath->pcapGeneralSock = 
+			if ((netPath->pcapGeneralSock =
 			     pcap_get_selectable_fd(netPath->pcapGeneral)) < 0) {
 				PERROR("failed to get pcap general fd");
 				return FALSE;
@@ -1172,9 +1172,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		DBG("Local IP address used : %s \n", inet_ntoa(netPath->interfaceAddr));
 
 		temp = 1;			/* allow address reuse */
-		if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_REUSEADDR, 
+		if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_REUSEADDR,
 			       &temp, sizeof(int)) < 0
-		    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_REUSEADDR, 
+		    || setsockopt(netPath->generalSock, SOL_SOCKET, SO_REUSEADDR,
 				  &temp, sizeof(int)) < 0) {
 			DBG("failed to set socket reuse\n");
 		}
@@ -1205,13 +1205,13 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		addr.sin_family = AF_INET;
 		addr.sin_port = htons(PTP_EVENT_PORT);
-		if (bind(netPath->eventSock, (struct sockaddr *)&addr, 
+		if (bind(netPath->eventSock, (struct sockaddr *)&addr,
 			sizeof(struct sockaddr_in)) < 0) {
 			PERROR("failed to bind event socket");
 			return FALSE;
 		}
 		addr.sin_port = htons(PTP_GENERAL_PORT);
-		if (bind(netPath->generalSock, (struct sockaddr *)&addr, 
+		if (bind(netPath->generalSock, (struct sockaddr *)&addr,
 			sizeof(struct sockaddr_in)) < 0) {
 			PERROR("failed to bind general socket");
 			return FALSE;
@@ -1265,11 +1265,11 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		 *   http://stackoverflow.com/questions/1207746/problems-with-so-bindtodevice-linux-socket-option
 		 */
 
-		/* 
+		/*
 		 * wowczarek: 2.3.1-rc4@jun0215: this breaks the manual packet looping,
 		 * so may only be used for multicast-only
 		 */
-		 
+		
 		if ( rtOpts->ipMode == IPMODE_MULTICAST ) {
 		    if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
 				rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0
@@ -1305,8 +1305,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		if(rtOpts->delayMechanism==P2P && rtOpts->ipMode==IPMODE_UNICAST) {
 			ptpClock->unicastPeerDestination.transportAddress = 0;
-		    	if(rtOpts->unicastPeerDestinationSet && 
-				rtOpts->delayMechanism==P2P && !hostLookup(rtOpts->unicastPeerDestination, 
+		    	if(rtOpts->unicastPeerDestinationSet &&
+				rtOpts->delayMechanism==P2P && !hostLookup(rtOpts->unicastPeerDestination,
 				&ptpClock->unicastPeerDestination.transportAddress)) {
 
 			    ERROR("Could not parse P2P unicast destination %s:\n",
@@ -1398,7 +1398,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 }
 
 /*Check if data has been received*/
-int 
+int
 netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 {
 	int ret, nfds;
@@ -1483,7 +1483,7 @@ if (rtOpts.snmp_enabled) {
 	return ret;
 }
 
-/** 
+/**
  * store received data from network to "buf" , get and store the
  * SO_TIMESTAMP value in "time" for an event message
  *
@@ -1493,14 +1493,14 @@ if (rtOpts.snmp_enabled) {
  * used. According to this, netInitTimestamping can be also simplified
  * to initialize timestamping only on eventSock.
  *
- * @param buf 
- * @param time 
- * @param netPath 
+ * @param buf
+ * @param time
+ * @param netPath
  *
  * @return
  */
 
-ssize_t 
+ssize_t
 netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 {
 	ssize_t ret = 0;
@@ -1622,7 +1622,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 
 			if (cmsg->cmsg_level == SOL_SOCKET) {
 #if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)
-				if(cmsg->cmsg_type == SO_TIMESTAMPING || 
+				if(cmsg->cmsg_type == SO_TIMESTAMPING ||
 				    cmsg->cmsg_type == SO_TIMESTAMPNS) {
 					ts = (struct timespec *)CMSG_DATA(cmsg);
 					time->seconds = ts->tv_sec;
@@ -1639,7 +1639,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 					time->seconds = ts->tv_sec;
 					time->nanoseconds = ts->tv_nsec;
 					timestampValid = TRUE;
-					DBGV("kernel NANO recv time stamp %us %dns\n", 
+					DBGV("kernel NANO recv time stamp %us %dns\n",
 					     time->seconds, time->nanoseconds);
 					break;
 				}
@@ -1692,7 +1692,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 			recv(netPath->eventSock, buf, PACKET_SIZE, MSG_DONTWAIT);
 		}
 		
-		if ((ret = pcap_next_ex(netPath->pcapEvent, &pkt_header, 
+		if ((ret = pcap_next_ex(netPath->pcapEvent, &pkt_header,
 					&pkt_data)) < 1) {
 			if (ret < 0)
 				INFO("netRecvEvent: pcap_next_ex failed %s\n",
@@ -1723,7 +1723,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 	netPath->receivedPacketsTotal++;
 
 		/* XXX Total cheat */
-		memcpy(buf, pkt_data + netPath->headerOffset, 
+		memcpy(buf, pkt_data + netPath->headerOffset,
 		       pkt_header->caplen - netPath->headerOffset);
 		time->seconds = pkt_header->ts.tv_sec;
 		time->nanoseconds = pkt_header->ts.tv_usec * 1000;
@@ -1744,19 +1744,19 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 
 
 
-/** 
- * 
+/**
+ *
  * store received data from network to "buf" get and store the
  * SO_TIMESTAMP value in "time" for a general message
- * 
- * @param buf 
- * @param time 
- * @param netPath 
- * 
- * @return 
+ *
+ * @param buf
+ * @param time
+ * @param netPath
+ *
+ * @return
  */
 
-ssize_t 
+ssize_t
 netRecvGeneral(Octet * buf, NetPath * netPath)
 {
 	ssize_t ret = 0;
@@ -1793,9 +1793,9 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 			recv(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT);
 
 		
-		if (( ret = pcap_next_ex(netPath->pcapGeneral, &pkt_header, 
+		if (( ret = pcap_next_ex(netPath->pcapGeneral, &pkt_header,
 					 &pkt_data)) < 1) {
-			if (ret < 0) 
+			if (ret < 0)
 				DBGV("netRecvGeneral: pcap_next_ex failed %d %s\n",
 				     ret, pcap_geterr(netPath->pcapGeneral));
 			return 0;
@@ -1824,7 +1824,7 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 	netPath->receivedPacketsTotal++;
 
 		/* XXX Total cheat */
-		memcpy(buf, pkt_data + netPath->headerOffset, 
+		memcpy(buf, pkt_data + netPath->headerOffset,
 		       pkt_header->caplen - netPath->headerOffset);
 		fflush(NULL);
 		ret = pkt_header->caplen - netPath->headerOffset;
@@ -1862,7 +1862,7 @@ netSendPcapEther(Octet * buf,  UInteger16 length,
 ///
 /// TODO: merge these 2 functions into one
 ///
-ssize_t 
+ssize_t
 netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 	     const RunTimeOpts *rtOpts, Integer32 destinationAddress, TimeInternal * tim)
 {
@@ -1880,7 +1880,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 
 #ifdef PTPD_PCAP
 
-	/* In PCAP Ethernet mode, we use pcapEvent for receiving all messages 
+	/* In PCAP Ethernet mode, we use pcapEvent for receiving all messages
 	 * and pcapGeneral for sending all messages
 	 */
 	if ((netPath->pcapGeneral != NULL) && (rtOpts->transport == IEEE_802_3 )) {
@@ -1907,8 +1907,8 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 			 */
 			*(char *)(buf + 6) |= PTP_UNICAST;
 
-			ret = sendto(netPath->eventSock, buf, length, 0, 
-				     (struct sockaddr *)&addr, 
+			ret = sendto(netPath->eventSock, buf, length, 0,
+				     (struct sockaddr *)&addr,
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
 				DBG("Error sending unicast event message\n");
@@ -1920,13 +1920,13 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 			*tim = tmpTime;
 #else
-			/* 
+			/*
 			 * Need to forcibly loop back the packet since
-			 * we are not using multicast. 
+			 * we are not using multicast.
 			 */
 			addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
-			ret = sendto(netPath->eventSock, buf, length, 0, 
-				     (struct sockaddr *)&addr, 
+			ret = sendto(netPath->eventSock, buf, length, 0,
+				     (struct sockaddr *)&addr,
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
 				DBGV("Error looping back unicast event message\n");
@@ -1951,8 +1951,8 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 			{
 				/* We've had a TX timestamp receipt timeout - falling back to packet looping */
 				addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
-				ret = sendto(netPath->eventSock, buf, length, 0, 
-				     (struct sockaddr *)&addr, 
+				ret = sendto(netPath->eventSock, buf, length, 0,
+				     (struct sockaddr *)&addr,
 				     sizeof(struct sockaddr_in));
 				if (ret <= 0)
 					DBG("Error looping back unicast event message\n");
@@ -1968,8 +1968,8 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				    netPath->ttlEvent = rtOpts->ttl;
 				}
             		}
-			ret = sendto(netPath->eventSock, buf, length, 0, 
-				     (struct sockaddr *)&addr, 
+			ret = sendto(netPath->eventSock, buf, length, 0,
+				     (struct sockaddr *)&addr,
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
 				DBG("Error sending multicast event message\n");
@@ -2004,7 +2004,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 	return ret;
 }
 
-ssize_t 
+ssize_t
 netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 	       const const RunTimeOpts *rtOpts, Integer32 destinationAddress)
 {
@@ -2021,7 +2021,7 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 			(struct ether_addr *)netPath->interfaceID,
 			netPath->pcapGeneral);
 
-		if (ret <= 0) 
+		if (ret <= 0)
 			DBG("Error sending ether multicast general message\n");
 		else {
 			netPath->sentPackets++;
@@ -2038,8 +2038,8 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 			 */
 			*(char *)(buf + 6) |= PTP_UNICAST;
 
-			ret = sendto(netPath->generalSock, buf, length, 0, 
-				     (struct sockaddr *)&addr, 
+			ret = sendto(netPath->generalSock, buf, length, 0,
+				     (struct sockaddr *)&addr,
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
 				DBG("Error sending unicast general message\n");
@@ -2058,8 +2058,8 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 				}
             		}
 
-			ret = sendto(netPath->generalSock, buf, length, 0, 
-				     (struct sockaddr *)&addr, 
+			ret = sendto(netPath->generalSock, buf, length, 0,
+				     (struct sockaddr *)&addr,
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
 				DBG("Error sending multicast general message\n");
@@ -2075,7 +2075,7 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 	return ret;
 }
 
-ssize_t 
+ssize_t
 netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, const RunTimeOpts *rtOpts, Integer32 dst)
 {
 
@@ -2092,7 +2092,7 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, const RunT
 			(struct ether_addr *)netPath->interfaceID,
 			netPath->pcapGeneral);
 
-		if (ret <= 0) 
+		if (ret <= 0)
 			DBG("error sending ether multicast general message\n");
 
 	} else if (dst)
@@ -2108,8 +2108,8 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, const RunT
 		 */
 		*(char *)(buf + 6) |= PTP_UNICAST;
 
-		ret = sendto(netPath->generalSock, buf, length, 0, 
-			     (struct sockaddr *)&addr, 
+		ret = sendto(netPath->generalSock, buf, length, 0,
+			     (struct sockaddr *)&addr,
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("Error sending unicast peer general message\n");
@@ -2124,8 +2124,8 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, const RunT
 				netPath->ttlGeneral = 1;
 			}
                 }
-		ret = sendto(netPath->generalSock, buf, length, 0, 
-			     (struct sockaddr *)&addr, 
+		ret = sendto(netPath->generalSock, buf, length, 0,
+			     (struct sockaddr *)&addr,
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("Error sending multicast peer general message\n");
@@ -2141,7 +2141,7 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, const RunT
 
 }
 
-ssize_t 
+ssize_t
 netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTimeOpts *rtOpts, Integer32 dst, TimeInternal * tim)
 {
 	ssize_t ret;
@@ -2157,7 +2157,7 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 			(struct ether_addr *)netPath->interfaceID,
 			netPath->pcapGeneral);
 
-		if (ret <= 0) 
+		if (ret <= 0)
 			DBG("error sending ether multicast general message\n");
 	} else if (dst)
 #else
@@ -2172,21 +2172,21 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 		 */
 		*(char *)(buf + 6) |= PTP_UNICAST;
 
-		ret = sendto(netPath->eventSock, buf, length, 0, 
-			     (struct sockaddr *)&addr, 
+		ret = sendto(netPath->eventSock, buf, length, 0,
+			     (struct sockaddr *)&addr,
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("Error sending unicast peer event message\n");
 
 #ifndef SO_TIMESTAMPING
-		/* 
+		/*
 		 * Need to forcibly loop back the packet since
-		 * we are not using multicast. 
+		 * we are not using multicast.
 		 */
 		addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
 
-		ret = sendto(netPath->eventSock, buf, length, 0, 
-			     (struct sockaddr *)&addr, 
+		ret = sendto(netPath->eventSock, buf, length, 0,
+			     (struct sockaddr *)&addr,
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("Error looping back unicast peer event message\n");
@@ -2208,8 +2208,8 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 		if(netPath->txTimestampFailure) {
 			/* We've had a TX timestamp receipt timeout - falling back to packet looping */
 			addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
-			ret = sendto(netPath->eventSock, buf, length, 0, 
-				     (struct sockaddr *)&addr, 
+			ret = sendto(netPath->eventSock, buf, length, 0,
+				     (struct sockaddr *)&addr,
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
 				DBG("Error looping back unicast event message\n");
@@ -2226,8 +2226,8 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 			    netPath->ttlEvent = 1;
 			}
                 }
-		ret = sendto(netPath->eventSock, buf, length, 0, 
-			     (struct sockaddr *)&addr, 
+		ret = sendto(netPath->eventSock, buf, length, 0,
+			     (struct sockaddr *)&addr,
 			     sizeof(struct sockaddr_in));
 		if (ret <= 0)
 			DBG("Error sending multicast peer event message\n");

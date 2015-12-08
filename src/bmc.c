@@ -1,25 +1,25 @@
 /*-
  * Copyright (c) 2012-2015 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -28,7 +28,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -45,9 +45,9 @@
 /**
  * @file   bmc.c
  * @date   Wed Jun 23 09:36:09 2010
- * 
+ *
  * @brief  Best master clock selection code.
- * 
+ *
  * The functions in this file are used by the daemon to select the
  * best master clock from any number of possibilities.
  */
@@ -111,10 +111,10 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_802_1AS,6);
 	}
 
-	ptpClock->clockQuality.clockAccuracy = 
+	ptpClock->clockQuality.clockAccuracy =
 		rtOpts->clockQuality.clockAccuracy;
 	ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
-	ptpClock->clockQuality.offsetScaledLogVariance = 
+	ptpClock->clockQuality.offsetScaledLogVariance =
 		rtOpts->clockQuality.offsetScaledLogVariance;
 
 	ptpClock->priority1 = rtOpts->priority1;
@@ -242,11 +242,11 @@ void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->observedParentOffsetScaledLogVariance = 0;
 	copyClockIdentity(ptpClock->grandmasterIdentity,
 			ptpClock->clockIdentity);
-	ptpClock->grandmasterClockQuality.clockAccuracy = 
+	ptpClock->grandmasterClockQuality.clockAccuracy =
 		ptpClock->clockQuality.clockAccuracy;
-	ptpClock->grandmasterClockQuality.clockClass = 
+	ptpClock->grandmasterClockQuality.clockClass =
 		ptpClock->clockQuality.clockClass;
-	ptpClock->grandmasterClockQuality.offsetScaledLogVariance = 
+	ptpClock->grandmasterClockQuality.offsetScaledLogVariance =
 		ptpClock->clockQuality.offsetScaledLogVariance;
 	ptpClock->grandmasterPriority1 = ptpClock->priority1;
 	ptpClock->grandmasterPriority2 = ptpClock->priority2;
@@ -306,15 +306,15 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	/* Parent DS */
 	copyClockIdentity(ptpClock->parentPortIdentity.clockIdentity,
 	       header->sourcePortIdentity.clockIdentity);
-	ptpClock->parentPortIdentity.portNumber = 
+	ptpClock->parentPortIdentity.portNumber =
 		header->sourcePortIdentity.portNumber;
 	copyClockIdentity(ptpClock->grandmasterIdentity,
 			announce->grandmasterIdentity);
-	ptpClock->grandmasterClockQuality.clockAccuracy = 
+	ptpClock->grandmasterClockQuality.clockAccuracy =
 		announce->grandmasterClockQuality.clockAccuracy;
-	ptpClock->grandmasterClockQuality.clockClass = 
+	ptpClock->grandmasterClockQuality.clockClass =
 		announce->grandmasterClockQuality.clockClass;
-	ptpClock->grandmasterClockQuality.offsetScaledLogVariance = 
+	ptpClock->grandmasterClockQuality.offsetScaledLogVariance =
 		announce->grandmasterClockQuality.offsetScaledLogVariance;
 	ptpClock->grandmasterPriority1 = announce->grandmasterPriority1;
 	ptpClock->grandmasterPriority2 = announce->grandmasterPriority2;
@@ -329,7 +329,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	/* Timeproperties DS */
 	ptpClock->timePropertiesDS.currentUtcOffset = announce->currentUtcOffset;
 
-	if (ptpClock->portState != PTP_PASSIVE && ptpClock->timePropertiesDS.currentUtcOffsetValid && 
+	if (ptpClock->portState != PTP_PASSIVE && ptpClock->timePropertiesDS.currentUtcOffsetValid &&
 			!IS_SET(header->flagField1, UTCV)) {
 		if(rtOpts->alwaysRespectUtcOffset)
 			WARNING("UTC Offset no longer valid and ptpengine:always_respect_utc_offset is set: continuing as normal\n");
@@ -432,7 +432,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	    if(!ptpClock->leapSecondPending &&  !ptpClock->leapSecondInProgress) {
 		WARNING("UTC offset changed from %d to %d with "
 			 "no leap second pending!\n",
-				previousUtcOffset, 
+				previousUtcOffset,
 				ptpClock->timePropertiesDS.currentUtcOffset);
 	    } else {
 			WARNING("UTC offset changed from %d to %d\n",
@@ -449,11 +449,11 @@ copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
 	announce->grandmasterPriority1 = ptpClock->priority1;
 	copyClockIdentity(announce->grandmasterIdentity,
 			ptpClock->clockIdentity);
-	announce->grandmasterClockQuality.clockClass = 
+	announce->grandmasterClockQuality.clockClass =
 		ptpClock->clockQuality.clockClass;
-	announce->grandmasterClockQuality.clockAccuracy = 
+	announce->grandmasterClockQuality.clockAccuracy =
 		ptpClock->clockQuality.clockAccuracy;
-	announce->grandmasterClockQuality.offsetScaledLogVariance = 
+	announce->grandmasterClockQuality.offsetScaledLogVariance =
 		ptpClock->clockQuality.offsetScaledLogVariance;
 	announce->grandmasterPriority2 = ptpClock->priority2;
 	announce->stepsRemoved = 0;
@@ -474,7 +474,7 @@ copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
 /*Data set comparison bewteen two foreign masters (9.3.4 fig 27)
  * return similar to memcmp() */
 
-static Integer8 
+static Integer8
 bmcDataSetComparison(const ForeignMasterRecord *a, const ForeignMasterRecord *b, const PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 {
 
@@ -679,7 +679,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 		return PTP_SLAVE;
 	}
 
-	if ((!ptpClock->number_foreign_records) && 
+	if ((!ptpClock->number_foreign_records) &&
 	    (ptpClock->portState == PTP_LISTENING))
 		return PTP_LISTENING;
 
@@ -738,7 +738,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 
 
 
-UInteger8 
+UInteger8
 bmc(ForeignMasterRecord *foreignMaster,
     const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {

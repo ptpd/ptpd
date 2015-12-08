@@ -4,7 +4,7 @@
  *                    Vincent Bernat
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -186,7 +186,7 @@ enum {
     /* ptpBaseSlaveOfmStatistics */
     PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE,
     PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE_STRING,
-    PTPBASE_SLAVE_OFM_STATS_UPDATE_INTERVAL,
+    PTPBASE_SLAVE_OFM_STATS_PERIOD_SECONDS,
     PTPBASE_SLAVE_OFM_STATS_VALID,
     PTPBASE_SLAVE_OFM_STATS_MIN,
     PTPBASE_SLAVE_OFM_STATS_MAX,
@@ -201,7 +201,7 @@ enum {
     /* ptpBaseSlaveMpdStatistics */
     PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE,
     PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE_STRING,
-    PTPBASE_SLAVE_MPD_STATS_UPDATE_INTERVAL,
+    PTPBASE_SLAVE_MPD_STATS_PERIOD_SECONDS,
     PTPBASE_SLAVE_MPD_STATS_VALID,
     PTPBASE_SLAVE_MPD_STATS_MIN,
     PTPBASE_SLAVE_MPD_STATS_MAX,
@@ -215,7 +215,7 @@ enum {
     PTPBASE_SLAVE_MPD_STATS_MEDIAN_STRING,
     /* ptpBaseSlaveFreqAdjStatistics */
     PTPBASE_SLAVE_FREQADJ_STATS_CURRENT_VALUE,
-    PTPBASE_SLAVE_FREQADJ_STATS_UPDATE_INTERVAL,
+    PTPBASE_SLAVE_FREQADJ_STATS_PERIOD_SECONDS,
     PTPBASE_SLAVE_FREQADJ_STATS_VALID,
     PTPBASE_SLAVE_FREQADJ_STATS_MIN,
     PTPBASE_SLAVE_FREQADJ_STATS_MAX,
@@ -1154,14 +1154,14 @@ snmpSlaveOfmStatsTable(SNMP_SIGNATURE) {
 		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->offsetFromMaster));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 #ifdef PTPD_STATISTICS
-	case PTPBASE_SLAVE_OFM_STATS_UPDATE_INTERVAL:
+	case PTPBASE_SLAVE_OFM_STATS_PERIOD_SECONDS:
 		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
 	case PTPBASE_SLAVE_OFM_STATS_VALID:
 		return SNMP_BOOLEAN(snmpPtpClock->slaveStats.statsCalculated);
 	case PTPBASE_SLAVE_OFM_STATS_MIN:
-		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmMin));
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmMinFinal));
 	case PTPBASE_SLAVE_OFM_STATS_MAX:
-		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmMax));
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmMaxFinal));
 	case PTPBASE_SLAVE_OFM_STATS_MEAN:
 		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmMean));
 	case PTPBASE_SLAVE_OFM_STATS_STDDEV:
@@ -1169,10 +1169,10 @@ snmpSlaveOfmStatsTable(SNMP_SIGNATURE) {
 	case PTPBASE_SLAVE_OFM_STATS_MEDIAN:
 		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.ofmMedian));
 	case PTPBASE_SLAVE_OFM_STATS_MIN_STRING:
-		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmMin);
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmMinFinal);
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 	case PTPBASE_SLAVE_OFM_STATS_MAX_STRING:
-		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmMax);
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmMaxFinal);
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 	case PTPBASE_SLAVE_OFM_STATS_MEAN_STRING:
 		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmMean);
@@ -1215,14 +1215,14 @@ snmpSlaveMpdStatsTable(SNMP_SIGNATURE) {
 		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->meanPathDelay));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 #ifdef PTPD_STATISTICS
-	case PTPBASE_SLAVE_MPD_STATS_UPDATE_INTERVAL:
+	case PTPBASE_SLAVE_MPD_STATS_PERIOD_SECONDS:
 		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
 	case PTPBASE_SLAVE_MPD_STATS_VALID:
 		return SNMP_BOOLEAN(snmpPtpClock->slaveStats.statsCalculated);
 	case PTPBASE_SLAVE_MPD_STATS_MIN:
-		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdMin));
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdMinFinal));
 	case PTPBASE_SLAVE_MPD_STATS_MAX:
-		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdMax));
+		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdMaxFinal));
 	case PTPBASE_SLAVE_MPD_STATS_MEAN:
 		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdMean));
 	case PTPBASE_SLAVE_MPD_STATS_STDDEV:
@@ -1230,10 +1230,10 @@ snmpSlaveMpdStatsTable(SNMP_SIGNATURE) {
 	case PTPBASE_SLAVE_MPD_STATS_MEDIAN:
 		return SNMP_TIMEINTERNAL(doubleToTimeInternal(snmpPtpClock->slaveStats.mpdMedian));
 	case PTPBASE_SLAVE_MPD_STATS_MIN_STRING:
-		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdMin);
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdMinFinal);
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 	case PTPBASE_SLAVE_MPD_STATS_MAX_STRING:
-		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdMax);
+		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdMaxFinal);
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 	case PTPBASE_SLAVE_MPD_STATS_MEAN_STRING:
 		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdMean);
@@ -1273,14 +1273,14 @@ snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
 	    case PTPBASE_SLAVE_FREQADJ_STATS_CURRENT_VALUE:
 		return SNMP_INTEGER(snmpPtpClock->servo.observedDrift);
 #ifdef PTPD_STATISTICS
-	    case PTPBASE_SLAVE_FREQADJ_STATS_UPDATE_INTERVAL:
+	    case PTPBASE_SLAVE_FREQADJ_STATS_PERIOD_SECONDS:
 		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_VALID:
 		return SNMP_BOOLEAN(snmpPtpClock->servo.statsCalculated);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_MIN:
-		return SNMP_INTEGER(snmpPtpClock->servo.driftMin);
+		return SNMP_INTEGER(snmpPtpClock->servo.driftMinFinal);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_MAX:
-		return SNMP_INTEGER(snmpPtpClock->servo.driftMax);
+		return SNMP_INTEGER(snmpPtpClock->servo.driftMaxFinal);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_MEAN:
 		return SNMP_INTEGER(snmpPtpClock->servo.driftMean);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_STDDEV:
@@ -1580,9 +1580,9 @@ static struct variable7 snmpVariables[] = {
 	{ PTPBASE_PORT_MESSAGE_COUNTERS_UNKNOWN_MESSAGES, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpPtpPortMessageCountersTable, 5, {1, 2, 12, 1, 30}},
 	/* ptpbasePtpPortProtocolCounters */
-	{ PTPBASE_PORT_PROTOCOL_COUNTERS_CLEAR, ASN_INTEGER, HANDLER_CAN_RONLY,
+	{ PTPBASE_PORT_PROTOCOL_COUNTERS_CLEAR, ASN_INTEGER, HANDLER_CAN_RWRITE,
 	  snmpPtpPortProtocolCountersTable, 5, {1, 2, 13, 1, 5}},
-	{ PTPBASE_PORT_PROTOCOL_COUNTERS_FOREIGN_ADDED, ASN_INTEGER, HANDLER_CAN_RWRITE,
+	{ PTPBASE_PORT_PROTOCOL_COUNTERS_FOREIGN_ADDED, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpPtpPortProtocolCountersTable, 5, {1, 2, 13, 1, 6}},
 	{ PTPBASE_PORT_PROTOCOL_COUNTERS_FOREIGN_COUNT, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpPtpPortProtocolCountersTable, 5, {1, 2, 13, 1, 7}},
@@ -1649,7 +1649,7 @@ static struct variable7 snmpVariables[] = {
 	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 4}},
 	{ PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
 	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 5}},
-	{ PTPBASE_SLAVE_OFM_STATS_UPDATE_INTERVAL, ASN_INTEGER, HANDLER_CAN_RONLY,
+	{ PTPBASE_SLAVE_OFM_STATS_PERIOD_SECONDS, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 6}},
 	{ PTPBASE_SLAVE_OFM_STATS_VALID, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpSlaveOfmStatsTable, 5, {1, 2, 18, 1, 7}},
@@ -1678,7 +1678,7 @@ static struct variable7 snmpVariables[] = {
 	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 4}},
 	{ PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
 	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 5}},
-	{ PTPBASE_SLAVE_MPD_STATS_UPDATE_INTERVAL, ASN_INTEGER, HANDLER_CAN_RONLY,
+	{ PTPBASE_SLAVE_MPD_STATS_PERIOD_SECONDS, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 6}},
 	{ PTPBASE_SLAVE_MPD_STATS_VALID, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpSlaveMpdStatsTable, 5, {1, 2, 19, 1, 7}},
@@ -1705,7 +1705,7 @@ static struct variable7 snmpVariables[] = {
 	/* ptpBaseSlaveFreqAdjStatistics */
 	{ PTPBASE_SLAVE_FREQADJ_STATS_CURRENT_VALUE, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 4}},
-	{ PTPBASE_SLAVE_FREQADJ_STATS_UPDATE_INTERVAL, ASN_INTEGER, HANDLER_CAN_RONLY,
+	{ PTPBASE_SLAVE_FREQADJ_STATS_PERIOD_SECONDS, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 5}},
 	{ PTPBASE_SLAVE_FREQADJ_STATS_VALID, ASN_INTEGER, HANDLER_CAN_RONLY,
 	  snmpSlaveFreqAdjStatsTable, 5, {1, 2, 20, 1, 6}},
@@ -1870,7 +1870,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			unsigned long addrType = SNMP_IPv4;
 
 			uint32_t sa = 0;
-			if(snmpPtpClock->bestMaster) { 
+			if(snmpPtpClock->bestMaster) {
 			    sa = snmpPtpClock->bestMaster->sourceAddr;
 			}
 
@@ -2030,7 +2030,6 @@ sendNotif(int eventType) {
  */
 void
 snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
-
 	netsnmp_enable_subagent();
 	snmp_disable_log();
 	snmp_enable_calllog();
@@ -2042,7 +2041,7 @@ snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 	REGISTER_MIB("ptpMib", snmpVariables, variable7, ptp_oid);
 	init_snmp("ptpAgent");
 
-	/* Currently, ptpd only handle one clock. We put it in a
+	/* Currently, ptpd only handles one clock. We put it in a
 	 * global variable for the need of our subsystem. */
 	snmpPtpClock = ptpClock;
 	snmpRtOpts = rtOpts;
@@ -2055,9 +2054,12 @@ snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 
 void
 snmpShutdown() {
+MARKER;
+MARKER;
 
 	unregister_mib(ptp_oid, sizeof(ptp_oid) / sizeof(oid));
 	snmp_shutdown("ptpMib");
+//	shutdown_agent();
 	SOCK_CLEANUP;
 
 }

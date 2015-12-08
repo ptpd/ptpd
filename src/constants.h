@@ -83,7 +83,7 @@
 section 7.6.2.4, page 55:
 248     Default. This clockClass shall be used if none of the other clockClass definitions apply.
 13      Shall designate a clock that is synchronized to an application-specific source of time. The timescale distributed
-        shall be ARB. A clockClass 13 clock shall not be a slave to another clock in the domain. 
+        shall be ARB. A clockClass 13 clock shall not be a slave to another clock in the domain.
 */
 #define DEFAULT_CLOCK_CLASS					248
 #define DEFAULT_CLOCK_CLASS__APPLICATION_SPECIFIC_TIME_SOURCE	13
@@ -98,13 +98,13 @@ section 7.6.2.5, page 56:
 */
 #define DEFAULT_CLOCK_ACCURACY		0xFE
 
-#define DEFAULT_PRIORITY1		128        
+#define DEFAULT_PRIORITY1		128       
 #define DEFAULT_PRIORITY2		128        /* page 238, default priority is the midpoint, to allow easy control of the BMC algorithm */
 
 
 /* page 238:  τ, see 7.6.3.2: The default initialization value shall be 1.0 s.  */
 //#define DEFAULT_CLOCK_VARIANCE 	        28768 /* To be determined in 802.1AS. */
-#define DEFAULT_CLOCK_VARIANCE			0xFFFF                                             
+#define DEFAULT_CLOCK_VARIANCE			0xFFFF                                            
 
 #define UNICAST_MESSAGEINTERVAL 0x7F
 #define MAX_FOLLOWUP_GAP 3

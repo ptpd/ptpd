@@ -156,7 +156,7 @@ ptpServiceInit (TimingService* service)
 	}
 
 	/* read current UTC offset from leap file or from kernel if not configured */
-	if(ptpClock->timePropertiesDS.ptpTimescale && 
+	if(ptpClock->timePropertiesDS.ptpTimescale &&
 	    rtOpts->timeProperties.currentUtcOffset == 0) {
 		prepareLeapFlags(rtOpts, ptpClock);
 	}
@@ -198,12 +198,12 @@ ptpServiceRelease (TimingService* service, int reason)
 	return 1;
 }
 
-/* 
- * configure the UTC offset and leap flags according to 
+/*
+ * configure the UTC offset and leap flags according to
  * information from kernel or leap file. Note: no updates to ptpClock.
  * only clockStatus is being picked up in protocol.c
  */
-static void 
+static void
 prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 
 	TimeInternal now;
@@ -234,7 +234,7 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 
 	    /* then we try the offset from leap file if valid - takes priority over kernel */
 	    if(rtOpts->leapInfo.offsetValid) {
-		    ptpClock->clockStatus.utcOffset = 
+		    ptpClock->clockStatus.utcOffset =
 			rtOpts->leapInfo.currentOffset;
 		    ptpClock->clockStatus.override = TRUE;
 	    }
@@ -245,7 +245,7 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 		ptpClock->clockStatus.leapInsert = FALSE;
 		ptpClock->clockStatus.leapDelete = FALSE;
 
-		if( now.seconds >= rtOpts->leapInfo.startTime && 
+		if( now.seconds >= rtOpts->leapInfo.startTime &&
 		    now.seconds < rtOpts->leapInfo.endTime) {
 			DBG("Leap second pending - leap file\n");
 			if(rtOpts->leapInfo.leapType == 1) {
@@ -257,9 +257,9 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 			
 			ptpClock->clockStatus.override = TRUE;
 
-		} 
+		}
 		 if(now.seconds >= rtOpts->leapInfo.endTime) {
-		    ptpClock->clockStatus.utcOffset = 
+		    ptpClock->clockStatus.utcOffset =
 			    rtOpts->leapInfo.nextOffset;
 		    	    ptpClock->clockStatus.override = TRUE;
 		    if(strcmp(rtOpts->leapFile,"")) {
@@ -267,7 +267,7 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 			parseLeapFile(rtOpts->leapFile, &rtOpts->leapInfo);
 
 			if(rtOpts->leapInfo.offsetValid) {
-				ptpClock->clockStatus.utcOffset = 
+				ptpClock->clockStatus.utcOffset =
 				rtOpts->leapInfo.currentOffset;
 
 			}
@@ -280,7 +280,7 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 		    ptpClock->clockStatus.leapInsert = leapInsert;
 		    ptpClock->clockStatus.leapDelete = leapDelete;
 	    }
-	    
+	   
 }
 
 static int
@@ -784,7 +784,7 @@ timingDomainUpdate(TimingDomain *domain)
 
 			service->activity = FALSE;
 
-			if( (service->flags & TIMINGSERVICE_AVAILABLE) && 
+			if( (service->flags & TIMINGSERVICE_AVAILABLE) &&
 			    !(service->flags & TIMINGSERVICE_HOLD) &&
 				    (service->idleTime > service->minIdleTime) &&
 				(service->idleTime > service->timeout)) {
@@ -809,7 +809,7 @@ timingDomainUpdate(TimingDomain *domain)
 						service->released = TRUE;
 						domain->electionLeft = domain->electionDelay;
 						domain->current = NULL;
-					    
+					   
 					}
 
 			}

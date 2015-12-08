@@ -1,7 +1,7 @@
 /* Copyright (c) 2013-2015 Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -27,9 +27,9 @@
 /**
  * @file   configtemplates.c
  * @date   Mon Oct 12 03:25:32 2015
- * 
+ *
  * @brief  Definitions of configuration templates
- * 
+ *
  */
 
 #include "../ptpd.h"
@@ -99,7 +99,7 @@ static const ConfigTemplate configTemplates[] = {
 	{"ptpengine:frequency_traceable","y"},
 	{"clock:leap_seconds_file", DATADIR"/"PACKAGE_NAME"/leap-seconds.list"},
 	/*
-	 * UTC offset value and UTC offset valid flag 
+	 * UTC offset value and UTC offset valid flag
 	 * will be announced if leap file is parsed and up to date
 	 */
 	{NULL}}
@@ -363,6 +363,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* status file options */
 	rtOpts->statusFileUpdateInterval = 1;
 
+	rtOpts->ofmAlarmThreshold = 0;
+
 	/* panic mode options */
 	rtOpts->enablePanicMode = FALSE;
 	rtOpts->panicModeDuration = 2;
@@ -439,7 +441,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 }
 
-/* The PtpEnginePreset structure for reference: 
+/* The PtpEnginePreset structure for reference:
 
 typedef struct {
 

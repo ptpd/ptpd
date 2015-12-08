@@ -2,7 +2,7 @@
  * Copyright (c) 2015      Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -28,9 +28,9 @@
 /**
  * @file   timer.c
  * @date   Wed Oct 1 00:41:26 2014
- * 
+ *
  * @brief  PTP timer handler code
- * 
+ *
  * Glue code providing PTPd with event timers.
  * This code can be re-written to make use of any timer
  * implementation. Provided is an EventTimer which uses
@@ -43,7 +43,7 @@
 
 #include "ptpd.h"
 
-void 
+void
 timerStop(IntervalTimer * itimer)
 {
 	if (itimer == NULL)
@@ -53,7 +53,7 @@ timerStop(IntervalTimer * itimer)
 	timer->stop(timer);
 }
 
-void 
+void
 timerStart(IntervalTimer * itimer, double interval)
 {
 	if (itimer == NULL)
@@ -69,7 +69,7 @@ timerStart(IntervalTimer * itimer, double interval)
 	timer->start(timer, interval);
 }
 
-Boolean 
+Boolean
 timerExpired(IntervalTimer * itimer)
 {
 
@@ -81,7 +81,7 @@ timerExpired(IntervalTimer * itimer)
 	return timer->isExpired(timer);
 }
 
-Boolean 
+Boolean
 timerRunning(IntervalTimer * itimer)
 {
 

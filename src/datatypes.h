@@ -382,6 +382,24 @@ typedef struct {
 } MMTraceabilityProperties;
 
 /**
+ * \brief Management TLV Timescale Properties fields (Table 59 of the spec)
+ */
+/* Management TLV Timescale Properties Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/timescaleProperties.def"
+} MMTimescaleProperties;
+
+/**
+ * \brief Management TLV Unicast Negotiation Enable fields (Table 73 of the spec)
+ */
+/* Management TLV Traceability Properties Message */
+typedef struct {
+	#define OPERATE( name, size, type ) type name;
+	#include "def/managementTLV/unicastNegotiationEnable.def"
+} MMUnicastNegotiationEnable;
+
+/**
  * \brief Management TLV Delay Mechanism fields (Table 65 of the spec)
  */
 /* Management TLV Delay Mechanism Message */
@@ -473,14 +491,6 @@ typedef struct {
 	#include "def/message/signaling.def"
 	SignalingTLV* tlv;
 } MsgSignaling;
-
-/**
-* \brief Time structure to handle timestamps
- */
-typedef struct {
-	Integer32 seconds;
-	Integer32 nanoseconds;
-} TimeInternal;
 
 
 /**
@@ -615,6 +625,8 @@ typedef struct{
     double driftMedian;
     double driftMin;
     double driftMax;
+    double driftMinFinal;
+    double driftMaxFinal;
     DoublePermanentStdDev driftStats;
     DoublePermanentMedian driftMedianContainer;
 #endif /* PTPD_STATISTICS */
@@ -754,7 +766,9 @@ typedef struct {
 	Integer8 logMinDelayReqInterval;
 	Integer8 logMinPdelayReqInterval;
 	TimeInternal peerMeanPathDelay;
- 
+
+	Enumeration8 lastPortState; 	/* previous state */
+
 	/*Configurable members*/
 	Integer8 logAnnounceInterval;
 	UInteger8 announceReceiptTimeout;
@@ -880,7 +894,7 @@ typedef struct {
 
 	int listenCount; // number of consecutive resets to listening
 	int resetCount;
-	int announceTimeouts; 
+	int announceTimeouts;
 	int current_init_clock;
 	int can_step_clock;
 	int warned_operator_slow_slewing;
@@ -932,8 +946,8 @@ typedef struct {
 	Boolean initFailure;
 	Integer32 initFailureTimeout;
 
-	/* 
-	 * used to inform TimingService about our status, but so 
+	/*
+	 * used to inform TimingService about our status, but so
 	 * that PTP code is independent from LibCCK and glue code can poll this
 	 */
 	ClockControlInfo clockControl;
@@ -1016,7 +1030,6 @@ typedef struct {
 
 	/* optional BMC extension: accept any domain, prefer configured domain, prefer lower domain */
 	Boolean anyDomain;
-//	UInteger8 timeSource;
 
 	/*
 	 * For slave state, grace period of n * announceReceiptTimeout
@@ -1040,7 +1053,6 @@ typedef struct {
 #ifdef linux
 	Boolean setRtc;
 #endif /* linux */
-
 
 	Boolean clearCounters;
 
@@ -1104,17 +1116,17 @@ typedef struct {
 
 	Boolean autoLockFile; /* mode and interface specific lock files are used
 				    * when set to TRUE */
-	char lockDirectory[PATH_MAX+1]; /* Directory to store lock files 
+	char lockDirectory[PATH_MAX+1]; /* Directory to store lock files
 				       * When automatic lock files used */
 	char lockFile[PATH_MAX+1]; /* lock file location */
 	char driftFile[PATH_MAX+1]; /* drift file location */
 	char leapFile[PATH_MAX+1]; /* leap seconds file location */
-	Enumeration8 drift_recovery_method; /* how the observed drift is managed 
+	Enumeration8 drift_recovery_method; /* how the observed drift is managed
 				      between restarts */
 
 	LeapSecondInfo	leapInfo;
 
-	Boolean snmp_enabled; /* SNMP subsystem enabled / disabled even if 
+	Boolean snmp_enabled; /* SNMP subsystem enabled / disabled even if
 				 compiled in */
 
 	Boolean pcap; /* Receive and send packets using libpcap, bypassing the

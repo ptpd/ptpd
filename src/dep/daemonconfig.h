@@ -1,9 +1,9 @@
 /**
  * @file   daemonconfig.h
- * 
+ *
  * @brief  definitions related to config file handling.
- * 
- * 
+ *
+ *
  */
 
 #ifndef PTPD_DAEMONCONFIG_H_
