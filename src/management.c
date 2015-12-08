@@ -1,25 +1,25 @@
 /*-
  * Copyright (c) 2012-2015 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -28,7 +28,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -78,6 +78,9 @@ static void handleMMTime(MsgManagement*, MsgManagement*, PtpClock*, const RunTim
 static void handleMMClockAccuracy(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMUtcProperties(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMTraceabilityProperties(MsgManagement*, MsgManagement*, PtpClock*);
+static void handleMMTimescaleProperties(MsgManagement*, MsgManagement*, PtpClock*);
+
+static void handleMMUnicastNegotiationEnable(MsgManagement*, MsgManagement*, PtpClock*, RunTimeOpts*);
 static void handleMMDelayMechanism(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMLogMinPdelayReqInterval(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMErrorStatus(MsgManagement*);
@@ -102,7 +105,7 @@ handleManagement(MsgHeader *header,
 
 	MsgManagement *mgmtMsg = &ptpClock->msgTmp.manage;
 
-	/* 
+	/*
 	 * If request was unicast, reply to source, always, even if we ourselves are running multicast.
 	 * This is not in line with the standard, but allows us to always reply to unicast management messages.
 	 * This is a good thing - this allows us to always be able to monitor the node using unicast management messages.
@@ -379,6 +382,24 @@ handleManagement(MsgHeader *header,
 		}
                 handleMMTraceabilityProperties(mgmtMsg, &ptpClock->outgoingManageTmp, ptpClock);
                 break;
+        case MM_TIMESCALE_PROPERTIES:
+                DBGV("handleManagement: Timescale Properties\n");
+                if(mgmtMsg->actionField != GET && !unpackMMTimescaleProperties(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
+			ptpClock->counters.messageFormatErrors++;
+			goto end;
+		}
+                handleMMTimescaleProperties(mgmtMsg, &ptpClock->outgoingManageTmp, ptpClock);
+                break;
+        case MM_UNICAST_NEGOTIATION_ENABLE:
+                DBGV("handleManagement: Unicast Negotiation Enable\n");
+                if(mgmtMsg->actionField != GET && !unpackMMUnicastNegotiationEnable(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
+			DBG("handleManagement: (bufGuard) error while unpacking management %02x\n", mgmtMsg->tlv->managementId);
+			ptpClock->counters.messageFormatErrors++;
+			goto end;
+		}
+                handleMMUnicastNegotiationEnable(mgmtMsg, &ptpClock->outgoingManageTmp, ptpClock, rtOpts);
+                break;
         case MM_DELAY_MECHANISM:
                 DBGV("handleManagement: Delay Mechanism\n");
                 if(mgmtMsg->actionField != GET && !unpackMMDelayMechanism(ptpClock->msgIbuf, tlvOffset, mgmtMsg, ptpClock)) {
@@ -399,8 +420,6 @@ handleManagement(MsgHeader *header,
                 break;
 	case MM_FAULT_LOG:
 	case MM_FAULT_LOG_RESET:
-	case MM_TIMESCALE_PROPERTIES:
-	case MM_UNICAST_NEGOTIATION_ENABLE:
 	case MM_PATH_TRACE_LIST:
 	case MM_PATH_TRACE_ENABLE:
 	case MM_GRANDMASTER_CLUSTER_TABLE:
@@ -786,7 +805,7 @@ void handleMMInitialize(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 		{
 		case INITIALIZE_EVENT:
 			/* cause INITIALIZE event */
-			ptpClock->portState = PTP_INITIALIZING;
+			setPortState(ptpClock, PTP_INITIALIZING);
 			break;
 		default:
 			/* do nothing, implementation specific */
@@ -1598,6 +1617,90 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 
 }
 
+/**\brief Handle incoming TIMESCALE_PROPERTIES management message type*/
+void handleMMTimescaleProperties(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
+{
+	DBGV("received TIMESCALE_PROPERTIES message\n");
+
+	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
+	outgoing->tlv->tlvType = TLV_MANAGEMENT;
+	outgoing->tlv->managementId = MM_TRACEABILITY_PROPERTIES;
+
+	MMTimescaleProperties* data = NULL;
+	switch( incoming->actionField )
+	{
+	case SET:
+		DBGV(" SET action\n");
+		data = (MMTimescaleProperties*)incoming->tlv->dataField;
+		/* SET actions */
+		setConfig(ptpClock->managementConfig, "ptpengine:ptp_timesource", getTimeSourceName(data->timeSource));
+		setConfig(ptpClock->managementConfig, "ptpengine:ptp_timescale", data->ptp ? "PTP" : "ARB");
+		/* intentionally fall through to GET case */
+	case GET:
+		DBGV(" GET action\n");
+		outgoing->actionField = RESPONSE;
+		XMALLOC(outgoing->tlv->dataField, sizeof(MMTimescaleProperties));
+		data = (MMTimescaleProperties*)outgoing->tlv->dataField;
+		/* GET actions */
+		data->ptp = ptpClock->timePropertiesDS.ptpTimescale;
+		data->timeSource = ptpClock->timePropertiesDS.timeSource;
+		break;
+	case RESPONSE:
+		DBGV(" RESPONSE action\n");
+		/* TODO: implementation specific */
+		break;
+	default:
+		DBGV(" unknown actionType \n");
+		free(outgoing->tlv);
+		handleErrorManagementMessage(incoming, outgoing,
+			ptpClock, MM_TRACEABILITY_PROPERTIES,
+			NOT_SUPPORTED);
+	}
+
+}
+
+/**\brief Handle incoming UNICAST_NEGOTIATION_ENABLE management message type*/
+void handleMMUnicastNegotiationEnable(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock, RunTimeOpts *rtOpts)
+{
+	DBGV("received UNICAST_NEGOTIATION_ENABLE message\n");
+
+	initOutgoingMsgManagement(incoming, outgoing, ptpClock);
+	outgoing->tlv->tlvType = TLV_MANAGEMENT;
+	outgoing->tlv->managementId = MM_UNICAST_NEGOTIATION_ENABLE;
+
+	MMUnicastNegotiationEnable* data = NULL;
+	switch( incoming->actionField )
+	{
+	case SET:
+		DBGV(" SET action\n");
+		data = (MMUnicastNegotiationEnable*)incoming->tlv->dataField;
+		/* SET actions */
+		setConfig(ptpClock->managementConfig, "ptpengine:unicast_negotiation", data->en ? "Y" : "N");
+		ptpClock->record_update = TRUE;
+		/* intentionally fall through to GET case */
+	case GET:
+		DBGV(" GET action\n");
+		outgoing->actionField = RESPONSE;
+		XMALLOC(outgoing->tlv->dataField, sizeof(MMUnicastNegotiationEnable));
+		data = (MMUnicastNegotiationEnable*)outgoing->tlv->dataField;
+		/* GET actions */
+		data->en = rtOpts->unicastNegotiation;
+		data->reserved = 0x0;
+		break;
+	case RESPONSE:
+		DBGV(" RESPONSE action\n");
+		/* TODO: implementation specific */
+		break;
+	default:
+		DBGV(" unknown actionType \n");
+		free(outgoing->tlv);
+		handleErrorManagementMessage(incoming, outgoing,
+			ptpClock, MM_UNICAST_NEGOTIATION_ENABLE,
+			NOT_SUPPORTED);
+	}
+
+}
+
 /**\brief Handle incoming DELAY_MECHANISM management message type*/
 void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock)
 {
@@ -1729,7 +1832,7 @@ void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement *outgoi
 }
 
 #if 0
-static void 
+static void
 issueManagement(MsgHeader *header,MsgManagement *manage,const RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
@@ -1739,7 +1842,7 @@ issueManagement(MsgHeader *header,MsgManagement *manage,const RunTimeOpts *rtOpt
 }
 #endif
 
-static void 
+static void
 issueManagementRespOrAck(MsgManagement *outgoing, Integer32 dst, const RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {

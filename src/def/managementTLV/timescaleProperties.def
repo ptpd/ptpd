@@ -1,0 +1,7 @@
+/* Spec Table 60 - TIMESCALE_PROPERTIES management TLV data field */
+
+/* to use these definitions, #define OPERATE then #include this file in your source */
+OPERATE( ptp, 1, Boolean )
+OPERATE( timeSource, 1, Enumeration8 )
+
+#undef OPERATE

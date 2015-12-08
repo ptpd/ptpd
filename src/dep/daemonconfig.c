@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2015 Wojciech Owczarek,
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -28,13 +28,13 @@
 /**
  * @file   daemonconfig.c
  * @date   Sun May 27 00:45:32 2013
- * 
+ *
  * @brief  Code to handle configuration file and default settings
- * 
+ *
  * Functions in this file deal with config file parsing, reloading,
  * loading default parameters, parsing command-line options, printing
  * help output, etc.
- * 
+ *
  */
 
 #include "../ptpd.h"
@@ -54,7 +54,7 @@ static int configSettingChanged(dictionary *oldConfig, dictionary *newConfig, co
 
 static void warnRestart(const char *key, int flags);
 
-static int configMapBoolean(int opCode, void *opArg,  dictionary* dict, 
+static int configMapBoolean(int opCode, void *opArg,  dictionary* dict,
 	dictionary *target, const char * key, int restartFlags, Boolean *var, Boolean def, const char* helptext);
 
 static int configMapString(int opCode, void *opArg,  dictionary *dict,
@@ -62,7 +62,7 @@ static int configMapString(int opCode, void *opArg,  dictionary *dict,
 
 static int checkRangeInt(dictionary *dict, const char *key, int rangeFlags, int minBound, int maxBound);
 
-static int configMapInt(int opCode, void *opArg,  dictionary *dict, 
+static int configMapInt(int opCode, void *opArg,  dictionary *dict,
 	dictionary *target, const char *key, int restartFlags, int intType, void *var, int def,
 	const char *helptext, int rangeFlags, int minBound, int maxBound);
 
@@ -838,10 +838,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 
  /*-
-  * WARNING: for ease of use, a limited number of keys is set 
+  * WARNING: for ease of use, a limited number of keys is set
   * via getopt in loadCommanLineOptions(). When renaming settings, make sure
   * you check it  for inconsistencies. If we decide to
-  * drop all short options in favour of section:key only, 
+  * drop all short options in favour of section:key only,
   * this warning can be removed.
   */
 	/**
@@ -1000,11 +1000,11 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 timing messages with different port identities", RANGECHECK_RANGE, 0,65535);
 
 	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transport == IEEE_802_3) && rtOpts->unicastNegotiation,
-	 			    "ptpengine:unicast_negotiation", 
+	 			    "ptpengine:unicast_negotiation",
 				"Unicast negotiation cannot be used with Ethernet transport\n");
 
 	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->ipMode != IPMODE_UNICAST) && rtOpts->unicastNegotiation,
-	 			    "ptpengine:unicast_negotiation", 
+	 			    "ptpengine:unicast_negotiation",
 				"Unicast negotiation can only be used with unicast transmission\n");
 
 	/* disable unicast negotiation unless running unicast */
@@ -1093,7 +1093,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		    "        The port number can be changed.",RANGECHECK_RANGE,1,65534);
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:port_description",
-		PTPD_UPDATE_DATASETS, rtOpts->portDescription, sizeof(rtOpts->portDescription), rtOpts->portDescription, 
+		PTPD_UPDATE_DATASETS, rtOpts->portDescription, sizeof(rtOpts->portDescription), rtOpts->portDescription,
 	"Port description (returned in the userDescription field of PORT_DESCRIPTION management message and USER_DESCRIPTION"
 	"        management message) - maximum 64 characters");
 
@@ -1387,7 +1387,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->maxListen, rtOpts->maxListen,
 		 "Number of consecutive resets to LISTENING before full network reset\n",RANGECHECK_MIN,1,0);
 
-	/* 
+	/*
 	 * TODO: in unicast and hybrid mode, automativally override master delayreq interval with a default,
 	 * rather than require setting it manually.
 	 */
@@ -1409,16 +1409,16 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	/* unicast signaling slave -> must specify unicast destination(s) */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
-				     rtOpts->clockQuality.clockClass > 127 && 
-				    rtOpts->ipMode == IPMODE_UNICAST && 
+				     rtOpts->clockQuality.clockClass > 127 &&
+				    rtOpts->ipMode == IPMODE_UNICAST &&
 				    rtOpts->unicastNegotiation,
 				    "unicast",
 				    "ptpengine:unicast_destinations");
 
 	/* unicast master without signaling - must specify unicast destinations */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
-				     rtOpts->clockQuality.clockClass <= 127 && 
-				    rtOpts->ipMode == IPMODE_UNICAST && 
+				     rtOpts->clockQuality.clockClass <= 127 &&
+				    rtOpts->ipMode == IPMODE_UNICAST &&
 				    !rtOpts->unicastNegotiation,
 				    "unicast",
 				    "ptpengine:unicast_destinations");
@@ -1752,6 +1752,11 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"PTP idle timeout: if PTPd is in SLAVE state and there have been no clock\n"
 	"	 updates for this amout of time, PTPd releases clock control.\n", RANGECHECK_RANGE,10,3600);
 
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:offset_alarm_threshold", PTPD_UPDATE_DATASETS, INTTYPE_U32, &rtOpts->ofmAlarmThreshold, rtOpts->ofmAlarmThreshold,
+		 "PTP slave offset from master threshold (nanoseconds - absolute value)\n"
+	"	 When offset exceeds this value, an alarm is raised (also SNMP trap if configured).\n"
+	"	 0 = disabled.", RANGECHECK_NONE,0,0);
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:panic_mode",
 		PTPD_RESTART_NONE, &rtOpts->enablePanicMode, rtOpts->enablePanicMode,
 		"Enable panic mode: when offset from master is above 1 second, stop updating\n"
@@ -1973,7 +1978,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	 * clock should pass this information to any master PTP engines, unless
 	 * we override this. here. For now we just supply this to RtOpts.
 	 */
-	 
+	
 
 /* ===== servo section ===== */
 
@@ -2237,7 +2242,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		rtOpts->statisticsLog.logEnabled = FALSE;
 	}
 
-	/* 
+	/*
 	 * this HAS to be executed after the verbose_foreground mapping because of the same
 	 * default field used for both. verbose_foreground triggers nonDaemon which is OK,
 	 * but we don't want foreground=y to switch on verbose_foreground if not set.
@@ -2409,7 +2414,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	 * We're in unicast slave-capable mode and we haven't specified the delay request interval:
 	 * use override with a default value
 	 */
-	if((rtOpts->ipMode == IPMODE_UNICAST && 
+	if((rtOpts->ipMode == IPMODE_UNICAST &&
 	    rtOpts->clockQuality.clockClass > 127) &&
 	    !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
 		rtOpts->ignore_delayreq_interval_master=TRUE;
@@ -3068,7 +3073,7 @@ printLongHelp()
 }
 
 
-/* 
+/*
  * Iterate through every key in newConfig and compare to oldConfig,
  * return TRUE if both equal, otherwise FALSE;
  */

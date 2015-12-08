@@ -1,9 +1,9 @@
 /**
  * @file   ptpd_dep.h
- * 
+ *
  * @brief  External definitions for inclusion elsewhere.
- * 
- * 
+ *
+ *
  */
 
 #ifndef PTPD_DEP_H_
@@ -76,7 +76,7 @@
 
 
 
-// enable this line to show debug numbers in nanoseconds instead of microseconds 
+// enable this line to show debug numbers in nanoseconds instead of microseconds
 // #define DEBUG_IN_NS
 
 #define DBG_UNIT_US (1000)
@@ -316,6 +316,10 @@ int unpackMMUtcProperties( Octet* buf, int, MsgManagement*, PtpClock* );
 UInteger16 packMMUtcProperties( MsgManagement*, Octet*);
 int unpackMMTraceabilityProperties( Octet* buf, int, MsgManagement*, PtpClock* );
 UInteger16 packMMTraceabilityProperties( MsgManagement*, Octet*);
+int unpackMMTimescaleProperties( Octet* buf, int, MsgManagement*, PtpClock* );
+UInteger16 packMMTimescaleProperties( MsgManagement*, Octet*);
+int unpackMMUnicastNegotiationEnable( Octet* buf, int, MsgManagement*, PtpClock* );
+UInteger16 packMMUnicastNegotiationEnable( MsgManagement*, Octet*);
 int unpackMMDelayMechanism( Octet* buf, int, MsgManagement*, PtpClock* );
 UInteger16 packMMDelayMechanism( MsgManagement*, Octet*);
 int unpackMMLogMinPdelayReqInterval( Octet* buf, int, MsgManagement*, PtpClock* );

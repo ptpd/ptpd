@@ -1034,7 +1034,7 @@ ptpBasePortNetworkFaultCleared NOTIFICATION-TYPE
 ptpBaseClockFreqAdjFast NOTIFICATION-TYPE
 	OBJECTS {
 		freqAdjCurrentValue,
-		freqAdjStatsUpdateInterval,
+		freqAdjStatsPeriodSeconds,
 		freqAdjStatsMean,
 		freqAdjStatsStatsMedian,
 		freqAdjStatsStdDev}
@@ -1048,7 +1048,7 @@ ptpBaseClockFreqAdjFast NOTIFICATION-TYPE
 ptpBaseClockFreqAdjNormal NOTIFICATION-TYPE
 	OBJECTS {
 		freqAdjCurrentValue,
-		freqAdjStatsUpdateInterval,
+		freqAdjStatsPeriodSeconds,
 		freqAdjStatsMean,
 		freqAdjStatsStatsMedian,
 		freqAdjStatsStdDev}
@@ -4308,7 +4308,7 @@ PtpbaseSlaveOfmStatisticsEntry ::= SEQUENCE {
 	ptpbaseSlaveOfmStatisticsInstanceIndex  ClockInstanceType,
 	ofmCurrentValue                         ClockTimeInterval,
 	ofmCurrentStringValue                   DisplayString,
-	ofmStatsUpdateInterval                  Unsigned32,
+	ofmStatsPeriodSeconds                  Unsigned32,
 	ofmStatsValid                           TruthValue,
 	ofmStatsMin                             ClockTimeInterval,
 	ofmStatsMax                             ClockTimeInterval,
@@ -4375,7 +4375,7 @@ ofmCurrentStringValue OBJECT-TYPE
 ::= { ptpbaseSlaveOfmStatisticsEntry 5 }
 
 
-ofmStatsUpdateInterval OBJECT-TYPE
+ofmStatsPeriodSeconds OBJECT-TYPE
 	SYNTAX  Unsigned32
 	UNITS	"Seconds"
 	MAX-ACCESS read-only
@@ -4531,7 +4531,7 @@ PtpbaseSlaveMpdStatisticsEntry ::= SEQUENCE {
 	ptpbaseSlaveMpdStatisticsInstanceIndex  ClockInstanceType,
 	mpdCurrentValue                         ClockTimeInterval,
 	mpdCurrentStringValue                   DisplayString,
-	mpdStatsUpdateInterval                  Integer32,
+	mpdStatsPeriodSeconds                  Integer32,
 	mpdStatsValid                           TruthValue,
 	mpdStatsMin                             ClockTimeInterval,
 	mpdStatsMax                             ClockTimeInterval,
@@ -4599,7 +4599,7 @@ mpdCurrentStringValue OBJECT-TYPE
 ::= { ptpbaseSlaveMpdStatisticsEntry 5 }
 
 
-mpdStatsUpdateInterval OBJECT-TYPE
+mpdStatsPeriodSeconds OBJECT-TYPE
 	SYNTAX  Integer32
 	MAX-ACCESS read-only
 	STATUS  current
@@ -4754,7 +4754,7 @@ PtpbaseSlaveFreqAdjStatisticsEntry ::= SEQUENCE {
 	ptpbaseSlaveFreqAdjStatisticsClockTypeIndex ClockType,
 	ptpbaseSlaveFreqAdjStatisticsInstanceIndex  ClockInstanceType,
 	freqAdjCurrentValue                         Integer32,
-	freqAdjStatsUpdateInterval                  Unsigned32,
+	freqAdjStatsPeriodSeconds                  Unsigned32,
 	freqAdjStatsValid                           TruthValue,
 	freqAdjStatsMin                             Integer32,
 	freqAdjStatsMax                             Integer32,
@@ -4807,7 +4807,7 @@ freqAdjCurrentValue OBJECT-TYPE
 ::= { ptpbaseSlaveFreqAdjStatisticsEntry 4 }
 
 
-freqAdjStatsUpdateInterval OBJECT-TYPE
+freqAdjStatsPeriodSeconds OBJECT-TYPE
 	SYNTAX  Unsigned32
 	UNITS	"Seconds"
 	MAX-ACCESS read-only
@@ -5538,7 +5538,7 @@ ptpbaseMIBSlaveOfmStatisticsGroup OBJECT-GROUP
 	OBJECTS {
 		ofmCurrentValue,
 		ofmCurrentStringValue,
-		ofmStatsUpdateInterval,
+		ofmStatsPeriodSeconds,
 		ofmStatsValid,
 		ofmStatsMin,
 		ofmStatsMax,
@@ -5560,7 +5560,7 @@ ptpbaseMIBSlaveMpdStatisticsGroup OBJECT-GROUP
 	OBJECTS {
 		mpdCurrentValue,
 		mpdCurrentStringValue,
-		mpdStatsUpdateInterval,
+		mpdStatsPeriodSeconds,
 		mpdStatsValid,
 		mpdStatsMin,
 		mpdStatsMax,
@@ -5581,7 +5581,7 @@ ptpbaseMIBSlaveMpdStatisticsGroup OBJECT-GROUP
 ptpbaseMIBSlaveFreqAdjStatisticsGroup OBJECT-GROUP
 	OBJECTS {
 		freqAdjCurrentValue,
-		freqAdjStatsUpdateInterval,
+		freqAdjStatsPeriodSeconds,
 		freqAdjStatsValid,
 		freqAdjStatsMin,
 		freqAdjStatsMax,

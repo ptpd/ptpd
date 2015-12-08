@@ -1,0 +1,36 @@
+# object files
+*.o
+
+# various autotools generated files
+Makefile.in
+Makefile
+/autom4te.cache
+/autoscan.log
+/autoscan-*.log
+/aclocal.m4
+/compile
+/config.h.in
+/configure
+/configure.scan
+/depcomp
+/install-sh
+/missing
+/stamp-h1
+/build-aux/
+/config.h
+/config.log
+/config.status
+/libtool
+/m4/libtool.m4
+/m4/ltoptions.m4
+/m4/ltsugar.m4
+/m4/ltversion.m4
+/m4/lt~obsolete.m4
+.dirstamp
+.deps
+# binaries and other compiled files
+ptpd*.tar.gz
+*.rpm
+/src/ptpd2
+/src/ptpd2.8
+/src/ptpd2.conf.5

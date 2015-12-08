@@ -1,25 +1,25 @@
 /*-
  * Copyright (c) 2012-2015 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -28,7 +28,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -45,10 +45,10 @@
 /**
  * @file   arith.c
  * @date   Tue Jul 20 16:12:51 2010
- * 
+ *
  * @brief  Time format conversion routines and additional math functions.
- * 
- * 
+ *
+ *
  */
 
 #include "ptpd.h"
@@ -67,7 +67,7 @@ internalTime_to_integer64(TimeInternal internal, Integer64 *bigint)
 	bigint->lsb = scaledNanoseconds & 0x00000000ffffffff;
 }
 
-void 
+void
 integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)
 {
 	int sign;
@@ -93,7 +93,7 @@ integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)
 }
 
 
-void 
+void
 fromInternalTime(const TimeInternal * internal, Timestamp * external)
 {
 
@@ -101,13 +101,13 @@ fromInternalTime(const TimeInternal * internal, Timestamp * external)
 	 * fromInternalTime is only used to convert time given by the system
 	 * to a timestamp.  As a consequence, no negative value can normally
 	 * be found in (internal)
-	 * 
+	 *
 	 * Note that offsets are also represented with TimeInternal structure,
 	 * and can be negative, but offset are never convert into Timestamp
 	 * so there is no problem here.
 	 */
 
-	if ((internal->seconds & ~INT_MAX) || 
+	if ((internal->seconds & ~INT_MAX) ||
 	    (internal->nanoseconds & ~INT_MAX)) {
 		DBG("Negative value canno't be converted into timestamp \n");
 		return;
@@ -118,7 +118,7 @@ fromInternalTime(const TimeInternal * internal, Timestamp * external)
 	}
 }
 
-void 
+void
 toInternalTime(TimeInternal * internal, const Timestamp * external)
 {
 
@@ -133,7 +133,7 @@ toInternalTime(TimeInternal * internal, const Timestamp * external)
 	}
 }
 
-void 
+void
 ts_to_InternalTime(const struct timespec *a,  TimeInternal * b)
 {
 
@@ -141,7 +141,7 @@ ts_to_InternalTime(const struct timespec *a,  TimeInternal * b)
 	b->nanoseconds = a->tv_nsec;
 }
 
-void 
+void
 tv_to_InternalTime(const struct timeval *a,  TimeInternal * b)
 {
 
@@ -150,7 +150,7 @@ tv_to_InternalTime(const struct timeval *a,  TimeInternal * b)
 }
 
 
-void 
+void
 normalizeTime(TimeInternal * r)
 {
 	r->seconds += r->nanoseconds / 1000000000;
@@ -165,7 +165,7 @@ normalizeTime(TimeInternal * r)
 	}
 }
 
-void 
+void
 addTime(TimeInternal * r, const TimeInternal * x, const TimeInternal * y)
 {
 	r->seconds = x->seconds + y->seconds;
@@ -174,7 +174,7 @@ addTime(TimeInternal * r, const TimeInternal * x, const TimeInternal * y)
 	normalizeTime(r);
 }
 
-void 
+void
 subTime(TimeInternal * r, const TimeInternal * x, const TimeInternal * y)
 {
 	r->seconds = x->seconds - y->seconds;
@@ -186,7 +186,7 @@ subTime(TimeInternal * r, const TimeInternal * x, const TimeInternal * y)
 /// Divide an internal time value
 ///
 /// @param r the time to convert
-/// @param divisor 
+/// @param divisor
 ///
 
 #if 0
@@ -206,7 +206,7 @@ divTime(TimeInternal *r, int divisor)
 	r->seconds = 0;
 	r->nanoseconds = nanoseconds;
 	normalizeTime(r);
-} 
+}
 #endif
 
 void
@@ -307,7 +307,7 @@ isTimeInternalNegative(const TimeInternal * p)
 }
 
 double
-secondsToMidnight(void) 
+secondsToMidnight(void)
 {
 	TimeInternal now;
 	double stm, ret;
@@ -318,7 +318,7 @@ secondsToMidnight(void)
 }
 
 double
-getPauseAfterMidnight(Integer8 announceInterval, int pausePeriod) 
+getPauseAfterMidnight(Integer8 announceInterval, int pausePeriod)
 {
 	double ai = pow(2,announceInterval);
 

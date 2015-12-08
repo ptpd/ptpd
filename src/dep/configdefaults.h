@@ -1,9 +1,9 @@
 /**
  * @file   configdefaults.h
- * 
+ *
  * @brief  definitions related to config templates and defaults
- * 
- * 
+ *
+ *
  */
 
 #ifndef PTPD_CONFIGDEFAULTS_H_

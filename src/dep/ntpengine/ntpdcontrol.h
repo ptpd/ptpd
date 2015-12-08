@@ -83,20 +83,20 @@ typedef struct {
 		(r_i) += (a_i); \
 		if (hi_tmp & 0x10000) \
 		(r_i)++; \
-	} while (0)     
+	} while (0)    
 
 
 #define L_ADD(r, a)     M_ADD((r)->l_ui, (r)->l_uf, (a)->l_ui, (a)->l_uf)
 
 #define HTONL_FP(h, n) do { (n)->l_ui = htonl((h)->l_ui); \
-		    (n)->l_uf = htonl((h)->l_uf); } while (0) 
+		    (n)->l_uf = htonl((h)->l_uf); } while (0)
 
 typedef unsigned short associd_t; /* association ID */
 typedef int32_t keyid_t;        /* cryptographic key ID */
 typedef uint32_t tstamp_t;       /* NTP seconds timestamp */
 
 
-typedef int32_t s_fp;                                                          
+typedef int32_t s_fp;                                                         
 typedef uint32_t u_fp;
 typedef char s_char;
 #define MAX_MAC_LEN     (6 * sizeof(uint32_t))   /* SHA */

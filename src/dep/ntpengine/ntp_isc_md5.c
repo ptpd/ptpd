@@ -263,7 +263,7 @@ MD5authencrypt(
 	u_char	digest[64];
 	u_int	len;
 	EVP_MD_CTX ctx;
-        pkt[length / 4] = htonl(keyid); 
+        pkt[length / 4] = htonl(keyid);
 	EVP_DigestInit(&ctx);
 	EVP_DigestUpdate(&ctx, (u_char *)key, (u_int)strlen(key));
 	EVP_DigestUpdate(&ctx, (u_char *)pkt, (u_int)length);

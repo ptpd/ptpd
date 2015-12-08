@@ -1,25 +1,25 @@
 /*-
  * Copyright (c) 2012-2015 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -28,7 +28,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -45,9 +45,9 @@
 /**
  * @file   eventtimer_itimer.c
  * @date   Wed Oct 1 00:41:26 2014
- * 
+ *
  * @brief  EventTimer implementation using interval timers
- * 
+ *
  * The original interval timer timer implementation.
  */
 
@@ -101,7 +101,7 @@ eventTimerStart_itimer(EventTimer *timer, double interval)
 	if(timer->itimerLeft == 0){
 		/*
 		 * the interval is too small, raise it to 1 to make sure it expires ASAP
-		 */ 
+		 */
 		timer->itimerLeft = 1;
 	}
 	
@@ -194,7 +194,7 @@ eventTimerIsExpired_itimer(EventTimer *timer)
 
 }
 
-void 
+void
 startEventTimers(void)
 {
 	struct itimerval itimer;
@@ -209,7 +209,7 @@ startEventTimers(void)
 
 	elapsed = 0;
 	itimer.it_value.tv_sec = itimer.it_interval.tv_sec = 0;
-	itimer.it_value.tv_usec = itimer.it_interval.tv_usec = 
+	itimer.it_value.tv_usec = itimer.it_interval.tv_usec =
 	    US_TIMER_INTERVAL;
 
 #ifdef __sun
@@ -220,7 +220,7 @@ startEventTimers(void)
 	setitimer(ITIMER_REAL, &itimer, 0);
 }
 
-void 
+void
 shutdownEventTimers(void)
 {
 
@@ -231,7 +231,7 @@ shutdownEventTimers(void)
 #endif /* __sun */
 }
 
-static void 
+static void
 timerSignalHandler(int sig)
 {
 	elapsed++;

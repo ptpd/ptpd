@@ -2,25 +2,25 @@
  * Copyright (c) 2012-2013 George V. Neville-Neil,
  *                         Wojciech Owczarek
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -29,7 +29,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -46,10 +46,10 @@
 /**
  * @file   display.c
  * @date   Thu Aug 12 09:06:21 2010
- * 
+ *
  * @brief  General routines for displaying internal data.
- * 
- * 
+ *
+ *
  */
 
 #include "ptpd.h"
@@ -466,6 +466,19 @@ mMTraceabilityProperties_display(const MMTraceabilityProperties* traceabilityPro
 {
 	/* TODO: implement me */
 }
+
+void
+mMTimescaleProperties_display(const MMTimescaleProperties* TimescaleProperties, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMUnicastNegotiationEnable_display(const MMUnicastNegotiationEnable* unicastNegotiationEnable, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
 
 void
 mMDelayMechanism_display(const MMDelayMechanism* delayMechanism, const PtpClock *ptpClock)
@@ -997,7 +1010,7 @@ getTimeSourceName(Enumeration8 timeSource)
 	    return "INTERNAL_OSCILLATOR";
 	default:
 	    return "UNKNOWN";
-    }              
+    }
 
 }
 

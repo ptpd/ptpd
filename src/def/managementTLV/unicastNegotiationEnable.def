@@ -1,6 +1,7 @@
 /* Spec Table 77 - UNICAST_NEGOTIATION_ENABLE */
 
 /* to use these definitions, #define OPERATE then #include this file in your source */
-OPERATE( en , 1, Octet)
+OPERATE( en , 1, Boolean)
+OPERATE( reserved, 1, Octet)
 
 #undef OPERATE

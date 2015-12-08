@@ -1,16 +1,16 @@
 /**
  * @file   ptpd.h
  * @mainpage Ptpd v2 Documentation
- * @authors Martin Burnicki, Alexandre van Kempen, Steven Kreuzer, 
+ * @authors Martin Burnicki, Alexandre van Kempen, Steven Kreuzer,
  *          George Neville-Neil
  * @version 2.0
  * @date   Fri Aug 27 10:22:19 2010
- * 
+ *
  * @section implementation Implementation
  * PTPdV2 is not a full implementation of 1588 - 2008 standard.
  * It is implemented only with use of Transparent Clock and Peer delay
  * mechanism, according to 802.1AS requierements.
- * 
+ *
  * This header file includes all others headers.
  * It defines functions which are not dependant of the operating system.
  */
@@ -310,6 +310,8 @@ void initData(RunTimeOpts*,PtpClock*);
 /* protocol.c */
 void protocol(RunTimeOpts*,PtpClock*);
 void updateDatasets(PtpClock* ptpClock, const RunTimeOpts* rtOpts);
+void setPortState(PtpClock *ptpClock, Enumeration8 state);
+
 Boolean acceptPortIdentity(PortIdentity thisPort, PortIdentity targetPort);
 
 /** \}*/
@@ -440,6 +442,8 @@ void mMTime_display(const MMTime*, const PtpClock*);
 void mMClockAccuracy_display(const MMClockAccuracy*, const PtpClock*);
 void mMUtcProperties_display(const MMUtcProperties*, const PtpClock*);
 void mMTraceabilityProperties_display(const MMTraceabilityProperties*, const PtpClock*);
+void mMTimescaleProperties_display(const MMTimescaleProperties*, const PtpClock*);
+void mMUnicastNegotiationEnable(const MMUnicastNegotiationEnable*, const PtpClock*);
 void mMDelayMechanism_display(const MMDelayMechanism*, const PtpClock*);
 void mMLogMinPdelayReqInterval_display(const MMLogMinPdelayReqInterval*, const PtpClock*);
 void mMErrorStatus_display(const MMErrorStatus*, const PtpClock*);

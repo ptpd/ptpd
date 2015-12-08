@@ -3,25 +3,25 @@
  * Copyright (c) 2012-2013 George V. Neville-Neil,
  *                         Wojciech Owczarek
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -30,7 +30,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -47,9 +47,9 @@
 /**
  * @file   startup.c
  * @date   Wed Jun 23 09:33:27 2010
- * 
+ *
  * @brief  Code to handle daemon startup, including command line args
- * 
+ *
  * The function in this file are called when the daemon starts up
  * and include the getopt() command line argument parsing.
  */
@@ -245,13 +245,13 @@ applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 }
 
 
-/** 
+/**
  * Signal handler for HUP which tells us to swap the log file
  * and reload configuration file if specified
  *
- * @param sig 
+ * @param sig
  */
-void 
+void
 do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 
@@ -414,7 +414,7 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		if(timingDomain.services[0]->holdTimeLeft >
 			timingDomain.services[0]->holdTime) {
-			timingDomain.services[0]->holdTimeLeft = 
+			timingDomain.services[0]->holdTimeLeft =
 			rtOpts->ntpOptions.failoverTimeout;
 		}
 
@@ -457,7 +457,7 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if(sigusr1_received){
 	    if(ptpClock->portState == PTP_SLAVE){
 		    WARNING("SIGUSR1 received, stepping clock to current known OFM\n");
-                    stepClock(rtOpts, ptpClock);                                                                                                         
+                    stepClock(rtOpts, ptpClock);                                                                                                        
 //		    ptpClock->clockControl.stepRequired = TRUE;
 	    } else {
 		    ERROR("SIGUSR1 received - will not step clock, not in PTP_SLAVE state\n");
@@ -562,13 +562,13 @@ writeLockFile(RunTimeOpts * rtOpts)
 
 }
 
-void 
+void
 ptpdShutdown(PtpClock * ptpClock)
 {
 
 	extern RunTimeOpts rtOpts;
 	
-	/* 
+	/*
          * go into DISABLED state so the FSM can call any PTP-specific shutdown actions,
 	 * such as canceling unicast transmission
          */
@@ -667,7 +667,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	TimeInternal tmpTime;
 	int i = 0;
 
-	/* 
+	/*
 	 * Set the default mode for all newly created files - previously
 	 * this was not the case for log files. This adds consistency
 	 * and allows to use FILE* vs. fds everywhere
@@ -678,7 +678,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	getTime(&tmpTime);
 	srand(tmpTime.seconds ^ tmpTime.nanoseconds);
 
-	/** 
+	/**
 	 * If a required setting, such as interface name, or a setting
 	 * requiring a range check is to be set via getopts_long,
 	 * the respective currentConfig dictionary entry should be set,
@@ -817,12 +817,12 @@ configcheck:
 		*ret = 2;
 		goto fail;
 	} else {
-		DBG("allocated %d bytes for protocol engine data\n", 
+		DBG("allocated %d bytes for protocol engine data\n",
 		    (int)sizeof(PtpClock));
 
 
 		ptpClock->foreign = (ForeignMasterRecord *)
-			calloc(rtOpts->max_foreign_records, 
+			calloc(rtOpts->max_foreign_records,
 			       sizeof(ForeignMasterRecord));
 		if (!ptpClock->foreign) {
 			PERROR("failed to allocate memory for foreign "
@@ -831,8 +831,8 @@ configcheck:
 			free(ptpClock);
 			goto fail;
 		} else {
-			DBG("allocated %d bytes for foreign master data\n", 
-			    (int)(rtOpts->max_foreign_records * 
+			DBG("allocated %d bytes for foreign master data\n",
+			    (int)(rtOpts->max_foreign_records *
 				  sizeof(ForeignMasterRecord)));
 		}
 	}
@@ -856,7 +856,7 @@ configcheck:
 #endif
 
 	if(!rtOpts->nonDaemon){
-		/* 
+		/*
 		 * fork to daemon - nochdir non-zero to preserve the working directory:
 		 * allows relative paths to be used for log files, config files etc.
 		 * Always redirect stdout/err to /dev/null

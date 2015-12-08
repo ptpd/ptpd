@@ -1,25 +1,25 @@
 /*-
  * Copyright (c) 2012-2015 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen,
  *                         Inaqui Delgado,
  *                         Rick Ratzel,
  *                         National Instruments.
- * Copyright (c) 2009-2010 George V. Neville-Neil, 
- *                         Steven Kreuzer, 
- *                         Martin Burnicki, 
+ * Copyright (c) 2009-2010 George V. Neville-Neil,
+ *                         Steven Kreuzer,
+ *                         Martin Burnicki,
  *                         Jan Breuer,
- *                         Gael Mace, 
+ *                         Gael Mace,
  *                         Alexandre Van Kempen
  *
  * Copyright (c) 2005-2008 Kendall Correll, Aidan Williams
  *
  * All Rights Reserved
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -28,7 +28,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -139,7 +139,7 @@ char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *s
 
 
 
-int 
+int
 snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
 {
 	int len = 0;
@@ -200,7 +200,7 @@ translatePortState(PtpClock *ptpClock)
 }
 
 
-int 
+int
 snprint_ClockIdentity(char *s, int max_len, const ClockIdentity id)
 {
 	int len = 0;
@@ -257,12 +257,12 @@ int ether_ntohost_cache(char *hostname, struct ether_addr *addr)
 	static char buf[BUF_SIZE];
 
 #ifdef HAVE_STRUCT_ETHER_ADDR_OCTET
-	if (memcmp(addr->octet, &prev_addr, 
+	if (memcmp(addr->octet, &prev_addr,
 		  sizeof(struct ether_addr )) != 0) {
 		valid = 0;
 	}
 #else
-	if (memcmp(addr->ether_addr_octet, &prev_addr, 
+	if (memcmp(addr->ether_addr_octet, &prev_addr,
 		  sizeof(struct ether_addr )) != 0) {
 		valid = 0;
 	}
@@ -316,7 +316,7 @@ snprint_ClockIdentity_ntohost(char *s, int max_len, const ClockIdentity id)
 }
 
 
-int 
+int
 snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 {
 	int len = 0;
@@ -356,7 +356,7 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 		return -1;
 
 	/* If we're starting up as daemon, only print <= WARN */
-	if ((destination == stderr) && 
+	if ((destination == stderr) &&
 		!rtOpts.nonDaemon && startupInProgress &&
 		(priority > LOG_WARNING)){
 		    return 1;
@@ -667,7 +667,7 @@ stopLogging(RunTimeOpts* rtOpts)
 	closeLog(&rtOpts->statusLog);
 }
 
-void 
+void
 logStatistics(PtpClock * ptpClock)
 {
 	extern RunTimeOpts rtOpts;
@@ -753,11 +753,11 @@ logStatistics(PtpClock * ptpClock)
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 			 &ptpClock->parentPortIdentity); /* Clock ID */
 
-		/* 
+		/*
 		 * if grandmaster ID differs from parent port ID then
-		 * also print GM ID 
+		 * also print GM ID
 		 */
-		if (memcmp(ptpClock->grandmasterIdentity, 
+		if (memcmp(ptpClock->grandmasterIdentity,
 			   ptpClock->parentPortIdentity.clockIdentity,
 			   CLOCK_IDENTITY_LENGTH)) {
 			len += snprint_ClockIdentity(sbuf + len,
@@ -828,7 +828,7 @@ logStatistics(PtpClock * ptpClock)
 
 			len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 				 &ptpClock->parentPortIdentity);
-							 
+							
 			//len += snprintf(sbuf + len, sizeof(sbuf) - len, ")");
 		}
 
@@ -943,7 +943,7 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 }
 
 
-void 
+void
 displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 {
 
@@ -954,7 +954,7 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 	memset(strAddr, 0, sizeof(strAddr));
 	memset(sbuf, ' ', sizeof(sbuf));
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", prefixMessage);
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", 
+	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s",
 			portState_getName(ptpClock->portState));
 
 	if (ptpClock->portState >= PTP_MASTER) {
@@ -1061,7 +1061,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	    }
 	}
 	if(ptpClock->portState == PTP_SLAVE) {
-	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d","GM priority", 
+	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d","GM priority",
 	ptpClock->grandmasterPriority1, ptpClock->grandmasterPriority2, ptpClock->grandmasterClockQuality.clockClass);
 	if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL ) {
 	    	fprintf(out, ", localPref %d", ptpClock->parentGrants->localPreference);
@@ -1081,7 +1081,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, 		STATUSPREFIX"  ","UTC properties");
 	fprintf(out, "UTC valid: %s", ptpClock->timePropertiesDS.currentUtcOffsetValid ? "Y" : "N");
 	fprintf(out, ", UTC offset: %d",ptpClock->timePropertiesDS.currentUtcOffset);
-	fprintf(out, "%s",ptpClock->timePropertiesDS.leap61 ? 
+	fprintf(out, "%s",ptpClock->timePropertiesDS.leap61 ?
 			", LEAP61 pending" : ptpClock->timePropertiesDS.leap59 ? ", LEAP59 pending" : "");
 	if (ptpClock->portState == PTP_SLAVE) {	
 	    fprintf(out, "%s", rtOpts->preferUtcValid ? ", prefer UTC" : "");
@@ -1141,7 +1141,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 		ptpClock->clockControl.granted ? "in control" : "no control");
 	if(rtOpts->noAdjust) {
 	    fprintf(out, ", read-only");
-	} 
+	}
 #ifdef PTPD_STATISTICS	
 	else {
 	    if (rtOpts->servoStabilityDetection) {
@@ -1165,7 +1165,7 @@ else {
 		ptpClock->servo.driftStdDev / 1000.0
 	    );
 	if(rtOpts->servoStabilityDetection) {
-	    fprintf(out, ", dev thr % .03f ppm", 
+	    fprintf(out, ", dev thr % .03f ppm",
 		ptpClock->servo.stabilityThreshold / 1000.0
 	    );
 	}
@@ -1254,7 +1254,7 @@ else {
 						(timingDomain.best != NULL) ? timingDomain.best->id : "none",
 		    				(timingDomain.preferred != NULL) ? timingDomain.preferred->id : "none");
 
-	if((timingDomain.current != NULL) && 
+	if((timingDomain.current != NULL) &&
 	    (timingDomain.current->holdTimeLeft > 0)) {
 		fprintf(out, ", hold %d sec", timingDomain.current->holdTimeLeft);
 	} else	if(timingDomain.electionLeft) {
@@ -1265,7 +1265,7 @@ else {
 
 	fprintf(out, 		STATUSPREFIX"  ","TimingServices");
 
-	fprintf(out, "total %d, avail %d, oper %d, idle %d, in_ctrl %d%s\n", 
+	fprintf(out, "total %d, avail %d, oper %d, idle %d, in_ctrl %d%s\n",
 				    timingDomain.serviceCount,
 				    timingDomain.availableCount,
 				    timingDomain.operationalCount,
@@ -1359,8 +1359,8 @@ else {
 	fflush(out);
 }
 
-void 
-displayPortIdentity(PortIdentity *port, const char *prefixMessage) 
+void
+displayPortIdentity(PortIdentity *port, const char *prefixMessage)
 {
 	static char sbuf[SCREEN_BUFSZ];
 	int len = 0;
@@ -1378,7 +1378,7 @@ recordSync(UInteger16 sequenceId, TimeInternal * time)
 {
 	extern RunTimeOpts rtOpts;
 	if (rtOpts.recordLog.logEnabled && rtOpts.recordLog.logFP != NULL) {
-		fprintf(rtOpts.recordLog.logFP, "%d %llu\n", sequenceId, 
+		fprintf(rtOpts.recordLog.logFP, "%d %llu\n", sequenceId,
 		  ((time->seconds * 1000000000ULL) + time->nanoseconds)
 		);
 		maintainLogSize(&rtOpts.recordLog);
@@ -1451,7 +1451,7 @@ static const struct sigevent* timerIntHandler(void* data, int id) {
     tData.ns_per_tick = 1000000000.0 / tData.cps;
     tData.prev_tsc = ClockCycles();
     clock_gettime(CLOCK_REALTIME, &tp);
-    tData.last_clock = timespec2nsec(&tp); 
+    tData.last_clock = timespec2nsec(&tp);
     ret = InterruptAttach(0, timerIntHandler, &tData, sizeof(TimerIntData), _NTO_INTR_FLAGS_END | _NTO_INTR_FLAGS_TRK_MSK);
 
     if(ret == -1) {
@@ -1514,7 +1514,7 @@ getTimeMonotonic(TimeInternal * time)
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 
 	struct timespec tp;
-#ifndef CLOCK_MONOTINIC                                                                                                       
+#ifndef CLOCK_MONOTINIC                                                                                                      
 	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
 #else
 	if (clock_gettime(CLOCK_MONOTONIC, &tp) < 0) {
@@ -1648,7 +1648,7 @@ cleanup:
 #endif /* HAVE_LINUX_RTC_H */
 
 /* returns a double beween 0.0 and 1.0 */
-double 
+double
 getRand(void)
 {
 	return((rand() * 1.0) / RAND_MAX);
@@ -1667,7 +1667,7 @@ lockFile(int fd)
         return(fcntl(fd, F_SETLK, &fl));
 }
 
-/* 
+/*
  * Check if a file descriptor's lock flags match specified flags,
  * do not acquire lock - just query. If the flags match, populate
  * lockPid with the PID of the process already holding the lock(s)
@@ -1693,7 +1693,7 @@ int checkLockStatus(int fd, short lockType, int *lockPid) {
 
 }
 
-/* 
+/*
  * Check if it's possible to acquire lock on a file - if already locked,
  * populate lockPid with the PID currently holding the write lock.
  */
@@ -1739,7 +1739,7 @@ int matches = 0, counter = 0;
 		!rtOpts->autoLockFile)
 			return TRUE;
 
-    /* 
+    /*
      * Try to discover if we can run in desired mode
      * based on the presence of other lock files
      * and them being lockable
@@ -1978,7 +1978,7 @@ informClockSource(PtpClock* ptpClock)
 
 
 void
-unsetTimexFlags(int flags, Boolean quiet) 
+unsetTimexFlags(int flags, Boolean quiet)
 {
 	struct timex tmx;
 	int ret;
@@ -1988,7 +1988,7 @@ unsetTimexFlags(int flags, Boolean quiet)
 	tmx.modes = MOD_STATUS;
 
 	tmx.status = getTimexFlags();
-	if(tmx.status == -1) 
+	if(tmx.status == -1)
 		return;
 	/* unset all read-only flags */
 	tmx.status &= ~STA_RONLY;
@@ -2040,7 +2040,7 @@ Boolean
 checkTimexFlags(int flags) {
 	int tflags = getTimexFlags();
 
-	if (tflags == -1) 
+	if (tflags == -1)
 		return FALSE;
 	return ((tflags & flags) == flags);
 }
@@ -2123,7 +2123,7 @@ setTimexFlags(int flags, Boolean quiet)
 	tmx.modes = MOD_STATUS;
 
 	tmx.status = getTimexFlags();
-	if(tmx.status == -1) 
+	if(tmx.status == -1)
 		return;
 	/* unset all read-only flags */
 	tmx.status &= ~STA_RONLY;
@@ -2292,10 +2292,10 @@ saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.observedDrift));
 
 	if (quiet) {
-		DBGV("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n", 
+		DBGV("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n",
 		    ptpClock->servo.observedDrift, rtOpts->driftFile);
 	} else {
-		INFO("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n", 
+		INFO("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n",
 		    ptpClock->servo.observedDrift, rtOpts->driftFile);
 	}
 	fclose(driftFP);
@@ -2326,7 +2326,7 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
 
     memset(info, 0, sizeof(LeapSecondInfo));
 
-    while (fgets(lineBuf, PATH_MAX - 1, leapFP) != NULL) {  
+    while (fgets(lineBuf, PATH_MAX - 1, leapFP) != NULL) { 
 
 	/* capture file expiry time */
 	res = sscanf(lineBuf, "#@ %lu", &ntpSeconds);
@@ -2347,7 +2347,7 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
 		info->endTime = utcSeconds;
 		info->startTime = utcSeconds - 86400;
 		break;
-	    } else 
+	    } else
 	    /* current leap second value found */
 		if(now.seconds >= utcSeconds) {
 		info->currentOffset = ntpOffset;
@@ -2355,7 +2355,7 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
 
 	}
 
-    }    
+    }   
 
     fclose(leapFP);
 
@@ -2371,12 +2371,12 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
     }
 
     /* if anything failed, return 0 so we know we cannot use leap file information */
-    if((info->startTime == 0) || (info->endTime == 0) || 
+    if((info->startTime == 0) || (info->endTime == 0) ||
 	(info->currentOffset == 0) || (info->nextOffset == 0)) {
 	return 0;
 	INFO("Leap seconds file %s loaded (incomplete): now %d, current %d next %d from %d to %d, type %s\n", path,
 	now.seconds,
-	info->currentOffset, info->nextOffset, 
+	info->currentOffset, info->nextOffset,
 	info->startTime, info->endTime, info->leapType > 0 ? "positive" : info->leapType < 0 ? "negative" : "unknown");
     }
 
@@ -2390,7 +2390,7 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
 
     INFO("Leap seconds file %s loaded: now %d, current %d next %d from %d to %d, type %s\n", path,
 	now.seconds,
-	info->currentOffset, info->nextOffset, 
+	info->currentOffset, info->nextOffset,
 	info->startTime, info->endTime, info->leapType > 0 ? "positive" : info->leapType < 0 ? "negative" : "unknown");
     info->valid = TRUE;
     return 1;

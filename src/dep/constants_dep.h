@@ -220,7 +220,13 @@ enum {
 	LEAP_SMEAR
 };
 
-
+/* Alarm codes */
+enum {
+	ALARM_PORTSTATE,
+	ALARM_OFFSET_THRESHOLD,
+	ALARM_CLOCK_STEP,
+	ALARM_OFFSET_1SEC
+};
 
 #define MM_STARTING_BOUNDARY_HOPS  0x7fff
 
