@@ -443,7 +443,7 @@ void mMClockAccuracy_display(const MMClockAccuracy*, const PtpClock*);
 void mMUtcProperties_display(const MMUtcProperties*, const PtpClock*);
 void mMTraceabilityProperties_display(const MMTraceabilityProperties*, const PtpClock*);
 void mMTimescaleProperties_display(const MMTimescaleProperties*, const PtpClock*);
-void mMUnicastNegotiationEnable(const MMUnicastNegotiationEnable*, const PtpClock*);
+void mMUnicastNegotiationEnable_display(const MMUnicastNegotiationEnable*, const PtpClock*);
 void mMDelayMechanism_display(const MMDelayMechanism*, const PtpClock*);
 void mMLogMinPdelayReqInterval_display(const MMLogMinPdelayReqInterval*, const PtpClock*);
 void mMErrorStatus_display(const MMErrorStatus*, const PtpClock*);
