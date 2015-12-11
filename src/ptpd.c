@@ -74,7 +74,6 @@ PtpClock *G_ptpClock = NULL;
 
 TimingDomain timingDomain;
 
-
 int
 main(int argc, char **argv)
 {

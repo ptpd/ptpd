@@ -333,6 +333,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(&ptpClock->timers[SYNC_INTERVAL_TIMER]);
 		timerStop(&ptpClock->timers[ANNOUNCE_INTERVAL_TIMER]);
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
+		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[MASTER_NETREFRESH_TIMER]);
 
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST) {
@@ -347,6 +348,8 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 	case PTP_SLAVE:
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
+		timerStop(&ptpClock->timers[SYNC_RECEIPT_TIMER]);
+		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
 		
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {
 			/* do not cancel, just start re-requesting so we can still send a cancel on exit */
@@ -385,11 +388,15 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		
 	case PTP_PASSIVE:
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
+		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
 		break;
 		
 	case PTP_LISTENING:
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
+		timerStop(&ptpClock->timers[SYNC_RECEIPT_TIMER]);
+		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
+
 		/* we're leaving LISTENING - reset counter */
                 if(state != PTP_LISTENING) {
                     ptpClock->listenCount = 0;
@@ -474,6 +481,8 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		/* in Listening state, make sure we don't send anything. Instead we just expect/wait for announces (started below) */
 		timerStop(&ptpClock->timers[SYNC_INTERVAL_TIMER]);
 		timerStop(&ptpClock->timers[ANNOUNCE_INTERVAL_TIMER]);
+		timerStop(&ptpClock->timers[SYNC_RECEIPT_TIMER]);
+		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
 		timerStop(&ptpClock->timers[DELAYREQ_INTERVAL_TIMER]);
 
@@ -553,6 +562,11 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   pow(2,ptpClock->logAnnounceInterval));
 		timerStart(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER],
 			   pow(2,ptpClock->logMinPdelayReqInterval));
+		if(ptpClock->delayMechanism == P2P) {
+		    timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+		    (ptpClock->announceReceiptTimeout) * (pow(2,ptpClock->logAnnounceInterval)),
+			MISSED_MESSAGES_MAX * (pow(2,ptpClock->logMinPdelayReqInterval))));
+		}
 		if( rtOpts->do_IGMP_refresh &&
 		    rtOpts->transport == UDP_IPV4 &&
 		    rtOpts->ipMode != IPMODE_UNICAST &&
@@ -572,6 +586,11 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStart(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER],
 			   (ptpClock->announceReceiptTimeout) *
 			   (pow(2,ptpClock->logAnnounceInterval)));
+		if(ptpClock->delayMechanism == P2P) {
+		    timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+		    (ptpClock->announceReceiptTimeout) * (pow(2,ptpClock->logAnnounceInterval)),
+			MISSED_MESSAGES_MAX * (pow(2,ptpClock->logMinPdelayReqInterval))));
+		}
 		setPortState(ptpClock, PTP_PASSIVE);
 		p1(ptpClock, rtOpts);
 		displayStatus(ptpClock, "Now in state: ");
@@ -616,7 +635,23 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStart(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER],
 			   (ptpClock->announceReceiptTimeout) *
 			   (pow(2,ptpClock->logAnnounceInterval)));
-		
+
+		timerStart(&ptpClock->timers[SYNC_RECEIPT_TIMER], max(
+		   (ptpClock->announceReceiptTimeout) * (pow(2,ptpClock->logAnnounceInterval)),
+		   MISSED_MESSAGES_MAX * (pow(2,ptpClock->logSyncInterval))
+		));
+
+		if(ptpClock->delayMechanism == E2E) {
+		    timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+		    (ptpClock->announceReceiptTimeout) * (pow(2,ptpClock->logAnnounceInterval)),
+			MISSED_MESSAGES_MAX * (pow(2,ptpClock->logMinDelayReqInterval))));
+		}
+		if(ptpClock->delayMechanism == P2P) {
+		    timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+		    (ptpClock->announceReceiptTimeout) * (pow(2,ptpClock->logAnnounceInterval)),
+			MISSED_MESSAGES_MAX * (pow(2,ptpClock->logMinPdelayReqInterval))));
+		}
+
 		/*
 		 * Previously, this state transition would start the
 		 * delayreq timer immediately.  However, if this was
@@ -760,9 +795,9 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		
 	case PTP_LISTENING:
 	case PTP_UNCALIBRATED:
-	case PTP_SLAVE:
 	// passive mode behaves like the SLAVE state, in order to wait for the announce timeout of the current active master
 	case PTP_PASSIVE:
+	case PTP_SLAVE:
 		handle(rtOpts, ptpClock);
 		
 		/*
@@ -945,6 +980,15 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 #endif /* PTPD_STATISTICS */
 
+		if(timerExpired(&ptpClock->timers[SYNC_RECEIPT_TIMER])) {
+			INFO("NO_SYNC\n");
+		}
+
+		if(timerExpired(&ptpClock->timers[DELAY_RECEIPT_TIMER])) {
+			INFO("NO_DELAY\n");
+		}
+
+
 		break;
 #ifndef PTPD_SLAVE_ONLY
 	case PTP_MASTER:
@@ -1079,6 +1123,10 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		// TODO: why is handle() below expiretimer, while in slave is the opposite
 		handle(rtOpts, ptpClock);
+
+		if(timerExpired(&ptpClock->timers[DELAY_RECEIPT_TIMER])) {
+			INFO("NO_DELAY\n");
+		}
 
 		if (ptpClock->slaveOnly || ptpClock->clockQuality.clockClass == SLAVE_ONLY_CLOCK_CLASS)
 			toState(PTP_LISTENING, rtOpts, ptpClock);
@@ -1252,8 +1300,12 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 		DBG("Ignored message %s received from %d domain\n",
 			getMessageTypeName(ptpClock->msgTmpHeader.messageType),
 			ptpClock->msgTmpHeader.domainNumber);
+		ptpClock->lastDomainSeen = ptpClock->msgTmpHeader.domainNumber;
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.domainMismatchErrors++;
+		if(ptpClock->netPath.receivedPacketsTotal == ptpClock->counters.domainMismatchErrors) {
+			INFO("DOMAIN_MISMATCH");
+		}
 		return;
 	}
     }
@@ -1705,6 +1757,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 	   TimeInternal *tint, Boolean isFromSelf, Integer32 sourceAddress, Integer32 destinationAddress,
 	   const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
+
 	TimeInternal OriginTimestamp;
 	TimeInternal correctionField;
 
@@ -1753,6 +1806,11 @@ handleSync(const MsgHeader *header, ssize_t length,
 
 		if (isFromCurrentParent(ptpClock, header)) {
 			ptpClock->counters.syncMessagesReceived++;
+			timerStart(&ptpClock->timers[SYNC_RECEIPT_TIMER], max(
+			    (ptpClock->announceReceiptTimeout) * (pow(2,ptpClock->logAnnounceInterval)),
+			    MISSED_MESSAGES_MAX * (pow(2,ptpClock->logSyncInterval))
+			));
+
 			/* We only start our own delayReq timer after receiving the first sync */
 			if (ptpClock->syncWaiting) {
 				ptpClock->syncWaiting = FALSE;
@@ -2220,6 +2278,10 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 				DBG("==> Handle DelayResp (%d)\n",
 					 header->sequenceId);
 
+				timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+				    (ptpClock->announceReceiptTimeout) * (pow(2,ptpClock->logAnnounceInterval)),
+					MISSED_MESSAGES_MAX * (pow(2,ptpClock->logMinDelayReqInterval))));
+
 				if (!ptpClock->waitingForDelayResp) {
 					DBG("Ignored DelayResp sequence %d - wasn't waiting for one\n",
 						header->sequenceId);
@@ -2307,6 +2369,10 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 					}
 					ptpClock->logMinDelayReqInterval = rtOpts->logMinDelayReqInterval;
 				}
+				/* arm the timer again now that we have the correct delayreq interval */
+				timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+				    (ptpClock->announceReceiptTimeout) * (pow(2,ptpClock->logAnnounceInterval)),
+					MISSED_MESSAGES_MAX * (pow(2,ptpClock->logMinDelayReqInterval))));
 			} else {
 
 				DBG("HandledelayResp : delayResp doesn't match with the delayReq. \n");
@@ -2544,6 +2610,9 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 				
 				}
 	                    		ptpClock->delayRespWaiting = FALSE;
+					timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+					    (ptpClock->announceReceiptTimeout) * (pow(2,ptpClock->logAnnounceInterval)),
+						MISSED_MESSAGES_MAX * (pow(2,ptpClock->logMinPdelayReqInterval))));
 				}
 
 				ptpClock->recvPdelayRespSequenceId = header->sequenceId;
@@ -2684,6 +2753,10 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 /* pdelay interval handling end */
 			}
                     		ptpClock->delayRespWaiting = FALSE;	
+				timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+					(ptpClock->announceReceiptTimeout) * (pow(2,ptpClock->logAnnounceInterval)),
+					MISSED_MESSAGES_MAX * (pow(2,ptpClock->logMinPdelayReqInterval))));
+
 				break;
 			} else {
 				DBG("PdelayRespFollowup: sequence mismatch - Received: %d "

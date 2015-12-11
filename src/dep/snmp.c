@@ -254,7 +254,9 @@ enum {
 	PTPBASE_NOTIFS_FREQADJ_NORMAL,
 	PTPBASE_NOTIFS_OFFSET_SECONDS,
 	PTPBASE_NOTIFS_OFFSET_SUB_SECONDS,
-	PTPBASE_NOTIFS_TIMEPROPERTIESDS_CHANGE
+	PTPBASE_NOTIFS_TIMEPROPERTIESDS_CHANGE,
+	PTPBASE_NOTIFS_DOMAIN_MISMATCH,
+	PTPBASE_NOTIFS_DOMAIN_OK,
 };
 
 #define SNMP_PTP_ORDINARY_CLOCK 1
@@ -1769,7 +1771,7 @@ snmpLogCallback(int major, int minor,
 	return SNMP_ERR_NOERROR;
 }
 
-static const int
+static int
 getNotifIndex(int eventType) {
 
 	switch (eventType) {
@@ -1807,6 +1809,10 @@ getNotifIndex(int eventType) {
 		    return 16;
 		case PTPBASE_NOTIFS_TIMEPROPERTIESDS_CHANGE:
 		    return 17;
+		case PTPBASE_NOTIFS_DOMAIN_MISMATCH:
+		    return 18;
+		case PTPBASE_NOTIFS_DOMAIN_OK:
+		    return 18;
 		default:
 		    return 0;
 	}
@@ -1887,7 +1893,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			    ASN_INTEGER, (u_char *) &addrType, sizeof(addrType));
 
 			snmp_varlist_add_variable(varBinds, portAddrOid, OID_LENGTH(portAddrOid),
-			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->bestMaster->sourceAddr, sizeof(snmpPtpClock->bestMaster->sourceAddr));
+			    ASN_OCTET_STR, (u_char *) &sa, sizeof(sa));
 
 			snmp_varlist_add_variable(varBinds, gmClockIdOid, OID_LENGTH(gmClockIdOid),
 			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->grandmasterIdentity, sizeof(ClockIdentity));

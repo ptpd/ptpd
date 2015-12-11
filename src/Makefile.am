@@ -59,6 +59,8 @@ ptpd2_SOURCES =				\
 	dep/ntpengine/ntpdcontrol.h	\
 	timingdomain.h			\
 	timingdomain.c			\
+	dep/alarms.h			\
+	dep/alarms.c			\
 	ptpd.c				\
 	ptpd.h				\
 	$(NULL)

@@ -729,6 +729,8 @@ typedef struct {
 	UInteger8 domainNumber;
 	Boolean slaveOnly;
 
+	/* domain mismatch detection */
+	UInteger8 lastDomainSeen;
 
 	/* Current data set */
 

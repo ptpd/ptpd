@@ -175,6 +175,7 @@
 #include "dep/iniparser/iniparser.h"
 #include "dep/daemonconfig.h"
 
+#include "dep/alarms.h"
 
 
 

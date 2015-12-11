@@ -84,33 +84,6 @@ typedef struct {
 	int ifIndex;
 } InterfaceInfo;
 
-typedef enum {
-	ALARM_UNSET,
-	ALARM_SET,
-	ALARM_CLEARED
-} AlarmState;
-
-typedef struct {
-	uint8_t id; 			/* alarm ID */
-	uint32_t age;			/* age of alarm in current state (seconds) */
-	AlarmState state;		/* state of the alarm */
-	Boolean condition;		/* is the alarm condition met? (so we can check conditions and set alarms separately */
-	TimeInternal timeSet;		/* time when set */
-	TimeInternal timeCleared;	/* time when cleared */
-	Boolean eventOnly;		/* this is only an event - don't manage state, just inform when condition is met */
-} AlarmData;
-
-typedef struct {
-	char shortName[5];		/* short code i.e. OFS, DLY, SYN, FLT etc. */
-	char name[31];			/* full name i.e. OFFSET_THRESHOLD, NO_DELAY, NO_SYNC etc. */
-	char description[101];		/* text description */
-
-/*	char *userHandle;		*/ /* pointer to user data associated with the alarm */
-/*	char userData[200];		*/ /* or maybe some space to contain the data taken there and then */
-
-	AlarmData data;			/* alarm data container (so it's easier to do a static initialisation */
-} AlarmEntry;
-
 /**
 * \brief Struct describing network transport data
  */

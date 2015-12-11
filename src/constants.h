@@ -460,6 +460,8 @@ enum {
 		    "\x13\x1b\x5e\x11\x1b\x5d\x59\x59"\
 		    "\x59\x59\x58\x58\x58\x58"
 
+#define MISSED_MESSAGES_MAX 20 /* how long we wait to trigger a [sync/delay] receipt alarm */
+
 /* constants used for unicast grant processing */
 #define UNICAST_GRANT_REFRESH_INTERVAL 1
 #define GRANT_NOT_FOUND -1
