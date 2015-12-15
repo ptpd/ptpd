@@ -1696,15 +1696,15 @@ msgPackHeader(Octet * buf, PtpClock * ptpClock)
 {
 
 	/* (spec annex D) */
-	*(UInteger8 *) (buf + 0) = ptpClock->transportSpecific << 4;
-	*(UInteger4 *) (buf + 1) = ptpClock->versionNumber;
-	*(UInteger8 *) (buf + 4) = ptpClock->domainNumber;
+	*(UInteger8 *) (buf + 0) = ptpClock->portDS.transportSpecific << 4;
+	*(UInteger4 *) (buf + 1) = ptpClock->portDS.versionNumber;
+	*(UInteger8 *) (buf + 4) = ptpClock->defaultDS.domainNumber;
 	/* clear flag field - message packing functions should populate it */
 	memset((buf + 6), 0, 2);
 
 	memset((buf + 8), 0, 8);
-	copyClockIdentity((buf + 20), ptpClock->portIdentity.clockIdentity);
-	*(UInteger16 *) (buf + 28) = flip16(ptpClock->portIdentity.portNumber);
+	copyClockIdentity((buf + 20), ptpClock->portDS.portIdentity.clockIdentity);
+	*(UInteger16 *) (buf + 28) = flip16(ptpClock->portDS.portIdentity.portNumber);
 	/* LogMessageInterval defaults to 0x7F, will be set to another value if needed as per table 24*/
 	*(UInteger8 *) (buf + 33) = 0x7F;
 }
@@ -1722,7 +1722,7 @@ msgPackSync(Octet * buf, UInteger16 sequenceId, Timestamp * originTimestamp, Ptp
 	/* RAZ messageType */
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x00;
 	/* Two step flag - table 20: Sync and PdelayResp only */
-	if (ptpClock->twoStepFlag)
+	if (ptpClock->defaultDS.twoStepFlag)
 		*(UInteger8 *) (buf + 6) |= PTP_TWO_STEP;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(SYNC_LENGTH);
@@ -1731,7 +1731,7 @@ msgPackSync(Octet * buf, UInteger16 sequenceId, Timestamp * originTimestamp, Ptp
 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
 	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ipMode != IPMODE_UNICAST )
-		*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
+		*(Integer8 *) (buf + 33) = ptpClock->portDS.logSyncInterval;
 	memset((buf + 8), 0, 8);
 
 	/* Sync message */
@@ -1777,20 +1777,20 @@ msgPackAnnounce(Octet * buf, UInteger16 sequenceId, PtpClock * ptpClock)
 	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
 	*(UInteger8 *) (buf + 32) = 0x05;
 	/* Table 24: for Announce, logMessageInterval is never 0x7F */
-	*(Integer8 *) (buf + 33) = ptpClock->logAnnounceInterval;
+	*(Integer8 *) (buf + 33) = ptpClock->portDS.logAnnounceInterval;
 
 	/* Announce message */
 	memset((buf + 34), 0, 10);
 	*(Integer16 *) (buf + 44) = flip16(ptpClock->timePropertiesDS.currentUtcOffset);
-	*(UInteger8 *) (buf + 47) = ptpClock->grandmasterPriority1;
-	*(UInteger8 *) (buf + 48) = ptpClock->clockQuality.clockClass;
-	*(Enumeration8 *) (buf + 49) = ptpClock->clockQuality.clockAccuracy;
+	*(UInteger8 *) (buf + 47) = ptpClock->parentDS.grandmasterPriority1;
+	*(UInteger8 *) (buf + 48) = ptpClock->defaultDS.clockQuality.clockClass;
+	*(Enumeration8 *) (buf + 49) = ptpClock->defaultDS.clockQuality.clockAccuracy;
 	*(UInteger16 *) (buf + 50) =
-		flip16(ptpClock->clockQuality.offsetScaledLogVariance);
-	*(UInteger8 *) (buf + 52) = ptpClock->grandmasterPriority2;
-	copyClockIdentity((buf + 53), ptpClock->grandmasterIdentity);
+		flip16(ptpClock->defaultDS.clockQuality.offsetScaledLogVariance);
+	*(UInteger8 *) (buf + 52) = ptpClock->parentDS.grandmasterPriority2;
+	copyClockIdentity((buf + 53), ptpClock->parentDS.grandmasterIdentity);
 	/* resolve bugs #37 and #40 - alignment errors on ARMv5 */
-	stepsRemoved = flip16(ptpClock->stepsRemoved);
+	stepsRemoved = flip16(ptpClock->currentDS.stepsRemoved);
 	memcpy(buf + 61, &stepsRemoved, sizeof(UInteger16));
 	*(Enumeration8 *) (buf + 63) = ptpClock->timePropertiesDS.timeSource;
 
@@ -1857,7 +1857,7 @@ msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpC
 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
 	 if(rtOpts.transport == IEEE_802_3 || rtOpts.ipMode != IPMODE_UNICAST)
-		*(Integer8 *) (buf + 33) = ptpClock->logSyncInterval;
+		*(Integer8 *) (buf + 33) = ptpClock->portDS.logSyncInterval;
 
 	/* Follow_up message */
 	*(UInteger16 *) (buf + 34) =
@@ -1971,7 +1971,7 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
 	 /* really tempting to cheat here, at least for hybrid, but standard is a standard */
 	if ((header->flagField0 & PTP_UNICAST) != PTP_UNICAST) {
-	    *(Integer8 *) (buf + 33) = ptpClock->logMinDelayReqInterval;
+	    *(Integer8 *) (buf + 33) = ptpClock->portDS.logMinDelayReqInterval;
 	}
 
 	/* Pdelay_resp message */
@@ -1995,7 +1995,7 @@ msgPackPdelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTim
 	/* RAZ messageType */
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x03;
 	/* Two step flag - table 20: Sync and PdelayResp only */
-	if (ptpClock->twoStepFlag)
+	if (ptpClock->defaultDS.twoStepFlag)
 		*(UInteger8 *) (buf + 6) |= PTP_TWO_STEP;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(PDELAY_RESP_LENGTH);

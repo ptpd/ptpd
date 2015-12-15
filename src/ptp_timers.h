@@ -76,6 +76,7 @@ enum {
 #ifdef PTPD_STATISTICS
   STATISTICS_UPDATE_TIMER, /* online mean / std dev updare interval (non-moving statistics) */
 #endif /* PTPD_STATISTICS */
+  ALARM_UPDATE_TIMER,
   MASTER_NETREFRESH_TIMER,
   CALIBRATION_DELAY_TIMER,
   CLOCK_UPDATE_TIMER,

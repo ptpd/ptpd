@@ -277,11 +277,11 @@ enum {
 #define PTPBASE_MIB_OID \
 	1, 3, 6, 1, 4, 1, 46649, 1, 1
 #define PTPBASE_MIB_INDEX2 \
-	snmpPtpClock->domainNumber, SNMP_PTP_CLOCK_INSTANCE
+	snmpPtpClock->defaultDS.domainNumber, SNMP_PTP_CLOCK_INSTANCE
 #define PTPBASE_MIB_INDEX3 \
-	snmpPtpClock->domainNumber, SNMP_PTP_ORDINARY_CLOCK, SNMP_PTP_CLOCK_INSTANCE
+	snmpPtpClock->defaultDS.domainNumber, SNMP_PTP_ORDINARY_CLOCK, SNMP_PTP_CLOCK_INSTANCE
 #define PTPBASE_MIB_INDEX4 \
-	snmpPtpClock->domainNumber, SNMP_PTP_ORDINARY_CLOCK, SNMP_PTP_CLOCK_INSTANCE, snmpPtpClock->portIdentity.portNumber
+	snmpPtpClock->defaultDS.domainNumber, SNMP_PTP_ORDINARY_CLOCK, SNMP_PTP_CLOCK_INSTANCE, snmpPtpClock->portDS.portIdentity.portNumber
 
 static oid  ptp_oid[] = { PTPBASE_MIB_OID };
 
@@ -473,7 +473,7 @@ snmpSystemTable(SNMP_SIGNATURE) {
 	SNMP_INDEXED_TABLE;
 
 	/* We only have one index: one domain, one instance */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_CLOCK_INSTANCE;
 	SNMP_ADD_INDEX(index, 2, snmpPtpClock);
 
@@ -481,7 +481,7 @@ snmpSystemTable(SNMP_SIGNATURE) {
 
 	switch (vp->magic) {
 	case PTPBASE_DOMAIN_CLOCK_PORTS_TOTAL:
-		return SNMP_GAUGE(snmpPtpClock->numberPorts);
+		return SNMP_GAUGE(snmpPtpClock->defaultDS.numberPorts);
 	}
 
 	return NULL;
@@ -523,7 +523,7 @@ snmpClockDSTable(SNMP_SIGNATURE) {
 	memset(tmpStr, 0, sizeof(tmpStr));
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
 	SNMP_ADD_INDEX(index, 3, snmpPtpClock);
@@ -533,44 +533,44 @@ snmpClockDSTable(SNMP_SIGNATURE) {
 	switch (vp->magic) {
 	/* ptpbaseClockCurrentDSTable */
 	case PTPBASE_CLOCK_CURRENT_DS_STEPS_REMOVED:
-		return SNMP_UNSIGNED(snmpPtpClock->stepsRemoved);
+		return SNMP_UNSIGNED(snmpPtpClock->currentDS.stepsRemoved);
 	case PTPBASE_CLOCK_CURRENT_DS_OFFSET_FROM_MASTER:
-		return SNMP_TIMEINTERNAL(snmpPtpClock->offsetFromMaster);
+		return SNMP_TIMEINTERNAL(snmpPtpClock->currentDS.offsetFromMaster);
 	case PTPBASE_CLOCK_CURRENT_DS_MEAN_PATH_DELAY:
-		return SNMP_TIMEINTERNAL(snmpPtpClock->meanPathDelay);
+		return SNMP_TIMEINTERNAL(snmpPtpClock->currentDS.meanPathDelay);
 	/* PTPd: offsets as string */
 	case PTPBASE_CLOCK_CURRENT_DS_OFFSET_FROM_MASTER_STRING:
-		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->offsetFromMaster));
+		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->currentDS.offsetFromMaster));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 	case PTPBASE_CLOCK_CURRENT_DS_MEAN_PATH_DELAY_STRING:
-		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->meanPathDelay));
+		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->currentDS.meanPathDelay));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 	case PTPBASE_CLOCK_CURRENT_DS_OFFSET_FROM_MASTER_THRESHOLD:
 		return SNMP_INTEGER(snmpRtOpts->ofmAlarmThreshold);
 
 	/* ptpbaseClockParentDSTable */
 	case PTPBASE_CLOCK_PARENT_DS_PARENT_PORT_ID:
-		return SNMP_OCTETSTR(&snmpPtpClock->parentPortIdentity,
+		return SNMP_OCTETSTR(&snmpPtpClock->parentDS.parentPortIdentity,
 				     sizeof(PortIdentity));
 	case PTPBASE_CLOCK_PARENT_DS_PARENT_STATS:
-		return SNMP_BOOLEAN(snmpPtpClock->parentStats);
+		return SNMP_BOOLEAN(snmpPtpClock->parentDS.parentStats);
 	case PTPBASE_CLOCK_PARENT_DS_OFFSET:
-		return SNMP_INTEGER(snmpPtpClock->observedParentOffsetScaledLogVariance);
+		return SNMP_INTEGER(snmpPtpClock->parentDS.observedParentOffsetScaledLogVariance);
 	case PTPBASE_CLOCK_PARENT_DS_CLOCK_PH_CH_RATE:
-		return SNMP_INTEGER(snmpPtpClock->observedParentClockPhaseChangeRate);
+		return SNMP_INTEGER(snmpPtpClock->parentDS.observedParentClockPhaseChangeRate);
 	case PTPBASE_CLOCK_PARENT_DS_GM_CLOCK_IDENTITY:
-		return SNMP_OCTETSTR(&snmpPtpClock->grandmasterIdentity,
+		return SNMP_OCTETSTR(&snmpPtpClock->parentDS.grandmasterIdentity,
 				     sizeof(ClockIdentity));
 	case PTPBASE_CLOCK_PARENT_DS_GM_CLOCK_PRIO1:
-		return SNMP_UNSIGNED(snmpPtpClock->grandmasterPriority1);
+		return SNMP_UNSIGNED(snmpPtpClock->parentDS.grandmasterPriority1);
 	case PTPBASE_CLOCK_PARENT_DS_GM_CLOCK_PRIO2:
-		return SNMP_UNSIGNED(snmpPtpClock->grandmasterPriority2);
+		return SNMP_UNSIGNED(snmpPtpClock->parentDS.grandmasterPriority2);
 	case PTPBASE_CLOCK_PARENT_DS_GM_CLOCK_QUALITY_CLASS:
-		return SNMP_UNSIGNED(snmpPtpClock->grandmasterClockQuality.clockClass);
+		return SNMP_UNSIGNED(snmpPtpClock->parentDS.grandmasterClockQuality.clockClass);
 	case PTPBASE_CLOCK_PARENT_DS_GM_CLOCK_QUALITY_ACCURACY:
-		return SNMP_INTEGER(snmpPtpClock->grandmasterClockQuality.clockAccuracy);
+		return SNMP_INTEGER(snmpPtpClock->parentDS.grandmasterClockQuality.clockAccuracy);
 	case PTPBASE_CLOCK_PARENT_DS_GM_CLOCK_QUALITY_OFFSET:
-		return SNMP_INTEGER(snmpPtpClock->grandmasterClockQuality.offsetScaledLogVariance);
+		return SNMP_INTEGER(snmpPtpClock->parentDS.grandmasterClockQuality.offsetScaledLogVariance);
 	/* PTPd addition */
 	case PTPBASE_CLOCK_PARENT_DS_PARENT_PORT_ADDRESS_TYPE:
 		/* Only supports IPv4 */
@@ -583,25 +583,25 @@ snmpClockDSTable(SNMP_SIGNATURE) {
 		return SNMP_IPADDR(snmpPtpClock->bestMaster->sourceAddr);
 	/* ptpbaseClockDefaultDSTable */
 	case PTPBASE_CLOCK_DEFAULT_DS_TWO_STEP_FLAG:
-		return SNMP_BOOLEAN(snmpPtpClock->twoStepFlag);
+		return SNMP_BOOLEAN(snmpPtpClock->defaultDS.twoStepFlag);
 	case PTPBASE_CLOCK_DEFAULT_DS_CLOCK_IDENTITY:
-		return SNMP_OCTETSTR(&snmpPtpClock->clockIdentity,
+		return SNMP_OCTETSTR(&snmpPtpClock->defaultDS.clockIdentity,
 				     sizeof(ClockIdentity));
 	case PTPBASE_CLOCK_DEFAULT_DS_PRIO1:
-		return SNMP_UNSIGNED(snmpPtpClock->priority1);
+		return SNMP_UNSIGNED(snmpPtpClock->defaultDS.priority1);
 	case PTPBASE_CLOCK_DEFAULT_DS_PRIO2:
-		return SNMP_UNSIGNED(snmpPtpClock->priority2);
+		return SNMP_UNSIGNED(snmpPtpClock->defaultDS.priority2);
 	case PTPBASE_CLOCK_DEFAULT_DS_SLAVE_ONLY:
-		return SNMP_BOOLEAN(snmpPtpClock->slaveOnly);
+		return SNMP_BOOLEAN(snmpPtpClock->defaultDS.slaveOnly);
 	case PTPBASE_CLOCK_DEFAULT_DS_QUALITY_CLASS:
-		return SNMP_UNSIGNED(snmpPtpClock->clockQuality.clockClass);
+		return SNMP_UNSIGNED(snmpPtpClock->defaultDS.clockQuality.clockClass);
 	case PTPBASE_CLOCK_DEFAULT_DS_QUALITY_ACCURACY:
-		return SNMP_INTEGER(snmpPtpClock->clockQuality.clockAccuracy);
+		return SNMP_INTEGER(snmpPtpClock->defaultDS.clockQuality.clockAccuracy);
 	case PTPBASE_CLOCK_DEFAULT_DS_QUALITY_OFFSET:
-		return SNMP_INTEGER(snmpPtpClock->clockQuality.offsetScaledLogVariance);
+		return SNMP_INTEGER(snmpPtpClock->defaultDS.clockQuality.offsetScaledLogVariance);
 	/* PTPd addition */
 	case PTPBASE_CLOCK_DEFAULT_DS_DOMAIN_NUMBER:
-		return SNMP_INTEGER(snmpPtpClock->domainNumber);
+		return SNMP_INTEGER(snmpPtpClock->defaultDS.domainNumber);
 	/* ptpbaseClockTimePropertiesDSTable */
 	case PTPBASE_CLOCK_TIME_PROPERTIES_DS_CURRENT_UTC_OFFSET_VALID:
 		return SNMP_BOOLEAN(snmpPtpClock->timePropertiesDS.currentUtcOffsetValid);
@@ -634,10 +634,10 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 	SNMP_INDEXED_TABLE;
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
-	index[3] = snmpPtpClock->portIdentity.portNumber;
+	index[3] = snmpPtpClock->portDS.portIdentity.portNumber;
 	SNMP_ADD_INDEX(index, 4, snmpPtpClock);
 
 	if (!SNMP_BEST_MATCH) return NULL;
@@ -650,10 +650,10 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		return SNMP_OCTETSTR(snmpPtpClock->userDescription,
 				     strlen(snmpPtpClock->userDescription));
 	case PTPBASE_CLOCK_PORT_ROLE:
-		return SNMP_INTEGER((snmpPtpClock->portState == PTP_MASTER)?
+		return SNMP_INTEGER((snmpPtpClock->portDS.portState == PTP_MASTER)?
 				    SNMP_PTP_PORT_MASTER:SNMP_PTP_PORT_SLAVE);
 	case PTPBASE_CLOCK_PORT_SYNC_ONE_STEP:
-		return (snmpPtpClock->twoStepFlag == TRUE)?SNMP_FALSE:SNMP_TRUE;
+		return (snmpPtpClock->defaultDS.twoStepFlag == TRUE)?SNMP_FALSE:SNMP_TRUE;
 	case PTPBASE_CLOCK_PORT_CURRENT_PEER_ADDRESS_TYPE:
 		/* Only supports IPv4 */
 		return SNMP_INTEGER(SNMP_IPv4);
@@ -669,41 +669,41 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 
 	/* ptpbaseClockPortDSTable */
 	case PTPBASE_CLOCK_PORT_DS_PORT_IDENTITY:
-		return SNMP_OCTETSTR(&snmpPtpClock->portIdentity,
+		return SNMP_OCTETSTR(&snmpPtpClock->portDS.portIdentity,
 				     sizeof(PortIdentity));
 	case PTPBASE_CLOCK_PORT_DS_ANNOUNCEMENT_INTERVAL:
 		/* TODO: is it really logAnnounceInterval? */
-		return SNMP_INTEGER(snmpPtpClock->logAnnounceInterval);
+		return SNMP_INTEGER(snmpPtpClock->portDS.logAnnounceInterval);
 	case PTPBASE_CLOCK_PORT_DS_ANNOUNCE_RCT_TIMEOUT:
-		return SNMP_INTEGER(snmpPtpClock->announceReceiptTimeout);
+		return SNMP_INTEGER(snmpPtpClock->portDS.announceReceiptTimeout);
 	case PTPBASE_CLOCK_PORT_DS_SYNC_INTERVAL:
 		/* TODO: is it really logSyncInterval? */
-		return SNMP_INTEGER(snmpPtpClock->logSyncInterval);
+		return SNMP_INTEGER(snmpPtpClock->portDS.logSyncInterval);
 	case PTPBASE_CLOCK_PORT_DS_MIN_DELAY_REQ_INTERVAL:
 		/* TODO: is it really logMinDelayReqInterval? */
-		return SNMP_INTEGER(snmpPtpClock->logMinDelayReqInterval);
+		return SNMP_INTEGER(snmpPtpClock->portDS.logMinDelayReqInterval);
 	case PTPBASE_CLOCK_PORT_DS_PEER_DELAY_REQ_INTERVAL:
 		/* TODO: is it really logMinPdelayReqInterval? */
-		return SNMP_INTEGER(snmpPtpClock->logMinPdelayReqInterval);
+		return SNMP_INTEGER(snmpPtpClock->portDS.logMinPdelayReqInterval);
 	case PTPBASE_CLOCK_PORT_DS_DELAY_MECH:
-		return SNMP_INTEGER(snmpPtpClock->delayMechanism);
+		return SNMP_INTEGER(snmpPtpClock->portDS.delayMechanism);
 	case PTPBASE_CLOCK_PORT_DS_PEER_MEAN_PATH_DELAY:
-		return SNMP_TIMEINTERNAL(snmpPtpClock->peerMeanPathDelay);
+		return SNMP_TIMEINTERNAL(snmpPtpClock->portDS.peerMeanPathDelay);
 	case PTPBASE_CLOCK_PORT_DS_GRANT_DURATION:
 		if(snmpRtOpts->unicastNegotiation && snmpPtpClock->parentGrants) {
 			return SNMP_UNSIGNED(snmpPtpClock->parentGrants->grantData[SYNC_INDEXED].duration);
 		}
 		return SNMP_UNSIGNED(0);
 	case PTPBASE_CLOCK_PORT_DS_PTP_VERSION:
-		return SNMP_INTEGER(snmpPtpClock->versionNumber);
+		return SNMP_INTEGER(snmpPtpClock->portDS.versionNumber);
 	case PTPBASE_CLOCK_PORT_DS_PEER_MEAN_PATH_DELAY_STRING:
-		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->peerMeanPathDelay));
+		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->portDS.peerMeanPathDelay));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 	/* ptpbaseClockPortRunningTable */
 	case PTPBASE_CLOCK_PORT_RUNNING_STATE:
-		return SNMP_INTEGER(snmpPtpClock->portState);
+		return SNMP_INTEGER(snmpPtpClock->portDS.portState);
 	case PTPBASE_CLOCK_PORT_RUNNING_ROLE:
-		return SNMP_INTEGER((snmpPtpClock->portState == PTP_MASTER)?
+		return SNMP_INTEGER((snmpPtpClock->portDS.portState == PTP_MASTER)?
 				    SNMP_PTP_PORT_MASTER:SNMP_PTP_PORT_SLAVE);
 	case PTPBASE_CLOCK_PORT_RUNNING_INTERFACE_INDEX:
 		return SNMP_INTEGER(snmpPtpClock->netPath.interfaceInfo.ifIndex);
@@ -875,10 +875,10 @@ snmpPtpPortMessageCountersTable(SNMP_SIGNATURE) {
 	SNMP_INDEXED_TABLE;
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
-	index[3] = snmpPtpClock->portIdentity.portNumber;
+	index[3] = snmpPtpClock->portDS.portIdentity.portNumber;
 	SNMP_ADD_INDEX(index, 4, snmpPtpClock);
 
 	if (!SNMP_BEST_MATCH) return NULL;
@@ -955,10 +955,10 @@ snmpPtpPortProtocolCountersTable(SNMP_SIGNATURE) {
 	SNMP_INDEXED_TABLE;
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
-	index[3] = snmpPtpClock->portIdentity.portNumber;
+	index[3] = snmpPtpClock->portDS.portIdentity.portNumber;
 	SNMP_ADD_INDEX(index, 4, snmpPtpClock);
 
 	if (!SNMP_BEST_MATCH) return NULL;
@@ -996,10 +996,10 @@ snmpPtpPortErrorCountersTable(SNMP_SIGNATURE) {
 	SNMP_INDEXED_TABLE;
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
-	index[3] = snmpPtpClock->portIdentity.portNumber;
+	index[3] = snmpPtpClock->portDS.portIdentity.portNumber;
 	SNMP_ADD_INDEX(index, 4, snmpPtpClock);
 
 	if (!SNMP_BEST_MATCH) return NULL;
@@ -1039,10 +1039,10 @@ snmpPtpPortUnicastNegotiationCountersTable(SNMP_SIGNATURE) {
 	SNMP_INDEXED_TABLE;
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
-	index[3] = snmpPtpClock->portIdentity.portNumber;
+	index[3] = snmpPtpClock->portDS.portIdentity.portNumber;
 	SNMP_ADD_INDEX(index, 4, snmpPtpClock);
 
 	if (!SNMP_BEST_MATCH) return NULL;
@@ -1080,10 +1080,10 @@ snmpPtpPortPerformanceCountersTable(SNMP_SIGNATURE) {
 	SNMP_INDEXED_TABLE;
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
-	index[3] = snmpPtpClock->portIdentity.portNumber;
+	index[3] = snmpPtpClock->portDS.portIdentity.portNumber;
 	SNMP_ADD_INDEX(index, 4, snmpPtpClock);
 
 	if (!SNMP_BEST_MATCH) return NULL;
@@ -1109,10 +1109,10 @@ snmpPtpPortSecurityCountersTable(SNMP_SIGNATURE) {
 	SNMP_INDEXED_TABLE;
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
-	index[3] = snmpPtpClock->portIdentity.portNumber;
+	index[3] = snmpPtpClock->portDS.portIdentity.portNumber;
 	SNMP_ADD_INDEX(index, 4, snmpPtpClock);
 
 	if (!SNMP_BEST_MATCH) return NULL;
@@ -1142,7 +1142,7 @@ snmpSlaveOfmStatsTable(SNMP_SIGNATURE) {
 	memset(tmpStr, 0, sizeof(tmpStr));
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
 	SNMP_ADD_INDEX(index, 3, snmpPtpClock);
@@ -1151,9 +1151,9 @@ snmpSlaveOfmStatsTable(SNMP_SIGNATURE) {
 
 	switch (vp->magic) {
 	case PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE:
-		return SNMP_TIMEINTERNAL(snmpPtpClock->offsetFromMaster);
+		return SNMP_TIMEINTERNAL(snmpPtpClock->currentDS.offsetFromMaster);
 	case PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE_STRING:
-		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->offsetFromMaster));
+		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->currentDS.offsetFromMaster));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 #ifdef PTPD_STATISTICS
 	case PTPBASE_SLAVE_OFM_STATS_PERIOD_SECONDS:
@@ -1203,7 +1203,7 @@ snmpSlaveMpdStatsTable(SNMP_SIGNATURE) {
 	memset(tmpStr, 0, sizeof(tmpStr));
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
 	SNMP_ADD_INDEX(index, 3, snmpPtpClock);
@@ -1212,9 +1212,9 @@ snmpSlaveMpdStatsTable(SNMP_SIGNATURE) {
 
 	switch (vp->magic) {
 	case PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE:
-		return SNMP_TIMEINTERNAL(snmpPtpClock->meanPathDelay);
+		return SNMP_TIMEINTERNAL(snmpPtpClock->currentDS.meanPathDelay);
 	case PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE_STRING:
-		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->meanPathDelay));
+		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->currentDS.meanPathDelay));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 #ifdef PTPD_STATISTICS
 	case PTPBASE_SLAVE_MPD_STATS_PERIOD_SECONDS:
@@ -1264,7 +1264,7 @@ snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
 	memset(tmpStr, 0, sizeof(tmpStr));
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
 	SNMP_ADD_INDEX(index, 3, snmpPtpClock);
@@ -1307,10 +1307,10 @@ snmpPtpdSpecificCountersTable(SNMP_SIGNATURE) {
 	SNMP_INDEXED_TABLE;
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
-	index[3] = snmpPtpClock->portIdentity.portNumber;
+	index[3] = snmpPtpClock->portDS.portIdentity.portNumber;
 	SNMP_ADD_INDEX(index, 4, snmpPtpClock);
 
 	if (!SNMP_BEST_MATCH) return NULL;
@@ -1348,7 +1348,7 @@ snmpPtpdSpecificDataTable(SNMP_SIGNATURE) {
 	memset(tmpStr, 0, sizeof(tmpStr));
 
 	/* We only have one valid index */
-	index[0] = snmpPtpClock->domainNumber;
+	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
 	index[2] = SNMP_PTP_CLOCK_INSTANCE;
 	SNMP_ADD_INDEX(index, 3, snmpPtpClock);
@@ -1828,7 +1828,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			oid portStateOid[] = { PTPBASE_MIB_OID, 1, 2, 9, 1, 6, PTPBASE_MIB_INDEX4 };
 
 			snmp_varlist_add_variable(varBinds, portStateOid, OID_LENGTH(portStateOid),
-			    ASN_INTEGER, (u_char *) &snmpPtpClock->portState, sizeof(snmpPtpClock->portState));
+			    ASN_INTEGER, (u_char *) &snmpPtpClock->portDS.portState, sizeof(snmpPtpClock->portDS.portState));
 		    }
 		    return;
 		case PTPBASE_NOTIFS_SLAVE_OFFSET_THRESHOLD_EXCEEDED:
@@ -1836,11 +1836,11 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 		    {
 			U64 ofmNum;
 			Integer64  tmpi64;
-			internalTime_to_integer64(snmpPtpClock->offsetFromMaster, &tmpi64);
+			internalTime_to_integer64(snmpPtpClock->currentDS.offsetFromMaster, &tmpi64);
 			ofmNum.low = htonl(tmpi64.lsb);
 			ofmNum.high = htonl(tmpi64.msb);
 
-			tmpsnprintf(ofmStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->offsetFromMaster));
+			tmpsnprintf(ofmStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->currentDS.offsetFromMaster));
 
 			oid ofmOid[] = { PTPBASE_MIB_OID, 1, 2, 1, 1, 5, PTPBASE_MIB_INDEX3 };
 			oid ofmStringOid[] = { PTPBASE_MIB_OID, 1, 2, 1, 1, 8, PTPBASE_MIB_INDEX3 };
@@ -1880,14 +1880,14 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			    sa = snmpPtpClock->bestMaster->sourceAddr;
 			}
 
-			unsigned long priority1 = snmpPtpClock->grandmasterPriority1;
-			unsigned long priority2 = snmpPtpClock->grandmasterPriority2;
-			unsigned long clockClass = snmpPtpClock->grandmasterClockQuality.clockClass;
+			unsigned long priority1 = snmpPtpClock->parentDS.grandmasterPriority1;
+			unsigned long priority2 = snmpPtpClock->parentDS.grandmasterPriority2;
+			unsigned long clockClass = snmpPtpClock->parentDS.grandmasterClockQuality.clockClass;
 			unsigned long utcOffset = snmpPtpClock->timePropertiesDS.currentUtcOffset;
 			unsigned long utcOffsetValid = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.currentUtcOffsetValid);
 
 			snmp_varlist_add_variable(varBinds, portIdOid, OID_LENGTH(portIdOid),
-			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->parentPortIdentity, sizeof(PortIdentity));
+			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->parentDS.parentPortIdentity, sizeof(PortIdentity));
 
 			snmp_varlist_add_variable(varBinds, portAddrTypeOid, OID_LENGTH(portAddrTypeOid),
 			    ASN_INTEGER, (u_char *) &addrType, sizeof(addrType));
@@ -1896,7 +1896,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			    ASN_OCTET_STR, (u_char *) &sa, sizeof(sa));
 
 			snmp_varlist_add_variable(varBinds, gmClockIdOid, OID_LENGTH(gmClockIdOid),
-			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->grandmasterIdentity, sizeof(ClockIdentity));
+			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->parentDS.grandmasterIdentity, sizeof(ClockIdentity));
 
 			snmp_varlist_add_variable(varBinds, gmPriority1Oid, OID_LENGTH(gmPriority1Oid),
 			    ASN_UNSIGNED, (u_char *) &priority1, sizeof(priority1));
@@ -1914,7 +1914,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			    ASN_INTEGER, (u_char *) &utcOffsetValid, sizeof(utcOffsetValid));
 
 			snmp_varlist_add_variable(varBinds, portStateOid, OID_LENGTH(portStateOid),
-			    ASN_INTEGER, (u_char *) &snmpPtpClock->portState, sizeof(snmpPtpClock->portState));
+			    ASN_INTEGER, (u_char *) &snmpPtpClock->portDS.portState, sizeof(snmpPtpClock->portDS.portState));
 		    }
 		    return;
 		case PTPBASE_NOTIFS_NETWORK_FAULT:
@@ -1929,11 +1929,11 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 		    {
 			U64 ofmNum;
 			Integer64  tmpi64;
-			internalTime_to_integer64(snmpPtpClock->offsetFromMaster, &tmpi64);
+			internalTime_to_integer64(snmpPtpClock->currentDS.offsetFromMaster, &tmpi64);
 			ofmNum.low = htonl(tmpi64.lsb);
 			ofmNum.high = htonl(tmpi64.msb);
 
-			tmpsnprintf(ofmStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->offsetFromMaster));
+			tmpsnprintf(ofmStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->currentDS.offsetFromMaster));
 
 			oid ofmOid[] = { PTPBASE_MIB_OID, 1, 2, 1, 1, 5, PTPBASE_MIB_INDEX3 };
 			oid ofmStringOid[] = { PTPBASE_MIB_OID, 1, 2, 1, 1, 8, PTPBASE_MIB_INDEX3 };
@@ -2060,12 +2060,8 @@ snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 
 void
 snmpShutdown() {
-MARKER;
-MARKER;
-
 	unregister_mib(ptp_oid, sizeof(ptp_oid) / sizeof(oid));
 	snmp_shutdown("ptpMib");
-//	shutdown_agent();
 	SOCK_CLEANUP;
 
 }

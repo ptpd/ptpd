@@ -119,6 +119,7 @@ Boolean timerSetup(IntervalTimer *itimers)
 #ifdef PTPD_STATISTICS
   "STATISTICS_UPDATE",
 #endif /* PTPD_STATISTICS */
+  "ALARM_UPDATE",
   "MASTER_NETREFRESH",
   "CALIBRATION_DELAY",
   "CLOCK_UPDATE",

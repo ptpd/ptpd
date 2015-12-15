@@ -36,21 +36,24 @@
  * handling raising and clearing alarms.
  */
 
-typedef struct {
-} PtpEventData;
+#include "../datatypes.h"
+
+#define DOMAIN_MISMATCH_MIN 10	/* trigger domain mismatch alarm after at least 10 mismatches */
+#define ALARM_UPDATE_INTERVAL 1 /* how often we process alarms */
+#define ALARM_TIMEOUT_PERIOD 30	/* minimal alarm age to clear */
 
 typedef enum {
-	ALRM_PORT_STATE,
+	ALRM_PORT_STATE = 0,		/*x done*/
 	ALRM_OFM_THRESHOLD,
-	ALRM_OFM_SECONDS,
-	ALRM_CLOCK_STEP,
-	ALRM_NO_SYNC,
-	ALRM_NO_DELAY,
-	ALRM_MASTER_CHANGE,
-	ALRM_NETWORK_FLT,
-	ALRM_FAST_ADJ,
-	ALRM_TIMEPROP_CHANGE,
-	ALRM_DOMAIN_MISMATCH,
+	ALRM_OFM_SECONDS, 		/*x done*/
+	ALRM_CLOCK_STEP,		/*x done*/
+	ALRM_NO_SYNC,			/*x done*/
+	ALRM_NO_DELAY, 			/*x done*/
+	ALRM_MASTER_CHANGE, 		/*x done*/
+	ALRM_NETWORK_FLT,		/*x done*/
+	ALRM_FAST_ADJ,			/*+/- currently only at maxppb */
+	ALRM_TIMEPROP_CHANGE,		/*x done*/
+	ALRM_DOMAIN_MISMATCH, 		/*+/- currently only when all packets come from an incorrect domain */
 	ALRM_MAX
 } AlarmType;
 
@@ -63,12 +66,12 @@ typedef enum {
 
 typedef struct {
 	uint8_t id; 			/* alarm ID */
+	Boolean eventOnly;		/* this is only an event - don't manage state, just dispatch/inform when condition is met */
 	uint32_t age;			/* age of alarm in current state (seconds) */
 	AlarmState state;		/* state of the alarm */
 	Boolean condition;		/* is the alarm condition met? (so we can check conditions and set alarms separately */
 	TimeInternal timeSet;		/* time when set */
 	TimeInternal timeCleared;	/* time when cleared */
-	Boolean eventOnly;		/* this is only an event - don't manage state, just dispatch/inform when condition is met */
 	Boolean internalOnly;		/* do not display in status file / indicate that the alarm is internal only */
 	PtpEventData eventData;		/* the event data union - so we can capture any data we need without the need to capture a whole PtpClock */
 } AlarmData;
@@ -77,13 +80,14 @@ typedef struct {
 	char shortName[5];		/* short code i.e. OFS, DLY, SYN, FLT etc. */
 	char name[31];			/* full name i.e. OFFSET_THRESHOLD, NO_DELAY, NO_SYNC etc. */
 	char description[101];		/* text description */
-
-/*	char *userHandle;		*/ /* pointer to user data associated with the alarm */
-/*	char userData[200];		*/ /* or maybe some space to contain the data taken there and then */
-
+	Boolean enabled;		/* is the alarm operational ? */
 	AlarmData data;			/* alarm data container (so it's easier to do a static initialisation */
 } AlarmEntry;
 
-AlarmEntry * getAlarms();
+void initAlarms(AlarmEntry* alarms, int count); 					/* fill an array with initial alarm data */
+void updateAlarms(AlarmEntry *alarms, int count);					/* dispatch alarms: age, set, clear alarms etc. */
+void displayAlarms(AlarmEntry *alarms, int count);					/* display a formatted alarm summary table */
+int  getAlarmSummary(char * output, int size, AlarmEntry *alarms, int count);		/* produce a one-line alarm summary string */
+
 
 #endif /*PTPDALARMS_H_*/

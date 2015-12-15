@@ -273,16 +273,16 @@ static void
 initOutgoingMsgSignaling(PortIdentity* targetPortIdentity, MsgSignaling* outgoing, PtpClock *ptpClock)
 {
 	/* set header fields */
-	outgoing->header.transportSpecific = ptpClock->transportSpecific;
+	outgoing->header.transportSpecific = ptpClock->portDS.transportSpecific;
 	outgoing->header.messageType = SIGNALING;
-        outgoing->header.versionPTP = ptpClock->versionNumber;
-	outgoing->header.domainNumber = ptpClock->domainNumber;
+        outgoing->header.versionPTP = ptpClock->portDS.versionNumber;
+	outgoing->header.domainNumber = ptpClock->defaultDS.domainNumber;
         /* set header flagField to zero for management messages, Spec 13.3.2.6 */
         outgoing->header.flagField0 = 0x00;
         outgoing->header.flagField1 = 0x00;
         outgoing->header.correctionField.msb = 0;
         outgoing->header.correctionField.lsb = 0;
-	copyPortIdentity(&outgoing->header.sourcePortIdentity, &ptpClock->portIdentity);
+	copyPortIdentity(&outgoing->header.sourcePortIdentity, &ptpClock->portDS.portIdentity);
 
 	outgoing->header.sequenceId = ptpClock->sentSignalingSequenceId++;
 
@@ -1074,7 +1074,7 @@ handleSignaling(MsgHeader *header,
 	tlvFound++;
 
 	/* accept the message if directed either to us or to all-ones */
-        if(!acceptPortIdentity(ptpClock->portIdentity, ptpClock->msgTmp.signaling.targetPortIdentity))
+        if(!acceptPortIdentity(ptpClock->portDS.portIdentity, ptpClock->msgTmp.signaling.targetPortIdentity))
         {
                 DBG("handleSignaling: The signaling message was not accepted");
 		ptpClock->counters.discardedMessages++;
@@ -1092,11 +1092,11 @@ handleSignaling(MsgHeader *header,
 			ptpClock->counters.discardedMessages++;
 			goto end;
 		}
-		if( (ptpClock->portState==PTP_LISTENING && !rtOpts->unicastNegotiationListening) ||
-		    ptpClock->portState==PTP_DISABLED || ptpClock->portState == PTP_INITIALIZING ||
-		    ptpClock->portState==PTP_FAULTY) {
+		if( (ptpClock->portDS.portState==PTP_LISTENING && !rtOpts->unicastNegotiationListening) ||
+		    ptpClock->portDS.portState==PTP_DISABLED || ptpClock->portDS.portState == PTP_INITIALIZING ||
+		    ptpClock->portDS.portState==PTP_FAULTY) {
 	        	    DBG("Will not grant unicast transmission requests in %s state\n",
-                			portState_getName(ptpClock->portState));
+                			portState_getName(ptpClock->portDS.portState));
 			    ptpClock->counters.discardedMessages++;
         		    goto end;
 		}
@@ -1114,11 +1114,11 @@ handleSignaling(MsgHeader *header,
 			ptpClock->counters.discardedMessages++;
 			goto end;
 		}
-		if( (ptpClock->portState==PTP_LISTENING && !rtOpts->unicastNegotiationListening) ||
-		    ptpClock->portState==PTP_DISABLED || ptpClock->portState == PTP_INITIALIZING ||
-		    ptpClock->portState==PTP_FAULTY) {
+		if( (ptpClock->portDS.portState==PTP_LISTENING && !rtOpts->unicastNegotiationListening) ||
+		    ptpClock->portDS.portState==PTP_DISABLED || ptpClock->portDS.portState == PTP_INITIALIZING ||
+		    ptpClock->portDS.portState==PTP_FAULTY) {
 	        	    DBG("Will not cancel unicast transmission requests in %s state\n",
-                			portState_getName(ptpClock->portState));
+                			portState_getName(ptpClock->portDS.portState));
 			    ptpClock->counters.discardedMessages++;
         		    goto end;
 		}
@@ -1136,11 +1136,11 @@ handleSignaling(MsgHeader *header,
 			ptpClock->counters.discardedMessages++;
 			goto end;
 		}
-		if( (ptpClock->portState==PTP_LISTENING && !rtOpts->unicastNegotiationListening) ||
-		    ptpClock->portState==PTP_DISABLED || ptpClock->portState == PTP_INITIALIZING ||
-		    ptpClock->portState==PTP_FAULTY) {
+		if( (ptpClock->portDS.portState==PTP_LISTENING && !rtOpts->unicastNegotiationListening) ||
+		    ptpClock->portDS.portState==PTP_DISABLED || ptpClock->portDS.portState == PTP_INITIALIZING ||
+		    ptpClock->portDS.portState==PTP_FAULTY) {
 	        	    DBG("Will not process acknowledge cancel unicast transmission in %s state\n",
-                			portState_getName(ptpClock->portState));
+                			portState_getName(ptpClock->portDS.portState));
 			    ptpClock->counters.discardedMessages++;
         		    goto end;
 		}
@@ -1155,16 +1155,16 @@ handleSignaling(MsgHeader *header,
 			goto end;
 		}
 		if(
-		    ptpClock->portState==PTP_DISABLED || ptpClock->portState == PTP_INITIALIZING ||
-		    ptpClock->portState==PTP_FAULTY) {
+		    ptpClock->portDS.portState==PTP_DISABLED || ptpClock->portDS.portState == PTP_INITIALIZING ||
+		    ptpClock->portDS.portState==PTP_FAULTY) {
 	        	    DBG("Will not process acknowledge cancel unicast transmission in %s state\n",
-                			portState_getName(ptpClock->portState));
+                			portState_getName(ptpClock->portDS.portState));
 			    ptpClock->counters.discardedMessages++;
         		    goto end;
 		}
 		unpackSMGrantUnicastTransmission(ptpClock->msgIbuf + tlvOffset, &ptpClock->msgTmp.signaling, ptpClock);
 		handleSMGrantUnicastTransmission(&ptpClock->msgTmp.signaling, sourceAddress, ptpClock->unicastGrants, ptpClock->unicastDestinationCount, ptpClock);
-		if(ptpClock->delayMechanism == P2P) {
+		if(ptpClock->portDS.delayMechanism == P2P) {
 		    handleSMGrantUnicastTransmission(&ptpClock->msgTmp.signaling, sourceAddress, &ptpClock->peerGrants, 1, ptpClock);
 		}
 		break;
@@ -1213,7 +1213,7 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
     everyN %= GRANT_KEEPALIVE_INTERVAL;
 
      /* only notSlave or slaveOnly - nothing inbetween */
-     if(ptpClock->clockQuality.clockClass > 127 && ptpClock->clockQuality.clockClass < 255)  {
+     if(ptpClock->defaultDS.clockQuality.clockClass > 127 && ptpClock->defaultDS.clockQuality.clockClass < 255)  {
 	return;
      }
 
@@ -1270,7 +1270,7 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 		    grantData->duration = 0;
 		}
 
-		if(grantData->expired || (ptpClock->slaveOnly && grantData->requested && !grantData->granted)) {
+		if(grantData->expired || (ptpClock->defaultDS.slaveOnly && grantData->requested && !grantData->granted)) {
 		    actionRequired = TRUE;
 		}
 
@@ -1278,13 +1278,13 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 		    actionRequired = TRUE;
 		}
 
-		if(!nodeTable->isPeer && ptpClock->slaveOnly) {
+		if(!nodeTable->isPeer && ptpClock->defaultDS.slaveOnly) {
 		    if(grantData->messageType == ANNOUNCE && !grantData->requested) {
 			actionRequired = TRUE;
 		    }
 		}
 
-		if((ptpClock->slaveOnly || nodeTable->isPeer) && (everyN == (GRANT_KEEPALIVE_INTERVAL -1))){
+		if((ptpClock->defaultDS.slaveOnly || nodeTable->isPeer) && (everyN == (GRANT_KEEPALIVE_INTERVAL -1))){
 			if(grantData->receiving == 0 && grantData->granted ) {
 			    /* if we mixed n consecutive messages (checked every m seconds), re-request */
  			    if( (everyN * UNICAST_GRANT_REFRESH_INTERVAL) > (GRANT_MAX_MISSED * grantData->logInterval)) {
@@ -1298,14 +1298,14 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 
 		/* if we're slave, we request; if we're master, we cancel */
 		if(actionRequired) {
-		    if (ptpClock->slaveOnly || nodeTable->isPeer) {
+		    if (ptpClock->defaultDS.slaveOnly || nodeTable->isPeer) {
 			requestUnicastTransmission(grantData, rtOpts->unicastGrantDuration, rtOpts, ptpClock);
 		    } else {
 			cancelUnicastTransmission(grantData, rtOpts, ptpClock);
 		    }
 		}
 
-		if(grantData->messageType == ANNOUNCE && ptpClock->portState == PTP_MASTER
+		if(grantData->messageType == ANNOUNCE && ptpClock->portDS.portState == PTP_MASTER
 		    && grantData->granted) {
 			ptpClock->slaveCount++;
 		}
@@ -1339,7 +1339,7 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 	    ptpClock->previousGrants = NULL;
 	}
 
-	if(ptpClock->slaveOnly && ptpClock->parentGrants != NULL && ptpClock->portState == PTP_SLAVE) {
+	if(ptpClock->defaultDS.slaveOnly && ptpClock->parentGrants != NULL && ptpClock->portDS.portState == PTP_SLAVE) {
 
 		nodeTable = ptpClock->parentGrants;
 
@@ -1351,7 +1351,7 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 		}
 
 		if (nodeTable->grantData[SYNC_INDEXED].granted) {
-		    switch(ptpClock->delayMechanism) {
+		    switch(ptpClock->portDS.delayMechanism) {
 			case E2E:
 			    if(!nodeTable->grantData[DELAY_RESP_INDEXED].requested) {
 				grantData=&nodeTable->grantData[DELAY_RESP_INDEXED];

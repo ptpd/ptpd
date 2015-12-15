@@ -145,7 +145,7 @@ handleManagement(MsgHeader *header,
 	tlvFound++;
 
 	/* accept the message if directed either to us or to all-ones */
-        if(!acceptPortIdentity(ptpClock->portIdentity, mgmtMsg->targetPortIdentity))
+        if(!acceptPortIdentity(ptpClock->portDS.portIdentity, mgmtMsg->targetPortIdentity))
         {
                 DBGV("handleManagement: The management message was not accepted");
 		ptpClock->counters.discardedMessages++;
@@ -493,16 +493,16 @@ handleManagement(MsgHeader *header,
 void initOutgoingMsgManagement(MsgManagement* incoming, MsgManagement* outgoing, PtpClock *ptpClock)
 {
 	/* set header fields */
-	outgoing->header.transportSpecific = ptpClock->transportSpecific;
+	outgoing->header.transportSpecific = ptpClock->portDS.transportSpecific;
 	outgoing->header.messageType = MANAGEMENT;
-        outgoing->header.versionPTP = ptpClock->versionNumber;
-	outgoing->header.domainNumber = ptpClock->domainNumber;
+        outgoing->header.versionPTP = ptpClock->portDS.versionNumber;
+	outgoing->header.domainNumber = ptpClock->defaultDS.domainNumber;
         /* set header flagField to zero for management messages, Spec 13.3.2.6 */
         outgoing->header.flagField0 = 0x00;
         outgoing->header.flagField1 = 0x00;
         outgoing->header.correctionField.msb = 0;
         outgoing->header.correctionField.lsb = 0;
-	copyPortIdentity(&outgoing->header.sourcePortIdentity, &ptpClock->portIdentity);
+	copyPortIdentity(&outgoing->header.sourcePortIdentity, &ptpClock->portDS.portIdentity);
 	outgoing->header.sequenceId = incoming->header.sequenceId;
 	outgoing->header.controlField = 0x0; /* deprecrated for ptp version 2 */
 	outgoing->header.logMessageInterval = 0x7F;
@@ -656,9 +656,9 @@ void handleMMSlaveOnly(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		DBGV(" SET action \n");
 		data = (MMSlaveOnly*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->slaveOnly = data->so;
+		ptpClock->defaultDS.slaveOnly = data->so;
 		ptpClock->record_update = TRUE;
-		setConfig(ptpClock->managementConfig, "ptpengine:slave_only", ptpClock->slaveOnly ? "Y" : "N");
+		setConfig(ptpClock->managementConfig, "ptpengine:slave_only", ptpClock->defaultDS.slaveOnly ? "Y" : "N");
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action \n");
@@ -666,7 +666,7 @@ void handleMMSlaveOnly(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMSlaveOnly));
 		data = (MMSlaveOnly*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->so = ptpClock->slaveOnly;
+		data->so = ptpClock->defaultDS.slaveOnly;
 		data->reserved = 0x0;
 		break;
 	default:
@@ -846,21 +846,21 @@ void handleMMDefaultDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 		data = (MMDefaultDataSet*)outgoing->tlv->dataField;
 		/* GET actions */
 		/* get bit and align for slave only */
-		Octet so = ptpClock->slaveOnly << 1;
+		Octet so = ptpClock->defaultDS.slaveOnly << 1;
 		/* get bit and align by shifting right 1 since TWO_STEP_FLAG is either 0b00 or 0b10 */
-		Octet tsc = ptpClock->twoStepFlag >> 1;
+		Octet tsc = ptpClock->defaultDS.twoStepFlag >> 1;
 		data->so_tsc = so | tsc;
 		data->reserved0 = 0x0;
-		data->numberPorts = ptpClock->numberPorts;
-		data->priority1 = ptpClock->priority1;
-		data->clockQuality.clockAccuracy = ptpClock->clockQuality.clockAccuracy;
-		data->clockQuality.clockClass = ptpClock->clockQuality.clockClass;
+		data->numberPorts = ptpClock->defaultDS.numberPorts;
+		data->priority1 = ptpClock->defaultDS.priority1;
+		data->clockQuality.clockAccuracy = ptpClock->defaultDS.clockQuality.clockAccuracy;
+		data->clockQuality.clockClass = ptpClock->defaultDS.clockQuality.clockClass;
 		data->clockQuality.offsetScaledLogVariance =
-				ptpClock->clockQuality.offsetScaledLogVariance;
-		data->priority2 = ptpClock->priority2;
+				ptpClock->defaultDS.clockQuality.offsetScaledLogVariance;
+		data->priority2 = ptpClock->defaultDS.priority2;
 		/* copy clockIdentity */
-		copyClockIdentity(data->clockIdentity, ptpClock->clockIdentity);
-		data->domainNumber = ptpClock->domainNumber;
+		copyClockIdentity(data->clockIdentity, ptpClock->defaultDS.clockIdentity);
+		data->domainNumber = ptpClock->defaultDS.domainNumber;
 		data->reserved1 = 0x0;
 		break;
 	case RESPONSE:
@@ -895,17 +895,17 @@ void handleMMCurrentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 		XMALLOC(outgoing->tlv->dataField, sizeof( MMCurrentDataSet));
 		data = (MMCurrentDataSet*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->stepsRemoved = ptpClock->stepsRemoved;
+		data->stepsRemoved = ptpClock->currentDS.stepsRemoved;
 		TimeInterval oFM;
 		oFM.scaledNanoseconds.lsb = 0;
 		oFM.scaledNanoseconds.msb = 0;
-		internalTime_to_integer64(ptpClock->offsetFromMaster, &oFM.scaledNanoseconds);
+		internalTime_to_integer64(ptpClock->currentDS.offsetFromMaster, &oFM.scaledNanoseconds);
 		data->offsetFromMaster.scaledNanoseconds.lsb = oFM.scaledNanoseconds.lsb;
 		data->offsetFromMaster.scaledNanoseconds.msb = oFM.scaledNanoseconds.msb;
 		TimeInterval mPD;
 		mPD.scaledNanoseconds.lsb = 0;
 		mPD.scaledNanoseconds.msb = 0;
-		internalTime_to_integer64(ptpClock->meanPathDelay, &mPD.scaledNanoseconds);
+		internalTime_to_integer64(ptpClock->currentDS.meanPathDelay, &mPD.scaledNanoseconds);
 		data->meanPathDelay.scaledNanoseconds.lsb = mPD.scaledNanoseconds.lsb;
 		data->meanPathDelay.scaledNanoseconds.msb = mPD.scaledNanoseconds.msb;
 		break;
@@ -941,22 +941,22 @@ void handleMMParentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMParentDataSet));
 		data = (MMParentDataSet*)outgoing->tlv->dataField;
 		/* GET actions */
-		copyPortIdentity(&data->parentPortIdentity, &ptpClock->parentPortIdentity);
-		data->PS = ptpClock->parentStats;
+		copyPortIdentity(&data->parentPortIdentity, &ptpClock->parentDS.parentPortIdentity);
+		data->PS = ptpClock->parentDS.parentStats;
 		data->reserved = 0;
 		data->observedParentOffsetScaledLogVariance =
-				ptpClock->observedParentOffsetScaledLogVariance;
+				ptpClock->parentDS.observedParentOffsetScaledLogVariance;
 		data->observedParentClockPhaseChangeRate =
-				ptpClock->observedParentClockPhaseChangeRate;
-		data->grandmasterPriority1 = ptpClock->grandmasterPriority1;
+				ptpClock->parentDS.observedParentClockPhaseChangeRate;
+		data->grandmasterPriority1 = ptpClock->parentDS.grandmasterPriority1;
 		data->grandmasterClockQuality.clockAccuracy =
-				ptpClock->grandmasterClockQuality.clockAccuracy;
+				ptpClock->parentDS.grandmasterClockQuality.clockAccuracy;
 		data->grandmasterClockQuality.clockClass =
-				ptpClock->grandmasterClockQuality.clockClass;
+				ptpClock->parentDS.grandmasterClockQuality.clockClass;
 		data->grandmasterClockQuality.offsetScaledLogVariance =
-				ptpClock->grandmasterClockQuality.offsetScaledLogVariance;
-		data->grandmasterPriority2 = ptpClock->grandmasterPriority2;
-		copyClockIdentity(data->grandmasterIdentity, ptpClock->grandmasterIdentity);
+				ptpClock->parentDS.grandmasterClockQuality.offsetScaledLogVariance;
+		data->grandmasterPriority2 = ptpClock->parentDS.grandmasterPriority2;
+		copyClockIdentity(data->grandmasterIdentity, ptpClock->parentDS.grandmasterIdentity);
 		break;
 	case RESPONSE:
 		DBGV(" RESPONSE action\n");
@@ -1031,22 +1031,22 @@ void handleMMPortDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 		outgoing->actionField = RESPONSE;
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMPortDataSet));
 		data = (MMPortDataSet*)outgoing->tlv->dataField;
-		copyPortIdentity(&data->portIdentity, &ptpClock->portIdentity);
-		data->portState = ptpClock->portState;
-		data->logMinDelayReqInterval = ptpClock->logMinDelayReqInterval;
+		copyPortIdentity(&data->portIdentity, &ptpClock->portDS.portIdentity);
+		data->portState = ptpClock->portDS.portState;
+		data->logMinDelayReqInterval = ptpClock->portDS.logMinDelayReqInterval;
 		TimeInterval pMPD;
 		pMPD.scaledNanoseconds.lsb = 0;
 		pMPD.scaledNanoseconds.msb = 0;
-		internalTime_to_integer64(ptpClock->peerMeanPathDelay, &pMPD.scaledNanoseconds);
+		internalTime_to_integer64(ptpClock->portDS.peerMeanPathDelay, &pMPD.scaledNanoseconds);
 		data->peerMeanPathDelay.scaledNanoseconds.lsb = pMPD.scaledNanoseconds.lsb;
 		data->peerMeanPathDelay.scaledNanoseconds.msb = pMPD.scaledNanoseconds.msb;
-		data->logAnnounceInterval = ptpClock->logAnnounceInterval;
-		data->announceReceiptTimeout = ptpClock->announceReceiptTimeout;
-		data->logSyncInterval = ptpClock->logSyncInterval;
-		data->delayMechanism  = ptpClock->delayMechanism;
-		data->logMinPdelayReqInterval = ptpClock->logMinPdelayReqInterval;
+		data->logAnnounceInterval = ptpClock->portDS.logAnnounceInterval;
+		data->announceReceiptTimeout = ptpClock->portDS.announceReceiptTimeout;
+		data->logSyncInterval = ptpClock->portDS.logSyncInterval;
+		data->delayMechanism  = ptpClock->portDS.delayMechanism;
+		data->logMinPdelayReqInterval = ptpClock->portDS.logMinPdelayReqInterval;
 		data->reserved = 0;
-		data->versionNumber = ptpClock->versionNumber;
+		data->versionNumber = ptpClock->portDS.versionNumber;
 		break;
 	case RESPONSE:
 		DBGV(" RESPONSE action \n");
@@ -1078,7 +1078,7 @@ void handleMMPriority1(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		DBGV(" SET action\n");
 		data = (MMPriority1*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->priority1 = data->priority1;
+		ptpClock->defaultDS.priority1 = data->priority1;
 		tmpsnprintf(tmpStr, 4, "%d", data->priority1);
 		setConfig(ptpClock->managementConfig, "ptpengine:priority1", tmpStr);
 		ptpClock->record_update = TRUE;
@@ -1089,7 +1089,7 @@ void handleMMPriority1(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMPriority1));
 		data = (MMPriority1*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->priority1 = ptpClock->priority1;
+		data->priority1 = ptpClock->defaultDS.priority1;
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1122,7 +1122,7 @@ void handleMMPriority2(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		DBGV(" SET action\n");
 		data = (MMPriority2*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->priority2 = data->priority2;
+		ptpClock->defaultDS.priority2 = data->priority2;
 		tmpsnprintf(tmpStr, 4, "%d", data->priority2);
 		setConfig(ptpClock->managementConfig, "ptpengine:priority2", tmpStr);
 		ptpClock->record_update = TRUE;
@@ -1133,7 +1133,7 @@ void handleMMPriority2(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMPriority2));
 		data = (MMPriority2*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->priority2 = ptpClock->priority2;
+		data->priority2 = ptpClock->defaultDS.priority2;
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1166,7 +1166,7 @@ void handleMMDomain(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* 
 		DBGV(" SET action\n");
 		data = (MMDomain*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->domainNumber = data->domainNumber;
+		ptpClock->defaultDS.domainNumber = data->domainNumber;
 		tmpsnprintf(tmpStr, 4, "%d", data->domainNumber);
 		setConfig(ptpClock->managementConfig, "ptpengine:domain", tmpStr);
 		ptpClock->record_update = TRUE;
@@ -1177,7 +1177,7 @@ void handleMMDomain(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* 
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMDomain));
 		data = (MMDomain*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->domainNumber = ptpClock->domainNumber;
+		data->domainNumber = ptpClock->defaultDS.domainNumber;
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1210,7 +1210,7 @@ void handleMMLogAnnounceInterval(MsgManagement* incoming, MsgManagement* outgoin
 		DBGV(" SET action\n");
 		data = (MMLogAnnounceInterval*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->logAnnounceInterval = data->logAnnounceInterval;
+		ptpClock->portDS.logAnnounceInterval = data->logAnnounceInterval;
 		tmpsnprintf(tmpStr, 4, "%d", data->logAnnounceInterval);
 		setConfig(ptpClock->managementConfig, "ptpengine:log_announce_interval", tmpStr);
 		ptpClock->record_update = TRUE;
@@ -1221,7 +1221,7 @@ void handleMMLogAnnounceInterval(MsgManagement* incoming, MsgManagement* outgoin
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMLogAnnounceInterval));
 		data = (MMLogAnnounceInterval*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->logAnnounceInterval = ptpClock->logAnnounceInterval;
+		data->logAnnounceInterval = ptpClock->portDS.logAnnounceInterval;
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1254,7 +1254,7 @@ void handleMMAnnounceReceiptTimeout(MsgManagement* incoming, MsgManagement* outg
 		DBGV(" SET action\n");
 		data = (MMAnnounceReceiptTimeout*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->announceReceiptTimeout = data->announceReceiptTimeout;
+		ptpClock->portDS.announceReceiptTimeout = data->announceReceiptTimeout;
 		tmpsnprintf(tmpStr, 4, "%d", data->announceReceiptTimeout);
 		setConfig(ptpClock->managementConfig, "ptpengine:announce_receipt_timeout", tmpStr);
 		ptpClock->record_update = TRUE;
@@ -1265,7 +1265,7 @@ void handleMMAnnounceReceiptTimeout(MsgManagement* incoming, MsgManagement* outg
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMAnnounceReceiptTimeout));
 		data = (MMAnnounceReceiptTimeout*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->announceReceiptTimeout = ptpClock->announceReceiptTimeout;
+		data->announceReceiptTimeout = ptpClock->portDS.announceReceiptTimeout;
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1298,7 +1298,7 @@ void handleMMLogSyncInterval(MsgManagement* incoming, MsgManagement* outgoing, P
 		DBGV(" SET action\n");
 		data = (MMLogSyncInterval*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->logSyncInterval = data->logSyncInterval;
+		ptpClock->portDS.logSyncInterval = data->logSyncInterval;
 		tmpsnprintf(tmpStr, 4, "%d", data->logSyncInterval);
 		setConfig(ptpClock->managementConfig, "ptpengine:log_sync_interval", tmpStr);
 		ptpClock->record_update = TRUE;
@@ -1309,7 +1309,7 @@ void handleMMLogSyncInterval(MsgManagement* incoming, MsgManagement* outgoing, P
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMLogSyncInterval));
 		data = (MMLogSyncInterval*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->logSyncInterval = ptpClock->logSyncInterval;
+		data->logSyncInterval = ptpClock->portDS.logSyncInterval;
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1345,7 +1345,7 @@ void handleMMVersionNumber(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		data = (MMVersionNumber*)outgoing->tlv->dataField;
 		/* GET actions */
 		data->reserved0 = 0x0;
-		data->versionNumber = ptpClock->versionNumber;
+		data->versionNumber = ptpClock->portDS.versionNumber;
 		data->reserved1 = 0x0;
 		break;
 	case RESPONSE:
@@ -1486,7 +1486,7 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		DBGV(" SET action\n");
 		data = (MMClockAccuracy*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->clockQuality.clockAccuracy = data->clockAccuracy;
+		ptpClock->defaultDS.clockQuality.clockAccuracy = data->clockAccuracy;
 		const char * acc = accToString(data->clockAccuracy);
 		if(acc != NULL) {
 		    setConfig(ptpClock->managementConfig, "ptpengine:clock_accuracy", acc);
@@ -1499,7 +1499,7 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMClockAccuracy));
 		data = (MMClockAccuracy*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->clockAccuracy = ptpClock->clockQuality.clockAccuracy;
+		data->clockAccuracy = ptpClock->defaultDS.clockQuality.clockAccuracy;
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1717,7 +1717,7 @@ void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, Pt
 		DBGV(" SET action\n");
 		data = (MMDelayMechanism*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->delayMechanism = data->delayMechanism;
+		ptpClock->portDS.delayMechanism = data->delayMechanism;
 		const char * mech = delayMechToString(data->delayMechanism);
 		if(mech != NULL) {
 		    setConfig(ptpClock->managementConfig, "ptpengine:delay_mechanism", mech);
@@ -1730,7 +1730,7 @@ void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, Pt
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMDelayMechanism));
 		data = (MMDelayMechanism*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->delayMechanism = ptpClock->delayMechanism;
+		data->delayMechanism = ptpClock->portDS.delayMechanism;
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1763,7 +1763,7 @@ void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* out
 		DBGV(" SET action\n");
 		data = (MMLogMinPdelayReqInterval*)incoming->tlv->dataField;
 		/* SET actions */
-		ptpClock->logMinPdelayReqInterval = data->logMinPdelayReqInterval;
+		ptpClock->portDS.logMinPdelayReqInterval = data->logMinPdelayReqInterval;
 		tmpsnprintf(tmpStr, 4, "%d", data->logMinPdelayReqInterval);
 		setConfig(ptpClock->managementConfig, "ptpengine:log_peer_delayreq_interval", tmpStr);
 		ptpClock->record_update = TRUE;
@@ -1774,7 +1774,7 @@ void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* out
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMLogMinPdelayReqInterval));
 		data = (MMLogMinPdelayReqInterval*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->logMinPdelayReqInterval = ptpClock->logMinPdelayReqInterval;
+		data->logMinPdelayReqInterval = ptpClock->portDS.logMinPdelayReqInterval;
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:

@@ -211,6 +211,9 @@
 #include <linux/rtc.h>
 #endif /* HAVE_LINUX_RTC_H */
 
+#define SET_ALARM(alarm, val) \
+	setAlarmCondition(&ptpClock->alarms[alarm], val, ptpClock)
+
 /** \name arith.c
  * -Timing management and arithmetic*/
  /**\{*/
@@ -483,5 +486,9 @@ double secondsToMidnight(void);
 double getPauseAfterMidnight(Integer8 announceInterval, int pausePeriod);
 
 Boolean respectUtcOffset(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
+
+/* alarms.c - this will be moved */
+void capturePtpEventData(PtpEventData *data, PtpClock *ptpClock, RunTimeOpts *rtOpts); 	/* capture data from an alarm event */
+void setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock); /* set alarm condition and capture data */
 
 #endif /*PTPD_H_*/

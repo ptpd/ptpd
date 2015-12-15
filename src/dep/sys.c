@@ -177,7 +177,7 @@ char *
 translatePortState(PtpClock *ptpClock)
 {
 	char *s;
-	switch(ptpClock->portState) {
+	switch(ptpClock->portDS.portState) {
 	    case PTP_INITIALIZING:  s = "init";  break;
 	    case PTP_FAULTY:        s = "flt";   break;
 	    case PTP_LISTENING:
@@ -708,7 +708,7 @@ logStatistics(PtpClock * ptpClock)
 	 * print one log entry per X seconds for Sync and DelayResp messages, to reduce disk usage.
 	 */
 
-	if ((ptpClock->portState == PTP_SLAVE) && (rtOpts.statisticsLogInterval)) {
+	if ((ptpClock->portDS.portState == PTP_SLAVE) && (rtOpts.statisticsLogInterval)) {
 			
 		switch(ptpClock->char_last_msg) {
 			case 'S':
@@ -749,36 +749,36 @@ logStatistics(PtpClock * ptpClock)
 		       translatePortState(ptpClock)); /* State */
 	}
 
-	if (ptpClock->portState == PTP_SLAVE) {
+	if (ptpClock->portDS.portState == PTP_SLAVE) {
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-			 &ptpClock->parentPortIdentity); /* Clock ID */
+			 &ptpClock->parentDS.parentPortIdentity); /* Clock ID */
 
 		/*
 		 * if grandmaster ID differs from parent port ID then
 		 * also print GM ID
 		 */
-		if (memcmp(ptpClock->grandmasterIdentity,
-			   ptpClock->parentPortIdentity.clockIdentity,
+		if (memcmp(ptpClock->parentDS.grandmasterIdentity,
+			   ptpClock->parentDS.parentPortIdentity.clockIdentity,
 			   CLOCK_IDENTITY_LENGTH)) {
 			len += snprint_ClockIdentity(sbuf + len,
 						     sizeof(sbuf) - len,
-						     ptpClock->grandmasterIdentity);
+						     ptpClock->parentDS.grandmasterIdentity);
 		}
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
 		if(rtOpts.delayMechanism == E2E) {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
-						    &ptpClock->meanPathDelay);
+						    &ptpClock->currentDS.meanPathDelay);
 		} else {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
-						    &ptpClock->peerMeanPathDelay);
+						    &ptpClock->portDS.peerMeanPathDelay);
 		}
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
-		    &ptpClock->offsetFromMaster);
+		    &ptpClock->currentDS.offsetFromMaster);
 
 		/* print MS and SM with sign */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
@@ -824,16 +824,16 @@ logStatistics(PtpClock * ptpClock)
 #endif /* PTPD_STATISTICS */
 
 	} else {
-		if ((ptpClock->portState == PTP_MASTER) || (ptpClock->portState == PTP_PASSIVE)) {
+		if ((ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
 
 			len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-				 &ptpClock->parentPortIdentity);
+				 &ptpClock->parentDS.parentPortIdentity);
 							
 			//len += snprintf(sbuf + len, sizeof(sbuf) - len, ")");
 		}
 
 		/* show the current reset number on the log */
-		if (ptpClock->portState == PTP_LISTENING) {
+		if (ptpClock->portDS.portState == PTP_LISTENING) {
 			len += snprintf(sbuf + len,
 						     sizeof(sbuf) - len,
 						     " %d ", ptpClock->resetCount);
@@ -879,10 +879,10 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
     memset(tmpBuf, 0, sizeof(tmpBuf));
     memset(masterIdBuf, 0, sizeof(masterIdBuf));
 
-    TimeInternal *mpd = &ptpClock->meanPathDelay;
+    TimeInternal *mpd = &ptpClock->currentDS.meanPathDelay;
 
     len += snprint_PortIdentity(masterIdBuf + len, sizeof(masterIdBuf) - len,
-	    &ptpClock->parentPortIdentity);
+	    &ptpClock->parentDS.parentPortIdentity);
     if(ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
 	char strAddr[MAXHOSTNAMELEN];
 	struct in_addr tmpAddr;
@@ -891,54 +891,54 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	len += snprintf(masterIdBuf + len, sizeof(masterIdBuf) - len, " (IPv4:%s)",strAddr);
     }
 
-    if(ptpClock->delayMechanism == P2P) {
-	mpd = &ptpClock->peerMeanPathDelay;
+    if(ptpClock->portDS.delayMechanism == P2P) {
+	mpd = &ptpClock->portDS.peerMeanPathDelay;
     }
 
-    if(ptpClock->portState == PTP_SLAVE) {
-	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &ptpClock->offsetFromMaster);
+    if(ptpClock->portDS.portState == PTP_SLAVE) {
+	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &ptpClock->currentDS.offsetFromMaster);
 #ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated) {
 	    INFO("Status update: state %s, best master %s, ofm %s s, ofm_mean % .09f s, ofm_dev % .09f s\n",
-		portState_getName(ptpClock->portState),
+		portState_getName(ptpClock->portDS.portState),
 		masterIdBuf,
 		tmpBuf,
 		ptpClock->slaveStats.ofmMean,
 		ptpClock->slaveStats.ofmStdDev);
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
-	    if (ptpClock->delayMechanism == E2E) {
+	    if (ptpClock->portDS.delayMechanism == E2E) {
 		INFO("Status update: state %s, best master %s, mpd %s s, mpd_mean % .09f s, mpd_dev % .09f s\n",
-		    portState_getName(ptpClock->portState),
+		    portState_getName(ptpClock->portDS.portState),
 		    masterIdBuf,
 		    tmpBuf,
 		    ptpClock->slaveStats.mpdMean,
 		    ptpClock->slaveStats.mpdStdDev);
-	    } else if(ptpClock->delayMechanism == P2P) {
-		INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
+	    } else if(ptpClock->portDS.delayMechanism == P2P) {
+		INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portDS.portState), masterIdBuf, tmpBuf);
 	    }
 	} else {
-	    INFO("Status update: state %s, best master %s, ofm %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
+	    INFO("Status update: state %s, best master %s, ofm %s s\n", portState_getName(ptpClock->portDS.portState), masterIdBuf, tmpBuf);
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
-	    if(ptpClock->delayMechanism != DELAY_DISABLED) {
-		INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
+	    if(ptpClock->portDS.delayMechanism != DELAY_DISABLED) {
+		INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portDS.portState), masterIdBuf, tmpBuf);
 	    }
 	}
 #else
-	INFO("Status update: state %s, best master %s, ofm %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
+	INFO("Status update: state %s, best master %s, ofm %s s\n", portState_getName(ptpClock->portDS.portState), masterIdBuf, tmpBuf);
 	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
-	if(ptpClock->delayMechanism != DELAY_DISABLED) {
-	    INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portState), masterIdBuf, tmpBuf);
+	if(ptpClock->portDS.delayMechanism != DELAY_DISABLED) {
+	    INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portDS.portState), masterIdBuf, tmpBuf);
 	}
 #endif /* PTPD_STATISTICS */
-    } else if(ptpClock->portState == PTP_MASTER) {
+    } else if(ptpClock->portDS.portState == PTP_MASTER) {
 	if(rtOpts->unicastNegotiation || ptpClock->unicastDestinationCount) {
-	    INFO("Status update: state %s, %d slaves\n", portState_getName(ptpClock->portState),
+	    INFO("Status update: state %s, %d slaves\n", portState_getName(ptpClock->portDS.portState),
 	    ptpClock->unicastDestinationCount + ptpClock->slaveCount);
 	} else {
-	    INFO("Status update: state %s\n", portState_getName(ptpClock->portState));
+	    INFO("Status update: state %s\n", portState_getName(ptpClock->portDS.portState));
 	}
     } else {
-	INFO("Status update: state %s\n", portState_getName(ptpClock->portState));
+	INFO("Status update: state %s\n", portState_getName(ptpClock->portDS.portState));
     }
 }
 
@@ -955,12 +955,12 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 	memset(sbuf, ' ', sizeof(sbuf));
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s", prefixMessage);
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s",
-			portState_getName(ptpClock->portState));
+			portState_getName(ptpClock->portDS.portState));
 
-	if (ptpClock->portState >= PTP_MASTER) {
+	if (ptpClock->portDS.portState >= PTP_MASTER) {
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", Best master: ");
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-			&ptpClock->parentPortIdentity);
+			&ptpClock->parentDS.parentPortIdentity);
 		if(ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
 		    struct in_addr tmpAddr;
 		    tmpAddr.s_addr = ptpClock->bestMaster->sourceAddr;
@@ -968,7 +968,7 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 		    len += snprintf(sbuf + len, sizeof(sbuf) - len, " (IPv4:%s)",strAddr);
 		}
         }
-	if(ptpClock->portState == PTP_MASTER)
+	if(ptpClock->portDS.portState == PTP_MASTER)
     		len += snprintf(sbuf + len, sizeof(sbuf) - len, " (self)");
         len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
         NOTICE("%s",sbuf);
@@ -981,6 +981,11 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 
 	char outBuf[2048];
 	char tmpBuf[200];
+
+	int n = getAlarmSummary(NULL, 0, ptpClock->alarms, ALRM_MAX);
+	char alarmBuf[n];
+
+	getAlarmSummary(alarmBuf, n, ptpClock->alarms, ALRM_MAX);
 
 	if(rtOpts->statusLog.logFP == NULL)
 	    return;
@@ -1023,36 +1028,37 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out,"\n");
 
 	fprintf(out, 		STATUSPREFIX"  %s\n","Delay mechanism", dictionary_get(rtOpts->currentConfig, "ptpengine:delay_mechanism", ""));
-	if(ptpClock->portState >= PTP_MASTER) {
-	fprintf(out, 		STATUSPREFIX"  %s\n","Sync mode", ptpClock->twoStepFlag ? "TWO_STEP" : "ONE_STEP");
+	if(ptpClock->portDS.portState >= PTP_MASTER) {
+	fprintf(out, 		STATUSPREFIX"  %s\n","Sync mode", ptpClock->defaultDS.twoStepFlag ? "TWO_STEP" : "ONE_STEP");
 	}
-	if(ptpClock->slaveOnly && rtOpts->anyDomain) {
+	if(ptpClock->defaultDS.slaveOnly && rtOpts->anyDomain) {
 		fprintf(out, 		STATUSPREFIX"  %d, preferred %d\n","PTP domain",
-		ptpClock->domainNumber, rtOpts->domainNumber);
-	} else if(ptpClock->slaveOnly && rtOpts->unicastNegotiation) {
-		fprintf(out, 		STATUSPREFIX"  %d, default %d\n","PTP domain", ptpClock->domainNumber, rtOpts->domainNumber);
+		ptpClock->defaultDS.domainNumber, rtOpts->domainNumber);
+	} else if(ptpClock->defaultDS.slaveOnly && rtOpts->unicastNegotiation) {
+		fprintf(out, 		STATUSPREFIX"  %d, default %d\n","PTP domain", ptpClock->defaultDS.domainNumber, rtOpts->domainNumber);
 	} else {
-		fprintf(out, 		STATUSPREFIX"  %d\n","PTP domain", ptpClock->domainNumber);
+		fprintf(out, 		STATUSPREFIX"  %d\n","PTP domain", ptpClock->defaultDS.domainNumber);
 	}
-	fprintf(out, 		STATUSPREFIX"  %s\n","Port state", portState_getName(ptpClock->portState));
+	fprintf(out, 		STATUSPREFIX"  %s\n","Port state", portState_getName(ptpClock->portDS.portState));
+	fprintf(out, 		STATUSPREFIX"  %s\n","Alarms", alarmBuf);
 
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_PortIdentity(tmpBuf, sizeof(tmpBuf),
-	    &ptpClock->portIdentity);
+	    &ptpClock->portDS.portIdentity);
 	fprintf(out, 		STATUSPREFIX"  %s\n","Local port ID", tmpBuf);
 
 
-	if(ptpClock->portState >= PTP_MASTER) {
+	if(ptpClock->portDS.portState >= PTP_MASTER) {
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_PortIdentity(tmpBuf, sizeof(tmpBuf),
-	    &ptpClock->parentPortIdentity);
+	    &ptpClock->parentDS.parentPortIdentity);
 	fprintf(out, 		STATUSPREFIX"  %s","Best master ID", tmpBuf);
-	if(ptpClock->portState == PTP_MASTER)
+	if(ptpClock->portDS.portState == PTP_MASTER)
 	    fprintf(out," (self)");
 	    fprintf(out,"\n");
 	}
 	if(rtOpts->transport == UDP_IPV4 &&
-	    ptpClock->portState > PTP_MASTER &&
+	    ptpClock->portDS.portState > PTP_MASTER &&
 	    ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
 	    {
 	    struct in_addr tmpAddr;
@@ -1060,18 +1066,18 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	    fprintf(out, 		STATUSPREFIX"  %s\n","Best master IP", inet_ntoa(tmpAddr));
 	    }
 	}
-	if(ptpClock->portState == PTP_SLAVE) {
+	if(ptpClock->portDS.portState == PTP_SLAVE) {
 	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d","GM priority",
-	ptpClock->grandmasterPriority1, ptpClock->grandmasterPriority2, ptpClock->grandmasterClockQuality.clockClass);
+	ptpClock->parentDS.grandmasterPriority1, ptpClock->parentDS.grandmasterPriority2, ptpClock->parentDS.grandmasterClockQuality.clockClass);
 	if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL ) {
 	    	fprintf(out, ", localPref %d", ptpClock->parentGrants->localPreference);
 	}
 	fprintf(out, "%s\n", (ptpClock->bestMaster != NULL && ptpClock->bestMaster->disqualified) ? " (timeout)" : "");
 	}
 
-	if(ptpClock->clockQuality.clockClass < 128 ||
-		ptpClock->portState == PTP_SLAVE ||
-		ptpClock->portState == PTP_PASSIVE){
+	if(ptpClock->defaultDS.clockQuality.clockClass < 128 ||
+		ptpClock->portDS.portState == PTP_SLAVE ||
+		ptpClock->portDS.portState == PTP_PASSIVE){
 	fprintf(out, 		STATUSPREFIX"  ","Time properties");
 	fprintf(out, "%s timescale, ",ptpClock->timePropertiesDS.ptpTimescale ? "PTP":"ARB");
 	fprintf(out, "tracbl: time %s, freq %s, src: %s(0x%02x)\n", ptpClock->timePropertiesDS.timeTraceable ? "Y" : "N",
@@ -1083,17 +1089,17 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, ", UTC offset: %d",ptpClock->timePropertiesDS.currentUtcOffset);
 	fprintf(out, "%s",ptpClock->timePropertiesDS.leap61 ?
 			", LEAP61 pending" : ptpClock->timePropertiesDS.leap59 ? ", LEAP59 pending" : "");
-	if (ptpClock->portState == PTP_SLAVE) {	
+	if (ptpClock->portDS.portState == PTP_SLAVE) {	
 	    fprintf(out, "%s", rtOpts->preferUtcValid ? ", prefer UTC" : "");
 	    fprintf(out, "%s", rtOpts->requireUtcValid ? ", require UTC" : "");
 	}
 	fprintf(out,"\n");
 	}
 
-	if(ptpClock->portState == PTP_SLAVE) {
+	if(ptpClock->portDS.portState == PTP_SLAVE) {
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
-		&ptpClock->offsetFromMaster);
+		&ptpClock->currentDS.offsetFromMaster);
 	fprintf(out, 		STATUSPREFIX" %s s","Offset from Master", tmpBuf);
 #ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated)
@@ -1104,10 +1110,10 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 #endif /* PTPD_STATISTICS */
 	    fprintf(out,"\n");
 
-	if(ptpClock->delayMechanism == E2E) {
+	if(ptpClock->portDS.delayMechanism == E2E) {
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
-		&ptpClock->meanPathDelay);
+		&ptpClock->currentDS.meanPathDelay);
 	fprintf(out, 		STATUSPREFIX" %s s","Mean Path Delay", tmpBuf);
 #ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated)
@@ -1118,10 +1124,10 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 #endif /* PTPD_STATISTICS */
 	fprintf(out,"\n");
 	}
-	if(ptpClock->delayMechanism == P2P) {
+	if(ptpClock->portDS.delayMechanism == P2P) {
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
-		&ptpClock->peerMeanPathDelay);
+		&ptpClock->portDS.peerMeanPathDelay);
 	fprintf(out, 		STATUSPREFIX" %s s","Mean Path (p)Delay", tmpBuf);
 	fprintf(out,"\n");
 	}
@@ -1178,70 +1184,70 @@ else {
 
 
 
-	if(ptpClock->portState == PTP_MASTER || ptpClock->portState == PTP_PASSIVE) {
+	if(ptpClock->portDS.portState == PTP_MASTER || ptpClock->portDS.portState == PTP_PASSIVE) {
 
-	fprintf(out, 		STATUSPREFIX"  %d","Priority1 ", ptpClock->priority1);
-	if(ptpClock->portState == PTP_PASSIVE)
-		fprintf(out, " (best master: %d)", ptpClock->grandmasterPriority1);
+	fprintf(out, 		STATUSPREFIX"  %d","Priority1 ", ptpClock->defaultDS.priority1);
+	if(ptpClock->portDS.portState == PTP_PASSIVE)
+		fprintf(out, " (best master: %d)", ptpClock->parentDS.grandmasterPriority1);
 	fprintf(out,"\n");
-	fprintf(out, 		STATUSPREFIX"  %d","Priority2 ", ptpClock->priority2);
-	if(ptpClock->portState == PTP_PASSIVE)
-		fprintf(out, " (best master: %d)", ptpClock->grandmasterPriority2);
+	fprintf(out, 		STATUSPREFIX"  %d","Priority2 ", ptpClock->defaultDS.priority2);
+	if(ptpClock->portDS.portState == PTP_PASSIVE)
+		fprintf(out, " (best master: %d)", ptpClock->parentDS.grandmasterPriority2);
 	fprintf(out,"\n");
-	fprintf(out, 		STATUSPREFIX"  %d","ClockClass ", ptpClock->clockQuality.clockClass);
-	if(ptpClock->portState == PTP_PASSIVE)
-		fprintf(out, " (best master: %d)", ptpClock->grandmasterClockQuality.clockClass);
+	fprintf(out, 		STATUSPREFIX"  %d","ClockClass ", ptpClock->defaultDS.clockQuality.clockClass);
+	if(ptpClock->portDS.portState == PTP_PASSIVE)
+		fprintf(out, " (best master: %d)", ptpClock->parentDS.grandmasterClockQuality.clockClass);
 	fprintf(out,"\n");
-	if(ptpClock->delayMechanism == P2P) {
+	if(ptpClock->portDS.delayMechanism == P2P) {
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
-		&ptpClock->peerMeanPathDelay);
+		&ptpClock->portDS.peerMeanPathDelay);
 	fprintf(out, 		STATUSPREFIX" %s s","Mean Path (p)Delay", tmpBuf);
 	fprintf(out,"\n");
 	}
 
 	}
 
-	if(ptpClock->portState == PTP_MASTER || ptpClock->portState == PTP_PASSIVE ||
-	    ptpClock->portState == PTP_SLAVE) {
+	if(ptpClock->portDS.portState == PTP_MASTER || ptpClock->portDS.portState == PTP_PASSIVE ||
+	    ptpClock->portDS.portState == PTP_SLAVE) {
 
 	fprintf(out,		STATUSPREFIX"  ","Message rates");
 
-	if (ptpClock->logSyncInterval == UNICAST_MESSAGEINTERVAL)
+	if (ptpClock->portDS.logSyncInterval == UNICAST_MESSAGEINTERVAL)
 	    fprintf(out,"[UC-unknown]");
-	else if (ptpClock->logSyncInterval <= 0)
-	    fprintf(out,"%.0f/s",pow(2,-ptpClock->logSyncInterval));
+	else if (ptpClock->portDS.logSyncInterval <= 0)
+	    fprintf(out,"%.0f/s",pow(2,-ptpClock->portDS.logSyncInterval));
 	else
-	    fprintf(out,"1/%.0fs",pow(2,ptpClock->logSyncInterval));
+	    fprintf(out,"1/%.0fs",pow(2,ptpClock->portDS.logSyncInterval));
 	fprintf(out, " sync");
 
 
-	if(ptpClock->delayMechanism == E2E) {
-		if (ptpClock->logMinDelayReqInterval == UNICAST_MESSAGEINTERVAL)
+	if(ptpClock->portDS.delayMechanism == E2E) {
+		if (ptpClock->portDS.logMinDelayReqInterval == UNICAST_MESSAGEINTERVAL)
 		    fprintf(out,", [UC-unknown]");
-		else if (ptpClock->logMinDelayReqInterval <= 0)
-		    fprintf(out,", %.0f/s",pow(2,-ptpClock->logMinDelayReqInterval));
+		else if (ptpClock->portDS.logMinDelayReqInterval <= 0)
+		    fprintf(out,", %.0f/s",pow(2,-ptpClock->portDS.logMinDelayReqInterval));
 		else
-		    fprintf(out,", 1/%.0fs",pow(2,ptpClock->logMinDelayReqInterval));
+		    fprintf(out,", 1/%.0fs",pow(2,ptpClock->portDS.logMinDelayReqInterval));
 		fprintf(out, " delay");
 	}
 
-	if(ptpClock->delayMechanism == P2P) {
-		if (ptpClock->logMinPdelayReqInterval == UNICAST_MESSAGEINTERVAL)
+	if(ptpClock->portDS.delayMechanism == P2P) {
+		if (ptpClock->portDS.logMinPdelayReqInterval == UNICAST_MESSAGEINTERVAL)
 		    fprintf(out,", [UC-unknown]");
-		else if (ptpClock->logMinPdelayReqInterval <= 0)
-		    fprintf(out,", %.0f/s",pow(2,-ptpClock->logMinPdelayReqInterval));
+		else if (ptpClock->portDS.logMinPdelayReqInterval <= 0)
+		    fprintf(out,", %.0f/s",pow(2,-ptpClock->portDS.logMinPdelayReqInterval));
 		else
-		    fprintf(out,", 1/%.0fs",pow(2,ptpClock->logMinPdelayReqInterval));
+		    fprintf(out,", 1/%.0fs",pow(2,ptpClock->portDS.logMinPdelayReqInterval));
 		fprintf(out, " pdelay");
 	}
 
-	if (ptpClock->logAnnounceInterval == UNICAST_MESSAGEINTERVAL)
+	if (ptpClock->portDS.logAnnounceInterval == UNICAST_MESSAGEINTERVAL)
 	    fprintf(out,", [UC-unknown]");
-	else if (ptpClock->logAnnounceInterval <= 0)
-	    fprintf(out,", %.0f/s",pow(2,-ptpClock->logAnnounceInterval));
+	else if (ptpClock->portDS.logAnnounceInterval <= 0)
+	    fprintf(out,", %.0f/s",pow(2,-ptpClock->portDS.logAnnounceInterval));
 	else
-	    fprintf(out,", 1/%.0fs",pow(2,ptpClock->logAnnounceInterval));
+	    fprintf(out,", 1/%.0fs",pow(2,ptpClock->portDS.logAnnounceInterval));
 	fprintf(out, " announce");
 
 	    fprintf(out,"\n");
@@ -1276,7 +1282,7 @@ else {
 	fprintf(out, 		STATUSPREFIX"  ","Performance");
 	fprintf(out,"Message RX %d/s, TX %d/s", ptpClock->counters.messageReceiveRate,
 						  ptpClock->counters.messageSendRate);
-	if(ptpClock->portState == PTP_MASTER) {
+	if(ptpClock->portDS.portState == PTP_MASTER) {
 		if(rtOpts->unicastNegotiation) {
 		    fprintf(out,", slaves %d", ptpClock->slaveCount);
 		} else if (rtOpts->ipMode == IPMODE_UNICAST) {
@@ -1286,17 +1292,17 @@ else {
 
 	fprintf(out,"\n");
 
-	if ( ptpClock->portState == PTP_SLAVE ||
-	    ptpClock->clockQuality.clockClass == 255 ) {
+	if ( ptpClock->portDS.portState == PTP_SLAVE ||
+	    ptpClock->defaultDS.clockQuality.clockClass == 255 ) {
 
 	fprintf(out, 		STATUSPREFIX"  %lu\n","Announce received",
 	    (unsigned long)ptpClock->counters.announceMessagesReceived);
 	fprintf(out, 		STATUSPREFIX"  %lu\n","Sync received",
 	    (unsigned long)ptpClock->counters.syncMessagesReceived);
-	if(ptpClock->twoStepFlag)
+	if(ptpClock->defaultDS.twoStepFlag)
 	fprintf(out, 		STATUSPREFIX"  %lu\n","Follow-up received",
 	    (unsigned long)ptpClock->counters.followUpMessagesReceived);
-	if(ptpClock->delayMechanism == E2E) {
+	if(ptpClock->portDS.delayMechanism == E2E) {
 		fprintf(out, 		STATUSPREFIX"  %lu\n","DelayReq sent",
 		    (unsigned long)ptpClock->counters.delayReqMessagesSent);
 		fprintf(out, 		STATUSPREFIX"  %lu\n","DelayResp received",
@@ -1304,18 +1310,18 @@ else {
 	}
 	}
 
-	if( ptpClock->portState == PTP_MASTER ||
-	    ptpClock->clockQuality.clockClass < 128 ) {
+	if( ptpClock->portDS.portState == PTP_MASTER ||
+	    ptpClock->defaultDS.clockQuality.clockClass < 128 ) {
 	fprintf(out, 		STATUSPREFIX"  %lu received, %lu sent \n","Announce",
 	    (unsigned long)ptpClock->counters.announceMessagesReceived,
 	    (unsigned long)ptpClock->counters.announceMessagesSent);
 	fprintf(out, 		STATUSPREFIX"  %lu\n","Sync sent",
 	    (unsigned long)ptpClock->counters.syncMessagesSent);
-	if(ptpClock->twoStepFlag)
+	if(ptpClock->defaultDS.twoStepFlag)
 	fprintf(out, 		STATUSPREFIX"  %lu\n","Follow-up sent",
 	    (unsigned long)ptpClock->counters.followUpMessagesSent);
 
-	if(ptpClock->delayMechanism == E2E) {
+	if(ptpClock->portDS.delayMechanism == E2E) {
 		fprintf(out, 		STATUSPREFIX"  %lu\n","DelayReq received",
 		    (unsigned long)ptpClock->counters.delayReqMessagesReceived);
 		fprintf(out, 		STATUSPREFIX"  %lu\n","DelayResp sent",
@@ -1324,7 +1330,7 @@ else {
 
 	}
 
-	if(ptpClock->delayMechanism == P2P) {
+	if(ptpClock->portDS.delayMechanism == P2P) {
 
 		fprintf(out, 		STATUSPREFIX"  %lu received, %lu sent\n","PdelayReq",
 		    (unsigned long)ptpClock->counters.pdelayReqMessagesReceived,
@@ -1968,8 +1974,8 @@ informClockSource(PtpClock* ptpClock)
 
 	tmx.modes = MOD_MAXERROR | MOD_ESTERROR;
 
-	tmx.maxerror = (ptpClock->offsetFromMaster.seconds * 1E9 +
-			ptpClock->offsetFromMaster.nanoseconds) / 1000;
+	tmx.maxerror = (ptpClock->currentDS.offsetFromMaster.seconds * 1E9 +
+			ptpClock->currentDS.offsetFromMaster.nanoseconds) / 1000;
 	tmx.esterror = tmx.maxerror;
 
 	if (adjtimex(&tmx) < 0)
@@ -2259,15 +2265,15 @@ saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 
 	DBGV("saveDrift called\n");
 
-       if(ptpClock->portState == PTP_PASSIVE ||
-              ptpClock->portState == PTP_MASTER ||
-                ptpClock->clockQuality.clockClass < 128) {
+       if(ptpClock->portDS.portState == PTP_PASSIVE ||
+              ptpClock->portDS.portState == PTP_MASTER ||
+                ptpClock->defaultDS.clockQuality.clockClass < 128) {
                     DBGV("We're not slave - not saving drift\n");
                     return;
             }
 
         if(ptpClock->servo.observedDrift == 0.0 &&
-            ptpClock->portState == PTP_LISTENING )
+            ptpClock->portDS.portState == PTP_LISTENING )
                 return;
 
 	if (rtOpts->drift_recovery_method > 0) {

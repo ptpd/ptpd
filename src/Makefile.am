@@ -26,6 +26,8 @@ ptpd2_SOURCES =				\
 	arith.c				\
 	bmc.c				\
 	constants.h			\
+	ptp_primitives.h		\
+	ptp_datatypes.h			\
 	datatypes.h			\
 	dep/constants_dep.h		\
 	dep/datatypes_dep.h		\
