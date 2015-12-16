@@ -1753,7 +1753,7 @@ updates for this amout of time, PTPd releases clock control.\n
 .RE
 .RS 0
 .TP 8
-\fBptpengine:offset_alarm_threshold [\fIINT\fB]\fR
+\fBptpengine:offset_alarm_threshold [\fIINT\fB: 0 .. 999999999]\fR
 .RS 8
 .TP 8
 \fBusage\fR

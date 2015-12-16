@@ -574,7 +574,8 @@ ptpdShutdown(PtpClock * ptpClock)
 	 * such as canceling unicast transmission
          */
 	toState(PTP_DISABLED, &rtOpts, ptpClock);
-
+	/* process any outstanding events before exit */
+	updateAlarms(ptpClock->alarms, ALRM_MAX);
 	netShutdown(&ptpClock->netPath);
 	free(ptpClock->foreign);
 
