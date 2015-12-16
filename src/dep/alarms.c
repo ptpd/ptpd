@@ -40,6 +40,9 @@ static const char* alarmStateToString(AlarmState state);
 static void dispatchEvent(AlarmEntry *alarm);
 static void dispatchAlarm(AlarmEntry *alarm);
 
+static void alarmHandler_text(AlarmEntry *alarm);
+static void eventHandler_text(AlarmEntry *alarm);
+
 static const char
 *alarmStateToString(AlarmState state)
 {
@@ -59,43 +62,59 @@ static const char
 }
 
 static void
-dispatchEvent(AlarmEntry *alarm) {
-	INFO("Event %s dispatched\n", alarm->name);
-	alarm->data.condition = FALSE;
+alarmHandler_text(AlarmEntry *alarm)
+{
+	if(alarm->state == ALARM_UNSET) {
+	    INFO("[text] Alarm %s cleared\n", alarm->name);
+	}
+
+	if(alarm->state == ALARM_SET) {
+	    INFO("[text] Alarm %s set\n", alarm->name);
+	}
 }
 
 static void
-dispatchAlarm(AlarmEntry *alarm) {
+eventHandler_text(AlarmEntry *alarm)
+{
+	INFO("[text] Event %s dispatched\n", alarm->name);
+}
 
-	if(alarm->data.state == ALARM_UNSET) {
-	    INFO("Alarm %s cleared\n", alarm->name);
+static void
+dispatchEvent(AlarmEntry *alarm) {
+
+	for(int i=0; alarm->handlers[i] != NULL; i++) {
+	    alarm->handlers[i](alarm);
 	}
+	alarm->condition = FALSE;
+}
 
-	if(alarm->data.state == ALARM_SET) {
-	    INFO("Alarm %s set\n", alarm->name);
+static void
+dispatchAlarm(AlarmEntry *alarm)
+{
+	for(int i=0; alarm->handlers[i] != NULL; i++) {
+	    alarm->handlers[i](alarm);
 	}
-
 }
 
 
 void
-initAlarms(AlarmEntry* alarms, int count)
+initAlarms(AlarmEntry* alarms, int count, void *userData)
 {
 
     static AlarmEntry alarmTemplate[] = {
 
-    /* short */	/* name */		/* desc */						/* enabled? */ /* id */		/* eventOnly */
-    { "STA", 	"PORT_STATE", 		"Port state different to expected value", 		FALSE, { ALRM_PORT_STATE, 	FALSE }},
-    { "OFM", 	"OFM_THRESHOLD", 	"Offset From Master outside threshold", 		FALSE, { ALRM_OFM_THRESHOLD,	FALSE }},
-    { "OFMS", 	"OFM_SECONDS", 		"Offset From Master above 1 second", 			FALSE, { ALRM_OFM_SECONDS,	FALSE }},
-    { "STEP", 	"CLOCK_STEP", 		"Clock was stepped", 					FALSE, { ALRM_CLOCK_STEP,	TRUE }},
-    { "SYN", 	"NO_SYNC", 		"Clock is not receiving Sync messages",			FALSE, { ALRM_NO_SYNC,	FALSE }},
-    { "DLY", 	"NO_DELAY", 		"Clock is not receiving (p)Delay responses",		FALSE, { ALRM_NO_DELAY,	FALSE }},
-    { "MSTC", 	"MASTER_CHANGE", 	"Best master has changed",				FALSE, { ALRM_MASTER_CHANGE,	TRUE }},
-    { "NWFL", 	"NETWORK_FAULT", 	"A network fault has occurred",				FALSE, { ALRM_NETWORK_FLT,	FALSE }},
-    { "FADJ", 	"FAST_ADJ", 		"Clock is being adjusted too fast", 			FALSE, { ALRM_FAST_ADJ,	TRUE }},
-    { "TPR", 	"TIMEPROP_CHANGE", 	"Time properties have changed",				FALSE, { ALRM_TIMEPROP_CHANGE,TRUE }},
-    { "DOM", 	"DOMAIN_MISMATCH", 	"Clock is receiving all messages from incorrect domain",FALSE, { ALRM_DOMAIN_MISMATCH,FALSE }}
+    /* short */	/* name */		/* desc */						/* enabled? */ /* id */		/* eventOnly */	/*handlers */
+    { "STA", 	"PORT_STATE", 		"Port state different to expected value", 		FALSE, ALRM_PORT_STATE, 	FALSE, 		{alarmHandler_text}},
+    { "OFM", 	"OFM_THRESHOLD", 	"Offset From Master outside threshold", 		FALSE, ALRM_OFM_THRESHOLD,	FALSE, 		{alarmHandler_text}},
+    { "OFMS", 	"OFM_SECONDS", 		"Offset From Master above 1 second", 			FALSE, ALRM_OFM_SECONDS,	FALSE, 		{alarmHandler_text}},
+    { "STEP", 	"CLOCK_STEP", 		"Clock was stepped", 					FALSE, ALRM_CLOCK_STEP,		TRUE, 		{eventHandler_text}},
+    { "SYN", 	"NO_SYNC", 		"Clock is not receiving Sync messages",			FALSE, ALRM_NO_SYNC,		FALSE, 		{alarmHandler_text}},
+    { "DLY", 	"NO_DELAY", 		"Clock is not receiving (p)Delay responses",		FALSE, ALRM_NO_DELAY,		FALSE, 		{alarmHandler_text}},
+    { "MSTC", 	"MASTER_CHANGE", 	"Best master has changed",				FALSE, ALRM_MASTER_CHANGE,	TRUE, 		{eventHandler_text}},
+    { "NWFL", 	"NETWORK_FAULT", 	"A network fault has occurred",				FALSE, ALRM_NETWORK_FLT,	FALSE, 		{alarmHandler_text}},
+    { "FADJ", 	"FAST_ADJ", 		"Clock is being adjusted too fast", 			FALSE, ALRM_FAST_ADJ,		FALSE, 		{eventHandler_text}},
+    { "TPR", 	"TIMEPROP_CHANGE", 	"Time properties have changed",				FALSE, ALRM_TIMEPROP_CHANGE,	TRUE, 		{eventHandler_text}},
+    { "DOM", 	"DOMAIN_MISMATCH", 	"Clock is receiving all messages from incorrect domain",FALSE, ALRM_DOMAIN_MISMATCH,	FALSE, 		{alarmHandler_text}}
 
     };
 
@@ -104,47 +123,63 @@ initAlarms(AlarmEntry* alarms, int count)
     memset(alarms, 0, count * sizeof(AlarmEntry));
     memcpy(alarms, alarmTemplate, sizeof(alarmTemplate));
 
+    for(int i = 0; i < ALRM_MAX; i++) {
+	alarms[i].userData = userData;
+    }
+
 }
 
 void
 setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock)
 {
 
-	Boolean change = condition ^ alarm->data.condition;
+	Boolean change = condition ^ alarm->condition;
 
-	if(change) {
-	    DBG("Alarm %s condition set to %s\n", alarm->name, condition ? "TRUE" : "FALSE");
-	    alarm->data.age = 0;
+	/* if there is no change, exit */
+	if(!change) {
+	    return;
 	}
 
-	if(condition && !alarm->data.condition) {
-	    capturePtpEventData(&alarm->data.eventData, ptpClock, ptpClock->rtOpts);
-	    getTime(&alarm->data.timeSet);
-	} else if(alarm->data.condition) {
-	    getTime(&alarm->data.timeCleared);
+	/* condition has cleared but event has not yet been processed - don't touch it */
+	if(!condition && alarm->unhandled) {
+	    return;
 	}
 
-	alarm->data.condition = condition;
+	/* capture event data and time if condition is met */
+
+	capturePtpEventData(&alarm->eventData, ptpClock, ptpClock->rtOpts);
+
+	if(condition) {
+	    getTime(&alarm->timeSet);
+	} else {
+	    getTime(&alarm->timeCleared);
+	}
+
+	DBG("Alarm %s condition set to %s\n", alarm->name, condition ? "TRUE" : "FALSE");
+
+	alarm->age = 0;
+	alarm->condition = condition;
+	alarm->unhandled = TRUE;
 
 }
 
 void
-capturePtpEventData(PtpEventData *data, PtpClock *ptpClock, RunTimeOpts *rtOpts)
+capturePtpEventData(PtpEventData *eventData, PtpClock *ptpClock, RunTimeOpts *rtOpts)
 {
 
-    data->defaultDS = ptpClock->defaultDS;
-    data->currentDS = ptpClock->currentDS;
-    data->timePropertiesDS = ptpClock->timePropertiesDS;
-    data->portDS = ptpClock->portDS;
-    data->parentDS = ptpClock->parentDS;
+    eventData->defaultDS = ptpClock->defaultDS;
+    eventData->currentDS = ptpClock->currentDS;
+    eventData->timePropertiesDS = ptpClock->timePropertiesDS;
+    eventData->portDS = ptpClock->portDS;
+    eventData->parentDS = ptpClock->parentDS;
 
     if(ptpClock->bestMaster != NULL) {
-	data->bestMaster = *ptpClock->bestMaster;
+	eventData->bestMaster = *ptpClock->bestMaster;
     } else {
-	memset(&data->bestMaster, 0, sizeof(ForeignMasterRecord));
+	memset(&eventData->bestMaster, 0, sizeof(ForeignMasterRecord));
     }
 
-    data->ofmAlarmThreshold = rtOpts->ofmAlarmThreshold;
+    eventData->ofmAlarmThreshold = rtOpts->ofmAlarmThreshold;
 }
 
 /*
@@ -161,45 +196,42 @@ updateAlarms(AlarmEntry *alarms, int count)
     DBG("updateAlarms()\n");
 
     AlarmEntry *alarm;
-    AlarmData *data;
     AlarmState lastState;
 
-    int i = 0;
-
-    for(i = 0; i < count; i++) {
+    for(int i = 0; i < count; i++) {
 
 	alarm = &alarms[i];
-	data = &alarm->data;
-	lastState = data->state;
+
+	lastState = alarm->state;
 	/* this is a one-off event */
-	if(data->eventOnly) {
-	    if(data->condition) {
+	if(alarm->eventOnly) {
+	    if(alarm->condition) {
 		dispatchEvent(alarm);
 	    }
-	    continue;
-	}
+	} else {
 	/* this is an alarm */
-
-	if(!data->condition) {
+	    if(!alarm->condition) {
 		/* condition is false, alarm is cleared and aged out: unset */
-		if(data->state == ALARM_CLEARED && data->age >= ALARM_TIMEOUT_PERIOD ) {
-		    data->state = ALARM_UNSET;
+		if(alarm->state == ALARM_CLEARED && alarm->age >= ALARM_TIMEOUT_PERIOD ) {
+		    alarm->state = ALARM_UNSET;
 		    /* inform, run handlers */
 		    dispatchAlarm(alarm);
 		/* condition is false and alarm was set - clear and wait for age out */
-		} else if (data->state == ALARM_SET) {
-		    data->state = ALARM_CLEARED;
+		} else if (alarm->state == ALARM_SET) {
+		    alarm->state = ALARM_CLEARED;
 		}
-	/* condition is true and age is 0: condition just changed */
-	} else if (data->age ==0) {
-		data->state = ALARM_SET;
+	    /* condition is true and age is 0: condition just changed */
+	    } else if (alarm->age ==0) {
+		alarm->state = ALARM_SET;
 		/* react only if alarm was set from unset (don't inform multiple times until it fully clears */
 		if(lastState == ALARM_UNSET) {
 		    /* inform, run handlers */
 		    dispatchAlarm(alarm);
 		}
+	    }
+	    alarm->age+=ALARM_UPDATE_INTERVAL;
 	}
-	data->age+=ALARM_UPDATE_INTERVAL;
+	alarm->unhandled = FALSE;
     }
 
 }
@@ -208,16 +240,15 @@ void
 displayAlarms(AlarmEntry *alarms, int count)
 {
 
-    int i = 0;
     INFO("----------------------------------------------\n");
     INFO("              Alarm status: \n");
     INFO("----------------------------------------------\n");
     INFO("ALARM NAME\t| STATE    | DESCRIPTION\n");
     INFO("----------------------------------------------\n");
-    for(i=0; i < count; i++) {
-	if(alarms[i].data.eventOnly) continue;
+    for(int i=0; i < count; i++) {
+	if(alarms[i].eventOnly) continue;
 	INFO("%-15s\t| %-8s | %s\n",  alarms[i].name, 
-				    alarmStateToString(alarms[i].data.state), 
+				    alarmStateToString(alarms[i].state), 
 				    alarms[i].description);
     }
     INFO("----------------------------------------------\n");
@@ -245,7 +276,6 @@ getAlarmSummary(char * output, int size, AlarmEntry *alarms, int count)
     char item[9];
 
     AlarmEntry *alarm;
-    AlarmData *data;
 
     if(output != NULL) {
 	memset(output, 0, size);
@@ -254,14 +284,13 @@ getAlarmSummary(char * output, int size, AlarmEntry *alarms, int count)
     for(i=0; i < count; i++) {
 	memset(item, 0, 8);
 	alarm = &alarms[i];
-	data = &alarm->data;
 
-	if(data->state == ALARM_UNSET) {
+	if(alarm->state == ALARM_UNSET) {
 	    continue;
 	}
 
 	strncpy(item, alarm->shortName, 4);
-	snprintf(item + strlen(item), 5, "[%s] ", data->state == ALARM_SET ? "!" : ".");
+	snprintf(item + strlen(item), 5, "[%s] ", alarm->state == ALARM_SET ? "!" : ".");
 
 	if(output != NULL) {
 	    strncat(output, item, size - len);

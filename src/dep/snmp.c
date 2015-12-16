@@ -42,6 +42,7 @@
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
 //static void sendNotif(int event);
+static void sendNotif(int eventType, PtpEventData *eventData);
 
 /* Hard to get header... */
 extern int header_generic(struct variable *, oid *, size_t *, int,
@@ -1819,7 +1820,7 @@ getNotifIndex(int eventType) {
 }
 
 static void
-populateNotif (netsnmp_variable_list** varBinds, int eventType) {
+populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *eventData) {
 
 	switch (eventType) {
 		case PTPBASE_NOTIFS_UNEXPECTED_PORT_STATE:
@@ -1828,7 +1829,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			oid portStateOid[] = { PTPBASE_MIB_OID, 1, 2, 9, 1, 6, PTPBASE_MIB_INDEX4 };
 
 			snmp_varlist_add_variable(varBinds, portStateOid, OID_LENGTH(portStateOid),
-			    ASN_INTEGER, (u_char *) &snmpPtpClock->portDS.portState, sizeof(snmpPtpClock->portDS.portState));
+			    ASN_INTEGER, (u_char *) &eventData->portDS.portState, sizeof(eventData->portDS.portState));
 		    }
 		    return;
 		case PTPBASE_NOTIFS_SLAVE_OFFSET_THRESHOLD_EXCEEDED:
@@ -1836,11 +1837,11 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 		    {
 			U64 ofmNum;
 			Integer64  tmpi64;
-			internalTime_to_integer64(snmpPtpClock->currentDS.offsetFromMaster, &tmpi64);
+			internalTime_to_integer64(eventData->currentDS.offsetFromMaster, &tmpi64);
 			ofmNum.low = htonl(tmpi64.lsb);
 			ofmNum.high = htonl(tmpi64.msb);
 
-			tmpsnprintf(ofmStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->currentDS.offsetFromMaster));
+			tmpsnprintf(ofmStr, 64, "%.09f", timeInternalToDouble(&eventData->currentDS.offsetFromMaster));
 
 			oid ofmOid[] = { PTPBASE_MIB_OID, 1, 2, 1, 1, 5, PTPBASE_MIB_INDEX3 };
 			oid ofmStringOid[] = { PTPBASE_MIB_OID, 1, 2, 1, 1, 8, PTPBASE_MIB_INDEX3 };
@@ -1851,7 +1852,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			snmp_varlist_add_variable(varBinds, ofmStringOid, OID_LENGTH(ofmStringOid),
 			    ASN_OCTET_STR, (u_char *) ofmStr, strlen(ofmStr));
 			snmp_varlist_add_variable(varBinds, thresholdOid, OID_LENGTH(thresholdOid),
-			    ASN_INTEGER, (u_char *) &snmpRtOpts->ofmAlarmThreshold, sizeof(snmpRtOpts->ofmAlarmThreshold));
+			    ASN_INTEGER, (u_char *) &eventData->ofmAlarmThreshold, sizeof(snmpRtOpts->ofmAlarmThreshold));
 		    }
 		    return;
 		case PTPBASE_NOTIFS_SLAVE_NO_SYNC:
@@ -1874,29 +1875,23 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			oid portStateOid[] = { PTPBASE_MIB_OID, 1, 2, 9, 1, 6, PTPBASE_MIB_INDEX4 };
 
 			unsigned long addrType = SNMP_IPv4;
-
-			uint32_t sa = 0;
-			if(snmpPtpClock->bestMaster) {
-			    sa = snmpPtpClock->bestMaster->sourceAddr;
-			}
-
-			unsigned long priority1 = snmpPtpClock->parentDS.grandmasterPriority1;
-			unsigned long priority2 = snmpPtpClock->parentDS.grandmasterPriority2;
-			unsigned long clockClass = snmpPtpClock->parentDS.grandmasterClockQuality.clockClass;
-			unsigned long utcOffset = snmpPtpClock->timePropertiesDS.currentUtcOffset;
-			unsigned long utcOffsetValid = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.currentUtcOffsetValid);
+			unsigned long priority1 = eventData->parentDS.grandmasterPriority1;
+			unsigned long priority2 = eventData->parentDS.grandmasterPriority2;
+			unsigned long clockClass = eventData->parentDS.grandmasterClockQuality.clockClass;
+			unsigned long utcOffset = eventData->timePropertiesDS.currentUtcOffset;
+			unsigned long utcOffsetValid = TO_TRUTHVALUE(eventData->timePropertiesDS.currentUtcOffsetValid);
 
 			snmp_varlist_add_variable(varBinds, portIdOid, OID_LENGTH(portIdOid),
-			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->parentDS.parentPortIdentity, sizeof(PortIdentity));
+			    ASN_OCTET_STR, (u_char *) &eventData->parentDS.parentPortIdentity, sizeof(PortIdentity));
 
 			snmp_varlist_add_variable(varBinds, portAddrTypeOid, OID_LENGTH(portAddrTypeOid),
 			    ASN_INTEGER, (u_char *) &addrType, sizeof(addrType));
 
 			snmp_varlist_add_variable(varBinds, portAddrOid, OID_LENGTH(portAddrOid),
-			    ASN_OCTET_STR, (u_char *) &sa, sizeof(sa));
+			    ASN_OCTET_STR, (u_char *) &eventData->bestMaster.sourceAddr, sizeof(eventData->bestMaster.sourceAddr));
 
 			snmp_varlist_add_variable(varBinds, gmClockIdOid, OID_LENGTH(gmClockIdOid),
-			    ASN_OCTET_STR, (u_char *) &snmpPtpClock->parentDS.grandmasterIdentity, sizeof(ClockIdentity));
+			    ASN_OCTET_STR, (u_char *) &eventData->parentDS.grandmasterIdentity, sizeof(ClockIdentity));
 
 			snmp_varlist_add_variable(varBinds, gmPriority1Oid, OID_LENGTH(gmPriority1Oid),
 			    ASN_UNSIGNED, (u_char *) &priority1, sizeof(priority1));
@@ -1914,7 +1909,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			    ASN_INTEGER, (u_char *) &utcOffsetValid, sizeof(utcOffsetValid));
 
 			snmp_varlist_add_variable(varBinds, portStateOid, OID_LENGTH(portStateOid),
-			    ASN_INTEGER, (u_char *) &snmpPtpClock->portDS.portState, sizeof(snmpPtpClock->portDS.portState));
+			    ASN_INTEGER, (u_char *) &eventData->portDS.portState, sizeof(eventData->portDS.portState));
 		    }
 		    return;
 		case PTPBASE_NOTIFS_NETWORK_FAULT:
@@ -1929,11 +1924,11 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 		    {
 			U64 ofmNum;
 			Integer64  tmpi64;
-			internalTime_to_integer64(snmpPtpClock->currentDS.offsetFromMaster, &tmpi64);
+			internalTime_to_integer64(eventData->currentDS.offsetFromMaster, &tmpi64);
 			ofmNum.low = htonl(tmpi64.lsb);
 			ofmNum.high = htonl(tmpi64.msb);
 
-			tmpsnprintf(ofmStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->currentDS.offsetFromMaster));
+			tmpsnprintf(ofmStr, 64, "%.09f", timeInternalToDouble(&eventData->currentDS.offsetFromMaster));
 
 			oid ofmOid[] = { PTPBASE_MIB_OID, 1, 2, 1, 1, 5, PTPBASE_MIB_INDEX3 };
 			oid ofmStringOid[] = { PTPBASE_MIB_OID, 1, 2, 1, 1, 8, PTPBASE_MIB_INDEX3 };
@@ -1956,14 +1951,14 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 			oid ptpTimescaleOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1 , 10, PTPBASE_MIB_INDEX3 };
 			oid timeSourceOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1 , 11, PTPBASE_MIB_INDEX3 };
 
-			unsigned long utcOffset = snmpPtpClock->timePropertiesDS.currentUtcOffset;
-			unsigned long utcOffsetValid = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.currentUtcOffsetValid);
-			unsigned long leap59 = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.leap61);
-			unsigned long leap61 = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.leap61);
-			unsigned long timeTraceable = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.timeTraceable);
-			unsigned long frequencyTraceable = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.frequencyTraceable);
-			unsigned long ptpTimescale = TO_TRUTHVALUE(snmpPtpClock->timePropertiesDS.ptpTimescale);
-			unsigned long timeSource = snmpPtpClock->timePropertiesDS.timeSource;
+			unsigned long utcOffset = eventData->timePropertiesDS.currentUtcOffset;
+			unsigned long utcOffsetValid = TO_TRUTHVALUE(eventData->timePropertiesDS.currentUtcOffsetValid);
+			unsigned long leap59 = TO_TRUTHVALUE(eventData->timePropertiesDS.leap61);
+			unsigned long leap61 = TO_TRUTHVALUE(eventData->timePropertiesDS.leap61);
+			unsigned long timeTraceable = TO_TRUTHVALUE(eventData->timePropertiesDS.timeTraceable);
+			unsigned long frequencyTraceable = TO_TRUTHVALUE(eventData->timePropertiesDS.frequencyTraceable);
+			unsigned long ptpTimescale = TO_TRUTHVALUE(eventData->timePropertiesDS.ptpTimescale);
+			unsigned long timeSource = eventData->timePropertiesDS.timeSource;
 
 			snmp_varlist_add_variable(varBinds, utcOffsetValidOid, OID_LENGTH(utcOffsetValidOid),
 			    ASN_INTEGER, (u_char *) &utcOffsetValid, sizeof(utcOffsetValid));
@@ -2000,8 +1995,8 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType) {
 
 }
 
-void
-sendNotif(int eventType) {
+static void
+sendNotif(int eventType, PtpEventData *eventData) {
 
     /* snmpTrapOID.0 */
     oid trapOid[] = { 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0 };
@@ -2022,7 +2017,7 @@ sendNotif(int eventType) {
 		ASN_OBJECT_ID, (u_char *) notifOid, OID_LENGTH(notifOid) * sizeof(oid));
 
     /* add the accompanying varbinds */
-    populateNotif(&varBinds, eventType);
+    populateNotif(&varBinds, eventType, eventData);
 
     send_v2trap(varBinds);
 
@@ -2052,6 +2047,11 @@ snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 	snmpPtpClock = ptpClock;
 	snmpRtOpts = rtOpts;
 
+	for(int i = 0; i < ALRM_MAX; i++) {
+	    DBG("SNMP alarm handlers attached\n");
+	    ptpClock->alarms[i].handlers[1] = alarmHandler_snmp;
+	}
+
 }
 
 /**
@@ -2063,5 +2063,98 @@ snmpShutdown() {
 	unregister_mib(ptp_oid, sizeof(ptp_oid) / sizeof(oid));
 	snmp_shutdown("ptpMib");
 	SOCK_CLEANUP;
+
+}
+
+void
+alarmHandler_snmp(AlarmEntry *alarm)
+{
+	int notifId = -1;
+
+
+	if(alarm->state == ALARM_SET) {
+	    DBG("[snmp] Alarm %s set trap sent\n", alarm->name);
+	    switch(alarm->id) {
+		case ALRM_PORT_STATE:
+		    notifId = PTPBASE_NOTIFS_UNEXPECTED_PORT_STATE;
+		    break;
+		case ALRM_OFM_THRESHOLD:
+		    notifId = PTPBASE_NOTIFS_SLAVE_OFFSET_THRESHOLD_EXCEEDED;
+		    break;
+		case ALRM_OFM_SECONDS:
+		    notifId = PTPBASE_NOTIFS_OFFSET_SECONDS;
+		    break;
+		case ALRM_NO_SYNC:
+		    notifId = PTPBASE_NOTIFS_SLAVE_NO_SYNC;
+		    break;
+		case ALRM_NO_DELAY:
+		    notifId = PTPBASE_NOTIFS_SLAVE_NO_DELAY;
+		    break;
+		case ALRM_NETWORK_FLT:
+		    notifId = PTPBASE_NOTIFS_NETWORK_FAULT;
+		    break;
+		case ALRM_FAST_ADJ:
+		    notifId = PTPBASE_NOTIFS_FREQADJ_FAST;
+		    break;
+		case ALRM_DOMAIN_MISMATCH:
+		    notifId = PTPBASE_NOTIFS_DOMAIN_MISMATCH;
+		    break;
+	    }
+	}
+
+	if(alarm->state == ALARM_UNSET) {
+	    DBG("[snmp] Alarm %s clear trap sent\n", alarm->name);
+	    switch(alarm->id) {
+		case ALRM_PORT_STATE:
+		    notifId = PTPBASE_NOTIFS_EXPECTED_PORT_STATE;
+		    break;
+		case ALRM_OFM_THRESHOLD:
+		    notifId = PTPBASE_NOTIFS_SLAVE_OFFSET_THRESHOLD_ACCEPTABLE;
+		    break;
+		case ALRM_OFM_SECONDS:
+		    notifId = PTPBASE_NOTIFS_OFFSET_SUB_SECONDS;
+		    break;
+		case ALRM_NO_SYNC:
+		    notifId = PTPBASE_NOTIFS_SLAVE_RECEIVING_SYNC;
+		    break;
+		case ALRM_NO_DELAY:
+		    notifId = PTPBASE_NOTIFS_SLAVE_RECEIVING_DELAY;
+		    break;
+		case ALRM_NETWORK_FLT:
+		    notifId = PTPBASE_NOTIFS_NETWORK_FAULT_CLEARED;
+		    break;
+		case ALRM_FAST_ADJ:
+		    notifId = PTPBASE_NOTIFS_FREQADJ_NORMAL;
+		    break;
+		case ALRM_DOMAIN_MISMATCH:
+		    notifId = PTPBASE_NOTIFS_DOMAIN_OK;
+		    break;
+	    }
+	}
+
+	if(alarm->eventOnly) {
+	    DBG("[snmp] Event %s notification sent\n", alarm->name);
+	    switch(alarm->id) {
+		case ALRM_CLOCK_STEP:
+		    notifId = PTPBASE_NOTIFS_SLAVE_CLOCK_STEP;
+		    break;
+		case ALRM_MASTER_CHANGE:
+		    notifId = PTPBASE_NOTIFS_BEST_MASTER_CHANGE;
+		    break;
+		case ALRM_TIMEPROP_CHANGE:
+		    notifId = PTPBASE_NOTIFS_TIMEPROPERTIESDS_CHANGE;
+		    break;
+		default:
+		    break;
+	    }
+	}
+
+
+	if(notifId >= 0) {
+	    sendNotif(notifId, &alarm->eventData);
+	    return;
+	}
+
+	DBG("Unhandled event id 0x%x\n", alarm->id);
 
 }

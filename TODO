@@ -27,3 +27,4 @@
 - add offset alarm threshold to config
 - remaining management message SET handling
 - clean up object order in the MIB x
+- call alarm handlers before shutdown

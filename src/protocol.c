@@ -287,6 +287,14 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    timingDomain.update(&timingDomain);
 		}
 
+		if(ptpClock->defaultDS.slaveOnly) {
+		    SET_ALARM(ALRM_PORT_STATE, ptpClock->portDS.portState != PTP_SLAVE);
+		}
+
+		if(ptpClock->defaultDS.clockQuality.clockClass < 128) {
+		    SET_ALARM(ALRM_PORT_STATE, ptpClock->portDS.portState != PTP_MASTER && ptpClock->portDS.portState != PTP_PASSIVE );
+		}
+
 		if (timerExpired(&ptpClock->timers[ALARM_UPDATE_TIMER])) {
 		    updateAlarms(ptpClock->alarms, ALRM_MAX);
 		}
@@ -326,15 +334,14 @@ void setPortState(PtpClock *ptpClock, Enumeration8 state)
 
     /* "expected state" checks */
 
+    ptpClock->portDS.portState = state;
+
     if(ptpClock->defaultDS.slaveOnly) {
 	    SET_ALARM(ALRM_PORT_STATE, state != PTP_SLAVE);
-    }
-
-    if(ptpClock->defaultDS.clockQuality.clockClass < 128) {
+    } else if(ptpClock->defaultDS.clockQuality.clockClass < 128) {
 	    SET_ALARM(ALRM_PORT_STATE, state != PTP_MASTER && state != PTP_PASSIVE );
     }
 
-    ptpClock->portDS.portState = state;
 
 }
 

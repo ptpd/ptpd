@@ -910,8 +910,10 @@ configcheck:
 		goto fail;
 	}
 
+	ptpClock->rtOpts = rtOpts;
+
 	/* init alarms */
-	initAlarms(ptpClock->alarms, ALRM_MAX);
+	initAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
 
 	/* establish signal handlers */
 	signal(SIGINT,  catchSignals);
@@ -963,7 +965,7 @@ configcheck:
 		ptpClock->netPath.eventSock = -1;
 
 	*ret = 0;
-	ptpClock->rtOpts = rtOpts;
+
 	return ptpClock;
 	
 fail:

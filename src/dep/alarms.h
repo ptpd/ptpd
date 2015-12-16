@@ -41,6 +41,7 @@
 #define DOMAIN_MISMATCH_MIN 10	/* trigger domain mismatch alarm after at least 10 mismatches */
 #define ALARM_UPDATE_INTERVAL 1 /* how often we process alarms */
 #define ALARM_TIMEOUT_PERIOD 30	/* minimal alarm age to clear */
+#define ALARM_HANDLERS_MAX 3	/* max number of alarm handlers */
 
 typedef enum {
 	ALRM_PORT_STATE = 0,		/*x done*/
@@ -57,16 +58,22 @@ typedef enum {
 	ALRM_MAX
 } AlarmType;
 
-
 typedef enum {
 	ALARM_UNSET = 0,		/* idle */
 	ALARM_SET,		/* condition has been triggerd */
 	ALARM_CLEARED		/* condition has cleared */
 } AlarmState;
 
-typedef struct {
+struct _alarmEntry {
+	char shortName[5];		/* short code i.e. OFS, DLY, SYN, FLT etc. */
+	char name[31];			/* full name i.e. OFFSET_THRESHOLD, NO_DELAY, NO_SYNC etc. */
+	char description[101];		/* text description */
+	Boolean enabled;		/* is the alarm operational ? */
 	uint8_t id; 			/* alarm ID */
 	Boolean eventOnly;		/* this is only an event - don't manage state, just dispatch/inform when condition is met */
+	void (*handlers[ALARM_HANDLERS_MAX])(struct _alarmEntry *); /* alarm handlers */
+	void * userData;		/* user data pointer */
+	Boolean unhandled;		/* this event is pending pick-up - prevets from clearing condition until it's handled */
 	uint32_t age;			/* age of alarm in current state (seconds) */
 	AlarmState state;		/* state of the alarm */
 	Boolean condition;		/* is the alarm condition met? (so we can check conditions and set alarms separately */
@@ -74,20 +81,14 @@ typedef struct {
 	TimeInternal timeCleared;	/* time when cleared */
 	Boolean internalOnly;		/* do not display in status file / indicate that the alarm is internal only */
 	PtpEventData eventData;		/* the event data union - so we can capture any data we need without the need to capture a whole PtpClock */
-} AlarmData;
+};
 
-typedef struct {
-	char shortName[5];		/* short code i.e. OFS, DLY, SYN, FLT etc. */
-	char name[31];			/* full name i.e. OFFSET_THRESHOLD, NO_DELAY, NO_SYNC etc. */
-	char description[101];		/* text description */
-	Boolean enabled;		/* is the alarm operational ? */
-	AlarmData data;			/* alarm data container (so it's easier to do a static initialisation */
-} AlarmEntry;
+typedef struct _alarmEntry AlarmEntry;
 
-void initAlarms(AlarmEntry* alarms, int count); 					/* fill an array with initial alarm data */
+void initAlarms(AlarmEntry* alarms, int count, void* userData); 			/* fill an array with initial alarm data */
 void updateAlarms(AlarmEntry *alarms, int count);					/* dispatch alarms: age, set, clear alarms etc. */
 void displayAlarms(AlarmEntry *alarms, int count);					/* display a formatted alarm summary table */
 int  getAlarmSummary(char * output, int size, AlarmEntry *alarms, int count);		/* produce a one-line alarm summary string */
-
+void handleAlarm(AlarmEntry *alarms, void *userData);
 
 #endif /*PTPDALARMS_H_*/
