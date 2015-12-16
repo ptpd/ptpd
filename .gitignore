@@ -9,7 +9,7 @@ Makefile
 /autoscan-*.log
 /aclocal.m4
 /compile
-/config.h.in
+/config.h.in*
 /configure
 /configure.scan
 /depcomp

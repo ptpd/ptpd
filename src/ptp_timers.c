@@ -108,6 +108,8 @@ Boolean timerSetup(IntervalTimer *itimers)
   "SYNC_INTERVAL",
   "ANNOUNCE_RECEIPT",
   "ANNOUNCE_INTERVAL",
+  "SYNC_RECEIPT",
+  "DELAY_RECEIPT",
   "UNICAST_GRANT",
   "OPERATOR_MESSAGES",
   "LEAP_SECOND_PAUSE",
@@ -117,6 +119,7 @@ Boolean timerSetup(IntervalTimer *itimers)
 #ifdef PTPD_STATISTICS
   "STATISTICS_UPDATE",
 #endif /* PTPD_STATISTICS */
+  "ALARM_UPDATE",
   "MASTER_NETREFRESH",
   "CALIBRATION_DELAY",
   "CLOCK_UPDATE",

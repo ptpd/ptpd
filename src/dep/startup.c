@@ -317,8 +317,8 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			    }
 
 			    /* These parameters have to be passed to ptpClock before re-init */
-			    ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
-			    ptpClock->slaveOnly = rtOpts->slaveOnly;
+			    ptpClock->defaultDS.clockQuality.clockClass = rtOpts->clockQuality.clockClass;
+			    ptpClock->defaultDS.slaveOnly = rtOpts->slaveOnly;
 			    ptpClock->disabled = rtOpts->portDisabled;
 
 			    if(rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) {
@@ -455,7 +455,7 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 	if(sigusr1_received){
-	    if(ptpClock->portState == PTP_SLAVE){
+	    if(ptpClock->portDS.portState == PTP_SLAVE){
 		    WARNING("SIGUSR1 received, stepping clock to current known OFM\n");
                     stepClock(rtOpts, ptpClock);                                                                                                        
 //		    ptpClock->clockControl.stepRequired = TRUE;
@@ -477,6 +477,7 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		}
 #endif
 		displayCounters(ptpClock);
+		displayAlarms(ptpClock->alarms, ALRM_MAX);
 		if(rtOpts->timingAclEnabled) {
 			INFO("\n\n");
 			INFO("** Timing message ACL:\n");
@@ -573,7 +574,8 @@ ptpdShutdown(PtpClock * ptpClock)
 	 * such as canceling unicast transmission
          */
 	toState(PTP_DISABLED, &rtOpts, ptpClock);
-
+	/* process any outstanding events before exit */
+	updateAlarms(ptpClock->alarms, ALRM_MAX);
 	netShutdown(&ptpClock->netPath);
 	free(ptpClock->foreign);
 
@@ -591,7 +593,7 @@ ptpdShutdown(PtpClock * ptpClock)
 
 #ifndef PTPD_STATISTICS
 	/* Not running statistics code - write observed drift to driftfile if enabled, inform user */
-	if(ptpClock->slaveOnly && !ptpClock->servo.runningMaxOutput)
+	if(ptpClock->defaultDS.slaveOnly && !ptpClock->servo.runningMaxOutput)
 		saveDrift(ptpClock, &rtOpts, FALSE);
 #else
 	ptpClock->oFilterMS.shutdown(&ptpClock->oFilterMS);
@@ -908,6 +910,11 @@ configcheck:
 		free(ptpClock);
 		goto fail;
 	}
+
+	ptpClock->rtOpts = rtOpts;
+
+	/* init alarms */
+	initAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
 
 	/* establish signal handlers */
 	signal(SIGINT,  catchSignals);

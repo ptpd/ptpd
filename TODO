@@ -23,7 +23,13 @@
 - management TLV buffer guard and don't unpack GET x
 - SNMP - implement statistics tables x
 - SNMP - implement remaining traps x
-- add alarm events -> trigger SNMP traps
-- add offset alarm threshold to config
+- add alarm events -> trigger SNMP traps x
+- add offset alarm threshold to config x
+- add alarm initial delay to config
+- add snmp traps enable/disable to config
 - remaining management message SET handling
+- add fault record and numberfaults to snmp and mgmt
 - clean up object order in the MIB x
+- call alarm handlers before shutdown (on port disabled?)
+- update man page with alarm descriptions
+- eventually add support for an event queue

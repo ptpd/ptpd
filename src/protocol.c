@@ -199,6 +199,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	DBG("event POWERUP\n");
 
 	timerStart(&ptpClock->timers[TIMINGDOMAIN_UPDATE_TIMER],timingDomain.updateInterval);
+	timerStart(&ptpClock->timers[ALARM_UPDATE_TIMER],ALARM_UPDATE_INTERVAL);
 
 	ptpClock->disabled = rtOpts->portDisabled;
 
@@ -231,15 +232,15 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	for (;;)
 	{
 		/* 20110701: this main loop was rewritten to be more clear */
-		if(ptpClock->disabled && ptpClock->portState != PTP_DISABLED) {
+		if(ptpClock->disabled && ptpClock->portDS.portState != PTP_DISABLED) {
 			toState(PTP_DISABLED, rtOpts, ptpClock);
 		}
 
-		if(!ptpClock->disabled && ptpClock->portState == PTP_DISABLED) {
+		if(!ptpClock->disabled && ptpClock->portDS.portState == PTP_DISABLED) {
 			toState(PTP_INITIALIZING, rtOpts, ptpClock);
 		}
 
-		if (ptpClock->portState == PTP_INITIALIZING) {
+		if (ptpClock->portDS.portState == PTP_INITIALIZING) {
 
 			    /*
 			     * DO NOT shut down once started. We have to "wait intelligently",
@@ -257,9 +258,11 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					writeStatusFile(ptpClock, rtOpts, TRUE);
 					ptpClock->initFailure = TRUE;
 					ptpClock->initFailureTimeout = 100 * DEFAULT_FAILURE_WAITTIME;
+					SET_ALARM(ALRM_NETWORK_FLT, TRUE);
 				} else {
 					ptpClock->initFailure = FALSE;
 					ptpClock->initFailureTimeout = 0;
+					SET_ALARM(ALRM_NETWORK_FLT, FALSE);
 				}
 
 			   }
@@ -268,7 +271,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			doState(rtOpts, ptpClock);
 		}
 
-		if(ptpClock->disabled && ptpClock->portState != PTP_DISABLED) {
+		if(ptpClock->disabled && ptpClock->portDS.portState != PTP_DISABLED) {
 			toState(PTP_DISABLED, rtOpts, ptpClock);
 		}
 
@@ -283,6 +286,19 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if (timerExpired(&ptpClock->timers[TIMINGDOMAIN_UPDATE_TIMER])) {
 		    timingDomain.update(&timingDomain);
 		}
+
+		if(ptpClock->defaultDS.slaveOnly) {
+		    SET_ALARM(ALRM_PORT_STATE, ptpClock->portDS.portState != PTP_SLAVE);
+		}
+
+		if(ptpClock->defaultDS.clockQuality.clockClass < 128) {
+		    SET_ALARM(ALRM_PORT_STATE, ptpClock->portDS.portState != PTP_MASTER && ptpClock->portDS.portState != PTP_PASSIVE );
+		}
+
+		if (timerExpired(&ptpClock->timers[ALARM_UPDATE_TIMER])) {
+		    updateAlarms(ptpClock->alarms, ALRM_MAX);
+		}
+
 
 		if (timerExpired(&ptpClock->timers[UNICAST_GRANT_TIMER])) {
 			if(rtOpts->unicastDestinationsSet) {
@@ -311,11 +327,21 @@ void setPortState(PtpClock *ptpClock, Enumeration8 state)
     if(ptpClock == NULL) {
 	return;
     }
-    if(ptpClock->portState != state) {
-	ptpClock->lastPortState = ptpClock->portState;
-	DBG("State change from %s to %s\n", portState_getName(ptpClock->lastPortState), portState_getName(state));
+    if(ptpClock->portDS.portState != state) {
+	ptpClock->portDS.lastPortState = ptpClock->portDS.portState;
+	DBG("State change from %s to %s\n", portState_getName(ptpClock->portDS.lastPortState), portState_getName(state));
     }
-    ptpClock->portState = state;
+
+    /* "expected state" checks */
+
+    ptpClock->portDS.portState = state;
+
+    if(ptpClock->defaultDS.slaveOnly) {
+	    SET_ALARM(ALRM_PORT_STATE, state != PTP_SLAVE);
+    } else if(ptpClock->defaultDS.clockQuality.clockClass < 128) {
+	    SET_ALARM(ALRM_PORT_STATE, state != PTP_MASTER && state != PTP_PASSIVE );
+    }
+
 
 }
 
@@ -326,19 +352,20 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->message_activity = TRUE;
 	
 	/* leaving state tasks */
-	switch (ptpClock->portState)
+	switch (ptpClock->portDS.portState)
 	{
 	case PTP_MASTER:
 
 		timerStop(&ptpClock->timers[SYNC_INTERVAL_TIMER]);
 		timerStop(&ptpClock->timers[ANNOUNCE_INTERVAL_TIMER]);
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
+		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[MASTER_NETREFRESH_TIMER]);
 
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST) {
 		    cancelAllGrants(ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS,
 				rtOpts, ptpClock);
-		    if(ptpClock->delayMechanism == P2P) {
+		    if(ptpClock->portDS.delayMechanism == P2P) {
 			    cancelAllGrants(&ptpClock->peerGrants, 1,
 				rtOpts, ptpClock);
 		    }
@@ -347,26 +374,28 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 	case PTP_SLAVE:
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
+		timerStop(&ptpClock->timers[SYNC_RECEIPT_TIMER]);
+		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
 		
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {
 			/* do not cancel, just start re-requesting so we can still send a cancel on exit */
 			ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].timeLeft = 0;
 			ptpClock->parentGrants->grantData[SYNC_INDEXED].timeLeft = 0;
-			if(ptpClock->delayMechanism == E2E) {
+			if(ptpClock->portDS.delayMechanism == E2E) {
 			    ptpClock->parentGrants->grantData[DELAY_RESP_INDEXED].timeLeft = 0;
 			}
 
 			ptpClock->parentGrants = NULL;
 
-			if(ptpClock->delayMechanism == P2P) {
+			if(ptpClock->portDS.delayMechanism == P2P) {
 			    cancelUnicastTransmission(&ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED], rtOpts, ptpClock);
 			    cancelAllGrants(&ptpClock->peerGrants, 1, rtOpts, ptpClock);
 			}
 		}
 
-		if (ptpClock->delayMechanism == E2E)
+		if (ptpClock->portDS.delayMechanism == E2E)
 			timerStop(&ptpClock->timers[DELAYREQ_INTERVAL_TIMER]);
-		else if (ptpClock->delayMechanism == P2P)
+		else if (ptpClock->portDS.delayMechanism == P2P)
 			timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
 /* If statistics are enabled, drift should have been saved already - otherwise save it*/
 #ifndef PTPD_STATISTICS
@@ -385,11 +414,15 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		
 	case PTP_PASSIVE:
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
+		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
 		break;
 		
 	case PTP_LISTENING:
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
+		timerStop(&ptpClock->timers[SYNC_RECEIPT_TIMER]);
+		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
+
 		/* we're leaving LISTENING - reset counter */
                 if(state != PTP_LISTENING) {
                     ptpClock->listenCount = 0;
@@ -397,29 +430,29 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 	case PTP_INITIALIZING:
 		if(rtOpts->unicastNegotiation) {
-		    if(!ptpClock->slaveOnly) {
+		    if(!ptpClock->defaultDS.slaveOnly) {
 
 			initUnicastGrantTable(ptpClock->unicastGrants,
-				ptpClock->delayMechanism,
+				ptpClock->portDS.delayMechanism,
 				UNICAST_MAX_DESTINATIONS, NULL,
 				rtOpts, ptpClock);
 
 			if(rtOpts->unicastDestinationsSet) {
 			    initUnicastGrantTable(ptpClock->unicastGrants,
-					ptpClock->delayMechanism,
+					ptpClock->portDS.delayMechanism,
 					ptpClock->unicastDestinationCount, ptpClock->unicastDestinations,
 					rtOpts, ptpClock);
 			}
 			
 		    } else {
 			initUnicastGrantTable(ptpClock->unicastGrants,
-					ptpClock->delayMechanism,
+					ptpClock->portDS.delayMechanism,
 					ptpClock->unicastDestinationCount, ptpClock->unicastDestinations,
 					rtOpts, ptpClock);
 		    }
 		    if(ptpClock->unicastPeerDestination.transportAddress) {
 			initUnicastGrantTable(&ptpClock->peerGrants,
-					ptpClock->delayMechanism,
+					ptpClock->portDS.delayMechanism,
 					1, &ptpClock->unicastPeerDestination,
 					rtOpts, ptpClock);
 		    }
@@ -474,6 +507,8 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		/* in Listening state, make sure we don't send anything. Instead we just expect/wait for announces (started below) */
 		timerStop(&ptpClock->timers[SYNC_INTERVAL_TIMER]);
 		timerStop(&ptpClock->timers[ANNOUNCE_INTERVAL_TIMER]);
+		timerStop(&ptpClock->timers[SYNC_RECEIPT_TIMER]);
+		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
 		timerStop(&ptpClock->timers[DELAYREQ_INTERVAL_TIMER]);
 
@@ -481,7 +516,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
                 timerStop(&ptpClock->timers[CLOCK_UPDATE_TIMER]);
 
 		/* if we're ignoring announces (disable_bmca), go straight to master */
-		if(ptpClock->clockQuality.clockClass <= 127 && rtOpts->disableBMCA) {
+		if(ptpClock->defaultDS.clockQuality.clockClass <= 127 && rtOpts->disableBMCA) {
 			DBG("unicast master only and ignoreAnnounce: going into MASTER state\n");
 			ptpClock->number_foreign_records = 0;
 			ptpClock->foreign_record_i = 0;
@@ -494,7 +529,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		 *  Count how many _unique_ timeouts happen to us.
 		 *  If we were already in Listen mode, then do not count this as a seperate reset, but stil do a new IGMP refresh
 		 */
-		if (ptpClock->portState != PTP_LISTENING) {
+		if (ptpClock->portDS.portState != PTP_LISTENING) {
 			ptpClock->resetCount++;
 		} else {
                         ptpClock->listenCount++;
@@ -508,7 +543,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
                 }
 
 		/* Revert to the original DelayReq interval, and ignore the one for the last master */
-		ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
+		ptpClock->portDS.logMinDelayReqInterval = rtOpts->initial_delayreq;
 
 		/* force a IGMP refresh per reset */
 		if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
@@ -521,8 +556,8 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 		
 		timerStart(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER],
-				(ptpClock->announceReceiptTimeout) *
-				(pow(2,ptpClock->logAnnounceInterval)));
+				(ptpClock->portDS.announceReceiptTimeout) *
+				(pow(2,ptpClock->portDS.logAnnounceInterval)));
 
 		ptpClock->announceTimeouts = 0;
 
@@ -532,7 +567,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		 * Log status update only once - condition must be checked before we write the new state,
 		 * but the new state must be eritten before the log message...
 		 */
-		if (ptpClock->portState != state) {
+		if (ptpClock->portDS.portState != state) {
 			setPortState(ptpClock, PTP_LISTENING);
 			displayStatus(ptpClock, "Now in state: ");
 		} else {
@@ -546,13 +581,18 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    timerStart(&ptpClock->timers[UNICAST_GRANT_TIMER], 1);
 		}
 		timerStart(&ptpClock->timers[SYNC_INTERVAL_TIMER],
-			   pow(2,ptpClock->logSyncInterval));
+			   pow(2,ptpClock->portDS.logSyncInterval));
 		DBG("SYNC INTERVAL TIMER : %f \n",
-		    pow(2,ptpClock->logSyncInterval));
+		    pow(2,ptpClock->portDS.logSyncInterval));
 		timerStart(&ptpClock->timers[ANNOUNCE_INTERVAL_TIMER],
-			   pow(2,ptpClock->logAnnounceInterval));
+			   pow(2,ptpClock->portDS.logAnnounceInterval));
 		timerStart(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER],
-			   pow(2,ptpClock->logMinPdelayReqInterval));
+			   pow(2,ptpClock->portDS.logMinPdelayReqInterval));
+		if(ptpClock->portDS.delayMechanism == P2P) {
+		    timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+		    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
+			MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinPdelayReqInterval))));
+		}
 		if( rtOpts->do_IGMP_refresh &&
 		    rtOpts->transport == UDP_IPV4 &&
 		    rtOpts->ipMode != IPMODE_UNICAST &&
@@ -568,10 +608,15 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 #endif /* PTPD_SLAVE_ONLY */
 	case PTP_PASSIVE:
 		timerStart(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER],
-			   pow(2,ptpClock->logMinPdelayReqInterval));
+			   pow(2,ptpClock->portDS.logMinPdelayReqInterval));
 		timerStart(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER],
-			   (ptpClock->announceReceiptTimeout) *
-			   (pow(2,ptpClock->logAnnounceInterval)));
+			   (ptpClock->portDS.announceReceiptTimeout) *
+			   (pow(2,ptpClock->portDS.logAnnounceInterval)));
+		if(ptpClock->portDS.delayMechanism == P2P) {
+		    timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+		    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
+			MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinPdelayReqInterval))));
+		}
 		setPortState(ptpClock, PTP_PASSIVE);
 		p1(ptpClock, rtOpts);
 		displayStatus(ptpClock, "Now in state: ");
@@ -614,9 +659,25 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			   OPERATOR_MESSAGES_INTERVAL);
 		
 		timerStart(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER],
-			   (ptpClock->announceReceiptTimeout) *
-			   (pow(2,ptpClock->logAnnounceInterval)));
-		
+			   (ptpClock->portDS.announceReceiptTimeout) *
+			   (pow(2,ptpClock->portDS.logAnnounceInterval)));
+
+		timerStart(&ptpClock->timers[SYNC_RECEIPT_TIMER], max(
+		   (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
+		   MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logSyncInterval))
+		));
+
+		if(ptpClock->portDS.delayMechanism == E2E) {
+		    timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+		    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
+			MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinDelayReqInterval))));
+		}
+		if(ptpClock->portDS.delayMechanism == P2P) {
+		    timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+		    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
+			MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinPdelayReqInterval))));
+		}
+
 		/*
 		 * Previously, this state transition would start the
 		 * delayreq timer immediately.  However, if this was
@@ -700,7 +761,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	initClock(rtOpts, ptpClock);
 	setupPIservo(&ptpClock->servo, rtOpts);
 	/* restore observed drift and inform user */
-	if(ptpClock->clockQuality.clockClass > 127)
+	if(ptpClock->defaultDS.clockQuality.clockClass > 127)
 		restoreDrift(ptpClock, rtOpts, FALSE);
 	m1(rtOpts, ptpClock );
 	msgPackHeader(ptpClock->msgObuf, ptpClock);
@@ -722,7 +783,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->message_activity = FALSE;
 
 	/* Process record_update (BMC algorithm) before everything else */
-	switch (ptpClock->portState)
+	switch (ptpClock->portDS.portState)
 	{
 	case PTP_LISTENING:
 	case PTP_PASSIVE:
@@ -741,7 +802,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			DBG2("event STATE_DECISION_EVENT\n");
 			ptpClock->record_update = FALSE;
 			state = bmc(ptpClock->foreign, rtOpts, ptpClock);
-			if(state != ptpClock->portState)
+			if(state != ptpClock->portDS.portState)
 				toState(state, rtOpts, ptpClock);
 		}
 		break;
@@ -750,7 +811,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 	}
 	
-	switch (ptpClock->portState)
+	switch (ptpClock->portDS.portState)
 	{
 	case PTP_FAULTY:
 		/* imaginary troubleshooting */
@@ -760,9 +821,9 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		
 	case PTP_LISTENING:
 	case PTP_UNCALIBRATED:
-	case PTP_SLAVE:
 	// passive mode behaves like the SLAVE state, in order to wait for the announce timeout of the current active master
 	case PTP_PASSIVE:
+	case PTP_SLAVE:
 		handle(rtOpts, ptpClock);
 		
 		/*
@@ -774,15 +835,15 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		{
 			DBG("event ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES\n");
 
-			if(!ptpClock->slaveOnly &&
-			   ptpClock->clockQuality.clockClass != SLAVE_ONLY_CLOCK_CLASS) {
+			if(!ptpClock->defaultDS.slaveOnly &&
+			   ptpClock->defaultDS.clockQuality.clockClass != SLAVE_ONLY_CLOCK_CLASS) {
 				ptpClock->number_foreign_records = 0;
 				ptpClock->foreign_record_i = 0;
 				ptpClock->bestMaster = NULL;
 				m1(rtOpts,ptpClock);
 				toState(PTP_MASTER, rtOpts, ptpClock);
 
-			} else if(ptpClock->portState != PTP_LISTENING) {
+			} else if(ptpClock->portDS.portState != PTP_LISTENING) {
 #ifdef PTPD_STATISTICS
 				/* stop statistics updates */
 				timerStop(&ptpClock->timers[STATISTICS_UPDATE_TIMER]);
@@ -851,7 +912,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
                 }
 
 		/* Reset the slave if clock update timeout configured */
-		if ( ptpClock->portState == PTP_SLAVE && (rtOpts->clockUpdateTimeout > 0) &&
+		if ( ptpClock->portDS.portState == PTP_SLAVE && (rtOpts->clockUpdateTimeout > 0) &&
 		    timerExpired(&ptpClock->timers[CLOCK_UPDATE_TIMER])) {
 			if(ptpClock->panicMode || rtOpts->noAdjust) {
 				timerStart(&ptpClock->timers[CLOCK_UPDATE_TIMER], rtOpts->clockUpdateTimeout);
@@ -866,7 +927,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			resetWarnings(rtOpts, ptpClock);
 		}
 
-		if(ptpClock->portState==PTP_SLAVE && rtOpts->calibrationDelay && !ptpClock->isCalibrated) {
+		if(ptpClock->portDS.portState==PTP_SLAVE && rtOpts->calibrationDelay && !ptpClock->isCalibrated) {
 			if(timerExpired(&ptpClock->timers[CALIBRATION_DELAY_TIMER])) {
 				ptpClock->isCalibrated = TRUE;
 				if(ptpClock->clockControl.granted) {
@@ -879,7 +940,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			}
 		}
 
-		if (ptpClock->delayMechanism == E2E) {
+		if (ptpClock->portDS.delayMechanism == E2E) {
 			if(timerExpired(&ptpClock->timers[DELAYREQ_INTERVAL_TIMER])) {
 				DBG("event DELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
 				/* if unicast negotiation is enabled, only request if granted */
@@ -889,7 +950,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 						issueDelayReq(rtOpts,ptpClock);
 				}
 			}
-		} else if (ptpClock->delayMechanism == P2P) {
+		} else if (ptpClock->portDS.delayMechanism == P2P) {
 			if (timerExpired(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER])) {
 				DBGV("event PDELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
 				/* if unicast negotiation is enabled, only request if granted */
@@ -920,7 +981,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if( ptpClock->leapSecondPending &&
 		    !ptpClock->leapSecondInProgress &&
 		    (secondsToMidnight() <=
-		    getPauseAfterMidnight(ptpClock->logAnnounceInterval,
+		    getPauseAfterMidnight(ptpClock->portDS.logAnnounceInterval,
 			rtOpts->leapSecondPausePeriod))) {
                             WARNING("Leap second event imminent - pausing "
 				    "clock and offset updates\n");
@@ -933,7 +994,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			    timerStart(&ptpClock->timers[LEAP_SECOND_PAUSE_TIMER],
 				       ((secondsToMidnight() +
 				       (int)ptpClock->timePropertiesDS.leap61) +
-				       getPauseAfterMidnight(ptpClock->logAnnounceInterval,
+				       getPauseAfterMidnight(ptpClock->portDS.logAnnounceInterval,
 					    rtOpts->leapSecondPausePeriod)));
 		}
 
@@ -944,6 +1005,9 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				updatePtpEngineStats(ptpClock, rtOpts);
 		}
 #endif /* PTPD_STATISTICS */
+
+		SET_ALARM(ALRM_NO_SYNC, timerExpired(&ptpClock->timers[SYNC_RECEIPT_TIMER]));
+		SET_ALARM(ALRM_NO_DELAY, timerExpired(&ptpClock->timers[DELAY_RECEIPT_TIMER]));
 
 		break;
 #ifndef PTPD_SLAVE_ONLY
@@ -988,7 +1052,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if( ptpClock->leapSecondPending &&
 		    !ptpClock->leapSecondInProgress &&
 		    (secondsToMidnight() <=
-		    getPauseAfterMidnight(ptpClock->logAnnounceInterval,
+		    getPauseAfterMidnight(ptpClock->portDS.logAnnounceInterval,
 			rtOpts->leapSecondPausePeriod))) {
                             WARNING("Leap second event imminent - pausing "
 				    "event message processing\n");
@@ -1001,7 +1065,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			    timerStart(&ptpClock->timers[LEAP_SECOND_PAUSE_TIMER],
 				       ((secondsToMidnight() +
 				       (int)ptpClock->timePropertiesDS.leap61) +
-				       getPauseAfterMidnight(ptpClock->logAnnounceInterval,
+				       getPauseAfterMidnight(ptpClock->portDS.logAnnounceInterval,
 					    rtOpts->leapSecondPausePeriod)));
 		}
 
@@ -1019,15 +1083,15 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if (timerExpired(&ptpClock->timers[ANNOUNCE_INTERVAL_TIMER])) {
 			DBGV("event ANNOUNCE_INTERVAL_TIMEOUT_EXPIRES\n");
 			/* restart the timer with current interval in case if it changed */
-			if(pow(2,ptpClock->logAnnounceInterval) != ptpClock->timers[ANNOUNCE_INTERVAL_TIMER].interval) {
+			if(pow(2,ptpClock->portDS.logAnnounceInterval) != ptpClock->timers[ANNOUNCE_INTERVAL_TIMER].interval) {
 				timerStart(&ptpClock->timers[ANNOUNCE_INTERVAL_TIMER],
-					pow(2,ptpClock->logAnnounceInterval));
+					pow(2,ptpClock->portDS.logAnnounceInterval));
 			}
 			issueAnnounce(rtOpts, ptpClock);
 
 		}
 
-		if (ptpClock->delayMechanism == P2P) {
+		if (ptpClock->portDS.delayMechanism == P2P) {
 			if (timerExpired(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER])) {
 				DBGV("event PDELAYREQ_INTERVAL_TIMEOUT_EXPIRES\n");
 				/* if unicast negotiation is enabled, only request if granted */
@@ -1056,9 +1120,9 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if (timerExpired(&ptpClock->timers[SYNC_INTERVAL_TIMER])) {
 			DBGV("event SYNC_INTERVAL_TIMEOUT_EXPIRES\n");
 			/* re-arm timer if changed */
-			if(pow(2,ptpClock->logSyncInterval) != ptpClock->timers[SYNC_INTERVAL_TIMER].interval) {
+			if(pow(2,ptpClock->portDS.logSyncInterval) != ptpClock->timers[SYNC_INTERVAL_TIMER].interval) {
 				timerStart(&ptpClock->timers[SYNC_INTERVAL_TIMER],
-					pow(2,ptpClock->logSyncInterval));
+					pow(2,ptpClock->portDS.logSyncInterval));
 			}
 
 			issueSync(rtOpts, ptpClock);
@@ -1080,7 +1144,11 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		// TODO: why is handle() below expiretimer, while in slave is the opposite
 		handle(rtOpts, ptpClock);
 
-		if (ptpClock->slaveOnly || ptpClock->clockQuality.clockClass == SLAVE_ONLY_CLOCK_CLASS)
+		if(timerExpired(&ptpClock->timers[DELAY_RECEIPT_TIMER])) {
+			INFO("NO_DELAY\n");
+		}
+
+		if (ptpClock->defaultDS.slaveOnly || ptpClock->defaultDS.clockQuality.clockClass == SLAVE_ONLY_CLOCK_CLASS)
 			toState(PTP_LISTENING, rtOpts, ptpClock);
 
 		break;
@@ -1126,10 +1194,10 @@ isFromCurrentParent(const PtpClock *ptpClock, const MsgHeader* header)
 {
 
 	return(!memcmp(
-		ptpClock->parentPortIdentity.clockIdentity,
+		ptpClock->parentDS.parentPortIdentity.clockIdentity,
 		header->sourcePortIdentity.clockIdentity,
 		CLOCK_IDENTITY_LENGTH)	&&
-		(ptpClock->parentPortIdentity.portNumber ==
+		(ptpClock->parentDS.parentPortIdentity.portNumber ==
 		 header->sourcePortIdentity.portNumber));
 
 }
@@ -1152,7 +1220,7 @@ timestampCorrection(const RunTimeOpts * rtOpts, PtpClock *ptpClock, TimeInternal
 	    }
 	}
 
-	if(ptpClock->portState == PTP_SLAVE && ptpClock->leapSecondPending && !ptpClock->leapSecondInProgress) {
+	if(ptpClock->portDS.portState == PTP_SLAVE && ptpClock->leapSecondPending && !ptpClock->leapSecondInProgress) {
 	    addTime(timeStamp, timeStamp, &fudge);
 	}
 
@@ -1223,14 +1291,14 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 		}
     }
 
-    if (ptpClock->msgTmpHeader.versionPTP != ptpClock->versionNumber) {
+    if (ptpClock->msgTmpHeader.versionPTP != ptpClock->portDS.versionNumber) {
 	DBG("ignore version %d message\n", ptpClock->msgTmpHeader.versionPTP);
 	ptpClock->counters.discardedMessages++;
 	ptpClock->counters.versionMismatchErrors++;
 	return;
     }
 
-    if(ptpClock->msgTmpHeader.domainNumber != ptpClock->domainNumber) {
+    if(ptpClock->msgTmpHeader.domainNumber != ptpClock->defaultDS.domainNumber) {
 	Boolean domainOK = FALSE;
 	int i = 0;
 	if (rtOpts->unicastNegotiation && ptpClock->unicastDestinationCount) {
@@ -1243,19 +1311,25 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 		}
 	    }
 	}
-	if(ptpClock->slaveOnly && rtOpts->anyDomain) {
+	if(ptpClock->defaultDS.slaveOnly && rtOpts->anyDomain) {
 		DBG("anyDomain enabled: accepting announce from domain %d (we are %d)\n",
 			ptpClock->msgTmpHeader.domainNumber,
-			ptpClock->domainNumber
+			ptpClock->defaultDS.domainNumber
 			);
 	} else if(!domainOK) {
 		DBG("Ignored message %s received from %d domain\n",
 			getMessageTypeName(ptpClock->msgTmpHeader.messageType),
 			ptpClock->msgTmpHeader.domainNumber);
+		ptpClock->portDS.lastDomainSeen = ptpClock->msgTmpHeader.domainNumber;
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.domainMismatchErrors++;
+
+		SET_ALARM(ALRM_DOMAIN_MISMATCH, ((ptpClock->counters.domainMismatchErrors >= DOMAIN_MISMATCH_MIN) &&
+		    ptpClock->netPath.receivedPacketsTotal == ptpClock->counters.domainMismatchErrors));
 		return;
 	}
+    } else {
+	SET_ALARM(ALRM_DOMAIN_MISMATCH, FALSE);
     }
 
 
@@ -1287,7 +1361,7 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
     timestampCorrection(rtOpts, ptpClock, timeStamp);
 
     /*Spec 9.5.2.2*/
-    isFromSelf = !cmpPortIdentity(&ptpClock->portIdentity, &ptpClock->msgTmpHeader.sourcePortIdentity);
+    isFromSelf = !cmpPortIdentity(&ptpClock->portDS.portIdentity, &ptpClock->msgTmpHeader.sourcePortIdentity);
 
     /*
      * subtract the inbound latency adjustment if it is not a loop
@@ -1476,7 +1550,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 	}
 
 	/* if we're ignoring announces (telecom) */
-	if(ptpClock->clockQuality.clockClass <= 127 && rtOpts->disableBMCA) {
+	if(ptpClock->defaultDS.clockQuality.clockClass <= 127 && rtOpts->disableBMCA) {
 		DBG("unicast master only and disableBMCA: dropping Announce\n");
 		ptpClock->counters.discardedMessages++;
 		return;
@@ -1499,7 +1573,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 		}
 	}
 
-	switch (ptpClock->portState) {
+	switch (ptpClock->portDS.portState) {
 	case PTP_INITIALIZING:
 	case PTP_FAULTY:
 	case PTP_DISABLED:
@@ -1579,10 +1653,10 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			DBG2("___ Announce: received Announce from current Master, so reset the Announce timer\n");
 
 	   		/* Reset Timer handling Announce receipt timeout - in anyDomain, time out from current domain first */
-			if(header->domainNumber == ptpClock->domainNumber) {
+			if(header->domainNumber == ptpClock->defaultDS.domainNumber) {
 	   			timerStart(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER],
-				   (ptpClock->announceReceiptTimeout) *
-				   (pow(2,ptpClock->logAnnounceInterval)));
+				   (ptpClock->portDS.announceReceiptTimeout) *
+				   (pow(2,ptpClock->portDS.logAnnounceInterval)));
 			}
 #ifdef PTPD_STATISTICS
 		if(!timerRunning(&ptpClock->timers[STATISTICS_UPDATE_TIMER])) {
@@ -1664,8 +1738,8 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			/* Reset Timer handling Announce receipt timeout: different domain my get here
 			  when using anyDomain.*/
 			timerStart(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER],
-			   (ptpClock->announceReceiptTimeout) *
-			   (pow(2,ptpClock->logAnnounceInterval)));
+			   (ptpClock->portDS.announceReceiptTimeout) *
+			   (pow(2,ptpClock->portDS.logAnnounceInterval)));
 
 		} else {
 			/*addForeign takes care of AnnounceUnpacking*/
@@ -1705,6 +1779,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 	   TimeInternal *tint, Boolean isFromSelf, Integer32 sourceAddress, Integer32 destinationAddress,
 	   const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
+
 	TimeInternal OriginTimestamp;
 	TimeInternal correctionField;
 
@@ -1734,7 +1809,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 	    }
 	}
 
-	switch (ptpClock->portState) {
+	switch (ptpClock->portDS.portState) {
 	case PTP_INITIALIZING:
 	case PTP_FAULTY:
 	case PTP_DISABLED:
@@ -1753,18 +1828,23 @@ handleSync(const MsgHeader *header, ssize_t length,
 
 		if (isFromCurrentParent(ptpClock, header)) {
 			ptpClock->counters.syncMessagesReceived++;
+			timerStart(&ptpClock->timers[SYNC_RECEIPT_TIMER], max(
+			    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
+			    MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logSyncInterval))
+			));
+
 			/* We only start our own delayReq timer after receiving the first sync */
 			if (ptpClock->syncWaiting) {
 				ptpClock->syncWaiting = FALSE;
 
 				NOTICE("Received first Sync from Master\n");
 
-				if (ptpClock->delayMechanism == E2E)
+				if (ptpClock->portDS.delayMechanism == E2E)
 					timerStart(&ptpClock->timers[DELAYREQ_INTERVAL_TIMER],
-						   pow(2,ptpClock->logMinDelayReqInterval));
-				else if (ptpClock->delayMechanism == P2P)
+						   pow(2,ptpClock->portDS.logMinDelayReqInterval));
+				else if (ptpClock->portDS.delayMechanism == P2P)
 					timerStart(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER],
-						   pow(2,ptpClock->logMinPdelayReqInterval));
+						   pow(2,ptpClock->portDS.logMinPdelayReqInterval));
 			} else if ( rtOpts->syncSequenceChecking ) {
 				if(  (ptpClock->counters.consecutiveSequenceErrors < MAX_SEQ_ERRORS) &&
 					((((UInteger16)(ptpClock->recvSyncSequenceId + 32768)) >
@@ -1790,12 +1870,12 @@ handleSync(const MsgHeader *header, ssize_t length,
 			    }
 			}
 
-			ptpClock->logSyncInterval = header->logMessageInterval;
+			ptpClock->portDS.logSyncInterval = header->logMessageInterval;
 
 			/* this will be 0x7F for unicast so if we have a grant, use the granted value */
 			if(rtOpts->unicastNegotiation && ptpClock->parentGrants
 				&& ptpClock->parentGrants->grantData[SYNC_INDEXED].granted) {
-				ptpClock->logSyncInterval =  ptpClock->parentGrants->grantData[SYNC_INDEXED].logInterval;
+				ptpClock->portDS.logSyncInterval =  ptpClock->parentGrants->grantData[SYNC_INDEXED].logInterval;
 			}
 			
 
@@ -1803,7 +1883,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 
 			if ((header->flagField0 & PTP_TWO_STEP) == PTP_TWO_STEP) {
 				DBG2("HandleSync: waiting for follow-up \n");
-				ptpClock->twoStepFlag=TRUE;
+				ptpClock->defaultDS.twoStepFlag=TRUE;
 				if(ptpClock->waitingForFollow) {
 				    ptpClock->followUpGap++;
 				    if(ptpClock->followUpGap < MAX_FOLLOWUP_GAP) {
@@ -1858,7 +1938,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 				}
 				ptpClock->offsetUpdates++;
 				
-				ptpClock->twoStepFlag=FALSE;
+				ptpClock->defaultDS.twoStepFlag=FALSE;
 				break;
 			}
 		} else {
@@ -1876,7 +1956,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 			/* we are the master, but another is sending */
 			ptpClock->counters.discardedMessages++;
 			break;
-		} if (ptpClock->twoStepFlag) {
+		} if (ptpClock->defaultDS.twoStepFlag) {
 			DBGV("HandleSync: going to send followup message\n");
 
 			/* who do we send the followUp to? no destination given - try looking up index */
@@ -1951,7 +2031,7 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 		return;
 	}
 
-	switch (ptpClock->portState)
+	switch (ptpClock->portDS.portState)
 	{
 	case PTP_INITIALIZING:
 	case PTP_FAULTY:
@@ -1965,11 +2045,11 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 	case PTP_SLAVE:
 		if (isFromCurrentParent(ptpClock, header)) {
 			ptpClock->counters.followUpMessagesReceived++;
-			ptpClock->logSyncInterval = header->logMessageInterval;
+			ptpClock->portDS.logSyncInterval = header->logMessageInterval;
 			/* this will be 0x7F for unicast so if we have a grant, use the granted value */
 			if(rtOpts->unicastNegotiation && ptpClock->parentGrants
 				&& ptpClock->parentGrants->grantData[SYNC_INDEXED].granted) {
-				ptpClock->logSyncInterval =  ptpClock->parentGrants->grantData[SYNC_INDEXED].logInterval;
+				ptpClock->portDS.logSyncInterval =  ptpClock->parentGrants->grantData[SYNC_INDEXED].logInterval;
 			}
 
 			if (ptpClock->waitingForFollow)	{
@@ -2047,7 +2127,7 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 
 	UnicastGrantTable *nodeTable = NULL;
 
-	if (ptpClock->delayMechanism == E2E) {
+	if (ptpClock->portDS.delayMechanism == E2E) {
 
 		if(!isFromSelf && rtOpts->unicastNegotiation && rtOpts->ipMode == IPMODE_UNICAST) {
 		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0,
@@ -2072,7 +2152,7 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 			return;
 		}
 
-		switch (ptpClock->portState) {
+		switch (ptpClock->portDS.portState) {
 		case PTP_INITIALIZING:
 		case PTP_FAULTY:
 		case PTP_DISABLED:
@@ -2135,7 +2215,7 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 			ptpClock->counters.discardedMessages++;
 			break;
 		}
-	} else if (ptpClock->delayMechanism == P2P) {/* (Peer to Peer mode) */
+	} else if (ptpClock->portDS.delayMechanism == P2P) {/* (Peer to Peer mode) */
 		DBG("Delay messages are ignored in Peer to Peer mode\n");
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.delayMechanismMismatchErrors++;
@@ -2172,7 +2252,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 		const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
-	if (ptpClock->delayMechanism == E2E) {
+	if (ptpClock->portDS.delayMechanism == E2E) {
 
 
 		TimeInternal requestReceiptTimestamp;
@@ -2198,7 +2278,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 			return;
 		}
 
-		switch(ptpClock->portState) {
+		switch(ptpClock->portDS.portState) {
 		case PTP_INITIALIZING:
 		case PTP_FAULTY:
 		case PTP_DISABLED:
@@ -2211,14 +2291,18 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 			msgUnpackDelayResp(ptpClock->msgIbuf,
 					   &ptpClock->msgTmp.resp);
 
-			if ((memcmp(ptpClock->portIdentity.clockIdentity,
+			if ((memcmp(ptpClock->portDS.portIdentity.clockIdentity,
 				    ptpClock->msgTmp.resp.requestingPortIdentity.clockIdentity,
 				    CLOCK_IDENTITY_LENGTH) == 0) &&
-			    (ptpClock->portIdentity.portNumber ==
+			    (ptpClock->portDS.portIdentity.portNumber ==
 			     ptpClock->msgTmp.resp.requestingPortIdentity.portNumber)
 			    && isFromCurrentParent(ptpClock, header)) {
 				DBG("==> Handle DelayResp (%d)\n",
 					 header->sequenceId);
+
+				timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+				    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
+					MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinDelayReqInterval))));
 
 				if (!ptpClock->waitingForDelayResp) {
 					DBG("Ignored DelayResp sequence %d - wasn't waiting for one\n",
@@ -2266,9 +2350,9 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 
 				if (rtOpts->ignore_delayreq_interval_master == 0) {
 					DBGV("current delay_req: %d  new delay req: %d \n",
-						ptpClock->logMinDelayReqInterval,
+						ptpClock->portDS.logMinDelayReqInterval,
 					header->logMessageInterval);
-                        	    if (ptpClock->logMinDelayReqInterval != header->logMessageInterval) {
+                        	    if (ptpClock->portDS.logMinDelayReqInterval != header->logMessageInterval) {
 			
                     			if(header->logMessageInterval == UNICAST_MESSAGEINTERVAL &&
 						rtOpts->autoDelayReqInterval) {
@@ -2278,35 +2362,39 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 							    NOTICE("Received Delay Interval %d from master\n",
 							    ptpClock->parentGrants->grantData[DELAY_RESP_INDEXED].logInterval);
 						    }
-						    ptpClock->logMinDelayReqInterval = ptpClock->parentGrants->grantData[DELAY_RESP_INDEXED].logInterval;
+						    ptpClock->portDS.logMinDelayReqInterval = ptpClock->parentGrants->grantData[DELAY_RESP_INDEXED].logInterval;
 						} else {
 
 						    if(ptpClock->delayRespWaiting) {
 							    NOTICE("Received Delay Interval %d from master (unicast-unknown) - overriding with %d\n",
 							    header->logMessageInterval, rtOpts->logMinDelayReqInterval);
 						    }
-						    ptpClock->logMinDelayReqInterval = rtOpts->logMinDelayReqInterval;
+						    ptpClock->portDS.logMinDelayReqInterval = rtOpts->logMinDelayReqInterval;
 
 						}	
 					} else {
 						/* Accept new DelayReq value from the Master */
 
 						    NOTICE("Received new Delay Request interval %d from Master (was: %d)\n",
-							     header->logMessageInterval, ptpClock->logMinDelayReqInterval );
+							     header->logMessageInterval, ptpClock->portDS.logMinDelayReqInterval );
 
 						    // collect new value indicated by the Master
-						    ptpClock->logMinDelayReqInterval = header->logMessageInterval;
+						    ptpClock->portDS.logMinDelayReqInterval = header->logMessageInterval;
 						}
 					/* FIXME: the actual rearming of this timer with the new value only happens later in doState()/issueDelayReq() */
 				    }
 				} else {
 
-					if (ptpClock->logMinDelayReqInterval != rtOpts->logMinDelayReqInterval) {
+					if (ptpClock->portDS.logMinDelayReqInterval != rtOpts->logMinDelayReqInterval) {
 						INFO("New Delay Request interval applied: %d (was: %d)\n",
-							rtOpts->logMinDelayReqInterval, ptpClock->logMinDelayReqInterval);
+							rtOpts->logMinDelayReqInterval, ptpClock->portDS.logMinDelayReqInterval);
 					}
-					ptpClock->logMinDelayReqInterval = rtOpts->logMinDelayReqInterval;
+					ptpClock->portDS.logMinDelayReqInterval = rtOpts->logMinDelayReqInterval;
 				}
+				/* arm the timer again now that we have the correct delayreq interval */
+				timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+				    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
+					MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinDelayReqInterval))));
 			} else {
 
 				DBG("HandledelayResp : delayResp doesn't match with the delayReq. \n");
@@ -2316,7 +2404,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 			
 			ptpClock->delayRespWaiting = FALSE;
 		}
-	} else if (ptpClock->delayMechanism == P2P) { /* (Peer to Peer mode) */
+	} else if (ptpClock->portDS.delayMechanism == P2P) { /* (Peer to Peer mode) */
 		DBG("Delay messages are disregarded in Peer to Peer mode \n");
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.delayMechanismMismatchErrors++;
@@ -2337,7 +2425,7 @@ handlePdelayReq(MsgHeader *header, ssize_t length,
 
 	UnicastGrantTable *nodeTable = NULL;
 
-	if (ptpClock->delayMechanism == P2P) {
+	if (ptpClock->portDS.delayMechanism == P2P) {
 
 		if(!isFromSelf && rtOpts->unicastNegotiation && rtOpts->ipMode == IPMODE_UNICAST) {
 		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0,
@@ -2361,7 +2449,7 @@ handlePdelayReq(MsgHeader *header, ssize_t length,
 			return;
 		}
 
-		switch (ptpClock->portState ) {
+		switch (ptpClock->portDS.portState ) {
 		case PTP_INITIALIZING:
 		case PTP_FAULTY:
 		case PTP_DISABLED:
@@ -2391,7 +2479,7 @@ handlePdelayReq(MsgHeader *header, ssize_t length,
 			ptpClock->counters.discardedMessages++;
 			break;
 		}
-	} else if (ptpClock->delayMechanism == E2E){/* (End to End mode..) */
+	} else if (ptpClock->portDS.delayMechanism == E2E){/* (End to End mode..) */
 		DBG("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 		ptpClock->counters.discardedMessages++;
@@ -2423,7 +2511,7 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 		 ssize_t length, Boolean isFromSelf, Integer32 sourceAddress, Integer32 destinationAddress,
 		 const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	if (ptpClock->delayMechanism == P2P) {
+	if (ptpClock->portDS.delayMechanism == P2P) {
 
 		Integer32 dst = 0;
 
@@ -2447,7 +2535,7 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 			return;
 		}
 
-		switch (ptpClock->portState ) {
+		switch (ptpClock->portDS.portState ) {
 		case PTP_INITIALIZING:
 		case PTP_FAULTY:
 		case PTP_DISABLED:
@@ -2459,7 +2547,7 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 
 		case PTP_SLAVE:
 		case PTP_MASTER:
-			if (ptpClock->twoStepFlag && isFromSelf) {
+			if (ptpClock->defaultDS.twoStepFlag && isFromSelf) {
 				processPdelayRespFromSelf(tint, rtOpts, ptpClock, dst, header->sequenceId);
 				break;
 			}
@@ -2475,8 +2563,8 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 				    ptpClock->counters.sequenceMismatchErrors++;
 				    break;
 			}
-			if ((!memcmp(ptpClock->portIdentity.clockIdentity,ptpClock->msgTmp.presp.requestingPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH))
-				 && ( ptpClock->portIdentity.portNumber == ptpClock->msgTmp.presp.requestingPortIdentity.portNumber))	{
+			if ((!memcmp(ptpClock->portDS.portIdentity.clockIdentity,ptpClock->msgTmp.presp.requestingPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH))
+				 && ( ptpClock->portDS.portIdentity.portNumber == ptpClock->msgTmp.presp.requestingPortIdentity.portNumber))	{
 				ptpClock->counters.pdelayRespMessagesReceived++;
                                 /* Two Step Clock */
 				if ((header->flagField0 & PTP_TWO_STEP) == PTP_TWO_STEP) {
@@ -2502,9 +2590,9 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 					updatePeerDelay (&ptpClock->mpd_filt,rtOpts,ptpClock,&correctionField,FALSE);
 				if (rtOpts->ignore_delayreq_interval_master == 0) {
 					DBGV("current pdelay_req: %d  new pdelay req: %d \n",
-						ptpClock->logMinPdelayReqInterval,
+						ptpClock->portDS.logMinPdelayReqInterval,
 					header->logMessageInterval);
-                        	    if (ptpClock->logMinPdelayReqInterval != header->logMessageInterval) {
+                        	    if (ptpClock->portDS.logMinPdelayReqInterval != header->logMessageInterval) {
 			
                     			if(header->logMessageInterval == UNICAST_MESSAGEINTERVAL &&
 						rtOpts->autoDelayReqInterval) {
@@ -2514,36 +2602,39 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 							    NOTICE("Received Peer Delay Interval %d from peer\n",
 							    ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].logInterval);
 						    }
-						    ptpClock->logMinPdelayReqInterval = ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].logInterval;
+						    ptpClock->portDS.logMinPdelayReqInterval = ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].logInterval;
 						} else {
 
 						    if(ptpClock->delayRespWaiting) {
 							    NOTICE("Received Peer Delay Interval %d from peer (unicast-unknown) - overriding with %d\n",
 							    header->logMessageInterval, rtOpts->logMinPdelayReqInterval);
 						    }
-						    ptpClock->logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
+						    ptpClock->portDS.logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
 
 						}	
 					} else {
 						/* Accept new DelayReq value from the Master */
 
 						    NOTICE("Received new Peer Delay Request interval %d from Master (was: %d)\n",
-							     header->logMessageInterval, ptpClock->logMinPdelayReqInterval );
+							     header->logMessageInterval, ptpClock->portDS.logMinPdelayReqInterval );
 
 						    // collect new value indicated by the Master
-						    ptpClock->logMinPdelayReqInterval = header->logMessageInterval;
+						    ptpClock->portDS.logMinPdelayReqInterval = header->logMessageInterval;
 				    }
 				} else {
 
-					if (ptpClock->logMinPdelayReqInterval != rtOpts->logMinPdelayReqInterval) {
+					if (ptpClock->portDS.logMinPdelayReqInterval != rtOpts->logMinPdelayReqInterval) {
 						INFO("New Peer Delay Request interval applied: %d (was: %d)\n",
-							rtOpts->logMinPdelayReqInterval, ptpClock->logMinPdelayReqInterval);
+							rtOpts->logMinPdelayReqInterval, ptpClock->portDS.logMinPdelayReqInterval);
 					}
-					ptpClock->logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
+					ptpClock->portDS.logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
 				}
 				
 				}
 	                    		ptpClock->delayRespWaiting = FALSE;
+					timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+					    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
+						MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinPdelayReqInterval))));
 				}
 
 				ptpClock->recvPdelayRespSequenceId = header->sequenceId;
@@ -2560,7 +2651,7 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 			ptpClock->counters.discardedMessages++;
 			break;
 		}
-	} else if (ptpClock->delayMechanism == E2E) { /* (End to End mode..) */
+	} else if (ptpClock->portDS.delayMechanism == E2E) { /* (End to End mode..) */
 		DBG("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 		ptpClock->counters.discardedMessages++;
@@ -2589,7 +2680,7 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 			 PtpClock *ptpClock)
 {
 
-	if (ptpClock->delayMechanism == P2P) {
+	if (ptpClock->portDS.delayMechanism == P2P) {
 		TimeInternal responseOriginTimestamp;
 		TimeInternal correctionField;
 	
@@ -2601,7 +2692,7 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 			return;
 		}	
 	
-		switch(ptpClock->portState) {
+		switch(ptpClock->portDS.portState) {
 		case PTP_INITIALIZING:
 		case PTP_FAULTY:
 		case PTP_DISABLED:
@@ -2641,9 +2732,9 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 /* pdelay interval handling begin */
 				if (rtOpts->ignore_delayreq_interval_master == 0) {
 					DBGV("current delay_req: %d  new delay req: %d \n",
-						ptpClock->logMinPdelayReqInterval,
+						ptpClock->portDS.logMinPdelayReqInterval,
 					header->logMessageInterval);
-                        	    if (ptpClock->logMinPdelayReqInterval != header->logMessageInterval) {
+                        	    if (ptpClock->portDS.logMinPdelayReqInterval != header->logMessageInterval) {
 			
                     			if(header->logMessageInterval == UNICAST_MESSAGEINTERVAL &&
 						rtOpts->autoDelayReqInterval) {
@@ -2653,37 +2744,41 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 							    NOTICE("Received Peer Delay Interval %d from peer\n",
 							    ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].logInterval);
 						    }
-						    ptpClock->logMinPdelayReqInterval = ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].logInterval;
+						    ptpClock->portDS.logMinPdelayReqInterval = ptpClock->peerGrants.grantData[PDELAY_RESP_INDEXED].logInterval;
 						} else {
 
 						    if(ptpClock->delayRespWaiting) {
 							    NOTICE("Received Peer Delay Interval %d from peer (unicast-unknown) - overriding with %d\n",
 							    header->logMessageInterval, rtOpts->logMinPdelayReqInterval);
 						    }
-						    ptpClock->logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
+						    ptpClock->portDS.logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
 
 						}	
 					} else {
 						/* Accept new DelayReq value from the Master */
 
 						    NOTICE("Received new Peer Delay Request interval %d from Master (was: %d)\n",
-							     header->logMessageInterval, ptpClock->logMinPdelayReqInterval );
+							     header->logMessageInterval, ptpClock->portDS.logMinPdelayReqInterval );
 
 						    // collect new value indicated by the Master
-						    ptpClock->logMinPdelayReqInterval = header->logMessageInterval;
+						    ptpClock->portDS.logMinPdelayReqInterval = header->logMessageInterval;
 				    }
 				} else {
 
-					if (ptpClock->logMinPdelayReqInterval != rtOpts->logMinPdelayReqInterval) {
+					if (ptpClock->portDS.logMinPdelayReqInterval != rtOpts->logMinPdelayReqInterval) {
 						INFO("New Peer Delay Request interval applied: %d (was: %d)\n",
-							rtOpts->logMinPdelayReqInterval, ptpClock->logMinPdelayReqInterval);
+							rtOpts->logMinPdelayReqInterval, ptpClock->portDS.logMinPdelayReqInterval);
 					}
-					ptpClock->logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
+					ptpClock->portDS.logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
 				}
 
 /* pdelay interval handling end */
 			}
                     		ptpClock->delayRespWaiting = FALSE;	
+				timerStart(&ptpClock->timers[DELAY_RECEIPT_TIMER], max(
+					(ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
+					MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinPdelayReqInterval))));
+
 				break;
 			} else {
 				DBG("PdelayRespFollowup: sequence mismatch - Received: %d "
@@ -2698,7 +2793,7 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 			DBGV("Disregard PdelayRespFollowUp message  \n");
 			ptpClock->counters.discardedMessages++;
 		}
-	} else if (ptpClock->delayMechanism == E2E) { /* (End to End mode..) */
+	} else if (ptpClock->portDS.delayMechanism == E2E) { /* (End to End mode..) */
 		DBG("Peer Delay messages are disregarded in End to End "
 		      "mode \n");
 		ptpClock->counters.discardedMessages++;
@@ -2768,8 +2863,8 @@ issueAnnounce(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		for(i = 0; i < UNICAST_MAX_DESTINATIONS; i++) {
 		    grant = &(ptpClock->unicastGrants[i].grantData[ANNOUNCE_INDEXED]);
 		    okToSend = TRUE;
-		    if(grant->logInterval > ptpClock->logAnnounceInterval ) {
-			grant->intervalCounter %= (UInteger32)(pow(2,grant->logInterval - ptpClock->logAnnounceInterval));
+		    if(grant->logInterval > ptpClock->portDS.logAnnounceInterval ) {
+			grant->intervalCounter %= (UInteger32)(pow(2,grant->logInterval - ptpClock->portDS.logAnnounceInterval));
 			if(grant->intervalCounter != 0) {
 			    okToSend = FALSE;
 			}
@@ -2839,8 +2934,8 @@ issueSync(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		    grant = &(ptpClock->unicastGrants[i].grantData[SYNC_INDEXED]);
 		    okToSend = TRUE;
 		    /* handle different intervals */
-		    if(grant->logInterval > ptpClock->logSyncInterval ) {
-			grant->intervalCounter %= (UInteger32)(pow(2,grant->logInterval - ptpClock->logSyncInterval));
+		    if(grant->logInterval > ptpClock->portDS.logSyncInterval ) {
+			grant->intervalCounter %= (UInteger32)(pow(2,grant->logInterval - ptpClock->portDS.logSyncInterval));
 			if(grant->intervalCounter != 0) {
 			    okToSend = FALSE;
 			}
@@ -3066,7 +3161,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		 */
 
 		timerStart(&ptpClock->timers[DELAYREQ_INTERVAL_TIMER],
-		   pow(2,ptpClock->logMinDelayReqInterval) * getRand() * 2.0);
+		   pow(2,ptpClock->portDS.logMinDelayReqInterval) * getRand() * 2.0);
 #if 0 /* PCAP ONLY */
 		msgUnpackHeader(ptpClock->msgObuf, &ourDelayReq);
 		handleDelayReq(&ourDelayReq, DELAY_REQ_LENGTH, &internalTime,
@@ -3321,86 +3416,86 @@ updateDatasets(PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 	memset(ptpClock->userDescription, 0, sizeof(ptpClock->userDescription));
 	memcpy(ptpClock->userDescription, rtOpts->portDescription, strlen(rtOpts->portDescription));
 
-	switch(ptpClock->portState) {
+	switch(ptpClock->portDS.portState) {
 
 		/* We are master so update both the port and the parent dataset */
 		case PTP_MASTER:
 
 			if(rtOpts->dot1AS) {
-			    ptpClock->transportSpecific = TSP_ETHERNET_AVB;
+			    ptpClock->portDS.transportSpecific = TSP_ETHERNET_AVB;
 			} else {
-			    ptpClock->transportSpecific = TSP_DEFAULT;
+			    ptpClock->portDS.transportSpecific = TSP_DEFAULT;
 			}
 
-			ptpClock->numberPorts = NUMBER_PORTS;
-			ptpClock->portIdentity.portNumber = rtOpts->portNumber;
+			ptpClock->defaultDS.numberPorts = NUMBER_PORTS;
+			ptpClock->portDS.portIdentity.portNumber = rtOpts->portNumber;
 
-			ptpClock->delayMechanism = rtOpts->delayMechanism;
-			ptpClock->versionNumber = VERSION_PTP;
+			ptpClock->portDS.delayMechanism = rtOpts->delayMechanism;
+			ptpClock->portDS.versionNumber = VERSION_PTP;
 
-			ptpClock->clockQuality.clockAccuracy =
+			ptpClock->defaultDS.clockQuality.clockAccuracy =
 				rtOpts->clockQuality.clockAccuracy;
-			ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
-			ptpClock->clockQuality.offsetScaledLogVariance =
+			ptpClock->defaultDS.clockQuality.clockClass = rtOpts->clockQuality.clockClass;
+			ptpClock->defaultDS.clockQuality.offsetScaledLogVariance =
 				rtOpts->clockQuality.offsetScaledLogVariance;
-			ptpClock->priority1 = rtOpts->priority1;
-			ptpClock->priority2 = rtOpts->priority2;
+			ptpClock->defaultDS.priority1 = rtOpts->priority1;
+			ptpClock->defaultDS.priority2 = rtOpts->priority2;
 
-			ptpClock->grandmasterClockQuality.clockAccuracy =
-				ptpClock->clockQuality.clockAccuracy;
-			ptpClock->grandmasterClockQuality.clockClass =
-				ptpClock->clockQuality.clockClass;
-			ptpClock->grandmasterClockQuality.offsetScaledLogVariance =
-				ptpClock->clockQuality.offsetScaledLogVariance;
-			ptpClock->clockQuality.clockAccuracy =
-			ptpClock->grandmasterPriority1 = ptpClock->priority1;
-			ptpClock->grandmasterPriority2 = ptpClock->priority2;
+			ptpClock->parentDS.grandmasterClockQuality.clockAccuracy =
+				ptpClock->defaultDS.clockQuality.clockAccuracy;
+			ptpClock->parentDS.grandmasterClockQuality.clockClass =
+				ptpClock->defaultDS.clockQuality.clockClass;
+			ptpClock->parentDS.grandmasterClockQuality.offsetScaledLogVariance =
+				ptpClock->defaultDS.clockQuality.offsetScaledLogVariance;
+			ptpClock->defaultDS.clockQuality.clockAccuracy =
+			ptpClock->parentDS.grandmasterPriority1 = ptpClock->defaultDS.priority1;
+			ptpClock->parentDS.grandmasterPriority2 = ptpClock->defaultDS.priority2;
 			ptpClock->timePropertiesDS.currentUtcOffsetValid = rtOpts->timeProperties.currentUtcOffsetValid;
 			ptpClock->timePropertiesDS.currentUtcOffset = rtOpts->timeProperties.currentUtcOffset;
 			ptpClock->timePropertiesDS.timeTraceable = rtOpts->timeProperties.timeTraceable;
 			ptpClock->timePropertiesDS.frequencyTraceable = rtOpts->timeProperties.frequencyTraceable;
 			ptpClock->timePropertiesDS.ptpTimescale = rtOpts->timeProperties.ptpTimescale;
 			ptpClock->timePropertiesDS.timeSource = rtOpts->timeProperties.timeSource;
-			ptpClock->logAnnounceInterval = rtOpts->logAnnounceInterval;
-			ptpClock->announceReceiptTimeout = rtOpts->announceReceiptTimeout;
-			ptpClock->logSyncInterval = rtOpts->logSyncInterval;
-			ptpClock->logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
-			ptpClock->logMinDelayReqInterval = rtOpts->initial_delayreq;
+			ptpClock->portDS.logAnnounceInterval = rtOpts->logAnnounceInterval;
+			ptpClock->portDS.announceReceiptTimeout = rtOpts->announceReceiptTimeout;
+			ptpClock->portDS.logSyncInterval = rtOpts->logSyncInterval;
+			ptpClock->portDS.logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
+			ptpClock->portDS.logMinDelayReqInterval = rtOpts->initial_delayreq;
 			break;
 		/*
 		 * we are not master so update the port dataset only - parent will be updated
 		 * by m1() if we go master - basically update the fields affecting BMC only
 		 */
 		case PTP_SLAVE:
-                    	if(ptpClock->logMinDelayReqInterval == UNICAST_MESSAGEINTERVAL &&
+                    	if(ptpClock->portDS.logMinDelayReqInterval == UNICAST_MESSAGEINTERVAL &&
 				rtOpts->autoDelayReqInterval) {
 					NOTICE("Running at %d Delay Interval (unicast) - overriding with %d\n",
-					ptpClock->logMinDelayReqInterval, rtOpts->logMinDelayReqInterval);
-					ptpClock->logMinDelayReqInterval = rtOpts->logMinDelayReqInterval;
+					ptpClock->portDS.logMinDelayReqInterval, rtOpts->logMinDelayReqInterval);
+					ptpClock->portDS.logMinDelayReqInterval = rtOpts->logMinDelayReqInterval;
 				}
 		case PTP_PASSIVE:
-			ptpClock->numberPorts = NUMBER_PORTS;
-			ptpClock->portIdentity.portNumber = rtOpts->portNumber;
+			ptpClock->defaultDS.numberPorts = NUMBER_PORTS;
+			ptpClock->portDS.portIdentity.portNumber = rtOpts->portNumber;
 
 			if(rtOpts->dot1AS) {
-			    ptpClock->transportSpecific = TSP_ETHERNET_AVB;
+			    ptpClock->portDS.transportSpecific = TSP_ETHERNET_AVB;
 			} else {
-			    ptpClock->transportSpecific = TSP_DEFAULT;
+			    ptpClock->portDS.transportSpecific = TSP_DEFAULT;
 			}
 
-			ptpClock->delayMechanism = rtOpts->delayMechanism;
-			ptpClock->versionNumber = VERSION_PTP;
-			ptpClock->clockQuality.clockAccuracy =
+			ptpClock->portDS.delayMechanism = rtOpts->delayMechanism;
+			ptpClock->portDS.versionNumber = VERSION_PTP;
+			ptpClock->defaultDS.clockQuality.clockAccuracy =
 				rtOpts->clockQuality.clockAccuracy;
-			ptpClock->clockQuality.clockClass = rtOpts->clockQuality.clockClass;
-			ptpClock->clockQuality.offsetScaledLogVariance =
+			ptpClock->defaultDS.clockQuality.clockClass = rtOpts->clockQuality.clockClass;
+			ptpClock->defaultDS.clockQuality.offsetScaledLogVariance =
 				rtOpts->clockQuality.offsetScaledLogVariance;
-			ptpClock->priority1 = rtOpts->priority1;
-			ptpClock->priority2 = rtOpts->priority2;
+			ptpClock->defaultDS.priority1 = rtOpts->priority1;
+			ptpClock->defaultDS.priority2 = rtOpts->priority2;
 			break;
 		/* in DISABLED state we still listen for management messages */
 		case PTP_DISABLED:
-			ptpClock->versionNumber = VERSION_PTP;
+			ptpClock->portDS.versionNumber = VERSION_PTP;
 		default:
 		/* In all other states the datasets will be updated when going into an operational state */
 		    break;

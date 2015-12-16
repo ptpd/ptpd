@@ -276,7 +276,7 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 
 		}
 	    /* otherwise we try using the kernel info, but not when we're slave */
-	    } else if(ptpClock->portState != PTP_SLAVE) {
+	    } else if(ptpClock->portDS.portState != PTP_SLAVE) {
 		    ptpClock->clockStatus.leapInsert = leapInsert;
 		    ptpClock->clockStatus.leapDelete = leapDelete;
 	    }
@@ -302,8 +302,8 @@ ptpServiceUpdate (TimingService* service)
 	}
 
 	/* read current UTC offset from leap file or from kernel if not configured */
-	if(ptpClock->timePropertiesDS.ptpTimescale && ( ptpClock->portState == PTP_SLAVE ||
-	    (ptpClock->portState == PTP_MASTER && rtOpts->timeProperties.currentUtcOffset == 0))) {
+	if(ptpClock->timePropertiesDS.ptpTimescale && ( ptpClock->portDS.portState == PTP_SLAVE ||
+	    (ptpClock->portDS.portState == PTP_MASTER && rtOpts->timeProperties.currentUtcOffset == 0))) {
 		prepareLeapFlags(rtOpts, ptpClock);
 	}
 
@@ -329,8 +329,8 @@ ptpServiceUpdate (TimingService* service)
 	}
 
 	/* initializing or faulty: not operational */
-	if((ptpClock->portState == PTP_INITIALIZING) ||
-	    (ptpClock->portState == PTP_FAULTY)) {
+	if((ptpClock->portDS.portState == PTP_INITIALIZING) ||
+	    (ptpClock->portDS.portState == PTP_FAULTY)) {
 		FLAGS_UNSET(service->flags, TIMINGSERVICE_OPERATIONAL);
 	} else {
 		FLAGS_SET(service->flags, TIMINGSERVICE_OPERATIONAL);
@@ -338,7 +338,7 @@ ptpServiceUpdate (TimingService* service)
 	}
 
 	/* not slave: release control or start hold timer */
-	if(ptpClock->portState != PTP_SLAVE) {
+	if(ptpClock->portDS.portState != PTP_SLAVE) {
 		FLAGS_UNSET(service->flags, TIMINGSERVICE_IDLE);
 		if(service->flags & TIMINGSERVICE_HOLD) {
 		    if((service->holdTimeLeft)<=0) {
@@ -473,7 +473,7 @@ ptpServiceClockUpdate (TimingService* service)
 #endif /* HAVE_SYS_TIMEX_H */
 
 	getTime(&oldTime);
-	subTime(&newTime, &oldTime, &ptpClock->offsetFromMaster);
+	subTime(&newTime, &oldTime, &ptpClock->currentDS.offsetFromMaster);
 
 	/* Major time change */
 	if(clockStatus->majorChange){

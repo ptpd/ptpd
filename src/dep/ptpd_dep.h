@@ -388,7 +388,10 @@ Boolean hostLookup(const char* hostname, Integer32* addr);
 
 void snmpInit(RunTimeOpts *, PtpClock *);
 void snmpShutdown();
-void sendNotif(int eventType);
+void eventHandler_snmp(AlarmEntry *alarm);
+void alarmHandler_snmp(AlarmEntry *alarm);
+
+//void sendNotif(int eventType, PtpEventData *eventData);
 
 
 /** \}*/

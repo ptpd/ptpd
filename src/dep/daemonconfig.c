@@ -1576,8 +1576,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_FILTERS, &rtOpts->oFilterSMConfig.autoTune, rtOpts->oFilterSMConfig.autoTune,
 		"Enable automatic threshold control for Delay Response outlier filter.");
 
-
-
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:delay_outlier_filter_autotune_minpercent",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->oFilterSMConfig.minPercent, rtOpts->oFilterSMConfig.minPercent,
 		"Delay Response outlier filter autotune low watermark - minimum percentage\n"
@@ -1755,7 +1753,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:offset_alarm_threshold", PTPD_UPDATE_DATASETS, INTTYPE_U32, &rtOpts->ofmAlarmThreshold, rtOpts->ofmAlarmThreshold,
 		 "PTP slave offset from master threshold (nanoseconds - absolute value)\n"
 	"	 When offset exceeds this value, an alarm is raised (also SNMP trap if configured).\n"
-	"	 0 = disabled.", RANGECHECK_NONE,0,0);
+	"	 0 = disabled.", RANGECHECK_NONE,0,NANOSECONDS_MAX);
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:panic_mode",
 		PTPD_RESTART_NONE, &rtOpts->enablePanicMode, rtOpts->enablePanicMode,

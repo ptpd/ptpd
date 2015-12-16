@@ -65,6 +65,8 @@ enum {
   ANNOUNCE_RECEIPT_TIMER,/**<\brief Timer handling announce receipt timeout*/
   ANNOUNCE_INTERVAL_TIMER, /**<\brief Timer handling interval before master sends two announce messages*/
   /* non-spec timers */
+  SYNC_RECEIPT_TIMER,
+  DELAY_RECEIPT_TIMER,
   UNICAST_GRANT_TIMER, /* used to age out unicast grants (sent, received) */
   OPERATOR_MESSAGES_TIMER,  /* used to limit the operator messages */
   LEAP_SECOND_PAUSE_TIMER, /* timer used for pausing updates when leap second is imminent */
@@ -74,6 +76,7 @@ enum {
 #ifdef PTPD_STATISTICS
   STATISTICS_UPDATE_TIMER, /* online mean / std dev updare interval (non-moving statistics) */
 #endif /* PTPD_STATISTICS */
+  ALARM_UPDATE_TIMER,
   MASTER_NETREFRESH_TIMER,
   CALIBRATION_DELAY_TIMER,
   CLOCK_UPDATE_TIMER,

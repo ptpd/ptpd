@@ -580,14 +580,14 @@ displayDefault(const PtpClock * ptpClock)
 {
 	DBGV("---Ptp Clock Default Data Set-- \n");
 	DBGV("\n");
-	DBGV("twoStepFlag : %d \n", ptpClock->twoStepFlag);
-	clockIdentity_display(ptpClock->clockIdentity);
-	DBGV("numberPorts : %d \n", ptpClock->numberPorts);
-	clockQuality_display(&(ptpClock->clockQuality));
-	DBGV("priority1 : %d \n", ptpClock->priority1);
-	DBGV("priority2 : %d \n", ptpClock->priority2);
-	DBGV("domainNumber : %d \n", ptpClock->domainNumber);
-	DBGV("slaveOnly : %d \n", ptpClock->slaveOnly);
+	DBGV("twoStepFlag : %d \n", ptpClock->defaultDS.twoStepFlag);
+	clockIdentity_display(ptpClock->defaultDS.clockIdentity);
+	DBGV("numberPorts : %d \n", ptpClock->defaultDS.numberPorts);
+	clockQuality_display(&(ptpClock->defaultDS.clockQuality));
+	DBGV("priority1 : %d \n", ptpClock->defaultDS.priority1);
+	DBGV("priority2 : %d \n", ptpClock->defaultDS.priority2);
+	DBGV("domainNumber : %d \n", ptpClock->defaultDS.domainNumber);
+	DBGV("slaveOnly : %d \n", ptpClock->defaultDS.slaveOnly);
 	DBGV("\n");
 }
 
@@ -599,11 +599,11 @@ displayCurrent(const PtpClock * ptpClock)
 	DBGV("---Ptp Clock Current Data Set-- \n");
 	DBGV("\n");
 
-	DBGV("stepsremoved : %d \n", ptpClock->stepsRemoved);
+	DBGV("stepsremoved : %d \n", ptpClock->currentDS.stepsRemoved);
 	DBGV("Offset from master : \n");
-	timeInternal_display(&ptpClock->offsetFromMaster);
+	timeInternal_display(&ptpClock->currentDS.offsetFromMaster);
 	DBGV("Mean path delay : \n");
-	timeInternal_display(&ptpClock->meanPathDelay);
+	timeInternal_display(&ptpClock->currentDS.meanPathDelay);
 	DBGV("\n");
 }
 
@@ -615,15 +615,15 @@ displayParent(const PtpClock * ptpClock)
 {
 	DBGV("---Ptp Clock Parent Data Set-- \n");
 	DBGV("\n");
-	portIdentity_display(&(ptpClock->parentPortIdentity));
-	DBGV("parentStats : %d \n", ptpClock->parentStats);
-	DBGV("observedParentOffsetScaledLogVariance : %d \n", ptpClock->observedParentOffsetScaledLogVariance);
-	DBGV("observedParentClockPhaseChangeRate : %d \n", ptpClock->observedParentClockPhaseChangeRate);
+	portIdentity_display(&(ptpClock->parentDS.parentPortIdentity));
+	DBGV("parentStats : %d \n", ptpClock->parentDS.parentStats);
+	DBGV("observedParentOffsetScaledLogVariance : %d \n", ptpClock->parentDS.observedParentOffsetScaledLogVariance);
+	DBGV("observedParentClockPhaseChangeRate : %d \n", ptpClock->parentDS.observedParentClockPhaseChangeRate);
 	DBGV("--GrandMaster--\n");
-	clockIdentity_display(ptpClock->grandmasterIdentity);
-	clockQuality_display(&ptpClock->grandmasterClockQuality);
-	DBGV("grandmasterpriority1 : %d \n", ptpClock->grandmasterPriority1);
-	DBGV("grandmasterpriority2 : %d \n", ptpClock->grandmasterPriority2);
+	clockIdentity_display(ptpClock->parentDS.grandmasterIdentity);
+	clockQuality_display(&ptpClock->parentDS.grandmasterClockQuality);
+	DBGV("grandmasterpriority1 : %d \n", ptpClock->parentDS.grandmasterPriority1);
+	DBGV("grandmasterpriority2 : %d \n", ptpClock->parentDS.grandmasterPriority2);
 	DBGV("\n");
 }
 
@@ -652,17 +652,17 @@ displayPort(const PtpClock * ptpClock)
 	DBGV("---Ptp Clock Port Data Set-- \n");
 	DBGV("\n");
 
-	portIdentity_display(&ptpClock->portIdentity);
-	DBGV("port state : %d \n", ptpClock->portState);
-	DBGV("logMinDelayReqInterval : %d \n", ptpClock->logMinDelayReqInterval);
+	portIdentity_display(&ptpClock->portDS.portIdentity);
+	DBGV("port state : %d \n", ptpClock->portDS.portState);
+	DBGV("logMinDelayReqInterval : %d \n", ptpClock->portDS.logMinDelayReqInterval);
 	DBGV("peerMeanPathDelay : \n");
-	timeInternal_display(&ptpClock->peerMeanPathDelay);
-	DBGV("logAnnounceInterval : %d \n", ptpClock->logAnnounceInterval);
-	DBGV("announceReceiptTimeout : %d \n", ptpClock->announceReceiptTimeout);
-	DBGV("logSyncInterval : %d \n", ptpClock->logSyncInterval);
-	DBGV("delayMechanism : %d \n", ptpClock->delayMechanism);
-	DBGV("logMinPdelayReqInterval : %d \n", ptpClock->logMinPdelayReqInterval);
-	DBGV("versionNumber : %d \n", ptpClock->versionNumber);
+	timeInternal_display(&ptpClock->portDS.peerMeanPathDelay);
+	DBGV("logAnnounceInterval : %d \n", ptpClock->portDS.logAnnounceInterval);
+	DBGV("announceReceiptTimeout : %d \n", ptpClock->portDS.announceReceiptTimeout);
+	DBGV("logSyncInterval : %d \n", ptpClock->portDS.logSyncInterval);
+	DBGV("delayMechanism : %d \n", ptpClock->portDS.delayMechanism);
+	DBGV("logMinPdelayReqInterval : %d \n", ptpClock->portDS.logMinPdelayReqInterval);
+	DBGV("versionNumber : %d \n", ptpClock->portDS.versionNumber);
 	DBGV("\n");
 }
 

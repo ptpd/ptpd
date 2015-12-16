@@ -26,6 +26,8 @@ ptpd2_SOURCES =				\
 	arith.c				\
 	bmc.c				\
 	constants.h			\
+	ptp_primitives.h		\
+	ptp_datatypes.h			\
 	datatypes.h			\
 	dep/constants_dep.h		\
 	dep/datatypes_dep.h		\
@@ -59,6 +61,8 @@ ptpd2_SOURCES =				\
 	dep/ntpengine/ntpdcontrol.h	\
 	timingdomain.h			\
 	timingdomain.c			\
+	dep/alarms.h			\
+	dep/alarms.c			\
 	ptpd.c				\
 	ptpd.h				\
 	$(NULL)
