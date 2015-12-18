@@ -2075,14 +2075,37 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 /* ===== global section ===== */
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "global:enable_alarms",
+	    PTPD_RESTART_ALARMS, &rtOpts->alarmsEnabled, rtOpts->alarmsEnabled,
+		 "Enable support for alarm and event notifications.\n");
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "global:alarm_timeout",
+		PTPD_RESTART_ALARMS, INTTYPE_INT, &rtOpts->alarmMinAge, rtOpts->alarmMinAge,
+		"Mininmum alarm age (seconds) - minimal time between alarm set and clear notifications.\n"
+	"	 The condition can clear while alarm lasts, but notification (log or SNMP) will only \n"
+	"	 be triggered after the timeout. This option prevents from alarms flapping.", RANGECHECK_RANGE, 0, 3600);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "global:alarm_initial_delay",
+		PTPD_RESTART_DAEMON, INTTYPE_INT, &rtOpts->alarmInitialDelay, rtOpts->alarmInitialDelay,
+		"Delay the start of alarm processing (seconds) after ptpd startup. This option \n"
+	"	 allows to avoid unnecessary alarms before PTPd starts synchronising.\n",
+	RANGECHECK_RANGE, 0, 3600);
+
 #ifdef PTPD_SNMP
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "global:enable_snmp",
-		PTPD_RESTART_DAEMON, &rtOpts->snmp_enabled, rtOpts->snmp_enabled,
+		PTPD_RESTART_DAEMON, &rtOpts->snmpEnabled, rtOpts->snmpEnabled,
 	"Enable SNMP agent (if compiled with PTPD_SNMP).");
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "global:enable_snmp_traps",
+	    PTPD_RESTART_ALARMS, &rtOpts->snmpTrapsEnabled, rtOpts->snmpTrapsEnabled,
+		 "Enable sending SNMP traps (only if global:enable_alarms set and global:enable_snmp set).\n");
 #else
 	if(!(opCode & CFGOP_PARSE_QUIET) && CONFIG_ISTRUE("global:enable_snmp"))
 	    INFO("SNMP support not enabled. Please compile with PTPD_SNMP to use global:enable_snmp\n");
+	if(!(opCode & CFGOP_PARSE_QUIET) && CONFIG_ISTRUE("global:enable_snmp_traps"))
+	    INFO("SNMP support not enabled. Please compile with PTPD_SNMP to use global:enable_snmp_traps\n");
 #endif /* PTPD_SNMP */
+
+
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "global:use_syslog",
 		PTPD_RESTART_LOGGING, &rtOpts->useSysLog, rtOpts->useSysLog,

@@ -103,6 +103,7 @@ enum {
     PTPBASE_CLOCK_PORT_DS_GRANT_DURATION,
     PTPBASE_CLOCK_PORT_DS_PTP_VERSION,
     PTPBASE_CLOCK_PORT_DS_PEER_MEAN_PATH_DELAY_STRING,     /* PTPd addition */
+    PTPBASE_CLOCK_PORT_DS_LAST_MISMATCHED_DOMAIN,     /* PTPd addition */
     PTPBASE_CLOCK_PORT_RUNNING_NAME,
     PTPBASE_CLOCK_PORT_RUNNING_STATE,
     PTPBASE_CLOCK_PORT_RUNNING_ROLE,
@@ -257,7 +258,7 @@ enum {
 	PTPBASE_NOTIFS_OFFSET_SUB_SECONDS,
 	PTPBASE_NOTIFS_TIMEPROPERTIESDS_CHANGE,
 	PTPBASE_NOTIFS_DOMAIN_MISMATCH,
-	PTPBASE_NOTIFS_DOMAIN_OK,
+	PTPBASE_NOTIFS_DOMAIN_MISMATCH_CLEARED,
 };
 
 #define SNMP_PTP_ORDINARY_CLOCK 1
@@ -663,11 +664,16 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		    return SNMP_IPADDR(0);
 		return(SNMP_IPADDR(snmpPtpClock->netPath.interfaceAddr.s_addr));
 	case PTPBASE_CLOCK_PORT_NUM_ASSOCIATED_PORTS:
-		/* Either we are master and we use multicast and we
-		 * consider we have a session or we are slave and we
-		 * have only one master. */
-		return SNMP_INTEGER(1);
-
+		if(snmpPtpClock->portDS.portState == PTP_MASTER && snmpRtOpts->unicastNegotiation) {
+			return SNMP_INTEGER(snmpPtpClock->slaveCount);
+		}
+		if(snmpPtpClock->portDS.portState == PTP_MASTER && snmpPtpClock->unicastDestinationCount) {
+			return SNMP_INTEGER(snmpPtpClock->unicastDestinationCount);
+		}
+		if(snmpPtpClock->portDS.portState == PTP_SLAVE) {
+			return SNMP_INTEGER(snmpPtpClock->number_foreign_records);
+		}
+		return SNMP_INTEGER(0);
 	/* ptpbaseClockPortDSTable */
 	case PTPBASE_CLOCK_PORT_DS_PORT_IDENTITY:
 		return SNMP_OCTETSTR(&snmpPtpClock->portDS.portIdentity,
@@ -700,6 +706,9 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 	case PTPBASE_CLOCK_PORT_DS_PEER_MEAN_PATH_DELAY_STRING:
 		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->portDS.peerMeanPathDelay));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
+	case PTPBASE_CLOCK_PORT_DS_LAST_MISMATCHED_DOMAIN:
+		return SNMP_INTEGER(snmpPtpClock->portDS.lastMismatchedDomain);
+
 	/* ptpbaseClockPortRunningTable */
 	case PTPBASE_CLOCK_PORT_RUNNING_STATE:
 		return SNMP_INTEGER(snmpPtpClock->portDS.portState);
@@ -1508,6 +1517,8 @@ static struct variable7 snmpVariables[] = {
 	  snmpClockPortTable, 5, {1, 2, 8, 1, 15}},
 	{ PTPBASE_CLOCK_PORT_DS_PEER_MEAN_PATH_DELAY_STRING, ASN_OCTET_STR, HANDLER_CAN_RONLY,
 	  snmpClockPortTable, 5, {1, 2, 8, 1, 16}},
+	{ PTPBASE_CLOCK_PORT_DS_LAST_MISMATCHED_DOMAIN, ASN_INTEGER, HANDLER_CAN_RONLY,
+	  snmpClockPortTable, 5, {1, 2, 8, 1, 17}},
 	/* ptpbaseClockPortRunningTable */
 	{ PTPBASE_CLOCK_PORT_RUNNING_NAME, ASN_OCTET_STR, HANDLER_CAN_RONLY,
 	  snmpClockPortTable, 5, {1, 2, 9, 1, 5}},
@@ -1812,8 +1823,8 @@ getNotifIndex(int eventType) {
 		    return 17;
 		case PTPBASE_NOTIFS_DOMAIN_MISMATCH:
 		    return 18;
-		case PTPBASE_NOTIFS_DOMAIN_OK:
-		    return 18;
+		case PTPBASE_NOTIFS_DOMAIN_MISMATCH_CLEARED:
+		    return 19;
 		default:
 		    return 0;
 	}
@@ -1989,6 +2000,27 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *ev
 
 		    }
 		    return;
+		case PTPBASE_NOTIFS_DOMAIN_MISMATCH:
+		    {
+			oid domainNumberOid[] = { PTPBASE_MIB_OID, 1, 2, 3, 1, 12, PTPBASE_MIB_INDEX3 };
+			oid lastMismatchedDomainOid[] = { PTPBASE_MIB_OID, 1, 2, 8, 1, 17, PTPBASE_MIB_INDEX4 };
+			unsigned long domainNumber = eventData->defaultDS.domainNumber;
+			unsigned long lastMismatchedDomain = eventData->portDS.lastMismatchedDomain;
+			snmp_varlist_add_variable(varBinds, domainNumberOid, OID_LENGTH(domainNumberOid),
+			    ASN_INTEGER, (u_char *) &domainNumber, sizeof(domainNumber));
+			snmp_varlist_add_variable(varBinds, lastMismatchedDomainOid, OID_LENGTH(lastMismatchedDomainOid),
+			    ASN_INTEGER, (u_char *) &lastMismatchedDomain, sizeof(lastMismatchedDomain));
+
+		    }
+		    return;
+		case PTPBASE_NOTIFS_DOMAIN_MISMATCH_CLEARED:
+		    {
+			oid domainNumberOid[] = { PTPBASE_MIB_OID, 1, 2, 3, 1, 12, PTPBASE_MIB_INDEX3 };
+			unsigned long domainNumber = eventData->defaultDS.domainNumber;
+			snmp_varlist_add_variable(varBinds, domainNumberOid, OID_LENGTH(domainNumberOid),
+			    ASN_INTEGER, (u_char *) &domainNumber, sizeof(domainNumber));
+		    }
+		    return;
 		default:
 		    return;
 	}
@@ -2047,11 +2079,6 @@ snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 	snmpPtpClock = ptpClock;
 	snmpRtOpts = rtOpts;
 
-	for(int i = 0; i < ALRM_MAX; i++) {
-	    DBG("SNMP alarm handlers attached\n");
-	    ptpClock->alarms[i].handlers[1] = alarmHandler_snmp;
-	}
-
 }
 
 /**
@@ -2071,9 +2098,8 @@ alarmHandler_snmp(AlarmEntry *alarm)
 {
 	int notifId = -1;
 
-
 	if(alarm->state == ALARM_SET) {
-	    DBG("[snmp] Alarm %s set trap sent\n", alarm->name);
+	    DBG("[snmp] Alarm %s set trap processed\n", alarm->name);
 	    switch(alarm->id) {
 		case ALRM_PORT_STATE:
 		    notifId = PTPBASE_NOTIFS_UNEXPECTED_PORT_STATE;
@@ -2103,7 +2129,7 @@ alarmHandler_snmp(AlarmEntry *alarm)
 	}
 
 	if(alarm->state == ALARM_UNSET) {
-	    DBG("[snmp] Alarm %s clear trap sent\n", alarm->name);
+	    DBG("[snmp] Alarm %s clear trap processed\n", alarm->name);
 	    switch(alarm->id) {
 		case ALRM_PORT_STATE:
 		    notifId = PTPBASE_NOTIFS_EXPECTED_PORT_STATE;
@@ -2127,13 +2153,13 @@ alarmHandler_snmp(AlarmEntry *alarm)
 		    notifId = PTPBASE_NOTIFS_FREQADJ_NORMAL;
 		    break;
 		case ALRM_DOMAIN_MISMATCH:
-		    notifId = PTPBASE_NOTIFS_DOMAIN_OK;
+		    notifId = PTPBASE_NOTIFS_DOMAIN_MISMATCH_CLEARED;
 		    break;
 	    }
 	}
 
 	if(alarm->eventOnly) {
-	    DBG("[snmp] Event %s notification sent\n", alarm->name);
+	    DBG("[snmp] Event %s notification processed\n", alarm->name);
 	    switch(alarm->id) {
 		case ALRM_CLOCK_STEP:
 		    notifId = PTPBASE_NOTIFS_SLAVE_CLOCK_STEP;
@@ -2155,6 +2181,6 @@ alarmHandler_snmp(AlarmEntry *alarm)
 	    return;
 	}
 
-	DBG("Unhandled event id 0x%x\n", alarm->id);
+	DBG("Unhandled SNMP event id 0x%x\n", alarm->id);
 
 }

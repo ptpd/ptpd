@@ -357,6 +357,10 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
             		}
     		}
 
+    		if(rtOpts->restartSubsystems & PTPD_RESTART_ALARMS) {
+		    NOTIFY("Applying alarm configuration\n");
+		    configureAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
+		}
 
 #ifdef PTPD_STATISTICS
                     /* Reinitialising the outlier filter containers */
@@ -387,6 +391,7 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		    }
 #endif /* PTPD_STATISTICS */
+
 
 	    ptpClock->timingService.reloadRequested = TRUE;
 
@@ -915,6 +920,13 @@ configcheck:
 
 	/* init alarms */
 	initAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
+	configureAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
+	ptpClock->alarmDelay = rtOpts->alarmInitialDelay;
+	/* we're delaying alarm processing - disable alarms for now */
+	if(ptpClock->alarmDelay) {
+	    enableAlarms(ptpClock->alarms, ALRM_MAX, FALSE);
+	}
+
 
 	/* establish signal handlers */
 	signal(SIGINT,  catchSignals);
@@ -926,7 +938,7 @@ configcheck:
 
 #if defined PTPD_SNMP
 	/* Start SNMP subsystem */
-	if (rtOpts->snmp_enabled)
+	if (rtOpts->snmpEnabled)
 		snmpInit(rtOpts, ptpClock);
 #endif
 

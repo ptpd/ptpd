@@ -900,6 +900,35 @@ ClockType ::= TEXTUAL-CONVENTION
 			transparentClock(3),
 			boundaryNode(4) }
 
+PtpdAlarmType ::= TEXTUAL-CONVENTION
+	STATUS  current
+	DESCRIPTION
+		"Alarm identifier (type) as used by PTPd"
+	REFERENCE
+		"PTPd 2.3.2"
+	SYNTAX INTEGER {
+			portState(0),
+			ofmThreshold(1),
+			ofmSeconds(2),
+			clockStep(3),
+			noSync(4),
+			noDelay(5),
+			masterChange(6),
+			networkFault(7),
+			fastAdj(8),
+			timePropertiesChange(9),
+			domainMismatch(10) }
+
+PtpdAlarmState ::= TEXTUAL-CONVENTION
+	STATUS  current
+	DESCRIPTION
+		"Alarm state as used by PTPd"
+	REFERENCE
+		"PTPd 2.3.2"
+	SYNTAX INTEGER {
+			unset(0),
+			set(1),
+			cleared(2) }
 
 ptpbaseMIBNotifs OBJECT IDENTIFIER 
 	-- 1.3.6.1.4.1.46649.1.1.0
@@ -1096,6 +1125,25 @@ ptpBaseTimePropertiesChange NOTIFICATION-TYPE
 		"Event: change in the Time Properties dataset."
 	-- 1.3.6.1.4.1.46649.1.1.0.17
 ::= { ptpbaseMIBNotifs 17 }
+
+ptpBaseDomainMismatch NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockDefaultDSDomainNumber,
+		ptpBaseClockPortDSLastMismatchedDomain }
+	STATUS  current
+	DESCRIPTION
+		"Alarm: no packets from configured PTP domain are being received."
+	-- 1.3.6.1.4.1.46649.1.1.0.18
+::= { ptpbaseMIBNotifs 18 }
+
+ptpBaseDomainMismatchCleared NOTIFICATION-TYPE
+	OBJECTS {
+		ptpbaseClockDefaultDSDomainNumber}
+	STATUS  current
+	DESCRIPTION
+		"Alarm cleared: Clock is receiving packets from configured PTP domain."
+	-- 1.3.6.1.4.1.46649.1.1.0.19
+::= { ptpbaseMIBNotifs 19 }
 
 
 ptpbaseMIBObjects OBJECT IDENTIFIER 
@@ -2501,7 +2549,9 @@ PtpbaseClockPortDSEntry ::= SEQUENCE {
 	ptpbaseClockPortDSPeerMeanPathDelay    ClockTimeInterval,
 	ptpbaseClockPortDSGrantDuration        Unsigned32,
 	ptpbaseClockPortDSPTPVersion           Integer32,
-	ptpBaseClockPortDSPeerMeanPathDelayString DisplayString }
+	ptpBaseClockPortDSPeerMeanPathDelayString DisplayString,
+	ptpBaseClockPortDSLastMismatchedDomain Integer32
+ }
 
 
 ptpbaseClockPortDSDomainIndex OBJECT-TYPE
@@ -2672,6 +2722,15 @@ ptpBaseClockPortDSPeerMeanPathDelayString OBJECT-TYPE
 		"Current value of Peer Mean Path Delay, presented as text."
 	-- 1.3.6.1.4.1.46649.1.1.1.2.8.1.16
 ::= { ptpbaseClockPortDSEntry 16 }
+
+ptpBaseClockPortDSLastMismatchedDomain OBJECT-TYPE
+	SYNTAX  Integer32
+	MAX-ACCESS read-only
+	STATUS  current
+	DESCRIPTION
+		"PTP domain number of last mismatched domain (-1 = no mismatch)."
+	-- 1.3.6.1.4.1.46649.1.1.1.2.8.1.17
+::= { ptpbaseClockPortDSEntry 17 }
 
 
 ptpbaseClockPortRunningTable OBJECT-TYPE
@@ -5374,7 +5433,8 @@ ptpbaseMIBClockPortDSGroup OBJECT-GROUP
 		ptpbaseClockPortDSPeerMeanPathDelay,
 		ptpbaseClockPortDSGrantDuration,
 		ptpbaseClockPortDSPTPVersion,
-		ptpBaseClockPortDSPeerMeanPathDelayString }
+		ptpBaseClockPortDSPeerMeanPathDelayString,
+		ptpBaseClockPortDSLastMismatchedDomain }
 	STATUS  current
 	DESCRIPTION
 		"Group which aggregates objects describing PTP Port Dataset
@@ -5638,7 +5698,9 @@ ptpbaseMIBNotificationGroup NOTIFICATION-GROUP
 		ptpBaseClockFreqAdjNormal,
 		ptpBaseSlaveOffsetFromMasterSeconds,
 		ptpBaseSlaveOffsetFromMasterSubSeconds,
-		ptpBaseTimePropertiesChange }
+		ptpBaseTimePropertiesChange,
+		ptpBaseDomainMismatch,
+		ptpBaseDomainMismatchCleared}
 	STATUS  current
 	DESCRIPTION
 		"A grouping of notification objects defined in the PTPBASE-MIB MIB."

@@ -296,6 +296,13 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 
 		if (timerExpired(&ptpClock->timers[ALARM_UPDATE_TIMER])) {
+		    if(rtOpts->alarmInitialDelay && (ptpClock->alarmDelay > 0)) {
+			ptpClock->alarmDelay -= ALARM_UPDATE_INTERVAL;
+			if(ptpClock->alarmDelay <= 0 && rtOpts->alarmsEnabled) {
+			    INFO("Alarm delay expired - starting alarm processing\n");
+			    enableAlarms(ptpClock->alarms, ALRM_MAX, TRUE);
+			}
+		    }
 		    updateAlarms(ptpClock->alarms, ALRM_MAX);
 		}
 
@@ -1320,7 +1327,7 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 		DBG("Ignored message %s received from %d domain\n",
 			getMessageTypeName(ptpClock->msgTmpHeader.messageType),
 			ptpClock->msgTmpHeader.domainNumber);
-		ptpClock->portDS.lastDomainSeen = ptpClock->msgTmpHeader.domainNumber;
+		ptpClock->portDS.lastMismatchedDomain = ptpClock->msgTmpHeader.domainNumber;
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.domainMismatchErrors++;
 

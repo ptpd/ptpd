@@ -29,8 +29,8 @@
  * @file    alarms.c
  * @authors Wojciech Owczarek
  * @date   Wed Dec 9 19:13:10 2015
- * This souece file contains the implementations of functions
- * handling raising and clearing alarms.
+ * This source file contains the implementations of functions
+ * handling raising and clearing of alarms.
  */
 
 #include "../ptpd.h"
@@ -40,8 +40,10 @@ static const char* alarmStateToString(AlarmState state);
 static void dispatchEvent(AlarmEntry *alarm);
 static void dispatchAlarm(AlarmEntry *alarm);
 
-static void alarmHandler_text(AlarmEntry *alarm);
-static void eventHandler_text(AlarmEntry *alarm);
+static void getAlarmMessage(char *out, int count, AlarmEntry *alarm);
+
+static void alarmHandler_log(AlarmEntry *alarm);
+static void eventHandler_log(AlarmEntry *alarm);
 
 static const char
 *alarmStateToString(AlarmState state)
@@ -62,21 +64,98 @@ static const char
 }
 
 static void
-alarmHandler_text(AlarmEntry *alarm)
+getAlarmMessage(char *out, int count, AlarmEntry *alarm)
 {
-	if(alarm->state == ALARM_UNSET) {
-	    INFO("[text] Alarm %s cleared\n", alarm->name);
-	}
+
+    memset(out, 0, count);
+
+    switch(alarm->id) {
+	
+	case ALRM_PORT_STATE:
+	    if(alarm->state == ALARM_UNSET) {
+		return;
+	    }
+	    snprintf(out, count, ": Port state is %s", portState_getName(alarm->eventData.portDS.portState));
+	    return;
+	case ALRM_OFM_THRESHOLD:
+	    if(alarm->state == ALARM_UNSET) {
+		snprintf(out, count, ": Offset from master is now %.09f s, threshold is %d ns",
+			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster),
+			alarm->eventData.ofmAlarmThreshold);
+		return;
+	    }
+	    snprintf(out, count, ": Offset from master is %.09f s, threshold is %d ns",
+			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster),
+			alarm->eventData.ofmAlarmThreshold);
+	    return;
+	case ALRM_OFM_SECONDS:
+	    if(alarm->state == ALARM_UNSET) {
+		    snprintf(out, count, ": Offset from master is now %.09f s, below 1 second",
+			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster));
+		return;
+	    }
+	    snprintf(out, count, ": Offset from master is %.09f s, above 1 second", 
+			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster));
+	    return;
+	case ALRM_CLOCK_STEP:
+	    snprintf(out, count, ": Clock stepped by %.09f s",
+			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster));
+	    return;
+	case ALRM_NO_SYNC:
+	    if(alarm->state == ALARM_UNSET) {
+		return;
+	    }
+	    snprintf(out, count, ": Not receiving Sync");
+	    return;
+	case ALRM_NO_DELAY:
+	    if(alarm->state == ALARM_UNSET) {
+		return;
+	    }
+	    snprintf(out, count, ": Not receiving Delay Response");
+	    return;
+	case ALRM_MASTER_CHANGE:
+	    return;
+	case ALRM_NETWORK_FLT:
+	    return;
+	case ALRM_FAST_ADJ:
+	    return;
+	case ALRM_TIMEPROP_CHANGE:
+	    return;
+	case ALRM_DOMAIN_MISMATCH:
+	    snprintf(out, count, ": Configured domain is %d, last seen %d", alarm->eventData.defaultDS.domainNumber,
+			alarm->eventData.portDS.lastMismatchedDomain);
+	    return;
+	default:
+	    return;
+    }
+
+}
+
+static void
+alarmHandler_log(AlarmEntry *alarm)
+{
+
+	char message[ALARM_MESSAGE_LENGTH+1];
+	message[ALARM_MESSAGE_LENGTH] = '\0';
+	getAlarmMessage(message, ALARM_MESSAGE_LENGTH, alarm);
 
 	if(alarm->state == ALARM_SET) {
-	    INFO("[text] Alarm %s set\n", alarm->name);
+	    NOTICE("Alarm %s set%s\n", alarm->name, message);
+	}
+
+	if(alarm->state == ALARM_UNSET) {
+	    NOTICE("Alarm %s cleared%s\n", alarm->name, message);
 	}
 }
 
 static void
-eventHandler_text(AlarmEntry *alarm)
+eventHandler_log(AlarmEntry *alarm)
 {
-	INFO("[text] Event %s dispatched\n", alarm->name);
+	char message[ALARM_MESSAGE_LENGTH+1];
+	message[ALARM_MESSAGE_LENGTH] = '\0';
+	getAlarmMessage(message, ALARM_MESSAGE_LENGTH, alarm);
+
+	NOTICE("Event %s triggered%s\n", alarm->name, message);
 }
 
 static void
@@ -104,17 +183,17 @@ initAlarms(AlarmEntry* alarms, int count, void *userData)
     static AlarmEntry alarmTemplate[] = {
 
     /* short */	/* name */		/* desc */						/* enabled? */ /* id */		/* eventOnly */	/*handlers */
-    { "STA", 	"PORT_STATE", 		"Port state different to expected value", 		FALSE, ALRM_PORT_STATE, 	FALSE, 		{alarmHandler_text}},
-    { "OFM", 	"OFM_THRESHOLD", 	"Offset From Master outside threshold", 		FALSE, ALRM_OFM_THRESHOLD,	FALSE, 		{alarmHandler_text}},
-    { "OFMS", 	"OFM_SECONDS", 		"Offset From Master above 1 second", 			FALSE, ALRM_OFM_SECONDS,	FALSE, 		{alarmHandler_text}},
-    { "STEP", 	"CLOCK_STEP", 		"Clock was stepped", 					FALSE, ALRM_CLOCK_STEP,		TRUE, 		{eventHandler_text}},
-    { "SYN", 	"NO_SYNC", 		"Clock is not receiving Sync messages",			FALSE, ALRM_NO_SYNC,		FALSE, 		{alarmHandler_text}},
-    { "DLY", 	"NO_DELAY", 		"Clock is not receiving (p)Delay responses",		FALSE, ALRM_NO_DELAY,		FALSE, 		{alarmHandler_text}},
-    { "MSTC", 	"MASTER_CHANGE", 	"Best master has changed",				FALSE, ALRM_MASTER_CHANGE,	TRUE, 		{eventHandler_text}},
-    { "NWFL", 	"NETWORK_FAULT", 	"A network fault has occurred",				FALSE, ALRM_NETWORK_FLT,	FALSE, 		{alarmHandler_text}},
-    { "FADJ", 	"FAST_ADJ", 		"Clock is being adjusted too fast", 			FALSE, ALRM_FAST_ADJ,		FALSE, 		{eventHandler_text}},
-    { "TPR", 	"TIMEPROP_CHANGE", 	"Time properties have changed",				FALSE, ALRM_TIMEPROP_CHANGE,	TRUE, 		{eventHandler_text}},
-    { "DOM", 	"DOMAIN_MISMATCH", 	"Clock is receiving all messages from incorrect domain",FALSE, ALRM_DOMAIN_MISMATCH,	FALSE, 		{alarmHandler_text}}
+    { "STA", 	"PORT_STATE", 		"Port state different to expected value", 		FALSE, ALRM_PORT_STATE, 	FALSE, 		{alarmHandler_log}},
+    { "OFM", 	"OFM_THRESHOLD", 	"Offset From Master outside threshold", 		FALSE, ALRM_OFM_THRESHOLD,	FALSE, 		{alarmHandler_log}},
+    { "OFMS", 	"OFM_SECONDS", 		"Offset From Master above 1 second", 			FALSE, ALRM_OFM_SECONDS,	FALSE, 		{alarmHandler_log}},
+    { "STEP", 	"CLOCK_STEP", 		"Clock was stepped", 					FALSE, ALRM_CLOCK_STEP,		TRUE, 		{eventHandler_log}},
+    { "SYN", 	"NO_SYNC", 		"Clock is not receiving Sync messages",			FALSE, ALRM_NO_SYNC,		FALSE, 		{alarmHandler_log}},
+    { "DLY", 	"NO_DELAY", 		"Clock is not receiving (p)Delay responses",		FALSE, ALRM_NO_DELAY,		FALSE, 		{alarmHandler_log}},
+    { "MSTC", 	"MASTER_CHANGE", 	"Best master has changed",				FALSE, ALRM_MASTER_CHANGE,	TRUE, 		{eventHandler_log}},
+    { "NWFL", 	"NETWORK_FAULT", 	"A network fault has occurred",				FALSE, ALRM_NETWORK_FLT,	FALSE, 		{alarmHandler_log}},
+    { "FADJ", 	"FAST_ADJ", 		"Clock is being adjusted too fast", 			FALSE, ALRM_FAST_ADJ,		FALSE, 		{alarmHandler_log}},
+    { "TPR", 	"TIMEPROP_CHANGE", 	"Time properties have changed",				FALSE, ALRM_TIMEPROP_CHANGE,	TRUE, 		{eventHandler_log}},
+    { "DOM", 	"DOMAIN_MISMATCH", 	"Clock is receiving all messages from incorrect domain",FALSE, ALRM_DOMAIN_MISMATCH,	FALSE, 		{alarmHandler_log}}
 
     };
 
@@ -123,8 +202,42 @@ initAlarms(AlarmEntry* alarms, int count, void *userData)
     memset(alarms, 0, count * sizeof(AlarmEntry));
     memcpy(alarms, alarmTemplate, sizeof(alarmTemplate));
 
-    for(int i = 0; i < ALRM_MAX; i++) {
+    for(int i = 0; i < count; i++) {
 	alarms[i].userData = userData;
+    }
+
+}
+
+/*
+ * we are passing a generic pointer because eventually the alarm will have a "source" field,
+ * that being PTP, NTP or any other subsystem, which may have separate routines to handle this
+ */
+void
+configureAlarms(AlarmEntry *alarms, int count, void * userData)
+{
+
+    PtpClock *ptpClock = (PtpClock*) userData;
+
+    for(int i = 0; i < count; i++) {
+	alarms[i].minAge = ptpClock->rtOpts->alarmMinAge;
+	alarms[i].enabled = ptpClock->rtOpts->alarmsEnabled;
+#ifdef PTPD_SNMP
+	if(ptpClock->rtOpts->snmpEnabled && ptpClock->rtOpts->snmpTrapsEnabled) {
+	    DBG("SNMP alarm handler attached for %s\n", alarms[i].name);
+	    alarms[i].handlers[1] = alarmHandler_snmp;
+	} else {
+	    alarms[i].handlers[1] = NULL;
+	}
+#endif
+    }
+
+}
+
+void
+enableAlarms(AlarmEntry* alarms, int count, Boolean enabled)
+{
+    for(int i = 0; i < count; i++) {
+	alarms[i].enabled = enabled;
     }
 
 }
@@ -132,6 +245,9 @@ initAlarms(AlarmEntry* alarms, int count, void *userData)
 void
 setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock)
 {
+	if(!alarm->enabled) {
+	    return;
+	}
 
 	Boolean change = condition ^ alarm->condition;
 
@@ -202,6 +318,10 @@ updateAlarms(AlarmEntry *alarms, int count)
 
 	alarm = &alarms[i];
 
+	if(!alarm->enabled) {
+	    continue;
+	}
+
 	lastState = alarm->state;
 	/* this is a one-off event */
 	if(alarm->eventOnly) {
@@ -212,16 +332,18 @@ updateAlarms(AlarmEntry *alarms, int count)
 	/* this is an alarm */
 	    if(!alarm->condition) {
 		/* condition is false, alarm is cleared and aged out: unset */
-		if(alarm->state == ALARM_CLEARED && alarm->age >= ALARM_TIMEOUT_PERIOD ) {
+		if(alarm->state == ALARM_CLEARED && alarm->age >= alarm->minAge ) {
 		    alarm->state = ALARM_UNSET;
 		    /* inform, run handlers */
 		    dispatchAlarm(alarm);
+		    clearTime(&alarm->timeSet);
+		    clearTime(&alarm->timeCleared);
 		/* condition is false and alarm was set - clear and wait for age out */
 		} else if (alarm->state == ALARM_SET) {
 		    alarm->state = ALARM_CLEARED;
 		}
 	    /* condition is true and age is 0: condition just changed */
-	    } else if (alarm->age ==0) {
+	    } else if (alarm->age == 0) {
 		alarm->state = ALARM_SET;
 		/* react only if alarm was set from unset (don't inform multiple times until it fully clears */
 		if(lastState == ALARM_UNSET) {

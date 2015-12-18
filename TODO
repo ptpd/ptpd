@@ -5,31 +5,45 @@
 - man page updates for template files x
 - clock ID printed in reverse in L2 mode
   with (grandmasterID present?) - not an issue, looks like a White Rabbit problem x
-- complete built-in templates
-- add dummy or populated default template file x [dummy]
 - compact grantable message types and use smaller array to save memory x
 - 16.1.1: may be granted in listening state or passive state <- but g.8265 is no BMCA x
 - sig/msg message acceptance 4 options: all1,port, clockid,port, clock,all1, all1,all1 x
 - rework config option parsing x
 - rework parseConfig to support an opcode, get rid of remaining macros x
-- rework trigger and dependency macros: 2nd pass?
-- SET messages to refresh the config properly x/-
-- NVRAM write?
 - pointer to best master x
 - disqualification flag x
 - remove masteraddr in favour of bestMaster->sourceAddr x
-- use split token loop
 - use pointer to best master x
 - management TLV buffer guard and don't unpack GET x
 - SNMP - implement statistics tables x
 - SNMP - implement remaining traps x
 - add alarm events -> trigger SNMP traps x
 - add offset alarm threshold to config x
-- add alarm initial delay to config
-- add snmp traps enable/disable to config
+- clean up object order in the MIB x
+- call alarm handlers before shutdown (on port disabled?) x
+
+- add alarm initial delay to config + man x
+- add alarm timeout to config + man x
+- add snmp traps enable/disable to config + man x
+- implement ofm threshold alarm triggering x
+- SNMP MIB: add domain mismatch trap + last domain x
+- add alarm messages to log notifications x
+
+- add alarm messages to alarm table (for fault record)
+- rework trigger and dependency macros: 2nd pass?
+- complete built-in templates
+- add dummy or populated default template file x [dummy]
+- NVRAM write?
+- use split token loop macros
+- SET messages to refresh the config properly x/-
+  add set + commit + rollback as snmp handles
 - remaining management message SET handling
 - add fault record and numberfaults to snmp and mgmt
-- clean up object order in the MIB x
-- call alarm handlers before shutdown (on port disabled?)
 - update man page with alarm descriptions
+- improve alarm dump
+- add alarm descriptions to help output
 - eventually add support for an event queue
+- SNMP MIB: add alarm list so that
+  informs can also send date and time
+- MGMT clear and get fault record
+- configurable alarm severities?

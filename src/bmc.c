@@ -80,6 +80,8 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 	}
 
+	ptpClock->portDS.lastMismatchedDomain = -1;
+
 	if(rtOpts->pidAsClockId) {
 	    uint16_t pid = htons(getpid());
 	    memcpy(ptpClock->defaultDS.clockIdentity + 3, &pid, 2);

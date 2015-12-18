@@ -251,7 +251,11 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	strncpy(rtOpts->driftFile, DEFAULT_DRIFTFILE, PATH_MAX);
 /*	strncpy(rtOpts->lockFile, DEFAULT_LOCKFILE, PATH_MAX); */
 	rtOpts->autoLockFile = FALSE;
-	rtOpts->snmp_enabled = FALSE;
+	rtOpts->snmpEnabled = FALSE;
+	rtOpts->snmpTrapsEnabled = FALSE;
+	rtOpts->alarmsEnabled = FALSE;
+	rtOpts->alarmInitialDelay = 0;
+	rtOpts->alarmMinAge = 30;
 	/* This will only be used if the "none" preset is configured */
 #ifndef PTPD_SLAVE_ONLY
 	rtOpts->slaveOnly = FALSE;

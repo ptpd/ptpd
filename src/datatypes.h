@@ -338,8 +338,12 @@ typedef struct {
 
 	LeapSecondInfo	leapInfo;
 
-	Boolean snmp_enabled; /* SNMP subsystem enabled / disabled even if
-				 compiled in */
+	Boolean snmpEnabled;		/* SNMP subsystem enabled / disabled even if compiled in */
+	Boolean snmpTrapsEnabled; 	/* enable sending of SNMP traps (requires alarms enabled) */
+	Boolean alarmsEnabled; 		/* enable support for alarms */
+	int	alarmMinAge;		/* minimal alarm age in seconds (from set to clear notification) */
+	int	alarmInitialDelay;	/* initial delay before we start processing alarms; example:  */
+					/* we don't need a port state alarm just before the port starts to sync */
 
 	Boolean pcap; /* Receive and send packets using libpcap, bypassing the
 			 network stack. */
@@ -588,6 +592,7 @@ typedef struct {
 
 	IntervalTimer   timers[PTP_MAX_TIMER];
 	AlarmEntry	alarms[ALRM_MAX];
+	int alarmDelay;
 
 	NetPath netPath;
 

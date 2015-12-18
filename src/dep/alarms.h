@@ -42,26 +42,29 @@
 #define ALARM_UPDATE_INTERVAL 1 /* how often we process alarms */
 #define ALARM_TIMEOUT_PERIOD 30	/* minimal alarm age to clear */
 #define ALARM_HANDLERS_MAX 3	/* max number of alarm handlers */
+#define ALARM_MESSAGE_LENGTH 100/* length of an alarm-specific message string */
 
+/* explicitly numbered because these are referenced in the MIB as textual convention */
 typedef enum {
 	ALRM_PORT_STATE = 0,		/*x done*/
-	ALRM_OFM_THRESHOLD,
-	ALRM_OFM_SECONDS, 		/*x done*/
-	ALRM_CLOCK_STEP,		/*x done*/
-	ALRM_NO_SYNC,			/*x done*/
-	ALRM_NO_DELAY, 			/*x done*/
-	ALRM_MASTER_CHANGE, 		/*x done*/
-	ALRM_NETWORK_FLT,		/*x done*/
-	ALRM_FAST_ADJ,			/*+/- currently only at maxppb */
-	ALRM_TIMEPROP_CHANGE,		/*x done*/
-	ALRM_DOMAIN_MISMATCH, 		/*+/- currently only when all packets come from an incorrect domain */
+	ALRM_OFM_THRESHOLD = 1,		/*x done */
+	ALRM_OFM_SECONDS = 2, 		/*x done*/
+	ALRM_CLOCK_STEP = 3,		/*x done*/
+	ALRM_NO_SYNC = 4,		/*x done*/
+	ALRM_NO_DELAY = 5, 			/*x done*/
+	ALRM_MASTER_CHANGE = 6, 		/*x done*/
+	ALRM_NETWORK_FLT = 7,		/*x done*/
+	ALRM_FAST_ADJ = 8,			/*+/- currently only at maxppb */
+	ALRM_TIMEPROP_CHANGE = 9,		/*x done*/
+	ALRM_DOMAIN_MISMATCH = 10, 		/*+/- currently only when all packets come from an incorrect domain */
 	ALRM_MAX
 } AlarmType;
 
+/* explicitly numbered because these are referenced in the MIB as textual convention */
 typedef enum {
 	ALARM_UNSET = 0,		/* idle */
-	ALARM_SET,		/* condition has been triggerd */
-	ALARM_CLEARED		/* condition has cleared */
+	ALARM_SET = 1,			/* condition has been triggerd */
+	ALARM_CLEARED = 2		/* condition has cleared */
 } AlarmState;
 
 struct _alarmEntry {
@@ -75,6 +78,7 @@ struct _alarmEntry {
 	void * userData;		/* user data pointer */
 	Boolean unhandled;		/* this event is pending pick-up - prevets from clearing condition until it's handled */
 	uint32_t age;			/* age of alarm in current state (seconds) */
+	uint32_t minAge;			/* minimum age of alarm (time between set and clear notification - condition can go away earlier */
 	AlarmState state;		/* state of the alarm */
 	Boolean condition;		/* is the alarm condition met? (so we can check conditions and set alarms separately */
 	TimeInternal timeSet;		/* time when set */
@@ -86,6 +90,8 @@ struct _alarmEntry {
 typedef struct _alarmEntry AlarmEntry;
 
 void initAlarms(AlarmEntry* alarms, int count, void* userData); 			/* fill an array with initial alarm data */
+void configureAlarms(AlarmEntry* alarms, int count, void* userData); 			/* fill an array with initial alarm data */
+void enableAlarms(AlarmEntry* alarms, int count, Boolean enabled); 			/* enable/disable all alarms */
 void updateAlarms(AlarmEntry *alarms, int count);					/* dispatch alarms: age, set, clear alarms etc. */
 void displayAlarms(AlarmEntry *alarms, int count);					/* display a formatted alarm summary table */
 int  getAlarmSummary(char * output, int size, AlarmEntry *alarms, int count);		/* produce a one-line alarm summary string */
