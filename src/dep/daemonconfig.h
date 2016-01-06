@@ -39,6 +39,7 @@
 #define PTPD_RESTART_ACLS	1 << 9
 #define PTPD_RESTART_NTPENGINE	1 << 10
 #define PTPD_RESTART_NTPCONFIG	1 << 11
+#define PTPD_RESTART_ALARMS	1 << 12
 
 #define LOG2_HELP "(expressed as log 2 i.e. -1=0.5s, 0=1s, 1=2s etc.)"
 #define MAX_LINE_SIZE 1024

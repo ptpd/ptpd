@@ -574,7 +574,7 @@ typedef struct {
 	/* PTPd additions */
 	Enumeration8 lastPortState; 	/* previous state */
 	Nibble transportSpecific; 	/* TransportSpecific for 802.1AS */
-	UInteger8 lastDomainSeen; 	/* domain mismatch detection */
+	Integer16 lastMismatchedDomain; 	/* domain mismatch detection */
 
 } PortDS;
 

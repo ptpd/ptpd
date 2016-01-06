@@ -605,6 +605,14 @@ DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 		goto finish;
 	} else {
 		SET_ALARM(ALRM_OFM_SECONDS, FALSE);
+		if(rtOpts->ofmAlarmThreshold) {
+		    if( abs(ptpClock->currentDS.offsetFromMaster.nanoseconds) 
+			> rtOpts->ofmAlarmThreshold) {
+			SET_ALARM(ALRM_OFM_THRESHOLD, TRUE);
+		    } else {
+			SET_ALARM(ALRM_OFM_THRESHOLD, FALSE);
+		    }
+		}
 	}
 
 	/* filter 'offsetFromMaster' */

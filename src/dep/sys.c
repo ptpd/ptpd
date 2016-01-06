@@ -1040,8 +1040,9 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 		fprintf(out, 		STATUSPREFIX"  %d\n","PTP domain", ptpClock->defaultDS.domainNumber);
 	}
 	fprintf(out, 		STATUSPREFIX"  %s\n","Port state", portState_getName(ptpClock->portDS.portState));
-	fprintf(out, 		STATUSPREFIX"  %s\n","Alarms", alarmBuf);
-
+	if(strlen(alarmBuf) > 0) {
+	    fprintf(out, 		STATUSPREFIX"  %s\n","Alarms", alarmBuf);
+	}
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_PortIdentity(tmpBuf, sizeof(tmpBuf),
 	    &ptpClock->portDS.portIdentity);

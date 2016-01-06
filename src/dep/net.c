@@ -1458,7 +1458,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 	nfds++;
 
 #if defined PTPD_SNMP
-if (rtOpts.snmp_enabled) {
+if (rtOpts.snmpEnabled) {
 	snmpblock = 1;
 	if (tv_ptr) {
 		snmpblock = 0;
@@ -1477,7 +1477,7 @@ if (rtOpts.snmp_enabled) {
 			return 0;
 	}
 #if defined PTPD_SNMP
-if (rtOpts.snmp_enabled) {
+if (rtOpts.snmpEnabled) {
 	/* Maybe we have received SNMP related data */
 	if (ret > 0) {
 		snmp_read(readfds);

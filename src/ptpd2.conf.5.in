@@ -2485,6 +2485,58 @@ PTPd will always try to load \fI@prefix@/share/@PACKAGE_NAME@/templates.conf\fR 
 \fBdefault\fR
 \fI[none]\fR
 
+.RE
+.RE
+.RS 0
+.TP 8
+\fBglobal:enable_alarms [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Enable support for alarm and event notifications (see \fBALARMS\fR section). Alarms
+enable self-diagnosing of common error conditions and events such as master change
+or time properties change. When SNMP support is enabled (\fBglobal:enable_snmp\fR)
+and SNMP trap support is enabled (\fBglobal:enable_snmp_traps\fR), alarms trigger
+SNMP traps.
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBglobal:alarm_timeout [\fIINT\fB: 0 .. 3600]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Mininmum alarm age (seconds) - minimal time between alarm set and clear notifications.
+The condition can clear while alarm lasts, but notification (log or SNMP) will only
+be triggered after the timeout. This option prevents from alarms flapping (repeated
+set and clear notifications).
+.TP 8
+\fBdefault\fR
+\fI30\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBglobal:alarm_initial_delay [\fIINT\fB: 0 .. 3600]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Delay the start of alarm processing (seconds) after ptpd startup. This option
+allows to avoid unnecessary alarms before PTPd starts synchronising, which should happen
+after a few seconds, but could take longer in cases where multicast has to converge upstream,
+or when there is a mismatch in message intervals and unicast signaling has to negotiate them down
+(or up) to acceptable values. This also prevents from alerting on offset from master too soon
+after startup (see \fBptpengine:offset_alarm_threshold\fR) - delay can be increased to cover
+the initial sync period, however this is not recommended as an offset alarm after startup
+can indicate a slave cold start.
+.TP 8
+\fBdefault\fR
+\fI10\fR
 
 .RE
 .RE
@@ -2495,6 +2547,20 @@ PTPd will always try to load \fI@prefix@/share/@PACKAGE_NAME@/templates.conf\fR 
 .TP 8
 \fBusage\fR
 Enable SNMP agent (if compiled with PTPD_SNMP).
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
+\fBglobal:enable_snmp_traps [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Enable reporting of alarms and events as SNMP traps. Requires PTPd to be compiled with PTPD_SNMP,
+and requires alarms to be enabled (\fBglobal:enable_alarms\fR)
 .TP 8
 \fBdefault\fR
 \fIN\fR
