@@ -30,6 +30,23 @@ typedef struct {
     Integer32  s_exp;
 } one_way_delay_filter;
 
+typedef struct {
+	Boolean updated;
+	Boolean bonded;
+	Boolean activeBackup;
+	int slaveCount;
+	int activeCount;
+	char activeSlave[IFACE_NAME_LENGTH + 1];
+	int activeSlaveId;
+	Boolean activeChanged;
+} BondInfo;
+
+typedef struct {
+	Boolean vlan;
+	int vlanId;
+	char realDevice[IFACE_NAME_LENGTH + 1];
+} VlanInfo;
+
 /**
 * \brief Struct containing interface information and capabilities
  */
@@ -41,7 +58,11 @@ typedef struct {
         int addressFamily;
         unsigned int flags;
 	int ifIndex;
+	char physicalDevice[IFACE_NAME_LENGTH + 1];
+	BondInfo bondInfo;
+	VlanInfo vlanInfo;
 } InterfaceInfo;
+
 
 /**
 * \brief Struct describing network transport data
@@ -89,6 +110,7 @@ typedef struct {
 	Ipv4AccessList* managementAcl;
 
 } NetPath;
+
 
 typedef struct {
 

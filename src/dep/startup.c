@@ -978,7 +978,6 @@ configcheck:
 		ptpClock->netPath.eventSock = -1;
 
 	*ret = 0;
-
 	return ptpClock;
 	
 fail:

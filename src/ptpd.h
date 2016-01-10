@@ -106,9 +106,12 @@
 #include <net/if_arp.h>
 #endif /* HAVE_NET_IF_ARP_H*/
 
-#ifdef HAVE_NET_IF_H
+#ifdef HAVE_LINUX_IF_H
+#include <linux/if.h>
+#define IF_NAMESIZE IFNAMSIZ
+#elif defined(HAVE_NET_IF_H)
 #include <net/if.h>
-#endif /* HAVE_NET_IF_H*/
+#endif /* HAVE_LINUX_IF_H*/
 
 #ifdef HAVE_NETINET_IF_ETHER_H
 #include <netinet/if_ether.h>
@@ -176,7 +179,7 @@
 #include "dep/daemonconfig.h"
 
 #include "dep/alarms.h"
-
+#include "dep/clockdriver.h"
 
 
 /* NOTE: this macro can be refactored into a function */
@@ -186,6 +189,13 @@
 		ptpdShutdown(ptpClock); \
 		exit(1); \
 	}
+
+#define XCALLOC(ptr,size) \
+	if(!((ptr)=malloc(size))) { \
+		PERROR("failed to allocate memory"); \
+		exit(1); \
+	} \
+	memset(ptr, 0, size);
 
 #define SAFE_FREE(pointer) \
 	if(pointer != NULL) { \
@@ -198,6 +208,15 @@
 
 #define SET_FIELD(data, bitpos) \
 	data << bitpos
+
+#define CLAMP(var,bound) {\
+    if(var < -bound) {\
+	var = -bound;\
+    }\
+    if(var > bound) {\
+	var = bound;\
+    }\
+}
 
 #ifndef min
 #define min(a,b)     (((a)<(b))?(a):(b))

@@ -61,9 +61,11 @@
 #  include <net/ethernet.h>
 #endif
 
-#ifdef HAVE_NET_IF_H
-#  include <net/if.h>
-#endif
+#ifdef HAVE_LINUX_IF_H
+#include <linux/if.h>
+#elif defined(HAVE_NET_IF_H)
+#include <net/if.h>
+#endif /* HAVE_LINUX_IF_H*/
 
 #ifdef HAVE_NET_IF_ETHER_H
 #  include <net/if_ether.h>

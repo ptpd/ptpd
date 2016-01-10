@@ -21,9 +21,14 @@
 if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.net
 #endif
 
+#ifdef HAVE_LINUX_IF_H
+#include <linux/if.h>
+#elif defined(HAVE_NET_IF_H)
+#include <net/if.h>
+#endif /* HAVE_LINUX_IF_H*/
+
 #ifdef	linux
 #include<netinet/in.h>
-#include<net/if.h>
 #include<net/if_arp.h>
 #include <ifaddrs.h>
 #define IFACE_NAME_LENGTH         IF_NAMESIZE
@@ -41,7 +46,6 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #include <sys/sockio.h>
 #endif /* HAVE_SYS_SOCKIO_H */
 # include <netinet/in.h>
-# include <net/if.h>
 # include <net/if_dl.h>
 # include <net/if_types.h>
 #ifdef HAVE_NET_IF_ETHER_H

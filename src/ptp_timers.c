@@ -115,7 +115,7 @@ Boolean timerSetup(IntervalTimer *itimers)
   "LEAP_SECOND_PAUSE",
   "STATUSFILE_UPDATE",
   "PANIC_MODE",
-  "PERIODIC_INFO_TIMER",
+  "PERIODIC_INFO",
 #ifdef PTPD_STATISTICS
   "STATISTICS_UPDATE",
 #endif /* PTPD_STATISTICS */
@@ -123,7 +123,8 @@ Boolean timerSetup(IntervalTimer *itimers)
   "MASTER_NETREFRESH",
   "CALIBRATION_DELAY",
   "CLOCK_UPDATE",
-  "TIMINGDOMAIN_UPDATE"
+  "TIMINGDOMAIN_UPDATE",
+  "INTERFACE_CHECK"
     };
 
     int i = 0;

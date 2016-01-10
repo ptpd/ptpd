@@ -64,7 +64,7 @@
 #endif
 
 #include <assert.h>
-
+#include <linux/ethtool.h>
 
 /*
   list of per-module defines:
@@ -378,6 +378,9 @@ ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*,const RunTimeOpts*, Intege
 ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32,TimeInternal*);
 Boolean netRefreshIGMP(NetPath *, const RunTimeOpts *, PtpClock *);
 Boolean hostLookup(const char* hostname, Integer32* addr);
+void bondCheck(NetPath * netPath, const RunTimeOpts * rtOpts, PtpClock * ptpClock);
+Boolean netIoctlHelper(struct ifreq *ifr, char* ifaceName, unsigned long request);
+Boolean getTsInfo(char *ifaceName, struct ethtool_ts_info *info);
 
 /** \}*/
 

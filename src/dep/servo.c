@@ -53,15 +53,6 @@
 
 #include "../ptpd.h"
 
-#define CLAMP(var,bound) {\
-    if(var < -bound) {\
-	var = -bound;\
-    }\
-    if(var > bound) {\
-	var = bound;\
-    }\
-}
-
 #ifdef PTPD_STATISTICS
 static void checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts);
 #endif

@@ -114,6 +114,18 @@ AC_CHECK_HEADERS([net/if.h], [], [],
 #endif
 ])
 
+# Similar case for linux/if.h
+AC_CHECK_HEADERS([linux/if.h], [], [],
+[
+#ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+    #include <sys/types.h>
+#endif
+])
+
+
 # Similar case for if_arp.h
 AC_CHECK_HEADERS([net/if_arp.h], [], [],
 [

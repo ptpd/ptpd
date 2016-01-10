@@ -1,0 +1,651 @@
+/* Copyright (c) 2015 Wojciech Owczarek,
+ *
+ * All Rights Reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/**
+ * @file   clockdriver_unix.c
+ * @date   Sat Jan 9 16:14:10 2015
+ *
+ * @brief  Unix OS clock driver implementation
+ *
+ */
+
+#include "clockdriver.h"
+
+static int clockdriver_init(ClockDriver*, const void *);
+static int clockdriver_shutdown(ClockDriver *);
+
+static Boolean getTime_unix (ClockDriver*, TimeInternal *);
+static Boolean getUtcTime (ClockDriver*, TimeInternal *);
+static Boolean setTime_unix (ClockDriver*, TimeInternal *);
+static Boolean adjustFrequency (ClockDriver *, double, double);
+static Boolean getStatus (ClockDriver *, ClockStatus *);
+static Boolean setStatus (ClockDriver *, ClockStatus *);
+
+static void setRtc_unix(ClockDriver* self, TimeInternal *timeToSet);
+static Boolean adjFreq_unix(ClockDriver *self, double adj);
+static void updateXtmp_unix (TimeInternal oldTime, TimeInternal newTime);
+
+#ifdef __QNXNTO__
+static const struct sigevent* timerIntHandler(void* data, int id);
+#endif
+
+void
+_setupClockDriver_unix(ClockDriver* self)
+{
+
+    self->init = clockdriver_init;
+    self->shutdown = clockdriver_shutdown;
+
+    self->getTime = getTime_unix;
+    self->getUtcTime = getUtcTime;
+    self->setTime = setTime_unix;
+    self->adjustFrequency = adjustFrequency;
+    self->getStatus = getStatus;
+    self->setStatus = setStatus;
+
+    self->maxFreqAdj = ADJ_FREQ_MAX;
+    self->systemClock = TRUE;
+
+}
+
+static int
+clockdriver_init(ClockDriver* self, const void *config) {
+
+    return 1;
+
+}
+
+static int
+clockdriver_shutdown(ClockDriver *self) {
+
+    INFO("Unix clock driver %s shutting down\n", self->name);
+    return 1;
+
+}
+
+
+
+static Boolean
+getTime_unix (ClockDriver *self, TimeInternal *time) {
+
+#ifdef __QNXNTO__
+  static TimerIntData tmpData;
+  int ret;
+  uint64_t delta;
+  double tick_delay;
+  uint64_t clock_offset;
+  struct timespec tp;
+  if(!tDataUpdated) {
+    memset(&tData, 0, sizeof(TimerIntData));
+    if(ThreadCtl(_NTO_TCTL_IO, 0) == -1) {
+      ERROR("QNX: could not give process I/O privileges");
+      return FALSE;
+    }
+
+    tData.cps = SYSPAGE_ENTRY(qtime)->cycles_per_sec;
+    tData.ns_per_tick = 1000000000.0 / tData.cps;
+    tData.prev_tsc = ClockCycles();
+    clock_gettime(CLOCK_REALTIME, &tp);
+    tData.last_clock = timespec2nsec(&tp);
+    ret = InterruptAttach(0, timerIntHandler, &tData, sizeof(TimerIntData), _NTO_INTR_FLAGS_END | _NTO_INTR_FLAGS_TRK_MSK);
+
+    if(ret == -1) {
+      ERROR("QNX: could not attach to timer interrupt");
+      return FALSE;
+    }
+    tDataUpdated = TRUE;
+    time->seconds = tp.tv_sec;
+    time->nanoseconds = tp.tv_nsec;
+    return;
+  }
+
+  memcpy(&tmpData, &tData, sizeof(TimerIntData));
+
+  delta = ClockCycles() - tmpData.prev_tsc;
+
+  /* compute time since last clock update */
+  tick_delay = (double)delta / (double)tmpData.filtered_delta;
+  clock_offset = (uint64_t)(tick_delay * tmpData.ns_per_tick * (double)tmpData.filtered_delta);
+
+  /* not filtered yet */
+  if(tData.counter < 2) {
+    clock_offset = 0;
+  }
+
+    DBGV("QNX getTime cps: %lld tick interval: %.09f, time since last tick: %lld\n",
+    tmpData.cps, tmpData.filtered_delta * tmpData.ns_per_tick, clock_offset);
+
+    nsec2timespec(&tp, tmpData.last_clock + clock_offset);
+
+    time->seconds = tp.tv_sec;
+    time->nanoseconds = tp.tv_nsec;
+  return TRUE;
+#else
+
+#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
+
+	struct timespec tp;
+	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
+		PERROR("clock_gettime() failed, exiting.");
+		exit(0);
+	}
+	time->seconds = tp.tv_sec;
+	time->nanoseconds = tp.tv_nsec;
+
+#else
+
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	time->seconds = tv.tv_sec;
+	time->nanoseconds = tv.tv_usec * 1000;
+
+#endif /* _POSIX_TIMERS */
+#endif /* __QNXNTO__ */
+
+    return TRUE;
+
+}
+
+static Boolean
+getUtcTime (ClockDriver *self, TimeInternal *out) {
+    return TRUE;
+}
+
+static Boolean
+setTime_unix (ClockDriver *self, TimeInternal *time) {
+
+	TimeInternal oldTime;
+
+	getTime_unix(self, &oldTime);
+
+#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
+
+	struct timespec tp;
+	tp.tv_sec = time->seconds;
+	tp.tv_nsec = time->nanoseconds;
+
+#else
+
+	struct timeval tv;
+	tv.tv_sec = time->seconds;
+	tv.tv_usec = time->nanoseconds / 1000;
+
+#endif /* _POSIX_TIMERS */
+
+#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
+
+	if (clock_settime(CLOCK_REALTIME, &tp) < 0) {
+		PERROR("Could not set system time");
+		return FALSE;
+	}
+
+#else
+
+	settimeofday(&tv, 0);
+
+#endif /* _POSIX_TIMERS */
+
+	if(oldTime.seconds != time->seconds) {
+	    updateXtmp_unix(oldTime, *time);
+	}
+
+	struct timespec tmpTs = { time->seconds,0 };
+
+	char timeStr[MAXTIMESTR];
+	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
+	NOTICE("Stepped the system clock to: %s.%d\n",
+	       timeStr, time->nanoseconds);
+
+	return TRUE;
+
+}
+static Boolean
+adjustFrequency (ClockDriver *self, double adj, double tau) {
+
+    if (self->readOnly){
+		DBGV("adjFreq2: noAdjust on, returning\n");
+		return TRUE;
+	}
+
+/*
+ * adjFreq simulation for QNX: correct clock by x ns per tick over clock adjust interval,
+ * to make it equal adj ns per second. Makes sense only if intervals are regular.
+ */
+
+#ifdef __QNXNTO__
+
+      struct _clockadjust clockadj;
+      struct _clockperiod period;
+      if (ClockPeriod (CLOCK_REALTIME, 0, &period, 0) < 0)
+          return FALSE;
+
+	CLAMP(adj,self->maxFreqAdj);
+
+	/* adjust clock for the duration of 0.9 clock update period in ticks (so we're done before the next) */
+	clockadj.tick_count = 0.9 * tau * 1E9 / (period.nsec + 0.0);
+
+	/* scale adjustment per second to adjustment per single tick */
+	clockadj.tick_nsec_inc = (adj * tau / clockadj.tick_count) / 0.9;
+
+	DBGV("QNX: adj: %.09f, dt: %.09f, ticks per dt: %d, inc per tick %d\n",
+		adj, tau, clockadj.tick_count, clockadj.tick_nsec_inc);
+
+	if (ClockAdjust(CLOCK_REALTIME, &clockadj, NULL) < 0) {
+	    DBGV("QNX: failed to call ClockAdjust: %s\n", strerror(errno));
+	}
+/* regular adjFreq */
+#elif defined(HAVE_SYS_TIMEX_H)
+	DBG2("     adjFreq2: call adjfreq to %.09f us \n", adj / DBG_UNIT);
+	adjFreq_unix(self, adj);
+/* otherwise use adjtime */
+#else
+	struct timeval tv;
+
+	CLAMP(adj,self->maxFreqAdj);
+
+	tv.tv_sec = 0;
+	tv.tv_usec = (adj / 1000);
+	if((tau > 0) && (tau < 1.0)) {
+	    tv.tv_usec *= tau;
+	}
+	adjtime(&tv, NULL);
+#endif
+
+
+    return TRUE;
+}
+static Boolean
+    getStatus (ClockDriver *self, ClockStatus *status) {
+    return TRUE;
+}
+
+static Boolean
+setStatus (ClockDriver *self, ClockStatus *status) {
+    return TRUE;
+}
+
+static Boolean
+adjFreq_unix(ClockDriver *self, double adj)
+{
+
+	struct timex t;
+
+#ifdef HAVE_STRUCT_TIMEX_TICK
+	Integer32 tickAdj = 0;
+
+#ifdef PTPD_DBG2
+	double oldAdj = adj;
+#endif
+
+#endif /* HAVE_STRUCT_TIMEX_TICK */
+
+	memset(&t, 0, sizeof(t));
+
+	/* Clamp to max PPM */
+	if (adj > self->maxFreqAdj){
+		adj = self->maxFreqAdj;
+	} else if (adj < -self->maxFreqAdj){
+		adj = -self->maxFreqAdj;
+	}
+
+/* Y U NO HAVE TICK? */
+#ifdef HAVE_STRUCT_TIMEX_TICK
+
+	/* Get the USER_HZ value */
+	Integer32 userHZ = sysconf(_SC_CLK_TCK);
+
+	/*
+	 * Get the tick resolution (ppb) - offset caused by changing the tick value by 1.
+	 * The ticks value is the duration of one tick in us. So with userHz = 100  ticks per second,
+	 * change of ticks by 1 (us) means a 100 us frequency shift = 100 ppm = 100000 ppb.
+	 * For userHZ = 1000, change by 1 is a 1ms offset (10 times more ticks per second)
+	 */
+	Integer32 tickRes = userHZ * 1000;
+
+	/*
+	 * If we are outside the standard +/-512ppm, switch to a tick + freq combination:
+	 * Keep moving ticks from adj to tickAdj until we get back to the normal range.
+	 * The offset change will not be super smooth as we flip between tick and frequency,
+	 * but this in general should only be happening under extreme conditions when dragging the
+	 * offset down from very large values. When maxPPM is left at the default value, behaviour
+	 * is the same as previously, clamped to 512ppm, but we keep tick at the base value,
+	 * preventing long stabilisation times say when  we had a non-default tick value left over
+	 * from a previous NTP run.
+	 */
+	if (adj > ADJ_FREQ_MAX){
+		while (adj > ADJ_FREQ_MAX) {
+		    tickAdj++;
+		    adj -= tickRes;
+		}
+
+	} else if (adj < -ADJ_FREQ_MAX){
+		while (adj < -ADJ_FREQ_MAX) {
+		    tickAdj--;
+		    adj += tickRes;
+		}
+        }
+	/* Base tick duration - 10000 when userHZ = 100 */
+	t.tick = 1E6 / userHZ;
+	/* Tick adjustment if necessary */
+        t.tick += tickAdj;
+
+
+	t.modes = ADJ_TICK;
+
+#endif /* HAVE_STRUCT_TIMEX_TICK */
+
+	t.modes |= MOD_FREQUENCY;
+
+	double dFreq = adj * ((1 << 16) / 1000.0);
+	t.freq = (int) round(dFreq);
+#ifdef HAVE_STRUCT_TIMEX_TICK
+	DBG2("adjFreq: oldadj: %.09f, newadj: %.09f, tick: %d, tickadj: %d\n", oldAdj, adj,t.tick,tickAdj);
+#endif /* HAVE_STRUCT_TIMEX_TICK */
+	DBG2("        adj is %.09f;  t freq is %d       (float: %.09f)\n", adj, t.freq,  dFreq);
+	
+	return !adjtimex(&t);
+}
+
+
+
+#ifdef HAVE_LINUX_RTC_H
+
+/* Set the RTC to the desired time time */
+static void setRtc_unix(ClockDriver *self, TimeInternal *timeToSet)
+{
+
+	static Boolean deviceFound = FALSE;
+	static char* rtcDev;
+	struct tm* tmTime;
+	time_t seconds;
+	int rtcFd;
+	struct stat statBuf;
+
+	if (!deviceFound) {
+	    if(stat("/dev/misc/rtc", &statBuf) == 0) {
+            	rtcDev="/dev/misc/rtc\0";
+		deviceFound = TRUE;
+	    } else if(stat("/dev/rtc", &statBuf) == 0) {
+            	rtcDev="/dev/rtc\0";
+		deviceFound = TRUE;
+	    }  else if(stat("/dev/rtc0", &statBuf) == 0) {
+            	rtcDev="/dev/rtc0\0";
+		deviceFound = TRUE;
+	    } else {
+
+			ERROR("Could not set RTC time - no suitable rtc device found\n");
+			return;
+	    }
+
+	    if(!S_ISCHR(statBuf.st_mode)) {
+			ERROR("Could not set RTC time - device %s is not a character device\n",
+			rtcDev);
+			deviceFound = FALSE;
+			return;
+	    }
+
+	}
+
+	DBGV("Usable RTC device: %s\n",rtcDev);
+
+	if(timeToSet->seconds == 0 && timeToSet->nanoseconds==0) {
+	    getTime_unix(self, timeToSet);
+	}
+
+
+	if((rtcFd = open(rtcDev, O_RDONLY)) < 0) {
+		PERROR("Could not set RTC time: error opening %s", rtcDev);
+		return;
+	}
+
+	seconds = (time_t)timeToSet->seconds;
+	if(timeToSet->nanoseconds >= 500000) seconds++;
+	tmTime =  gmtime(&seconds);
+
+	DBGV("Set RTC from %d seconds to y: %d m: %d d: %d \n",timeToSet->seconds,tmTime->tm_year,tmTime->tm_mon,tmTime->tm_mday);
+
+	if(ioctl(rtcFd, RTC_SET_TIME, tmTime) < 0) {
+		PERROR("Could not set RTC time on %s - ioctl failed", rtcDev);
+		goto cleanup;
+	}
+
+	NOTIFY("Succesfully set RTC time using %s\n", rtcDev);
+
+cleanup:
+
+	close(rtcFd);
+
+}
+
+#endif /* HAVE_LINUX_RTC_H */
+
+static void
+updateXtmp_unix (TimeInternal oldTime, TimeInternal newTime)
+{
+
+/* Add the old time entry to utmp/wtmp */
+
+/* About as long as the ntpd implementation, but not any less ugly */
+
+#ifdef HAVE_UTMPX_H
+		struct utmpx utx;
+	memset(&utx, 0, sizeof(utx));
+		strncpy(utx.ut_user, "date", sizeof(utx.ut_user));
+#ifndef OTIME_MSG
+		strncpy(utx.ut_line, "|", sizeof(utx.ut_line));
+#else
+		strncpy(utx.ut_line, OTIME_MSG, sizeof(utx.ut_line));
+#endif /* OTIME_MSG */
+#ifdef OLD_TIME
+		utx.ut_tv.tv_sec = oldTime.seconds;
+		utx.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
+		utx.ut_type = OLD_TIME;
+#else /* no ut_type */
+		utx.ut_time = oldTime.seconds;
+#endif /* OLD_TIME */
+
+/* ======== BEGIN  OLD TIME EVENT - UTMPX / WTMPX =========== */
+#ifdef HAVE_UTMPXNAME
+		utmpxname("/var/log/utmp");
+#endif /* HAVE_UTMPXNAME */
+		setutxent();
+		pututxline(&utx);
+		endutxent();
+#ifdef HAVE_UPDWTMPX
+		updwtmpx("/var/log/wtmp", &utx);
+#endif /* HAVE_IPDWTMPX */
+/* ======== END    OLD TIME EVENT - UTMPX / WTMPX =========== */
+
+#else /* NO UTMPX_H */
+
+#ifdef HAVE_UTMP_H
+		struct utmp ut;
+		memset(&ut, 0, sizeof(ut));
+		strncpy(ut.ut_name, "date", sizeof(ut.ut_name));
+#ifndef OTIME_MSG
+		strncpy(ut.ut_line, "|", sizeof(ut.ut_line));
+#else
+		strncpy(ut.ut_line, OTIME_MSG, sizeof(ut.ut_line));
+#endif /* OTIME_MSG */
+
+#ifdef OLD_TIME
+
+#ifdef HAVE_STRUCT_UTMP_UT_TIME
+		ut.ut_time = oldTime.seconds;
+#else
+		ut.ut_tv.tv_sec = oldTime.seconds;
+		ut.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
+#endif /* HAVE_STRUCT_UTMP_UT_TIME */
+
+		ut.ut_type = OLD_TIME;
+#else /* no ut_type */
+		ut.ut_time = oldTime.seconds;
+#endif /* OLD_TIME */
+
+/* ======== BEGIN  OLD TIME EVENT - UTMP / WTMP =========== */
+#ifdef HAVE_UTMPNAME
+		utmpname(UTMP_FILE);
+#endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
+		setutent();
+#endif /* HAVE_SETUTENT */
+#ifdef HAVE_PUTUTLINE
+		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
+		endutent();
+#endif /* HAVE_ENDUTENT */
+#ifdef HAVE_UTMPNAME
+		utmpname(WTMP_FILE);
+#endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
+		setutent();
+#endif /* HAVE_SETUTENT */
+#ifdef HAVE_PUTUTLINE
+		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
+		endutent();
+#endif /* HAVE_ENDUTENT */
+/* ======== END    OLD TIME EVENT - UTMP / WTMP =========== */
+
+#endif /* HAVE_UTMP_H */
+#endif /* HAVE_UTMPX_H */
+
+/* Add the new time entry to utmp/wtmp */
+
+#ifdef HAVE_UTMPX_H
+		memset(&utx, 0, sizeof(utx));
+		strncpy(utx.ut_user, "date", sizeof(utx.ut_user));
+#ifndef NTIME_MSG
+		strncpy(utx.ut_line, "{", sizeof(utx.ut_line));
+#else
+		strncpy(utx.ut_line, NTIME_MSG, sizeof(utx.ut_line));
+#endif /* NTIME_MSG */
+#ifdef NEW_TIME
+		utx.ut_tv.tv_sec = newTime.seconds;
+		utx.ut_tv.tv_usec = newTime.nanoseconds / 1000;
+		utx.ut_type = NEW_TIME;
+#else /* no ut_type */
+		utx.ut_time = newTime.seconds;
+#endif /* NEW_TIME */
+
+/* ======== BEGIN  NEW TIME EVENT - UTMPX / WTMPX =========== */
+#ifdef HAVE_UTMPXNAME
+		utmpxname("/var/log/utmp");
+#endif /* HAVE_UTMPXNAME */
+		setutxent();
+		pututxline(&utx);
+		endutxent();
+#ifdef HAVE_UPDWTMPX
+		updwtmpx("/var/log/wtmp", &utx);
+#endif /* HAVE_UPDWTMPX */
+/* ======== END    NEW TIME EVENT - UTMPX / WTMPX =========== */
+
+#else /* NO UTMPX_H */
+
+#ifdef HAVE_UTMP_H
+		memset(&ut, 0, sizeof(ut));
+		strncpy(ut.ut_name, "date", sizeof(ut.ut_name));
+#ifndef NTIME_MSG
+		strncpy(ut.ut_line, "{", sizeof(ut.ut_line));
+#else
+		strncpy(ut.ut_line, NTIME_MSG, sizeof(ut.ut_line));
+#endif /* NTIME_MSG */
+#ifdef NEW_TIME
+
+#ifdef HAVE_STRUCT_UTMP_UT_TIME
+		ut.ut_time = newTime.seconds;
+#else
+		ut.ut_tv.tv_sec = newTime.seconds;
+		ut.ut_tv.tv_usec = newTime.nanoseconds / 1000;
+#endif /* HAVE_STRUCT_UTMP_UT_TIME */
+		ut.ut_type = NEW_TIME;
+#else /* no ut_type */
+		ut.ut_time = newTime.seconds;
+#endif /* NEW_TIME */
+
+/* ======== BEGIN  NEW TIME EVENT - UTMP / WTMP =========== */
+#ifdef HAVE_UTMPNAME
+		utmpname(UTMP_FILE);
+#endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
+		setutent();
+#endif /* HAVE_SETUTENT */
+#ifdef HAVE_PUTUTLINE
+		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
+		endutent();
+#endif /* HAVE_ENDUTENT */
+#ifdef HAVE_UTMPNAME
+		utmpname(WTMP_FILE);
+#endif /* HAVE_UTMPNAME */
+#ifdef HAVE_SETUTENT
+		setutent();
+#endif /* HAVE_SETUTENT */
+#ifdef HAVE_PUTUTLINE
+		pututline(&ut);
+#endif /* HAVE_PUTUTLINE */
+#ifdef HAVE_ENDUTENT
+		endutent();
+#endif /* HAVE_ENDUTENT */
+/* ======== END    NEW TIME EVENT - UTMP / WTMP =========== */
+
+#endif /* HAVE_UTMP_H */
+#endif /* HAVE_UTMPX_H */
+
+}
+
+#ifdef __QNXNTO__
+
+static const struct sigevent* timerIntHandler(void* data, int id) {
+  struct timespec tp;
+  TimerIntData* myData = (TimerIntData*)data;
+  uint64_t new_tsc = ClockCycles();
+
+  clock_gettime(CLOCK_REALTIME, &tp);
+
+  if(new_tsc > myData->prev_tsc) {
+    myData->cur_delta = new_tsc - myData->prev_tsc;
+  /* when hell freezeth over, thy TSC shall roll over */
+  } else {
+    myData->cur_delta = myData->prev_delta;
+  }
+  /* 4/6 weighted average */
+  myData->filtered_delta = (40 * myData->cur_delta + 60 * myData->prev_delta) / 100;
+  myData->prev_delta = myData->cur_delta;
+  myData->prev_tsc = new_tsc;
+
+  if(myData->counter < 2) {
+    myData->counter++;
+  }
+
+  myData->last_clock = timespec2nsec(&tp);
+  return NULL;
+
+}
+#endif

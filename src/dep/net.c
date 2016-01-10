@@ -85,6 +85,17 @@
 #include <linux/ethtool.h>
 #endif /* SO_TIMESTAMPING */
 
+#include "linux/if_bonding.h"
+#include "linux/if_vlan.h"
+
+static Boolean bondQuery(char *ifaceName, ifbond *ifb);
+static Boolean bondSlaveQuery(char *ifaceName, ifslave *ifs, int member);
+static int getActiveBondMember(char * ifaceName, char* active, size_t maxlen);
+static void getBondInfo(char *ifaceName, BondInfo *info);
+static void getVlanInfo(char* ifaceName, VlanInfo *info);
+
+
+
 /**
  * shutdown the IPv4 multicast for specific address
  *
@@ -451,6 +462,11 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 
     int res;
 
+    char *realDevice = ifaceName;
+
+    BondInfo *bondInfo = &ifaceInfo->bondInfo;
+    VlanInfo *vlanInfo = &ifaceInfo->vlanInfo;
+
     res = interfaceExists(ifaceName);
 
     if (res == -1) {
@@ -499,6 +515,49 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 	ifaceInfo->ifIndex = res;
     }
 
+    getVlanInfo(ifaceName, vlanInfo);
+
+    if(vlanInfo->vlan) {
+	    realDevice = vlanInfo->realDevice;
+
+    }
+
+    getBondInfo(realDevice, bondInfo);
+
+    if(bondInfo->bonded && bondInfo->activeCount > 0) {
+	    realDevice = bondInfo->activeSlave;
+    }
+
+    strncpy(ifaceInfo->physicalDevice, realDevice, IFACE_NAME_LENGTH);
+
+    DBG("Underlying physical device: %s\n", ifaceInfo->physicalDevice);
+
+    ClockDriverConfig_linuxphc cd;
+    memset(&cd, 0, sizeof(ClockDriverConfig_linuxphc));
+    strncpy(cd.networkDevice, ifaceInfo->physicalDevice, IFACE_NAME_LENGTH);
+
+    ClockDriver *dr = createClockDriver(CLOCKDRIVER_LINUXPHC, ifaceInfo->physicalDevice);
+    dr->init(dr, &cd);
+
+    ClockDriver *un = createClockDriver(CLOCKDRIVER_UNIX, "oscl");
+    un->init(un, NULL);
+
+    TimeInternal ti;
+
+
+
+    un->getTime(un, &ti);
+    INFO("%s time %012d.%d\n", un->name,ti.seconds, ti.nanoseconds);
+
+//    dr->setTime(dr, &ti);
+    dr->getTime(dr, &ti);
+    INFO("%s time %012d.%d\n", dr->name,ti.seconds, ti.nanoseconds);
+
+    dr->getTime(dr, &ti);
+    INFO("%s time %012d.%d\n", dr->name,ti.seconds, ti.nanoseconds);
+
+    shutdownClockDrivers();
+
     return TRUE;
 
 
@@ -507,9 +566,9 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 Boolean
 testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
 {
-
+	char *realDevice = ifaceName;
 	InterfaceInfo info;
-
+	memset(&info, 0, sizeof(InterfaceInfo));
 	info.addressFamily = AF_INET;
 
 	if(getInterfaceInfo(ifaceName, &info) != 1)
@@ -542,6 +601,19 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
 
     if(info.flags & IFF_LOOPBACK)
 	    WARNING("Interface %s is a loopback interface.\n", ifaceName);
+
+    if(info.vlanInfo.vlan) {
+	    realDevice = info.vlanInfo.realDevice;
+	    INFO("%s is a VLAN interface, VLAN ID %d, underlying device %s\n", ifaceName, info.vlanInfo.vlanId, info.vlanInfo.realDevice);
+    }
+
+    if(info.bondInfo.bonded) {
+	    if(info.bondInfo.activeCount == 0) {
+		WARNING("%s is a bonded interface with no active slaves\n");
+	    } else {
+		INFO("%s is a bonded interface, current active slave: %s\n", realDevice, info.bondInfo.activeSlave);
+	    }
+    }
 
     if(!(info.flags & IFF_MULTICAST)
 	    && rtOpts->transport==UDP_IPV4
@@ -2294,4 +2366,192 @@ netRefreshIGMP(NetPath * netPath, const RunTimeOpts * rtOpts, PtpClock * ptpCloc
 	}
 
 	return TRUE;
+}
+
+Boolean netIoctlHelper(struct ifreq *ifr, char* ifaceName, unsigned long request) {
+
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if(sockfd < 0) {
+	PERROR("ioctlHelper: could not create helper socket");
+	return FALSE;
+    }
+
+    strncpy(ifr->ifr_name, ifaceName, IFACE_NAME_LENGTH);
+
+    if (ioctl(sockfd, request, ifr) < 0) {
+            DBG("ioctlHelper: failed to call ioctl 0x%x on %s: %s\n", request, ifaceName, strerror(errno));
+	    close(sockfd);
+	    return FALSE;
+    }
+    close(sockfd);
+    return TRUE;
+
+}
+
+static Boolean bondQuery(char *ifaceName, ifbond *ifb)
+{
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(struct ifreq));
+    memset(ifb, 0, sizeof(ifbond));
+    ifr.ifr_data = (caddr_t)ifb;
+    return netIoctlHelper(&ifr, ifaceName, SIOCBONDINFOQUERY);
+
+}
+
+static Boolean bondSlaveQuery(char *ifaceName, ifslave *ifs, int member)
+{
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(struct ifreq));
+    memset(ifs, 0, sizeof(ifslave));
+    ifs->slave_id = member;
+    ifr.ifr_data = (caddr_t)ifs;
+    return netIoctlHelper(&ifr, ifaceName, SIOCBONDSLAVEINFOQUERY);
+
+}
+
+static int getActiveBondMember(char * ifaceName, char* active, size_t maxlen)
+{
+
+    ifbond ifb;
+    ifslave ifs;
+
+    if(bondQuery(ifaceName, &ifb)) {
+
+	if(ifb.num_slaves == 0) return -1;
+
+	for(int i = 0; i < ifb.num_slaves; i++) {
+	    if(bondSlaveQuery(ifaceName, &ifs, i) && ifs.state == BOND_STATE_ACTIVE) {
+		strncpy(active, ifs.slave_name, min(maxlen, sizeof(ifs.slave_name)));
+		return i;
+	    }
+	}
+    }
+    return -1;
+
+}
+
+
+static void getBondInfo(char *ifaceName, BondInfo *info)
+{
+
+    ifbond ifb;
+
+    char lastActiveSlave[IFACE_NAME_LENGTH+1];
+
+    if(!bondQuery(ifaceName, &ifb)) {
+	info->bonded = FALSE;
+	return;
+    }
+
+    memset(lastActiveSlave, 0, IFACE_NAME_LENGTH + 1);
+
+    if(info->updated) {
+	strncpy(lastActiveSlave, info->activeSlave, IFACE_NAME_LENGTH);
+    }
+    memset(info->activeSlave, 0, IFACE_NAME_LENGTH + 1);
+
+
+    info->bonded = TRUE;
+    info->activeBackup = (ifb.bond_mode == BOND_MODE_ACTIVEBACKUP);
+    info->slaveCount = ifb.num_slaves;
+
+    info->activeSlaveId = getActiveBondMember(ifaceName, info->activeSlave, IFACE_NAME_LENGTH);
+
+    if(info->activeSlaveId >= 0) {
+	info->activeCount = 1;
+    }
+
+    if((info->updated) && strncmp(lastActiveSlave, info->activeSlave, IFACE_NAME_LENGTH)) {
+	info->activeChanged = TRUE;
+    } else {
+	info->activeChanged = FALSE;
+    }
+
+    info->updated = TRUE;
+    return;
+
+}
+
+static void getVlanInfo(char* ifaceName, VlanInfo *info)
+{
+
+    struct vlan_ioctl_args args;
+
+    int sockfd = socket(PF_INET, SOCK_DGRAM, 0);
+
+    if(sockfd < 0) {
+	PERROR("ioctlHelper: could not create helper socket");
+	info->vlan = FALSE;
+	return;
+    }
+
+    memset(&args, 0, sizeof(struct vlan_ioctl_args));
+    strncpy(args.device1, ifaceName, min(sizeof(args.device1), IFACE_NAME_LENGTH));
+    args.cmd = GET_VLAN_REALDEV_NAME_CMD;
+    if (ioctl(sockfd, SIOCGIFVLAN, &args) < 0) {
+            DBG("getVlanInfo: failed to call SIOCGIFVLAN ioctl on %s: %s\n", ifaceName, strerror(errno));
+	    close(sockfd);
+	    info->vlan = FALSE;
+	    return;
+    }
+
+    info->vlan = TRUE;
+
+    strncpy(info->realDevice, args.u.device2, min(sizeof(args.device1), IFACE_NAME_LENGTH));
+    memset(&args, 0, sizeof(struct vlan_ioctl_args));
+    strncpy(args.device1, ifaceName, min(sizeof(args.device1), IFACE_NAME_LENGTH));
+    args.cmd = GET_VLAN_VID_CMD;
+    if (ioctl(sockfd, SIOCGIFVLAN, &args) < 0) {
+            DBG("getVlanInfo: failed to call SIOCGIFVLAN ioctl on %s: %s\n", ifaceName, strerror(errno));
+	    close(sockfd);
+	    info->vlan = FALSE;
+	    return;
+    }
+
+    info->vlanId = args.u.VID;
+
+
+    close(sockfd);
+    return;
+
+
+}
+
+void bondCheck(NetPath * netPath, const RunTimeOpts * rtOpts, PtpClock * ptpClock)
+{
+
+    BondInfo *bondInfo = &netPath->interfaceInfo.bondInfo;
+    VlanInfo *vlanInfo = &netPath->interfaceInfo.vlanInfo;
+
+    char * ifaceName = rtOpts->ifaceName;
+
+    getVlanInfo(rtOpts->ifaceName, vlanInfo);
+
+    if(vlanInfo->vlan) {
+	    ifaceName = vlanInfo->realDevice;
+    }
+
+    getBondInfo(ifaceName, bondInfo);
+
+    if(bondInfo->activeChanged) {
+	INFO("Active bond member changed to %s\n", bondInfo->activeSlave);
+    }
+
+}
+
+Boolean getTsInfo(char *ifaceName, struct ethtool_ts_info *info) {
+
+	struct ifreq ifr;
+	memset(&ifr, 0, sizeof(ifr));
+	memset(info, 0, sizeof(info));
+	info->cmd = ETHTOOL_GET_TS_INFO;
+	ifr.ifr_data = (char*) info;
+	if(!netIoctlHelper(&ifr, ifaceName, SIOCETHTOOL)) {
+	    PERROR("Could not get ethtool information from %s", ifaceName);
+	    return FALSE;
+	}
+
+	return TRUE;
+
 }

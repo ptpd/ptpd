@@ -63,6 +63,12 @@ ptpd2_SOURCES =				\
 	timingdomain.c			\
 	dep/alarms.h			\
 	dep/alarms.c			\
+	dep/clockdriver.h		\
+	dep/clockdriver.c		\
+	dep/clockdriver_unix.h		\
+	dep/clockdriver_unix.c		\
+	dep/clockdriver_linuxphc.h	\
+	dep/clockdriver_linuxphc.c	\
 	ptpd.c				\
 	ptpd.h				\
 	$(NULL)
