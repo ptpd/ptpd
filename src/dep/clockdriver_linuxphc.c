@@ -257,13 +257,15 @@ getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps) {
 }
 
 static Boolean
-getSystemClockOffset(ClockDriver *self, TimeInternal *delta)
+getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 {
 
     GET_DATA();
     GET_CONFIG();
 
-    TimeInternal t1, t2, tptp, tmpDelta;
+    TimeInternal t1, t2, tptp, tmpDelta, duration, minDuration, delta;
+
+
 
     struct ptp_clock_time *samples;
 
@@ -280,19 +282,33 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *delta)
 
 	t1.seconds = samples[2*i].sec;
 	t1.nanoseconds = samples[2*i].nsec;
-
 	tptp.seconds = samples[2*i+1].sec;
 	tptp.nanoseconds = samples[2*i+1].nsec;
-
 	t2.seconds = samples[2*i+2].sec;
 	t2.nanoseconds = samples[2*i+2].nsec;
 
+	subTime(&duration, &t2, &t1);
+
+	if(i==0) {
+	    minDuration = duration;
+	}
+
+	div2Time(&t1);
+	div2Time(&t2);
 	addTime(&tmpDelta, &t1, &t2);
-	div2Time(&tmpDelta);
 	subTime(&tmpDelta, &tmpDelta, &tptp);
 
-	INFO("Delta %d: %ld.%09ld ns\n", i, tmpDelta.seconds, tmpDelta.nanoseconds);
+	if(!gtTime(&duration, &minDuration)) {
+	    minDuration = duration;
+	    delta = tmpDelta;
+	}
 
+    }
+
+	INFO("Delta: %d.%09d ns\n", delta.seconds, delta.nanoseconds);
+
+    if(output != NULL) {
+	*output = delta;
     }
 
     return TRUE;

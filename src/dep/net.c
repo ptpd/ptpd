@@ -549,7 +549,7 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
     un->getTime(un, &ti);
     INFO("%s time %012d.%d\n", un->name,ti.seconds, ti.nanoseconds);
 
-//    dr->setTime(dr, &ti);
+//   dr->setTime(dr, &ti);
     dr->getTime(dr, &ti);
     INFO("%s time %012d.%d\n", dr->name,ti.seconds, ti.nanoseconds);
 
