@@ -704,7 +704,7 @@ logStatistics(PtpClock * ptpClock)
 
 	memset(sbuf, 0, sizeof(sbuf));
 
-	getTime(&now);
+	getOsClock()->getTime(getOsClock(), &now);
 
 	/*
 	 * print one log entry per X seconds for Sync and DelayResp messages, to reduce disk usage.
@@ -987,6 +987,8 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	int n = getAlarmSummary(NULL, 0, ptpClock->alarms, ALRM_MAX);
 	char alarmBuf[n];
 
+	InterfaceInfo *ifInfo = &ptpClock->netPath.interfaceInfo;
+
 	getAlarmSummary(alarmBuf, n, ptpClock->alarms, ALRM_MAX);
 
 	if(rtOpts->statusLog.logFP == NULL)
@@ -1015,9 +1017,29 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, 		STATUSPREFIX"  %s\n","Local time", timeStr);
 	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", gmtime((time_t*)&now.tv_sec));
 	fprintf(out, 		STATUSPREFIX"  %s\n","Kernel time", timeStr);
-	fprintf(out, 		STATUSPREFIX"  %s%s\n","Interface", rtOpts->ifaceName,
+	fprintf(out, 		STATUSPREFIX"  %s%s","Interface", rtOpts->ifaceName,
 		(rtOpts->backupIfaceEnabled && ptpClock->runningBackupInterface) ? " (backup)" : (rtOpts->backupIfaceEnabled)?
 		    " (primary)" : "");
+
+	if(ifInfo->vlanInfo.vlan) {
+	    fprintf(out, "%s", ", VLAN");
+	}
+	if(ifInfo->bondInfo.bonded) {
+	    fprintf(out, ", bonded");
+	    if(ifInfo->bondInfo.activeBackup) {
+		if(ifInfo->bondInfo.activeCount>0) {
+		    fprintf(out, ", active %s", ifInfo->physicalDevice);
+		} else {
+		    fprintf(out, "no active slaves!");
+		}
+		
+	    }
+	} else if(ifInfo->vlanInfo.vlan) {
+		    fprintf(out, ", physical %s", ifInfo->physicalDevice);
+	}
+
+	fprintf(out, "\n");
+
 	fprintf(out, 		STATUSPREFIX"  %s\n","Preset", dictionary_get(rtOpts->currentConfig, "ptpengine:preset", ""));
 	fprintf(out, 		STATUSPREFIX"  %s%s","Transport", dictionary_get(rtOpts->currentConfig, "ptpengine:transport", ""),
 		(rtOpts->transport==UDP_IPV4 && rtOpts->pcap == TRUE)?" + libpcap":"");
@@ -1025,6 +1047,10 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	if(rtOpts->transport != IEEE_802_3) {
 	    fprintf(out,", %s", dictionary_get(rtOpts->currentConfig, "ptpengine:ip_mode", ""));
 	    fprintf(out,"%s", rtOpts->unicastNegotiation ? " negotiation":"");
+	}
+
+	if(ptpClock->netPath.hwTimestamping) {
+	    fprintf(out,", HW PTP");
 	}
 
 	fprintf(out,"\n");
@@ -1440,90 +1466,13 @@ static const struct sigevent* timerIntHandler(void* data, int id) {
 }
 #endif
 
- void getTime(TimeInternal *time)
- {
-#ifdef __QNXNTO__
-  static TimerIntData tmpData;
-  int ret;
-  uint64_t delta;
-  double tick_delay;
-  uint64_t clock_offset;
-  struct timespec tp;
-  if(!tDataUpdated) {
-    memset(&tData, 0, sizeof(TimerIntData));
-    if(ThreadCtl(_NTO_TCTL_IO, 0) == -1) {
-      ERROR("QNX: could not give process I/O privileges");
-      return;
-    }
-
-    tData.cps = SYSPAGE_ENTRY(qtime)->cycles_per_sec;
-    tData.ns_per_tick = 1000000000.0 / tData.cps;
-    tData.prev_tsc = ClockCycles();
-    clock_gettime(CLOCK_REALTIME, &tp);
-    tData.last_clock = timespec2nsec(&tp);
-    ret = InterruptAttach(0, timerIntHandler, &tData, sizeof(TimerIntData), _NTO_INTR_FLAGS_END | _NTO_INTR_FLAGS_TRK_MSK);
-
-    if(ret == -1) {
-      ERROR("QNX: could not attach to timer interrupt");
-      return ;
-    }
-    tDataUpdated = TRUE;
-    time->seconds = tp.tv_sec;
-    time->nanoseconds = tp.tv_nsec;
-    return;
-  }
-
-  memcpy(&tmpData, &tData, sizeof(TimerIntData));
-
-  delta = ClockCycles() - tmpData.prev_tsc;
-
-  /* compute time since last clock update */
-  tick_delay = (double)delta / (double)tmpData.filtered_delta;
-  clock_offset = (uint64_t)(tick_delay * tmpData.ns_per_tick * (double)tmpData.filtered_delta);
-
-  /* not filtered yet */
-  if(tData.counter < 2) {
-    clock_offset = 0;
-  }
-
-    DBGV("QNX getTime cps: %lld tick interval: %.09f, time since last tick: %lld\n",
-    tmpData.cps, tmpData.filtered_delta * tmpData.ns_per_tick, clock_offset);
-
-    nsec2timespec(&tp, tmpData.last_clock + clock_offset);
-
-    time->seconds = tp.tv_sec;
-    time->nanoseconds = tp.tv_nsec;
-  return;
-#else
-
-#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
-
-	struct timespec tp;
-	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
-		PERROR("clock_gettime() failed, exiting.");
-		exit(0);
-	}
-	time->seconds = tp.tv_sec;
-	time->nanoseconds = tp.tv_nsec;
-
-#else
-
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	time->seconds = tv.tv_sec;
-	time->nanoseconds = tv.tv_usec * 1000;
-
-#endif /* _POSIX_TIMERS */
-#endif /* __QNXNTO__ */
-}
-
 void
 getTimeMonotonic(TimeInternal * time)
 {
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 
 	struct timespec tp;
-#ifndef CLOCK_MONOTINIC                                                                                                      
+#ifndef CLOCK_MONOTINIC
 	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
 #else
 	if (clock_gettime(CLOCK_MONOTONIC, &tp) < 0) {
@@ -1543,46 +1492,6 @@ getTimeMonotonic(TimeInternal * time)
 #endif /* _POSIX_TIMERS */
 }
 
-
-void
-setTime(TimeInternal * time)
-{
-
-#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
-
-	struct timespec tp;
-	tp.tv_sec = time->seconds;
-	tp.tv_nsec = time->nanoseconds;
-
-#else
-
-	struct timeval tv;
-	tv.tv_sec = time->seconds;
-	tv.tv_usec = time->nanoseconds / 1000;
-
-#endif /* _POSIX_TIMERS */
-
-#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
-
-	if (clock_settime(CLOCK_REALTIME, &tp) < 0) {
-		PERROR("Could not set system time");
-		return;
-	}
-
-#else
-
-	settimeofday(&tv, 0);
-
-#endif /* _POSIX_TIMERS */
-
-	struct timespec tmpTs = { time->seconds,0 };
-
-	char timeStr[MAXTIMESTR];
-	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
-	WARNING("Stepped the system clock to: %s.%d\n",
-	       timeStr, time->nanoseconds);
-
-}
 
 #ifdef HAVE_LINUX_RTC_H
 
@@ -1625,7 +1534,7 @@ void setRtc(TimeInternal *timeToSet)
 	DBGV("Usable RTC device: %s\n",rtcDev);
 
 	if(timeToSet->seconds == 0 && timeToSet->nanoseconds==0) {
-	    getTime(timeToSet);
+	    getOsClock()->getTime(getOsClock(), timeToSet);
 	}
 
 
@@ -1858,115 +1767,6 @@ end:
 
 #ifdef HAVE_SYS_TIMEX_H
 
-/*
- * Apply a tick / frequency shift to the kernel clock
- */
-
-Boolean
-adjFreq(double adj)
-{
-
-	extern RunTimeOpts rtOpts;
-	struct timex t;
-
-#ifdef HAVE_STRUCT_TIMEX_TICK
-	Integer32 tickAdj = 0;
-
-#ifdef PTPD_DBG2
-	double oldAdj = adj;
-#endif
-
-#endif /* HAVE_STRUCT_TIMEX_TICK */
-
-	memset(&t, 0, sizeof(t));
-
-	/* Clamp to max PPM */
-	if (adj > rtOpts.servoMaxPpb){
-		adj = rtOpts.servoMaxPpb;
-	} else if (adj < -rtOpts.servoMaxPpb){
-		adj = -rtOpts.servoMaxPpb;
-	}
-
-/* Y U NO HAVE TICK? */
-#ifdef HAVE_STRUCT_TIMEX_TICK
-
-	/* Get the USER_HZ value */
-	Integer32 userHZ = sysconf(_SC_CLK_TCK);
-
-	/*
-	 * Get the tick resolution (ppb) - offset caused by changing the tick value by 1.
-	 * The ticks value is the duration of one tick in us. So with userHz = 100  ticks per second,
-	 * change of ticks by 1 (us) means a 100 us frequency shift = 100 ppm = 100000 ppb.
-	 * For userHZ = 1000, change by 1 is a 1ms offset (10 times more ticks per second)
-	 */
-	Integer32 tickRes = userHZ * 1000;
-
-	/*
-	 * If we are outside the standard +/-512ppm, switch to a tick + freq combination:
-	 * Keep moving ticks from adj to tickAdj until we get back to the normal range.
-	 * The offset change will not be super smooth as we flip between tick and frequency,
-	 * but this in general should only be happening under extreme conditions when dragging the
-	 * offset down from very large values. When maxPPM is left at the default value, behaviour
-	 * is the same as previously, clamped to 512ppm, but we keep tick at the base value,
-	 * preventing long stabilisation times say when  we had a non-default tick value left over
-	 * from a previous NTP run.
-	 */
-	if (adj > ADJ_FREQ_MAX){
-		while (adj > ADJ_FREQ_MAX) {
-		    tickAdj++;
-		    adj -= tickRes;
-		}
-
-	} else if (adj < -ADJ_FREQ_MAX){
-		while (adj < -ADJ_FREQ_MAX) {
-		    tickAdj--;
-		    adj += tickRes;
-		}
-        }
-	/* Base tick duration - 10000 when userHZ = 100 */
-	t.tick = 1E6 / userHZ;
-	/* Tick adjustment if necessary */
-        t.tick += tickAdj;
-
-
-	t.modes = ADJ_TICK;
-
-#endif /* HAVE_STRUCT_TIMEX_TICK */
-
-	t.modes |= MOD_FREQUENCY;
-
-	double dFreq = adj * ((1 << 16) / 1000.0);
-	t.freq = (int) round(dFreq);
-#ifdef HAVE_STRUCT_TIMEX_TICK
-	DBG2("adjFreq: oldadj: %.09f, newadj: %.09f, tick: %d, tickadj: %d\n", oldAdj, adj,t.tick,tickAdj);
-#endif /* HAVE_STRUCT_TIMEX_TICK */
-	DBG2("        adj is %.09f;  t freq is %d       (float: %.09f)\n", adj, t.freq,  dFreq);
-	
-	return !adjtimex(&t);
-}
-
-
-double
-getAdjFreq(void)
-{
-	struct timex t;
-	double dFreq;
-
-	DBGV("getAdjFreq called\n");
-
-	memset(&t, 0, sizeof(t));
-	t.modes = 0;
-	adjtimex(&t);
-
-	dFreq = (t.freq + 0.0) / ((1<<16) / 1000.0);
-
-	DBGV("          kernel adj is: %f, kernel freq is: %d\n",
-		dFreq, t.freq);
-
-	return(dFreq);
-}
-
-
 /* First cut on informing the clock */
 void
 informClockSource(PtpClock* ptpClock)
@@ -2180,7 +1980,7 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	if (ptpClock->drift_saved && rtOpts->drift_recovery_method > 0 ) {
 		ptpClock->servo.observedDrift = ptpClock->last_saved_drift;
 		if (!rtOpts->noAdjust && ptpClock->clockControl.granted) {
-			adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->last_saved_drift);
+			ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, -ptpClock->last_saved_drift, 1);
 		}
 		DBG("loaded cached drift\n");
 		return;
@@ -2219,7 +2019,7 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 
 		case DRIFT_KERNEL:
 #ifdef HAVE_SYS_TIMEX_H
-			recovered_drift = -getAdjFreq();
+			recovered_drift = -(ptpClock->clockDriver->getFrequency(ptpClock->clockDriver));
 #else
 			recovered_drift = 0;
 #endif /* HAVE_SYS_TIMEX_H */
@@ -2227,10 +2027,10 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 				recovered_drift = 0;
 
 			if (quiet)
-				DBGV("Observed_drift loaded from kernel: "DRIFTFORMAT" ppb\n",
+				DBGV("Frequency offset loaded from clock driver %s: "DRIFTFORMAT" ppb\n", ptpClock->clockDriver->name,
 					recovered_drift);
 			else
-				INFO("Observed_drift loaded from kernel: "DRIFTFORMAT" ppb\n",
+				INFO("Frequency offset loaded from clock driver %s: "DRIFTFORMAT" ppb\n", ptpClock->clockDriver->name,
 					recovered_drift);
 
 		break;
@@ -2244,7 +2044,7 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 
 	if (reset_offset) {
 		if (!rtOpts->noAdjust && ptpClock->clockControl.granted)
-		  adjFreq_wrapper(rtOpts, ptpClock, 0);
+		ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, 0, 1);
 		ptpClock->servo.observedDrift = 0;
 		return;
 	}
@@ -2255,9 +2055,8 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	ptpClock->last_saved_drift = recovered_drift;
 
 	if (!rtOpts->noAdjust)
-		adjFreq_wrapper(rtOpts, ptpClock, -recovered_drift);
-
-}
+		ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, -recovered_drift, 1);
+	}
 
 
 
@@ -2324,7 +2123,7 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
     int ntpOffset = 0;
     int res;
 
-    getTime(&now);
+    getOsClock()->getTime(getOsClock(), &now);
 
     info->valid = FALSE;
 

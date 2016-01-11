@@ -36,6 +36,7 @@
 #define PTPD_CLOCKDRIVER_UNIX_H_
 
 #include "clockdriver.h"
+//#include "../ptpd.h"
 
 void _setupClockDriver_unix(ClockDriver* clockDriver);
 

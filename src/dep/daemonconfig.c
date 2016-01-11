@@ -1462,6 +1462,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Specify peer unicast adress for P2P unicast. Mandatory when\n"
 	"	 running unicast mode and P2P delay mode.");
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:hardware_timestamping",
+		PTPD_RESTART_NETWORK, &rtOpts->hwTimestamping, rtOpts->hwTimestamping,
+	"Enable hardware timestamping and hardware clock support (if available)");
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:management_enable",
 		PTPD_RESTART_NONE, &rtOpts->managementEnabled, rtOpts->managementEnabled,
 	"Enable handling of PTP management messages.");
@@ -1471,7 +1475,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"Accept SET and COMMAND management messages.");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:igmp_refresh",
-		PTPD_RESTART_NONE, &rtOpts->do_IGMP_refresh, rtOpts->do_IGMP_refresh,
+		PTPD_RESTART_NONE, &rtOpts->refreshIgmp, rtOpts->refreshIgmp,
 	"Send explicit IGMP joins between engine resets and periodically\n"
 	"	 in master state.");
 

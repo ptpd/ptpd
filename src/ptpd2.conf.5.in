@@ -359,6 +359,19 @@ P2P uses Peer Delay Request messages.
 .RE
 .RS 0
 .TP 8
+\fBptpengine:hardware_timestamping [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Enable hardware timestamping and hardware clock support (where available).
+.TP 8
+\fBdefault\fR
+\fIY\fR
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:domain [\fIINT\fB: 0 .. 127]\fR
 .RS 8
 .TP 8

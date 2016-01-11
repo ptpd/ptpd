@@ -308,7 +308,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 
 		if (timerExpired(&ptpClock->timers[INTERFACE_CHECK_TIMER])) {
-		    bondCheck(&ptpClock->netPath, rtOpts, ptpClock);
+		    updateInterfaceInfo(&ptpClock->netPath, rtOpts, ptpClock);
 		}
 
 		if (timerExpired(&ptpClock->timers[UNICAST_GRANT_TIMER])) {
@@ -557,7 +557,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->portDS.logMinDelayReqInterval = rtOpts->initial_delayreq;
 
 		/* force a IGMP refresh per reset */
-		if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
+		if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->refreshIgmp && rtOpts->transport != IEEE_802_3) {
 		    /* if multicast refresh failed, restart network - helps recover after driver reloads and such */
                     if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
                             WARNING("Error while refreshing multicast - restarting transports\n");
@@ -604,7 +604,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
 			MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinPdelayReqInterval))));
 		}
-		if( rtOpts->do_IGMP_refresh &&
+		if( rtOpts->refreshIgmp &&
 		    rtOpts->transport == UDP_IPV4 &&
 		    rtOpts->ipMode != IPMODE_UNICAST &&
 		    rtOpts->masterRefreshInterval > 9 )
@@ -873,7 +873,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					ptpClock->counters.announceTimeouts++;
 				}
 
-				if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
+				if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->refreshIgmp && rtOpts->transport != IEEE_802_3) {
 				/* if multicast refresh failed, restart network - helps recover after driver reloads and such */
                 		    if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
                         		WARNING("Error while refreshing multicast - restarting transports\n");
@@ -1113,7 +1113,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			}
 		}
 
-		if(rtOpts->do_IGMP_refresh &&
+		if(rtOpts->refreshIgmp &&
 		    rtOpts->transport == UDP_IPV4 &&
 		    rtOpts->ipMode != IPMODE_UNICAST &&
 		    rtOpts->masterRefreshInterval > 9 &&
@@ -2982,7 +2982,7 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 	Timestamp originTimestamp;
 	TimeInternal internalTime, now;
 
-	getTime(&internalTime);
+	getOsClock()->getTime(getOsClock(), &internalTime);
 
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
@@ -3022,22 +3022,13 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 
 		DBGV("Sync MSG sent ! \n");
 
-#ifdef SO_TIMESTAMPING
-
-#ifdef PTPD_PCAP
-		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
-#else
-		if(!ptpClock->netPath.txTimestampFailure) {
-#endif /* PTPD_PCAP */
-			if(internalTime.seconds && internalTime.nanoseconds) {
+		if(ptpClock->netPath.txTimestamping && !isTimeZero(&internalTime)) {
 
 			    if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				    internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			    }
 			    processSyncFromSelf(&internalTime, rtOpts, ptpClock, dst, *sequenceId);
-			}
 		}
-#endif
 
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 	if(internalTime.seconds && internalTime.nanoseconds) {
@@ -3111,7 +3102,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	 * call GTOD. This time is later replaced in handleDelayReq,
 	 * to get the actual send timestamp from the OS
 	 */
-	getTime(&internalTime);
+	getOsClock()->getTime(getOsClock(), &internalTime);
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
@@ -3137,20 +3128,14 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	} else {
 		DBGV("DelayReq MSG sent ! \n");
 		
-#ifdef SO_TIMESTAMPING
 
-#ifdef PTPD_PCAP
-		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
-#else
-		if(!ptpClock->netPath.txTimestampFailure) {
-#endif /* PTPD_PCAP */
+		if(ptpClock->netPath.txTimestamping && !isTimeZero(&internalTime)) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
 			
 			processDelayReqFromSelf(&internalTime, rtOpts, ptpClock);
 		}
-#endif
 
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
@@ -3195,7 +3180,7 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	    return;
 	}
 
-	getTime(&internalTime);
+	getOsClock()->getTime(getOsClock(), &internalTime);
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
@@ -3214,19 +3199,12 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	} else {
 		DBGV("PdelayReq MSG sent ! \n");
 		
-#ifdef SO_TIMESTAMPING
-
-#ifdef PTPD_PCAP
-		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
-#else
-		if(!ptpClock->netPath.txTimestampFailure) {
-#endif /* PTPD_PCAP */
+		if(ptpClock->netPath.txTimestamping && !isTimeZero(&internalTime)) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
 			processPdelayReqFromSelf(&internalTime, rtOpts, ptpClock);
 		}
-#endif
 		
 		ptpClock->sentPdelayReqSequenceId++;
 		ptpClock->counters.pdelayReqMessagesSent++;
@@ -3268,19 +3246,13 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddr
 	} else {
 		DBGV("PdelayResp MSG sent ! \n");
 		
-#ifdef SO_TIMESTAMPING
-
-#ifdef PTPD_PCAP
-		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
-#else
-		if(!ptpClock->netPath.txTimestampFailure) {
-#endif /* PTPD_PCAP */
+		if(ptpClock->netPath.txTimestamping && !isTimeZero(&internalTime)) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
 			processPdelayRespFromSelf(&internalTime, rtOpts, ptpClock, dst, header->sequenceId);
 		}
-#endif
+
 		
 		ptpClock->counters.pdelayRespMessagesSent++;
 		ptpClock->lastPdelayRespDst = dst;

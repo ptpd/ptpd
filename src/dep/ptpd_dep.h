@@ -378,7 +378,7 @@ ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*,const RunTimeOpts*, Intege
 ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32,TimeInternal*);
 Boolean netRefreshIGMP(NetPath *, const RunTimeOpts *, PtpClock *);
 Boolean hostLookup(const char* hostname, Integer32* addr);
-void bondCheck(NetPath * netPath, const RunTimeOpts * rtOpts, PtpClock * ptpClock);
+void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock);
 Boolean netIoctlHelper(struct ifreq *ifr, char* ifaceName, unsigned long request);
 Boolean getTsInfo(char *ifaceName, struct ethtool_ts_info *info);
 
@@ -460,9 +460,7 @@ void displayStatus(PtpClock *ptpClock, const char *prefixMessage);
 void displayPortIdentity(PortIdentity *port, const char *prefixMessage);
 int snprint_PortIdentity(char *s, int max_len, const PortIdentity *id);
 Boolean nanoSleep(TimeInternal*);
-void getTime(TimeInternal*);
 void getTimeMonotonic(TimeInternal*);
-void setTime(TimeInternal*);
 #ifdef linux
 void setRtc(TimeInternal *);
 #endif /* linux */
@@ -473,11 +471,6 @@ int checkFileLockable(const char *fileName, int *lockPid);
 Boolean checkOtherLocks(RunTimeOpts *rtOpts);
 
 void recordSync(UInteger16 sequenceId, TimeInternal * time);
-
-void adjFreq_wrapper(const RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj);
-
-Boolean adjFreq(double);
-double getAdjFreq(void);
 
 #ifdef HAVE_SYS_TIMEX_H
 void informClockSource(PtpClock* ptpClock);

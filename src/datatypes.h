@@ -11,6 +11,7 @@
 #endif /* PTPD_STATISTICS */
 #include "dep/alarms.h"
 
+#include "dep/clockdriver.h"
 
 /**
  * \struct PtpdCounters
@@ -318,7 +319,7 @@ typedef struct {
 	int statusFileUpdateInterval;
 
 	Boolean ignore_daemon_lock;
-	Boolean do_IGMP_refresh;
+	Boolean refreshIgmp;
 	Boolean  nonDaemon;
 
 	int initial_delayreq;
@@ -465,6 +466,8 @@ typedef struct {
 	char managementAclDenyText[PATH_MAX+1];
 	Enumeration8 timingAclOrder;
 	Enumeration8 managementAclOrder;
+
+	Boolean hwTimestamping;
 
 } RunTimeOpts;
 
@@ -708,6 +711,10 @@ typedef struct {
 #endif
 
 	RunTimeOpts *rtOpts;
+
+	struct ClockDriver *clockDriver;
+
+	int ignoreUpdates;
 
 } PtpClock;
 

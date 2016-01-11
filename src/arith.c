@@ -289,12 +289,18 @@ check_timestamp_is_fresh2(const TimeInternal * timeA, const TimeInternal * timeB
 	return ret;
 }
 
+Boolean
+isTimeZero(const TimeInternal *time)
+{
+    return(!time->seconds && !time->nanoseconds);
+}
+
 
 int
 check_timestamp_is_fresh(const TimeInternal * timeA)
 {
 	TimeInternal timeB;
-	getTime(&timeB);
+	getOsClock()->getTime(getOsClock(), &timeB);
 
 	return check_timestamp_is_fresh2(timeA, &timeB);
 }
@@ -311,7 +317,7 @@ secondsToMidnight(void)
 {
 	TimeInternal now;
 	double stm, ret;
-	getTime(&now);
+	getOsClock()->getTime(getOsClock(), &now);
 	stm = 86400.0 - (now.seconds % 86400);
 	ret =  (stm - now.nanoseconds / 1E9);
 	return ret;

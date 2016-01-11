@@ -682,7 +682,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	umask(~DEFAULT_FILE_PERMS);
 
 	/* get some entropy in... */
-	getTime(&tmpTime);
+	getOsClock()->getTime(getOsClock(), &tmpTime);
 	srand(tmpTime.seconds ^ tmpTime.nanoseconds);
 
 	/**

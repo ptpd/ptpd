@@ -93,6 +93,8 @@ static Boolean bondSlaveQuery(char *ifaceName, ifslave *ifs, int member);
 static int getActiveBondMember(char * ifaceName, char* active, size_t maxlen);
 static void getBondInfo(char *ifaceName, BondInfo *info);
 static void getVlanInfo(char* ifaceName, VlanInfo *info);
+static Boolean getHwTs(char *ifaceName, RunTimeOpts *rtOpts, HwTsInfo *target);
+static Boolean initHwTs(char *ifaceName, HwTsInfo *info);
 
 
 
@@ -532,32 +534,6 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 
     DBG("Underlying physical device: %s\n", ifaceInfo->physicalDevice);
 
-    ClockDriverConfig_linuxphc cd;
-    memset(&cd, 0, sizeof(ClockDriverConfig_linuxphc));
-    strncpy(cd.networkDevice, ifaceInfo->physicalDevice, IFACE_NAME_LENGTH);
-
-    ClockDriver *dr = createClockDriver(CLOCKDRIVER_LINUXPHC, ifaceInfo->physicalDevice);
-    dr->init(dr, &cd);
-
-    ClockDriver *un = createClockDriver(CLOCKDRIVER_UNIX, "oscl");
-    un->init(un, NULL);
-
-    TimeInternal ti;
-
-
-
-    un->getTime(un, &ti);
-    INFO("%s time %012d.%d\n", un->name,ti.seconds, ti.nanoseconds);
-
-//   dr->setTime(dr, &ti);
-    dr->getTime(dr, &ti);
-    INFO("%s time %012d.%d\n", dr->name,ti.seconds, ti.nanoseconds);
-
-    dr->getTime(dr, &ti);
-    INFO("%s time %012d.%d\n", dr->name,ti.seconds, ti.nanoseconds);
-
-    shutdownClockDrivers();
-
     return TRUE;
 
 
@@ -764,8 +740,6 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	struct timeval timeOut = {0,0};
 	int val = 1;
 	int i = 0;
-	if(netPath->txTimestampFailure)
-		goto failure;
 
 	FD_ZERO(&tmpSet);
 	FD_SET(netPath->eventSock, &tmpSet);
@@ -788,43 +762,57 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	}
 
 	/* we're desperate here, aren't we... */
-	for(i = 0; i < 3; i++) {
+	for(i = 0; i < 5; i++) {
 	    length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
 	    if(length > 0) {
-		DBG("getTxTimestamp: SO_TIMESTAMPING - delayed TX timestamp caught\n");
+		DBG("getTxTimestamp: SO_TIMESTAMPING - delayed TX timestamp caught after %d retries\n", i+1);
 		return TRUE;
 	    }
+	    if(i==4) {
+		usleep(LATE_TXTIMESTAMP_US);
+	    } else {
 	    usleep(10);
+	    }
 	}
 
-	/* try for the last time: sleep and poll the error queue, if nothing, consider SO_TIMESTAMPING inoperable */
-	usleep(LATE_TXTIMESTAMP_US);
-
-	length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
-
-	if(length > 0) {
-		DBG("getTxTimestamp: SO_TIMESTAMPING - even more delayed TX timestamp caught\n");
-		return TRUE;
-	} else {
-		DBG("getTxTimestamp: SO_TIMESTAMPING - TX timestamp retry failed - will use loop from now on\n");
+	if(length <= 0) {
+		INFO("getTxTimestamp: NIC failed to deliver TX timestamp in time\n");
+		clearTime(timeStamp);
+//		netPath->lateTxTimestamp = TRUE;
+		return FALSE;
 	}
 
-failure:
-	DBG("net.c: SO_TIMESTAMPING TX software timestamp failure - reverting to SO_TIMESTAMPNS\n");
-	/* unset SO_TIMESTAMPING first! otherwise we get an always-exiting select! */
-	val = 0;
-	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(int)) < 0) {
-		DBG("getTxTimestamp: failed to unset SO_TIMESTAMPING");
-	}
-	val = 1;
-	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
-		DBG("getTxTimestamp: failed to revert to SO_TIMESTAMPNS");
-	}
+	return TRUE;
 
-	return FALSE;
 }
 #endif /* SO_TIMESTAMPING */
 
+
+static Boolean
+netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
+
+    HwTsInfo info;
+    char *ifaceName = netPath->interfaceInfo.physicalDevice;
+
+
+
+    if(!getHwTs(ifaceName, rtOpts, &info) || !initHwTs(ifaceName, &info)) {
+	return FALSE;
+    }
+
+    if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &info.tsMode, sizeof(info.tsMode)) < 0) {
+	PERROR("Could not set SO_TIMESTAMPING modes on %s\n", ifaceName);
+	return FALSE;
+    }
+
+    netPath->txTimestamping = TRUE;
+    netPath->hwTimestamping = TRUE;
+
+    INFO("Hardware timestamping successfully enabled on %s\n", ifaceName);
+
+    return TRUE;
+
+}
 
 /**
  * Initialize timestamping of packets
@@ -840,15 +828,19 @@ netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 	int val = 1;
 	Boolean result = TRUE;
 #if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)/* Linux - current API */
+	if(rtOpts->hwTimestamping) {
+	    DBG("netInitTimestamping: attempting HW timestamp init\n");
+	    if(netInitHwTimestamping(netPath, rtOpts)) {
+		return TRUE;
+	    }
+	}
+
 	DBG("netInitTimestamping: trying to use SO_TIMESTAMPING\n");
 	val = SOF_TIMESTAMPING_TX_SOFTWARE |
 	    SOF_TIMESTAMPING_RX_SOFTWARE |
 	    SOF_TIMESTAMPING_SOFTWARE;
 
-/* unless compiled with PTPD_EXPERIMENTAL, check if we support the desired tstamp capabilities */
-#ifndef PTPD_EXPERIMENTAL
 #ifdef ETHTOOL_GET_TS_INFO
-
        struct ethtool_ts_info tsInfo;
 	struct ifreq ifRequest;
         int res;
@@ -858,23 +850,26 @@ netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
         tsInfo.cmd = ETHTOOL_GET_TS_INFO;
         strncpy( ifRequest.ifr_name, rtOpts->ifaceName, IFNAMSIZ - 1);
         ifRequest.ifr_data = (char *) &tsInfo;
+
         res = ioctl(netPath->eventSock, SIOCETHTOOL, &ifRequest);
+
+	netPath->txTimestamping = TRUE;
 
 	if (res < 0) {
 		PERROR("Could not retrieve ethtool timestamping capabilities for %s - reverting to SO_TIMESTAMPNS",
 			    rtOpts->ifaceName);
 		val = 1;
-		netPath->txTimestampFailure = FALSE;
+		netPath->txTimestamping = FALSE;
 	} else if((tsInfo.so_timestamping & val) != val) {
 		DBGV("Required SO_TIMESTAMPING flags not supported - reverting to SO_TIMESTAMPNS\n");
 		val = 1;
-		netPath->txTimestampFailure = TRUE;
+		netPath->txTimestamping = FALSE;
 	}
 #else
-	netPath->txTimestampFailure = TRUE;
+	netPath->txTimestamping = FALSE;
 	val = 1;
 #endif /* ETHTOOL_GET_TS_INFO */
-#endif /* PTPD_EXPERIMENTAL */
+
 
 	if(val == 1) {
 	    if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
@@ -1085,6 +1080,11 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	netPath->generalSock = -1;
 	netPath->eventSock = -1;
 
+	netPath->lateTxTimestamp = FALSE;
+	netPath->hwTimestamping = FALSE;
+	netPath->txTimestamping = FALSE;
+//	netPath->ignorePackets = 0;
+
 #ifdef PTPD_PCAP
 	if (rtOpts->transport == IEEE_802_3) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
@@ -1153,7 +1153,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #ifdef PTPD_PCAP
 	if (rtOpts->pcap == TRUE) {
 
-		netPath->txTimestampFailure = TRUE;
+		netPath->txTimestamping = FALSE;
 
 		int promisc = (rtOpts->transport == IEEE_802_3 ) ? 1 : 0;
 
@@ -1238,7 +1238,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		netPath->generalSock = -1;
 		/* TX timestamp is not generated for PCAP mode and Ethernet transport */
 #ifdef SO_TIMESTAMPING
-		netPath->txTimestampFailure = TRUE;
+		netPath->txTimestamping = FALSE;
 #endif /* SO_TIMESTAMPING */
 	} else {
 #endif
@@ -1433,7 +1433,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 #ifdef SO_TIMESTAMPING
 			/* Reset the failure indicator when (re)starting network */
-			netPath->txTimestampFailure = FALSE;
+			netPath->txTimestamping = FALSE;
 			/* for SO_TIMESTAMPING we're receiving transmitted packets via ERRQUEUE */
 			temp = 0;
 #else
@@ -1447,9 +1447,19 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 
+		if(netPath->hwTimestamping) {
+			ClockDriverConfig_linuxphc cd;
+			memset(&cd, 0, sizeof(ClockDriverConfig_linuxphc));
+			strncpy(cd.networkDevice, netPath->interfaceInfo.physicalDevice, IFACE_NAME_LENGTH);
+			ptpClock->clockDriver = createClockDriver(CLOCKDRIVER_LINUXPHC, netPath->interfaceInfo.physicalDevice);
+			ptpClock->clockDriver->init(ptpClock->clockDriver, &cd);
+		} else {
+		    ptpClock->clockDriver = getOsClock();
+		}
+
 #ifdef SO_TIMESTAMPING
 		/* If we failed to initialise SO_TIMESTAMPING, enable mcast loopback */
-		if(netPath->txTimestampFailure)
+		if(!netPath->txTimestamping)
 			temp = 1;
 #endif
 
@@ -1588,6 +1598,11 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 	struct iovec vec[1];
 	struct sockaddr_in from_addr;
 
+	if(netPath->lateTxTimestamp) {
+	    DBG("flushing ERRQUEUE\n");
+	    flags |= MSG_ERRQUEUE;
+	}
+
 #ifdef PTPD_PCAP
 	struct pcap_pkthdr *pkt_header;
 	const u_char *pkt_data;
@@ -1596,7 +1611,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 	TimeInternal tmpTime;
 	/* get system time interpolated with TSC / clockCycles as soon as we have data on the socket */
-	getTime(&tmpTime);
+	getOsClock()->getTime(getOsClock(), &tmpTime);
 #endif
 
 	union {
@@ -1638,12 +1653,21 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		msg.msg_flags = 0;
 
 		ret = recvmsg(netPath->eventSock, &msg, flags | MSG_DONTWAIT);
+
+		/* we may have a TX timestamp stuck in error queue, flush it */
+		if(netPath->txTimestamping && ret <=0 && errno == ENOMSG) {
+		    DBG("Flushed errqueue\n");
+		    ret = recvmsg(netPath->eventSock, &msg, flags | MSG_ERRQUEUE);
+		    clearTime(time);
+		    return 0;
+		}
+
 		if (ret <= 0) {
 			if (errno == EAGAIN || errno == EINTR)
 				return 0;
-
 			return ret;
 		};
+
 		if (msg.msg_flags & MSG_TRUNC) {
 			ERROR("received truncated message\n");
 			return 0;
@@ -1705,11 +1729,12 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 				if(cmsg->cmsg_type == SO_TIMESTAMPING ||
 				    cmsg->cmsg_type == SO_TIMESTAMPNS) {
 					ts = (struct timespec *)CMSG_DATA(cmsg);
-					time->seconds = ts->tv_sec;
-					time->nanoseconds = ts->tv_nsec;
+					int which = netPath->hwTimestamping ? 2 : 0;
+					time->seconds = ts[which].tv_sec;
+					time->nanoseconds = ts[which].tv_nsec;
 					timestampValid = TRUE;
-					DBG("rcvevent: SO_TIMESTAMP%s %s time stamp: %us %dns\n", netPath->txTimestampFailure ?
-					    "NS" : "ING",
+					DBG("rcvevent: SO_TIMESTAMP%s %s time stamp: %us %dns\n", netPath->txTimestamping ?
+					    "ING" : "NS",
 					    (flags & MSG_ERRQUEUE) ? "(TX)" : "(RX)" , time->seconds, time->nanoseconds);
 					break;
 				}
@@ -1749,7 +1774,19 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 			 }
 
 		}
-
+/*
+		if(netPath->lateTxTimestamp) {
+			netPath->lateTxTimestamp = FALSE;
+			return 0;
+		}
+*/
+		/* we have been told to drop next x packets */
+		if(netPath->ignorePackets>0) {
+			netPath->ignorePackets--;
+			INFO("Ignored, %d left\n", netPath->ignorePackets);
+			clearTime(time);
+			return 0;
+		}
 
 		if (!timestampValid) {
 			/*
@@ -1955,7 +1992,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 	TimeInternal tmpTime;
 	/* get system time interpolated with TSC / clockCycles as soon as we have data on the socket */
-	getTime(&tmpTime);
+	getOsClock()->getTime(getOsClock(), &tmpTime);
 #endif
 
 #ifdef PTPD_PCAP
@@ -2015,28 +2052,18 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #else
 
 #ifdef PTPD_PCAP
-			if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
+			if((netPath->pcapEvent == NULL) && netPath->txTimestamping) {
 #else
-			if(!netPath->txTimestampFailure) {
+			if(netPath->txTimestamping) {
 #endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
-					netPath->txTimestampFailure = TRUE;
+//					netPath->txTimestampFailure = TRUE;
 					if (tim) {
 						clearTime(tim);
 					}
 				}
 			}
 
-			if(netPath->txTimestampFailure)
-			{
-				/* We've had a TX timestamp receipt timeout - falling back to packet looping */
-				addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
-				ret = sendto(netPath->eventSock, buf, length, 0,
-				     (struct sockaddr *)&addr,
-				     sizeof(struct sockaddr_in));
-				if (ret <= 0)
-					DBG("Error looping back unicast event message\n");
-			}
 #endif /* SO_TIMESTAMPING */		
 		} else {
 			addr.sin_addr.s_addr = netPath->multicastAddr;
@@ -2060,19 +2087,14 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #ifdef SO_TIMESTAMPING
 
 #ifdef PTPD_PCAP
-			if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
+			if((netPath->pcapEvent == NULL) && netPath->txTimestamping) {
 #else
-			if(!netPath->txTimestampFailure) {
+			if(!netPath->txTimestamping) {
 #endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
 					if (tim) {
 						clearTime(tim);
 					}
-					
-					netPath->txTimestampFailure = TRUE;
-
-					/* Try re-enabling MULTICAST_LOOP */
-					netSetMulticastLoopback(netPath, TRUE);
 				}
 			}
 #endif /* SO_TIMESTAMPING */
@@ -2273,27 +2295,17 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 #else
 
 #ifdef PTPD_PCAP
-		if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
+		if((netPath->pcapEvent == NULL) && netPath->txTimestamping) {
 #else
-		if(!netPath->txTimestampFailure) {
+		if(netPath->txTimestamping) {
 #endif /* PTPD_PCAP */
 			if(!getTxTimestamp(netPath, tim)) {
-				netPath->txTimestampFailure = TRUE;
 				if (tim) {
 					clearTime(tim);
 				}
 			}
 		}
 
-		if(netPath->txTimestampFailure) {
-			/* We've had a TX timestamp receipt timeout - falling back to packet looping */
-			addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
-			ret = sendto(netPath->eventSock, buf, length, 0,
-				     (struct sockaddr *)&addr,
-				     sizeof(struct sockaddr_in));
-			if (ret <= 0)
-				DBG("Error looping back unicast event message\n");
-		}
 #endif /* SO_TIMESTAMPING */
 
 	} else {
@@ -2312,16 +2324,11 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 		if (ret <= 0)
 			DBG("Error sending multicast peer event message\n");
 #ifdef SO_TIMESTAMPING
-		if(!netPath->txTimestampFailure) {
+		if(netPath->txTimestamping) {
 			if(!getTxTimestamp(netPath, tim)) {
 				if (tim) {
 					clearTime(tim);
 				}
-					
-				netPath->txTimestampFailure = TRUE;
-
-				/* Try re-enabling MULTICAST_LOOP */
-				netSetMulticastLoopback(netPath, TRUE);
 			}
 		}
 #endif /* SO_TIMESTAMPING */
@@ -2518,26 +2525,46 @@ static void getVlanInfo(char* ifaceName, VlanInfo *info)
 
 }
 
-void bondCheck(NetPath * netPath, const RunTimeOpts * rtOpts, PtpClock * ptpClock)
+void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 
     BondInfo *bondInfo = &netPath->interfaceInfo.bondInfo;
     VlanInfo *vlanInfo = &netPath->interfaceInfo.vlanInfo;
-
+    char * realDevice = rtOpts->ifaceName;
     char * ifaceName = rtOpts->ifaceName;
 
     getVlanInfo(rtOpts->ifaceName, vlanInfo);
 
     if(vlanInfo->vlan) {
 	    ifaceName = vlanInfo->realDevice;
+	    realDevice = ifaceName;
     }
 
     getBondInfo(ifaceName, bondInfo);
 
-    if(bondInfo->activeChanged) {
-	INFO("Active bond member changed to %s\n", bondInfo->activeSlave);
+
+    if(bondInfo->bonded && bondInfo->activeCount > 0) {
+	    realDevice = bondInfo->activeSlave;
     }
 
+    strncpy(netPath->interfaceInfo.physicalDevice, realDevice, IFACE_NAME_LENGTH);
+
+    if(bondInfo->activeChanged) {
+	/* drop next 5 messages, we have changed bond master */
+//	netPath->ignorePackets = 100;
+ptpClock->ignoreUpdates = 20;
+	if(!rtOpts->hwTimestamping) {
+	    WARNING("Active bond member changed to %s\n", bondInfo->activeSlave);
+	    if(rtOpts->refreshIgmp) {
+		INFO("Re-sending IGMP joins\n");
+		netRefreshIGMP(netPath, rtOpts, ptpClock);
+	    }
+	} else {
+	    WARNING("Active bond member changed to %s, restarting network\n", bondInfo->activeSlave);
+	    rtOpts->restartSubsystems = PTPD_RESTART_NETWORK;
+	    restartSubsystems(rtOpts, ptpClock);
+	}
+    }
 }
 
 Boolean getTsInfo(char *ifaceName, struct ethtool_ts_info *info) {
@@ -2555,3 +2582,98 @@ Boolean getTsInfo(char *ifaceName, struct ethtool_ts_info *info) {
 	return TRUE;
 
 }
+
+Boolean getHwTs(char *ifaceName, RunTimeOpts *rtOpts, HwTsInfo *target) {
+
+	HwTsInfo output;
+	memset(&output, 0, sizeof(HwTsInfo));
+
+	static const OptionName tsModes[] = {
+	    {SOF_TIMESTAMPING_TX_HARDWARE, "SOF_TIMESTAMPING_TX_HARDWARE"},
+	    {SOF_TIMESTAMPING_RX_HARDWARE, "SOF_TIMESTAMPING_RX_HARDWARE"},
+	    {SOF_TIMESTAMPING_RAW_HARDWARE, "SOF_TIMESTAMPING_RAW_HARDWARE"},
+	    {-1}
+	};
+
+	static const OptionName rxFilters[] = {
+	    {HWTSTAMP_FILTER_PTP_V2_L4_EVENT, "HWTSTAMP_FILTER_PTP_V2_L4_EVENT"},
+	    {HWTSTAMP_FILTER_PTP_V2_EVENT, "HWTSTAMP_FILTER_PTP_V2_EVENT"},
+	    {HWTSTAMP_FILTER_ALL, "HWTSTAMP_FILTER_ALL"},
+	    {-1}
+	};
+
+	struct ethtool_ts_info info;
+
+	if(!getTsInfo(ifaceName, &info)) {
+	    return FALSE;
+	}
+
+	for(const OptionName *mode = tsModes; mode->value != -1; mode++) {
+	    if(info.so_timestamping & mode->value) {
+		DBG("hwts: Interface %s supports %s\n", ifaceName, mode->name);
+		output.tsMode |= mode->value;
+	    } else {
+		ERROR("Interface %s does not support required timestamping mode %s\n", ifaceName, mode->name);
+		return FALSE;
+	    }
+	}
+
+	for(const OptionName *mode = rxFilters; mode->value != -1; mode++) {
+	    if((info.rx_filters & mode->value) == mode->value) {
+		DBG("hwts: Interface %s supports %s\n", ifaceName, mode->name);
+		output.rxFilter = mode->value;
+		break;
+	    } else {
+		DBG("Interface %s does not support RX filter %s\n", ifaceName, mode->name);
+	    }
+	}
+
+	if(!output.rxFilter) {
+		ERROR("Interface %s does not support suitable hardware timestamping filters \n", ifaceName);
+		return FALSE;
+	}
+
+	if((info.tx_types & HWTSTAMP_TX_ON) == HWTSTAMP_TX_ON) {
+		DBG("hwts: Interface %s supports HWTSTAMP_TX_ON\n", ifaceName);
+		output.txType = HWTSTAMP_TX_ON;
+	} else {
+		ERROR("Interface %s does not support hardware transmit timestamps(HWTSTAMP_TX_ON)\n");
+		return FALSE;
+	}
+
+	if(target != NULL) {
+	    *target = output;
+	}
+
+	return TRUE;
+
+}
+
+Boolean initHwTs(char *ifaceName, HwTsInfo *info) {
+
+	struct ifreq ifr;
+	struct hwtstamp_config config;
+
+	memset(&ifr, 0, sizeof(ifr));
+	memset(&config, 0, sizeof(config));
+
+	config.tx_type = info->txType;
+	config.rx_filter = info->rxFilter;
+
+	ifr.ifr_data = (void*) &config;
+
+	if(!netIoctlHelper(&ifr, ifaceName, SIOCSHWTSTAMP)) {
+	    PERROR("Could not init hardware timestamping on %s", ifaceName);
+	    return FALSE;
+	}
+
+	if(config.tx_type != info->txType || config.rx_filter != info->rxFilter) {
+	    ERROR("Interface %s refused to set required hardware timestamping options\n",
+	    ifaceName);
+	    return FALSE;
+	}
+
+	return TRUE;
+
+}
+

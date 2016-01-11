@@ -49,6 +49,7 @@ typedef struct {
 
 } ClockStatus;
 
+/* MOTHER FUCKING HEADER MESS, GOD DAMN IT TO FUCK!!!! */
 typedef struct ClockDriver ClockDriver;
 
 struct ClockDriver {
@@ -80,7 +81,8 @@ struct ClockDriver {
     Boolean (*getUtcTime) (ClockDriver*, TimeInternal *);
     Boolean (*setTime) (ClockDriver*, TimeInternal *);
     Boolean (*setOffset) (ClockDriver*, TimeInternal *);
-    Boolean (*adjustFrequency) (ClockDriver *, double, double);
+    Boolean (*setFrequency) (ClockDriver *, double, double);
+    double (*getFrequency) (ClockDriver *);
     Boolean (*getStatus) (ClockDriver *, ClockStatus *);
     Boolean (*setStatus) (ClockDriver *, ClockStatus *);
 
@@ -93,6 +95,7 @@ struct ClockDriver {
 ClockDriver*  createClockDriver(int driverType, const char* name);
 Boolean setupClockDriver(ClockDriver* clockDriver, int type, const char* name);
 void freeClockDriver(ClockDriver** clockDriver);
+ClockDriver* getOsClock();
 void shutdownClockDrivers();
 
 #include "clockdriver_unix.h"

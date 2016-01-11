@@ -109,6 +109,12 @@ void
 updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
+	if(ptpClock->ignoreUpdates > 0) {
+	    ptpClock->ignoreUpdates--;
+	    INFO("Ignoring delay update\n");
+	    return;
+	}
+
 	/* updates paused, leap second pending - do nothing */
 	if(ptpClock->leapSecondInProgress)
 		return;
@@ -322,7 +328,6 @@ updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpCloc
 finish:
 
 DBG("UpdateDelay: Max delay hit: %d\n", maxDelayHit);
-
 #ifdef PTPD_STATISTICS
 	/* don't churn on stats containers with the old value if we've discarded an outlier */
 	if(!(ptpClock->oFilterSM.config.enabled && ptpClock->oFilterSM.config.discard && ptpClock->oFilterSM.lastOutlier)) {
@@ -433,6 +438,12 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
     offset_from_master_filter * ofm_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
+	if(ptpClock->ignoreUpdates > 0) {
+	    ptpClock->ignoreUpdates--;
+	    INFO("Ignoring offset update\n");
+	    return;
+	}
+
 	ptpClock->clockControl.offsetOK = FALSE;
 
 	Boolean maxDelayHit = FALSE;
@@ -530,7 +541,6 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 
 #ifdef PTPD_STATISTICS
-
 /* testing only: step detection */
 /*
 	TimeInternal bob;
@@ -685,10 +695,10 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	TimeInternal oldTime, newTime;
 	/*No need to reset the frequency offset: if we're far off, it will quickly get back to a high value */
-	getTime(&oldTime);
+	ptpClock->clockDriver->getTime(ptpClock->clockDriver, &oldTime);
 	subTime(&newTime, &oldTime, &ptpClock->currentDS.offsetFromMaster);
 
-	setTime(&newTime);
+	ptpClock->clockDriver->setTime(ptpClock->clockDriver,&newTime);
 
 	ptpClock->clockStatus.majorChange = TRUE;
 
@@ -735,63 +745,6 @@ warn_operator_slow_slewing(const RunTimeOpts * rtOpts, PtpClock * ptpClock )
 		);
 		
 	}
-}
-
-/*
- * this is a wrapper around adjFreq to abstract extra operations
- */
-
-void
-adjFreq_wrapper(const RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
-{
-    if (rtOpts->noAdjust){
-		DBGV("adjFreq2: noAdjust on, returning\n");
-		return;
-	}
-
-/*
- * adjFreq simulation for QNX: correct clock by x ns per tick over clock adjust interval,
- * to make it equal adj ns per second. Makes sense only if intervals are regular.
- */
-
-#ifdef __QNXNTO__
-
-      struct _clockadjust clockadj;
-      struct _clockperiod period;
-      if (ClockPeriod (CLOCK_REALTIME, 0, &period, 0) < 0)
-          return;
-
-	CLAMP(adj,ptpClock->servo.maxOutput);
-
-	/* adjust clock for the duration of 0.9 clock update period in ticks (so we're done before the next) */
-	clockadj.tick_count = 0.9 * ptpClock->servo.dT * 1E9 / (period.nsec + 0.0);
-
-	/* scale adjustment per second to adjustment per single tick */
-	clockadj.tick_nsec_inc = (adj * ptpClock->servo.dT / clockadj.tick_count) / 0.9;
-
-	DBGV("QNX: adj: %.09f, dt: %.09f, ticks per dt: %d, inc per tick %d\n",
-		adj, ptpClock->servo.dT, clockadj.tick_count, clockadj.tick_nsec_inc);
-
-	if (ClockAdjust(CLOCK_REALTIME, &clockadj, NULL) < 0) {
-	    DBGV("QNX: failed to call ClockAdjust: %s\n", strerror(errno));
-	}
-/* regular adjFreq */
-#elif defined(HAVE_SYS_TIMEX_H)
-	DBG2("     adjFreq2: call adjfreq to %.09f us \n", adj / DBG_UNIT);
-	adjFreq(adj);
-/* otherwise use adjtime */
-#else
-	struct timeval tv;
-
-	CLAMP(adj,ptpClock->servo.maxOutput);
-
-	tv.tv_sec = 0;
-	tv.tv_usec = (adj / 1000);
-	if((ptpClock->servo.dT > 0) && (ptpClock->servo.dT < 1.0)) {
-	    tv.tv_usec *= ptpClock->servo.dT;
-	}
-	adjtime(&tv, NULL);
-#endif
 }
 
 /* check if it's OK to update the clock, deal with panic mode, call for clock step */
@@ -972,7 +925,7 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			else
 				ptpClock->servo.observedDrift = -rtOpts->servoMaxPpb;
 			warn_operator_slow_slewing(rtOpts, ptpClock);
-			adjFreq_wrapper(rtOpts, ptpClock, -ptpClock->servo.observedDrift);
+			ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, -ptpClock->servo.observedDrift, 1);
 			ptpClock->clockControl.stepRequired = FALSE;
 		}
 		return;
@@ -985,7 +938,10 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if((!rtOpts->calibrationDelay) || ptpClock->isCalibrated) {
 
 		/* Adjust the clock first -> the PI controller runs here */
-		adjFreq_wrapper(rtOpts, ptpClock, runPIservo(&ptpClock->servo, ptpClock->currentDS.offsetFromMaster.nanoseconds));
+		ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, 
+			runPIservo(&ptpClock->servo, ptpClock->currentDS.offsetFromMaster.nanoseconds),
+			ptpClock->servo.dT);
+
 	}
 		warn_operator_fast_slewing(rtOpts, ptpClock, ptpClock->servo.observedDrift);
 		/* let the clock source know it's being synced */

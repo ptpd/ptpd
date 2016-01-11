@@ -179,8 +179,8 @@
 #include "dep/daemonconfig.h"
 
 #include "dep/alarms.h"
-#include "dep/clockdriver.h"
 
+#include "dep/clockdriver.h"
 
 /* NOTE: this macro can be refactored into a function */
 #define XMALLOC(ptr,size) \
@@ -285,6 +285,8 @@ void subTime(TimeInternal*,const TimeInternal*,const TimeInternal*);
  * \brief Divied an InternalTime by 2
  */
 void div2Time(TimeInternal *);
+
+Boolean isTimeZero(const TimeInternal *time);
 
 /** \name bmc.c
  * -Best Master Clock Algorithm functions*/

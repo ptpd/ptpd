@@ -40,7 +40,8 @@ static int clockdriver_shutdown(ClockDriver *);
 static Boolean getTime_unix (ClockDriver*, TimeInternal *);
 static Boolean getUtcTime (ClockDriver*, TimeInternal *);
 static Boolean setTime_unix (ClockDriver*, TimeInternal *);
-static Boolean adjustFrequency (ClockDriver *, double, double);
+static Boolean setFrequency (ClockDriver *, double, double);
+static double getFrequency (ClockDriver *);
 static Boolean getStatus (ClockDriver *, ClockStatus *);
 static Boolean setStatus (ClockDriver *, ClockStatus *);
 
@@ -62,12 +63,15 @@ _setupClockDriver_unix(ClockDriver* self)
     self->getTime = getTime_unix;
     self->getUtcTime = getUtcTime;
     self->setTime = setTime_unix;
-    self->adjustFrequency = adjustFrequency;
+    self->setFrequency = setFrequency;
+    self->getFrequency = getFrequency;
     self->getStatus = getStatus;
     self->setStatus = setStatus;
 
     self->maxFreqAdj = ADJ_FREQ_MAX;
     self->systemClock = TRUE;
+
+    INFO("Started Unix clock driver %s\n", self->name);
 
 }
 
@@ -216,14 +220,14 @@ setTime_unix (ClockDriver *self, TimeInternal *time) {
 
 	char timeStr[MAXTIMESTR];
 	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
-	NOTICE("Stepped the system clock to: %s.%d\n",
+	NOTICE("Unix clock %s: stepped the system clock to: %s.%d\n", self->name,
 	       timeStr, time->nanoseconds);
 
 	return TRUE;
 
 }
 static Boolean
-adjustFrequency (ClockDriver *self, double adj, double tau) {
+setFrequency (ClockDriver *self, double adj, double tau) {
 
     if (self->readOnly){
 		DBGV("adjFreq2: noAdjust on, returning\n");
@@ -277,6 +281,23 @@ adjustFrequency (ClockDriver *self, double adj, double tau) {
 
     return TRUE;
 }
+
+static double
+getFrequency (ClockDriver * self) {
+
+	struct timex tmx;
+	memset(&tmx, 0, sizeof(tmx));
+	if(adjtimex(&tmx) < 0) {
+	    PERROR("Could not get frequency of clock %s ", self->name);
+	    return 0;
+	}
+
+	return(tmx.freq / 65.536);
+
+	return 0;
+}
+
+
 static Boolean
     getStatus (ClockDriver *self, ClockStatus *status) {
     return TRUE;

@@ -47,6 +47,18 @@ typedef struct {
 	char realDevice[IFACE_NAME_LENGTH + 1];
 } VlanInfo;
 
+typedef struct {
+	int value;
+	char name[40];
+} OptionName;
+
+typedef struct {
+	int rxFilter;
+	int tsMode;
+	int txType;
+} HwTsInfo;
+
+
 /**
 * \brief Struct containing interface information and capabilities
  */
@@ -104,8 +116,10 @@ typedef struct {
 	Boolean joinedGeneral;
 	struct ether_addr etherDest;
 	struct ether_addr peerEtherDest;
-	Boolean txTimestampFailure;
-
+	Boolean txTimestamping;
+	Boolean hwTimestamping;
+	Boolean lateTxTimestamp;
+	int ignorePackets;
 	Ipv4AccessList* timingAcl;
 	Ipv4AccessList* managementAcl;
 

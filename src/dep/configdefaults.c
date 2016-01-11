@@ -216,7 +216,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	 * defaults for new options
 	 */
 	rtOpts->ignore_delayreq_interval_master = FALSE;
-	rtOpts->do_IGMP_refresh = TRUE;
+	rtOpts->refreshIgmp = TRUE;
 	rtOpts->useSysLog       = FALSE;
 	rtOpts->announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
 #ifdef RUNTIME_DEBUG
@@ -442,6 +442,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	// by default we don't check Sync message sequence continuity
 	rtOpts->syncSequenceChecking = FALSE;
 	rtOpts->clockUpdateTimeout = 0;
+
+	rtOpts->hwTimestamping = TRUE;
 
 }
 

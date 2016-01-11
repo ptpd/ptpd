@@ -1449,7 +1449,7 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 		data = (MMTime*)outgoing->tlv->dataField;
 		/* GET actions */
 		TimeInternal internalTime;
-		getTime(&internalTime);
+		getOsClock()->getTime(getOsClock(), &internalTime);
 		if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 			internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 		}

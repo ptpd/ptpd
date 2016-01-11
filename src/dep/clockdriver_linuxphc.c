@@ -51,7 +51,8 @@ static int clockdriver_shutdown(ClockDriver *);
 static Boolean getTime_linuxphc (ClockDriver*, TimeInternal *);
 static Boolean getUtcTime (ClockDriver*, TimeInternal *);
 static Boolean setTime_linuxphc (ClockDriver*, TimeInternal *);
-static Boolean adjustFrequency (ClockDriver *, double, double);
+static Boolean setFrequency (ClockDriver *, double, double);
+static double  getFrequency (ClockDriver *);
 static Boolean getStatus (ClockDriver *, ClockStatus *);
 static Boolean setStatus (ClockDriver *, ClockStatus *);
 
@@ -76,7 +77,8 @@ _setupClockDriver_linuxphc(ClockDriver* self)
     self->getTime = getTime_linuxphc;
     self->getUtcTime = getUtcTime;
     self->setTime = setTime_linuxphc;
-    self->adjustFrequency = adjustFrequency;
+    self->setFrequency = setFrequency;
+    self->getFrequency = getFrequency;
     self->getStatus = getStatus;
     self->setStatus = setStatus;
 
@@ -120,6 +122,10 @@ clockdriver_init(ClockDriver* self, const void *config) {
 	    return -1;
 	}
 	myData->phcIndex = info.phc_index;
+	if(myData->phcIndex == -1) {
+	    ERROR("Device %s has no PTP clock\n", myConfig->networkDevice);
+	    return -1;
+	}
 	snprintf(myConfig->characterDevice, PATH_MAX, "/dev/ptp%d", info.phc_index);
     }
 
@@ -138,7 +144,7 @@ clockdriver_init(ClockDriver* self, const void *config) {
 
     self->maxFreqAdj = caps.max_adj;
 
-    INFO("Successfully started Linux PHC driver %s (%s) clock ID %06x\n", self->name, myConfig->characterDevice, myData->clockId);
+    INFO("Successfully started Linux PHC clock driver %s (%s) clock ID %06x\n", self->name, myConfig->characterDevice, myData->clockId);
 
     self->_init = TRUE;
 
@@ -209,9 +215,14 @@ setTime_linuxphc (ClockDriver *self, TimeInternal *time) {
 
 }
 static Boolean
-adjustFrequency (ClockDriver *self, double adj, double tau) {
+setFrequency (ClockDriver *self, double adj, double tau) {
+
 	GET_CONFIG();
 	GET_DATA();
+
+	if(self->readOnly) {
+		return TRUE;
+	}
 
 	struct timex tmx;
 	memset(&tmx, 0, sizeof(tmx));
@@ -229,6 +240,24 @@ adjustFrequency (ClockDriver *self, double adj, double tau) {
 	return TRUE;
 
 }
+
+static double
+getFrequency (ClockDriver *self) {
+
+	GET_CONFIG();
+	GET_DATA();
+
+	struct timex tmx;
+	memset(&tmx, 0, sizeof(tmx));
+	if(clock_adjtime(myData->clockId, &tmx) < 0) {
+	    PERROR("Could not get frequency of clock %s (%s)", self->name, myConfig->characterDevice);
+	    return 0;
+	}
+
+	return(tmx.freq / 65.536);
+
+}
+
 static Boolean
     getStatus (ClockDriver *self, ClockStatus *status) {
     return TRUE;
@@ -250,8 +279,6 @@ getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps) {
 	    return FALSE;
 	}
 
-	getSystemClockOffset(self, NULL);
-
 	return TRUE;
 
 }
@@ -265,14 +292,14 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 
     TimeInternal t1, t2, tptp, tmpDelta, duration, minDuration, delta;
 
-
-
     struct ptp_clock_time *samples;
-
     struct ptp_sys_offset sof;
-    sof.n_samples = 15;
+
+    sof.n_samples = OSCLOCK_OFFSET_SAMPLES;
 
     if(ioctl(myData->clockFd, PTP_SYS_OFFSET, &sof) < 0) {
+	PERROR("Could not read OS clock offset for %s (%s)",
+		self->name, myConfig->characterDevice);
 	return FALSE;
     }
 
@@ -304,8 +331,6 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 	}
 
     }
-
-	INFO("Delta: %d.%09d ns\n", delta.seconds, delta.nanoseconds);
 
     if(output != NULL) {
 	*output = delta;

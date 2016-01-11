@@ -43,6 +43,10 @@
 /* linked list - so that we can control all registered objects centrally */
 static ClockDriver *_first = NULL;
 static ClockDriver *_last = NULL;
+
+
+static ClockDriver* _osClock = NULL;
+
 static uint32_t _serial = 0;
 
 ClockDriver *
@@ -157,7 +161,6 @@ freeClockDriver(ClockDriver** clockDriver)
 	free(pdriver->config);
     }
 
-
     DBG("Deleted clock driver type %d name %s serial %d\n", pdriver->type, pdriver->name, pdriver->_serial);
 
     free(*clockDriver);
@@ -166,15 +169,31 @@ freeClockDriver(ClockDriver** clockDriver)
 
 };
 
-void
-shutdownClockDrivers() {
-	ClockDriver *driver;
-	while(_first != NULL) {
-	    driver = _last;
-	    freeClockDriver(&driver);
-	}
+ClockDriver*
+getOsClock() {
+
+    if(_osClock != NULL) {
+	return _osClock;
+    }
+
+    _osClock = createClockDriver(CLOCKDRIVER_UNIX, "SYSTEM_CLOCK");
+
+    if(_osClock == NULL) {
+	CRITICAL("Could not start system clock driver, cannot continue\n");
+	exit(1);
+    }
+
+    return _osClock;
+
 }
 
-
-
+void
+shutdownClockDrivers() {
+	ClockDriver *cd;
+	while(_first != NULL) {
+	    cd = _last;
+	    freeClockDriver(&cd);
+	}
+	_osClock = NULL;
+}
 
