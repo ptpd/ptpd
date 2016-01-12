@@ -45,7 +45,7 @@ static ClockDriver *_first = NULL;
 static ClockDriver *_last = NULL;
 
 
-static ClockDriver* _osClock = NULL;
+static ClockDriver* _systemClock = NULL;
 
 static uint32_t _serial = 0;
 
@@ -170,20 +170,20 @@ freeClockDriver(ClockDriver** clockDriver)
 };
 
 ClockDriver*
-getOsClock() {
+getSystemClock() {
 
-    if(_osClock != NULL) {
-	return _osClock;
+    if(_systemClock != NULL) {
+	return _systemClock;
     }
 
-    _osClock = createClockDriver(CLOCKDRIVER_UNIX, "SYSTEM_CLOCK");
+    _systemClock = createClockDriver(CLOCKDRIVER_UNIX, "SYSTEM_CLOCK");
 
-    if(_osClock == NULL) {
+    if(_systemClock == NULL) {
 	CRITICAL("Could not start system clock driver, cannot continue\n");
 	exit(1);
     }
 
-    return _osClock;
+    return _systemClock;
 
 }
 
@@ -194,6 +194,6 @@ shutdownClockDrivers() {
 	    cd = _last;
 	    freeClockDriver(&cd);
 	}
-	_osClock = NULL;
+	_systemClock = NULL;
 }
 

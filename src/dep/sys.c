@@ -704,7 +704,7 @@ logStatistics(PtpClock * ptpClock)
 
 	memset(sbuf, 0, sizeof(sbuf));
 
-	getOsClock()->getTime(getOsClock(), &now);
+	getSystemClock()->getTime(getSystemClock(), &now);
 
 	/*
 	 * print one log entry per X seconds for Sync and DelayResp messages, to reduce disk usage.
@@ -1534,7 +1534,7 @@ void setRtc(TimeInternal *timeToSet)
 	DBGV("Usable RTC device: %s\n",rtcDev);
 
 	if(timeToSet->seconds == 0 && timeToSet->nanoseconds==0) {
-	    getOsClock()->getTime(getOsClock(), timeToSet);
+	    getSystemClock()->getTime(getSystemClock(), timeToSet);
 	}
 
 
@@ -2123,7 +2123,7 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
     int ntpOffset = 0;
     int res;
 
-    getOsClock()->getTime(getOsClock(), &now);
+    getSystemClock()->getTime(getSystemClock(), &now);
 
     info->valid = FALSE;
 

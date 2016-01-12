@@ -581,7 +581,8 @@ ptpdShutdown(PtpClock * ptpClock)
 	toState(PTP_DISABLED, &rtOpts, ptpClock);
 	/* process any outstanding events before exit */
 	updateAlarms(ptpClock->alarms, ALRM_MAX);
-	netShutdown(&ptpClock->netPath);
+	netShutdown(&ptpClock->netPath, ptpClock);
+	shutdownClockDrivers();
 	free(ptpClock->foreign);
 
 	/* free management and signaling messages, they can have dynamic memory allocated */
@@ -682,7 +683,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	umask(~DEFAULT_FILE_PERMS);
 
 	/* get some entropy in... */
-	getOsClock()->getTime(getOsClock(), &tmpTime);
+	getSystemClock()->getTime(getSystemClock(), &tmpTime);
 	srand(tmpTime.seconds ^ tmpTime.nanoseconds);
 
 	/**

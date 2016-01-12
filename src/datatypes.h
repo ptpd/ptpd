@@ -255,9 +255,9 @@ typedef struct {
 	int announceTimeoutGracePeriod;
 //	Integer16 currentUtcOffset;
 
-	Octet* ifaceName;
-	Octet primaryIfaceName[IFACE_NAME_LENGTH];
-	Octet backupIfaceName[IFACE_NAME_LENGTH];
+	char ifaceName[IFACE_NAME_LENGTH + 1];
+	char primaryIfaceName[IFACE_NAME_LENGTH+1];
+	char backupIfaceName[IFACE_NAME_LENGTH+1];
 	Boolean backupIfaceEnabled;
 
 	Boolean	noResetClock; // don't step the clock if offset > 1s
@@ -649,6 +649,7 @@ typedef struct {
 
 	/* PI servo model */
 	PIservo servo;
+	PIservo servo2;
 
 	/* "panic mode" support */
 	Boolean panicMode; /* in panic mode - do not update clock or calculate offsets */
@@ -713,8 +714,11 @@ typedef struct {
 	RunTimeOpts *rtOpts;
 
 	struct ClockDriver *clockDriver;
+	struct ClockDriver *clockDriver2;
 
-	int ignoreUpdates;
+	/* tell the protocol engine to silently ignore the next n offset/delay updates */
+	int ignoreDelayUpdates;
+	int ignoreOffsetUpdates;
 
 } PtpClock;
 

@@ -266,9 +266,9 @@ setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock)
 	capturePtpEventData(&alarm->eventData, ptpClock, ptpClock->rtOpts);
 
 	if(condition) {
-	    getOsClock()->getTime(getOsClock(), &alarm->timeSet);
+	    getSystemClock()->getTime(getSystemClock(), &alarm->timeSet);
 	} else {
-	    getOsClock()->getTime(getOsClock(), &alarm->timeCleared);
+	    getSystemClock()->getTime(getSystemClock(), &alarm->timeCleared);
 	}
 
 	DBG("Alarm %s condition set to %s\n", alarm->name, condition ? "TRUE" : "FALSE");

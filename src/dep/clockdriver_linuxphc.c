@@ -48,13 +48,14 @@
 static int clockdriver_init(ClockDriver*, const void *);
 static int clockdriver_shutdown(ClockDriver *);
 
-static Boolean getTime_linuxphc (ClockDriver*, TimeInternal *);
+static Boolean getTime (ClockDriver*, TimeInternal *);
 static Boolean getUtcTime (ClockDriver*, TimeInternal *);
-static Boolean setTime_linuxphc (ClockDriver*, TimeInternal *);
+static Boolean setTime (ClockDriver*, TimeInternal *);
 static Boolean setFrequency (ClockDriver *, double, double);
 static double  getFrequency (ClockDriver *);
 static Boolean getStatus (ClockDriver *, ClockStatus *);
 static Boolean setStatus (ClockDriver *, ClockStatus *);
+static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
 
 static Boolean getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps);
 static Boolean getSystemClockOffset(ClockDriver *self, TimeInternal *delta);
@@ -74,13 +75,14 @@ _setupClockDriver_linuxphc(ClockDriver* self)
     self->init = clockdriver_init;
     self->shutdown = clockdriver_shutdown;
 
-    self->getTime = getTime_linuxphc;
+    self->getTime = getTime;
     self->getUtcTime = getUtcTime;
-    self->setTime = setTime_linuxphc;
+    self->setTime = setTime;
     self->setFrequency = setFrequency;
     self->getFrequency = getFrequency;
     self->getStatus = getStatus;
     self->setStatus = setStatus;
+    self->getOffsetFrom = getOffsetFrom;
 
     if(self->data == NULL) {
 	XCALLOC(self->data, sizeof(ClockDriverData_linuxphc));
@@ -167,7 +169,7 @@ clockdriver_shutdown(ClockDriver *self) {
 }
 
 static Boolean
-getTime_linuxphc (ClockDriver *self, TimeInternal *time) {
+getTime (ClockDriver *self, TimeInternal *time) {
 
     GET_DATA();
 
@@ -189,7 +191,7 @@ getUtcTime (ClockDriver *self, TimeInternal *out) {
 }
 
 static Boolean
-setTime_linuxphc (ClockDriver *self, TimeInternal *time) {
+setTime (ClockDriver *self, TimeInternal *time) {
 
 	GET_CONFIG();
 	GET_DATA();
@@ -236,6 +238,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 	    PERROR("Could not adjust frequency offset of clock %s (%s)", self->name, myConfig->characterDevice);
 	    return FALSE;
 	}
+
 
 	return TRUE;
 
@@ -284,6 +287,36 @@ getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps) {
 }
 
 static Boolean
+getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *delta)
+{
+
+	GET_DATA();
+
+	ClockDriverData_linuxphc *hisData;
+
+	if(from->type == self->type) {
+	    hisData = (ClockDriverData_linuxphc*)(from->data);
+	    if(myData->phcIndex == hisData->phcIndex) {
+		delta->seconds = 0;
+		delta->nanoseconds = 0;
+		return TRUE;
+	    }
+	}
+
+	if(from->type == CLOCKDRIVER_UNIX && from->systemClock) {
+	    if(!getSystemClockOffset(self, delta)) {
+		return FALSE;
+	    }
+	    delta->seconds = -delta->seconds;
+	    delta->nanoseconds = -delta->nanoseconds;
+	    return TRUE;
+	}
+
+	return FALSE;
+
+}
+
+static Boolean
 getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 {
 
@@ -320,10 +353,7 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 	    minDuration = duration;
 	}
 
-	div2Time(&t1);
-	div2Time(&t2);
-	addTime(&tmpDelta, &t1, &t2);
-	subTime(&tmpDelta, &tmpDelta, &tptp);
+	timeDelta(&t1, &tptp, &t2, &tmpDelta);
 
 	if(!gtTime(&duration, &minDuration)) {
 	    minDuration = duration;

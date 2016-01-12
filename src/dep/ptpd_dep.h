@@ -368,7 +368,7 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
 
 Boolean testInterface(char* ifaceName, const RunTimeOpts* rtOpts);
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
-Boolean netShutdown(NetPath*);
+Boolean netShutdown(NetPath*, PtpClock*);
 int netSelect(TimeInternal*,NetPath*,fd_set*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*,int);
 ssize_t netRecvGeneral(Octet*,NetPath*);

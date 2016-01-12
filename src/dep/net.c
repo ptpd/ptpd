@@ -164,8 +164,9 @@ isIpMulticast(struct in_addr in)
 
 /* shut down the UDP stuff */
 Boolean
-netShutdown(NetPath * netPath)
+netShutdown(NetPath * netPath, PtpClock *ptpClock)
 {
+
 	netShutdownMulticast(netPath);
 
 	/* Close sockets */
@@ -190,6 +191,8 @@ netShutdown(NetPath * netPath)
 
 	freeIpv4AccessList(&netPath->timingAcl);
 	freeIpv4AccessList(&netPath->managementAcl);
+
+	freeClockDriver(&ptpClock->clockDriver);
 
 	return TRUE;
 }
@@ -740,6 +743,7 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	struct timeval timeOut = {0,0};
 	int val = 1;
 	int i = 0;
+	int backoff = 10;
 
 	FD_ZERO(&tmpSet);
 	FD_SET(netPath->eventSock, &tmpSet);
@@ -762,23 +766,24 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	}
 
 	/* we're desperate here, aren't we... */
-	for(i = 0; i < 5; i++) {
+	for(i = 0; i <= LATE_TXTIMESTAMP_RETRIES; i++) {
+	    if(i==LATE_TXTIMESTAMP_RETRIES) {
+		usleep(LATE_TXTIMESTAMP_FINAL_US);
+	    } else {
+	    usleep(backoff);
+	    backoff *= 2;
+	    DBG("getTxTimestamp backoff: %d\n", backoff);
+	    }
 	    length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
 	    if(length > 0) {
 		DBG("getTxTimestamp: SO_TIMESTAMPING - delayed TX timestamp caught after %d retries\n", i+1);
 		return TRUE;
 	    }
-	    if(i==4) {
-		usleep(LATE_TXTIMESTAMP_US);
-	    } else {
-	    usleep(10);
-	    }
 	}
 
 	if(length <= 0) {
-		INFO("getTxTimestamp: NIC failed to deliver TX timestamp in time\n");
+		INFO("getTxTimestamp: NIC failed to deliver TX timestamp\n");
 		clearTime(timeStamp);
-//		netPath->lateTxTimestamp = TRUE;
 		return FALSE;
 	}
 
@@ -1080,10 +1085,15 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	netPath->generalSock = -1;
 	netPath->eventSock = -1;
 
-	netPath->lateTxTimestamp = FALSE;
 	netPath->hwTimestamping = FALSE;
 	netPath->txTimestamping = FALSE;
-//	netPath->ignorePackets = 0;
+
+	if(rtOpts->backupIfaceEnabled &&
+		ptpClock->runningBackupInterface) {
+		strncpy(rtOpts->ifaceName, rtOpts->backupIfaceName, IFACE_NAME_LENGTH);
+	} else {
+		strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFACE_NAME_LENGTH);
+	}
 
 #ifdef PTPD_PCAP
 	if (rtOpts->transport == IEEE_802_3) {
@@ -1118,7 +1128,11 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		/* backup enabled - try the other interface */
 		ptpClock->runningBackupInterface = !ptpClock->runningBackupInterface;
 
-		rtOpts->ifaceName = (ptpClock->runningBackupInterface)?rtOpts->backupIfaceName : rtOpts->primaryIfaceName;
+		if(ptpClock->runningBackupInterface) {
+		    strncpy(rtOpts->ifaceName, rtOpts->backupIfaceName, IFACE_NAME_LENGTH);
+		} else {
+		    strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFACE_NAME_LENGTH);
+		}
 
 		NOTICE("Last resort - attempting to switch to %s interface\n", ptpClock->runningBackupInterface ? "backup" : "primary");
 		/* if this fails, we have no reason to live */
@@ -1126,7 +1140,6 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		    return FALSE;
 		}
 	}
-
 
 	netPath->interfaceInfo.addressFamily = AF_INET;
 
@@ -1454,7 +1467,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			ptpClock->clockDriver = createClockDriver(CLOCKDRIVER_LINUXPHC, netPath->interfaceInfo.physicalDevice);
 			ptpClock->clockDriver->init(ptpClock->clockDriver, &cd);
 		} else {
-		    ptpClock->clockDriver = getOsClock();
+		    ptpClock->clockDriver = getSystemClock();
 		}
 
 #ifdef SO_TIMESTAMPING
@@ -1598,11 +1611,6 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 	struct iovec vec[1];
 	struct sockaddr_in from_addr;
 
-	if(netPath->lateTxTimestamp) {
-	    DBG("flushing ERRQUEUE\n");
-	    flags |= MSG_ERRQUEUE;
-	}
-
 #ifdef PTPD_PCAP
 	struct pcap_pkthdr *pkt_header;
 	const u_char *pkt_data;
@@ -1611,7 +1619,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 	TimeInternal tmpTime;
 	/* get system time interpolated with TSC / clockCycles as soon as we have data on the socket */
-	getOsClock()->getTime(getOsClock(), &tmpTime);
+	getSystemClock()->getTime(getSystemClock(), &tmpTime);
 #endif
 
 	union {
@@ -1656,16 +1664,17 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 
 		/* we may have a TX timestamp stuck in error queue, flush it */
 		if(netPath->txTimestamping && ret <=0 && errno == ENOMSG) {
-		    DBG("Flushed errqueue\n");
+		    DBG("netRecvEvent: Flushed errqueue\n");
 		    ret = recvmsg(netPath->eventSock, &msg, flags | MSG_ERRQUEUE);
-		    clearTime(time);
-		    return 0;
+		    ret = recvmsg(netPath->eventSock, &msg, flags);
 		}
 
 		if (ret <= 0) {
-			if (errno == EAGAIN || errno == EINTR)
+			if (errno == EAGAIN || errno == EINTR) {
 				return 0;
-			return ret;
+			} else {
+				return ret;
+			}
 		};
 
 		if (msg.msg_flags & MSG_TRUNC) {
@@ -1691,7 +1700,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 
 		/* do not report "from self" */
 		if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
-		    netPath->receivedPackets++;
+			netPath->receivedPackets++;
 		}
 
 		if (msg.msg_controllen <= 0) {
@@ -1722,23 +1731,31 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 				DBG("IP_RECVDSTADDR Dst: %s\n", inet_ntoa(*pa));
 			}
 #endif
-
-
 			if (cmsg->cmsg_level == SOL_SOCKET) {
-#if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)
-				if(cmsg->cmsg_type == SO_TIMESTAMPING ||
-				    cmsg->cmsg_type == SO_TIMESTAMPNS) {
+#if defined(SO_TIMESTAMPING)
+				if(cmsg->cmsg_type == SO_TIMESTAMPING) {
 					ts = (struct timespec *)CMSG_DATA(cmsg);
-					int which = netPath->hwTimestamping ? 2 : 0;
-					time->seconds = ts[which].tv_sec;
-					time->nanoseconds = ts[which].tv_nsec;
+					if(netPath->hwTimestamping) {
+						if (cmsg->cmsg_len >= sizeof(*ts) * 3) {
+						    time->seconds = ts[2].tv_sec;
+						    time->nanoseconds = ts[2].tv_nsec;
+						} else {
+						    ERROR("SO_TIMESTAMPING: HW timestamp control message too short\n");
+						    return 0;
+						}
+					} else {
+						    time->seconds = ts[0].tv_sec;
+						    time->nanoseconds = ts[0].tv_nsec;
+					}
 					timestampValid = TRUE;
-					DBG("rcvevent: SO_TIMESTAMP%s %s time stamp: %us %dns\n", netPath->txTimestamping ?
-					    "ING" : "NS",
-					    (flags & MSG_ERRQUEUE) ? "(TX)" : "(RX)" , time->seconds, time->nanoseconds);
+					DBG("rcvevent: SO_TIMESTAMPING %s time stamp: %us %dns\n", 
+					    (flags & MSG_ERRQUEUE) ? "TX" : "RX" ,
+					     time->seconds, time->nanoseconds);
 					break;
 				}
-#elif defined(SO_TIMESTAMPNS)
+#endif
+
+#if defined(SO_TIMESTAMPNS)
 				if(cmsg->cmsg_type == SCM_TIMESTAMPNS) {
 					ts = (struct timespec *)CMSG_DATA(cmsg);
 					time->seconds = ts->tv_sec;
@@ -1773,19 +1790,6 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 #endif
 			 }
 
-		}
-/*
-		if(netPath->lateTxTimestamp) {
-			netPath->lateTxTimestamp = FALSE;
-			return 0;
-		}
-*/
-		/* we have been told to drop next x packets */
-		if(netPath->ignorePackets>0) {
-			netPath->ignorePackets--;
-			INFO("Ignored, %d left\n", netPath->ignorePackets);
-			clearTime(time);
-			return 0;
 		}
 
 		if (!timestampValid) {
@@ -1992,7 +1996,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 	TimeInternal tmpTime;
 	/* get system time interpolated with TSC / clockCycles as soon as we have data on the socket */
-	getOsClock()->getTime(getOsClock(), &tmpTime);
+	getSystemClock()->getTime(getSystemClock(), &tmpTime);
 #endif
 
 #ifdef PTPD_PCAP
@@ -2533,6 +2537,17 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
     char * realDevice = rtOpts->ifaceName;
     char * ifaceName = rtOpts->ifaceName;
 
+
+	TimeInternal delta;
+
+	getSystemClock()->getOffsetFrom(getSystemClock(), ptpClock->clockDriver, &delta);
+	INFO("os->phc %d.%d\n", delta.seconds, delta.nanoseconds);
+ptpClock->servo2.dT = 0.5;
+		getSystemClock()->setFrequency(getSystemClock(),
+			runPIservo(&ptpClock->servo2, delta.nanoseconds),
+			ptpClock->servo2.dT);
+
+
     getVlanInfo(rtOpts->ifaceName, vlanInfo);
 
     if(vlanInfo->vlan) {
@@ -2550,9 +2565,8 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
     strncpy(netPath->interfaceInfo.physicalDevice, realDevice, IFACE_NAME_LENGTH);
 
     if(bondInfo->activeChanged) {
-	/* drop next 5 messages, we have changed bond master */
-//	netPath->ignorePackets = 100;
-ptpClock->ignoreUpdates = 20;
+	ptpClock->ignoreOffsetUpdates = 2;
+	ptpClock->ignoreDelayUpdates = 2;
 	if(!rtOpts->hwTimestamping) {
 	    WARNING("Active bond member changed to %s\n", bondInfo->activeSlave);
 	    if(rtOpts->refreshIgmp) {

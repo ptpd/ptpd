@@ -98,9 +98,6 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	resetWarnings(rtOpts, ptpClock);
 
-	/* For Hybrid mode */
-//	ptpClock->masterAddr = 0;
-
 	ptpClock->maxDelayRejected = 0;
 
 }
@@ -109,9 +106,14 @@ void
 updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
-	if(ptpClock->ignoreUpdates > 0) {
-	    ptpClock->ignoreUpdates--;
-	    INFO("Ignoring delay update\n");
+	if(ptpClock->ignoreDelayUpdates > 0) {
+	    ptpClock->ignoreDelayUpdates--;
+	    DBG("updateDelay: Ignoring delay update: ptpClock->ignoreDelayUpdates\n");
+	    return;
+	}
+
+	if(isTimeZero(&ptpClock->delay_req_send_time) || isTimeZero(&ptpClock->delay_req_receive_time)) {
+	    DBG("updateDelay: Ignoring empty time\n");
 	    return;
 	}
 
@@ -438,9 +440,14 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
     offset_from_master_filter * ofm_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
-	if(ptpClock->ignoreUpdates > 0) {
-	    ptpClock->ignoreUpdates--;
-	    INFO("Ignoring offset update\n");
+	if(ptpClock->ignoreOffsetUpdates > 0) {
+	    ptpClock->ignoreOffsetUpdates--;
+	    DBG("updateOffset: Ignoring offset update\n");
+	    return;
+	}
+
+	if(isTimeZero(send_time) || isTimeZero(recv_time)) {
+	    DBG("updateOffset: Ignoring empty time\n");
 	    return;
 	}
 
@@ -538,7 +545,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	/* raw value before filtering */
 	subTime(&ptpClock->rawDelayMS, recv_time, send_time);
 
-DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
+	DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 
 #ifdef PTPD_STATISTICS
 /* testing only: step detection */
@@ -551,7 +558,9 @@ DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 	}
 */
 	/* run the delayMS stats filter */
+
 	if(rtOpts->filterMSOpts.enabled) {
+
 	    /* FALSE if filter wants to skip the update */
 	    if(!feedDoubleMovingStatFilter(ptpClock->filterMS, timeInternalToDouble(&ptpClock->rawDelayMS))) {
 		    goto finish;

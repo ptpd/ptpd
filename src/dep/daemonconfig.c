@@ -2372,7 +2372,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 /* ==== Any additional logic should go here ===== */
 
-	rtOpts->ifaceName = rtOpts->primaryIfaceName;
+	strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFACE_NAME_LENGTH);
 
 	/* Check timing packet ACLs */
 	if(rtOpts->timingAclEnabled) {

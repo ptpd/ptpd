@@ -164,8 +164,11 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 /* Difference between Unix time / UTC and NTP time */
 #define NTP_EPOCH 2208988800ULL
 
-/* wait a maximum of 10 ms for a late TX timestamp */
-#define LATE_TXTIMESTAMP_US 10000
+/* how many times to check for the TX timestamp */
+#define LATE_TXTIMESTAMP_RETRIES 6
+
+/* wait a maximum of 2 ms for a late TX timestamp after all retries*/
+#define LATE_TXTIMESTAMP_FINAL_US 2000
 
 /* drift recovery metod for use with -F */
 enum {

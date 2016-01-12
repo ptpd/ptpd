@@ -37,13 +37,15 @@
 static int clockdriver_init(ClockDriver*, const void *);
 static int clockdriver_shutdown(ClockDriver *);
 
-static Boolean getTime_unix (ClockDriver*, TimeInternal *);
+static Boolean getTime (ClockDriver*, TimeInternal *);
 static Boolean getUtcTime (ClockDriver*, TimeInternal *);
-static Boolean setTime_unix (ClockDriver*, TimeInternal *);
+static Boolean setTime (ClockDriver*, TimeInternal *);
 static Boolean setFrequency (ClockDriver *, double, double);
 static double getFrequency (ClockDriver *);
 static Boolean getStatus (ClockDriver *, ClockStatus *);
 static Boolean setStatus (ClockDriver *, ClockStatus *);
+static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
+
 
 static void setRtc_unix(ClockDriver* self, TimeInternal *timeToSet);
 static Boolean adjFreq_unix(ClockDriver *self, double adj);
@@ -60,13 +62,14 @@ _setupClockDriver_unix(ClockDriver* self)
     self->init = clockdriver_init;
     self->shutdown = clockdriver_shutdown;
 
-    self->getTime = getTime_unix;
+    self->getTime = getTime;
     self->getUtcTime = getUtcTime;
-    self->setTime = setTime_unix;
+    self->setTime = setTime;
     self->setFrequency = setFrequency;
     self->getFrequency = getFrequency;
     self->getStatus = getStatus;
     self->setStatus = setStatus;
+    self->getOffsetFrom = getOffsetFrom;
 
     self->maxFreqAdj = ADJ_FREQ_MAX;
     self->systemClock = TRUE;
@@ -84,16 +87,14 @@ clockdriver_init(ClockDriver* self, const void *config) {
 
 static int
 clockdriver_shutdown(ClockDriver *self) {
-
     INFO("Unix clock driver %s shutting down\n", self->name);
     return 1;
-
 }
 
 
 
 static Boolean
-getTime_unix (ClockDriver *self, TimeInternal *time) {
+getTime (ClockDriver *self, TimeInternal *time) {
 
 #ifdef __QNXNTO__
   static TimerIntData tmpData;
@@ -179,11 +180,11 @@ getUtcTime (ClockDriver *self, TimeInternal *out) {
 }
 
 static Boolean
-setTime_unix (ClockDriver *self, TimeInternal *time) {
+setTime (ClockDriver *self, TimeInternal *time) {
 
 	TimeInternal oldTime;
 
-	getTime_unix(self, &oldTime);
+	getTime(self, &oldTime);
 
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 
@@ -307,6 +308,33 @@ static Boolean
 setStatus (ClockDriver *self, ClockStatus *status) {
     return TRUE;
 }
+
+/*
+ *this is the OS clock driver unaware of the other drivers,
+ * so we compare the clock using the other clock's comparison.
+ */
+static Boolean
+getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *output)
+{
+
+	TimeInternal delta;
+
+	if(from->systemClock) {
+	    output->seconds = 0;
+	    output->nanoseconds = 0;
+	    return TRUE;
+	}
+
+	if(!from->getOffsetFrom(from, self, &delta)) {
+	    return FALSE;
+	}
+
+	output->seconds = -delta.seconds;
+	output->nanoseconds = -delta.nanoseconds;
+
+	return FALSE;
+}
+
 
 static Boolean
 adjFreq_unix(ClockDriver *self, double adj)
@@ -433,7 +461,7 @@ static void setRtc_unix(ClockDriver *self, TimeInternal *timeToSet)
 	DBGV("Usable RTC device: %s\n",rtcDev);
 
 	if(timeToSet->seconds == 0 && timeToSet->nanoseconds==0) {
-	    getTime_unix(self, timeToSet);
+	    getTime(self, timeToSet);
 	}
 
 

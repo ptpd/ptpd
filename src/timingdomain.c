@@ -227,7 +227,7 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 
 #endif 	/* HAVE_SYS_TIMEX_H  */
 
-	getOsClock()->getTime(getOsClock(), &now);
+	getSystemClock()->getTime(getSystemClock(), &now);
 
 
 	ptpClock->clockStatus.override = FALSE;
@@ -472,7 +472,7 @@ ptpServiceClockUpdate (TimingService* service)
 	}
 #endif /* HAVE_SYS_TIMEX_H */
 
-	getOsClock()->getTime(getOsClock(), &oldTime);
+	getSystemClock()->getTime(getSystemClock(), &oldTime);
 	subTime(&newTime, &oldTime, &ptpClock->currentDS.offsetFromMaster);
 
 	/* Major time change */

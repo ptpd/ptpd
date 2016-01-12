@@ -74,6 +74,8 @@ struct ClockDriver {
 
     double maxFreqAdj;
 
+    /* public interface - implementations must implement all of those */
+
     int (*shutdown) 	(ClockDriver*);
     int (*init)		(ClockDriver*, const void *);
 
@@ -85,6 +87,9 @@ struct ClockDriver {
     double (*getFrequency) (ClockDriver *);
     Boolean (*getStatus) (ClockDriver *, ClockStatus *);
     Boolean (*setStatus) (ClockDriver *, ClockStatus *);
+    Boolean (*getOffsetFrom) (ClockDriver *, ClockDriver *, TimeInternal*);
+
+    /* public interface end */
 
     ClockDriver *_first;
     ClockDriver *_next;
@@ -95,7 +100,7 @@ struct ClockDriver {
 ClockDriver*  createClockDriver(int driverType, const char* name);
 Boolean setupClockDriver(ClockDriver* clockDriver, int type, const char* name);
 void freeClockDriver(ClockDriver** clockDriver);
-ClockDriver* getOsClock();
+ClockDriver* getSystemClock();
 void shutdownClockDrivers();
 
 #include "clockdriver_unix.h"

@@ -286,6 +286,9 @@ void subTime(TimeInternal*,const TimeInternal*,const TimeInternal*);
  */
 void div2Time(TimeInternal *);
 
+void timeDelta(TimeInternal *before, TimeInternal *meas, TimeInternal *after, TimeInternal *delta);
+
+
 Boolean isTimeZero(const TimeInternal *time);
 
 /** \name bmc.c

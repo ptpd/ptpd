@@ -208,7 +208,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    toState(PTP_DISABLED, rtOpts, ptpClock);
 	    WARNING("PTP port starting in DISABLED state. Awaiting config change or management message\n");
 	    /* initialize networking so we can be remotely enabled */
-	    netShutdown(&ptpClock->netPath);
+	    netShutdown(&ptpClock->netPath, ptpClock);
 	    if (!netInit(&ptpClock->netPath, rtOpts, ptpClock)) {
 		ERROR("Failed to initialize network in disabled state, will not be able to re-enable!\n");
 	    }
@@ -750,13 +750,13 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		MANUFACTURER_ID_OUI1,
 		MANUFACTURER_ID_OUI2);
 	/* initialize networking */
-	netShutdown(&ptpClock->netPath);
+	netShutdown(&ptpClock->netPath, ptpClock);
 
 	if(rtOpts->backupIfaceEnabled &&
 		ptpClock->runningBackupInterface) {
-		rtOpts->ifaceName = rtOpts->backupIfaceName;
+		strncpy(rtOpts->ifaceName, rtOpts->backupIfaceName, IFACE_NAME_LENGTH);
 	} else {
-		rtOpts->ifaceName = rtOpts->primaryIfaceName;
+		strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFACE_NAME_LENGTH);
 	}
 
 	if (!netInit(&ptpClock->netPath, rtOpts, ptpClock)) {
@@ -771,6 +771,8 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	initData(rtOpts, ptpClock);
 	initClock(rtOpts, ptpClock);
 	setupPIservo(&ptpClock->servo, rtOpts);
+	setupPIservo(&ptpClock->servo2, rtOpts);
+	ptpClock->servo2.observedDrift = -getSystemClock()->getFrequency(getSystemClock());
 	/* restore observed drift and inform user */
 	if(ptpClock->defaultDS.clockQuality.clockClass > 127)
 		restoreDrift(ptpClock, rtOpts, FALSE);
@@ -2240,8 +2242,9 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 
 static void
 processDelayReqFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock) {
-
-
+if(isTimeZero(tint)) {
+INFO("ZERO\n");
+}
 	ptpClock->waitingForDelayResp = TRUE;
 
 	ptpClock->delay_req_send_time.seconds = tint->seconds;
@@ -2982,7 +2985,7 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 	Timestamp originTimestamp;
 	TimeInternal internalTime, now;
 
-	getOsClock()->getTime(getOsClock(), &internalTime);
+	getSystemClock()->getTime(getSystemClock(), &internalTime);
 
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
@@ -3102,7 +3105,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	 * call GTOD. This time is later replaced in handleDelayReq,
 	 * to get the actual send timestamp from the OS
 	 */
-	getOsClock()->getTime(getOsClock(), &internalTime);
+	getSystemClock()->getTime(getSystemClock(), &internalTime);
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
@@ -3180,7 +3183,7 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	    return;
 	}
 
-	getOsClock()->getTime(getOsClock(), &internalTime);
+	getSystemClock()->getTime(getSystemClock(), &internalTime);
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
