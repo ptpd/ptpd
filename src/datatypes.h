@@ -79,6 +79,9 @@ typedef struct
 	uint32_t delayMechanismMismatchErrors; /* P2P received, E2E expected or vice versa - incremets discarded */
 	uint32_t consecutiveSequenceErrors;    /* number of consecutive sequence mismatch errors */
 
+	/* not in SNMP yet */
+	uint32_t txTimestampFailures;		/* number of transmit timestamp delivery failures */
+
 	/* unicast sgnaling counters */
 	uint32_t unicastGrantsRequested;  /* slave: how many we requested, master: how many requests we received */
 	uint32_t unicastGrantsGranted;	  /* slave: how many we got granted, master: how many we granted */
@@ -116,6 +119,8 @@ typedef struct{
     double dT;
     int maxdT;
 #ifdef PTPD_STATISTICS
+    DoublePermanentStdDev l1dev;
+    DoublePermanentStdDev l2dev;
     int updateCount;
     int stableCount;
     Boolean statsUpdated;
@@ -142,6 +147,7 @@ typedef struct {
 	Boolean granted; 	/* upstream watchdog will grant this when we're the best provider */
 	Boolean updateOK;		/* if not, updateClock() will not run */
 	Boolean stepRequired;		/* if set, we need to step the clock */
+	Boolean stepFailed;		/* clock driver refused to step clock, we're locked until it's forcefully stepped */
 	Boolean offsetOK;		/* if set, updateOffset accepted oFm */
 } ClockControlInfo;
 
@@ -715,6 +721,7 @@ typedef struct {
 
 	struct ClockDriver *clockDriver;
 	struct ClockDriver *clockDriver2;
+	struct ClockDriver *clockDriver3;
 
 	/* tell the protocol engine to silently ignore the next n offset/delay updates */
 	int ignoreDelayUpdates;

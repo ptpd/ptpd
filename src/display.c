@@ -974,6 +974,8 @@ displayCounters(const PtpClock * ptpClock)
 		(unsigned long)ptpClock->counters.delayMechanismMismatchErrors);
 	INFO("           maxDelayDrops : %lu\n",
 		(unsigned long)ptpClock->counters.maxDelayDrops);
+	INFO("     txTimestampFailures : %lu\n",
+		(unsigned long)ptpClock->counters.txTimestampFailures);
 
 
 #ifdef PTPD_STATISTICS

@@ -36,7 +36,6 @@
 #include <linux/ethtool.h>
 #include <linux/ptp_clock.h>
 #include <sys/syscall.h>
-#include <sys/timex.h>
 #include "clockdriver.h"
 
 #define GET_CONFIG() \
@@ -50,7 +49,8 @@ static int clockdriver_shutdown(ClockDriver *);
 
 static Boolean getTime (ClockDriver*, TimeInternal *);
 static Boolean getUtcTime (ClockDriver*, TimeInternal *);
-static Boolean setTime (ClockDriver*, TimeInternal *);
+static Boolean setTime (ClockDriver*, TimeInternal *, Boolean);
+static Boolean stepTime (ClockDriver*, TimeInternal *, Boolean);
 static Boolean setFrequency (ClockDriver *, double, double);
 static double  getFrequency (ClockDriver *);
 static Boolean getStatus (ClockDriver *, ClockStatus *);
@@ -78,6 +78,7 @@ _setupClockDriver_linuxphc(ClockDriver* self)
     self->getTime = getTime;
     self->getUtcTime = getUtcTime;
     self->setTime = setTime;
+    self->stepTime = stepTime;
     self->setFrequency = setFrequency;
     self->getFrequency = getFrequency;
     self->getStatus = getStatus;
@@ -191,10 +192,22 @@ getUtcTime (ClockDriver *self, TimeInternal *out) {
 }
 
 static Boolean
-setTime (ClockDriver *self, TimeInternal *time) {
+setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 	GET_CONFIG();
 	GET_DATA();
+
+	TimeInternal now;
+	getTime(self, &now);
+
+	if(self->readOnly) {
+		return TRUE;
+	}
+
+	if(!force && !self->negativeStep && !gtTime(time, &now)) {
+		WARNING("Cannot step Linux PHC  clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
+		return FALSE;
+	}
 
 	struct timespec tp;
 	tp.tv_sec = time->seconds;
@@ -216,8 +229,49 @@ setTime (ClockDriver *self, TimeInternal *time) {
 	return TRUE;
 
 }
+
+static Boolean
+stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
+
+	GET_CONFIG();
+	GET_DATA();
+
+	TimeInternal newTime;
+
+	if(self->readOnly) {
+		return TRUE;
+	}
+
+	if(!force && !self->negativeStep && isTimeNegative(delta)) {
+		WARNING("Cannot step Linux PHC clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
+		return FALSE;
+	}
+
+	struct timex tmx;
+	memset(&tmx, 0, sizeof(tmx));
+	tmx.modes = ADJ_SETOFFSET | ADJ_NANO;
+
+	tmx.time.tv_sec = delta->seconds;
+	tmx.time.tv_usec = delta->nanoseconds;
+
+	if(clock_adjtime(myData->clockId, &tmx) < 0) {
+	    DBG("Could set clock offset of Linux PHC clock %s (%s)", self->name, myConfig->characterDevice);
+	    getTime(self, &newTime);
+	    addTime(&newTime, &newTime, delta);
+	    return setTime(self, &newTime, force);
+	}
+
+	NOTICE("Linux PHC clock %s (%s): stepped clock by %s%d.%09d seconds\n", self->name, myConfig->characterDevice,
+		    (delta->seconds <0 || delta->nanoseconds <0) ? "-":"", delta->seconds, delta->nanoseconds);
+
+	return TRUE;
+
+}
+
 static Boolean
 setFrequency (ClockDriver *self, double adj, double tau) {
+
+//INFO("tau: %.09f adj: %.09f\n", tau, adj/1000.0);
 
 	GET_CONFIG();
 	GET_DATA();
@@ -238,7 +292,6 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 	    PERROR("Could not adjust frequency offset of clock %s (%s)", self->name, myConfig->characterDevice);
 	    return FALSE;
 	}
-
 
 	return TRUE;
 

@@ -426,7 +426,7 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->timingService.timeout = rtOpts->idleTimeout;
 
 		    /* Update PI servo parameters */
-		    setupPIservo(&ptpClock->servo, rtOpts);
+		    setupPIservo(&ptpClock->servo, ptpClock, rtOpts);
 		    /* Config changes don't require subsystem restarts - acknowledge it */
 		    if(rtOpts->restartSubsystems == PTPD_RESTART_NONE) {
 				NOTIFY("Applying configuration\n");
@@ -462,8 +462,7 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	if(sigusr1_received){
 	    if(ptpClock->portDS.portState == PTP_SLAVE){
 		    WARNING("SIGUSR1 received, stepping clock to current known OFM\n");
-                    stepClock(rtOpts, ptpClock);                                                                                                        
-//		    ptpClock->clockControl.stepRequired = TRUE;
+                    stepClock(rtOpts, ptpClock, TRUE);
 	    } else {
 		    ERROR("SIGUSR1 received - will not step clock, not in PTP_SLAVE state\n");
 	    }

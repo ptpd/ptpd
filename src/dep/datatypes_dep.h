@@ -37,7 +37,9 @@ typedef struct {
 	int slaveCount;
 	int activeCount;
 	char activeSlave[IFACE_NAME_LENGTH + 1];
+	char backupSlave[IFACE_NAME_LENGTH + 1];
 	int activeSlaveId;
+	int backupSlaveId;
 	Boolean activeChanged;
 } BondInfo;
 

@@ -770,8 +770,8 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	/* initialize other stuff */
 	initData(rtOpts, ptpClock);
 	initClock(rtOpts, ptpClock);
-	setupPIservo(&ptpClock->servo, rtOpts);
-	setupPIservo(&ptpClock->servo2, rtOpts);
+	setupPIservo(&ptpClock->servo, ptpClock, rtOpts);
+	setupPIservo(&ptpClock->servo2, ptpClock, rtOpts);
 	ptpClock->servo2.observedDrift = -getSystemClock()->getFrequency(getSystemClock());
 	/* restore observed drift and inform user */
 	if(ptpClock->defaultDS.clockQuality.clockClass > 127)

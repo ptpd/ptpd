@@ -58,9 +58,7 @@
 #include <netdb.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#ifdef HAVE_SYS_TIMEX_H
 #include <sys/timex.h>
-#endif
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>
@@ -288,6 +286,7 @@ void div2Time(TimeInternal *);
 
 void timeDelta(TimeInternal *before, TimeInternal *meas, TimeInternal *after, TimeInternal *delta);
 
+TimeInternal negativeTime(TimeInternal *time);
 
 Boolean isTimeZero(const TimeInternal *time);
 
@@ -493,7 +492,7 @@ void nano_to_Time(TimeInternal *time, int nano);
 int gtTime(const TimeInternal *x, const TimeInternal *b);
 void absTime(TimeInternal *time);
 int is_Time_close(const TimeInternal *x, const TimeInternal *b, int nanos);
-int isTimeInternalNegative(const TimeInternal * p);
+int isTimeNegative(const TimeInternal * p);
 double timeInternalToDouble(const TimeInternal * p);
 TimeInternal doubleToTimeInternal(const double d);
 

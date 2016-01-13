@@ -98,8 +98,11 @@ getAlarmMessage(char *out, int count, AlarmEntry *alarm)
 			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster));
 	    return;
 	case ALRM_CLOCK_STEP:
+	    {
+	    TimeInternal neg = negativeTime(&alarm->eventData.currentDS.offsetFromMaster);
 	    snprintf(out, count, ": Clock stepped by %.09f s",
-			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster));
+			timeInternalToDouble(&neg));
+	    }
 	    return;
 	case ALRM_NO_SYNC:
 	    if(alarm->state == ALARM_UNSET) {

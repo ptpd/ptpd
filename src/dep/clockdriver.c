@@ -163,6 +163,10 @@ freeClockDriver(ClockDriver** clockDriver)
 
     DBG("Deleted clock driver type %d name %s serial %d\n", pdriver->type, pdriver->name, pdriver->_serial);
 
+    if(pdriver == _systemClock) {
+	_systemClock = NULL;
+    }
+
     free(*clockDriver);
 
     *clockDriver = NULL;

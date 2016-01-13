@@ -411,7 +411,7 @@ void updateOffset(TimeInternal*,TimeInternal*,
   offset_from_master_filter*,const RunTimeOpts*,PtpClock*,TimeInternal*);
 void checkOffset(const RunTimeOpts*, PtpClock*);
 void updateClock(const RunTimeOpts*,PtpClock*);
-void stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
+void stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force);
 
 /** \}*/
 
@@ -497,7 +497,7 @@ int parseLeapFile(char * path, LeapSecondInfo *info);
 void
 resetWarnings(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
-void setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts);
+void setupPIservo(PIservo* servo, PtpClock*, const RunTimeOpts* rtOpts);
 void resetPIservo(PIservo* servo);
 double runPIservo(PIservo* servo, const Integer32 input);
 

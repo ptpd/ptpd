@@ -39,7 +39,8 @@ static int clockdriver_shutdown(ClockDriver *);
 
 static Boolean getTime (ClockDriver*, TimeInternal *);
 static Boolean getUtcTime (ClockDriver*, TimeInternal *);
-static Boolean setTime (ClockDriver*, TimeInternal *);
+static Boolean setTime (ClockDriver*, TimeInternal *, Boolean);
+static Boolean stepTime (ClockDriver*, TimeInternal *, Boolean);
 static Boolean setFrequency (ClockDriver *, double, double);
 static double getFrequency (ClockDriver *);
 static Boolean getStatus (ClockDriver *, ClockStatus *);
@@ -65,6 +66,7 @@ _setupClockDriver_unix(ClockDriver* self)
     self->getTime = getTime;
     self->getUtcTime = getUtcTime;
     self->setTime = setTime;
+    self->stepTime = stepTime;
     self->setFrequency = setFrequency;
     self->getFrequency = getFrequency;
     self->getStatus = getStatus;
@@ -73,6 +75,9 @@ _setupClockDriver_unix(ClockDriver* self)
 
     self->maxFreqAdj = ADJ_FREQ_MAX;
     self->systemClock = TRUE;
+
+    resetDoublePermanentStdDev(&self->l1dev);
+    resetDoublePermanentStdDev(&self->l2dev);
 
     INFO("Started Unix clock driver %s\n", self->name);
 
@@ -180,11 +185,20 @@ getUtcTime (ClockDriver *self, TimeInternal *out) {
 }
 
 static Boolean
-setTime (ClockDriver *self, TimeInternal *time) {
+setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 	TimeInternal oldTime;
 
 	getTime(self, &oldTime);
+
+	if(self->readOnly) {
+		return FALSE;
+	}
+
+	if(!force && !self->negativeStep && !gtTime(time, &oldTime)) {
+		WARNING("Cannot step Unix clock %s backwards\n", self->name);
+		return FALSE;
+	}
 
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 
@@ -227,6 +241,50 @@ setTime (ClockDriver *self, TimeInternal *time) {
 	return TRUE;
 
 }
+
+static Boolean
+stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
+
+	TimeInternal newTime;
+
+	if(self->readOnly) {
+		return FALSE;
+	}
+
+	if(!force && !self->negativeStep && isTimeNegative(delta)) {
+		WARNING("Cannot step Unix clock %s backwards\n", self->name);
+		return FALSE;
+	}
+
+#ifdef ADJ_SETOFFSET
+	struct timex tmx;
+	memset(&tmx, 0, sizeof(tmx));
+	tmx.modes = ADJ_SETOFFSET | ADJ_NANO;
+
+	tmx.time.tv_sec = delta->seconds;
+	tmx.time.tv_usec = delta->nanoseconds;
+
+	if(adjtimex(&tmx) < 0) {
+	    DBG("Could not set clock offset of Unix clock %s\n", self->name);
+	    getTime(self, &newTime);
+	    addTime(&newTime, &newTime, delta);
+	    return setTime(self, &newTime, force);
+	}
+
+	NOTICE("Unix clock %s: stepped clock by %s%d.%09d seconds\n", self->name,
+		    (delta->seconds <0 || delta->nanoseconds <0) ? "-":"", delta->seconds, delta->nanoseconds);
+
+	return TRUE;
+#else
+	getTime(self, &newTime);
+	addTime(&newTime, &newTime, delta);
+	return setTime(self, &newTime, force);
+#endif
+
+
+}
+
+
 static Boolean
 setFrequency (ClockDriver *self, double adj, double tau) {
 

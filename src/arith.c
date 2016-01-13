@@ -239,6 +239,13 @@ nano_to_Time(TimeInternal *x, int nano)
 	normalizeTime(x);
 }
 
+TimeInternal
+negativeTime(TimeInternal *time)
+{
+    TimeInternal neg = {-time->seconds, -time->nanoseconds};
+    return neg;
+}
+
 /* greater than operation */
 int
 gtTime(const TimeInternal *x, const TimeInternal *y)
@@ -246,7 +253,7 @@ gtTime(const TimeInternal *x, const TimeInternal *y)
 	TimeInternal r;
 
 	subTime(&r, x, y);
-	return !isTimeInternalNegative(&r);
+	return !isTimeNegative(&r);
 }
 
 /* remove sign from variable */
@@ -319,7 +326,7 @@ check_timestamp_is_fresh(const TimeInternal * timeA)
 
 
 int
-isTimeInternalNegative(const TimeInternal * p)
+isTimeNegative(const TimeInternal * p)
 {
 	return (p->seconds < 0) || (p->nanoseconds < 0);
 }

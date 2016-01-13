@@ -148,7 +148,7 @@ snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
 
 	/* always print either a space, or the leading "-". This makes the stat files columns-aligned */
 	len += snprintf(&s[len], max_len - len, "%c",
-		isTimeInternalNegative(p)? '-':' ');
+		isTimeNegative(p)? '-':' ');
 
 	len += snprintf(&s[len], max_len - len, "%d.%09d",
 	    abs(p->seconds), abs(p->nanoseconds));
@@ -1174,6 +1174,8 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	}
 	fprintf(out, "%s",
 		ptpClock->clockControl.granted ? "in control" : "no control");
+	fprintf(out, "%s%s", ptpClock->clockControl.stepRequired ? ", STEP" : "",
+		ptpClock->clockControl.stepFailed ? " FAILED!" : "");
 	if(rtOpts->noAdjust) {
 	    fprintf(out, ", read-only");
 	}

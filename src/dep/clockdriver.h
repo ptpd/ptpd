@@ -39,6 +39,10 @@
 
 #define CLOCKDRIVER_NAME_MAX 20
 
+#if defined(linux) && !defined(ADJ_SETOFFSET)
+#define ADJ_SETOFFSET 0x0100
+#endif
+
 enum {
     CLOCKDRIVER_UNIX = 0,
     CLOCKDRIVER_LINUXPHC = 1
@@ -67,7 +71,12 @@ struct ClockDriver {
     int utcOffset;
     Boolean systemClock;
     Boolean readOnly;
+    Boolean noStep;
+    Boolean negativeStep;
     Boolean hasRTC;
+
+    DoublePermanentStdDev l1dev;
+    DoublePermanentStdDev l2dev;
 
     void *data;
     void *config;
@@ -81,8 +90,8 @@ struct ClockDriver {
 
     Boolean (*getTime) (ClockDriver*, TimeInternal *);
     Boolean (*getUtcTime) (ClockDriver*, TimeInternal *);
-    Boolean (*setTime) (ClockDriver*, TimeInternal *);
-    Boolean (*setOffset) (ClockDriver*, TimeInternal *);
+    Boolean (*setTime) (ClockDriver*, TimeInternal *, Boolean);
+    Boolean (*stepTime) (ClockDriver*, TimeInternal *, Boolean);
     Boolean (*setFrequency) (ClockDriver *, double, double);
     double (*getFrequency) (ClockDriver *);
     Boolean (*getStatus) (ClockDriver *, ClockStatus *);

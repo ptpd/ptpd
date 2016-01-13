@@ -691,23 +691,36 @@ finish:
 }
 
 void
-stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
+stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force)
 {
 	if(rtOpts->noAdjust){
 		WARNING("Could not step clock - clock adjustment disabled\n");
 		return;
 	}
 
+	TimeInternal delta = negativeTime(&ptpClock->currentDS.offsetFromMaster);
+
+	/*No need to reset the frequency offset: if we're far off, it will quickly get back to a high value */
+/*
+	ptpClock->clockDriver->getTime(ptpClock->clockDriver, &oldTime);
+
+	subTime(&newTime, &oldTime, &ptpClock->currentDS.offsetFromMaster);
+*/
+
+	if(!force && ptpClock->clockControl.stepRequired &&  ptpClock->clockControl.stepFailed) {
+	    return;
+	}
+
+	if(!ptpClock->clockDriver->stepTime(ptpClock->clockDriver, &delta, force)) {
+	    CRITICAL("Driver refused to step clock. Manual intervention required or SIGUSR1 to force step.\n");
+	    ptpClock->clockControl.stepFailed = TRUE;
+	    return;
+	}
+
 	SET_ALARM(ALRM_CLOCK_STEP, TRUE);
 
 	ptpClock->clockControl.stepRequired = FALSE;
-
-	TimeInternal oldTime, newTime;
-	/*No need to reset the frequency offset: if we're far off, it will quickly get back to a high value */
-	ptpClock->clockDriver->getTime(ptpClock->clockDriver, &oldTime);
-	subTime(&newTime, &oldTime, &ptpClock->currentDS.offsetFromMaster);
-
-	ptpClock->clockDriver->setTime(ptpClock->clockDriver,&newTime);
+	ptpClock->clockControl.stepFailed = FALSE;
 
 	ptpClock->clockStatus.majorChange = TRUE;
 
@@ -717,7 +730,8 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		restoreDrift(ptpClock, rtOpts, TRUE);
 
 	ptpClock->servo.runningMaxOutput = FALSE;
-	toState(PTP_FAULTY, rtOpts, ptpClock);		/* make a full protocol reset */
+	/* five monkeys: why? */
+//	toState(PTP_FAULTY, rtOpts, ptpClock);		/* make a full protocol reset */
 
         if(rtOpts->calibrationDelay) {
                 ptpClock->isCalibrated = FALSE;
@@ -810,8 +824,8 @@ void checkOffset(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	if (ptpClock->currentDS.offsetFromMaster.seconds) {
 
 		if(!rtOpts->enablePanicMode) {
-			if (!rtOpts->noResetClock)
-				CRITICAL("Offset above 1 second (%.09f s). Clock will step.\n", 
+			if (!rtOpts->noResetClock && !ptpClock->clockControl.stepRequired)
+				CRITICAL("Offset above 1 second (%.09f s). Will attempt to step che clock.\n", 
 					    timeInternalToDouble(&ptpClock->currentDS.offsetFromMaster));
 			ptpClock->clockControl.stepRequired = TRUE;
 			ptpClock->clockControl.updateOK = TRUE;
@@ -925,8 +939,7 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if(ptpClock->clockControl.stepRequired) {
 		if (!rtOpts->noResetClock) {
-			stepClock(rtOpts, ptpClock);
-			ptpClock->clockControl.stepRequired = FALSE;
+			stepClock(rtOpts, ptpClock, FALSE);
 			return;
 		} else {
 			if(ptpClock->currentDS.offsetFromMaster.nanoseconds > 0)
@@ -991,9 +1004,10 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 }
 
 void
-setupPIservo(PIservo* servo, const const RunTimeOpts* rtOpts)
+setupPIservo(PIservo* servo, PtpClock *ptpClock, const RunTimeOpts* rtOpts)
 {
-    servo->maxOutput = rtOpts->servoMaxPpb;
+    servo->maxOutput = ptpClock->clockDriver->maxFreqAdj;
+/* rtOpts->servoMaxPpb;*/
     servo->kP = rtOpts->servoKP;
     servo->kI = rtOpts->servoKI;
     servo->dTmethod = rtOpts->servoDtMethod;
@@ -1089,6 +1103,20 @@ runPIservo(PIservo* servo, const Integer32 input)
 	}
 
 	servo->output = (servo->kP * (input + 0.0) ) + servo->observedDrift;
+
+    feedDoublePermanentStdDev(&servo->l1dev, servo->observedDrift);
+    if(servo->l1dev.meanContainer.count == 10) {
+	    feedDoublePermanentStdDev(&servo->l2dev, servo->l1dev.stdDev);
+	    resetDoublePermanentStdDev(&servo->l1dev);
+    }
+
+    if(servo->l2dev.meanContainer.count == 10) {
+	    if(servo->l2dev.stdDev < 500) {
+		INFO("Stable UCL DEV %.09f\n", servo->l2dev.stdDev);
+	    }
+	    resetDoublePermanentStdDev(&servo->l2dev);
+    }
+
 
 	if(servo->dTmethod == DT_MEASURED)
 		servo->lastUpdate = now;

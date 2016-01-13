@@ -90,10 +90,10 @@
 
 static Boolean bondQuery(char *ifaceName, ifbond *ifb);
 static Boolean bondSlaveQuery(char *ifaceName, ifslave *ifs, int member);
-static int getActiveBondMember(char * ifaceName, char* active, size_t maxlen);
+static int getActiveBondMember(char * ifaceName, char* active, char *backup, size_t maxlen);
 static void getBondInfo(char *ifaceName, BondInfo *info);
 static void getVlanInfo(char* ifaceName, VlanInfo *info);
-static Boolean getHwTs(char *ifaceName, RunTimeOpts *rtOpts, HwTsInfo *target);
+static Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target);
 static Boolean initHwTs(char *ifaceName, HwTsInfo *info);
 
 
@@ -193,6 +193,8 @@ netShutdown(NetPath * netPath, PtpClock *ptpClock)
 	freeIpv4AccessList(&netPath->managementAcl);
 
 	freeClockDriver(&ptpClock->clockDriver);
+	freeClockDriver(&ptpClock->clockDriver2);
+	freeClockDriver(&ptpClock->clockDriver3);
 
 	return TRUE;
 }
@@ -741,7 +743,6 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	ssize_t length;
 	fd_set tmpSet;
 	struct timeval timeOut = {0,0};
-	int val = 1;
 	int i = 0;
 	int backoff = 10;
 
@@ -782,8 +783,9 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	}
 
 	if(length <= 0) {
-		INFO("getTxTimestamp: NIC failed to deliver TX timestamp\n");
+		DBG("getTxTimestamp: NIC failed to deliver TX timestamp\n");
 		clearTime(timeStamp);
+		G_ptpClock->counters.txTimestampFailures++;
 		return FALSE;
 	}
 
@@ -1466,6 +1468,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			strncpy(cd.networkDevice, netPath->interfaceInfo.physicalDevice, IFACE_NAME_LENGTH);
 			ptpClock->clockDriver = createClockDriver(CLOCKDRIVER_LINUXPHC, netPath->interfaceInfo.physicalDevice);
 			ptpClock->clockDriver->init(ptpClock->clockDriver, &cd);
+INFO("Backup: %s\n", netPath->interfaceInfo.bondInfo.backupSlave);
 		} else {
 		    ptpClock->clockDriver = getSystemClock();
 		}
@@ -1515,7 +1518,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 #endif
 
 	if (timeout) {
-		if(isTimeInternalNegative(timeout)) {
+		if(isTimeNegative(timeout)) {
 			ERROR("Negative timeout attempted for select()\n");
 			return -1;
 		}
@@ -2421,11 +2424,12 @@ static Boolean bondSlaveQuery(char *ifaceName, ifslave *ifs, int member)
 
 }
 
-static int getActiveBondMember(char * ifaceName, char* active, size_t maxlen)
+static int getActiveBondMember(char * ifaceName, char* active, char *backup, size_t maxlen)
 {
 
     ifbond ifb;
     ifslave ifs;
+    int ret = -1;
 
     if(bondQuery(ifaceName, &ifb)) {
 
@@ -2434,11 +2438,15 @@ static int getActiveBondMember(char * ifaceName, char* active, size_t maxlen)
 	for(int i = 0; i < ifb.num_slaves; i++) {
 	    if(bondSlaveQuery(ifaceName, &ifs, i) && ifs.state == BOND_STATE_ACTIVE) {
 		strncpy(active, ifs.slave_name, min(maxlen, sizeof(ifs.slave_name)));
-		return i;
+		ret=i;
+	    }
+	    if(bondSlaveQuery(ifaceName, &ifs, i) && ifs.state == BOND_STATE_BACKUP) {
+		strncpy(backup, ifs.slave_name, min(maxlen, sizeof(ifs.slave_name)));
+		ret=i;
 	    }
 	}
     }
-    return -1;
+    return ret;
 
 }
 
@@ -2461,13 +2469,13 @@ static void getBondInfo(char *ifaceName, BondInfo *info)
 	strncpy(lastActiveSlave, info->activeSlave, IFACE_NAME_LENGTH);
     }
     memset(info->activeSlave, 0, IFACE_NAME_LENGTH + 1);
-
+    memset(info->backupSlave, 0, IFACE_NAME_LENGTH + 1);
 
     info->bonded = TRUE;
     info->activeBackup = (ifb.bond_mode == BOND_MODE_ACTIVEBACKUP);
     info->slaveCount = ifb.num_slaves;
 
-    info->activeSlaveId = getActiveBondMember(ifaceName, info->activeSlave, IFACE_NAME_LENGTH);
+    info->activeSlaveId = getActiveBondMember(ifaceName, info->activeSlave, info->backupSlave, IFACE_NAME_LENGTH);
 
     if(info->activeSlaveId >= 0) {
 	info->activeCount = 1;
@@ -2542,11 +2550,12 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 
 	getSystemClock()->getOffsetFrom(getSystemClock(), ptpClock->clockDriver, &delta);
 	INFO("os->phc %d.%d\n", delta.seconds, delta.nanoseconds);
-ptpClock->servo2.dT = 0.5;
+		if(!isTimeZero(&delta)) {
+		ptpClock->servo2.dT = 0.5;
 		getSystemClock()->setFrequency(getSystemClock(),
 			runPIservo(&ptpClock->servo2, delta.nanoseconds),
 			ptpClock->servo2.dT);
-
+		}
 
     getVlanInfo(rtOpts->ifaceName, vlanInfo);
 
@@ -2597,7 +2606,7 @@ Boolean getTsInfo(char *ifaceName, struct ethtool_ts_info *info) {
 
 }
 
-Boolean getHwTs(char *ifaceName, RunTimeOpts *rtOpts, HwTsInfo *target) {
+Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target) {
 
 	HwTsInfo output;
 	memset(&output, 0, sizeof(HwTsInfo));
