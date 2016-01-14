@@ -460,15 +460,14 @@ void displayStatus(PtpClock *ptpClock, const char *prefixMessage);
 void displayPortIdentity(PortIdentity *port, const char *prefixMessage);
 int snprint_PortIdentity(char *s, int max_len, const PortIdentity *id);
 Boolean nanoSleep(TimeInternal*);
-void getTimeMonotonic(TimeInternal*);
-#ifdef linux
-void setRtc(TimeInternal *);
-#endif /* linux */
+
 double getRand(void);
 int lockFile(int fd);
 int checkLockStatus(int fd, short lockType, int *lockPid);
 int checkFileLockable(const char *fileName, int *lockPid);
 Boolean checkOtherLocks(RunTimeOpts *rtOpts);
+Boolean doubleToFile(const char *filename, double input);
+Boolean doubleFromFile(const char *filename, double *output);
 
 void recordSync(UInteger16 sequenceId, TimeInternal * time);
 
@@ -492,6 +491,7 @@ Boolean getKernelUtcOffset(int *utc_offset);
 void restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet);
 void saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet);
 
+
 int parseLeapFile(char * path, LeapSecondInfo *info);
 
 void
@@ -506,7 +506,6 @@ void updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts);
 #endif /* PTPD_STATISTICS */
 
 void writeStatusFile(PtpClock *ptpClock, const RunTimeOpts *rtOpts, Boolean quiet);
-void updateXtmp (TimeInternal oldTime, TimeInternal newTime);
 
 
 #endif /*PTPD_DEP_H_*/

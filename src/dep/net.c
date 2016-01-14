@@ -2549,7 +2549,7 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 	TimeInternal delta;
 
 	getSystemClock()->getOffsetFrom(getSystemClock(), ptpClock->clockDriver, &delta);
-	INFO("os->phc %d.%d\n", delta.seconds, delta.nanoseconds);
+//	INFO("os->phc %d.%d\n", delta.seconds, delta.nanoseconds);
 		if(!isTimeZero(&delta)) {
 		ptpClock->servo2.dT = 0.5;
 		getSystemClock()->setFrequency(getSystemClock(),

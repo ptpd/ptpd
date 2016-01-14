@@ -1,6 +1,8 @@
 #ifndef TIMINGDOMAIN_H_
 #define TIMINGDOMAIN_H_
 
+#include "ptpd.h"
+
 /* simple compare 2, lower wins */
 #define CMP2L(a,b) \
     if (a < b ) return 1;\

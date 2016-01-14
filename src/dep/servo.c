@@ -91,7 +91,7 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	ptpClock->ofm_filt.y           = 0;
 	ptpClock->ofm_filt.nsec_prev   = 0;
 
-	ptpClock->mpd_filt.s_exp       = 0;  /* clears one-way delay filter */
+	ptpClock->mpdIirFilter.s_exp       = 0;  /* clears one-way delay filter */
 	ptpClock->offsetFirstUpdated   = FALSE;
 
 	ptpClock->char_last_msg='I';
@@ -103,7 +103,7 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 }
 
 void
-updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
+updateDelay(one_way_delay_filter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
 	if(ptpClock->ignoreDelayUpdates > 0) {
@@ -245,8 +245,11 @@ updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpCloc
 	if(!rtOpts->noAdjust && ptpClock->oFilterSM.config.enabled && (ptpClock->oFilterSM.config.alwaysFilter || !ptpClock->servo.runningMaxOutput) ) {
 		if(ptpClock->oFilterSM.filter(&ptpClock->oFilterSM, timeInternalToDouble(&ptpClock->rawDelaySM))) {
 			ptpClock->delaySM = doubleToTimeInternal(ptpClock->oFilterSM.output);
+//INFO("SM: NOUTL %.09f\n", timeInternalToDouble(&ptpClock->rawDelaySM));
 		} else {
 			ptpClock->counters.delaySMOutliersFound++;
+//INFO("SM:  OUTL %.09f\n", timeInternalToDouble(&ptpClock->rawDelaySM));
+
 			/* If the outlier filter has blocked the sample, "reverse" the last maxDelay action */
 			if (maxDelayHit) {
 				    ptpClock->maxDelayRejected--;
@@ -280,7 +283,7 @@ updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpCloc
 				"clearing filter\n");
 			INFO("Servo: Ignoring delayResp because of large OFM\n");
 			
-			mpd_filt->s_exp = mpd_filt->nsec_prev = 0;
+			mpdIirFilter->s_exp = mpdIirFilter->nsec_prev = 0;
 			/* revert back to previous value */
 			ptpClock->currentDS.meanPathDelay = prev_meanPathDelay;
 			goto finish;
@@ -297,31 +300,31 @@ updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpCloc
 
 		/* avoid overflowing filter */
 		s = rtOpts->s;
-		while (abs(mpd_filt->y) >> (31 - s))
+		while (abs(mpdIirFilter->y) >> (31 - s))
 			--s;
 
 		/* crank down filter cutoff by increasing 's_exp' */
-		if (mpd_filt->s_exp < 1)
-			mpd_filt->s_exp = 1;
-		else if (mpd_filt->s_exp < 1 << s)
-			++mpd_filt->s_exp;
-		else if (mpd_filt->s_exp > 1 << s)
-			mpd_filt->s_exp = 1 << s;
+		if (mpdIirFilter->s_exp < 1)
+			mpdIirFilter->s_exp = 1;
+		else if (mpdIirFilter->s_exp < 1 << s)
+			++mpdIirFilter->s_exp;
+		else if (mpdIirFilter->s_exp > 1 << s)
+			mpdIirFilter->s_exp = 1 << s;
 
 		/* filter 'meanPathDelay' */
 		double fy =
-			(double)((mpd_filt->s_exp - 1.0) *
-			mpd_filt->y / (mpd_filt->s_exp + 0.0) +
+			(double)((mpdIirFilter->s_exp - 1.0) *
+			mpdIirFilter->y / (mpdIirFilter->s_exp + 0.0) +
 			(ptpClock->currentDS.meanPathDelay.nanoseconds / 2.0 +
-			 mpd_filt->nsec_prev / 2.0) / (mpd_filt->s_exp + 0.0));
+			 mpdIirFilter->nsec_prev / 2.0) / (mpdIirFilter->s_exp + 0.0));
 
-		mpd_filt->nsec_prev = ptpClock->currentDS.meanPathDelay.nanoseconds;
+		mpdIirFilter->nsec_prev = ptpClock->currentDS.meanPathDelay.nanoseconds;
 
-		mpd_filt->y = round(fy);
+		mpdIirFilter->y = round(fy);
 
-		ptpClock->currentDS.meanPathDelay.nanoseconds = mpd_filt->y;
+		ptpClock->currentDS.meanPathDelay.nanoseconds = mpdIirFilter->y;
 
-		DBGV("delay filter %d, %d\n", mpd_filt->y, mpd_filt->s_exp);
+		DBGV("delay filter %d, %d\n", mpdIirFilter->y, mpdIirFilter->s_exp);
 	} else {
 		DBG("Ignoring delayResp because we didn't receive any sync yet\n");
 		ptpClock->counters.discardedMessages++;
@@ -353,7 +356,7 @@ DBG("UpdateDelay: Max delay hit: %d\n", maxDelayHit);
 }
 
 void
-updatePeerDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField, Boolean twoStep)
+updatePeerDelay(one_way_delay_filter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField, Boolean twoStep)
 {
 	Integer16 s;
 
@@ -403,32 +406,32 @@ updatePeerDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, Ptp
 
 	if (ptpClock->portDS.peerMeanPathDelay.seconds) {
 		/* cannot filter with secs, clear filter */
-		mpd_filt->s_exp = mpd_filt->nsec_prev = 0;
+		mpdIirFilter->s_exp = mpdIirFilter->nsec_prev = 0;
 		return;
 	}
 	/* avoid overflowing filter */
 	s = rtOpts->s;
-	while (abs(mpd_filt->y) >> (31 - s))
+	while (abs(mpdIirFilter->y) >> (31 - s))
 		--s;
 
 	/* crank down filter cutoff by increasing 's_exp' */
-	if (mpd_filt->s_exp < 1)
-		mpd_filt->s_exp = 1;
-	else if (mpd_filt->s_exp < 1 << s)
-		++mpd_filt->s_exp;
-	else if (mpd_filt->s_exp > 1 << s)
-		mpd_filt->s_exp = 1 << s;
+	if (mpdIirFilter->s_exp < 1)
+		mpdIirFilter->s_exp = 1;
+	else if (mpdIirFilter->s_exp < 1 << s)
+		++mpdIirFilter->s_exp;
+	else if (mpdIirFilter->s_exp > 1 << s)
+		mpdIirFilter->s_exp = 1 << s;
 
 	/* filter 'meanPathDelay' */
-	mpd_filt->y = (mpd_filt->s_exp - 1) *
-		mpd_filt->y / mpd_filt->s_exp +
+	mpdIirFilter->y = (mpdIirFilter->s_exp - 1) *
+		mpdIirFilter->y / mpdIirFilter->s_exp +
 		(ptpClock->portDS.peerMeanPathDelay.nanoseconds / 2 +
-		 mpd_filt->nsec_prev / 2) / mpd_filt->s_exp;
+		 mpdIirFilter->nsec_prev / 2) / mpdIirFilter->s_exp;
 
-	mpd_filt->nsec_prev = ptpClock->portDS.peerMeanPathDelay.nanoseconds;
-	ptpClock->portDS.peerMeanPathDelay.nanoseconds = mpd_filt->y;
+	mpdIirFilter->nsec_prev = ptpClock->portDS.peerMeanPathDelay.nanoseconds;
+	ptpClock->portDS.peerMeanPathDelay.nanoseconds = mpdIirFilter->y;
 
-	DBGV("delay filter %d, %d\n", mpd_filt->y, mpd_filt->s_exp);
+	DBGV("delay filter %d, %d\n", mpdIirFilter->y, mpdIirFilter->s_exp);
 
 
 	if(ptpClock->portDS.portState == PTP_SLAVE)
@@ -548,15 +551,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 
 #ifdef PTPD_STATISTICS
-/* testing only: step detection */
-/*
-	TimeInternal bob;
-	bob.nanoseconds = 1000000;
-	bob.seconds = 0;
-	if(ptpClock->addOffset) {
-	    	addTime(&ptpClock->rawDelayMS, &ptpClock->rawDelayMS, &bob);
-	}
-*/
+
 	/* run the delayMS stats filter */
 
 	if(rtOpts->filterMSOpts.enabled) {
@@ -568,12 +563,20 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	    ptpClock->rawDelayMS = doubleToTimeInternal(ptpClock->filterMS->output);
 	}
 
+
+
+
+
+
+
 	/* run the delayMS outlier filter */
 	if(!rtOpts->noAdjust && ptpClock->oFilterMS.config.enabled && (ptpClock->oFilterMS.config.alwaysFilter || !ptpClock->servo.runningMaxOutput)) {
 		if(ptpClock->oFilterMS.filter(&ptpClock->oFilterMS, timeInternalToDouble(&ptpClock->rawDelayMS))) {
 			ptpClock->delayMS = doubleToTimeInternal(ptpClock->oFilterMS.output);
+//INFO("MS: NOUTL %.09f\n", timeInternalToDouble(&ptpClock->rawDelayMS));
 		} else {
 			ptpClock->counters.delayMSOutliersFound++;
+//INFO("MS:  OUTL %.09f\n", timeInternalToDouble(&ptpClock->rawDelayMS));
 			/* If the outlier filter has blocked the sample, "reverse" the last maxDelay action */
 			if (maxDelayHit) {
 				    ptpClock->maxDelayRejected--;
@@ -1006,7 +1009,7 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 void
 setupPIservo(PIservo* servo, PtpClock *ptpClock, const RunTimeOpts* rtOpts)
 {
-    servo->maxOutput = ptpClock->clockDriver->maxFreqAdj;
+    servo->maxOutput = ptpClock->clockDriver->maxFrequency;
 /* rtOpts->servoMaxPpb;*/
     servo->kP = rtOpts->servoKP;
     servo->kI = rtOpts->servoKI;
@@ -1041,7 +1044,7 @@ runPIservo(PIservo* servo, const Integer32 input)
 
         case DT_MEASURED:
 
-                getTimeMonotonic(&now);
+                getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
                 if(servo->lastUpdate.seconds == 0 &&
                 servo->lastUpdate.nanoseconds == 0) {
                         dt = servo->dT;
@@ -1103,20 +1106,6 @@ runPIservo(PIservo* servo, const Integer32 input)
 	}
 
 	servo->output = (servo->kP * (input + 0.0) ) + servo->observedDrift;
-
-    feedDoublePermanentStdDev(&servo->l1dev, servo->observedDrift);
-    if(servo->l1dev.meanContainer.count == 10) {
-	    feedDoublePermanentStdDev(&servo->l2dev, servo->l1dev.stdDev);
-	    resetDoublePermanentStdDev(&servo->l1dev);
-    }
-
-    if(servo->l2dev.meanContainer.count == 10) {
-	    if(servo->l2dev.stdDev < 500) {
-		INFO("Stable UCL DEV %.09f\n", servo->l2dev.stdDev);
-	    }
-	    resetDoublePermanentStdDev(&servo->l2dev);
-    }
-
 
 	if(servo->dTmethod == DT_MEASURED)
 		servo->lastUpdate = now;

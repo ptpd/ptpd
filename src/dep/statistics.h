@@ -36,7 +36,7 @@ typedef struct {
 typedef struct {
 
 	IntPermanentMean meanContainer;
-	int32_t squareSum;
+	uint32_t squareSum;
 	int32_t stdDev;
 
 } IntPermanentStdDev;
@@ -48,6 +48,20 @@ typedef struct {
 	double stdDev;
 
 } DoublePermanentStdDev;
+
+typedef struct {
+	uint64_t squareSum;
+	double adev;
+	uint32_t count;
+	int32_t _prev;
+} IntPermanentAdev;
+
+typedef struct {
+	double squareSum;
+	double adev;
+	uint32_t count;
+	double _prev;
+} DoublePermanentAdev;
 
 typedef struct {
 	int32_t median;
@@ -68,12 +82,20 @@ int32_t feedIntPermanentStdDev(IntPermanentStdDev* container, int32_t sample);
 void 	resetIntPermanentMedian(IntPermanentMedian* container);
 int32_t feedIntPermanentMedian(IntPermanentMedian* container, int32_t sample);
 
+void 	resetIntPermanentAdev(IntPermanentAdev* container);
+double feedIntPermanentAdev(IntPermanentAdev* container, int32_t sample);
+
+
 void 	resetDoublePermanentMean(DoublePermanentMean* container);
 double 	feedDoublePermanentMean(DoublePermanentMean* container, double sample);
 void 	resetDoublePermanentStdDev(DoublePermanentStdDev* container);
 double 	feedDoublePermanentStdDev(DoublePermanentStdDev* container, double sample);
 void 	resetDoublePermanentMedian(DoublePermanentMedian* container);
 double 	feedDoublePermanentMedian(DoublePermanentMedian* container, double sample);
+
+void 	resetDoublePermanentAdev(DoublePermanentAdev* container);
+double feedDoublePermanentAdev(DoublePermanentAdev* container, double sample);
+
 
 /* Moving statistics - up to last n samples */
 

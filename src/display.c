@@ -753,9 +753,9 @@ displayOthers(const PtpClock * ptpClock)
 	DBGV("y : %d \n", ptpClock->ofm_filt.y);
 	DBGV("\n");
 	DBGV("One way delay filter : \n");
-	DBGV("nsec_prev : %d \n", ptpClock->mpd_filt.nsec_prev);
-	DBGV("y : %d \n", ptpClock->mpd_filt.y);
-	DBGV("s_exp : %d \n", ptpClock->mpd_filt.s_exp);
+	DBGV("nsec_prev : %d \n", ptpClock->mpdIirFilter.nsec_prev);
+	DBGV("y : %d \n", ptpClock->mpdIirFilter.y);
+	DBGV("s_exp : %d \n", ptpClock->mpdIirFilter.s_exp);
 	DBGV("\n");
 	DBGV("observed drift : "FORMAT_SERVO" \n", ptpClock->servo.observedDrift);
 	DBGV("message activity %d \n", ptpClock->message_activity);

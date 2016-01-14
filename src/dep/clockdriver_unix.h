@@ -36,12 +36,16 @@
 #define PTPD_CLOCKDRIVER_UNIX_H_
 
 #include "clockdriver.h"
-//#include "../ptpd.h"
 
 void _setupClockDriver_unix(ClockDriver* clockDriver);
 
 typedef struct {
 
 } ClockDriverData_unix;
+
+typedef struct {
+    Boolean setRtc;
+} ClockDriverConfig_unix;
+
 
 #endif /* PTPD_CLOCKDRIVER_UNIX_H_ */

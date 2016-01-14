@@ -43,11 +43,16 @@
 /* linked list - so that we can control all registered objects centrally */
 static ClockDriver *_first = NULL;
 static ClockDriver *_last = NULL;
-
+static uint32_t _serial = 0;
 
 static ClockDriver* _systemClock = NULL;
 
-static uint32_t _serial = 0;
+/* inherited methods */
+
+static void setState(ClockDriver *, ClockState);
+static void processUpdate(ClockDriver *, double, double);
+
+/* inherited methods end */
 
 ClockDriver *
 createClockDriver(int driverType, const char *name)
@@ -95,11 +100,20 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
     REGISTER_CLOCKDRIVER(CLOCKDRIVER_UNIX, unix);
     REGISTER_CLOCKDRIVER(CLOCKDRIVER_LINUXPHC, linuxphc);
 
+
     if(!found) {
 	ERROR("Setup requested for unknown clock driver type: %d\n", driverType);
     } else {
 	DBG("Created new clock driver type %d name %s serial %d\n", driverType, name, clockDriver->_serial);
     }
+
+    /* inherited methods */
+
+    clockDriver->setState = setState;
+    clockDriver->processUpdate = processUpdate;
+
+    /* inherited methods end */
+
 
     return found;
 
@@ -153,12 +167,12 @@ freeClockDriver(ClockDriver** clockDriver)
 
 	}
 
-    if(pdriver->data != NULL) {
-	free(pdriver->data);
+    if(pdriver->privateData != NULL) {
+	free(pdriver->privateData);
     }
 
-    if(pdriver->config != NULL) {
-	free(pdriver->config);
+    if(pdriver->privateConfig != NULL) {
+	free(pdriver->privateConfig);
     }
 
     DBG("Deleted clock driver type %d name %s serial %d\n", pdriver->type, pdriver->name, pdriver->_serial);
@@ -201,3 +215,59 @@ shutdownClockDrivers() {
 	_systemClock = NULL;
 }
 
+
+static void
+setState(ClockDriver *driver, ClockState newState) {
+
+	if(driver->state != newState) {
+	    NOTICE("Clock %s changed state from %s to %s\n",
+		    driver->name, getClockStateName(driver->state),
+		    getClockStateName(newState));
+	    driver->state = newState;
+	}
+
+}
+
+static void
+processUpdate(ClockDriver *driver, double adj, double tau) {
+
+	TimeInternal now;
+
+	driver->_tau = tau;
+	driver->adev = feedIntPermanentAdev(&driver->_adev, adj);
+
+	if((driver->_adev.count * tau) > 10) {
+	    INFO("%s  ADEV %.09f\n", driver->name, driver->adev);
+	    resetIntPermanentAdev(&driver->_adev);
+	}
+
+	driver->lastFrequency = adj;
+
+	getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
+	if(driver->_updated) {
+	    subTime(&driver->age, &now, &driver->_lastSync);
+	} else {
+	    subTime(&driver->age, &now, &driver->_initTime);
+	}
+	getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastSync);
+	driver->_updated = TRUE;
+
+}
+
+const char*
+getClockStateName(ClockState state) {
+
+    switch(state) {
+	case CS_FREERUN:
+	    return "FREERUN";
+	case CS_LOCKED:
+	    return "LOCKED";
+	case CS_UNLOCKED:
+	    return "UNLOCKED";
+	case CS_HOLDOVER:
+	    return "HOLDOVER";
+	default:
+	    return "UNKNOWN";
+    }
+
+}

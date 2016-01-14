@@ -248,6 +248,68 @@ feedDoublePermanentStdDev(DoublePermanentStdDev* container, double sample)
 }
 
 void
+resetIntPermanentAdev(IntPermanentAdev* container)
+{
+	if(container == NULL)
+	    return;
+	container->squareSum = 0;
+	container->adev = 0;
+	container->_prev = 0;
+	container->count = 0;
+}
+
+double
+feedIntPermanentAdev(IntPermanentAdev* container, int32_t sample)
+{
+
+	uint64_t newSum;
+
+	if(container->count > 0) {
+
+	    newSum = container->squareSum + (sample - container->_prev) * (sample - container->_prev);
+	    /* roll over, roll over */
+	    if(newSum < container->squareSum) {
+		resetIntPermanentAdev(container);
+		return 0.0;
+	    }
+	    container->squareSum = newSum;
+	    container->adev = sqrt( (1 / (2.0 * (container->count+0.0))) * container->squareSum );
+	}
+	container->count++;
+	container->_prev = sample;
+	return container->adev;
+}
+
+void
+resetDoublePermanentAdev(DoublePermanentAdev* container)
+{
+
+	if(container == NULL)
+	    return;
+	container->squareSum = 0.0;
+	container->adev = 0.0;
+	container->_prev = 0.0;
+	container->count = 0;
+}
+
+double
+feedDoublePermanentAdev(DoublePermanentAdev* container, double sample)
+{
+
+	if(container->count > 0) {
+	    container->squareSum += (sample - container->_prev) * (sample - container->_prev);
+	    if(container->squareSum < 0) { 
+		resetDoublePermanentAdev(container);
+		return 0.0;
+	    }
+	    container->adev = sqrt( (1 / (2 * (container->count))) * container->squareSum );
+	}
+	container->count++;
+	container->_prev = sample;
+	return container->adev;
+}
+
+void
 resetDoublePermanentMedian(DoublePermanentMedian* container)
 {
 

@@ -36,26 +36,9 @@
 #include <linux/ethtool.h>
 #include <linux/ptp_clock.h>
 #include <sys/syscall.h>
+
 #include "clockdriver.h"
-
-#define GET_CONFIG() \
-    ClockDriverConfig_linuxphc *myConfig = (ClockDriverConfig_linuxphc*)self->config;
-#define GET_DATA() \
-    ClockDriverData_linuxphc *myData = (ClockDriverData_linuxphc*)self->data;
-
-
-static int clockdriver_init(ClockDriver*, const void *);
-static int clockdriver_shutdown(ClockDriver *);
-
-static Boolean getTime (ClockDriver*, TimeInternal *);
-static Boolean getUtcTime (ClockDriver*, TimeInternal *);
-static Boolean setTime (ClockDriver*, TimeInternal *, Boolean);
-static Boolean stepTime (ClockDriver*, TimeInternal *, Boolean);
-static Boolean setFrequency (ClockDriver *, double, double);
-static double  getFrequency (ClockDriver *);
-static Boolean getStatus (ClockDriver *, ClockStatus *);
-static Boolean setStatus (ClockDriver *, ClockStatus *);
-static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
+#include "clockdriver_interface.h"
 
 static Boolean getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps);
 static Boolean getSystemClockOffset(ClockDriver *self, TimeInternal *delta);
@@ -72,38 +55,25 @@ void
 _setupClockDriver_linuxphc(ClockDriver* self)
 {
 
-    self->init = clockdriver_init;
-    self->shutdown = clockdriver_shutdown;
+    INIT_INTERFACE(self);
+    INIT_DATA(self, linuxphc);
+    INIT_CONFIG(self, linuxphc);
 
-    self->getTime = getTime;
-    self->getUtcTime = getUtcTime;
-    self->setTime = setTime;
-    self->stepTime = stepTime;
-    self->setFrequency = setFrequency;
-    self->getFrequency = getFrequency;
-    self->getStatus = getStatus;
-    self->setStatus = setStatus;
-    self->getOffsetFrom = getOffsetFrom;
-
-    if(self->data == NULL) {
-	XCALLOC(self->data, sizeof(ClockDriverData_linuxphc));
-    }
-
-    if(self->config == NULL) {
-	XCALLOC(self->config, sizeof(ClockDriverConfig_linuxphc));
-    }
-
-    GET_DATA();
+    GET_DATA(self, myData, linuxphc);
 
     myData->clockFd = -1;
     myData->clockId = -1;
+
+    resetIntPermanentAdev(&self->_adev);
+    getTimeMonotonic(self, &self->_initTime);
+
 }
 
 static int
 clockdriver_init(ClockDriver* self, const void *config) {
 
-    GET_DATA();
-    GET_CONFIG();
+    GET_DATA(self, myData, linuxphc);
+    GET_CONFIG(self, myConfig, linuxphc);
 
     struct ptp_clock_caps caps;
 
@@ -145,7 +115,7 @@ clockdriver_init(ClockDriver* self, const void *config) {
 	return -1;
     }
 
-    self->maxFreqAdj = caps.max_adj;
+    self->maxFrequency = caps.max_adj;
 
     INFO("Successfully started Linux PHC clock driver %s (%s) clock ID %06x\n", self->name, myConfig->characterDevice, myData->clockId);
 
@@ -158,8 +128,8 @@ clockdriver_init(ClockDriver* self, const void *config) {
 static int
 clockdriver_shutdown(ClockDriver *self) {
 
-    GET_DATA();
-    GET_CONFIG();
+    GET_DATA(self, myData, linuxphc);
+    GET_CONFIG(self, myConfig, linuxphc);
 
     INFO("Linux PHC clock driver %s (%s) shutting down\n", self->name, myConfig->characterDevice);
     if(myData->clockFd > -1) {
@@ -172,7 +142,7 @@ clockdriver_shutdown(ClockDriver *self) {
 static Boolean
 getTime (ClockDriver *self, TimeInternal *time) {
 
-    GET_DATA();
+    GET_DATA(self, myData, linuxphc);
 
 	struct timespec tp;
 	if (clock_gettime(myData->clockId, &tp) < 0) {
@@ -186,6 +156,13 @@ getTime (ClockDriver *self, TimeInternal *time) {
 
 }
 
+Boolean
+getTimeMonotonic(ClockDriver *self, TimeInternal * time)
+{
+	return (getSystemClock()->getTimeMonotonic(getSystemClock(), time));
+}
+
+
 static Boolean
 getUtcTime (ClockDriver *self, TimeInternal *out) {
     return TRUE;
@@ -194,17 +171,17 @@ getUtcTime (ClockDriver *self, TimeInternal *out) {
 static Boolean
 setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
-	GET_CONFIG();
-	GET_DATA();
+	GET_CONFIG(self, myConfig, linuxphc);
+	GET_DATA(self, myData, linuxphc);
 
 	TimeInternal now;
 	getTime(self, &now);
 
-	if(self->readOnly) {
+	if(self->config.readOnly) {
 		return TRUE;
 	}
 
-	if(!force && !self->negativeStep && !gtTime(time, &now)) {
+	if(!force && !self->config.negativeStep && !gtTime(time, &now)) {
 		WARNING("Cannot step Linux PHC  clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
 		return FALSE;
 	}
@@ -233,16 +210,16 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 static Boolean
 stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
-	GET_CONFIG();
-	GET_DATA();
+	GET_CONFIG(self, myConfig, linuxphc);
+	GET_DATA(self, myData, linuxphc);
 
 	TimeInternal newTime;
 
-	if(self->readOnly) {
+	if(self->config.readOnly) {
 		return TRUE;
 	}
 
-	if(!force && !self->negativeStep && isTimeNegative(delta)) {
+	if(!force && !self->config.negativeStep && isTimeNegative(delta)) {
 		WARNING("Cannot step Linux PHC clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
 		return FALSE;
 	}
@@ -271,12 +248,10 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 static Boolean
 setFrequency (ClockDriver *self, double adj, double tau) {
 
-//INFO("tau: %.09f adj: %.09f\n", tau, adj/1000.0);
+	GET_CONFIG(self, myConfig, linuxphc);
+	GET_DATA(self, myData, linuxphc);
 
-	GET_CONFIG();
-	GET_DATA();
-
-	if(self->readOnly) {
+	if(self->config.readOnly) {
 		return TRUE;
 	}
 
@@ -284,7 +259,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 	memset(&tmx, 0, sizeof(tmx));
 	tmx.modes = ADJ_FREQUENCY;
 
-	CLAMP(adj,self->maxFreqAdj);
+	CLAMP(adj,self->maxFrequency);
 
 	tmx.freq = (long)(round(adj * 65.536));
 
@@ -293,6 +268,8 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 	    return FALSE;
 	}
 
+	self->processUpdate(self, adj, tau);
+
 	return TRUE;
 
 }
@@ -300,8 +277,8 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 static double
 getFrequency (ClockDriver *self) {
 
-	GET_CONFIG();
-	GET_DATA();
+	GET_CONFIG(self, myConfig, linuxphc);
+	GET_DATA(self, myData, linuxphc);
 
 	struct timex tmx;
 	memset(&tmx, 0, sizeof(tmx));
@@ -312,6 +289,16 @@ getFrequency (ClockDriver *self) {
 
 	return(tmx.freq / 65.536);
 
+}
+
+static Boolean
+restoreFrequency (ClockDriver *self) {
+	return TRUE;
+}
+
+static Boolean
+saveFrequency (ClockDriver *self) {
+	return TRUE;
 }
 
 static Boolean
@@ -327,8 +314,8 @@ setStatus (ClockDriver *self, ClockStatus *status) {
 static Boolean
 getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps) {
 
-	GET_DATA();
-	GET_CONFIG();
+	GET_DATA(self, myData, linuxphc);
+	GET_CONFIG(self, myConfig, linuxphc);
 
 	if(ioctl(myData->clockFd, PTP_CLOCK_GETCAPS, caps) < 0) {
 	    PERROR("Could not read clock capabilities for %s (%s): is the clock valid?", self->name, myConfig->characterDevice);
@@ -343,12 +330,10 @@ static Boolean
 getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *delta)
 {
 
-	GET_DATA();
-
-	ClockDriverData_linuxphc *hisData;
+	GET_DATA(self, myData, linuxphc);
+	GET_DATA(from, hisData, linuxphc);
 
 	if(from->type == self->type) {
-	    hisData = (ClockDriverData_linuxphc*)(from->data);
 	    if(myData->phcIndex == hisData->phcIndex) {
 		delta->seconds = 0;
 		delta->nanoseconds = 0;
@@ -373,8 +358,8 @@ static Boolean
 getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 {
 
-    GET_DATA();
-    GET_CONFIG();
+    GET_DATA(self, myData, linuxphc);
+    GET_CONFIG(self, myConfig, linuxphc);
 
     TimeInternal t1, t2, tptp, tmpDelta, duration, minDuration, delta;
 

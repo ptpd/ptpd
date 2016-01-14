@@ -277,6 +277,23 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->servoKP = 0.1;
 	rtOpts->servoKI = 0.001;
 
+	rtOpts->servoKI_hw = 0.3;
+	rtOpts->servoKP_hw = 0.7;
+
+	rtOpts->stableAdev = 200;
+	rtOpts->stableAdev_hw = 50;
+
+	rtOpts->unstableAdev = 2000;
+	rtOpts->unstableAdev_hw = 500;
+
+	rtOpts->holdoverAge = 120;
+	rtOpts->holdoverAge_hw = 600;
+
+	rtOpts->freerunAge = 600;
+	rtOpts->freerunAge_hw = 1800;
+
+	rtOpts->adevPeriod = 10;
+
 	rtOpts->servoDtMethod = DT_CONSTANT;
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
 	rtOpts->servoMaxdT = 5.0;

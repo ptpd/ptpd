@@ -33,22 +33,9 @@
  */
 
 #include "clockdriver.h"
+#include "clockdriver_interface.h"
 
-static int clockdriver_init(ClockDriver*, const void *);
-static int clockdriver_shutdown(ClockDriver *);
-
-static Boolean getTime (ClockDriver*, TimeInternal *);
-static Boolean getUtcTime (ClockDriver*, TimeInternal *);
-static Boolean setTime (ClockDriver*, TimeInternal *, Boolean);
-static Boolean stepTime (ClockDriver*, TimeInternal *, Boolean);
-static Boolean setFrequency (ClockDriver *, double, double);
-static double getFrequency (ClockDriver *);
-static Boolean getStatus (ClockDriver *, ClockStatus *);
-static Boolean setStatus (ClockDriver *, ClockStatus *);
-static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
-
-
-static void setRtc_unix(ClockDriver* self, TimeInternal *timeToSet);
+static void setRtc(ClockDriver* self, TimeInternal *timeToSet);
 static Boolean adjFreq_unix(ClockDriver *self, double adj);
 static void updateXtmp_unix (TimeInternal oldTime, TimeInternal newTime);
 
@@ -60,25 +47,15 @@ void
 _setupClockDriver_unix(ClockDriver* self)
 {
 
-    self->init = clockdriver_init;
-    self->shutdown = clockdriver_shutdown;
+    INIT_INTERFACE(self);
+    INIT_DATA(self, linuxphc);
+    INIT_CONFIG(self, linuxphc);
 
-    self->getTime = getTime;
-    self->getUtcTime = getUtcTime;
-    self->setTime = setTime;
-    self->stepTime = stepTime;
-    self->setFrequency = setFrequency;
-    self->getFrequency = getFrequency;
-    self->getStatus = getStatus;
-    self->setStatus = setStatus;
-    self->getOffsetFrom = getOffsetFrom;
-
-    self->maxFreqAdj = ADJ_FREQ_MAX;
+    self->maxFrequency = ADJ_FREQ_MAX;
     self->systemClock = TRUE;
 
-    resetDoublePermanentStdDev(&self->l1dev);
-    resetDoublePermanentStdDev(&self->l2dev);
-
+    resetIntPermanentAdev(&self->_adev);
+    getTimeMonotonic(self, &self->_initTime);
     INFO("Started Unix clock driver %s\n", self->name);
 
 }
@@ -179,6 +156,20 @@ getTime (ClockDriver *self, TimeInternal *time) {
 
 }
 
+Boolean
+getTimeMonotonic(ClockDriver *self, TimeInternal * time)
+{
+#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0) && defined(CLOCK_MONOTINIC)
+	struct timespec tp;
+	if (clock_gettime(CLOCK_MONOTONIC, &tp) >= 0) {
+	    time->seconds = tp.tv_sec;
+	    time->nanoseconds = tp.tv_nsec;
+	    return TRUE;
+	}
+#endif /* _POSIX_TIMERS */
+	return self->getTime(self, time);
+}
+
 static Boolean
 getUtcTime (ClockDriver *self, TimeInternal *out) {
     return TRUE;
@@ -187,15 +178,17 @@ getUtcTime (ClockDriver *self, TimeInternal *out) {
 static Boolean
 setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
+	GET_CONFIG(self, myConfig, unix);
+
 	TimeInternal oldTime;
 
 	getTime(self, &oldTime);
 
-	if(self->readOnly) {
+	if(self->config.readOnly) {
 		return FALSE;
 	}
 
-	if(!force && !self->negativeStep && !gtTime(time, &oldTime)) {
+	if(!force && !self->config.negativeStep && !gtTime(time, &oldTime)) {
 		WARNING("Cannot step Unix clock %s backwards\n", self->name);
 		return FALSE;
 	}
@@ -229,6 +222,9 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 	if(oldTime.seconds != time->seconds) {
 	    updateXtmp_unix(oldTime, *time);
+	    if(myConfig->setRtc) {
+		setRtc(self, time);
+	    }
 	}
 
 	struct timespec tmpTs = { time->seconds,0 };
@@ -245,13 +241,17 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 static Boolean
 stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
-	TimeInternal newTime;
+	GET_CONFIG(self, myConfig, unix);
 
-	if(self->readOnly) {
+	TimeInternal oldTime,newTime;
+	getTime(self, &oldTime);
+	addTime(&newTime, &oldTime, delta);
+
+	if(self->config.readOnly) {
 		return FALSE;
 	}
 
-	if(!force && !self->negativeStep && isTimeNegative(delta)) {
+	if(!force && !self->config.negativeStep && isTimeNegative(delta)) {
 		WARNING("Cannot step Unix clock %s backwards\n", self->name);
 		return FALSE;
 	}
@@ -276,10 +276,15 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
 	return TRUE;
 #else
-	getTime(self, &newTime);
-	addTime(&newTime, &newTime, delta);
 	return setTime(self, &newTime, force);
 #endif
+
+	if(oldTime.seconds != newTime.seconds) {
+	    updateXtmp_unix(oldTime, newTime);
+	    if(myConfig->setRtc) {
+		setRtc(self, &newTime);
+	    }
+	}
 
 
 }
@@ -288,7 +293,9 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 static Boolean
 setFrequency (ClockDriver *self, double adj, double tau) {
 
-    if (self->readOnly){
+
+
+    if (self->config.readOnly){
 		DBGV("adjFreq2: noAdjust on, returning\n");
 		return TRUE;
 	}
@@ -305,7 +312,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
       if (ClockPeriod (CLOCK_REALTIME, 0, &period, 0) < 0)
           return FALSE;
 
-	CLAMP(adj,self->maxFreqAdj);
+	CLAMP(adj,self->maxFrequency);
 
 	/* adjust clock for the duration of 0.9 clock update period in ticks (so we're done before the next) */
 	clockadj.tick_count = 0.9 * tau * 1E9 / (period.nsec + 0.0);
@@ -327,7 +334,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 #else
 	struct timeval tv;
 
-	CLAMP(adj,self->maxFreqAdj);
+	CLAMP(adj,self->maxFrequency);
 
 	tv.tv_sec = 0;
 	tv.tv_usec = (adj / 1000);
@@ -337,6 +344,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 	adjtime(&tv, NULL);
 #endif
 
+    self->processUpdate(self, adj, tau);
 
     return TRUE;
 }
@@ -356,6 +364,15 @@ getFrequency (ClockDriver * self) {
 	return 0;
 }
 
+static Boolean
+restoreFrequency (ClockDriver *self) {
+	return TRUE;
+}
+
+static Boolean
+saveFrequency (ClockDriver *self) {
+	return TRUE;
+}
 
 static Boolean
     getStatus (ClockDriver *self, ClockStatus *status) {
@@ -412,10 +429,10 @@ adjFreq_unix(ClockDriver *self, double adj)
 	memset(&t, 0, sizeof(t));
 
 	/* Clamp to max PPM */
-	if (adj > self->maxFreqAdj){
-		adj = self->maxFreqAdj;
-	} else if (adj < -self->maxFreqAdj){
-		adj = -self->maxFreqAdj;
+	if (adj > self->maxFrequency){
+		adj = self->maxFrequency;
+	} else if (adj < -self->maxFrequency){
+		adj = -self->maxFrequency;
 	}
 
 /* Y U NO HAVE TICK? */
@@ -478,29 +495,27 @@ adjFreq_unix(ClockDriver *self, double adj)
 
 
 
-#ifdef HAVE_LINUX_RTC_H
+
 
 /* Set the RTC to the desired time time */
-static void setRtc_unix(ClockDriver *self, TimeInternal *timeToSet)
+static void setRtc(ClockDriver *self, TimeInternal *timeToSet)
 {
 
-	static Boolean deviceFound = FALSE;
-	static char* rtcDev;
+#ifdef HAVE_LINUX_RTC_H
+
+	char* rtcDev;
 	struct tm* tmTime;
 	time_t seconds;
 	int rtcFd;
 	struct stat statBuf;
 
-	if (!deviceFound) {
+
 	    if(stat("/dev/misc/rtc", &statBuf) == 0) {
             	rtcDev="/dev/misc/rtc\0";
-		deviceFound = TRUE;
 	    } else if(stat("/dev/rtc", &statBuf) == 0) {
             	rtcDev="/dev/rtc\0";
-		deviceFound = TRUE;
 	    }  else if(stat("/dev/rtc0", &statBuf) == 0) {
             	rtcDev="/dev/rtc0\0";
-		deviceFound = TRUE;
 	    } else {
 
 			ERROR("Could not set RTC time - no suitable rtc device found\n");
@@ -510,18 +525,14 @@ static void setRtc_unix(ClockDriver *self, TimeInternal *timeToSet)
 	    if(!S_ISCHR(statBuf.st_mode)) {
 			ERROR("Could not set RTC time - device %s is not a character device\n",
 			rtcDev);
-			deviceFound = FALSE;
 			return;
 	    }
-
-	}
 
 	DBGV("Usable RTC device: %s\n",rtcDev);
 
 	if(timeToSet->seconds == 0 && timeToSet->nanoseconds==0) {
 	    getTime(self, timeToSet);
 	}
-
 
 	if((rtcFd = open(rtcDev, O_RDONLY)) < 0) {
 		PERROR("Could not set RTC time: error opening %s", rtcDev);
@@ -544,10 +555,10 @@ static void setRtc_unix(ClockDriver *self, TimeInternal *timeToSet)
 cleanup:
 
 	close(rtcFd);
+#endif /* HAVE_LINUX_RTC_H */
 
 }
 
-#endif /* HAVE_LINUX_RTC_H */
 
 static void
 updateXtmp_unix (TimeInternal oldTime, TimeInternal newTime)

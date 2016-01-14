@@ -340,6 +340,7 @@ typedef struct {
 	char lockFile[PATH_MAX+1]; /* lock file location */
 	char driftFile[PATH_MAX+1]; /* drift file location */
 	char leapFile[PATH_MAX+1]; /* leap seconds file location */
+	char frequencyDir[PATH_MAX + 1]; /* frequency file directory */
 	Enumeration8 drift_recovery_method; /* how the observed drift is managed
 				      between restarts */
 
@@ -403,8 +404,28 @@ typedef struct {
 	Enumeration8 selectedPreset;
 
 	int servoMaxPpb;
+	int servoMaxPpb_hw;
+
 	double servoKP;
 	double servoKI;
+
+	double servoKI_hw;
+	double servoKP_hw;
+
+	double stableAdev;
+	double stableAdev_hw;
+
+	double unstableAdev;
+	double unstableAdev_hw;
+
+	int holdoverAge;
+	int holdoverAge_hw;
+
+	int freerunAge;
+	int freerunAge_hw;
+
+	int adevPeriod;
+
 	Enumeration8 servoDtMethod;
 	double servoMaxdT;
 
@@ -595,7 +616,7 @@ typedef struct {
 	Boolean  waitingForDelayResp;
 	
 	offset_from_master_filter  ofm_filt;
-	one_way_delay_filter  mpd_filt;
+	one_way_delay_filter  mpdIirFilter;
 
 	Boolean message_activity;
 

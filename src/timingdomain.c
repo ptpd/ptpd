@@ -482,17 +482,6 @@ ptpServiceClockUpdate (TimingService* service)
 		memset(&rtOpts->leapInfo, 0, sizeof(LeapSecondInfo));
 		parseLeapFile(rtOpts->leapFile, &rtOpts->leapInfo);
 	    }
-#ifdef HAVE_LINUX_RTC_H
-	    if(rtOpts->setRtc) {
-		NOTICE_LOCAL_ID(service, "Major time change - syncing the RTC\n");
-		setRtc(&newTime);
-		clockStatus->majorChange = FALSE;
-	    }
-#endif /* HAVE_LINUX_RTC_H */
-	    /* need to inform utmp / wtmp */
-	    if(oldTime.seconds != newTime.seconds) {
-		updateXtmp(oldTime, newTime);
-	    }
 	}
 
 	ptpClock->clockStatus.update = FALSE;

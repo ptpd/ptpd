@@ -1438,135 +1438,6 @@ nanoSleep(TimeInternal * t)
 	return TRUE;
 }
 
-#ifdef __QNXNTO__
-
-static const struct sigevent* timerIntHandler(void* data, int id) {
-  struct timespec tp;
-  TimerIntData* myData = (TimerIntData*)data;
-  uint64_t new_tsc = ClockCycles();
-
-  clock_gettime(CLOCK_REALTIME, &tp);
-
-  if(new_tsc > myData->prev_tsc) {
-    myData->cur_delta = new_tsc - myData->prev_tsc;
-  /* when hell freezeth over, thy TSC shall roll over */
-  } else {
-    myData->cur_delta = myData->prev_delta;
-  }
-  /* 4/6 weighted average */
-  myData->filtered_delta = (40 * myData->cur_delta + 60 * myData->prev_delta) / 100;
-  myData->prev_delta = myData->cur_delta;
-  myData->prev_tsc = new_tsc;
-
-  if(myData->counter < 2) {
-    myData->counter++;
-  }
-
-  myData->last_clock = timespec2nsec(&tp);
-  return NULL;
-
-}
-#endif
-
-void
-getTimeMonotonic(TimeInternal * time)
-{
-#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
-
-	struct timespec tp;
-#ifndef CLOCK_MONOTINIC
-	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
-#else
-	if (clock_gettime(CLOCK_MONOTONIC, &tp) < 0) {
-#endif /* CLOCK_MONOTONIC */
-		PERROR("clock_gettime() failed, exiting.");
-		exit(0);
-	}
-	time->seconds = tp.tv_sec;
-	time->nanoseconds = tp.tv_nsec;
-#else
-
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	time->seconds = tv.tv_sec;
-	time->nanoseconds = tv.tv_usec * 1000;
-
-#endif /* _POSIX_TIMERS */
-}
-
-
-#ifdef HAVE_LINUX_RTC_H
-
-/* Set the RTC to the desired time time */
-void setRtc(TimeInternal *timeToSet)
-{
-
-	static Boolean deviceFound = FALSE;
-	static char* rtcDev;
-	struct tm* tmTime;
-	time_t seconds;
-	int rtcFd;
-	struct stat statBuf;
-
-	if (!deviceFound) {
-	    if(stat("/dev/misc/rtc", &statBuf) == 0) {
-            	rtcDev="/dev/misc/rtc\0";
-		deviceFound = TRUE;
-	    } else if(stat("/dev/rtc", &statBuf) == 0) {
-            	rtcDev="/dev/rtc\0";
-		deviceFound = TRUE;
-	    }  else if(stat("/dev/rtc0", &statBuf) == 0) {
-            	rtcDev="/dev/rtc0\0";
-		deviceFound = TRUE;
-	    } else {
-
-			ERROR("Could not set RTC time - no suitable rtc device found\n");
-			return;
-	    }
-
-	    if(!S_ISCHR(statBuf.st_mode)) {
-			ERROR("Could not set RTC time - device %s is not a character device\n",
-			rtcDev);
-			deviceFound = FALSE;
-			return;
-	    }
-
-	}
-
-	DBGV("Usable RTC device: %s\n",rtcDev);
-
-	if(timeToSet->seconds == 0 && timeToSet->nanoseconds==0) {
-	    getSystemClock()->getTime(getSystemClock(), timeToSet);
-	}
-
-
-
-	if((rtcFd = open(rtcDev, O_RDONLY)) < 0) {
-		PERROR("Could not set RTC time: error opening %s", rtcDev);
-		return;
-	}
-
-	seconds = (time_t)timeToSet->seconds;
-	if(timeToSet->nanoseconds >= 500000) seconds++;
-	tmTime =  gmtime(&seconds);
-
-	DBGV("Set RTC from %d seconds to y: %d m: %d d: %d \n",timeToSet->seconds,tmTime->tm_year,tmTime->tm_mon,tmTime->tm_mday);
-
-	if(ioctl(rtcFd, RTC_SET_TIME, tmTime) < 0) {
-		PERROR("Could not set RTC time on %s - ioctl failed", rtcDev);
-		goto cleanup;
-	}
-
-	NOTIFY("Succesfully set RTC time using %s\n", rtcDev);
-
-cleanup:
-
-	close(rtcFd);
-
-}
-
-#endif /* HAVE_LINUX_RTC_H */
-
 /* returns a double beween 0.0 and 1.0 */
 double
 getRand(void)
@@ -2058,7 +1929,7 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 
 	if (!rtOpts->noAdjust)
 		ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, -recovered_drift, 1);
-	}
+}
 
 
 
@@ -2207,184 +2078,6 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
 
 }
 
-void
-updateXtmp (TimeInternal oldTime, TimeInternal newTime)
-{
-
-/* Add the old time entry to utmp/wtmp */
-
-/* About as long as the ntpd implementation, but not any less ugly */
-
-#ifdef HAVE_UTMPX_H
-		struct utmpx utx;
-	memset(&utx, 0, sizeof(utx));
-		strncpy(utx.ut_user, "date", sizeof(utx.ut_user));
-#ifndef OTIME_MSG
-		strncpy(utx.ut_line, "|", sizeof(utx.ut_line));
-#else
-		strncpy(utx.ut_line, OTIME_MSG, sizeof(utx.ut_line));
-#endif /* OTIME_MSG */
-#ifdef OLD_TIME
-		utx.ut_tv.tv_sec = oldTime.seconds;
-		utx.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
-		utx.ut_type = OLD_TIME;
-#else /* no ut_type */
-		utx.ut_time = oldTime.seconds;
-#endif /* OLD_TIME */
-
-/* ======== BEGIN  OLD TIME EVENT - UTMPX / WTMPX =========== */
-#ifdef HAVE_UTMPXNAME
-		utmpxname("/var/log/utmp");
-#endif /* HAVE_UTMPXNAME */
-		setutxent();
-		pututxline(&utx);
-		endutxent();
-#ifdef HAVE_UPDWTMPX
-		updwtmpx("/var/log/wtmp", &utx);
-#endif /* HAVE_IPDWTMPX */
-/* ======== END    OLD TIME EVENT - UTMPX / WTMPX =========== */
-
-#else /* NO UTMPX_H */
-
-#ifdef HAVE_UTMP_H
-		struct utmp ut;
-		memset(&ut, 0, sizeof(ut));
-		strncpy(ut.ut_name, "date", sizeof(ut.ut_name));
-#ifndef OTIME_MSG
-		strncpy(ut.ut_line, "|", sizeof(ut.ut_line));
-#else
-		strncpy(ut.ut_line, OTIME_MSG, sizeof(ut.ut_line));
-#endif /* OTIME_MSG */
-
-#ifdef OLD_TIME
-
-#ifdef HAVE_STRUCT_UTMP_UT_TIME
-		ut.ut_time = oldTime.seconds;
-#else
-		ut.ut_tv.tv_sec = oldTime.seconds;
-		ut.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
-#endif /* HAVE_STRUCT_UTMP_UT_TIME */
-
-		ut.ut_type = OLD_TIME;
-#else /* no ut_type */
-		ut.ut_time = oldTime.seconds;
-#endif /* OLD_TIME */
-
-/* ======== BEGIN  OLD TIME EVENT - UTMP / WTMP =========== */
-#ifdef HAVE_UTMPNAME
-		utmpname(UTMP_FILE);
-#endif /* HAVE_UTMPNAME */
-#ifdef HAVE_SETUTENT
-		setutent();
-#endif /* HAVE_SETUTENT */
-#ifdef HAVE_PUTUTLINE
-		pututline(&ut);
-#endif /* HAVE_PUTUTLINE */
-#ifdef HAVE_ENDUTENT
-		endutent();
-#endif /* HAVE_ENDUTENT */
-#ifdef HAVE_UTMPNAME
-		utmpname(WTMP_FILE);
-#endif /* HAVE_UTMPNAME */
-#ifdef HAVE_SETUTENT
-		setutent();
-#endif /* HAVE_SETUTENT */
-#ifdef HAVE_PUTUTLINE
-		pututline(&ut);
-#endif /* HAVE_PUTUTLINE */
-#ifdef HAVE_ENDUTENT
-		endutent();
-#endif /* HAVE_ENDUTENT */
-/* ======== END    OLD TIME EVENT - UTMP / WTMP =========== */
-
-#endif /* HAVE_UTMP_H */
-#endif /* HAVE_UTMPX_H */
-
-/* Add the new time entry to utmp/wtmp */
-
-#ifdef HAVE_UTMPX_H
-		memset(&utx, 0, sizeof(utx));
-		strncpy(utx.ut_user, "date", sizeof(utx.ut_user));
-#ifndef NTIME_MSG
-		strncpy(utx.ut_line, "{", sizeof(utx.ut_line));
-#else
-		strncpy(utx.ut_line, NTIME_MSG, sizeof(utx.ut_line));
-#endif /* NTIME_MSG */
-#ifdef NEW_TIME
-		utx.ut_tv.tv_sec = newTime.seconds;
-		utx.ut_tv.tv_usec = newTime.nanoseconds / 1000;
-		utx.ut_type = NEW_TIME;
-#else /* no ut_type */
-		utx.ut_time = newTime.seconds;
-#endif /* NEW_TIME */
-
-/* ======== BEGIN  NEW TIME EVENT - UTMPX / WTMPX =========== */
-#ifdef HAVE_UTMPXNAME
-		utmpxname("/var/log/utmp");
-#endif /* HAVE_UTMPXNAME */
-		setutxent();
-		pututxline(&utx);
-		endutxent();
-#ifdef HAVE_UPDWTMPX
-		updwtmpx("/var/log/wtmp", &utx);
-#endif /* HAVE_UPDWTMPX */
-/* ======== END    NEW TIME EVENT - UTMPX / WTMPX =========== */
-
-#else /* NO UTMPX_H */
-
-#ifdef HAVE_UTMP_H
-		memset(&ut, 0, sizeof(ut));
-		strncpy(ut.ut_name, "date", sizeof(ut.ut_name));
-#ifndef NTIME_MSG
-		strncpy(ut.ut_line, "{", sizeof(ut.ut_line));
-#else
-		strncpy(ut.ut_line, NTIME_MSG, sizeof(ut.ut_line));
-#endif /* NTIME_MSG */
-#ifdef NEW_TIME
-
-#ifdef HAVE_STRUCT_UTMP_UT_TIME
-		ut.ut_time = newTime.seconds;
-#else
-		ut.ut_tv.tv_sec = newTime.seconds;
-		ut.ut_tv.tv_usec = newTime.nanoseconds / 1000;
-#endif /* HAVE_STRUCT_UTMP_UT_TIME */
-		ut.ut_type = NEW_TIME;
-#else /* no ut_type */
-		ut.ut_time = newTime.seconds;
-#endif /* NEW_TIME */
-
-/* ======== BEGIN  NEW TIME EVENT - UTMP / WTMP =========== */
-#ifdef HAVE_UTMPNAME
-		utmpname(UTMP_FILE);
-#endif /* HAVE_UTMPNAME */
-#ifdef HAVE_SETUTENT
-		setutent();
-#endif /* HAVE_SETUTENT */
-#ifdef HAVE_PUTUTLINE
-		pututline(&ut);
-#endif /* HAVE_PUTUTLINE */
-#ifdef HAVE_ENDUTENT
-		endutent();
-#endif /* HAVE_ENDUTENT */
-#ifdef HAVE_UTMPNAME
-		utmpname(WTMP_FILE);
-#endif /* HAVE_UTMPNAME */
-#ifdef HAVE_SETUTENT
-		setutent();
-#endif /* HAVE_SETUTENT */
-#ifdef HAVE_PUTUTLINE
-		pututline(&ut);
-#endif /* HAVE_PUTUTLINE */
-#ifdef HAVE_ENDUTENT
-		endutent();
-#endif /* HAVE_ENDUTENT */
-/* ======== END    NEW TIME EVENT - UTMP / WTMP =========== */
-
-#endif /* HAVE_UTMP_H */
-#endif /* HAVE_UTMPX_H */
-
-}
-
 int setCpuAffinity(int cpu) {
 
 #ifdef __QNXNTO__
@@ -2461,4 +2154,41 @@ int setCpuAffinity(int cpu) {
 
 return -1;
 
+}
+
+Boolean
+doubleToFile(const char *filename, double input)
+{
+
+	int ret;
+
+	FILE *fp = fopen(filename,"w");
+
+	if(fp == NULL) {
+	    DBG("doubleToFile: could not open %s for writing: %s\n", filename, strerror(errno));
+	    return FALSE;
+	}
+
+	ret = fprintf(fp, "%f\n", input);
+	fclose(fp);
+
+	return(ret > 0);
+
+}
+
+Boolean
+doubleFromFile(const char *filename, double *output)
+{
+	int ret;
+	FILE *fp = fopen(filename,"r");
+
+	if(fp == NULL) {
+	    DBG("doubleFromFile: could not open %s: %s\n", filename, strerror(errno));
+	    return FALSE;
+	}
+
+	ret = fscanf(fp, "%lf", output);
+	fclose(fp);
+
+	return(ret == 1);
 }
