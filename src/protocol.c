@@ -200,7 +200,8 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	timerStart(&ptpClock->timers[TIMINGDOMAIN_UPDATE_TIMER],timingDomain.updateInterval);
 	timerStart(&ptpClock->timers[ALARM_UPDATE_TIMER],ALARM_UPDATE_INTERVAL);
-	timerStart(&ptpClock->timers[INTERFACE_CHECK_TIMER],0.5);
+	timerStart(&ptpClock->timers[INTERFACE_CHECK_TIMER],1);
+	timerStart(&ptpClock->timers[CLOCK_SYNC_TIMER], 0.25);
 
 	ptpClock->disabled = rtOpts->portDisabled;
 
@@ -306,6 +307,10 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			}
 		    }
 		    updateAlarms(ptpClock->alarms, ALRM_MAX);
+		}
+
+		if (timerExpired(&ptpClock->timers[CLOCK_SYNC_TIMER])) {
+			syncClocks(ptpClock->timers[CLOCK_SYNC_TIMER].interval);
 		}
 
 		if (timerExpired(&ptpClock->timers[INTERFACE_CHECK_TIMER])) {

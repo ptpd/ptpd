@@ -124,7 +124,8 @@ Boolean timerSetup(IntervalTimer *itimers)
   "CALIBRATION_DELAY",
   "CLOCK_UPDATE",
   "TIMINGDOMAIN_UPDATE",
-  "INTERFACE_CHECK"
+  "INTERFACE_CHECK",
+  "CLOCK_SYNC"
     };
 
     int i = 0;

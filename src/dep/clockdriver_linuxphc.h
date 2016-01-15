@@ -37,7 +37,7 @@
 
 #include "clockdriver.h"
 
-#define OSCLOCK_OFFSET_SAMPLES 15
+#define OSCLOCK_OFFSET_SAMPLES 9
 
 typedef struct {
     int clockFd;

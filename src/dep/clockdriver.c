@@ -261,7 +261,7 @@ updateClockDrivers() {
 			}
 			resetIntPermanentAdev(&cd->_adev);
 		    break;
-		case CS_ACQUIRING:
+		case CS_TRACKING:
 			if((cd->refClock == NULL) && (!cd->externalReference)) {
 			    resetIntPermanentAdev(&cd->_adev);
 			    cd->setState(cd, CS_FREERUN);
@@ -290,7 +290,6 @@ syncClocks(double tau) {
     ClockDriver *cd;
     LINKED_LIST_FOREACH(cd) {
 	cd->syncClock(cd, tau);
-	usleep(50);
     }
 
 }
@@ -325,31 +324,31 @@ processUpdate(ClockDriver *driver, double adj, double tau) {
 	    driver->adev = driver->_adev.adev;
 	    DBG(THIS_COMPONENT"clock %s  ADEV %.09f\n", driver->name, driver->adev);
 	    if(driver->servo.runningMaxOutput) {
-		driver->setState(driver, CS_ACQUIRING);
+		driver->setState(driver, CS_TRACKING);
 	    }
 	    if(driver->adev <= driver->config.stableAdev) {
 		driver->setState(driver, CS_LOCKED);
 		driver->storeFrequency(driver);
 	    }
 	    if((driver->adev >= driver->config.unstableAdev) && (driver->state == CS_LOCKED)) {
-		driver->setState(driver, CS_ACQUIRING);
+		driver->setState(driver, CS_TRACKING);
 	    }
 	    update = TRUE;
 	    resetIntPermanentAdev(&driver->_adev);
 	}
 
 	if(driver->state == CS_FREERUN) {
-	    driver->setState(driver, CS_ACQUIRING);
+	    driver->setState(driver, CS_TRACKING);
 	    update = TRUE;
 	}
 
 	if((driver->state == CS_HOLDOVER) && (driver->age.seconds >= driver->config.holdoverAge)) {
-	    driver->setState(driver, CS_ACQUIRING);
+	    driver->setState(driver, CS_TRACKING);
 	    update = TRUE;
 	}
 
 	if((driver->state == CS_LOCKED) && driver->servo.runningMaxOutput) {
-	    driver->setState(driver, CS_ACQUIRING);
+	    driver->setState(driver, CS_TRACKING);
 	    update = TRUE;
 	}
 
@@ -371,11 +370,6 @@ processUpdate(ClockDriver *driver, double adj, double tau) {
 
 static void
 setReference(ClockDriver *a, ClockDriver *b) {
-
-
-    if(b!=NULL) {
-	INFO("%s ref set %s\n", a->name, b->name);
-    }
 
     if(a == NULL) {
 	return;
@@ -441,7 +435,6 @@ restoreFrequency (ClockDriver *driver) {
 
     if(driver->config.storeToFile) {
 	snprintf(frequencyPath, PATH_MAX, "%s/%s", driver->config.frequencyDir, driver->config.frequencyFile);
-INFO("restore %s\n", frequencyPath);
 	if(!doubleFromFile(frequencyPath, &frequency)) {
 	    frequency = driver->getFrequency(driver);
 	}
@@ -450,7 +443,6 @@ INFO("restore %s\n", frequencyPath);
 	if(frequency == 0) {
 	    frequency = driver->getFrequency(driver);
 	}
-
 
     CLAMP(frequency, driver->maxFrequency);
     driver->servo.prime(&driver->servo, frequency);
@@ -534,8 +526,8 @@ getClockStateName(ClockState state) {
 	    return "FREERUN";
 	case CS_LOCKED:
 	    return "LOCKED";
-	case CS_ACQUIRING:
-	    return "ACQUIRING";
+	case CS_TRACKING:
+	    return "TRACKING";
 	case CS_HOLDOVER:
 	    return "HOLDOVER";
 	default:
@@ -543,6 +535,27 @@ getClockStateName(ClockState state) {
     }
 
 }
+
+const char*
+getClockStateShortName(ClockState state) {
+
+    switch(state) {
+	case CS_INIT:
+	    return "INIT";
+	case CS_FREERUN:
+	    return "FREE";
+	case CS_LOCKED:
+	    return "LOCK";
+	case CS_TRACKING:
+	    return "TRCK";
+	case CS_HOLDOVER:
+	    return "HOLD";
+	default:
+	    return "UNKN";
+    }
+
+}
+
 
 ClockDriver*
 findClockDriver(char * search) {
@@ -754,10 +767,8 @@ putStatusLine(ClockDriver* driver, char* buf, int len) {
     memset(buf, 0, len);
     snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
 
-
-
-    snprintf(buf, len - 1, "state: %-9s ref: %-7s off %s adev: %.03f ppb",
-	    getClockStateName(driver->state), strlen(driver->refName) ? driver->refName : "none",
+    snprintf(buf, len - 1, "state: %-4s ref: %-7s of:f %s adev: %.03f ppb",
+	    getClockStateShortName(driver->state), strlen(driver->refName) ? driver->refName : "none",
 	    tmpBuf, driver->adev);
 
 }

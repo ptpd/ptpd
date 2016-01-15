@@ -2546,8 +2546,6 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
     char * realDevice = rtOpts->ifaceName;
     char * ifaceName = rtOpts->ifaceName;
 
-    syncClocks();
-
 
     getVlanInfo(rtOpts->ifaceName, vlanInfo);
 
@@ -2726,8 +2724,8 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 			    strncpy(cd.networkDevice, pDev, IFACE_NAME_LENGTH);
 			    ptpClock->clockDriver = createClockDriver(CLOCKDRIVER_LINUXPHC, cd.networkDevice);
 			    ptpClock->clockDriver->init(ptpClock->clockDriver, &cd);
-			    ptpClock->clockDriver->inUse = TRUE;
 			}
+			    ptpClock->clockDriver->inUse = TRUE;
 			    ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
 
 			if(strlen(bDev)) {
@@ -2737,22 +2735,23 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 					strncpy(cd.networkDevice, netPath->interfaceInfo.bondInfo.backupSlave, IFACE_NAME_LENGTH);
 					ptpClock->clockDriver3 = createClockDriver(CLOCKDRIVER_LINUXPHC, cd.networkDevice);
 					ptpClock->clockDriver3->init(ptpClock->clockDriver3, &cd);
-					ptpClock->clockDriver3->inUse = TRUE;
 				}
 				ptpClock->clockDriver3->pushConfig(ptpClock->clockDriver3, rtOpts);
+					ptpClock->clockDriver3->inUse = TRUE;
 			}
 		ptpClock->clockDriver2 = getSystemClock();
 		ptpClock->clockDriver2->pushConfig(ptpClock->clockDriver2, rtOpts);
 		ptpClock->clockDriver2->init(ptpClock->clockDriver2, NULL);
+		ptpClock->clockDriver2->inUse = TRUE;
 		} else {
 		    ptpClock->clockDriver = getSystemClock();
 		    ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
 		    ptpClock->clockDriver->init(ptpClock->clockDriver2, NULL);
+		    ptpClock->clockDriver->inUse = TRUE;
 		}
 if(ptpClock->portDS.portState == PTP_SLAVE) {
     ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP");
 }
-
 
 /* clean up unused clock drivers */
 controlClockDrivers(CD_CLEANUP);

@@ -67,7 +67,7 @@ typedef enum {
     CS_SUSPENDED,
     CS_INIT,
     CS_FREERUN,
-    CS_ACQUIRING,
+    CS_TRACKING,
     CS_HOLDOVER,
     CS_LOCKED,
 } ClockState;
@@ -208,8 +208,8 @@ void		syncClocks();
 void		stepClocks(Boolean);
 
 
-
 const char*	getClockStateName(ClockState);
+const char*	getClockStateShortName(ClockState);
 
 #include "clockdriver_unix.h"
 #include "clockdriver_linuxphc.h"
