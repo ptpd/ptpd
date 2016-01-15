@@ -1974,6 +1974,16 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	ADJ_FREQ_MAX/1000,ADJ_FREQ_MAX/500);
 #endif /* HAVE_STRUCT_TIMEX_TICK */
 
+	/* This really is clock specific - different clocks may allow different ranges */
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:max_offset_ppm_hardware",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->servoMaxPpb_hw, rtOpts->servoMaxPpb_hw,
+		"Maximum absolute frequency shift which can be applied to the clock servo\n"
+	"	 when slewing the clock. Expressed in parts per million (1 ppm = shift of\n"
+	"	 1 us per second. Values above 512 will use the tick duration correction\n"
+	"	 to allow even faster slewing. Default maximum is 512 without using tick.", RANGECHECK_RANGE,
+	200,2000);
+
+
 	/*
 	 * TimeProperties DS - in future when clock driver API is implemented,
 	 * a slave PTP engine should inform a clock about this, and then that
@@ -2423,6 +2433,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	/* Scale the maxPPM to PPB */
 	rtOpts->servoMaxPpb *= 1000;
+	rtOpts->servoMaxPpb_hw *= 1000;
 
 	/* Shift DSCP to accept the 6-bit value */
 	rtOpts->dscpValue = rtOpts->dscpValue << 2;

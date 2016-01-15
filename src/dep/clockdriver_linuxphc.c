@@ -114,6 +114,8 @@ clockdriver_init(ClockDriver* self, const void *config) {
 
     self->maxFrequency = caps.max_adj;
 
+    self->servo.maxOutput = self->maxFrequency;
+
     INFO("Successfully started Linux PHC clock driver %s (%s) clock ID %06x\n", self->name, myConfig->characterDevice, myData->clockId);
 
     self->_init = TRUE;
@@ -275,7 +277,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 	memset(&tmx, 0, sizeof(tmx));
 	tmx.modes = ADJ_FREQUENCY;
 
-	CLAMP(adj,self->maxFrequency);
+	adj = clampDouble(adj, self->maxFrequency);
 
 	tmx.freq = (long)(round(adj * 65.536));
 
@@ -302,8 +304,7 @@ getFrequency (ClockDriver *self) {
 	    PERROR("Could not get frequency of clock %s (%s)", self->name, myConfig->characterDevice);
 	    return 0;
 	}
-
-	return(tmx.freq / 65.536);
+	return( (tmx.freq + 0.0) / 65.536);
 
 }
 

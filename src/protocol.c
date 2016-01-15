@@ -652,11 +652,6 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			timerStart(&ptpClock->timers[CLOCK_UPDATE_TIMER], rtOpts->clockUpdateTimeout);
 		}
 		initClock(rtOpts, ptpClock);
-		/*
-		 * restore the observed drift value using the selected method,
-		 * reset on failure or when -F 0 (default) is used, don't inform user
-		 */
-		restoreDrift(ptpClock, rtOpts, TRUE);
 
 		ptpClock->waitingForFollow = FALSE;
 		ptpClock->waitingForDelayResp = FALSE;
@@ -725,17 +720,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			resetDoubleMovingStatFilter(ptpClock->filterSM);
 		}
 		clearPtpEngineSlaveStats(&ptpClock->slaveStats);
-/*
-		ptpClock->servo.driftMean = 0;
-		ptpClock->servo.driftStdDev = 0;
-		ptpClock->servo.isStable = FALSE;
-		ptpClock->servo.stableCount = 0;
-		ptpClock->servo.updateCount = 0;
-		ptpClock->servo.statsCalculated = FALSE;
-		ptpClock->servo.statsUpdated = FALSE;
-		resetDoublePermanentMedian(&ptpClock->servo.driftMedianContainer);
-		resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
-*/
+
 		timerStart(&ptpClock->timers[STATISTICS_UPDATE_TIMER], rtOpts->statsUpdateInterval);
 #endif /* PTPD_STATISTICS */
 		break;
@@ -780,9 +765,6 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	initData(rtOpts, ptpClock);
 	initClock(rtOpts, ptpClock);
 
-	/* restore observed drift and inform user */
-	if(ptpClock->defaultDS.clockQuality.clockClass > 127)
-		restoreDrift(ptpClock, rtOpts, FALSE);
 	m1(rtOpts, ptpClock );
 	msgPackHeader(ptpClock->msgObuf, ptpClock);
 	
@@ -1653,11 +1635,11 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 					    /* the flags are probably off by now, using the shift sign to detect leap second type */
 					    if(ptpClock->leapSmearFudge < 0) {
 						DBG("Reversed LEAP59 smear frequency offset\n");
-						ptpClock->servo.integral += 1E9 / rtOpts->leapSecondSmearPeriod;
+						ptpClock->clockDriver->servo.integral += 1E9 / rtOpts->leapSecondSmearPeriod;
 					    }
 					    if(ptpClock->leapSmearFudge > 0) {
 						DBG("Reversed LEAP61 smear frequency offset\n");
-						ptpClock->servo.integral -= 1E9 / rtOpts->leapSecondSmearPeriod;
+						ptpClock->clockDriver->servo.integral -= 1E9 / rtOpts->leapSecondSmearPeriod;
 					    }
 					    ptpClock->leapSmearFudge = 0;
 					}

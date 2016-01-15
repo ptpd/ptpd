@@ -349,7 +349,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
       if (ClockPeriod (CLOCK_REALTIME, 0, &period, 0) < 0)
           return FALSE;
 
-	CLAMP(adj,self->maxFrequency);
+	adj = clampDouble(adj, self->maxFrequency);
 
 	/* adjust clock for the duration of 0.9 clock update period in ticks (so we're done before the next) */
 	clockadj.tick_count = 0.9 * tau * 1E9 / (period.nsec + 0.0);
@@ -371,7 +371,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 #else
 	struct timeval tv;
 
-	CLAMP(adj,self->maxFrequency);
+	adj = clampDouble(adj, self->maxFrequency);
 
 	tv.tv_sec = 0;
 	tv.tv_usec = (adj / 1000);
@@ -396,9 +396,8 @@ getFrequency (ClockDriver * self) {
 	    return 0;
 	}
 
-	return(tmx.freq / 65.536);
+	return((tmx.freq + 0.0) / 65.536);
 
-	return 0;
 }
 
 static Boolean

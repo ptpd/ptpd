@@ -239,6 +239,22 @@ nano_to_Time(TimeInternal *x, int nano)
 	normalizeTime(x);
 }
 
+double clampDouble(double var, double bound) {
+
+    double ret;
+
+    if(var < -bound) {
+	ret = (-bound);
+    }
+
+    if(var > bound) {
+	ret = (bound);
+    }
+
+    ret = var;
+
+}
+
 TimeInternal
 negativeTime(TimeInternal *time)
 {

@@ -1283,7 +1283,7 @@ snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
 
 	switch (vp->magic) {
 	    case PTPBASE_SLAVE_FREQADJ_STATS_CURRENT_VALUE:
-		return SNMP_INTEGER(snmpPtpClock->servo.integral);
+		return SNMP_INTEGER(snmpPtpClock->clockDriver->lastFrequency);
 #ifdef PTPD_STATISTICS
 	    case PTPBASE_SLAVE_FREQADJ_STATS_PERIOD_SECONDS:
 		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);

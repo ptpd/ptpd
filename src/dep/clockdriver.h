@@ -182,6 +182,7 @@ struct ClockDriver {
     Boolean (*syncClock) (ClockDriver*, double);
     Boolean (*syncClockExternal) (ClockDriver*, TimeInternal, double);
     void (*putStatusLine) (ClockDriver *, char*, int);
+    void (*putInfoLine) (ClockDriver *, char*, int);
 
     /* inherited methods end */
 

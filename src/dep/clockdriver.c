@@ -61,6 +61,7 @@ static void storeFrequency (ClockDriver *);
 static Boolean adjustFrequency (ClockDriver *, double, double);
 static Boolean syncClock (ClockDriver*, double);
 static Boolean syncClockExternal (ClockDriver*, TimeInternal, double);
+static void putInfoLine(ClockDriver*, char*, int);
 static void putStatusLine(ClockDriver*, char*, int);
 
 /* inherited methods end */
@@ -130,6 +131,7 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
     clockDriver->syncClockExternal = syncClockExternal;
 
     clockDriver->putStatusLine = putStatusLine;
+    clockDriver->putInfoLine = putInfoLine;
 
     /* inherited methods end */
 
@@ -440,11 +442,11 @@ restoreFrequency (ClockDriver *driver) {
 	}
     }
 
-	if(frequency == 0) {
-	    frequency = driver->getFrequency(driver);
-	}
+    if(frequency == 0) {
+	frequency = driver->getFrequency(driver);
+    }
 
-    CLAMP(frequency, driver->maxFrequency);
+    frequency = clampDouble(frequency, driver->maxFrequency);
     driver->servo.prime(&driver->servo, frequency);
     driver->storedFrequency = driver->servo.output;
     driver->setFrequency(driver, driver->storedFrequency, 1.0);
@@ -458,7 +460,6 @@ storeFrequency (ClockDriver *driver) {
 
     if(driver->config.storeToFile) {
 	snprintf(frequencyPath, PATH_MAX, "%s/%s", driver->config.frequencyDir, driver->config.frequencyFile);
-	INFO("store %s\n", frequencyPath);
 	doubleToFile(frequencyPath, driver->lastFrequency);
     }
 
@@ -759,6 +760,7 @@ findBestClock() {
     }
 
 }
+
 static void
 putStatusLine(ClockDriver* driver, char* buf, int len) {
 
@@ -767,8 +769,21 @@ putStatusLine(ClockDriver* driver, char* buf, int len) {
     memset(buf, 0, len);
     snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
 
-    snprintf(buf, len - 1, "state: %-4s ref: %-7s of:f %s adev: %.03f ppb",
-	    getClockStateShortName(driver->state), strlen(driver->refName) ? driver->refName : "none",
-	    tmpBuf, driver->adev);
+    snprintf(buf, len - 1, "offs: %-13s  adev: %-8.3f freq: %.03f",
+	    tmpBuf, driver->adev, driver->lastFrequency);
 
 }
+
+static void
+putInfoLine(ClockDriver* driver, char* buf, int len) {
+
+    char tmpBuf[100];
+    memset(tmpBuf, 0, sizeof(tmpBuf));
+    memset(buf, 0, len);
+    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
+
+    snprintf(buf, len - 1, "name:  %-12s state: %-9s ref: %-10s", driver->name,
+	    getClockStateName(driver->state), strlen(driver->refName) ? driver->refName : "none");
+
+}
+

@@ -487,19 +487,10 @@ Boolean getKernelUtcOffset(int *utc_offset);
 
 #endif /* HAVE_SYS_TIMEX_H */
 
-/* Observed drift save / recovery functions */
-void restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet);
-void saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet);
-
-
 int parseLeapFile(char * path, LeapSecondInfo *info);
 
 void
 resetWarnings(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
-
-void setupservoPI(servoPI* servo, PtpClock*, const RunTimeOpts* rtOpts);
-void resetservoPI(servoPI* servo);
-double runservoPI(servoPI* servo, const Integer32 input);
 
 #ifdef PTPD_STATISTICS
 void updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts);

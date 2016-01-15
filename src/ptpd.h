@@ -208,14 +208,6 @@
 #define SET_FIELD(data, bitpos) \
 	data << bitpos
 
-#define CLAMP(var,bound) {\
-    if(var < -bound) {\
-	var = -bound;\
-    }\
-    if(var > bound) {\
-	var = bound;\
-    }\
-}
 
 #ifndef min
 #define min(a,b)     (((a)<(b))?(a):(b))
@@ -258,7 +250,7 @@ void toInternalTime(TimeInternal*, const Timestamp*);
 void ts_to_InternalTime(const struct timespec *, TimeInternal *);
 void tv_to_InternalTime(const struct timeval  *, TimeInternal *);
 
-
+double clampDouble(double var, double bound);
 
 
 /**

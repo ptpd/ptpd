@@ -810,8 +810,10 @@ netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 
     ifaceName = netPath->interfaceInfo.bondInfo.backupSlave;
 
-    if(!getHwTs(ifaceName, rtOpts, &info) || !initHwTs(ifaceName, &info)) {
-	return FALSE;
+    if(strlen(ifaceName)) {
+	if(!getHwTs(ifaceName, rtOpts, &info) || !initHwTs(ifaceName, &info)) {
+	    return FALSE;
+	}
     }
 
     if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &info.tsMode, sizeof(info.tsMode)) < 0) {
@@ -2737,16 +2739,16 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 					ptpClock->clockDriver3->init(ptpClock->clockDriver3, &cd);
 				}
 				ptpClock->clockDriver3->pushConfig(ptpClock->clockDriver3, rtOpts);
-					ptpClock->clockDriver3->inUse = TRUE;
+				ptpClock->clockDriver3->inUse = TRUE;
 			}
 		ptpClock->clockDriver2 = getSystemClock();
-		ptpClock->clockDriver2->pushConfig(ptpClock->clockDriver2, rtOpts);
 		ptpClock->clockDriver2->init(ptpClock->clockDriver2, NULL);
+		ptpClock->clockDriver2->pushConfig(ptpClock->clockDriver2, rtOpts);
 		ptpClock->clockDriver2->inUse = TRUE;
 		} else {
 		    ptpClock->clockDriver = getSystemClock();
-		    ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
 		    ptpClock->clockDriver->init(ptpClock->clockDriver2, NULL);
+		    ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
 		    ptpClock->clockDriver->inUse = TRUE;
 		}
 if(ptpClock->portDS.portState == PTP_SLAVE) {

@@ -274,6 +274,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	/* ADJ_FREQ_MAX by default */
 	rtOpts->servoMaxPpb = ADJ_FREQ_MAX / 1000;
+	rtOpts->servoMaxPpb_hw = 2000000 / 1000;
 	/* kP and kI are scaled to 10000 and are gains now - values same as originally */
 	rtOpts->servoKP = 0.1;
 	rtOpts->servoKI = 0.001;

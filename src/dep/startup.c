@@ -597,19 +597,11 @@ ptpdShutdown(PtpClock * ptpClock)
 	snmpShutdown();
 #endif /* PTPD_SNMP */
 
-#ifndef PTPD_STATISTICS
-	/* Not running statistics code - write observed drift to driftfile if enabled, inform user */
-	if(ptpClock->defaultDS.slaveOnly && !ptpClock->servo.runningMaxOutput)
-		saveDrift(ptpClock, &rtOpts, FALSE);
-#else
+#ifdef PTPD_STATISTICS
 	ptpClock->oFilterMS.shutdown(&ptpClock->oFilterMS);
 	ptpClock->oFilterSM.shutdown(&ptpClock->oFilterSM);
         freeDoubleMovingStatFilter(&ptpClock->filterMS);
         freeDoubleMovingStatFilter(&ptpClock->filterSM);
-
-	/* We are running statistics code - save drift on exit only if we're not monitoring servo stability */
-	if(!rtOpts.servoStabilityDetection && !ptpClock->servo.runningMaxOutput)
-		saveDrift(ptpClock, &rtOpts, FALSE);
 #endif /* PTPD_STATISTICS */
 
 	if (rtOpts.currentConfig != NULL)

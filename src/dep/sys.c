@@ -799,7 +799,7 @@ logStatistics(PtpClock * ptpClock)
 				&(ptpClock->delayMS));
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %c, %05d",
-			       ptpClock->servo.integral,
+			       ptpClock->clockDriver->servo.integral,
 			       ptpClock->char_last_msg,
 			       ptpClock->msgTmpHeader.sequenceId);
 
@@ -1161,7 +1161,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out,"\n");
 	}
 
-	fprintf(out, 		STATUSPREFIX"  ","Clock status");
+	fprintf(out, 		STATUSPREFIX"  ","PTP Clock status");
 		if(rtOpts->enablePanicMode) {
 	    if(ptpClock->panicMode) {
 		fprintf(out,"panic mode,");
@@ -1195,9 +1195,15 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	    char buf[100];
 	    int i = 1;
 	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
-		    cd->putStatusLine(cd, buf, 100);
-		    fprintf(out, "Clock %d:%-10s :  %s\n", i++, cd->name, buf);
+		    cd->putInfoLine(cd, buf, 100);
+		    fprintf(out, "Clock %d: %-9s :  %s\n", i++, cd->name, buf);
 	    }
+	    i = 1;
+	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
+		    cd->putStatusLine(cd, buf, 100);
+		    fprintf(out, "Clock %d: %-9s :  %s\n",i++, cd->name, buf);
+	    }
+
 	}
 
 	if(ptpClock->portDS.portState == PTP_MASTER || ptpClock->portDS.portState == PTP_PASSIVE) {
@@ -1822,152 +1828,6 @@ setTimexFlags(int flags, Boolean quiet)
 }
 
 #endif /* SYS_TIMEX_H */
-
-#define DRIFTFORMAT "%.0f"
-
-void
-restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
-{
-
-	FILE *driftFP;
-	Boolean reset_offset = FALSE;
-	double recovered_drift;
-
-	DBGV("restoreDrift called\n");
-
-	if (ptpClock->drift_saved && rtOpts->drift_recovery_method > 0 ) {
-		ptpClock->servo.integral = ptpClock->last_saved_drift;
-		if (!rtOpts->noAdjust && ptpClock->clockControl.granted) {
-			ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, -ptpClock->last_saved_drift, 1);
-		}
-		DBG("loaded cached drift\n");
-		return;
-	}
-
-	switch (rtOpts->drift_recovery_method) {
-
-		case DRIFT_FILE:
-
-			if( (driftFP = fopen(rtOpts->driftFile,"r")) == NULL) {
-			    if(errno!=ENOENT) {
-				    PERROR("Could not open drift file: %s - using current kernel frequency offset. Ignore this error if ",
-				    rtOpts->driftFile);
-			    } else {
-				    NOTICE("Drift file %s not found - will be initialised on write\n",rtOpts->driftFile);
-			    }
-			} else if (fscanf(driftFP, "%lf", &recovered_drift) != 1) {
-				PERROR("Could not load saved offset from drift file - using current kernel frequency offset");
-				fclose(driftFP);
-			} else {
-
-			if(recovered_drift == 0)
-				recovered_drift = 0;
-
-			fclose(driftFP);
-			if(quiet)
-				DBGV("Observed drift loaded from %s: "DRIFTFORMAT" ppb\n",
-					rtOpts->driftFile,
-					recovered_drift);
-			else
-				INFO("Observed drift loaded from %s: "DRIFTFORMAT" ppb\n",
-					rtOpts->driftFile,
-					recovered_drift);
-				break;
-			}
-
-		case DRIFT_KERNEL:
-#ifdef HAVE_SYS_TIMEX_H
-			recovered_drift = -(ptpClock->clockDriver->getFrequency(ptpClock->clockDriver));
-#else
-			recovered_drift = 0;
-#endif /* HAVE_SYS_TIMEX_H */
-			if(recovered_drift == 0)
-				recovered_drift = 0;
-
-			if (quiet)
-				DBGV("Frequency offset loaded from clock driver %s: "DRIFTFORMAT" ppb\n", ptpClock->clockDriver->name,
-					recovered_drift);
-			else
-				INFO("Frequency offset loaded from clock driver %s: "DRIFTFORMAT" ppb\n", ptpClock->clockDriver->name,
-					recovered_drift);
-
-		break;
-
-
-		default:
-
-			reset_offset = TRUE;
-
-	}
-
-	if (reset_offset) {
-		if (!rtOpts->noAdjust && ptpClock->clockControl.granted)
-		ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, 0, 1);
-		ptpClock->servo.integral = 0;
-		return;
-	}
-
-	ptpClock->servo.integral = recovered_drift;
-
-	ptpClock->drift_saved = TRUE;
-	ptpClock->last_saved_drift = recovered_drift;
-
-	if (!rtOpts->noAdjust)
-		ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, -recovered_drift, 1);
-}
-
-
-
-void
-saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
-{
-	FILE *driftFP;
-
-	DBGV("saveDrift called\n");
-
-       if(ptpClock->portDS.portState == PTP_PASSIVE ||
-              ptpClock->portDS.portState == PTP_MASTER ||
-                ptpClock->defaultDS.clockQuality.clockClass < 128) {
-                    DBGV("We're not slave - not saving drift\n");
-                    return;
-            }
-
-        if(ptpClock->servo.integral == 0.0 &&
-            ptpClock->portDS.portState == PTP_LISTENING )
-                return;
-
-	if (rtOpts->drift_recovery_method > 0) {
-		ptpClock->last_saved_drift = ptpClock->servo.integral;
-		ptpClock->drift_saved = TRUE;
-	}
-
-	if (rtOpts->drift_recovery_method != DRIFT_FILE)
-		return;
-
-	if(ptpClock->servo.runningMaxOutput) {
-	    DBG("Servo running at maximum shift - not saving drift file");
-	    return;
-	}
-
-	if( (driftFP = fopen(rtOpts->driftFile,"w")) == NULL) {
-		PERROR("Could not open drift file %s for writing", rtOpts->driftFile);
-		return;
-	}
-
-	/* The fractional part really won't make a difference here */
-	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.integral));
-
-	if (quiet) {
-		DBGV("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n",
-		    ptpClock->servo.integral, rtOpts->driftFile);
-	} else {
-		INFO("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n",
-		    ptpClock->servo.integral, rtOpts->driftFile);
-	}
-	fclose(driftFP);
-}
-
-#undef DRIFTFORMAT
 
 int parseLeapFile(char *path, LeapSecondInfo *info)
 {

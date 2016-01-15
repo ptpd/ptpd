@@ -458,22 +458,21 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	     ptpClock->timePropertiesDS.currentUtcOffset,ptpClock->timePropertiesDS.leap59,ptpClock->timePropertiesDS.leap61);
 
 	/* prepare time constant for servo*/
-	ptpClock->servo.maxdT = rtOpts->servoMaxdT;
 	if(ptpClock->portDS.logSyncInterval == UNICAST_MESSAGEINTERVAL) {
-		ptpClock->servo.dT = 1;
+		ptpClock->dT = 1;
 
 		if(rtOpts->unicastNegotiation && ptpClock->parentGrants && ptpClock->parentGrants->grantData[SYNC].granted) {
-			ptpClock->servo.dT = pow(2,ptpClock->parentGrants->grantData[SYNC].logInterval);
+			ptpClock->dT = pow(2,ptpClock->parentGrants->grantData[SYNC].logInterval);
 		}
 
 	} else {
-		ptpClock->servo.dT = pow(2, ptpClock->portDS.logSyncInterval);
+		ptpClock->dT = pow(2, ptpClock->portDS.logSyncInterval);
 	}
 
 #ifdef PTPD_STATISTICS
 	/* multiply interval if interval filter used on delayMS */
 	if(rtOpts->filterMSOpts.enabled && rtOpts->filterMSOpts.windowType != WINDOW_SLIDING) {
-	    ptpClock->servo.dT *= rtOpts->filterMSOpts.windowSize;
+	    ptpClock->dT *= rtOpts->filterMSOpts.windowSize;
 	}
 #endif
         /* updates paused, leap second pending - do nothing */
@@ -725,10 +724,10 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force)
 
 	initClock(rtOpts, ptpClock);
 
-	if(ptpClock->defaultDS.clockQuality.clockClass > 127)
-		restoreDrift(ptpClock, rtOpts, TRUE);
+	if(ptpClock->defaultDS.clockQuality.clockClass > 127) {
+	    ptpClock->clockDriver->restoreFrequency(ptpClock->clockDriver);
+	}
 
-	ptpClock->clockDriver->restoreFrequency(ptpClock->clockDriver);
 	/* five monkeys: why? */
 //	toState(PTP_FAULTY, rtOpts, ptpClock);		/* make a full protocol reset */
 
@@ -941,12 +940,7 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			stepClock(rtOpts, ptpClock, FALSE);
 			return;
 		} else {
-			if(ptpClock->currentDS.offsetFromMaster.nanoseconds > 0)
-				ptpClock->servo.integral = rtOpts->servoMaxPpb;
-			else
-				ptpClock->servo.integral = -rtOpts->servoMaxPpb;
 			warn_operator_slow_slewing(rtOpts, ptpClock);
-			ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, -ptpClock->servo.integral, 1);
 			ptpClock->clockControl.stepRequired = FALSE;
 		}
 		return;
@@ -960,9 +954,9 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		/* SYNC ! */
 		/* NEGATIVE - ofm is offset from master, not offset to master. */
-		ptpClock->clockDriver->syncClockExternal(ptpClock->clockDriver, negativeTime(&ptpClock->currentDS.offsetFromMaster), ptpClock->servo.dT);
+		ptpClock->clockDriver->syncClockExternal(ptpClock->clockDriver, negativeTime(&ptpClock->currentDS.offsetFromMaster), ptpClock->dT);
 	}
-		warn_operator_fast_slewing(rtOpts, ptpClock, ptpClock->servo.integral);
+		warn_operator_fast_slewing(rtOpts, ptpClock, ptpClock->clockDriver->servo.integral);
 		/* let the clock source know it's being synced */
 		ptpClock->clockStatus.inSync = TRUE;
 		ptpClock->clockStatus.clockOffset = (ptpClock->currentDS.offsetFromMaster.seconds * 1E9 +

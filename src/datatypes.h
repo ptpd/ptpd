@@ -15,44 +15,6 @@
 #include "dep/clockdriver.h"
 #include "globalconfig.h"
 
-typedef struct{
-    int maxOutput;
-    uint32_t input;
-    double output;
-    double integral;
-    double kP, kI;
-    int runningMaxOutput;
-//    TimeInternal lastUpdate;
-//    Boolean runningMaxOutput;
-    int dTmethod;
-    double dT;
-    int maxdT;
-#ifdef PTPD_STATISTICS
-//    DoublePermanentStdDev l1dev;
-//    DoublePermanentStdDev l2dev;
-/*
-    int updateCount;
-    int stableCount;
-    Boolean statsUpdated;
-    Boolean statsCalculated;
-    Boolean isStable;
-    double stabilityThreshold;
-    int stabilityPeriod;
-    int stabilityTimeout;
-    double driftMean;
-    double driftStdDev;
-    double driftMedian;
-    double driftMin;
-    double driftMax;
-    double driftMinFinal;
-    double driftMaxFinal;
-*/
-//    DoublePermanentStdDev driftStats;
-//    DoublePermanentMedian driftMedianContainer;
-#endif /* PTPD_STATISTICS */
-} servoPI;
-
-
 /**
  * \struct PtpdCounters
  * \brief Ptpd engine counters per port
@@ -393,10 +355,6 @@ typedef struct {
 	 */
 	PtpdCounters counters;
 
-	/* PI servo model */
-	servoPI servo;
-	servoPI servo2;
-
 	/* "panic mode" support */
 	Boolean panicMode; /* in panic mode - do not update clock or calculate offsets */
 	Boolean panicOver; /* panic mode is over, we can reset the clock */
@@ -440,6 +398,7 @@ typedef struct {
 	Integer32 offsetUpdates;
 
 	Boolean isCalibrated;
+	double dT;
 
 	NTPcontrol ntpControl;
 

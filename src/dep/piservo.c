@@ -73,8 +73,8 @@ feed (PIservo* self, Integer32 input, double tau) {
 	    self->tau = 1.0;
     }
 
-    CLAMP(self->integral, self->maxOutput);
-    CLAMP(self->output, self->maxOutput);
+    self->integral = clampDouble(self->integral, self->maxOutput);
+    self->output = clampDouble(self->output, self->maxOutput);
 
     if (self->kP < 0.000001)
 	    self->kP = 0.000001;
@@ -107,7 +107,7 @@ prime (PIservo *self, double integral) {
 
     Boolean runningMaxOutput;
 
-    CLAMP(integral, self->maxOutput);
+    integral = clampDouble(integral, self->maxOutput);
 
     self->integral = integral;
     self->output = integral;
