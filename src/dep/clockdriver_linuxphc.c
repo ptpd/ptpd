@@ -64,9 +64,6 @@ _setupClockDriver_linuxphc(ClockDriver* self)
     myData->clockFd = -1;
     myData->clockId = -1;
 
-    resetIntPermanentAdev(&self->_adev);
-    getTimeMonotonic(self, &self->_initTime);
-
 }
 
 static int
@@ -120,6 +117,10 @@ clockdriver_init(ClockDriver* self, const void *config) {
     INFO("Successfully started Linux PHC clock driver %s (%s) clock ID %06x\n", self->name, myConfig->characterDevice, myData->clockId);
 
     self->_init = TRUE;
+
+    self->setState(self, CS_FREERUN);
+
+    snprintf(self->config.frequencyFile, PATH_MAX, PTPD_PROGNAME"_phc%d.frequency", myData->phcIndex);
 
     return 1;
 
@@ -405,4 +406,29 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
     }
 
     return TRUE;
+}
+
+static Boolean
+pushPrivateConfig(ClockDriver *self, RunTimeOpts *globalConfig)
+{
+
+    return TRUE;
+
+}
+
+static Boolean
+isThisMe(ClockDriver *self, const char* search)
+{
+	GET_CONFIG(self, myConfig, linuxphc);
+
+	if(!strncmp(search, myConfig->characterDevice, PATH_MAX)) {
+		return TRUE;
+	}
+
+	if(!strncmp(search, myConfig->networkDevice, IFACE_NAME_LENGTH)) {
+		return TRUE;
+	}
+
+	return FALSE;
+
 }

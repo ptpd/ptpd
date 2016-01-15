@@ -249,6 +249,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->drift_recovery_method = DRIFT_KERNEL;
 	strncpy(rtOpts->lockDirectory, DEFAULT_LOCKDIR, PATH_MAX);
 	strncpy(rtOpts->driftFile, DEFAULT_DRIFTFILE, PATH_MAX);
+	strncpy(rtOpts->frequencyDir, "/etc", PATH_MAX);
 /*	strncpy(rtOpts->lockFile, DEFAULT_LOCKFILE, PATH_MAX); */
 	rtOpts->autoLockFile = FALSE;
 	rtOpts->snmpEnabled = FALSE;
@@ -293,6 +294,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->freerunAge_hw = 1800;
 
 	rtOpts->adevPeriod = 10;
+
+	rtOpts->negativeStep = FALSE;
 
 	rtOpts->servoDtMethod = DT_CONSTANT;
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */

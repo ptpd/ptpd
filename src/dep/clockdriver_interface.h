@@ -52,6 +52,9 @@ static Boolean getStatus (ClockDriver *, ClockStatus *);
 static Boolean setStatus (ClockDriver *, ClockStatus *);
 static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
 
+static Boolean pushPrivateConfig (ClockDriver *, RunTimeOpts *rtOpts);
+static Boolean isThisMe(ClockDriver *, const char* search);
+
 #define INIT_INTERFACE(var) \
     var->init = clockdriver_init; \
     var->shutdown = clockdriver_shutdown; \
@@ -66,7 +69,9 @@ static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
     var->restoreFrequency = restoreFrequency; \
     var->getStatus = getStatus; \
     var->setStatus = setStatus; \
-    var->getOffsetFrom = getOffsetFrom;
+    var->getOffsetFrom = getOffsetFrom; \
+    var->pushPrivateConfig = pushPrivateConfig;\
+    var->isThisMe = isThisMe;
 
 #define INIT_DATA(var, type) \
     if(var->privateData == NULL) { \
@@ -81,5 +86,4 @@ static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
     ClockDriverConfig_##type *to = (ClockDriverConfig_##type*)from->privateConfig;
 #define GET_DATA(from, to, type) \
     ClockDriverData_##type *to = (ClockDriverData_##type*)from->privateData;
-
 

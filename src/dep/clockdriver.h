@@ -36,8 +36,11 @@
 #define PTPD_CLOCKDRIVER_H_
 
 #include "../ptpd.h"
+#include "../globalconfig.h"
+#include "linkedlist.h"
 
 #define CLOCKDRIVER_NAME_MAX 20
+#define SYSTEM_CLOCK_NAME "SYSTEM_CLOCK"
 
 #if defined(linux) && !defined(ADJ_SETOFFSET)
 #define ADJ_SETOFFSET 0x0100
@@ -49,7 +52,15 @@ enum {
     CLOCKDRIVER_LINUXPHC = 1
 };
 
+enum {
+    CD_NOTINUSE,
+    CD_SHUTDOWN,
+    CD_CLEANUP,
+    CD_DUMP
+};
+
 typedef enum {
+    CS_INIT,
     CS_FREERUN,
     CS_LOCKED,
     CS_UNLOCKED,
@@ -61,6 +72,8 @@ typedef struct {
     Boolean noStep;
     Boolean negativeStep;
     Boolean saveFrequency;
+    char frequencyFile[PATH_MAX +1];
+    char frequencyDir[PATH_MAX + 1];
     int adevPeriod;
     double stableAdev;
     double unstableAdev;
@@ -72,20 +85,22 @@ typedef struct {
 
 } ClockStatus;
 
-/* MOTHER FUCKING HEADER MESS, GOD DAMN IT TO FUCK!!!! */
 typedef struct ClockDriver ClockDriver;
 
 struct ClockDriver {
 
     ClockStatus _status;
     Boolean	_init;
+
     int _serial;
     Boolean _updated;
     IntPermanentAdev _adev;
+    IntPermanentAdev _totalAdev;
     TimeInternal _initTime;
     TimeInternal _lastSync;
     double _tau;
 
+    Boolean	inUse;
     TimeInternal age;
     Boolean stable;
 
@@ -96,6 +111,7 @@ struct ClockDriver {
 
     int timeScale;
     int utcOffset;
+    double totalAdev;
     double adev;
 
     Boolean systemClock;
@@ -129,16 +145,25 @@ struct ClockDriver {
     Boolean (*setStatus) (ClockDriver *, ClockStatus *);
     Boolean (*getOffsetFrom) (ClockDriver *, ClockDriver *, TimeInternal*);
 
+    Boolean (*pushPrivateConfig) (ClockDriver *, RunTimeOpts *);
+    Boolean (*isThisMe) (ClockDriver *, const char* search);
+
     /* public interface end */
 
     /* inherited methods, provided by ClockDriver */
     void (*setState) (ClockDriver *, ClockState);
     void (*processUpdate) (ClockDriver *, double, double);
+    Boolean (*pushConfig) (ClockDriver *, RunTimeOpts *);
     /* inherited methods end */
 
+    LINKED_LIST_TAG(ClockDriver);
+
+/*
     ClockDriver *_first;
     ClockDriver *_next;
     ClockDriver *_prev;
+*/
+
 };
 
 
@@ -147,6 +172,9 @@ Boolean 	setupClockDriver(ClockDriver* clockDriver, int type, const char* name);
 void 		freeClockDriver(ClockDriver** clockDriver);
 ClockDriver* 	getSystemClock();
 void 		shutdownClockDrivers();
+void		controlClockDrivers(int);
+ClockDriver*	findClockDriver(char *);
+ClockDriver*	getClockDriverByName(const char *);
 const char*	getClockStateName(ClockState);
 
 #include "clockdriver_unix.h"

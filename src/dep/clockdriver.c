@@ -41,9 +41,8 @@
 	}
 
 /* linked list - so that we can control all registered objects centrally */
-static ClockDriver *_first = NULL;
-static ClockDriver *_last = NULL;
-static uint32_t _serial = 0;
+LINKED_LIST_HOOK(ClockDriver);
+
 
 static ClockDriver* _systemClock = NULL;
 
@@ -51,6 +50,7 @@ static ClockDriver* _systemClock = NULL;
 
 static void setState(ClockDriver *, ClockState);
 static void processUpdate(ClockDriver *, double, double);
+static Boolean pushConfig(ClockDriver *, RunTimeOpts *);
 
 /* inherited methods end */
 
@@ -58,27 +58,20 @@ ClockDriver *
 createClockDriver(int driverType, const char *name)
 {
 
-    ClockDriver *clockDriver;
+    ClockDriver *clockDriver = NULL;
+
+    if(getClockDriverByName(name) != NULL) {
+	ERROR("Cannot create clock driver %s: clock driver with this name already exists\n", name);
+	return NULL;
+    }
 
     XCALLOC(clockDriver, sizeof(ClockDriver));
 
     if(!setupClockDriver(clockDriver, driverType, name)) {
 	freeClockDriver(&clockDriver);
     } else {
-
 	/* maintain the linked list */
-
-	if(_first == NULL) {
-		_first = clockDriver;
-	}
-
-	if(_last != NULL) {
-	    clockDriver->_prev = _last;
-	    clockDriver->_prev->_next = clockDriver;
-	}
-
-	_last = clockDriver;
-	clockDriver->_first = _first;
+	LINKED_LIST_INSERT(clockDriver);
     }
 
     return clockDriver;
@@ -94,16 +87,13 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
     clockDriver->type = driverType;
     strncpy(clockDriver->name, name, CLOCKDRIVER_NAME_MAX);
 
-    clockDriver->_serial = _serial;
-    _serial++;
-
     REGISTER_CLOCKDRIVER(CLOCKDRIVER_UNIX, unix);
     REGISTER_CLOCKDRIVER(CLOCKDRIVER_LINUXPHC, linuxphc);
-
 
     if(!found) {
 	ERROR("Setup requested for unknown clock driver type: %d\n", driverType);
     } else {
+	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_initTime);
 	DBG("Created new clock driver type %d name %s serial %d\n", driverType, name, clockDriver->_serial);
     }
 
@@ -111,9 +101,11 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
 
     clockDriver->setState = setState;
     clockDriver->processUpdate = processUpdate;
+    clockDriver->pushConfig = pushConfig;
 
     /* inherited methods end */
 
+    clockDriver->state = CS_INIT;
 
     return found;
 
@@ -131,41 +123,8 @@ freeClockDriver(ClockDriver** clockDriver)
     pdriver->shutdown(pdriver);
 
 	/* maintain the linked list */
+	LINKED_LIST_REMOVE(pdriver);
 
-	if(pdriver == _last) {
-	    _serial = pdriver->_serial;
-	}
-
-	if(pdriver->_prev != NULL) {
-
-		if(pdriver == _last) {
-			_last = pdriver->_prev;
-		}
-
-		if(pdriver->_next != NULL) {
-			pdriver->_prev->_next = pdriver->_next;
-		} else {
-			pdriver->_prev->_next = NULL;
-		}
-	/* last one */
-	} else if (pdriver->_next == NULL) {
-		_first = NULL;
-		_last = NULL;
-	}
-
-	if(pdriver->_next != NULL) {
-
-		if(pdriver == _first) {
-			_first = pdriver->_next;
-		}
-
-		if(pdriver->_prev != NULL) {
-			pdriver->_next->_prev = pdriver->_prev;
-		} else {
-			pdriver->_next->_prev = NULL;
-		}
-
-	}
 
     if(pdriver->privateData != NULL) {
 	free(pdriver->privateData);
@@ -194,7 +153,7 @@ getSystemClock() {
 	return _systemClock;
     }
 
-    _systemClock = createClockDriver(CLOCKDRIVER_UNIX, "SYSTEM_CLOCK");
+    _systemClock = createClockDriver(CLOCKDRIVER_UNIX, SYSTEM_CLOCK_NAME);
 
     if(_systemClock == NULL) {
 	CRITICAL("Could not start system clock driver, cannot continue\n");
@@ -207,12 +166,11 @@ getSystemClock() {
 
 void
 shutdownClockDrivers() {
+
 	ClockDriver *cd;
-	while(_first != NULL) {
-	    cd = _last;
-	    freeClockDriver(&cd);
-	}
+	LINKED_LIST_DESTROYALL(cd, freeClockDriver);
 	_systemClock = NULL;
+
 }
 
 
@@ -235,6 +193,7 @@ processUpdate(ClockDriver *driver, double adj, double tau) {
 
 	driver->_tau = tau;
 	driver->adev = feedIntPermanentAdev(&driver->_adev, adj);
+	driver->totalAdev = feedIntPermanentAdev(&driver->_totalAdev, adj);
 
 	if((driver->_adev.count * tau) > 10) {
 	    INFO("%s  ADEV %.09f\n", driver->name, driver->adev);
@@ -258,6 +217,8 @@ const char*
 getClockStateName(ClockState state) {
 
     switch(state) {
+	case CS_INIT:
+	    return "INIT";
 	case CS_FREERUN:
 	    return "FREERUN";
 	case CS_LOCKED:
@@ -268,6 +229,106 @@ getClockStateName(ClockState state) {
 	    return "HOLDOVER";
 	default:
 	    return "UNKNOWN";
+    }
+
+}
+
+ClockDriver*
+findClockDriver(char * search) {
+
+	ClockDriver *cd;
+	LINKED_LIST_FOREACH(cd) {
+	    if(cd->isThisMe(cd, search)) {
+		return cd;
+	    }
+	}
+
+	return NULL;
+
+}
+
+ClockDriver*
+getClockDriverByName(const char * search) {
+
+	ClockDriver *cd;
+	LINKED_LIST_FOREACH(cd) {
+	    if(!strncmp(cd->name, search, CLOCKDRIVER_NAME_MAX)) {
+		return cd;
+	    }
+	}
+
+	return NULL;
+
+}
+
+static Boolean
+pushConfig(ClockDriver *driver, RunTimeOpts *global)
+{
+
+    Boolean ret = TRUE;
+
+    ClockDriverConfig *config = &driver->config;
+
+    config->readOnly = global->noAdjust;
+    config->noStep   = global->noResetClock;
+    config->negativeStep = global->negativeStep;
+    config->saveFrequency = global->saveFrequency;
+    config->adevPeriod = global->adevPeriod;
+    config->stableAdev = global->stableAdev;
+    config->unstableAdev = global->unstableAdev;
+    config->holdoverAge = global->holdoverAge;
+    config->freerunAge = global->freerunAge;
+
+    strncpy(config->frequencyDir, global->frequencyDir, PATH_MAX);
+
+    return( ret && (driver->pushPrivateConfig(driver, global)) );
+
+}
+
+void
+controlClockDrivers(int command) {
+
+    ClockDriver *cd;
+    Boolean found;
+
+    switch(command) {
+
+	case CD_NOTINUSE:
+	    LINKED_LIST_FOREACH(cd) {
+		if(!cd->systemClock) {
+		    cd->inUse = FALSE;
+		}
+	    }
+	break;
+
+	case CD_SHUTDOWN:
+	    LINKED_LIST_DESTROYALL(cd, freeClockDriver);
+	    _systemClock = NULL;
+	break;
+
+	case CD_CLEANUP:
+	    do {
+		found = FALSE;
+		LINKED_LIST_FOREACH(cd) {
+		    /* the system clock should always be kept */
+		    if(!cd->inUse && !cd->systemClock) {
+			freeClockDriver(&cd);
+			found = TRUE;
+			break;
+		    }
+		}
+	    } while(found);
+	break;
+
+	case CD_DUMP:
+	    LINKED_LIST_FOREACH(cd) {
+		INFO("Clock driver %s state %s\n", cd->name, getClockStateName(cd->state));
+	    }
+	break;
+
+	default:
+	    ERROR("Unnown clock driver command %02d\n", command);
+
     }
 
 }

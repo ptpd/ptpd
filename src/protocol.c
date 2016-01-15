@@ -2242,11 +2242,8 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 
 static void
 processDelayReqFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock) {
-if(isTimeZero(tint)) {
-INFO("ZERO\n");
-}
-	ptpClock->waitingForDelayResp = TRUE;
 
+	ptpClock->waitingForDelayResp = TRUE;
 	ptpClock->delay_req_send_time.seconds = tint->seconds;
 	ptpClock->delay_req_send_time.nanoseconds = tint->nanoseconds;
 

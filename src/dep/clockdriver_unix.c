@@ -56,12 +56,20 @@ _setupClockDriver_unix(ClockDriver* self)
 
     resetIntPermanentAdev(&self->_adev);
     getTimeMonotonic(self, &self->_initTime);
+
+    strncpy(self->name, SYSTEM_CLOCK_NAME, CLOCKDRIVER_NAME_MAX);
+
     INFO("Started Unix clock driver %s\n", self->name);
 
 }
 
 static int
 clockdriver_init(ClockDriver* self, const void *config) {
+
+    self->_init = TRUE;
+    self->inUse = TRUE;
+    self->setState(self, CS_FREERUN);
+    snprintf(self->config.frequencyFile, PATH_MAX, PTPD_PROGNAME"_systemclock.frequency");
 
     return 1;
 
@@ -767,3 +775,29 @@ static const struct sigevent* timerIntHandler(void* data, int id) {
 
 }
 #endif
+
+static Boolean
+pushPrivateConfig(ClockDriver *self, RunTimeOpts *global)
+{
+
+    GET_CONFIG(self, myConfig, unix);
+
+    myConfig->setRtc = global->setRtc;
+
+    return TRUE;
+
+}
+
+static Boolean
+isThisMe(ClockDriver *driver, const char* search)
+{
+	if(!driver->systemClock) {
+	    return FALSE;
+	}
+	if(!strncmp(search, SYSTEM_CLOCK_NAME, CLOCKDRIVER_NAME_MAX)) {
+	    return TRUE;
+	}
+
+	return FALSE;
+
+}

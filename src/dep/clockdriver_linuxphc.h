@@ -48,7 +48,6 @@ typedef struct {
 typedef struct {
     char networkDevice[IFACE_NAME_LENGTH];
     char characterDevice[PATH_MAX];
-    Boolean readOnly;
 } ClockDriverConfig_linuxphc;
 
 void _setupClockDriver_linuxphc(ClockDriver* clockDriver);

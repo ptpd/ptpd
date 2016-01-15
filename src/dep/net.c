@@ -95,7 +95,7 @@ static void getBondInfo(char *ifaceName, BondInfo *info);
 static void getVlanInfo(char* ifaceName, VlanInfo *info);
 static Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target);
 static Boolean initHwTs(char *ifaceName, HwTsInfo *info);
-
+static Boolean prepareClockDrivers(NetPath *, PtpClock *, RunTimeOpts *);
 
 
 /**
@@ -191,11 +191,11 @@ netShutdown(NetPath * netPath, PtpClock *ptpClock)
 
 	freeIpv4AccessList(&netPath->timingAcl);
 	freeIpv4AccessList(&netPath->managementAcl);
-
+/*
 	freeClockDriver(&ptpClock->clockDriver);
 	freeClockDriver(&ptpClock->clockDriver2);
 	freeClockDriver(&ptpClock->clockDriver3);
-
+*/
 	return TRUE;
 }
 
@@ -1462,15 +1462,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 
-		if(netPath->hwTimestamping) {
-			ClockDriverConfig_linuxphc cd;
-			memset(&cd, 0, sizeof(ClockDriverConfig_linuxphc));
-			strncpy(cd.networkDevice, netPath->interfaceInfo.physicalDevice, IFACE_NAME_LENGTH);
-			ptpClock->clockDriver = createClockDriver(CLOCKDRIVER_LINUXPHC, netPath->interfaceInfo.physicalDevice);
-			ptpClock->clockDriver->init(ptpClock->clockDriver, &cd);
-INFO("Backup: %s\n", netPath->interfaceInfo.bondInfo.backupSlave);
-		} else {
-		    ptpClock->clockDriver = getSystemClock();
+		if(!prepareClockDrivers(netPath, ptpClock, rtOpts)) {
+			ERROR("Cannot start clock drivers - aborting mission.\n");
+			exit(-1);
 		}
 
 #ifdef SO_TIMESTAMPING
@@ -2545,7 +2539,6 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
     char * realDevice = rtOpts->ifaceName;
     char * ifaceName = rtOpts->ifaceName;
 
-
 	TimeInternal delta;
 
 	getSystemClock()->getOffsetFrom(getSystemClock(), ptpClock->clockDriver, &delta);
@@ -2700,3 +2693,53 @@ Boolean initHwTs(char *ifaceName, HwTsInfo *info) {
 
 }
 
+static Boolean
+prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
+
+	controlClockDrivers(CD_NOTINUSE);
+
+	char *pDev = netPath->interfaceInfo.physicalDevice;
+	char *bDev = netPath->interfaceInfo.bondInfo.backupSlave;
+
+	ptpClock->clockDriver = NULL;
+	ptpClock->clockDriver2 = NULL;
+	ptpClock->clockDriver3 = NULL;
+	ClockDriverConfig_linuxphc cd;
+
+		if(netPath->hwTimestamping) {
+
+			ptpClock->clockDriver = findClockDriver(pDev);
+			if(!ptpClock->clockDriver) { 
+			    memset(&cd, 0, sizeof(cd));
+			    strncpy(cd.networkDevice, pDev, IFACE_NAME_LENGTH);
+			    ptpClock->clockDriver = createClockDriver(CLOCKDRIVER_LINUXPHC, cd.networkDevice);
+			    ptpClock->clockDriver->init(ptpClock->clockDriver, &cd);
+			}
+
+			if(strlen(bDev)) {
+				ptpClock->clockDriver3 = findClockDriver(bDev);
+				if(!ptpClock->clockDriver3) {
+					memset(&cd, 0, sizeof(cd));
+					strncpy(cd.networkDevice, netPath->interfaceInfo.bondInfo.backupSlave, IFACE_NAME_LENGTH);
+					ptpClock->clockDriver3 = createClockDriver(CLOCKDRIVER_LINUXPHC, cd.networkDevice);
+					ptpClock->clockDriver3->init(ptpClock->clockDriver3, &cd);
+				}
+			}
+
+INFO("Backup: %s\n", netPath->interfaceInfo.bondInfo.backupSlave);
+		} else {
+		    ptpClock->clockDriver = getSystemClock();
+		}
+
+//ptpClock->clockDriver2 = getSystemClock();
+
+ptpClock->clockDriver->inUse = TRUE;
+/* clean up unused clock drivers */
+controlClockDrivers(CD_CLEANUP);
+
+//exit(-1);
+
+	return TRUE;
+
+
+}
