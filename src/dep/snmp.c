@@ -1283,10 +1283,11 @@ snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
 
 	switch (vp->magic) {
 	    case PTPBASE_SLAVE_FREQADJ_STATS_CURRENT_VALUE:
-		return SNMP_INTEGER(snmpPtpClock->servo.observedDrift);
+		return SNMP_INTEGER(snmpPtpClock->servo.integral);
 #ifdef PTPD_STATISTICS
 	    case PTPBASE_SLAVE_FREQADJ_STATS_PERIOD_SECONDS:
 		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
+/*
 	    case PTPBASE_SLAVE_FREQADJ_STATS_VALID:
 		return SNMP_BOOLEAN(snmpPtpClock->servo.statsCalculated);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_MIN:
@@ -1299,6 +1300,7 @@ snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
 		return SNMP_INTEGER(snmpPtpClock->servo.driftStdDev);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_MEDIAN:
 		return SNMP_INTEGER(snmpPtpClock->servo.driftMedian);
+*/
 #endif
 	}
 

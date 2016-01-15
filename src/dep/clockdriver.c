@@ -34,6 +34,8 @@
 
 #include "clockdriver.h"
 
+#define THIS_COMPONENT "clock: "
+
 #define REGISTER_CLOCKDRIVER(type, suffix) \
 	if(driverType==type) { \
 	    _setupClockDriver_##suffix(clockDriver);\
@@ -45,14 +47,27 @@ LINKED_LIST_HOOK(ClockDriver);
 
 
 static ClockDriver* _systemClock = NULL;
+static ClockDriver* _bestClock = NULL;
 
 /* inherited methods */
 
 static void setState(ClockDriver *, ClockState);
 static void processUpdate(ClockDriver *, double, double);
 static Boolean pushConfig(ClockDriver *, RunTimeOpts *);
+static void setReference(ClockDriver *, ClockDriver *);
+static void setExternalReference(ClockDriver *, const char*);
+static void restoreFrequency (ClockDriver *);
+static void storeFrequency (ClockDriver *);
+static Boolean adjustFrequency (ClockDriver *, double, double);
+static Boolean syncClock (ClockDriver*, double);
+static Boolean syncClockExternal (ClockDriver*, TimeInternal, double);
+static void putStatusLine(ClockDriver*, char*, int);
 
 /* inherited methods end */
+
+static ClockDriver* compareClockDriver(ClockDriver *, ClockDriver *);
+static void findBestClock();
+static Boolean disciplineClock(ClockDriver *, TimeInternal, double);
 
 ClockDriver *
 createClockDriver(int driverType, const char *name)
@@ -61,7 +76,7 @@ createClockDriver(int driverType, const char *name)
     ClockDriver *clockDriver = NULL;
 
     if(getClockDriverByName(name) != NULL) {
-	ERROR("Cannot create clock driver %s: clock driver with this name already exists\n", name);
+	ERROR(THIS_COMPONENT"Cannot create clock driver %s: clock driver with this name already exists\n", name);
 	return NULL;
     }
 
@@ -91,10 +106,11 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
     REGISTER_CLOCKDRIVER(CLOCKDRIVER_LINUXPHC, linuxphc);
 
     if(!found) {
-	ERROR("Setup requested for unknown clock driver type: %d\n", driverType);
+	ERROR(THIS_COMPONENT"Setup requested for unknown clock driver type: %d\n", driverType);
     } else {
 	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_initTime);
-	DBG("Created new clock driver type %d name %s serial %d\n", driverType, name, clockDriver->_serial);
+	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_lastUpdate);
+	DBG(THIS_COMPONENT"Created new clock driver type %d name %s serial %d\n", driverType, name, clockDriver->_serial);
     }
 
     /* inherited methods */
@@ -103,9 +119,25 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
     clockDriver->processUpdate = processUpdate;
     clockDriver->pushConfig = pushConfig;
 
+    clockDriver->setReference = setReference;
+    clockDriver->setExternalReference = setExternalReference;
+
+    clockDriver->storeFrequency = storeFrequency;
+    clockDriver->restoreFrequency = restoreFrequency;
+    clockDriver->adjustFrequency = adjustFrequency;
+
+    clockDriver->syncClock = syncClock;
+    clockDriver->syncClockExternal = syncClockExternal;
+
+    clockDriver->putStatusLine = putStatusLine;
+
     /* inherited methods end */
 
     clockDriver->state = CS_INIT;
+
+    setupPIservo(&clockDriver->servo);
+
+    clockDriver->servo.controller = clockDriver;
 
     return found;
 
@@ -115,10 +147,18 @@ void
 freeClockDriver(ClockDriver** clockDriver)
 {
 
+    ClockDriver *pdriver = *clockDriver;
+    ClockDriver *cd;
+
     if(*clockDriver == NULL) {
 	return;
     }
-    ClockDriver *pdriver = *clockDriver;
+
+    LINKED_LIST_FOREACH(cd) {
+	if(cd->refClock == pdriver) {
+	    pdriver->setReference(pdriver, NULL);
+	}
+    }
 
     pdriver->shutdown(pdriver);
 
@@ -134,7 +174,7 @@ freeClockDriver(ClockDriver** clockDriver)
 	free(pdriver->privateConfig);
     }
 
-    DBG("Deleted clock driver type %d name %s serial %d\n", pdriver->type, pdriver->name, pdriver->_serial);
+    DBG(THIS_COMPONENT"Deleted clock driver type %d name %s serial %d\n", pdriver->type, pdriver->name, pdriver->_serial);
 
     if(pdriver == _systemClock) {
 	_systemClock = NULL;
@@ -156,7 +196,7 @@ getSystemClock() {
     _systemClock = createClockDriver(CLOCKDRIVER_UNIX, SYSTEM_CLOCK_NAME);
 
     if(_systemClock == NULL) {
-	CRITICAL("Could not start system clock driver, cannot continue\n");
+	CRITICAL(THIS_COMPONENT"Could not start system clock driver, cannot continue\n");
 	exit(1);
     }
 
@@ -173,43 +213,314 @@ shutdownClockDrivers() {
 
 }
 
-
 static void
 setState(ClockDriver *driver, ClockState newState) {
 
 	if(driver->state != newState) {
-	    NOTICE("Clock %s changed state from %s to %s\n",
+	    NOTICE(THIS_COMPONENT"Clock %s changed state from %s to %s\n",
 		    driver->name, getClockStateName(driver->state),
 		    getClockStateName(newState));
+	    getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastUpdate);
+	    clearTime(&driver->age);
 	    driver->state = newState;
+	    if(newState == CS_FREERUN) {
+		driver->restoreFrequency(driver);
+	    }
 	}
 
 }
+
+void
+updateClockDrivers() {
+
+	ClockDriver *cd;
+
+	TimeInternal now;
+
+	LINKED_LIST_FOREACH(cd) {
+
+	    getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
+	    subTime(&cd->age, &now, &cd->_lastUpdate);
+
+	    DBGV(THIS_COMPONENT"Clock %s age %d.%d\n", cd->name, cd->age.seconds, cd->age.nanoseconds);
+
+	    switch(cd->state) {
+
+		case CS_INIT:
+		    break;
+		case CS_FREERUN:
+		    break;
+		case CS_LOCKED:
+			if((cd->refClock == NULL) && (!cd->externalReference)) {
+			    cd->setState(cd, CS_HOLDOVER);
+			    resetIntPermanentAdev(&cd->_adev);
+			    break;
+			}
+			if(cd->age.seconds > cd->config.lockedAge) {
+			    cd->setState(cd, CS_HOLDOVER);
+			}
+			resetIntPermanentAdev(&cd->_adev);
+		    break;
+		case CS_ACQUIRING:
+			if((cd->refClock == NULL) && (!cd->externalReference)) {
+			    resetIntPermanentAdev(&cd->_adev);
+			    cd->setState(cd, CS_FREERUN);
+			    break;
+			}
+		    break;
+		case CS_HOLDOVER:
+			if(cd->age.seconds > cd->config.holdoverAge) {
+			    cd->setState(cd, CS_FREERUN);
+			}
+		    break;
+		default:
+		    DBG(THIS_COMPONENT"Clock driver %s in unknown state %02d\n", cd->name, cd->state);
+
+	    }
+
+	}
+
+	findBestClock();
+
+}
+
+void
+syncClocks(double tau) {
+
+    ClockDriver *cd;
+    LINKED_LIST_FOREACH(cd) {
+	cd->syncClock(cd, tau);
+	usleep(50);
+    }
+
+}
+
+void
+stepClocks(Boolean force) {
+
+    ClockDriver *cd;
+    LINKED_LIST_FOREACH(cd) {
+	cd->stepTime(cd, &cd->refOffset, force);
+    }
+
+}
+
 
 static void
 processUpdate(ClockDriver *driver, double adj, double tau) {
 
 	TimeInternal now;
 
+	Boolean update = FALSE;
+
 	driver->_tau = tau;
-	driver->adev = feedIntPermanentAdev(&driver->_adev, adj);
+	feedIntPermanentAdev(&driver->_adev, adj);
 	driver->totalAdev = feedIntPermanentAdev(&driver->_totalAdev, adj);
 
-	if((driver->_adev.count * tau) > 10) {
-	    INFO("%s  ADEV %.09f\n", driver->name, driver->adev);
+	if(driver->servo.runningMaxOutput) {
 	    resetIntPermanentAdev(&driver->_adev);
 	}
+
+	if( (driver->_adev.count * tau) > driver->config.adevPeriod ) {
+	    driver->adev = driver->_adev.adev;
+	    DBG(THIS_COMPONENT"clock %s  ADEV %.09f\n", driver->name, driver->adev);
+	    if(driver->servo.runningMaxOutput) {
+		driver->setState(driver, CS_ACQUIRING);
+	    }
+	    if(driver->adev <= driver->config.stableAdev) {
+		driver->setState(driver, CS_LOCKED);
+		driver->storeFrequency(driver);
+	    }
+	    if((driver->adev >= driver->config.unstableAdev) && (driver->state == CS_LOCKED)) {
+		driver->setState(driver, CS_ACQUIRING);
+	    }
+	    update = TRUE;
+	    resetIntPermanentAdev(&driver->_adev);
+	}
+
+	if(driver->state == CS_FREERUN) {
+	    driver->setState(driver, CS_ACQUIRING);
+	    update = TRUE;
+	}
+
+	if((driver->state == CS_HOLDOVER) && (driver->age.seconds >= driver->config.holdoverAge)) {
+	    driver->setState(driver, CS_ACQUIRING);
+	    update = TRUE;
+	}
+
+	if((driver->state == CS_LOCKED) && driver->servo.runningMaxOutput) {
+	    driver->setState(driver, CS_ACQUIRING);
+	    update = TRUE;
+	}
+
+	DBG(THIS_COMPONENT"clock %s  total ADEV %.09f\n", driver->name, driver->totalAdev);
 
 	driver->lastFrequency = adj;
 
 	getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
-	if(driver->_updated) {
-	    subTime(&driver->age, &now, &driver->_lastSync);
-	} else {
-	    subTime(&driver->age, &now, &driver->_initTime);
-	}
+	subTime(&driver->age, &now, &driver->_lastUpdate);
 	getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastSync);
+	getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastUpdate);
 	driver->_updated = TRUE;
+
+	if(update) {
+	    updateClockDrivers();
+	}
+
+}
+
+static void
+setReference(ClockDriver *a, ClockDriver *b) {
+
+
+    if(b!=NULL) {
+	INFO("%s ref set %s\n", a->name, b->name);
+    }
+
+    if(a == NULL) {
+	return;
+    }
+
+    if(a == b) {
+	ERROR(THIS_COMPONENT"Cannot set reference of clock %s to self\n", a->name);
+	return;
+    }
+
+    /* no change */
+    if((a->refClock != NULL) && (a->refClock == b)) {
+	return;
+    }
+
+    if(b == NULL && a->refClock != NULL) {
+	NOTICE(THIS_COMPONENT"Clock %s lost reference %s\n", a->name, a->refClock->name);
+	a->refClock = NULL;
+	memset(a->refName, 0, CLOCKDRIVER_NAME_MAX);
+	return;
+	
+    }
+
+    if(b == NULL && a->externalReference) {
+	NOTICE(THIS_COMPONENT"Clock %s lost external reference %s\n", a->name, a->refName);
+	a->externalReference = FALSE;
+	memset(a->refName, 0, CLOCKDRIVER_NAME_MAX);
+	a->refClock = NULL;
+	return;
+    } else if (b != NULL) {
+	NOTICE(THIS_COMPONENT"Clock %s changing reference to %s\n", a->name, b->name);
+	a->externalReference = FALSE;
+	a->refClock = b;
+	strncpy(a->refName, b->name, CLOCKDRIVER_NAME_MAX);
+	a->setState(a, CS_FREERUN);
+    }
+
+    if(a->systemClock && !b->systemClock) {
+	a->servo.kI = b->servo.kI;
+	a->servo.kP = b->servo.kP;
+    }
+
+}
+
+static void setExternalReference(ClockDriver *a, const char* refName) {
+
+	if(!a->externalReference || strncmp(a->refName, refName, CLOCKDRIVER_NAME_MAX)) {
+	    NOTICE(THIS_COMPONENT"Clock %s changing to external reference %s\n", a->name, refName);
+	}
+
+	strncpy(a->refName, refName, CLOCKDRIVER_NAME_MAX);
+	a->externalReference = TRUE;
+	a->refClock = NULL;
+	a->setState(a, CS_FREERUN);
+}
+
+static void
+restoreFrequency (ClockDriver *driver) {
+
+    double frequency = 0;
+    char frequencyPath [PATH_MAX + 1];
+    memset(frequencyPath, 0, PATH_MAX + 1);
+
+    if(driver->config.storeToFile) {
+	snprintf(frequencyPath, PATH_MAX, "%s/%s", driver->config.frequencyDir, driver->config.frequencyFile);
+INFO("restore %s\n", frequencyPath);
+	if(!doubleFromFile(frequencyPath, &frequency)) {
+	    frequency = driver->getFrequency(driver);
+	}
+    }
+
+	if(frequency == 0) {
+	    frequency = driver->getFrequency(driver);
+	}
+
+
+    CLAMP(frequency, driver->maxFrequency);
+    driver->servo.prime(&driver->servo, frequency);
+    driver->storedFrequency = driver->servo.output;
+    driver->setFrequency(driver, driver->storedFrequency, 1.0);
+}
+
+static void
+storeFrequency (ClockDriver *driver) {
+
+    char frequencyPath [PATH_MAX + 1];
+    memset(frequencyPath, 0, PATH_MAX + 1);
+
+    if(driver->config.storeToFile) {
+	snprintf(frequencyPath, PATH_MAX, "%s/%s", driver->config.frequencyDir, driver->config.frequencyFile);
+	INFO("store %s\n", frequencyPath);
+	doubleToFile(frequencyPath, driver->lastFrequency);
+    }
+
+    driver->storedFrequency = driver->lastFrequency;
+
+}
+
+static Boolean
+adjustFrequency (ClockDriver *driver, double adj, double tau) {
+
+	Boolean ret = driver->setFrequency(driver, adj, tau);
+	driver->processUpdate(driver, adj, tau);
+	return ret;
+
+}
+
+static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double tau) {
+
+    driver->refOffset = offset;
+
+    if(!driver->config.readOnly) {
+	driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
+	return driver->adjustFrequency(driver, driver->servo.output, tau);
+    } else {
+	return FALSE;
+    }
+
+}
+
+static Boolean
+syncClock(ClockDriver* driver, double tau) {
+
+	TimeInternal delta;
+
+	if(driver->externalReference || (driver->refClock == NULL)) {
+	    return FALSE;
+	}
+
+	if(!driver->getOffsetFrom(driver, driver->refClock, &delta)) {
+	    return FALSE;
+	}
+
+	return disciplineClock(driver, delta, tau);
+
+}
+
+static Boolean
+syncClockExternal(ClockDriver* driver, TimeInternal offset, double tau) {
+
+    if(!driver->externalReference) {
+	return FALSE;
+    }
+
+    return disciplineClock(driver, offset, tau);
 
 }
 
@@ -223,8 +534,8 @@ getClockStateName(ClockState state) {
 	    return "FREERUN";
 	case CS_LOCKED:
 	    return "LOCKED";
-	case CS_UNLOCKED:
-	    return "UNLOCKED";
+	case CS_ACQUIRING:
+	    return "ACQUIRING";
 	case CS_HOLDOVER:
 	    return "HOLDOVER";
 	default:
@@ -272,16 +583,27 @@ pushConfig(ClockDriver *driver, RunTimeOpts *global)
     config->readOnly = global->noAdjust;
     config->noStep   = global->noResetClock;
     config->negativeStep = global->negativeStep;
-    config->saveFrequency = global->saveFrequency;
+    config->storeToFile = global->storeToFile;
     config->adevPeriod = global->adevPeriod;
     config->stableAdev = global->stableAdev;
     config->unstableAdev = global->unstableAdev;
+    config->lockedAge = global->lockedAge;
     config->holdoverAge = global->holdoverAge;
     config->freerunAge = global->freerunAge;
 
+    driver->servo.kP = global->servoKP;
+    driver->servo.kI = global->servoKI;
+    driver->servo.maxOutput = global->servoMaxPpb;
+    driver->servo.tauMethod = global->servoDtMethod;
+    driver->servo.maxTau = global->servoMaxdT;
+
     strncpy(config->frequencyDir, global->frequencyDir, PATH_MAX);
 
-    return( ret && (driver->pushPrivateConfig(driver, global)) );
+    ret = ret && (driver->pushPrivateConfig(driver, global));
+
+    DBG(THIS_COMPONENT"Clock driver %s configured\n", driver->name);
+
+    return ret;
 
 }
 
@@ -322,13 +644,120 @@ controlClockDrivers(int command) {
 
 	case CD_DUMP:
 	    LINKED_LIST_FOREACH(cd) {
-		INFO("Clock driver %s state %s\n", cd->name, getClockStateName(cd->state));
+		INFO(THIS_COMPONENT"Clock driver %s state %s\n", cd->name, getClockStateName(cd->state));
 	    }
 	break;
 
 	default:
-	    ERROR("Unnown clock driver command %02d\n", command);
+	    ERROR(THIS_COMPONENT"Unnown clock driver command %02d\n", command);
 
     }
+
+}
+
+ClockDriver*
+compareClockDriver(ClockDriver *a, ClockDriver *b) {
+
+	/* better state than us - wins */
+	if( (b->state > a->state) && (b->state > CS_FREERUN)) {
+		return b;
+	}
+
+	/* our state is better - we win */
+	if(b->state < a->state) {
+		return a;
+	}
+
+	/* same state */
+	if(a->state == b->state) {
+
+		if(a->state == CS_LOCKED || a->state == CS_HOLDOVER) {
+
+		    if(a->externalReference && !b->externalReference) {
+			return a;
+		    }
+
+		    if(!a->externalReference && b->externalReference) {
+			return b;
+		    }
+
+		    if(a->adev < b->adev) {
+			return a;
+		    }
+
+		    if(a->adev > b->adev) {
+			return b;
+		    }
+
+		}
+
+	}
+
+	return a;
+}
+
+static void
+findBestClock() {
+
+    ClockDriver *newBest = NULL;
+    ClockDriver *cd;
+
+    LINKED_LIST_FOREACH(cd) {
+	if(cd->state == CS_LOCKED) {
+	    newBest = cd;
+	    break;
+	}
+    }
+
+    if(newBest == NULL) {
+	LINKED_LIST_FOREACH(cd) {
+	    if(cd->state == CS_HOLDOVER) {
+		newBest = cd;
+		break;
+	    }
+	}
+    }
+
+    if(newBest != NULL) {
+	LINKED_LIST_FOREACH(cd) {
+		if(newBest != cd) {
+		    newBest = compareClockDriver(newBest, cd);
+		}
+	}
+
+	if(newBest != _bestClock ) {
+	    NOTICE(THIS_COMPONENT"New best clock selected: %s\n", newBest->name);
+	}
+    } else {
+
+	if(newBest != _bestClock ) {
+	    NOTICE(THIS_COMPONENT"No best clock available\n");
+	}
+
+    }
+
+    if(newBest != _bestClock) {
+	_bestClock = newBest;
+	LINKED_LIST_FOREACH(cd) {
+	    if(!cd->externalReference && (cd != _bestClock)) {
+		cd->setReference(cd, _bestClock);
+	    }
+	}
+    }
+
+}
+static void
+putStatusLine(ClockDriver* driver, char* buf, int len) {
+
+    char tmpBuf[100];
+    memset(tmpBuf, 0, sizeof(tmpBuf));
+    memset(buf, 0, len);
+    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
+
+
+
+    snprintf(buf, len - 1, "state: %-9s ref: %-7s off %s adev: %.03f ppb",
+	    getClockStateName(driver->state), strlen(driver->refName) ? driver->refName : "none",
+	    tmpBuf, driver->adev);
 
 }

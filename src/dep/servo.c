@@ -53,10 +53,6 @@
 
 #include "../ptpd.h"
 
-#ifdef PTPD_STATISTICS
-static void checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts);
-#endif
-
 void
 resetWarnings(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
@@ -78,7 +74,7 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 /* do not reset frequency here - restoreDrift will do it if necessary */
 /* 2.3.1: restoreDrift now always compiled - this is no longer needed */
 #if 0
-	ptpClock->servo.observedDrift = 0;
+	ptpClock->servo.integral = 0;
 #endif
 	/* clear vars */
 
@@ -135,7 +131,7 @@ updateDelay(one_way_delay_filter * mpdIirFilter, const RunTimeOpts * rtOpts, Ptp
 #ifdef PTPD_STATISTICS
 		/* if maxDelayStableOnly configured, only check once servo is stable */
 		Boolean checkThreshold = rtOpts-> maxDelayStableOnly ?
-		    (ptpClock->servo.isStable && rtOpts->maxDelay) :
+		    ((ptpClock->clockDriver->state == CS_LOCKED) && rtOpts->maxDelay) :
 		    (rtOpts->maxDelay);
 #else
 		Boolean checkThreshold = rtOpts->maxDelay;
@@ -242,7 +238,7 @@ updateDelay(one_way_delay_filter * mpdIirFilter, const RunTimeOpts * rtOpts, Ptp
 	}
 
 	/* run the delaySM outlier filter */
-	if(!rtOpts->noAdjust && ptpClock->oFilterSM.config.enabled && (ptpClock->oFilterSM.config.alwaysFilter || !ptpClock->servo.runningMaxOutput) ) {
+	if(!rtOpts->noAdjust && ptpClock->oFilterSM.config.enabled && (ptpClock->oFilterSM.config.alwaysFilter || !ptpClock->clockDriver->servo.runningMaxOutput) ) {
 		if(ptpClock->oFilterSM.filter(&ptpClock->oFilterSM, timeInternalToDouble(&ptpClock->rawDelaySM))) {
 			ptpClock->delaySM = doubleToTimeInternal(ptpClock->oFilterSM.output);
 //INFO("SM: NOUTL %.09f\n", timeInternalToDouble(&ptpClock->rawDelaySM));
@@ -491,7 +487,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 #ifdef PTPD_STATISTICS
 		/* if maxDelayStableOnly configured, only check once servo is stable */
 		Boolean checkThreshold = (rtOpts->maxDelayStableOnly ?
-		    (ptpClock->servo.isStable && rtOpts->maxDelay) :
+		    ((ptpClock->clockDriver->state == CS_LOCKED) && rtOpts->maxDelay) :
 		    (rtOpts->maxDelay));
 #else
 		Boolean checkThreshold = rtOpts->maxDelay;
@@ -570,7 +566,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 
 
 	/* run the delayMS outlier filter */
-	if(!rtOpts->noAdjust && ptpClock->oFilterMS.config.enabled && (ptpClock->oFilterMS.config.alwaysFilter || !ptpClock->servo.runningMaxOutput)) {
+	if(!rtOpts->noAdjust && ptpClock->oFilterMS.config.enabled && (ptpClock->oFilterMS.config.alwaysFilter || !ptpClock->clockDriver->servo.runningMaxOutput)) {
 		if(ptpClock->oFilterMS.filter(&ptpClock->oFilterMS, timeInternalToDouble(&ptpClock->rawDelayMS))) {
 			ptpClock->delayMS = doubleToTimeInternal(ptpClock->oFilterMS.output);
 //INFO("MS: NOUTL %.09f\n", timeInternalToDouble(&ptpClock->rawDelayMS));
@@ -689,7 +685,7 @@ finish:
 	DBGV("offset from master:      %10ds %11dns\n",
 	    ptpClock->currentDS.offsetFromMaster.seconds,
 	    ptpClock->currentDS.offsetFromMaster.nanoseconds);
-	DBGV("observed drift:          %10d\n", ptpClock->servo.observedDrift);
+	DBGV("observed drift:          %10d\n", ptpClock->servo.integral);
 
 }
 
@@ -732,7 +728,7 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force)
 	if(ptpClock->defaultDS.clockQuality.clockClass > 127)
 		restoreDrift(ptpClock, rtOpts, TRUE);
 
-	ptpClock->servo.runningMaxOutput = FALSE;
+	ptpClock->clockDriver->restoreFrequency(ptpClock->clockDriver);
 	/* five monkeys: why? */
 //	toState(PTP_FAULTY, rtOpts, ptpClock);		/* make a full protocol reset */
 
@@ -946,11 +942,11 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return;
 		} else {
 			if(ptpClock->currentDS.offsetFromMaster.nanoseconds > 0)
-				ptpClock->servo.observedDrift = rtOpts->servoMaxPpb;
+				ptpClock->servo.integral = rtOpts->servoMaxPpb;
 			else
-				ptpClock->servo.observedDrift = -rtOpts->servoMaxPpb;
+				ptpClock->servo.integral = -rtOpts->servoMaxPpb;
 			warn_operator_slow_slewing(rtOpts, ptpClock);
-			ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, -ptpClock->servo.observedDrift, 1);
+			ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, -ptpClock->servo.integral, 1);
 			ptpClock->clockControl.stepRequired = FALSE;
 		}
 		return;
@@ -962,13 +958,11 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if((!rtOpts->calibrationDelay) || ptpClock->isCalibrated) {
 
-		/* Adjust the clock first -> the PI controller runs here */
-		ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, 
-			runPIservo(&ptpClock->servo, ptpClock->currentDS.offsetFromMaster.nanoseconds),
-			ptpClock->servo.dT);
-
+		/* SYNC ! */
+		/* NEGATIVE - ofm is offset from master, not offset to master. */
+		ptpClock->clockDriver->syncClockExternal(ptpClock->clockDriver, negativeTime(&ptpClock->currentDS.offsetFromMaster), ptpClock->servo.dT);
 	}
-		warn_operator_fast_slewing(rtOpts, ptpClock, ptpClock->servo.observedDrift);
+		warn_operator_fast_slewing(rtOpts, ptpClock, ptpClock->servo.integral);
 		/* let the clock source know it's being synced */
 		ptpClock->clockStatus.inSync = TRUE;
 		ptpClock->clockStatus.clockOffset = (ptpClock->currentDS.offsetFromMaster.seconds * 1E9 +
@@ -976,7 +970,7 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		ptpClock->clockStatus.update = TRUE;
 	}
 
-	SET_ALARM(ALRM_FAST_ADJ, ptpClock->servo.runningMaxOutput);
+	SET_ALARM(ALRM_FAST_ADJ, ptpClock->clockDriver->servo.runningMaxOutput);
 
 	/* we are ready to control the clock */
 	ptpClock->clockControl.available = TRUE;
@@ -989,193 +983,10 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 	ptpClock->pastStartup = TRUE;
-#ifdef PTPD_STATISTICS
-	feedDoublePermanentStdDev(&ptpClock->servo.driftStats, ptpClock->servo.observedDrift);
-	feedDoublePermanentMedian(&ptpClock->servo.driftMedianContainer, ptpClock->servo.observedDrift);
-	if(!ptpClock->servo.statsUpdated) {
-	    if(ptpClock->servo.observedDrift != 0.0){
-		ptpClock->servo.driftMax = ptpClock->servo.observedDrift;
-		ptpClock->servo.driftMin = ptpClock->servo.observedDrift;
-		ptpClock->servo.statsUpdated = TRUE;
-	    }
-	} else {
-	ptpClock->servo.driftMax = max(ptpClock->servo.driftMax, ptpClock->servo.observedDrift);
-	ptpClock->servo.driftMin = min(ptpClock->servo.driftMin, ptpClock->servo.observedDrift);
-	}
-#endif
-
 }
 
-void
-setupPIservo(PIservo* servo, PtpClock *ptpClock, const RunTimeOpts* rtOpts)
-{
-    servo->maxOutput = ptpClock->clockDriver->maxFrequency;
-/* rtOpts->servoMaxPpb;*/
-    servo->kP = rtOpts->servoKP;
-    servo->kI = rtOpts->servoKI;
-    servo->dTmethod = rtOpts->servoDtMethod;
-#ifdef PTPD_STATISTICS
-    servo->stabilityThreshold = rtOpts->servoStabilityThreshold;
-    servo->stabilityPeriod = rtOpts->servoStabilityPeriod;
-    servo->stabilityTimeout = (60 / rtOpts->statsUpdateInterval) * rtOpts->servoStabilityTimeout;
-#endif
-}
-
-void
-resetPIservo(PIservo* servo)
-{
-/* not needed: restoreDrift handles this */
-/*   servo->observedDrift = 0; */
-    servo->input = 0;
-    servo->output = 0;
-    servo->lastUpdate.seconds = 0;
-    servo->lastUpdate.nanoseconds = 0;
-}
-
-double
-runPIservo(PIservo* servo, const Integer32 input)
-{
-
-        double dt;
-
-        TimeInternal now, delta;
-
-        switch (servo->dTmethod) {
-
-        case DT_MEASURED:
-
-                getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
-                if(servo->lastUpdate.seconds == 0 &&
-                servo->lastUpdate.nanoseconds == 0) {
-                        dt = servo->dT;
-                } else {
-                        subTime(&delta, &now, &servo->lastUpdate);
-                        dt = delta.seconds + delta.nanoseconds / 1E9;
-                }
-
-                /* Don't use dT longer then max update interval multiplier */
-                if(dt > (servo->maxdT * servo->dT))
-                        dt = (servo->maxdT + 0.0) * servo->dT;
-
-                break;
-
-        case DT_CONSTANT:
-
-                dt = servo->dT;
-
-		break;
-
-        case DT_NONE:
-        default:
-                dt = 1.0;
-                break;
-        }
-
-        if(dt <= 0.0)
-            dt = 1.0;
-
-	servo->input = input;
-
-	if (servo->kP < 0.000001)
-		servo->kP = 0.000001;
-	if (servo->kI < 0.000001)
-		servo->kI = 0.000001;
-
-	servo->observedDrift +=
-		dt * ((input + 0.0 ) * servo->kI);
-
-	if(servo->observedDrift >= servo->maxOutput) {
-		servo->observedDrift = servo->maxOutput;
-		servo->runningMaxOutput = TRUE;
-#ifdef PTPD_STATISTICS
-		servo->stableCount = 0;
-		servo->updateCount = 0;
-		servo->isStable = FALSE;
-#endif /* PTPD_STATISTICS */
-	}
-	else if(servo->observedDrift <= -servo->maxOutput) {
-		servo->observedDrift = -servo->maxOutput;
-		servo->runningMaxOutput = TRUE;
-#ifdef PTPD_STATISTICS
-		servo->stableCount = 0;
-		servo->updateCount = 0;
-		servo->isStable = FALSE;
-#endif /* PTPD_STATISTICS */
-	} else {
-		servo->runningMaxOutput = FALSE;
-	}
-
-	servo->output = (servo->kP * (input + 0.0) ) + servo->observedDrift;
-
-	if(servo->dTmethod == DT_MEASURED)
-		servo->lastUpdate = now;
-
-	DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %.09f, accumulator (observed drift): %.09f\n", dt, input, servo->output, servo->observedDrift);
-
-	return -servo->output;
-
-}
 
 #ifdef PTPD_STATISTICS
-static void
-checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
-{
-
-        DBG("servo stablecount: %d\n",ptpClock->servo.stableCount);
-
-	/* if not calibrated, do nothing */
-	if( !rtOpts->calibrationDelay || ptpClock->isCalibrated ) {
-		++ptpClock->servo.updateCount;
-	} else {
-		return;
-	}
-
-	/* check if we're below the threshold or not */
-	if(ptpClock->servo.runningMaxOutput || !ptpClock->acceptedUpdates ||
-	    (ptpClock->servo.driftStdDev > ptpClock->servo.stabilityThreshold)) {
-	    ptpClock->servo.stableCount = 0;
-	} else if (ptpClock->servo.driftStdDev <= ptpClock->servo.stabilityThreshold) {
-	    ptpClock->servo.stableCount++;
-	}
-
-	/* Servo considered stable - drift std dev below threshold for n measurements - saving drift*/
-        if(ptpClock->servo.stableCount >= ptpClock->servo.stabilityPeriod) {
-
-		if(!ptpClock->servo.isStable) {
-                        NOTICE("Clock servo now within stability threshold of %.03f ppb\n",
-				ptpClock->servo.stabilityThreshold);
-		}
-
-                saveDrift(ptpClock, rtOpts, ptpClock->servo.isStable);
-
-		ptpClock->servo.isStable = TRUE;
-		ptpClock->servo.stableCount = 0;
-		ptpClock->servo.updateCount = 0;
-
-	/* servo not stable within max interval */
-        } else if(ptpClock->servo.updateCount >= ptpClock->servo.stabilityTimeout) {
-
-		ptpClock->servo.stableCount = 0;
-		ptpClock->servo.updateCount = 0;
-
-		if(ptpClock->servo.isStable) {
-                        WARNING("Clock servo outside stability threshold (%.03f ppb dev > %.03f ppb thr). Too many warnings may mean the threshold is too low.\n",
-			    ptpClock->servo.driftStdDev,
-			    ptpClock->servo.stabilityThreshold);
-                        ptpClock->servo.isStable = FALSE;
-		} else {
-                        if(ptpClock->servo.runningMaxOutput) {
-				WARNING("Clock servo outside stability threshold after %d seconds - running at maximum rate.\n",
-					rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
-                        } else {
-                                WARNING("Clock servo outside stability threshold %d seconds after last check. Saving current observed drift.\n",
-					rtOpts->statsUpdateInterval * ptpClock->servo.stabilityTimeout);
-				saveDrift(ptpClock, rtOpts, FALSE);
-                        }
-		}
-	}
-
-}
 
 void
 updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts)
@@ -1197,13 +1008,14 @@ updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 	ptpClock->slaveStats.ofmMaxFinal = ptpClock->slaveStats.ofmMax;
 
 	ptpClock->slaveStats.statsCalculated = TRUE;
+/*
 	ptpClock->servo.driftMean = ptpClock->servo.driftStats.meanContainer.mean;
 	ptpClock->servo.driftStdDev = ptpClock->servo.driftStats.stdDev;
 	ptpClock->servo.driftMedian = ptpClock->servo.driftMedianContainer.median;
 	ptpClock->servo.statsCalculated = TRUE;
 	ptpClock->servo.driftMinFinal = ptpClock->servo.driftMin;
 	ptpClock->servo.driftMaxFinal = ptpClock->servo.driftMax;
-
+*/
 	resetDoublePermanentMean(&ptpClock->oFilterMS.acceptedStats);
 	resetDoublePermanentMean(&ptpClock->oFilterSM.acceptedStats);
 
@@ -1217,16 +1029,17 @@ updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 		resetDoublePermanentStdDev(&ptpClock->slaveStats.ofmStats);
 		resetDoublePermanentMedian(&ptpClock->slaveStats.ofmMedianContainer);
 	}
+/*
 	if(ptpClock->servo.driftStats.meanContainer.count >= 10.0)
 		resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
-
-	resetDoublePermanentMedian(&ptpClock->servo.driftMedianContainer);
-	ptpClock->servo.statsUpdated = FALSE;
-
+*/
+//	resetDoublePermanentMedian(&ptpClock->servo.driftMedianContainer);
+//	ptpClock->servo.statsUpdated = FALSE;
+/*
 	if(rtOpts->servoStabilityDetection && ptpClock->clockControl.granted) {
 		checkServoStable(ptpClock, rtOpts);
 	}
-
+*/
 	ptpClock->offsetUpdates = 0;
 	ptpClock->acceptedUpdates = 0;
 

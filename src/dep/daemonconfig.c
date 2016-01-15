@@ -2883,7 +2883,7 @@ short_help:
 			break;
 		/* Auto-lock */
 		case 'A':
-			dictionary_set(dict,"global:auto_lock", "Y");
+			dictionary_set(dict,"global:auto_lockfile", "Y");
 			break;
 		/* Print lock file only */
 		case 'p':

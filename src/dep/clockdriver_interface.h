@@ -45,8 +45,6 @@ static Boolean stepTime (ClockDriver*, TimeInternal *, Boolean);
 
 static Boolean setFrequency (ClockDriver *, double, double);
 static double getFrequency (ClockDriver *);
-static Boolean restoreFrequency (ClockDriver *);
-static Boolean saveFrequency (ClockDriver *);
 
 static Boolean getStatus (ClockDriver *, ClockStatus *);
 static Boolean setStatus (ClockDriver *, ClockStatus *);
@@ -65,8 +63,6 @@ static Boolean isThisMe(ClockDriver *, const char* search);
     var->stepTime = stepTime; \
     var->setFrequency = setFrequency; \
     var->getFrequency = getFrequency; \
-    var->saveFrequency = saveFrequency; \
-    var->restoreFrequency = restoreFrequency; \
     var->getStatus = getStatus; \
     var->setStatus = setStatus; \
     var->getOffsetFrom = getOffsetFrom; \

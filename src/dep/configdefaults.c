@@ -287,6 +287,9 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->unstableAdev = 2000;
 	rtOpts->unstableAdev_hw = 500;
 
+	rtOpts->lockedAge = 10;
+	rtOpts->lockedAge_hw = 20;
+
 	rtOpts->holdoverAge = 120;
 	rtOpts->holdoverAge_hw = 600;
 
@@ -298,6 +301,9 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->negativeStep = FALSE;
 
 	rtOpts->servoDtMethod = DT_CONSTANT;
+
+	rtOpts->storeToFile = TRUE;
+
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
 	rtOpts->servoMaxdT = 5.0;
 

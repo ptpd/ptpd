@@ -60,7 +60,6 @@ typedef struct {
 	int txType;
 } HwTsInfo;
 
-
 /**
 * \brief Struct containing interface information and capabilities
  */
@@ -120,6 +119,7 @@ typedef struct {
 	struct ether_addr peerEtherDest;
 	Boolean txTimestamping;
 	Boolean hwTimestamping;
+	Boolean hwTimestamping_backup;
 	Boolean lateTxTimestamp;
 	int ignorePackets;
 	Ipv4AccessList* timingAcl;

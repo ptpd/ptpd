@@ -799,9 +799,16 @@ static Boolean
 netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 
     HwTsInfo info;
+
     char *ifaceName = netPath->interfaceInfo.physicalDevice;
 
 
+
+    if(!getHwTs(ifaceName, rtOpts, &info) || !initHwTs(ifaceName, &info)) {
+	return FALSE;
+    }
+
+    ifaceName = netPath->interfaceInfo.bondInfo.backupSlave;
 
     if(!getHwTs(ifaceName, rtOpts, &info) || !initHwTs(ifaceName, &info)) {
 	return FALSE;
@@ -2539,16 +2546,8 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
     char * realDevice = rtOpts->ifaceName;
     char * ifaceName = rtOpts->ifaceName;
 
-	TimeInternal delta;
+    syncClocks();
 
-	getSystemClock()->getOffsetFrom(getSystemClock(), ptpClock->clockDriver, &delta);
-//	INFO("os->phc %d.%d\n", delta.seconds, delta.nanoseconds);
-		if(!isTimeZero(&delta)) {
-		ptpClock->servo2.dT = 0.5;
-		getSystemClock()->setFrequency(getSystemClock(),
-			runPIservo(&ptpClock->servo2, delta.nanoseconds),
-			ptpClock->servo2.dT);
-		}
 
     getVlanInfo(rtOpts->ifaceName, vlanInfo);
 
@@ -2569,17 +2568,13 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
     if(bondInfo->activeChanged) {
 	ptpClock->ignoreOffsetUpdates = 2;
 	ptpClock->ignoreDelayUpdates = 2;
-	if(!rtOpts->hwTimestamping) {
-	    WARNING("Active bond member changed to %s\n", bondInfo->activeSlave);
-	    if(rtOpts->refreshIgmp) {
-		INFO("Re-sending IGMP joins\n");
+		WARNING("Active bond member changed to %s, resettinng PTP offsets\n", bondInfo->activeSlave);
+		if(rtOpts->refreshIgmp) {
+		    INFO("Re-sending IGMP joins\n");
+		}
+		ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
+		prepareClockDrivers(netPath, ptpClock, rtOpts);
 		netRefreshIGMP(netPath, rtOpts, ptpClock);
-	    }
-	} else {
-	    WARNING("Active bond member changed to %s, restarting network\n", bondInfo->activeSlave);
-	    rtOpts->restartSubsystems = PTPD_RESTART_NETWORK;
-	    restartSubsystems(rtOpts, ptpClock);
-	}
     }
 }
 
@@ -2611,10 +2606,19 @@ Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target) {
 	    {-1}
 	};
 
+	/* "sensible" order - last mode will not support timestamping delay */
 	static const OptionName rxFilters[] = {
-	    {HWTSTAMP_FILTER_PTP_V2_L4_EVENT, "HWTSTAMP_FILTER_PTP_V2_L4_EVENT"},
-	    {HWTSTAMP_FILTER_PTP_V2_EVENT, "HWTSTAMP_FILTER_PTP_V2_EVENT"},
-	    {HWTSTAMP_FILTER_ALL, "HWTSTAMP_FILTER_ALL"},
+	    { HWTSTAMP_FILTER_PTP_V2_L4_EVENT, "HWTSTAMP_FILTER_PTP_V2_L4_EVENT"},
+	    { HWTSTAMP_FILTER_PTP_V2_EVENT, "HWTSTAMP_FILTER_PTP_V2_EVENT"},
+	    { HWTSTAMP_FILTER_ALL, "HWTSTAMP_FILTER_ALL"},
+	    { HWTSTAMP_FILTER_PTP_V2_L4_SYNC, "HWTSTAMP_FILTER_PTP_V2_L4_SYNC"},
+	    {-1}
+	};
+#define HWTSTAMP_TX_ONESTEP_SYNC 2
+	/* "sensible" order - last mode will not support timestamping delay */
+	static const OptionName txTypes[] = {
+	    { HWTSTAMP_TX_ON, "HWTSTAMP_TX_ON"},
+	    { HWTSTAMP_TX_ONESTEP_SYNC, "HWTSTAMP_TX_ONESTEP_SYNC"},
 	    {-1}
 	};
 
@@ -2625,8 +2629,8 @@ Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target) {
 	}
 
 	for(const OptionName *mode = tsModes; mode->value != -1; mode++) {
-	    if(info.so_timestamping & mode->value) {
-		DBG("hwts: Interface %s supports %s\n", ifaceName, mode->name);
+	    if((info.so_timestamping & mode->value) == mode->value) {
+		DBG("hwts: Interface %s supports mode %s\n", ifaceName, mode->name);
 		output.tsMode |= mode->value;
 	    } else {
 		ERROR("Interface %s does not support required timestamping mode %s\n", ifaceName, mode->name);
@@ -2635,8 +2639,8 @@ Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target) {
 	}
 
 	for(const OptionName *mode = rxFilters; mode->value != -1; mode++) {
-	    if((info.rx_filters & mode->value) == mode->value) {
-		DBG("hwts: Interface %s supports %s\n", ifaceName, mode->name);
+	    if(info.rx_filters & (1 << mode->value) ) {
+		DBG("hwts: Interface %s supports RX filter %s\n", ifaceName, mode->name);
 		output.rxFilter = mode->value;
 		break;
 	    } else {
@@ -2649,12 +2653,20 @@ Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target) {
 		return FALSE;
 	}
 
-	if((info.tx_types & HWTSTAMP_TX_ON) == HWTSTAMP_TX_ON) {
+	if(info.tx_types & (1 << HWTSTAMP_TX_ON)) {
 		DBG("hwts: Interface %s supports HWTSTAMP_TX_ON\n", ifaceName);
 		output.txType = HWTSTAMP_TX_ON;
 	} else {
 		ERROR("Interface %s does not support hardware transmit timestamps(HWTSTAMP_TX_ON)\n");
 		return FALSE;
+	}
+
+	for(const OptionName *mode = txTypes; mode->value != -1; mode++) {
+	    if(info.tx_types & (1 << mode->value) ) {
+		DBG("hwts: Interface %s supports TX type %s\n", ifaceName, mode->name);
+	    } else {
+		DBG("Interface %s does not support TX  type %s\n", ifaceName, mode->name);
+	    }
 	}
 
 	if(target != NULL) {
@@ -2714,7 +2726,9 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 			    strncpy(cd.networkDevice, pDev, IFACE_NAME_LENGTH);
 			    ptpClock->clockDriver = createClockDriver(CLOCKDRIVER_LINUXPHC, cd.networkDevice);
 			    ptpClock->clockDriver->init(ptpClock->clockDriver, &cd);
+			    ptpClock->clockDriver->inUse = TRUE;
 			}
+			    ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
 
 			if(strlen(bDev)) {
 				ptpClock->clockDriver3 = findClockDriver(bDev);
@@ -2723,21 +2737,25 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 					strncpy(cd.networkDevice, netPath->interfaceInfo.bondInfo.backupSlave, IFACE_NAME_LENGTH);
 					ptpClock->clockDriver3 = createClockDriver(CLOCKDRIVER_LINUXPHC, cd.networkDevice);
 					ptpClock->clockDriver3->init(ptpClock->clockDriver3, &cd);
+					ptpClock->clockDriver3->inUse = TRUE;
 				}
+				ptpClock->clockDriver3->pushConfig(ptpClock->clockDriver3, rtOpts);
 			}
-
-INFO("Backup: %s\n", netPath->interfaceInfo.bondInfo.backupSlave);
+		ptpClock->clockDriver2 = getSystemClock();
+		ptpClock->clockDriver2->pushConfig(ptpClock->clockDriver2, rtOpts);
+		ptpClock->clockDriver2->init(ptpClock->clockDriver2, NULL);
 		} else {
 		    ptpClock->clockDriver = getSystemClock();
+		    ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
+		    ptpClock->clockDriver->init(ptpClock->clockDriver2, NULL);
 		}
+if(ptpClock->portDS.portState == PTP_SLAVE) {
+    ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP");
+}
 
-//ptpClock->clockDriver2 = getSystemClock();
 
-ptpClock->clockDriver->inUse = TRUE;
 /* clean up unused clock drivers */
 controlClockDrivers(CD_CLEANUP);
-
-//exit(-1);
 
 	return TRUE;
 

@@ -120,6 +120,7 @@ clockdriver_init(ClockDriver* self, const void *config) {
 
     self->setState(self, CS_FREERUN);
 
+    memset(self->config.frequencyFile, 0, PATH_MAX);
     snprintf(self->config.frequencyFile, PATH_MAX, PTPD_PROGNAME"_phc%d.frequency", myData->phcIndex);
 
     return 1;
@@ -182,6 +183,10 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 		return TRUE;
 	}
 
+	if(force && self->lockedUp) {
+	    self->lockedUp = FALSE;
+	}
+
 	if(!force && !self->config.negativeStep && !gtTime(time, &now)) {
 		WARNING("Cannot step Linux PHC  clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
 		return FALSE;
@@ -196,11 +201,13 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 		return FALSE;
 	}
 
+	self->_stepped = TRUE;
+
 	struct timespec tmpTs = { time->seconds,0 };
 
 	char timeStr[MAXTIMESTR];
 	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
-	NOTICE("Linux PHC clock %s (%s): stepped clock to: %s.%d\n",
+	NOTICE("Linux PHC clock %s (%s): _stepped clock to: %s.%d\n",
 		self->name, myConfig->characterDevice,
 	       timeStr, time->nanoseconds);
 
@@ -218,6 +225,10 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
 	if(self->config.readOnly) {
 		return TRUE;
+	}
+
+	if(force && self->lockedUp) {
+	    self->lockedUp = FALSE;
 	}
 
 	if(!force && !self->config.negativeStep && isTimeNegative(delta)) {
@@ -239,12 +250,16 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	    return setTime(self, &newTime, force);
 	}
 
-	NOTICE("Linux PHC clock %s (%s): stepped clock by %s%d.%09d seconds\n", self->name, myConfig->characterDevice,
+	NOTICE("Linux PHC clock %s (%s): _stepped clock by %s%d.%09d seconds\n", self->name, myConfig->characterDevice,
 		    (delta->seconds <0 || delta->nanoseconds <0) ? "-":"", delta->seconds, delta->nanoseconds);
+
+	self->_stepped = TRUE;
 
 	return TRUE;
 
 }
+
+
 
 static Boolean
 setFrequency (ClockDriver *self, double adj, double tau) {
@@ -253,7 +268,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 	GET_DATA(self, myData, linuxphc);
 
 	if(self->config.readOnly) {
-		return TRUE;
+		return FALSE;
 	}
 
 	struct timex tmx;
@@ -269,7 +284,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 	    return FALSE;
 	}
 
-	self->processUpdate(self, adj, tau);
+	self->lastFrequency = adj;
 
 	return TRUE;
 
@@ -290,16 +305,6 @@ getFrequency (ClockDriver *self) {
 
 	return(tmx.freq / 65.536);
 
-}
-
-static Boolean
-restoreFrequency (ClockDriver *self) {
-	return TRUE;
-}
-
-static Boolean
-saveFrequency (ClockDriver *self) {
-	return TRUE;
 }
 
 static Boolean
@@ -334,20 +339,34 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *delta)
 	GET_DATA(self, myData, linuxphc);
 	GET_DATA(from, hisData, linuxphc);
 
+	TimeInternal deltaA, deltaB;
+
 	if(from->type == self->type) {
 	    if(myData->phcIndex == hisData->phcIndex) {
 		delta->seconds = 0;
 		delta->nanoseconds = 0;
 		return TRUE;
+	    } else {
+		if(!getSystemClockOffset(self, &deltaA)) {
+		    return FALSE;
+		}
+		if(!getSystemClockOffset(from, &deltaB)) {
+		    return FALSE;
+		}
+		subTime(delta, &deltaA, &deltaB);
+//		INFO("%s -> %s %d", self->name, from->name, delta->nanoseconds);
 	    }
+	    return TRUE;
 	}
 
-	if(from->type == CLOCKDRIVER_UNIX && from->systemClock) {
+	if((from->type == CLOCKDRIVER_UNIX) && from->systemClock) {
 	    if(!getSystemClockOffset(self, delta)) {
 		return FALSE;
 	    }
+/*
 	    delta->seconds = -delta->seconds;
 	    delta->nanoseconds = -delta->nanoseconds;
+*/
 	    return TRUE;
 	}
 
@@ -409,8 +428,19 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 }
 
 static Boolean
-pushPrivateConfig(ClockDriver *self, RunTimeOpts *globalConfig)
+pushPrivateConfig(ClockDriver *self, RunTimeOpts *global)
 {
+
+    ClockDriverConfig *config = &self->config;
+
+    config->stableAdev = global->stableAdev_hw;
+    config->unstableAdev = global->unstableAdev_hw;
+    config->lockedAge = global->lockedAge_hw;
+    config->holdoverAge = global->holdoverAge_hw;
+    config->freerunAge = global->freerunAge_hw;
+
+    self->servo.kP = global->servoKP_hw;
+    self->servo.kI = global->servoKI_hw;
 
     return TRUE;
 

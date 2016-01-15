@@ -497,9 +497,9 @@ int parseLeapFile(char * path, LeapSecondInfo *info);
 void
 resetWarnings(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
-void setupPIservo(PIservo* servo, PtpClock*, const RunTimeOpts* rtOpts);
-void resetPIservo(PIservo* servo);
-double runPIservo(PIservo* servo, const Integer32 input);
+void setupservoPI(servoPI* servo, PtpClock*, const RunTimeOpts* rtOpts);
+void resetservoPI(servoPI* servo);
+double runservoPI(servoPI* servo, const Integer32 input);
 
 #ifdef PTPD_STATISTICS
 void updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts);

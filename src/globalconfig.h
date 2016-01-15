@@ -164,7 +164,7 @@ typedef struct {
 	Enumeration8 drift_recovery_method; /* how the observed drift is managed
 				      between restarts */
 
-	Boolean saveFrequency;
+	Boolean storeToFile;
 
 	LeapSecondInfo	leapInfo;
 
@@ -240,6 +240,9 @@ typedef struct {
 	double unstableAdev;
 	double unstableAdev_hw;
 
+	int lockedAge;
+	int lockedAge_hw;
+
 	int holdoverAge;
 	int holdoverAge_hw;
 
@@ -247,6 +250,7 @@ typedef struct {
 	int freerunAge_hw;
 
 	int adevPeriod;
+
 
 	Boolean negativeStep;
 

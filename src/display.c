@@ -757,7 +757,7 @@ displayOthers(const PtpClock * ptpClock)
 	DBGV("y : %d \n", ptpClock->mpdIirFilter.y);
 	DBGV("s_exp : %d \n", ptpClock->mpdIirFilter.s_exp);
 	DBGV("\n");
-	DBGV("observed drift : "FORMAT_SERVO" \n", ptpClock->servo.observedDrift);
+	DBGV("observed drift : "FORMAT_SERVO" \n", ptpClock->servo.integral);
 	DBGV("message activity %d \n", ptpClock->message_activity);
 	DBGV("\n");
 

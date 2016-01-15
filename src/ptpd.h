@@ -180,6 +180,7 @@
 
 #include "dep/clockdriver.h"
 
+
 /* NOTE: this macro can be refactored into a function */
 #define XMALLOC(ptr,size) \
 	if(!((ptr)=malloc(size))) { \

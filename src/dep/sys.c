@@ -799,7 +799,7 @@ logStatistics(PtpClock * ptpClock)
 				&(ptpClock->delayMS));
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %c, %05d",
-			       ptpClock->servo.observedDrift,
+			       ptpClock->servo.integral,
 			       ptpClock->char_last_msg,
 			       ptpClock->msgTmpHeader.sequenceId);
 
@@ -810,11 +810,11 @@ logStatistics(PtpClock * ptpClock)
 			       ptpClock->slaveStats.mpdStdDev * 1E9,
 			       ptpClock->slaveStats.ofmMean,
 			       ptpClock->slaveStats.ofmStdDev * 1E9);
-
+/*
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.0f, %.0f, ",
 			       ptpClock->servo.driftMean,
 			       ptpClock->servo.driftStdDev);
-
+*/
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 							&(ptpClock->rawDelayMS));
 
@@ -1183,37 +1183,22 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	else {
 	    if (rtOpts->servoStabilityDetection) {
 		fprintf(out, ", %s",
-		    ptpClock->servo.isStable ? "stabilised" : "not stabilised");
+		    (ptpClock->clockDriver->state == CS_LOCKED) ? "stabilised" : "not stabilised");
 	    }
 	}
 #endif /* PTPD_STATISTICS */
 	fprintf(out,"\n");
 
-
-	fprintf(out, 		STATUSPREFIX" % .03f ppm","Clock correction",
-			    ptpClock->servo.observedDrift / 1000.0);
-if(ptpClock->servo.runningMaxOutput)
-	fprintf(out, " (slewing at maximum rate)");
-else {
-#ifdef PTPD_STATISTICS
-	if(ptpClock->slaveStats.statsCalculated)
-	    fprintf(out, ", mean % .03f ppm, dev % .03f ppm",
-		ptpClock->servo.driftMean / 1000.0,
-		ptpClock->servo.driftStdDev / 1000.0
-	    );
-	if(rtOpts->servoStabilityDetection) {
-	    fprintf(out, ", dev thr % .03f ppm",
-		ptpClock->servo.stabilityThreshold / 1000.0
-	    );
-	}
-#endif /* PTPD_STATISTICS */
-}
-	    fprintf(out,"\n");
-
-
 	}
 
-
+	if(ptpClock->clockDriver != NULL) {
+	    char buf[100];
+	    int i = 1;
+	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
+		    cd->putStatusLine(cd, buf, 100);
+		    fprintf(out, "Clock %d:%-10s :  %s\n", i++, cd->name, buf);
+	    }
+	}
 
 	if(ptpClock->portDS.portState == PTP_MASTER || ptpClock->portDS.portState == PTP_PASSIVE) {
 
@@ -1851,7 +1836,7 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	DBGV("restoreDrift called\n");
 
 	if (ptpClock->drift_saved && rtOpts->drift_recovery_method > 0 ) {
-		ptpClock->servo.observedDrift = ptpClock->last_saved_drift;
+		ptpClock->servo.integral = ptpClock->last_saved_drift;
 		if (!rtOpts->noAdjust && ptpClock->clockControl.granted) {
 			ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, -ptpClock->last_saved_drift, 1);
 		}
@@ -1918,11 +1903,11 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	if (reset_offset) {
 		if (!rtOpts->noAdjust && ptpClock->clockControl.granted)
 		ptpClock->clockDriver->setFrequency(ptpClock->clockDriver, 0, 1);
-		ptpClock->servo.observedDrift = 0;
+		ptpClock->servo.integral = 0;
 		return;
 	}
 
-	ptpClock->servo.observedDrift = recovered_drift;
+	ptpClock->servo.integral = recovered_drift;
 
 	ptpClock->drift_saved = TRUE;
 	ptpClock->last_saved_drift = recovered_drift;
@@ -1947,12 +1932,12 @@ saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
                     return;
             }
 
-        if(ptpClock->servo.observedDrift == 0.0 &&
+        if(ptpClock->servo.integral == 0.0 &&
             ptpClock->portDS.portState == PTP_LISTENING )
                 return;
 
 	if (rtOpts->drift_recovery_method > 0) {
-		ptpClock->last_saved_drift = ptpClock->servo.observedDrift;
+		ptpClock->last_saved_drift = ptpClock->servo.integral;
 		ptpClock->drift_saved = TRUE;
 	}
 
@@ -1970,14 +1955,14 @@ saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 	}
 
 	/* The fractional part really won't make a difference here */
-	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.observedDrift));
+	fprintf(driftFP, "%d\n", (int)round(ptpClock->servo.integral));
 
 	if (quiet) {
 		DBGV("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n",
-		    ptpClock->servo.observedDrift, rtOpts->driftFile);
+		    ptpClock->servo.integral, rtOpts->driftFile);
 	} else {
 		INFO("Wrote observed drift ("DRIFTFORMAT" ppb) to %s\n",
-		    ptpClock->servo.observedDrift, rtOpts->driftFile);
+		    ptpClock->servo.integral, rtOpts->driftFile);
 	}
 	fclose(driftFP);
 }

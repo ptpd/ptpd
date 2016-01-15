@@ -15,6 +15,44 @@
 #include "dep/clockdriver.h"
 #include "globalconfig.h"
 
+typedef struct{
+    int maxOutput;
+    uint32_t input;
+    double output;
+    double integral;
+    double kP, kI;
+    int runningMaxOutput;
+//    TimeInternal lastUpdate;
+//    Boolean runningMaxOutput;
+    int dTmethod;
+    double dT;
+    int maxdT;
+#ifdef PTPD_STATISTICS
+//    DoublePermanentStdDev l1dev;
+//    DoublePermanentStdDev l2dev;
+/*
+    int updateCount;
+    int stableCount;
+    Boolean statsUpdated;
+    Boolean statsCalculated;
+    Boolean isStable;
+    double stabilityThreshold;
+    int stabilityPeriod;
+    int stabilityTimeout;
+    double driftMean;
+    double driftStdDev;
+    double driftMedian;
+    double driftMin;
+    double driftMax;
+    double driftMinFinal;
+    double driftMaxFinal;
+*/
+//    DoublePermanentStdDev driftStats;
+//    DoublePermanentMedian driftMedianContainer;
+#endif /* PTPD_STATISTICS */
+} servoPI;
+
+
 /**
  * \struct PtpdCounters
  * \brief Ptpd engine counters per port
@@ -103,45 +141,6 @@ typedef struct
 	uint32_t messageReceiveRate;	/* TX message rate per sec */
 
 } PtpdCounters;
-
-/**
- * \struct PIservo
- * \brief PI controller model structure
- */
-
-typedef struct{
-    int maxOutput;
-    Integer32 input;
-    double output;
-    double observedDrift;
-    double kP, kI;
-    TimeInternal lastUpdate;
-    Boolean runningMaxOutput;
-    int dTmethod;
-    double dT;
-    int maxdT;
-#ifdef PTPD_STATISTICS
-    DoublePermanentStdDev l1dev;
-    DoublePermanentStdDev l2dev;
-    int updateCount;
-    int stableCount;
-    Boolean statsUpdated;
-    Boolean statsCalculated;
-    Boolean isStable;
-    double stabilityThreshold;
-    int stabilityPeriod;
-    int stabilityTimeout;
-    double driftMean;
-    double driftStdDev;
-    double driftMedian;
-    double driftMin;
-    double driftMax;
-    double driftMinFinal;
-    double driftMaxFinal;
-    DoublePermanentStdDev driftStats;
-    DoublePermanentMedian driftMedianContainer;
-#endif /* PTPD_STATISTICS */
-} PIservo;
 
 typedef struct {
 	Boolean activity; 		/* periodic check, updateClock sets this to let the watchdog know we're holding clock control */
@@ -395,8 +394,8 @@ typedef struct {
 	PtpdCounters counters;
 
 	/* PI servo model */
-	PIservo servo;
-	PIservo servo2;
+	servoPI servo;
+	servoPI servo2;
 
 	/* "panic mode" support */
 	Boolean panicMode; /* in panic mode - do not update clock or calculate offsets */

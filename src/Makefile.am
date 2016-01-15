@@ -65,10 +65,13 @@ ptpd2_SOURCES =				\
 	dep/alarms.c			\
 	dep/clockdriver.h		\
 	dep/clockdriver.c		\
+	dep/clockdriver_interface.h	\
 	dep/clockdriver_unix.h		\
 	dep/clockdriver_unix.c		\
 	dep/clockdriver_linuxphc.h	\
 	dep/clockdriver_linuxphc.c	\
+	dep/piservo.h			\
+	dep/piservo.c			\
 	ptpd.c				\
 	ptpd.h				\
 	$(NULL)

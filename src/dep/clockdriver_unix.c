@@ -35,6 +35,10 @@
 #include "clockdriver.h"
 #include "clockdriver_interface.h"
 
+/* accumulates all clock steps to simulate monotonic time */
+static TimeInternal _stepAccumulator = {0,0};
+
+
 static void setRtc(ClockDriver* self, TimeInternal *timeToSet);
 static Boolean adjFreq_unix(ClockDriver *self, double adj);
 static void updateXtmp_unix (TimeInternal oldTime, TimeInternal newTime);
@@ -68,9 +72,9 @@ clockdriver_init(ClockDriver* self, const void *config) {
 
     self->_init = TRUE;
     self->inUse = TRUE;
-    self->setState(self, CS_FREERUN);
+    memset(self->config.frequencyFile, 0, PATH_MAX);
     snprintf(self->config.frequencyFile, PATH_MAX, PTPD_PROGNAME"_systemclock.frequency");
-
+    self->setState(self, CS_FREERUN);
     return 1;
 
 }
@@ -167,6 +171,9 @@ getTime (ClockDriver *self, TimeInternal *time) {
 Boolean
 getTimeMonotonic(ClockDriver *self, TimeInternal * time)
 {
+
+	Boolean ret;
+
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0) && defined(CLOCK_MONOTINIC)
 	struct timespec tp;
 	if (clock_gettime(CLOCK_MONOTONIC, &tp) >= 0) {
@@ -175,7 +182,13 @@ getTimeMonotonic(ClockDriver *self, TimeInternal * time)
 	    return TRUE;
 	}
 #endif /* _POSIX_TIMERS */
-	return self->getTime(self, time);
+	ret = self->getTime(self, time);
+
+	/* simulate a monotonic clock, tracking all step changes */
+	addTime(time, time, &_stepAccumulator);
+
+	return ret;
+
 }
 
 static Boolean
@@ -188,12 +201,20 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 	GET_CONFIG(self, myConfig, unix);
 
-	TimeInternal oldTime;
+	TimeInternal oldTime, delta;
 
 	getTime(self, &oldTime);
 
+	subTime(&delta, &oldTime, time);
+
+	addTime(&_stepAccumulator, &_stepAccumulator, &delta);
+
 	if(self->config.readOnly) {
 		return FALSE;
+	}
+
+	if(force && self->lockedUp) {
+	    self->lockedUp = FALSE;
 	}
 
 	if(!force && !self->config.negativeStep && !gtTime(time, &oldTime)) {
@@ -235,11 +256,13 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 	    }
 	}
 
+	self->_stepped = TRUE;
+
 	struct timespec tmpTs = { time->seconds,0 };
 
 	char timeStr[MAXTIMESTR];
 	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
-	NOTICE("Unix clock %s: stepped the system clock to: %s.%d\n", self->name,
+	NOTICE("Unix clock %s: _stepped the system clock to: %s.%d\n", self->name,
 	       timeStr, time->nanoseconds);
 
 	return TRUE;
@@ -257,6 +280,10 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
 	if(self->config.readOnly) {
 		return FALSE;
+	}
+
+	if(force && self->lockedUp) {
+	    self->lockedUp = FALSE;
 	}
 
 	if(!force && !self->config.negativeStep && isTimeNegative(delta)) {
@@ -279,8 +306,12 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	    return setTime(self, &newTime, force);
 	}
 
-	NOTICE("Unix clock %s: stepped clock by %s%d.%09d seconds\n", self->name,
+	NOTICE("Unix clock %s: _stepped clock by %s%d.%09d seconds\n", self->name,
 		    (delta->seconds <0 || delta->nanoseconds <0) ? "-":"", delta->seconds, delta->nanoseconds);
+
+	addTime(&_stepAccumulator, &_stepAccumulator, delta);
+
+	self->_stepped = TRUE;
 
 	return TRUE;
 #else
@@ -301,11 +332,9 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 static Boolean
 setFrequency (ClockDriver *self, double adj, double tau) {
 
-
-
     if (self->config.readOnly){
 		DBGV("adjFreq2: noAdjust on, returning\n");
-		return TRUE;
+		return FALSE;
 	}
 
 /*
@@ -352,7 +381,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 	adjtime(&tv, NULL);
 #endif
 
-    self->processUpdate(self, adj, tau);
+    self->lastFrequency = adj;
 
     return TRUE;
 }
@@ -370,16 +399,6 @@ getFrequency (ClockDriver * self) {
 	return(tmx.freq / 65.536);
 
 	return 0;
-}
-
-static Boolean
-restoreFrequency (ClockDriver *self) {
-	return TRUE;
-}
-
-static Boolean
-saveFrequency (ClockDriver *self) {
-	return TRUE;
 }
 
 static Boolean
@@ -409,13 +428,14 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *output)
 	}
 
 	if(!from->getOffsetFrom(from, self, &delta)) {
+	    INFO("%s FALSE AGAIN?\n", self->name);
 	    return FALSE;
 	}
 
 	output->seconds = -delta.seconds;
 	output->nanoseconds = -delta.nanoseconds;
 
-	return FALSE;
+	return TRUE;
 }
 
 

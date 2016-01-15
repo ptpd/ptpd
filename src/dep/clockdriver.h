@@ -35,12 +35,16 @@
 #ifndef PTPD_CLOCKDRIVER_H_
 #define PTPD_CLOCKDRIVER_H_
 
+
+
 #include "../ptpd.h"
 #include "../globalconfig.h"
 #include "linkedlist.h"
 
+#include "piservo.h"
+
 #define CLOCKDRIVER_NAME_MAX 20
-#define SYSTEM_CLOCK_NAME "SYSTEM_CLOCK"
+#define SYSTEM_CLOCK_NAME "syst"
 
 #if defined(linux) && !defined(ADJ_SETOFFSET)
 #define ADJ_SETOFFSET 0x0100
@@ -60,25 +64,28 @@ enum {
 };
 
 typedef enum {
+    CS_SUSPENDED,
     CS_INIT,
     CS_FREERUN,
-    CS_LOCKED,
-    CS_UNLOCKED,
+    CS_ACQUIRING,
     CS_HOLDOVER,
+    CS_LOCKED,
 } ClockState;
 
 typedef struct {
     Boolean readOnly;
     Boolean noStep;
     Boolean negativeStep;
-    Boolean saveFrequency;
+    Boolean storeToFile;
     char frequencyFile[PATH_MAX +1];
     char frequencyDir[PATH_MAX + 1];
     int adevPeriod;
     double stableAdev;
     double unstableAdev;
+    int lockedAge;
     int holdoverAge;
     int freerunAge;
+    int stepType;
 } ClockDriverConfig;
 
 typedef struct {
@@ -94,15 +101,25 @@ struct ClockDriver {
 
     int _serial;
     Boolean _updated;
+    Boolean _stepped;
     IntPermanentAdev _adev;
     IntPermanentAdev _totalAdev;
     TimeInternal _initTime;
     TimeInternal _lastSync;
+    TimeInternal _lastUpdate;
     double _tau;
 
+    PIservo servo;
+
+    Boolean	lockedUp;
     Boolean	inUse;
     TimeInternal age;
-    Boolean stable;
+
+    Boolean externalReference;
+
+    char refName[CLOCKDRIVER_NAME_MAX];
+    ClockDriver *refClock;
+    TimeInternal refOffset;
 
     ClockState state;
 
@@ -137,13 +154,12 @@ struct ClockDriver {
     Boolean (*stepTime) (ClockDriver*, TimeInternal *, Boolean);
 
     Boolean (*setFrequency) (ClockDriver *, double, double);
-    Boolean (*restoreFrequency) (ClockDriver *);
-    Boolean (*saveFrequency) (ClockDriver *);
 
     double (*getFrequency) (ClockDriver *);
     Boolean (*getStatus) (ClockDriver *, ClockStatus *);
     Boolean (*setStatus) (ClockDriver *, ClockStatus *);
     Boolean (*getOffsetFrom) (ClockDriver *, ClockDriver *, TimeInternal*);
+
 
     Boolean (*pushPrivateConfig) (ClockDriver *, RunTimeOpts *);
     Boolean (*isThisMe) (ClockDriver *, const char* search);
@@ -153,16 +169,23 @@ struct ClockDriver {
     /* inherited methods, provided by ClockDriver */
     void (*setState) (ClockDriver *, ClockState);
     void (*processUpdate) (ClockDriver *, double, double);
+
     Boolean (*pushConfig) (ClockDriver *, RunTimeOpts *);
+
+    void (*setReference) (ClockDriver *, ClockDriver *);
+    void (*setExternalReference) (ClockDriver *, const char *);
+
+    Boolean (*adjustFrequency) (ClockDriver *, double, double);
+    void (*restoreFrequency) (ClockDriver *);
+    void (*storeFrequency) (ClockDriver *);
+
+    Boolean (*syncClock) (ClockDriver*, double);
+    Boolean (*syncClockExternal) (ClockDriver*, TimeInternal, double);
+    void (*putStatusLine) (ClockDriver *, char*, int);
+
     /* inherited methods end */
 
     LINKED_LIST_TAG(ClockDriver);
-
-/*
-    ClockDriver *_first;
-    ClockDriver *_next;
-    ClockDriver *_prev;
-*/
 
 };
 
@@ -170,11 +193,22 @@ struct ClockDriver {
 ClockDriver*  	createClockDriver(int driverType, const char* name);
 Boolean 	setupClockDriver(ClockDriver* clockDriver, int type, const char* name);
 void 		freeClockDriver(ClockDriver** clockDriver);
+
 ClockDriver* 	getSystemClock();
+
 void 		shutdownClockDrivers();
 void		controlClockDrivers(int);
+
+void		updateClockDrivers();
+
 ClockDriver*	findClockDriver(char *);
 ClockDriver*	getClockDriverByName(const char *);
+
+void		syncClocks();
+void		stepClocks(Boolean);
+
+
+
 const char*	getClockStateName(ClockState);
 
 #include "clockdriver_unix.h"

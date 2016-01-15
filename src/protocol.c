@@ -286,6 +286,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		if (timerExpired(&ptpClock->timers[TIMINGDOMAIN_UPDATE_TIMER])) {
 		    timingDomain.update(&timingDomain);
+		    updateClockDrivers();
 		}
 
 		if(ptpClock->defaultDS.slaveOnly) {
@@ -387,7 +388,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[SYNC_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
-		
+		ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {
 			/* do not cancel, just start re-requesting so we can still send a cancel on exit */
 			ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].timeLeft = 0;
@@ -638,6 +639,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 
 	case PTP_SLAVE:
+		ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP");
 		if(rtOpts->unicastNegotiation) {
 		    timerStart(&ptpClock->timers[UNICAST_GRANT_TIMER], 1);
 		}
@@ -718,6 +720,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			resetDoubleMovingStatFilter(ptpClock->filterSM);
 		}
 		clearPtpEngineSlaveStats(&ptpClock->slaveStats);
+/*
 		ptpClock->servo.driftMean = 0;
 		ptpClock->servo.driftStdDev = 0;
 		ptpClock->servo.isStable = FALSE;
@@ -727,6 +730,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->servo.statsUpdated = FALSE;
 		resetDoublePermanentMedian(&ptpClock->servo.driftMedianContainer);
 		resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
+*/
 		timerStart(&ptpClock->timers[STATISTICS_UPDATE_TIMER], rtOpts->statsUpdateInterval);
 #endif /* PTPD_STATISTICS */
 		break;
@@ -770,9 +774,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	/* initialize other stuff */
 	initData(rtOpts, ptpClock);
 	initClock(rtOpts, ptpClock);
-	setupPIservo(&ptpClock->servo, ptpClock, rtOpts);
-	setupPIservo(&ptpClock->servo2, ptpClock, rtOpts);
-	ptpClock->servo2.observedDrift = -getSystemClock()->getFrequency(getSystemClock());
+
 	/* restore observed drift and inform user */
 	if(ptpClock->defaultDS.clockQuality.clockClass > 127)
 		restoreDrift(ptpClock, rtOpts, FALSE);
@@ -1646,11 +1648,11 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 					    /* the flags are probably off by now, using the shift sign to detect leap second type */
 					    if(ptpClock->leapSmearFudge < 0) {
 						DBG("Reversed LEAP59 smear frequency offset\n");
-						ptpClock->servo.observedDrift += 1E9 / rtOpts->leapSecondSmearPeriod;
+						ptpClock->servo.integral += 1E9 / rtOpts->leapSecondSmearPeriod;
 					    }
 					    if(ptpClock->leapSmearFudge > 0) {
 						DBG("Reversed LEAP61 smear frequency offset\n");
-						ptpClock->servo.observedDrift -= 1E9 / rtOpts->leapSecondSmearPeriod;
+						ptpClock->servo.integral -= 1E9 / rtOpts->leapSecondSmearPeriod;
 					    }
 					    ptpClock->leapSmearFudge = 0;
 					}
