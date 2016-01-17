@@ -115,7 +115,6 @@ Boolean timerSetup(IntervalTimer *itimers)
   "OPERATOR_MESSAGES",
   "LEAP_SECOND_PAUSE",
   "STATUSFILE_UPDATE",
-  "PANIC_MODE",
   "PERIODIC_INFO",
   "STATISTICS_UPDATE",
   "ALARM_UPDATE",

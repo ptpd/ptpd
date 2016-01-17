@@ -227,7 +227,7 @@ ClockDriver*	getClockDriverByName(const char *);
 
 void		syncClocks();
 void		stepClocks(Boolean);
-void		reconfigureClocks(RunTimeOpts *);
+void		reconfigureClockDrivers(RunTimeOpts *);
 
 const char*	getClockStateName(ClockState);
 const char*	getClockStateShortName(ClockState);

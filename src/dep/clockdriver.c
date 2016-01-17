@@ -337,7 +337,7 @@ stepClocks(Boolean force) {
 }
 
 void
-reconfigureClocks(RunTimeOpts *rtOpts) {
+reconfigureClockDrivers(RunTimeOpts *rtOpts) {
 
     ClockDriver *cd;
     LINKED_LIST_FOREACH(cd) {
@@ -579,6 +579,8 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		if(driver->config.suspendTimeout) {
 			/* ...or in fact exiting it... */
 			if(driver->_canResume) {
+/* WOJ:CHECK */
+/* we're assuming that we can actually step! */
 			    driver->_canResume = FALSE;
 			} else {
 			    WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), suspending clock control for %d seconds (panic mode)\n",
@@ -969,4 +971,4 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
 
 }
 
-void		reconfigureClocks(RunTimeOpts *);
+void		reconfigureClockDrivers(RunTimeOpts *);

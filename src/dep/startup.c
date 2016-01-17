@@ -308,7 +308,7 @@ void
 restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
-		reconfigureClocks(rtOpts);
+		reconfigureClockDrivers(rtOpts);
 
 			DBG("RestartSubsystems: %d\n",rtOpts->restartSubsystems);
 		    /* So far, PTP_INITIALIZING is required for both network and protocol restart */

@@ -352,10 +352,6 @@ typedef struct {
 	 */
 	PtpdCounters counters;
 
-	/* "panic mode" support */
-	Boolean panicMode; /* in panic mode - do not update clock or calculate offsets */
-	Boolean panicOver; /* panic mode is over, we can reset the clock */
-	int panicModeTimeLeft; /* How many 30-second periods left in panic mode */
 
 	/* used to wait on failure while allowing timers to tick */
 	Boolean initFailure;

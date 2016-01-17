@@ -86,6 +86,9 @@ feed (PIservo* self, Integer32 input, double tau) {
     self->integral += self->tau * ((input + 0.0 ) * self->kI);
     self->output = (self->kP * (input + 0.0) ) + self->integral;
 
+    self->integral = clampDouble(self->integral, self->maxOutput);
+    self->output = clampDouble(self->output, self->maxOutput);
+
     DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %.09f, accumulator (observed drift): %.09f\n", dt, input, self->output, self->integral);
 
 

@@ -1139,12 +1139,13 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	}
 
 	fprintf(out, 		STATUSPREFIX"  ","PTP Clock status");
-		if(rtOpts->enablePanicMode) {
-	    if(ptpClock->panicMode) {
+	    if(ptpClock->clockDriver->state == CS_SUSPENDED) {
 		fprintf(out,"panic mode,");
-
 	    }
-	}
+	    if(ptpClock->clockDriver->state == CS_NSTEP) {
+		fprintf(out,"negative step,");
+	    }
+
 	if(rtOpts->calibrationDelay) {
 	    fprintf(out, "%s, ",
 		ptpClock->isCalibrated ? "calibrated" : "not calibrated");

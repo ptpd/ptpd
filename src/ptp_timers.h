@@ -71,7 +71,6 @@ enum {
   OPERATOR_MESSAGES_TIMER,  /* used to limit the operator messages */
   LEAP_SECOND_PAUSE_TIMER, /* timer used for pausing updates when leap second is imminent */
   STATUSFILE_UPDATE_TIMER, /* timer used for refreshing the status file */
-  PANIC_MODE_TIMER,	   /* timer used for the duration of "panic mode" */
   PERIODIC_INFO_TIMER,	   /* timer used for dumping periodic status updates */
   STATISTICS_UPDATE_TIMER, /* online mean / std dev updare interval (non-moving statistics) */
   ALARM_UPDATE_TIMER,

@@ -423,11 +423,6 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		resetPtpEngineSlaveStats(&ptpClock->slaveStats);
 		timerStop(&ptpClock->timers[STATISTICS_UPDATE_TIMER]);
 
-		ptpClock->panicMode = FALSE;
-		ptpClock->panicOver = FALSE;
-		timerStop(&ptpClock->timers[PANIC_MODE_TIMER]);
-		initClock(rtOpts, ptpClock);
-		
 	case PTP_PASSIVE:
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
 		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
@@ -912,7 +907,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		/* Reset the slave if clock update timeout configured */
 		if ( ptpClock->portDS.portState == PTP_SLAVE && (rtOpts->clockUpdateTimeout > 0) &&
 		    timerExpired(&ptpClock->timers[CLOCK_UPDATE_TIMER])) {
-			if(ptpClock->panicMode || rtOpts->noAdjust) {
+			if(rtOpts->noAdjust) {
 				timerStart(&ptpClock->timers[CLOCK_UPDATE_TIMER], rtOpts->clockUpdateTimeout);
 			} else {
 			    WARNING("No offset updates in %d seconds - resetting slave\n",
@@ -998,8 +993,8 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 /* Update PTP slave statistics from online statistics containers */
 		if (timerExpired(&ptpClock->timers[STATISTICS_UPDATE_TIMER])) {
-			if(!rtOpts->enablePanicMode || !ptpClock->panicMode)
-				updatePtpEngineStats(ptpClock, rtOpts);
+/* WOJ:CHECK */
+			updatePtpEngineStats(ptpClock, rtOpts);
 		}
 
 		SET_ALARM(ALRM_NO_SYNC, timerExpired(&ptpClock->timers[SYNC_RECEIPT_TIMER]));
@@ -1171,18 +1166,6 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		/* ensures that the current updare interval is used */
 		timerStart(&ptpClock->timers[STATUSFILE_UPDATE_TIMER],rtOpts->statusFileUpdateInterval);
         }
-
-	if(rtOpts->enablePanicMode && timerExpired(&ptpClock->timers[PANIC_MODE_TIMER])) {
-
-		DBG("Panic check\n");
-
-		if(--ptpClock->panicModeTimeLeft <= 0) {
-			ptpClock->panicMode = FALSE;
-			ptpClock->panicOver = TRUE;
-			DBG("panic over!\n");
-		}
-	}
-
 }
 
 static Boolean
