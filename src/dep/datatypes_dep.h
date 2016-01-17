@@ -30,17 +30,22 @@ typedef struct {
     Integer32  s_exp;
 } one_way_delay_filter;
 
+#define BOND_SLAVES_MAX 4
+
+typedef struct {
+    char name[IFACE_NAME_LENGTH + 1];
+    int id;
+} BondSlave;
+
 typedef struct {
 	Boolean updated;
 	Boolean bonded;
 	Boolean activeBackup;
 	int slaveCount;
 	int activeCount;
-	char activeSlave[IFACE_NAME_LENGTH + 1];
-	char backupSlave[IFACE_NAME_LENGTH + 1];
-	int activeSlaveId;
-	int backupSlaveId;
-	Boolean activeChanged;
+	BondSlave activeSlave;
+	BondSlave slaves[BOND_SLAVES_MAX];
+	Boolean change;
 } BondInfo;
 
 typedef struct {

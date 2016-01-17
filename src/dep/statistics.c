@@ -1045,7 +1045,7 @@ Boolean isIntPeircesOutlier(IntMovingStdDev *container, int32_t sample, double t
 	 * - safeguard: std dev is zero and filter is blocking
 	 *   everything, hus, we let the sample through
 	 */
-	if (maxDev <= 0.0 ) return FALSE;
+	if (maxDev <= ZEROF ) return FALSE;
 
 	if(fabs((double)(sample - container->meanContainer->mean)) > maxDev) {
 	DBGV("Peirce %s outlier: val: %d, cnt: %d, mxd: %.09f (%.03f * dev * %.03f), dev: %.09f, mea: %.09f, dif: %.09f\n", container->identifier,
@@ -1075,7 +1075,7 @@ Boolean isDoublePeircesOutlier(DoubleMovingStdDev *container, double sample, dou
 	 * - safeguard: std dev is zero and filter is blocking
 	 *   everything, thus, we let the sample through
 	 */
-	if (maxDev <= 0.0 ) {
+	if (maxDev <= ZEROF ) {
 		return FALSE;
 	}
 

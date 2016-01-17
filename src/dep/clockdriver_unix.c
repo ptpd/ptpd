@@ -55,7 +55,6 @@ _setupClockDriver_unix(ClockDriver* self)
     INIT_DATA(self, linuxphc);
     INIT_CONFIG(self, linuxphc);
 
-    self->maxFrequency = ADJ_FREQ_MAX;
     self->systemClock = TRUE;
 
     resetIntPermanentAdev(&self->_adev);
@@ -74,6 +73,8 @@ clockdriver_init(ClockDriver* self, const void *config) {
     self->inUse = TRUE;
     memset(self->config.frequencyFile, 0, PATH_MAX);
     snprintf(self->config.frequencyFile, PATH_MAX, PTPD_PROGNAME"_systemclock.frequency");
+    self->maxFrequency = ADJ_FREQ_MAX;
+    self->servo.maxOutput = self->maxFrequency;
     self->setState(self, CS_FREERUN);
     return 1;
 
@@ -207,8 +208,6 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 	subTime(&delta, &oldTime, time);
 
-	addTime(&_stepAccumulator, &_stepAccumulator, &delta);
-
 	if(self->config.readOnly) {
 		return FALSE;
 	}
@@ -217,10 +216,11 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 	    self->lockedUp = FALSE;
 	}
 
-	if(!force && !self->config.negativeStep && !gtTime(time, &oldTime)) {
-		WARNING("Cannot step Unix clock %s backwards\n", self->name);
+	if(!force && !self->config.negativeStep && isTimeNegative(&delta)) {
+		CRITICAL("Cannot step Unix clock %s backwards\n", self->name);
+		CRITICAL("Manual intervention required or SIGUSR1 to force %s clock step\n", self->name);
 		self->lockedUp = TRUE;
-		self->setState(self, CS_NSTEP);
+		self->setState(self, CS_NEGSTEP);
 		return FALSE;
 	}
 
@@ -239,16 +239,15 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 #endif /* _POSIX_TIMERS */
 
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
-
 	if (clock_settime(CLOCK_REALTIME, &tp) < 0) {
 		PERROR("Could not set system time");
 		return FALSE;
 	}
-
+	addTime(&_stepAccumulator, &_stepAccumulator, &delta);
 #else
 
 	settimeofday(&tv, 0);
-
+	addTime(&_stepAccumulator, &_stepAccumulator, &delta);
 #endif /* _POSIX_TIMERS */
 
 	if(oldTime.seconds != time->seconds) {
@@ -295,9 +294,10 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	}
 
 	if(!force && !self->config.negativeStep && isTimeNegative(delta)) {
-		WARNING("Cannot step Unix clock %s backwards\n", self->name);
+		CRITICAL("Cannot step Unix clock %s backwards\n", self->name);
+		CRITICAL("Manual intervention required or SIGUSR1 to force %s clock step\n", self->name);
 		self->lockedUp = TRUE;
-		self->setState(self, CS_NSTEP);
+		self->setState(self, CS_NEGSTEP);
 		return FALSE;
 	}
 
@@ -571,7 +571,7 @@ static void setRtc(ClockDriver *self, TimeInternal *timeToSet)
 
 	DBGV("Usable RTC device: %s\n",rtcDev);
 
-	if(timeToSet->seconds == 0 && timeToSet->nanoseconds==0) {
+	if(isTimeZero(timeToSet)) {
 	    getTime(self, timeToSet);
 	}
 

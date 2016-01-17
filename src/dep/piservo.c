@@ -44,6 +44,7 @@ static void reset (PIservo*);
 
 void
 setupPIservo(PIservo *self) {
+    memset(self, 0, sizeof(PIservo));
     self->feed = feed;
     self->prime = prime;
     self->reset = reset;
@@ -67,12 +68,22 @@ feed (PIservo* self, Integer32 input, double tau) {
 		subTime(&delta, &now, &self->lastUpdate);
 		self->tau = delta.seconds + delta.nanoseconds / 1E9;
 	    }
+
+            if(self->tau > (self->maxTau * tau)) {
+                self->tau = (self->maxTau + 0.0) * tau;
+	    }
+	    break;
+
 	case DT_CONSTANT:
 	    self->tau = tau;
 	break;
 
 	default:
 	    self->tau = 1.0;
+    }
+
+    if(self->tau <= ZEROF) {
+	self->tau = 1.0;
     }
 
     self->integral = clampDouble(self->integral, self->maxOutput);
@@ -89,10 +100,11 @@ feed (PIservo* self, Integer32 input, double tau) {
     self->integral = clampDouble(self->integral, self->maxOutput);
     self->output = clampDouble(self->output, self->maxOutput);
 
-    DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %.09f, accumulator (observed drift): %.09f\n", dt, input, self->output, self->integral);
-
-
     runningMaxOutput = (fabs(self->output) >= self->maxOutput);
+
+    if(self->controller) {
+	DBG("%s tau %.09f input %d fabs %f out %f, mo %f\n", self->controller->name, self->tau, input, fabs(self->output), self->output, self->maxOutput);
+    }
 
     if(runningMaxOutput && !self->runningMaxOutput) {
 	    WARNING(THIS_COMPONENT"Clock %s servo now running at maximum output\n", self->controller->name);

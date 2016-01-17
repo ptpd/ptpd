@@ -300,6 +300,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->adevPeriod = 10;
 
 	rtOpts->negativeStep = FALSE;
+	rtOpts->negativeStep_hw = FALSE;
 
 	rtOpts->servoDtMethod = DT_CONSTANT;
 
@@ -391,7 +392,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	/* panic mode options */
 	rtOpts->enablePanicMode = FALSE;
-	rtOpts->panicModeDuration = 2;
+	rtOpts->panicModeDuration = 30;
 	rtOpts->panicModeExitThreshold = 0;
 
 	/* full network reset after 5 times in listening */

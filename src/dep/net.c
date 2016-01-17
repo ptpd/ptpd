@@ -532,7 +532,7 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
     getBondInfo(realDevice, bondInfo);
 
     if(bondInfo->bonded && bondInfo->activeCount > 0) {
-	    realDevice = bondInfo->activeSlave;
+	    realDevice = bondInfo->activeSlave.name;
     }
 
     strncpy(ifaceInfo->physicalDevice, realDevice, IFACE_NAME_LENGTH);
@@ -554,6 +554,8 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
 
 	if(getInterfaceInfo(ifaceName, &info) != 1)
 		return FALSE;
+
+	if(interfaceInfo
 
 	switch(rtOpts->transport) {
 
@@ -2453,41 +2455,86 @@ static int getActiveBondMember(char * ifaceName, char* active, char *backup, siz
 
 }
 
+static int getBondSlaves(char * ifaceName, BondInfo *info)
+{
+
+    ifbond ifb;
+    ifslave ifs;
+
+    memset(&ifb, 0, sizeof(ifb));
+    memset(&ifs, 0, sizeof(ifs));
+
+
+    memset(&info->activeSlave, 0, sizeof(BondSlave));
+
+    info->activeSlave.id = -1;
+
+    for(int i = 0; i < BOND_SLAVES_MAX; i++) {
+	memset(&info->slaves[i], 0, sizeof(BondSlave));
+	info->slaves[i].id = -1;
+    }
+
+    if(bondQuery(ifaceName, &ifb)) {
+
+	if(ifb.num_slaves == 0) return -1;
+
+	for(int i = 0; i < ifb.num_slaves; i++) {
+	    if(bondSlaveQuery(ifaceName, &ifs, i) && ifs.state == BOND_STATE_ACTIVE) {
+		strncpy(info->activeSlave.name, ifs.slave_name, IFACE_NAME_LENGTH);
+		info->activeSlave.id = i;
+	    break;
+	    }
+	}
+
+	for(int i = 0; (i < ifb.num_slaves) && (i < BOND_SLAVES_MAX); i++) {
+	    if(bondSlaveQuery(ifaceName, &ifs, i)) {
+		strncpy(info->slaves[i].name, ifs.slave_name, IFACE_NAME_LENGTH);
+		info->slaves[i].id = i;
+	    }
+	}
+
+    }
+
+    return ( ifb.num_slaves );
+
+}
+
 
 static void getBondInfo(char *ifaceName, BondInfo *info)
 {
 
     ifbond ifb;
-
-    char lastActiveSlave[IFACE_NAME_LENGTH+1];
+    BondInfo lastInfo;
 
     if(!bondQuery(ifaceName, &ifb)) {
 	info->bonded = FALSE;
 	return;
     }
 
-    memset(lastActiveSlave, 0, IFACE_NAME_LENGTH + 1);
+    memset(&lastInfo, 0, sizeof(BondInfo));
 
     if(info->updated) {
-	strncpy(lastActiveSlave, info->activeSlave, IFACE_NAME_LENGTH);
+	memcpy(&lastInfo, info, sizeof(BondInfo));
     }
-    memset(info->activeSlave, 0, IFACE_NAME_LENGTH + 1);
-    memset(info->backupSlave, 0, IFACE_NAME_LENGTH + 1);
 
     info->bonded = TRUE;
     info->activeBackup = (ifb.bond_mode == BOND_MODE_ACTIVEBACKUP);
-    info->slaveCount = ifb.num_slaves;
+    info->slaveCount = getBondSlaves(ifaceName, info);
 
-    info->activeSlaveId = getActiveBondMember(ifaceName, info->activeSlave, info->backupSlave, IFACE_NAME_LENGTH);
-
-    if(info->activeSlaveId >= 0) {
+    if(info->activeSlave.id >= 0) {
 	info->activeCount = 1;
+    } else {
+	info->activeCount = 0;
     }
 
-    if((info->updated) && strncmp(lastActiveSlave, info->activeSlave, IFACE_NAME_LENGTH)) {
-	info->activeChanged = TRUE;
-    } else {
-	info->activeChanged = FALSE;
+    if(info->updated) {
+	if (strncmp(lastInfo.activeSlave.name, info->activeSlave.name, IFACE_NAME_LENGTH)) {
+	    info->change = TRUE;
+	} else if (lastInfo.slaveCount != info->slaveCount) {
+	    info->change = TRUE;
+	} else {
+	    info->change = FALSE;
+	}
     }
 
     info->updated = TRUE;
@@ -2560,12 +2607,12 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 
 
     if(bondInfo->bonded && bondInfo->activeCount > 0) {
-	    realDevice = bondInfo->activeSlave;
+	    realDevice = bondInfo->activeSlave.name;
     }
 
     strncpy(netPath->interfaceInfo.physicalDevice, realDevice, IFACE_NAME_LENGTH);
 
-    if(bondInfo->activeChanged) {
+    if(bondInfo->change) {
 	ptpClock->ignoreOffsetUpdates = 2;
 	ptpClock->ignoreDelayUpdates = 2;
 		WARNING("Active bond member changed to %s, resettinng PTP offsets\n", bondInfo->activeSlave);

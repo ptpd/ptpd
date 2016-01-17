@@ -45,7 +45,6 @@
 /* linked list - so that we can control all registered objects centrally */
 LINKED_LIST_HOOK(ClockDriver);
 
-
 static ClockDriver* _systemClock = NULL;
 static ClockDriver* _bestClock = NULL;
 static int _updateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
@@ -208,6 +207,8 @@ getSystemClock() {
 	exit(1);
     }
 
+    _systemClock->init(_systemClock, NULL);
+
     return _systemClock;
 
 }
@@ -233,15 +234,15 @@ setState(ClockDriver *driver, ClockState newState) {
 	    getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastUpdate);
 	    clearTime(&driver->age);
 	    /* if we're going into FREERUN, but not from a "good" state, restore last good frequency */
-	    if( (newState == CS_FREERUN) && (driver->state == CS_LOCKED || driver->state == CS_HOLDOVER)) {
+	    if( (newState == CS_FREERUN) && !(driver->state == CS_LOCKED || driver->state == CS_HOLDOVER)) {
 		driver->restoreFrequency(driver);
 	    }
 
 	    driver->lastState = driver->state;
 	    driver->state = newState;
 
-	findBestClock();
-	syncClocks(_syncInterval);
+	    findBestClock();
+//	syncClocks(_syncInterval);
 
 	}
 
@@ -270,13 +271,13 @@ updateClockDrivers() {
 		case CS_INIT:
 		    break;
 		case CS_SUSPENDED:
-		    if(cd->age.seconds > cd->config.suspendTimeout) {
+		    if(cd->age.seconds >= cd->config.suspendTimeout) {
 			WARNING(THIS_COMPONENT"Clock %s suspension delay timeout, resuming clock updates\n", cd->name);
 			cd->setState(cd, CS_FREERUN);
 			cd->_canResume = TRUE;
 		    }
 		    break;
-		case CS_NSTEP:
+		case CS_NEGSTEP:
 		    break;
 		case CS_FREERUN:
 		    break;
@@ -321,7 +322,7 @@ syncClocks(double tau) {
 
     ClockDriver *cd;
     LINKED_LIST_FOREACH(cd) {
-	cd->syncClock(cd, tau);
+	    cd->syncClock(cd, tau);
     }
 
 }
@@ -331,7 +332,15 @@ stepClocks(Boolean force) {
 
     ClockDriver *cd;
     LINKED_LIST_FOREACH(cd) {
-	cd->stepTime(cd, &cd->refOffset, force);
+	if((cd != _bestClock) && ((cd->refClock != NULL) || cd->externalReference)) {
+	DBG("%s STEP ref %d.%d\n", cd->name, cd->refOffset.seconds, cd->refOffset.nanoseconds);
+	    cd->stepTime(cd, &cd->refOffset, force);
+	}
+    }
+
+    /* step the best clock last so that other clocks don't lose its reference beforehand */
+    if(_bestClock != NULL) {
+	    _bestClock->stepTime(_bestClock, &_bestClock->refOffset, force);
     }
 
 }
@@ -391,7 +400,7 @@ processUpdate(ClockDriver *driver) {
 	    update = TRUE;
 	}
 
-	if((driver->state == CS_NSTEP) && !isTimeNegative(&driver->refOffset)) {
+	if((driver->state == CS_NEGSTEP) && !isTimeNegative(&driver->refOffset)) {
 	    driver->lockedUp = FALSE;
 	    driver->setState(driver, CS_FREERUN);
 	    update = TRUE;
@@ -430,7 +439,7 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	NOTICE(THIS_COMPONENT"Clock %s lost reference %s\n", a->name, a->refClock->name);
 	a->refClock = NULL;
 	memset(a->refName, 0, CLOCKDRIVER_NAME_MAX);
-	clearTime(&a->refOffset);
+//	clearTime(&a->refOffset);
 	return;
 	
     }
@@ -471,6 +480,9 @@ static void setExternalReference(ClockDriver *a, const char* refName) {
 static void
 restoreFrequency (ClockDriver *driver) {
 
+    if(driver->systemClock) {
+    }
+
     double frequency = 0;
     char frequencyPath [PATH_MAX + 1];
     memset(frequencyPath, 0, PATH_MAX + 1);
@@ -482,7 +494,7 @@ restoreFrequency (ClockDriver *driver) {
 	}
     }
 
-    if(frequency == 0) {
+    if(fabs(frequency) <= ZEROF) {
 	frequency = driver->getFrequency(driver);
     }
 
@@ -571,7 +583,7 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		}
 
 		/* we refused to step backwards and offset is still negative */
-		if((sign == -1) && driver->state == CS_NSTEP) {
+		if((sign == -1) && driver->state == CS_NEGSTEP) {
 			return FALSE;
 		}
 
@@ -581,7 +593,7 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 			if(driver->_canResume) {
 /* WOJ:CHECK */
 /* we're assuming that we can actually step! */
-			    driver->_canResume = FALSE;
+
 			} else {
 			    WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), suspending clock control for %d seconds (panic mode)\n",
 				    driver->name, buf, driver->config.suspendTimeout);
@@ -598,11 +610,18 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 				driver->name, buf, (sign * driver->servo.maxOutput) / 1000);
 			}
 			driver->servo.prime(&driver->servo, sign * driver->servo.maxOutput);
+			driver->_canResume = FALSE;
 			return driver->adjustFrequency(driver, sign * driver->servo.maxOutput, tau);
 		}
 
 		WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), attempting to step the clock\n", driver->name, buf);
-		return driver->stepTime(driver, &offset, FALSE);
+		if( driver->stepTime(driver, &offset, FALSE) ) {
+		    driver->_canResume = FALSE;
+		    clearTime(&driver->refOffset);
+		    return TRUE;
+		} else {
+		    return FALSE;
+		}
 
 	} else {
 		if(driver->state == CS_SUSPENDED) {
@@ -614,7 +633,8 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		    driver->setState(driver, CS_FREERUN);
 		}
 
-		if(driver->state == CS_NSTEP) {
+		if(driver->state == CS_NEGSTEP) {
+		    //INFO("%s OFF %d.%d\n", driver->name, offset.seconds, offset.nanoseconds);
 		    driver->lockedUp = FALSE;
 		    driver->setState(driver, CS_FREERUN);
 		}
@@ -664,8 +684,10 @@ const char*
 getClockStateName(ClockState state) {
 
     switch(state) {
-	case CS_NSTEP:
-	    return "FAULT";
+	case CS_HWFAULT:
+	    return "HWFAULT";
+	case CS_NEGSTEP:
+	    return "NEGSTEP";
 	case CS_SUSPENDED:
 	    return "SUSPENDED";
 	case CS_INIT:
@@ -688,8 +710,10 @@ const char*
 getClockStateShortName(ClockState state) {
 
     switch(state) {
-	case CS_NSTEP:
-	    return "FLT";
+	case CS_HWFAULT:
+	    return "HWFL";
+	case CS_NEGSTEP:
+	    return "NSTE";
 	case CS_SUSPENDED:
 	    return "SUSP";
 	case CS_INIT:
@@ -771,7 +795,7 @@ pushConfig(ClockDriver *driver, RunTimeOpts *global)
     config->lockedAge = global->lockedAge;
     config->holdoverAge = global->holdoverAge;
     config->freerunAge = global->freerunAge;
-    config->suspendTimeout = (global->enablePanicMode) ? 60 * global-> panicModeDuration : 0;
+    config->suspendTimeout = (global->enablePanicMode) ? global-> panicModeDuration : 0;
     config->suspendExitThreshold = global->panicModeExitThreshold;
 
     driver->servo.kP = global->servoKP;
@@ -864,6 +888,16 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			return b;
 		    }
 
+		    if((a->refClock && (a->refClock==_bestClock)) &&
+			(!b->refClock || (b->refClock != _bestClock))) {
+			return a;
+		    }
+
+		    if((b->refClock && (b->refClock==_bestClock)) &&
+			(!a->refClock || (a->refClock != _bestClock))) {
+			return b;
+		    }
+
 		    if(a->adev < b->adev) {
 			return a;
 		    }
@@ -924,6 +958,7 @@ findBestClock() {
 	if(_bestClock != NULL) {
 	    _bestClock->bestClock = FALSE;
 	}
+
 	_bestClock = newBest;
 	if(_bestClock != NULL) {
 	    _bestClock->bestClock = TRUE;
@@ -966,8 +1001,9 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
 	strncpy(tmpBuf2, getClockStateName(driver->state), CLOCKDRIVER_NAME_MAX);
     }
 
-    snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-10s", driver->bestClock ? "*" : " ", driver->name,
-	    tmpBuf2, strlen(driver->refName) ? driver->refName : "none");
+    snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-10s", 
+		driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : " ",
+	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none");
 
 }
 

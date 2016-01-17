@@ -74,8 +74,9 @@ enum {
 };
 
 typedef enum {
-    CS_NSTEP,
+    CS_NEGSTEP,
     CS_SUSPENDED,
+    CS_HWFAULT,
     CS_INIT,
     CS_FREERUN,
     CS_TRACKING,

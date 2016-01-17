@@ -696,37 +696,6 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force)
 
 }
 
-void
-warn_operator_fast_slewing(const RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
-{
-	if(ptpClock->warned_operator_fast_slewing == 0){
-		if ((adj >= rtOpts->servoMaxPpb) || ((adj <= -rtOpts->servoMaxPpb))){
-			ptpClock->warned_operator_fast_slewing = 1;
-			NOTICE("Servo: Going to slew the clock with the maximum frequency adjustment\n");
-		}
-	}
-
-}
-
-void
-warn_operator_slow_slewing(const RunTimeOpts * rtOpts, PtpClock * ptpClock )
-{
-	if(ptpClock->warned_operator_slow_slewing == 0){
-		ptpClock->warned_operator_slow_slewing = 1;
-		ptpClock->warned_operator_fast_slewing = 1;
-
-		/* rule of thumb: at tick rate 10000, slewing at the maximum speed took 0.5ms per second */
-		float estimated = (((abs(ptpClock->currentDS.offsetFromMaster.seconds)) + 0.0) * 2.0 * 1000.0 / 3600.0);
-
-
-		ALERT("Servo: %d seconds offset detected, will take %.1f hours to slew\n",
-			ptpClock->currentDS.offsetFromMaster.seconds,
-			estimated
-		);
-		
-	}
-}
-
 /* check if it's OK to update the clock, deal with panic mode, call for clock step */
 void checkOffset(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
@@ -803,7 +772,6 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		/* NEGATIVE - ofm is offset from master, not offset to master. */
 		ptpClock->clockDriver->syncClockExternal(ptpClock->clockDriver, negativeTime(&ptpClock->currentDS.offsetFromMaster), ptpClock->dT);
 	}
-		warn_operator_fast_slewing(rtOpts, ptpClock, ptpClock->clockDriver->servo.integral);
 		/* let the clock source know it's being synced */
 		ptpClock->clockStatus.inSync = TRUE;
 		ptpClock->clockStatus.clockOffset = (ptpClock->currentDS.offsetFromMaster.seconds * 1E9 +

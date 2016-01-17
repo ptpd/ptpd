@@ -253,6 +253,8 @@ typedef struct {
 
 	Boolean negativeStep;
 
+	Boolean negativeStep_hw;
+
 	int clockSyncRate;
 	int clockUpdateInterval;
 

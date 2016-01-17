@@ -1762,8 +1762,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
     parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:panic_mode_duration",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->panicModeDuration, rtOpts->panicModeDuration,
-		"Duration (minutes) of the panic mode period (no clock updates) when offset\n"
-	"	 above 1 second detected.",RANGECHECK_RANGE,1,60);
+		"Duration (seconds) of the panic mode period (no clock updates) when offset\n"
+	"	 above 1 second detected.",RANGECHECK_RANGE,1,7200);
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:panic_mode_release_clock",
 		PTPD_RESTART_NONE, &rtOpts->panicModeReleaseClock, rtOpts->panicModeReleaseClock,
@@ -1881,7 +1881,12 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:allow_step_backwards",
 		PTPD_RESTART_NONE, &rtOpts->negativeStep,rtOpts->negativeStep,
-	"Allow a clock to be stepped backwards");
+	"Allow a software clock (system clock) to be stepped backwards");
+
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:allow_step_backwards_hw",
+		PTPD_RESTART_NONE, &rtOpts->negativeStep_hw, rtOpts->negativeStep_hw,
+	"Allow a hardware clock to be stepped backwards");
+
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:step_startup_force",
 		PTPD_RESTART_NONE, &rtOpts->stepForce, rtOpts->stepForce,

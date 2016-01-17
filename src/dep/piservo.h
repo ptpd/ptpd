@@ -36,6 +36,8 @@
 #ifndef PTPD_PISERVO_H_
 #define PTPD_PISERVO_H_
 
+#define ZEROF 10E-12
+
 #include "../ptp_primitives.h"
 #include "../ptp_datatypes.h"
 #include "clockdriver.h"

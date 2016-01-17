@@ -187,8 +187,9 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 	GET_CONFIG(self, myConfig, linuxphc);
 	GET_DATA(self, myData, linuxphc);
 
-	TimeInternal now;
+	TimeInternal now, delta;
 	getTime(self, &now);
+	subTime(&delta, &now, time);
 
 	if(self->config.readOnly) {
 		return TRUE;
@@ -198,10 +199,11 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 	    self->lockedUp = FALSE;
 	}
 
-	if(!force && !self->config.negativeStep && !gtTime(time, &now)) {
-		WARNING("Cannot step Linux PHC  clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
+	if(!force && !self->config.negativeStep && isTimeNegative(&delta)) {
+		CRITICAL("Cannot step Linux PHC  clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
+		CRITICAL("Manual intervention required or SIGUSR1 to force %s (%s) clock step\n", self->name, myConfig->characterDevice);
 		self->lockedUp = TRUE;
-		self->setState(self, CS_NSTEP);
+		self->setState(self, CS_NEGSTEP);
 		return FALSE;
 	}
 
@@ -251,9 +253,10 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	}
 
 	if(!force && !self->config.negativeStep && isTimeNegative(delta)) {
-		WARNING("Cannot step Linux PHC clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
+		CRITICAL("Cannot step Linux PHC clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
+		CRITICAL("Manual intervention required or SIGUSR1 to force %s (%s) clock step\n", self->name, myConfig->characterDevice);
 		self->lockedUp = TRUE;
-		self->setState(self, CS_NSTEP);
+		self->setState(self, CS_NEGSTEP);
 		return FALSE;
 	}
 
@@ -462,6 +465,7 @@ pushPrivateConfig(ClockDriver *self, RunTimeOpts *global)
     config->lockedAge = global->lockedAge_hw;
     config->holdoverAge = global->holdoverAge_hw;
     config->freerunAge = global->freerunAge_hw;
+    config->negativeStep = global->negativeStep_hw;
 
     self->servo.kP = global->servoKP_hw;
     self->servo.kI = global->servoKI_hw;
