@@ -107,26 +107,26 @@ static const ConfigTemplate configTemplates[] = {
 
     { "full-logging", "Enable logging for all facilities (statistics, status, log file)", {
 	{"global:log_status", "y"},
-	{"global:status_file", "/var/run/ptpd2.status"},
+	{"global:status_file", "/var/run/ptpd.status"},
 	{"global:statistics_log_interval", "1"},
-	{"global:lock_file", "/var/run/ptpd2.pid"},
+	{"global:lock_file", "/var/run/ptpd.pid"},
 	{"global:log_statistics", "y"},
-	{"global:statistics_file", "/var/log/ptpd2.statistics"},
+	{"global:statistics_file", "/var/log/ptpd.statistics"},
 //	{"global:statistics_file_truncate", "n"},
-	{"global:log_file", "/var/log/ptpd2.log"},
+	{"global:log_file", "/var/log/ptpd.log"},
 	{"global:statistics_timestamp_format", "both"},
 	{NULL}}
     },
 
     { "full-logging-instance", "Logging for all facilities using 'instance' variable which the user should provide", {
 	{"global:log_status", "y"},
-	{"global:status_file", "@rundir@/ptpd2.@instance@.status"},
+	{"global:status_file", "@rundir@/ptpd.@instance@.status"},
 	{"global:statistics_log_interval", "1"},
-	{"global:lock_file", "@rundir@/ptpd2.@instance@.pid"},
+	{"global:lock_file", "@rundir@/ptpd.@instance@.pid"},
 	{"global:log_statistics", "y"},
-	{"global:statistics_file", "@logdir@/ptpd2.@instance@.statistics"},
+	{"global:statistics_file", "@logdir@/ptpd.@instance@.statistics"},
 //	{"global:statistics_file_truncate", "n"},
-	{"global:log_file", "@logdir@/ptpd2.@instance@.log"},
+	{"global:log_file", "@logdir@/ptpd.@instance@.log"},
 	{"global:statistics_timestamp_format", "both"},
 	{NULL}}
     },
@@ -305,6 +305,9 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->storeToFile = TRUE;
 
+	rtOpts->clockUpdateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
+	rtOpts->clockSyncRate = CLOCK_SYNC_RATE;
+
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
 	rtOpts->servoMaxdT = 5.0;
 
@@ -322,8 +325,6 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 #if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined (__QNXNTO__)
 	rtOpts-> cpuNumber = -1;
 #endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H*/
-
-#ifdef PTPD_STATISTICS
 
 	rtOpts->oFilterMSConfig.enabled = FALSE;
 	rtOpts->oFilterMSConfig.discard = TRUE;
@@ -375,21 +376,13 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	/* How often refresh statistics (seconds) */
 	rtOpts->statsUpdateInterval = 30;
-	/* Servo stability detection settings follow */
-	rtOpts->servoStabilityDetection = FALSE;
-	/* Stability threshold (ppb) - observed drift std dev value considered stable */
-	rtOpts->servoStabilityThreshold = 10;
-	/* How many consecutive statsUpdateInterval periods of observed drift std dev within threshold  means stable servo */
-	rtOpts->servoStabilityPeriod = 1;
-	/* How many minutes without servo stabilisation means servo has not stabilised */
-	rtOpts->servoStabilityTimeout = 10;
+
 	/* How long to wait for one-way delay prefiltering */
 	rtOpts->calibrationDelay = 0;
 	/* if set to TRUE and maxDelay is defined, only check against threshold if servo is stable */
 	rtOpts->maxDelayStableOnly = FALSE;
 	/* if set to non-zero, reset slave if more than this amount of consecutive delay measurements was above maxDelay */
 	rtOpts->maxDelayMaxRejected = 0;
-#endif
 
 	/* status file options */
 	rtOpts->statusFileUpdateInterval = 1;

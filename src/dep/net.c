@@ -202,7 +202,7 @@ netShutdown(NetPath * netPath, PtpClock *ptpClock)
 /* Check if interface ifaceName exists. Return 1 on success, 0 when interface doesn't exists, -1 on failure.
  */
 
-static int
+int
 interfaceExists(char* ifaceName)
 {
 
@@ -1208,7 +1208,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				 "host (224.0.1.129 or 224.0.0.107) and udp port 319" ,
 				 1, 0) < 0) {
 			PERROR("failed to compile pcap event filter");
-			pcap_perror(netPath->pcapEvent, "ptpd2");
+			pcap_perror(netPath->pcapEvent, "ptpd");
 			return FALSE;
 		}
 		if (pcap_setfilter(netPath->pcapEvent, &program) < 0) {
@@ -1237,7 +1237,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 					 "host (224.0.1.129 or 224.0.0.107) and udp port 320" ,
 					 1, 0) < 0) {
 				PERROR("failed to compile pcap general filter");
-				pcap_perror(netPath->pcapGeneral, "ptpd2");
+				pcap_perror(netPath->pcapGeneral, "ptpd");
 				return FALSE;
 			}
 			if (pcap_setfilter(netPath->pcapGeneral, &program) < 0) {
@@ -2716,16 +2716,13 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 	ptpClock->clockDriver = NULL;
 	ptpClock->clockDriver2 = NULL;
 	ptpClock->clockDriver3 = NULL;
-	ClockDriverConfig_linuxphc cd;
 
 		if(netPath->hwTimestamping) {
 
 			ptpClock->clockDriver = findClockDriver(pDev);
 			if(!ptpClock->clockDriver) { 
-			    memset(&cd, 0, sizeof(cd));
-			    strncpy(cd.networkDevice, pDev, IFACE_NAME_LENGTH);
-			    ptpClock->clockDriver = createClockDriver(CLOCKDRIVER_LINUXPHC, cd.networkDevice);
-			    ptpClock->clockDriver->init(ptpClock->clockDriver, &cd);
+			    ptpClock->clockDriver = createClockDriver(CLOCKDRIVER_LINUXPHC, pDev);
+			    ptpClock->clockDriver->init(ptpClock->clockDriver, pDev);
 			}
 			    ptpClock->clockDriver->inUse = TRUE;
 			    ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
@@ -2733,10 +2730,8 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 			if(strlen(bDev)) {
 				ptpClock->clockDriver3 = findClockDriver(bDev);
 				if(!ptpClock->clockDriver3) {
-					memset(&cd, 0, sizeof(cd));
-					strncpy(cd.networkDevice, netPath->interfaceInfo.bondInfo.backupSlave, IFACE_NAME_LENGTH);
-					ptpClock->clockDriver3 = createClockDriver(CLOCKDRIVER_LINUXPHC, cd.networkDevice);
-					ptpClock->clockDriver3->init(ptpClock->clockDriver3, &cd);
+					ptpClock->clockDriver3 = createClockDriver(CLOCKDRIVER_LINUXPHC, bDev);
+					ptpClock->clockDriver3->init(ptpClock->clockDriver3, bDev);
 				}
 				ptpClock->clockDriver3->pushConfig(ptpClock->clockDriver3, rtOpts);
 				ptpClock->clockDriver3->inUse = TRUE;

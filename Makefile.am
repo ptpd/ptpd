@@ -15,10 +15,10 @@ EXTRA_DIST =			\
 	tools			\
 	test			\
 	packagebuild		\
-	src/ptpd2.conf.default-full\
-	src/ptpd2.conf.minimal\
-	src/ptpd2.8\
-	src/ptpd2.conf.5\
+	src/ptpd.conf.default-full\
+	src/ptpd.conf.minimal\
+	src/ptpd.8\
+	src/ptpd.conf.5\
 	src/leap-seconds.list\
 	src/dep/iniparser/AUTHORS\
 	src/dep/iniparser/LICENSE\
@@ -37,10 +37,10 @@ BUILT_SOURCES =				\
 	libtool				\
 	$(NULL)
 
-ptpd2dir = $(datadir)/$(PACKAGE)
-ptpd2_DATA = 	src/leap-seconds.list		\
-		src/ptpd2.conf.minimal		\
-		src/ptpd2.conf.default-full	\
+ptpddir = $(datadir)/$(PACKAGE)
+ptpd_DATA = 	src/leap-seconds.list		\
+		src/ptpd.conf.minimal		\
+		src/ptpd.conf.default-full	\
 		src/templates.conf		\
 		doc/PTPBASE-MIB.txt		\
 		$(NULL)

@@ -39,6 +39,7 @@
 
 #include "clockdriver.h"
 #include "clockdriver_interface.h"
+#include "ptpd_dep.h"
 
 static Boolean getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps);
 static Boolean getSystemClockOffset(ClockDriver *self, TimeInternal *delta);
@@ -67,16 +68,24 @@ _setupClockDriver_linuxphc(ClockDriver* self)
 }
 
 static int
-clockdriver_init(ClockDriver* self, const void *config) {
+clockdriver_init(ClockDriver* self, const void *userData) {
 
     GET_DATA(self, myData, linuxphc);
     GET_CONFIG(self, myConfig, linuxphc);
 
     struct ptp_clock_caps caps;
 
-    *myConfig = *((ClockDriverConfig_linuxphc*) config);
+    char* initData = (char*)userData;
 
+    if(strlen(initData) > 0) {
 
+	if(interfaceExists(initData)) {
+	    strncpy(myConfig->networkDevice, initData, IFACE_NAME_LENGTH);
+	} else {
+	    strncpy(myConfig->characterDevice, initData, IFACE_NAME_LENGTH);
+	}
+
+    }
 
     INFO("Linux PHC clock driver %s starting\n", myConfig->networkDevice);
 
@@ -185,12 +194,14 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 		return TRUE;
 	}
 
-	if(force && self->lockedUp) {
+	if(force) {
 	    self->lockedUp = FALSE;
 	}
 
 	if(!force && !self->config.negativeStep && !gtTime(time, &now)) {
 		WARNING("Cannot step Linux PHC  clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
+		self->lockedUp = TRUE;
+		self->setState(self, CS_NSTEP);
 		return FALSE;
 	}
 
@@ -209,9 +220,11 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 	char timeStr[MAXTIMESTR];
 	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
-	NOTICE("Linux PHC clock %s (%s): _stepped clock to: %s.%d\n",
+	NOTICE("Linux PHC clock %s (%s): stepped clock to: %s.%d\n",
 		self->name, myConfig->characterDevice,
 	       timeStr, time->nanoseconds);
+
+	self->setState(self, CS_FREERUN);
 
 	return TRUE;
 
@@ -223,18 +236,24 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	GET_CONFIG(self, myConfig, linuxphc);
 	GET_DATA(self, myData, linuxphc);
 
+	if(isTimeZero(delta)) {
+	    return TRUE;
+	}
+
 	TimeInternal newTime;
 
 	if(self->config.readOnly) {
 		return TRUE;
 	}
 
-	if(force && self->lockedUp) {
+	if(force) {
 	    self->lockedUp = FALSE;
 	}
 
 	if(!force && !self->config.negativeStep && isTimeNegative(delta)) {
 		WARNING("Cannot step Linux PHC clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
+		self->lockedUp = TRUE;
+		self->setState(self, CS_NSTEP);
 		return FALSE;
 	}
 
@@ -252,10 +271,12 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	    return setTime(self, &newTime, force);
 	}
 
-	NOTICE("Linux PHC clock %s (%s): _stepped clock by %s%d.%09d seconds\n", self->name, myConfig->characterDevice,
+	NOTICE("Linux PHC clock %s (%s): stepped clock by %s%d.%09d seconds\n", self->name, myConfig->characterDevice,
 		    (delta->seconds <0 || delta->nanoseconds <0) ? "-":"", delta->seconds, delta->nanoseconds);
 
 	self->_stepped = TRUE;
+
+	self->setState(self, CS_FREERUN);
 
 	return TRUE;
 
@@ -268,6 +289,8 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 
 	GET_CONFIG(self, myConfig, linuxphc);
 	GET_DATA(self, myData, linuxphc);
+
+	self->_tau = tau;
 
 	if(self->config.readOnly) {
 		return FALSE;

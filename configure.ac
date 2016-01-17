@@ -715,26 +715,6 @@ esac
 AC_SUBST(PTP_EXP)
 AM_CONDITIONAL([EXP], [test x$enable_experimental_options = xyes])
 
-AC_MSG_CHECKING([for realtime statistics support])
-AC_ARG_ENABLE(
-    [statistics],
-    [AS_HELP_STRING(
-	[--disable-statistics (enabled by default)],
-	[Disable support for realtime statistics and statistics based filtering]
-    )],
-    [],
-    [enable_statistics=yes]
-)
-AC_MSG_RESULT([$enable_statistics])
-case "$enable_statistics" in
- yes)
-    PTP_STATISTICS="-DPTPD_STATISTICS"
-    ;;
-esac
-AC_SUBST(PTP_STATISTICS)
-
-AM_CONDITIONAL([STATISTICS], [test x$enable_statistics = xyes])
-
 AC_MSG_CHECKING([if we want to enable SO_TIMESTAMPING support on Linux if available])
 AC_ARG_ENABLE(
     [so-timestamping],
@@ -783,7 +763,7 @@ AC_MSG_NOTICE([************************************************************])
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
-AC_CONFIG_FILES([src/ptpd2.8])
-AC_CONFIG_FILES([src/ptpd2.conf.5])
+AC_CONFIG_FILES([src/ptpd.8])
+AC_CONFIG_FILES([src/ptpd.conf.5])
 
 AC_OUTPUT

@@ -161,15 +161,11 @@
 
 #include "timingdomain.h"
 
-#ifdef PTPD_STATISTICS
 #include "dep/outlierfilter.h"
-#endif
 
 #include "datatypes.h"
 
-#ifdef PTPD_STATISTICS
 #include "dep/statistics.h"
-#endif
 
 #include "dep/ptpd_dep.h"
 #include "dep/iniparser/dictionary.h"

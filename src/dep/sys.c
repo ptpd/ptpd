@@ -696,9 +696,7 @@ logStatistics(PtpClock * ptpClock)
 		fprintf(destination,"# %s, State, Clock ID, One Way Delay, "
 		       "Offset From Master, Slave to Master, "
 		       "Master to Slave, Observed Drift, Last packet Received, Sequence ID"
-#ifdef PTPD_STATISTICS
 			", One Way Delay Mean, One Way Delay Std Dev, Offset From Master Mean, Offset From Master Std Dev, Observed Drift Mean, Observed Drift Std Dev, raw delayMS, raw delaySM"
-#endif
 			"\n", (rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) ? "Timestamp, Unix timestamp" : "Timestamp");
 	}
 
@@ -803,8 +801,6 @@ logStatistics(PtpClock * ptpClock)
 			       ptpClock->char_last_msg,
 			       ptpClock->msgTmpHeader.sequenceId);
 
-#ifdef PTPD_STATISTICS
-
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %.00f, %.09f, %.00f",
 			       ptpClock->slaveStats.mpdMean,
 			       ptpClock->slaveStats.mpdStdDev * 1E9,
@@ -822,8 +818,6 @@ logStatistics(PtpClock * ptpClock)
 
 		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 							&(ptpClock->rawDelaySM));
-
-#endif /* PTPD_STATISTICS */
 
 	} else {
 		if ((ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
@@ -844,13 +838,6 @@ logStatistics(PtpClock * ptpClock)
 	
 	/* add final \n in normal status lines */
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
-
-#if 0   /* NOTE: Do we want this? */
-	if (rtOpts.nonDaemon) {
-		/* in -C mode, adding an extra \n makes stats more clear intermixed with debug comments */
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
-	}
-#endif
 
 	/* fprintf may get interrupted by a signal - silently retry once */
 	if (fprintf(destination, "%s", sbuf) < len) {
@@ -899,7 +886,7 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
     if(ptpClock->portDS.portState == PTP_SLAVE) {
 	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &ptpClock->currentDS.offsetFromMaster);
-#ifdef PTPD_STATISTICS
+
 	if(ptpClock->slaveStats.statsCalculated) {
 	    INFO("Status update: state %s, best master %s, ofm %s s, ofm_mean % .09f s, ofm_dev % .09f s\n",
 		portState_getName(ptpClock->portDS.portState),
@@ -925,13 +912,6 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portDS.portState), masterIdBuf, tmpBuf);
 	    }
 	}
-#else
-	INFO("Status update: state %s, best master %s, ofm %s s\n", portState_getName(ptpClock->portDS.portState), masterIdBuf, tmpBuf);
-	snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), mpd);
-	if(ptpClock->portDS.delayMechanism != DELAY_DISABLED) {
-	    INFO("Status update: state %s, best master %s, mpd %s s\n", portState_getName(ptpClock->portDS.portState), masterIdBuf, tmpBuf);
-	}
-#endif /* PTPD_STATISTICS */
     } else if(ptpClock->portDS.portState == PTP_MASTER) {
 	if(rtOpts->unicastNegotiation || ptpClock->unicastDestinationCount) {
 	    INFO("Status update: state %s, %d slaves\n", portState_getName(ptpClock->portDS.portState),
@@ -1130,13 +1110,11 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
 		&ptpClock->currentDS.offsetFromMaster);
 	fprintf(out, 		STATUSPREFIX" %s s","Offset from Master", tmpBuf);
-#ifdef PTPD_STATISTICS
 	if(ptpClock->slaveStats.statsCalculated)
 	fprintf(out, ", mean % .09f s, dev % .09f s",
 		ptpClock->slaveStats.ofmMean,
 		ptpClock->slaveStats.ofmStdDev
 	);
-#endif /* PTPD_STATISTICS */
 	    fprintf(out,"\n");
 
 	if(ptpClock->portDS.delayMechanism == E2E) {
@@ -1144,13 +1122,12 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
 		&ptpClock->currentDS.meanPathDelay);
 	fprintf(out, 		STATUSPREFIX" %s s","Mean Path Delay", tmpBuf);
-#ifdef PTPD_STATISTICS
+
 	if(ptpClock->slaveStats.statsCalculated)
 	fprintf(out, ", mean % .09f s, dev % .09f s",
 		ptpClock->slaveStats.mpdMean,
 		ptpClock->slaveStats.mpdStdDev
 	);
-#endif /* PTPD_STATISTICS */
 	fprintf(out,"\n");
 	}
 	if(ptpClock->portDS.delayMechanism == P2P) {
@@ -1178,15 +1155,10 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 		ptpClock->clockControl.stepFailed ? " FAILED!" : "");
 	if(rtOpts->noAdjust) {
 	    fprintf(out, ", read-only");
-	}
-#ifdef PTPD_STATISTICS	
-	else {
-	    if (rtOpts->servoStabilityDetection) {
+	} else {
 		fprintf(out, ", %s",
 		    (ptpClock->clockDriver->state == CS_LOCKED) ? "stabilised" : "not stabilised");
-	    }
 	}
-#endif /* PTPD_STATISTICS */
 	fprintf(out,"\n");
 
 	}
@@ -1196,12 +1168,12 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	    int i = 1;
 	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
 		    cd->putInfoLine(cd, buf, 100);
-		    fprintf(out, "Clock %d: %-9s :  %s\n", i++, cd->name, buf);
+		    fprintf(out, "Clock %d: %-9s : %s\n", i++, cd->name, buf);
 	    }
 	    i = 1;
 	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
-		    cd->putStatusLine(cd, buf, 100);
-		    fprintf(out, "Clock %d: %-9s :  %s\n",i++, cd->name, buf);
+		    cd->putStatsLine(cd, buf, 100);
+		    fprintf(out, "Clock %d: %-9s : %s\n",i++, cd->name, buf);
 	    }
 
 	}

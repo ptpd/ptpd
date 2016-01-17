@@ -213,12 +213,14 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 		return FALSE;
 	}
 
-	if(force && self->lockedUp) {
+	if(force) {
 	    self->lockedUp = FALSE;
 	}
 
 	if(!force && !self->config.negativeStep && !gtTime(time, &oldTime)) {
 		WARNING("Cannot step Unix clock %s backwards\n", self->name);
+		self->lockedUp = TRUE;
+		self->setState(self, CS_NSTEP);
 		return FALSE;
 	}
 
@@ -262,8 +264,10 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 	char timeStr[MAXTIMESTR];
 	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
-	NOTICE("Unix clock %s: _stepped the system clock to: %s.%d\n", self->name,
+	NOTICE("Unix clock %s: stepped the system clock to: %s.%d\n", self->name,
 	       timeStr, time->nanoseconds);
+
+	self->setState(self, CS_FREERUN);
 
 	return TRUE;
 
@@ -274,6 +278,10 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
 	GET_CONFIG(self, myConfig, unix);
 
+	if(isTimeZero(delta)) {
+	    return TRUE;
+	}
+
 	TimeInternal oldTime,newTime;
 	getTime(self, &oldTime);
 	addTime(&newTime, &oldTime, delta);
@@ -282,12 +290,14 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 		return FALSE;
 	}
 
-	if(force && self->lockedUp) {
+	if(force) {
 	    self->lockedUp = FALSE;
 	}
 
 	if(!force && !self->config.negativeStep && isTimeNegative(delta)) {
 		WARNING("Cannot step Unix clock %s backwards\n", self->name);
+		self->lockedUp = TRUE;
+		self->setState(self, CS_NSTEP);
 		return FALSE;
 	}
 
@@ -306,17 +316,14 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	    return setTime(self, &newTime, force);
 	}
 
-	NOTICE("Unix clock %s: _stepped clock by %s%d.%09d seconds\n", self->name,
+	NOTICE("Unix clock %s: stepped clock by %s%d.%09d seconds\n", self->name,
 		    (delta->seconds <0 || delta->nanoseconds <0) ? "-":"", delta->seconds, delta->nanoseconds);
 
 	addTime(&_stepAccumulator, &_stepAccumulator, delta);
 
 	self->_stepped = TRUE;
 
-	return TRUE;
-#else
-	return setTime(self, &newTime, force);
-#endif
+	self->setState(self, CS_FREERUN);
 
 	if(oldTime.seconds != newTime.seconds) {
 	    updateXtmp_unix(oldTime, newTime);
@@ -324,6 +331,11 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 		setRtc(self, &newTime);
 	    }
 	}
+
+	return TRUE;
+#else
+	return setTime(self, &newTime, force);
+#endif
 
 
 }
@@ -336,6 +348,8 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 		DBGV("adjFreq2: noAdjust on, returning\n");
 		return FALSE;
 	}
+
+	self->_tau = tau;
 
 /*
  * adjFreq simulation for QNX: correct clock by x ns per tick over clock adjust interval,

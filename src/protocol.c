@@ -201,7 +201,8 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	timerStart(&ptpClock->timers[TIMINGDOMAIN_UPDATE_TIMER],timingDomain.updateInterval);
 	timerStart(&ptpClock->timers[ALARM_UPDATE_TIMER],ALARM_UPDATE_INTERVAL);
 	timerStart(&ptpClock->timers[INTERFACE_CHECK_TIMER],1);
-	timerStart(&ptpClock->timers[CLOCK_SYNC_TIMER], 0.25);
+	timerStart(&ptpClock->timers[CLOCK_SYNC_TIMER], 1.0 / (rtOpts->clockSyncRate + 0.0));
+	timerStart(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER], rtOpts->clockUpdateInterval);
 
 	ptpClock->disabled = rtOpts->portDisabled;
 
@@ -287,7 +288,6 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		if (timerExpired(&ptpClock->timers[TIMINGDOMAIN_UPDATE_TIMER])) {
 		    timingDomain.update(&timingDomain);
-		    updateClockDrivers();
 		}
 
 		if(ptpClock->defaultDS.slaveOnly) {
@@ -312,6 +312,11 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if (timerExpired(&ptpClock->timers[CLOCK_SYNC_TIMER])) {
 			syncClocks(ptpClock->timers[CLOCK_SYNC_TIMER].interval);
 		}
+
+		if (timerExpired(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER])) {
+		    updateClockDrivers();
+		}
+
 
 		if (timerExpired(&ptpClock->timers[INTERFACE_CHECK_TIMER])) {
 		    updateInterfaceInfo(&ptpClock->netPath, rtOpts, ptpClock);
@@ -414,16 +419,10 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			timerStop(&ptpClock->timers[DELAYREQ_INTERVAL_TIMER]);
 		else if (ptpClock->portDS.delayMechanism == P2P)
 			timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
-/* If statistics are enabled, drift should have been saved already - otherwise save it*/
-#ifndef PTPD_STATISTICS
-		/* save observed drift value, don't inform user */
-		saveDrift(ptpClock, rtOpts, TRUE);
-#endif /* PTPD_STATISTICS */
 
-#ifdef PTPD_STATISTICS
 		resetPtpEngineSlaveStats(&ptpClock->slaveStats);
 		timerStop(&ptpClock->timers[STATISTICS_UPDATE_TIMER]);
-#endif /* PTPD_STATISTICS */
+
 		ptpClock->panicMode = FALSE;
 		ptpClock->panicOver = FALSE;
 		timerStop(&ptpClock->timers[PANIC_MODE_TIMER]);
@@ -706,7 +705,6 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		displayStatus(ptpClock, "Now in state: ");
 		ptpClock->followUpGap = 0;
 
-#ifdef PTPD_STATISTICS
 		if(rtOpts->oFilterMSConfig.enabled) {
 			ptpClock->oFilterMS.reset(&ptpClock->oFilterMS);
 		}
@@ -722,7 +720,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		clearPtpEngineSlaveStats(&ptpClock->slaveStats);
 
 		timerStart(&ptpClock->timers[STATISTICS_UPDATE_TIMER], rtOpts->statsUpdateInterval);
-#endif /* PTPD_STATISTICS */
+
 		break;
 	default:
 		DBG("to unrecognized state\n");
@@ -846,10 +844,8 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				toState(PTP_MASTER, rtOpts, ptpClock);
 
 			} else if(ptpClock->portDS.portState != PTP_LISTENING) {
-#ifdef PTPD_STATISTICS
 				/* stop statistics updates */
 				timerStop(&ptpClock->timers[STATISTICS_UPDATE_TIMER]);
-#endif /* PTPD_STATISTICS */
 
 				if(ptpClock->announceTimeouts < rtOpts->announceTimeoutGracePeriod) {
 				/*
@@ -1001,12 +997,10 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 
 /* Update PTP slave statistics from online statistics containers */
-#ifdef PTPD_STATISTICS
 		if (timerExpired(&ptpClock->timers[STATISTICS_UPDATE_TIMER])) {
 			if(!rtOpts->enablePanicMode || !ptpClock->panicMode)
 				updatePtpEngineStats(ptpClock, rtOpts);
 		}
-#endif /* PTPD_STATISTICS */
 
 		SET_ALARM(ALRM_NO_SYNC, timerExpired(&ptpClock->timers[SYNC_RECEIPT_TIMER]));
 		SET_ALARM(ALRM_NO_DELAY, timerExpired(&ptpClock->timers[DELAY_RECEIPT_TIMER]));
@@ -1660,11 +1654,10 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 				   (ptpClock->portDS.announceReceiptTimeout) *
 				   (pow(2,ptpClock->portDS.logAnnounceInterval)));
 			}
-#ifdef PTPD_STATISTICS
+
 		if(!timerRunning(&ptpClock->timers[STATISTICS_UPDATE_TIMER])) {
 			timerStart(&ptpClock->timers[STATISTICS_UPDATE_TIMER], rtOpts->statsUpdateInterval);
 		}
-#endif /* PTPD_STATISTICS */
 
 			if (rtOpts->announceTimeoutGracePeriod &&
 				ptpClock->announceTimeouts > 0) {

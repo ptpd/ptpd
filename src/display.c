@@ -977,14 +977,11 @@ displayCounters(const PtpClock * ptpClock)
 	INFO("     txTimestampFailures : %lu\n",
 		(unsigned long)ptpClock->counters.txTimestampFailures);
 
-
-#ifdef PTPD_STATISTICS
 	INFO("Outlier filter hits:\n");
 	INFO("              delayMSOutliersFound : %lu\n",
 		(unsigned long)ptpClock->counters.delayMSOutliersFound);
 	INFO("              delaySMOutliersFound : %lu\n",
 		(unsigned long)ptpClock->counters.delaySMOutliersFound);
-#endif /* PTPD_STATISTICS */
 
 }
 

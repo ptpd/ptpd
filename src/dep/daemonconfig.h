@@ -30,11 +30,8 @@
 #define PTPD_CHANGE_CPUAFFINITY 1 << 6
 /* Configuration changes require daemon restart */
 #define PTPD_RESTART_DAEMON	1 << 7
-
-#ifdef PTPD_STATISTICS
 /* Configuration changes require filter restart */
 #define PTPD_RESTART_FILTERS	1 << 8
-#endif
 
 #define PTPD_RESTART_ACLS	1 << 9
 #define PTPD_RESTART_NTPENGINE	1 << 10

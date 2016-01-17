@@ -381,6 +381,8 @@ Boolean hostLookup(const char* hostname, Integer32* addr);
 void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock);
 Boolean netIoctlHelper(struct ifreq *ifr, char* ifaceName, unsigned long request);
 Boolean getTsInfo(char *ifaceName, struct ethtool_ts_info *info);
+int interfaceExists(char* ifaceName);
+
 
 /** \}*/
 
@@ -492,9 +494,7 @@ int parseLeapFile(char * path, LeapSecondInfo *info);
 void
 resetWarnings(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
-#ifdef PTPD_STATISTICS
 void updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts);
-#endif /* PTPD_STATISTICS */
 
 void writeStatusFile(PtpClock *ptpClock, const RunTimeOpts *rtOpts, Boolean quiet);
 

@@ -1143,7 +1143,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:require_utc_offset_valid",
 		PTPD_RESTART_NONE, &rtOpts->requireUtcValid, rtOpts->requireUtcValid,
-		"Compatibility option: when enabled, ptpd2 will ignore\n"
+		"Compatibility option: when enabled, ptpd will ignore\n"
 	"	 Announce messages from masters announcing currentUtcOffsetValid\n"
 	"	 as FALSE.\n"
 	"	 NOTE: this behaviour is not part of the standard.");
@@ -1495,8 +1495,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"DiffServ CodepPoint for packet prioritisation (decimal). When set to zero, \n"
 	"	 this option is not used. Use 46 for Expedited Forwarding (0x2e).",RANGECHECK_RANGE,0,63);
 
-#ifdef PTPD_STATISTICS
-
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_enable",
 		PTPD_RESTART_FILTERS, &rtOpts->filterMSOpts.enabled, rtOpts->filterMSOpts.enabled,
 		 "Enable statistical filter for Sync messages.");
@@ -1746,9 +1744,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 Activated when going into slave state and during slave's GM failover.\n"
 	"	 0 - not used.",RANGECHECK_RANGE,0,300);
 
-#endif /* PTPD_STATISTICS */
-
-
         parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:idle_timeout",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->idleTimeout, rtOpts->idleTimeout,
 		"PTP idle timeout: if PTPd is in SLAVE state and there have been no clock\n"
@@ -1874,8 +1869,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3, rtOpts->timingAclEnabled,FALSE, rtOpts->timingAclEnabled);
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3, rtOpts->managementAclEnabled,FALSE, rtOpts->managementAclEnabled);
 
-
-
 /* ===== clock section ===== */
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:no_adjust",
@@ -1886,6 +1879,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, &rtOpts->noResetClock, rtOpts->noResetClock,
 	"Do not step the clock - only slew");
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:allow_step_backwards",
+		PTPD_RESTART_NONE, &rtOpts->negativeStep,rtOpts->negativeStep,
+	"Allow a clock to be stepped backwards");
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:step_startup_force",
 		PTPD_RESTART_NONE, &rtOpts->stepForce, rtOpts->stepForce,
 	"Force clock step on first sync after startup regardless of offset and clock:no_reset");
@@ -1894,7 +1891,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, &rtOpts->stepOnce, rtOpts->stepOnce,
 		"Step clock on startup if offset >= 1 second, ignoring\n"
 	"        panic mode and clock:no_reset");
-
 
 #ifdef HAVE_LINUX_RTC_H
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:set_rtc_on_step",
@@ -1906,22 +1902,14 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"        single-boot x86 Linux systems.");
 #endif /* HAVE_LINUX_RTC_H */
 
-	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "clock:drift_handling",
-		PTPD_RESTART_NONE, &rtOpts->drift_recovery_method, rtOpts->drift_recovery_method,
-		"Observed drift handling method between servo restarts:\n"
-	"	 reset: set to zero (not recommended)\n"
-	"	 preserve: use kernel value,\n"
-	"	 file: load/save to drift file on startup/shutdown, use kernel\n"
-	"	 value inbetween. To specify drift file, use the clock:drift_file setting."
-	,
-				"reset", 	DRIFT_RESET,
-				"preserve", 	DRIFT_KERNEL,
-				"file", 	DRIFT_FILE, NULL
-				);
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:store_frequency",
+		PTPD_RESTART_NONE, &rtOpts->storeToFile, rtOpts->storeToFile,
+		"Store current clock frequency offset to file when a clock is stable and locked,:\n"
+	"	 and load frequency offset from file when clock is started.");
 
-	parseResult &= configMapString(opCode, opArg, dict, target, "clock:drift_file",
-		PTPD_RESTART_NONE, rtOpts->driftFile, sizeof(rtOpts->driftFile), rtOpts->driftFile,
-	"Specify drift file");
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:frequency_directory",
+		PTPD_RESTART_NONE, rtOpts->frequencyDir, sizeof(rtOpts->frequencyDir), rtOpts->frequencyDir,
+	"Specify the directory where frequency files are stored and read from");
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:leap_second_pause_period",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->leapSecondPausePeriod,
@@ -2000,10 +1988,17 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:kp",
 		PTPD_RESTART_NONE, &rtOpts->servoKP, rtOpts->servoKP,
-	"Clock servo PI controller proportional component gain (kP).", RANGECHECK_MIN, 0.000001, 0);
+	"Clock servo PI controller proportional component gain (kP) used for software timestamping.", RANGECHECK_MIN, 0.000001, 0);
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:ki",
 		PTPD_RESTART_NONE, &rtOpts->servoKI, rtOpts->servoKI,
-	"Clock servo PI controller integral component gain (kI).", RANGECHECK_MIN, 0.000001,0);
+	"Clock servo PI controller integral component gain (kI) used for software timestamping.", RANGECHECK_MIN, 0.000001,0);
+
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:kp_hardware",
+		PTPD_RESTART_NONE, &rtOpts->servoKP_hw, rtOpts->servoKP_hw,
+	"Clock servo PI controller proportional component gain (kP) used when syncing hardware clocks.", RANGECHECK_MIN, 0.000001, 0);
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:ki_hardware",
+		PTPD_RESTART_NONE, &rtOpts->servoKI_hw, rtOpts->servoKI_hw,
+	"Clock servo PI controller integral component gain (kI) used when syncing gardware clocks.", RANGECHECK_MIN, 0.000001,0);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "servo:dt_method",
 		PTPD_RESTART_NONE, &rtOpts->servoDtMethod, rtOpts->servoDtMethod,
@@ -2021,38 +2016,35 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Maximum servo update interval (delta t) when using measured servo update interval\n"
 	"	 (servo:dt_method = measured), specified as sync interval multiplier.", RANGECHECK_RANGE, 1.5,100.0);
 
-#ifdef PTPD_STATISTICS
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "servo:stability_detection",
-		PTPD_RESTART_NONE, &rtOpts->servoStabilityDetection,
-							rtOpts->servoStabilityDetection,
-		 "Enable clock synchronisation servo stability detection\n"
-	"	 (based on standard deviation of the observed drift value)\n"
-	"	 - drift will be saved to drift file / cached when considered stable,\n"
-	"	 also clock stability status will be logged.");
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:adev_locked_threshold_low_hw",
+		PTPD_RESTART_NONE, &rtOpts->stableAdev_hw, rtOpts->stableAdev_hw,
+		"Minimum Allan deviation of a clock frequency (ppb = 10E-9) for a hardware clock to be considered stable (LOCKED).\n"
+	"        Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
+		RANGECHECK_RANGE, 0.1,100000.0);
 
-	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:stability_threshold",
-		PTPD_RESTART_NONE, &rtOpts->servoStabilityThreshold,
-							rtOpts->servoStabilityThreshold,
-		"Specify the observed drift standard deviation threshold in parts per\n"
-	"	 billion (ppb) - if stanard deviation is within the threshold, servo\n"
-	"	 is considered stable.", RANGECHECK_RANGE, 1.0,10000.0);
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:adev_locked_threshold_high_hw",
+		PTPD_RESTART_NONE, &rtOpts->unstableAdev_hw, rtOpts->unstableAdev_hw,
+		"Allan deviation of a clock frequency (ppb = 10E-9) for a hardware clock to be considered no longer stable\n"
+	"	 (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
+		RANGECHECK_RANGE, 0.1,100000.0);
 
-	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:stability_period",
-		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->servoStabilityPeriod,
-							rtOpts->servoStabilityPeriod,
-		"Specify for how many statistics update intervals the observed drift\n"
-	"	standard deviation has to stay within threshold to be considered stable.", RANGECHECK_RANGE,
-	1,100);
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:adev_locked_threshold_low",
+		PTPD_RESTART_NONE, &rtOpts->stableAdev, rtOpts->stableAdev,
+		"Minimum Allan deviation of a clock frequency (ppb = 10E-9) for a software-based clock to be considered stable (LOCKED).\n"
+	"        Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
+		RANGECHECK_RANGE, 0.1,100000.0);
 
-	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:stability_timeout",
-		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->servoStabilityTimeout,
-							rtOpts->servoStabilityTimeout,
-		"Specify after how many minutes without stabilisation servo is considered\n"
-	"	 unstable. Assists with logging servo stability information and\n"
-	"	 allows to preserve observed drift if servo cannot stabilise.\n", RANGECHECK_RANGE,
-	1,60);
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:adev_locked_threshold_high",
+		PTPD_RESTART_NONE, &rtOpts->unstableAdev, rtOpts->unstableAdev,
+		"Allan deviation of a clock frequency (ppb = 10E-9) for a software-based clock to be considered no longer stable\n"
+	"	 (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
+		RANGECHECK_RANGE, 0.1,100000.0);
 
-#endif
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:adev_interval",
+		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->adevPeriod, rtOpts->adevPeriod,
+		"Interval (seconds) over which Allan deviation of a clock servo is computed for establishing clock stability.\n",
+		RANGECHECK_RANGE, 5, 3600);
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:max_delay",
 		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->maxDelay, rtOpts->maxDelay,
@@ -2065,11 +2057,9 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Maximum number of consecutive delay measurements exceeding maxDelay threshold,\n"
 	"	 before slave is reset.", RANGECHECK_MIN,0,0);
 
-#ifdef PTPD_STATISTICS
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "servo:max_delay_stable_only",
 		PTPD_RESTART_NONE, &rtOpts->maxDelayStableOnly, rtOpts->maxDelayStableOnly,
 		"If servo:max_delay is set, perform the check only if clock servo has stabilised.\n");
-#endif
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:sync_sequence_checking",
 		PTPD_RESTART_NONE, &rtOpts->syncSequenceChecking, rtOpts->syncSequenceChecking,
@@ -2329,16 +2319,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_LOGGING, &rtOpts->periodicUpdates, rtOpts->periodicUpdates,
 		"Log a status update every time statistics are updated (global:statistics_update_interval).\n"
 	"        The updates are logged even when ptpd is configured without statistics support");
-
-#ifdef PTPD_STATISTICS
-
-	CONFIG_CONDITIONAL_ASSERTION( rtOpts->servoStabilityDetection && (
-				    (rtOpts->statsUpdateInterval * rtOpts->servoStabilityPeriod) / 60 >=
-				    rtOpts->servoStabilityTimeout),
-			"The configured servo stabilisation timeout has to be longer than\n"
-		"	 servo stabilisation period");
-
-#endif /* PTPD_STATISTICS */
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "global:timingdomain_election_delay",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->electionDelay, rtOpts->electionDelay,
@@ -2987,7 +2967,7 @@ printShortHelp()
 			"-S --statistics-file [path]	global:statistics_file=[path]	Statistics file\n"
 			"-T --show-templates		display available configuration templates\n"
 			"-t --templates [name],[name],[...]\n"
-			"                               apply configuration template(s) - see man(5) ptpd2.conf\n"
+			"                               apply configuration template(s) - see man(5) ptpd.conf\n"
 			"\n"
 			"Basic PTP protocol and daemon configuration options: \n"
 			"\n"
@@ -3066,7 +3046,7 @@ printLongHelp()
 	printPresetHelp();
 
 	printf("\n"
-		"                  Configuration templates available (see man(5) ptpd2.conf):\n"
+		"                  Configuration templates available (see man(5) ptpd.conf):\n"
 		"\n usage:\n"
 		"                         -t [name],[name],...\n"
 		"                --templates [name],[name],...\n"

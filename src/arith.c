@@ -241,17 +241,14 @@ nano_to_Time(TimeInternal *x, int nano)
 
 double clampDouble(double var, double bound) {
 
-    double ret;
-
     if(var < -bound) {
-	ret = (-bound);
+	return -bound;
     }
 
     if(var > bound) {
-	ret = (bound);
+	return bound;
     }
-
-    ret = var;
+    return var;
 
 }
 

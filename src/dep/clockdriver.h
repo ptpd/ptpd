@@ -44,6 +44,9 @@
 #include "piservo.h"
 
 #define CLOCKDRIVER_NAME_MAX 20
+#define CLOCKDRIVER_UPDATE_INTERVAL 1
+#define CLOCKDRIVER_WARNING_TIMEOUT 60
+#define CLOCK_SYNC_RATE 4
 #define SYSTEM_CLOCK_NAME "syst"
 
 #if defined(linux) && !defined(ADJ_SETOFFSET)
@@ -63,13 +66,21 @@ enum {
     CD_DUMP
 };
 
+enum {
+    CSTEP_NEVER,
+    CSTEP_ALWAYS,
+    CSTEP_STARTUP,
+    CSTEP_STARTUP_FORCE
+};
+
 typedef enum {
+    CS_NSTEP,
     CS_SUSPENDED,
     CS_INIT,
     CS_FREERUN,
     CS_TRACKING,
     CS_HOLDOVER,
-    CS_LOCKED,
+    CS_LOCKED
 } ClockState;
 
 typedef struct {
@@ -86,6 +97,8 @@ typedef struct {
     int holdoverAge;
     int freerunAge;
     int stepType;
+    int suspendTimeout;
+    uint32_t suspendExitThreshold;
 } ClockDriverConfig;
 
 typedef struct {
@@ -102,11 +115,13 @@ struct ClockDriver {
     int _serial;
     Boolean _updated;
     Boolean _stepped;
+    Boolean _canResume;
     IntPermanentAdev _adev;
     IntPermanentAdev _totalAdev;
     TimeInternal _initTime;
     TimeInternal _lastSync;
     TimeInternal _lastUpdate;
+    int _warningTimeout;
     double _tau;
 
     PIservo servo;
@@ -121,6 +136,7 @@ struct ClockDriver {
     ClockDriver *refClock;
     TimeInternal refOffset;
 
+    ClockState lastState;
     ClockState state;
 
     int type;
@@ -128,10 +144,12 @@ struct ClockDriver {
 
     int timeScale;
     int utcOffset;
+
     double totalAdev;
     double adev;
 
     Boolean systemClock;
+    Boolean bestClock;
 
     ClockDriverConfig config;
 
@@ -168,7 +186,7 @@ struct ClockDriver {
 
     /* inherited methods, provided by ClockDriver */
     void (*setState) (ClockDriver *, ClockState);
-    void (*processUpdate) (ClockDriver *, double, double);
+    void (*processUpdate) (ClockDriver *);
 
     Boolean (*pushConfig) (ClockDriver *, RunTimeOpts *);
 
@@ -181,8 +199,10 @@ struct ClockDriver {
 
     Boolean (*syncClock) (ClockDriver*, double);
     Boolean (*syncClockExternal) (ClockDriver*, TimeInternal, double);
-    void (*putStatusLine) (ClockDriver *, char*, int);
+    void (*putStatsLine) (ClockDriver *, char*, int);
     void (*putInfoLine) (ClockDriver *, char*, int);
+
+    void (*touchClock) (ClockDriver *);
 
     /* inherited methods end */
 
@@ -207,7 +227,7 @@ ClockDriver*	getClockDriverByName(const char *);
 
 void		syncClocks();
 void		stepClocks(Boolean);
-
+void		reconfigureClocks(RunTimeOpts *);
 
 const char*	getClockStateName(ClockState);
 const char*	getClockStateShortName(ClockState);

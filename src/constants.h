@@ -9,7 +9,7 @@
 * and enumeration defined in the spec
  */
 
-#define PTPD_PROGNAME "ptpd2"
+#define PTPD_PROGNAME "ptpd"
 
 /* FIXME: make these parameterized, either through command-line options or make variables */
 /* wowczarek@25oct15: fixed: product description suffix is variables:product_description */

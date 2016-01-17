@@ -251,8 +251,10 @@ typedef struct {
 
 	int adevPeriod;
 
-
 	Boolean negativeStep;
+
+	int clockSyncRate;
+	int clockUpdateInterval;
 
 	Enumeration8 servoDtMethod;
 	double servoMaxdT;
@@ -272,21 +274,14 @@ typedef struct {
           */
 	int clockUpdateTimeout;
 
-#ifdef	PTPD_STATISTICS
 	OutlierFilterConfig oFilterMSConfig;
 	OutlierFilterConfig oFilterSMConfig;
 
 	StatFilterOptions filterMSOpts;
 	StatFilterOptions filterSMOpts;
 
-
-	Boolean servoStabilityDetection;
-	double servoStabilityThreshold;
-	int servoStabilityTimeout;
-	int servoStabilityPeriod;
-
 	Boolean maxDelayStableOnly;
-#endif
+
 	/* also used by the periodic message ticker */
 	int statsUpdateInterval;
 

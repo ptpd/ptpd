@@ -35,6 +35,8 @@
 #include "../ptpd.h"
 #include "piservo.h"
 
+#define THIS_COMPONENT "servo: "
+
 static double feed (PIservo*, Integer32, double);
 static void prime (PIservo *, double);
 static void reset (PIservo*);
@@ -86,10 +88,11 @@ feed (PIservo* self, Integer32 input, double tau) {
 
     DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %.09f, accumulator (observed drift): %.09f\n", dt, input, self->output, self->integral);
 
+
     runningMaxOutput = (fabs(self->output) >= self->maxOutput);
 
     if(runningMaxOutput && !self->runningMaxOutput) {
-	    WARNING("Clock %s servo now running at maximum output\n", self->controller->name);
+	    WARNING(THIS_COMPONENT"Clock %s servo now running at maximum output\n", self->controller->name);
     }
 
     self->runningMaxOutput = runningMaxOutput;
@@ -114,10 +117,8 @@ prime (PIservo *self, double integral) {
 
     runningMaxOutput = (fabs(self->output) >= self->maxOutput);
 
-    NOTICE("Clock %s servo primed with frequency %.03f ppb\n", self->controller->name, integral);
-
     if(runningMaxOutput && !self->runningMaxOutput) {
-	    WARNING("Clock %s servo now running at maximum output\n", self->controller->name);
+	    WARNING(THIS_COMPONENT"Clock %s servo now running at maximum output\n", self->controller->name);
     }
 
     self->runningMaxOutput = runningMaxOutput;

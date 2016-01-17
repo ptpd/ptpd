@@ -6,9 +6,7 @@
 
 #include <stdio.h>
 #include <dep/iniparser/dictionary.h>
-#ifdef PTPD_STATISTICS
 #include <dep/statistics.h>
-#endif /* PTPD_STATISTICS */
 #include "dep/alarms.h"
 
 
@@ -93,10 +91,9 @@ typedef struct
 	uint32_t unicastGrantsCancelAckSent; /* how many cancel ack we sent */
 	uint32_t unicastGrantsCancelAckReceived; /* how many cancel ack we received */
 
-#ifdef PTPD_STATISTICS
+
 	uint32_t delayMSOutliersFound;	  /* Number of outliers found by the delayMS filter */
 	uint32_t delaySMOutliersFound;	  /* Number of outliers found by the delaySM filter */
-#endif /* PTPD_STATISTICS */
 	uint32_t maxDelayDrops; /* number of samples dropped due to maxDelay threshold */
 
 	uint32_t messageSendRate;	/* RX message rate per sec */
@@ -377,7 +374,7 @@ typedef struct {
 	TimeInternal	rawPdelayMS;
 	TimeInternal	rawPdelaySM;
 
-#ifdef	PTPD_STATISTICS
+
 	/*
 	 * basic clock statistics information, useful
 	 * for monitoring servo performance and estimating
@@ -391,8 +388,6 @@ typedef struct {
 
 	DoubleMovingStatFilter *filterMS;
 	DoubleMovingStatFilter *filterSM;
-
-#endif
 
 	Integer32 acceptedUpdates;
 	Integer32 offsetUpdates;
