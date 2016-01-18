@@ -300,9 +300,9 @@ updateClockDrivers() {
 			    break;
 			}
 			if(cd->age.seconds > cd->config.lockedAge) {
+			    resetIntPermanentAdev(&cd->_adev);
 			    cd->setState(cd, CS_HOLDOVER);
 			}
-			resetIntPermanentAdev(&cd->_adev);
 		    break;
 		case CS_TRACKING:
 			if((cd->refClock == NULL) && (!cd->externalReference)) {
@@ -376,12 +376,12 @@ processUpdate(ClockDriver *driver) {
 	driver->totalAdev = feedIntPermanentAdev(&driver->_totalAdev, driver->lastFrequency);
 
 	if(driver->servo.runningMaxOutput) {
-/* WOJ:CHECK */
-//	    resetIntPermanentAdev(&driver->_adev);
+	    resetIntPermanentAdev(&driver->_adev);
 	}
 
 	/* we have enough allan dev samples to represent adev period */
 	if( (driver->_tau > ZEROF) && ((driver->_adev.count * driver->_tau) > driver->config.adevPeriod) ) {
+
 	    driver->adev = driver->_adev.adev;
 	    DBG(THIS_COMPONENT"clock %s  ADEV %.09f\n", driver->name, driver->adev);
 	    if(driver->servo.runningMaxOutput) {
@@ -393,6 +393,7 @@ processUpdate(ClockDriver *driver) {
 	    } else if((driver->adev >= driver->config.unstableAdev) && (driver->state == CS_LOCKED)) {
 		driver->setState(driver, CS_TRACKING);
 	    }
+
 	    update = TRUE;
 	    resetIntPermanentAdev(&driver->_adev);
 	}
@@ -470,7 +471,7 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	a->setState(a, CS_FREERUN);
     }
 
-    if(a->systemClock && !b->systemClock) {
+    if(a->systemClock && (b!= NULL) && b->systemClock) {
 	a->servo.kI = b->servo.kI;
 	a->servo.kP = b->servo.kP;
     }
@@ -992,7 +993,8 @@ findBestClock() {
 	    _bestClock->bestClock = FALSE;
 	    /* we are changing best reference - drop the old one */
 	    LINKED_LIST_FOREACH(cd) {
-		if(!cd->externalReference && (cd->refClock == _bestClock)) {
+		if(!cd->externalReference && (cd->refClock == _bestClock)
+		    && (cd->state != CS_LOCKED) && (cd->state != CS_HOLDOVER)) {
 		    cd->setReference(cd, NULL);
 		}
 	    }
