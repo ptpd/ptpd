@@ -35,6 +35,8 @@ typedef struct {
 typedef struct {
     char name[IFACE_NAME_LENGTH + 1];
     int id;
+    Boolean hwTimestamping;
+    Boolean txTimestamping;
 } BondSlave;
 
 typedef struct {
@@ -63,6 +65,8 @@ typedef struct {
 	int rxFilter;
 	int tsMode;
 	int txType;
+	Boolean txTimestamping;
+	Boolean hwTimestamping;
 } HwTsInfo;
 
 /**

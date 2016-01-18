@@ -223,7 +223,7 @@ void		controlClockDrivers(int);
 
 void		updateClockDrivers();
 
-ClockDriver*	findClockDriver(char *);
+ClockDriver*	findClockDriver(const char *);
 ClockDriver*	getClockDriverByName(const char *);
 
 void		syncClocks();

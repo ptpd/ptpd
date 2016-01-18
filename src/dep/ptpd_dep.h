@@ -379,8 +379,8 @@ ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32
 Boolean netRefreshIGMP(NetPath *, const RunTimeOpts *, PtpClock *);
 Boolean hostLookup(const char* hostname, Integer32* addr);
 void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock);
-Boolean netIoctlHelper(struct ifreq *ifr, char* ifaceName, unsigned long request);
-Boolean getTsInfo(char *ifaceName, struct ethtool_ts_info *info);
+Boolean netIoctlHelper(struct ifreq *ifr, const char* ifaceName, unsigned long request);
+Boolean getTsInfo(const char *ifaceName, struct ethtool_ts_info *info);
 int interfaceExists(char* ifaceName);
 
 

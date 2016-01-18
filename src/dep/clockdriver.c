@@ -377,8 +377,7 @@ processUpdate(ClockDriver *driver) {
 	    if(driver->adev <= driver->config.stableAdev) {
 		driver->storeFrequency(driver);
 		driver->setState(driver, CS_LOCKED);
-	    }
-	    if((driver->adev >= driver->config.unstableAdev) && (driver->state == CS_LOCKED)) {
+	    } else if((driver->adev >= driver->config.unstableAdev) && (driver->state == CS_LOCKED)) {
 		driver->setState(driver, CS_TRACKING);
 	    }
 	    update = TRUE;
@@ -734,7 +733,7 @@ getClockStateShortName(ClockState state) {
 
 
 ClockDriver*
-findClockDriver(char * search) {
+findClockDriver(const char * search) {
 
 	ClockDriver *cd;
 	LINKED_LIST_FOREACH(cd) {

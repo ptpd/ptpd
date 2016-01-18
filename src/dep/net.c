@@ -90,10 +90,9 @@
 
 static Boolean bondQuery(char *ifaceName, ifbond *ifb);
 static Boolean bondSlaveQuery(char *ifaceName, ifslave *ifs, int member);
-static int getActiveBondMember(char * ifaceName, char* active, char *backup, size_t maxlen);
 static void getBondInfo(char *ifaceName, BondInfo *info);
 static void getVlanInfo(char* ifaceName, VlanInfo *info);
-static Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target);
+static Boolean getHwTs(const char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target, Boolean quiet);
 static Boolean initHwTs(char *ifaceName, HwTsInfo *info);
 static Boolean prepareClockDrivers(NetPath *, PtpClock *, RunTimeOpts *);
 
@@ -555,8 +554,6 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
 	if(getInterfaceInfo(ifaceName, &info) != 1)
 		return FALSE;
 
-	if(interfaceInfo
-
 	switch(rtOpts->transport) {
 
 	    case UDP_IPV4:
@@ -591,10 +588,15 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
     }
 
     if(info.bondInfo.bonded) {
+
+	    if(!info.bondInfo.activeBackup && rtOpts->hwTimestamping) {
+		WARNING("%s is a bonded interface but is not running Active Backup. Cannot use hardware timestamping\n");
+	    }
+
 	    if(info.bondInfo.activeCount == 0) {
 		WARNING("%s is a bonded interface with no active slaves\n");
 	    } else {
-		INFO("%s is a bonded interface, current active slave: %s\n", realDevice, info.bondInfo.activeSlave);
+		INFO("%s is a bonded interface, current active slave: %s\n", realDevice, info.bondInfo.activeSlave.name);
 	    }
     }
 
@@ -800,27 +802,39 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 static Boolean
 netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 
-    HwTsInfo info;
+	HwTsInfo info, primaryInfo;
+	BondInfo *bi = &netPath->interfaceInfo.bondInfo;
+	char *primaryName = netPath->interfaceInfo.physicalDevice;
+	char *ifaceName;
 
-    char *ifaceName = netPath->interfaceInfo.physicalDevice;
+	memset(&primaryInfo, 0, sizeof(HwTsInfo));
 
-
-
-    if(!getHwTs(ifaceName, rtOpts, &info) || !initHwTs(ifaceName, &info)) {
-	return FALSE;
-    }
-
-    ifaceName = netPath->interfaceInfo.bondInfo.backupSlave;
-
-    if(strlen(ifaceName)) {
-	if(!getHwTs(ifaceName, rtOpts, &info) || !initHwTs(ifaceName, &info)) {
+	if(!getHwTs((const char*)primaryName, rtOpts, &primaryInfo, FALSE) || !initHwTs(primaryName, &primaryInfo)) {
 	    return FALSE;
 	}
-    }
 
-    if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &info.tsMode, sizeof(info.tsMode)) < 0) {
-	PERROR("Could not set SO_TIMESTAMPING modes on %s\n", ifaceName);
-	return FALSE;
+	if(bi->bonded) {
+	    for(int i = 0; i < bi->slaveCount; i++) {
+		ifaceName = bi->slaves[i].name;
+		if(strlen(ifaceName)) {
+		    memset(&info, 0, sizeof(HwTsInfo));
+		    if(!getHwTs((const char*)ifaceName, rtOpts, &info, FALSE)) {
+			return FALSE;
+		    }
+		    if(info.tsMode != primaryInfo.tsMode) {
+			WARNING("Interface %s does not support the same timestamping modes as primary %s (%03x vs. %03x)\n",
+			ifaceName, primaryName, info.tsMode, primaryInfo.tsMode);
+		    }
+		    if(!initHwTs(ifaceName, &info)) {
+			return FALSE;
+		    }
+		}
+	    }
+	}
+
+	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &info.tsMode, sizeof(info.tsMode)) < 0) {
+	    PERROR("Could not set SO_TIMESTAMPING modes on primary interface %s\n", ifaceName);
+	    return FALSE;
     }
 
     netPath->txTimestamping = TRUE;
@@ -851,44 +865,20 @@ netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 	    if(netInitHwTimestamping(netPath, rtOpts)) {
 		return TRUE;
 	    }
-	}
-
-	DBG("netInitTimestamping: trying to use SO_TIMESTAMPING\n");
-	val = SOF_TIMESTAMPING_TX_SOFTWARE |
-	    SOF_TIMESTAMPING_RX_SOFTWARE |
-	    SOF_TIMESTAMPING_SOFTWARE;
-
-#ifdef ETHTOOL_GET_TS_INFO
-       struct ethtool_ts_info tsInfo;
-	struct ifreq ifRequest;
-        int res;
-
-        memset(&tsInfo, 0, sizeof(tsInfo));
-        memset(&ifRequest, 0, sizeof(ifRequest));
-        tsInfo.cmd = ETHTOOL_GET_TS_INFO;
-        strncpy( ifRequest.ifr_name, rtOpts->ifaceName, IFNAMSIZ - 1);
-        ifRequest.ifr_data = (char *) &tsInfo;
-
-        res = ioctl(netPath->eventSock, SIOCETHTOOL, &ifRequest);
-
-	netPath->txTimestamping = TRUE;
-
-	if (res < 0) {
-		PERROR("Could not retrieve ethtool timestamping capabilities for %s - reverting to SO_TIMESTAMPNS",
-			    rtOpts->ifaceName);
-		val = 1;
-		netPath->txTimestamping = FALSE;
-	} else if((tsInfo.so_timestamping & val) != val) {
-		DBGV("Required SO_TIMESTAMPING flags not supported - reverting to SO_TIMESTAMPNS\n");
-		val = 1;
-		netPath->txTimestamping = FALSE;
+	} else {
+	    HwTsInfo info;
+	    getHwTs(rtOpts->ifaceName, rtOpts, &info, TRUE);
+	    if(info.txTimestamping) {
+		val = info.tsMode;
+		netPath->txTimestamping = TRUE;
+	    }
 	}
 #else
 	netPath->txTimestamping = FALSE;
 	val = 1;
-#endif /* ETHTOOL_GET_TS_INFO */
+#endif /* SO_TIMESTAMPING */
 
-
+#if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)
 	if(val == 1) {
 	    if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
 		    PERROR("netInitTimestamping: failed to enable SO_TIMESTAMPNS");
@@ -1474,7 +1464,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		}
 
 		if(!prepareClockDrivers(netPath, ptpClock, rtOpts)) {
-			ERROR("Cannot start clock drivers - aborting mission.\n");
+			ERROR("Cannot start clock drivers - aborting mission\n");
 			exit(-1);
 		}
 
@@ -2387,7 +2377,7 @@ netRefreshIGMP(NetPath * netPath, const RunTimeOpts * rtOpts, PtpClock * ptpCloc
 	return TRUE;
 }
 
-Boolean netIoctlHelper(struct ifreq *ifr, char* ifaceName, unsigned long request) {
+Boolean netIoctlHelper(struct ifreq *ifr, const char* ifaceName, unsigned long request) {
 
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -2426,32 +2416,6 @@ static Boolean bondSlaveQuery(char *ifaceName, ifslave *ifs, int member)
     ifs->slave_id = member;
     ifr.ifr_data = (caddr_t)ifs;
     return netIoctlHelper(&ifr, ifaceName, SIOCBONDSLAVEINFOQUERY);
-
-}
-
-static int getActiveBondMember(char * ifaceName, char* active, char *backup, size_t maxlen)
-{
-
-    ifbond ifb;
-    ifslave ifs;
-    int ret = -1;
-
-    if(bondQuery(ifaceName, &ifb)) {
-
-	if(ifb.num_slaves == 0) return -1;
-
-	for(int i = 0; i < ifb.num_slaves; i++) {
-	    if(bondSlaveQuery(ifaceName, &ifs, i) && ifs.state == BOND_STATE_ACTIVE) {
-		strncpy(active, ifs.slave_name, min(maxlen, sizeof(ifs.slave_name)));
-		ret=i;
-	    }
-	    if(bondSlaveQuery(ifaceName, &ifs, i) && ifs.state == BOND_STATE_BACKUP) {
-		strncpy(backup, ifs.slave_name, min(maxlen, sizeof(ifs.slave_name)));
-		ret=i;
-	    }
-	}
-    }
-    return ret;
 
 }
 
@@ -2625,7 +2589,7 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
     }
 }
 
-Boolean getTsInfo(char *ifaceName, struct ethtool_ts_info *info) {
+Boolean getTsInfo(const char *ifaceName, struct ethtool_ts_info *info) {
 
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
@@ -2641,15 +2605,22 @@ Boolean getTsInfo(char *ifaceName, struct ethtool_ts_info *info) {
 
 }
 
-Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target) {
+Boolean getHwTs(const char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target, Boolean quiet) {
 
 	HwTsInfo output;
 	memset(&output, 0, sizeof(HwTsInfo));
 
-	static const OptionName tsModes[] = {
+	static const OptionName hwtsMode[] = {
 	    {SOF_TIMESTAMPING_TX_HARDWARE, "SOF_TIMESTAMPING_TX_HARDWARE"},
 	    {SOF_TIMESTAMPING_RX_HARDWARE, "SOF_TIMESTAMPING_RX_HARDWARE"},
 	    {SOF_TIMESTAMPING_RAW_HARDWARE, "SOF_TIMESTAMPING_RAW_HARDWARE"},
+	    {-1}
+	};
+
+	static const OptionName swtsMode[] = {
+	    {SOF_TIMESTAMPING_TX_SOFTWARE, "SOF_TIMESTAMPING_TX_SOFTWARE"},
+	    {SOF_TIMESTAMPING_RX_SOFTWARE, "SOF_TIMESTAMPING_RX_SOFTWARE"},
+	    {SOF_TIMESTAMPING_SOFTWARE, "SOF_TIMESTAMPING_SOFTWARE"},
 	    {-1}
 	};
 
@@ -2675,13 +2646,31 @@ Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target) {
 	    return FALSE;
 	}
 
-	for(const OptionName *mode = tsModes; mode->value != -1; mode++) {
+	for(const OptionName *mode = hwtsMode; mode->value != -1; mode++) {
 	    if((info.so_timestamping & mode->value) == mode->value) {
 		DBG("hwts: Interface %s supports mode %s\n", ifaceName, mode->name);
 		output.tsMode |= mode->value;
 	    } else {
-		ERROR("Interface %s does not support required timestamping mode %s\n", ifaceName, mode->name);
-		return FALSE;
+		output.tsMode = 0;
+
+		if(!quiet && !rtOpts->hwTimestamping) NOTICE("Interface %s does not support required hardware timestamping mode %s\n", ifaceName, mode->name);
+
+		for(const OptionName *mode = swtsMode; mode->value != -1; mode++) {
+		    if((info.so_timestamping & mode->value) == mode->value) {
+		    DBG("hwts: Interface %s supports mode %s\n", ifaceName, mode->name);
+		    output.tsMode |= mode->value;
+		    } else {
+			if(!quiet) NOTICE("Interface %s does not support required software timextamping mode  %s\n", ifaceName, mode->name);
+			output.tsMode = 0;
+			return FALSE;
+		    }
+		}
+		output.txTimestamping = TRUE;
+		output.hwTimestamping = FALSE;
+		if(target != NULL) {
+		    *target = output;
+		}
+		return TRUE;
 	    }
 	}
 
@@ -2696,7 +2685,7 @@ Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target) {
 	}
 
 	if(!output.rxFilter) {
-		ERROR("Interface %s does not support suitable hardware timestamping filters \n", ifaceName);
+		if(!quiet) ERROR("Interface %s does not support suitable hardware timestamping filters \n", ifaceName);
 		return FALSE;
 	}
 
@@ -2704,9 +2693,11 @@ Boolean getHwTs(char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target) {
 		DBG("hwts: Interface %s supports HWTSTAMP_TX_ON\n", ifaceName);
 		output.txType = HWTSTAMP_TX_ON;
 	} else {
-		ERROR("Interface %s does not support hardware transmit timestamps(HWTSTAMP_TX_ON)\n");
+		if(!quiet) ERROR("Interface %s does not support hardware transmit timestamps(HWTSTAMP_TX_ON)\n");
 		return FALSE;
 	}
+	output.hwTimestamping = TRUE;
+	output.txTimestamping = TRUE;
 
 	for(const OptionName *mode = txTypes; mode->value != -1; mode++) {
 	    if(info.tx_types & (1 << mode->value) ) {
@@ -2752,53 +2743,76 @@ Boolean initHwTs(char *ifaceName, HwTsInfo *info) {
 
 }
 
+static ClockDriver *
+getClockDriver(const char *ifaceName, RunTimeOpts *rtOpts)
+{
+
+    ClockDriver *cd = NULL;
+    HwTsInfo info;
+
+    cd = findClockDriver(ifaceName);
+
+    if(cd != NULL) {
+	return cd;
+    }
+
+    memset(&info, 0, sizeof(HwTsInfo));
+
+    if(!getHwTs(ifaceName, rtOpts, &info, TRUE) || !info.hwTimestamping) {
+	cd = getSystemClock();
+    } else {
+	cd = createClockDriver(CLOCKDRIVER_LINUXPHC, ifaceName);
+    }
+
+    if(cd != NULL && !cd->_init) {
+	cd->init(cd, ifaceName);
+    }
+
+    return cd;
+
+}
+
 static Boolean
 prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 
+	BondInfo *bi = &netPath->interfaceInfo.bondInfo;
+	ClockDriver *cd;
+
 	controlClockDrivers(CD_NOTINUSE);
 
-	char *pDev = netPath->interfaceInfo.physicalDevice;
-	char *bDev = netPath->interfaceInfo.bondInfo.backupSlave;
+	getSystemClock()->pushConfig(getSystemClock(), rtOpts);
 
 	ptpClock->clockDriver = NULL;
-	ptpClock->clockDriver2 = NULL;
-	ptpClock->clockDriver3 = NULL;
+	ptpClock->clockDriver = getClockDriver(netPath->interfaceInfo.physicalDevice, rtOpts);
 
-		if(netPath->hwTimestamping) {
-
-			ptpClock->clockDriver = findClockDriver(pDev);
-			if(!ptpClock->clockDriver) { 
-			    ptpClock->clockDriver = createClockDriver(CLOCKDRIVER_LINUXPHC, pDev);
-			    ptpClock->clockDriver->init(ptpClock->clockDriver, pDev);
-			}
-			    ptpClock->clockDriver->inUse = TRUE;
-			    ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
-
-			if(strlen(bDev)) {
-				ptpClock->clockDriver3 = findClockDriver(bDev);
-				if(!ptpClock->clockDriver3) {
-					ptpClock->clockDriver3 = createClockDriver(CLOCKDRIVER_LINUXPHC, bDev);
-					ptpClock->clockDriver3->init(ptpClock->clockDriver3, bDev);
-				}
-				ptpClock->clockDriver3->pushConfig(ptpClock->clockDriver3, rtOpts);
-				ptpClock->clockDriver3->inUse = TRUE;
-			}
-		ptpClock->clockDriver2 = getSystemClock();
-		ptpClock->clockDriver2->init(ptpClock->clockDriver2, NULL);
-		ptpClock->clockDriver2->pushConfig(ptpClock->clockDriver2, rtOpts);
-		ptpClock->clockDriver2->inUse = TRUE;
-		} else {
-		    ptpClock->clockDriver = getSystemClock();
-		    ptpClock->clockDriver->init(ptpClock->clockDriver2, NULL);
-		    ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
-		    ptpClock->clockDriver->inUse = TRUE;
+	if(bi->bonded) {
+	    for(int i = 0; i < bi->slaveCount; i++) {
+		cd = getClockDriver(bi->slaves[i].name, rtOpts);
+		if((cd != NULL) && strlen(bi->slaves[i].name)) {
+		    if(!cd->_init) {
+			cd->init(cd, bi->slaves[i].name);
+		    }
+		    cd->pushConfig(cd, rtOpts);
+		    cd->inUse = TRUE;
 		}
-if(ptpClock->portDS.portState == PTP_SLAVE) {
-    ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP");
-}
+	    }
+	}
 
-/* clean up unused clock drivers */
-controlClockDrivers(CD_CLEANUP);
+	if ((ptpClock->clockDriver == NULL) || !ptpClock->clockDriver->_init) {
+		ERROR("Could not start clock driver for primary interface %s\n",
+			netPath->interfaceInfo.physicalDevice);
+		return FALSE;
+	}
+
+	ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
+	ptpClock->clockDriver->inUse = TRUE;
+
+	if(ptpClock->portDS.portState == PTP_SLAVE) {
+	    ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP");
+	}
+
+	/* clean up unused clock drivers */
+	controlClockDrivers(CD_CLEANUP);
 
 	return TRUE;
 
