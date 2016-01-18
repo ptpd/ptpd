@@ -464,7 +464,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->syncSequenceChecking = FALSE;
 	rtOpts->clockUpdateTimeout = 0;
 
-	rtOpts->hwTimestamping = TRUE;
+	rtOpts->hwTimestamping = FALSE;
 
 }
 

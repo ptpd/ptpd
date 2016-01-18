@@ -10,7 +10,7 @@
 #           PTP was developed to provide very precise time
 #           coordination of LAN connected computers.
 
-DAEMON=/usr/sbin/ptpd2
+DAEMON=/usr/sbin/ptpd
 prog=PTPd
 RETVAL=0
 PATH=/sbin:/usr/local/bin:$PATH

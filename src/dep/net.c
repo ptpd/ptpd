@@ -536,7 +536,7 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 
     strncpy(ifaceInfo->physicalDevice, realDevice, IFACE_NAME_LENGTH);
 
-    DBG("Underlying physical device: %s\n", ifaceInfo->physicalDevice);
+    INFO("Underlying physical device: %s\n", ifaceInfo->physicalDevice);
 
     return TRUE;
 
@@ -832,15 +832,15 @@ netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 	    }
 	}
 
-	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &info.tsMode, sizeof(info.tsMode)) < 0) {
-	    PERROR("Could not set SO_TIMESTAMPING modes on primary interface %s\n", ifaceName);
+	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &primaryInfo.tsMode, sizeof(primaryInfo.tsMode)) < 0) {
+	    PERROR("Could not set SO_TIMESTAMPING modes on primary interface %s\n", primaryName);
 	    return FALSE;
     }
 
     netPath->txTimestamping = TRUE;
     netPath->hwTimestamping = TRUE;
 
-    INFO("Hardware timestamping successfully enabled on %s\n", ifaceName);
+    INFO("Hardware timestamping successfully enabled on %s\n", primaryName);
 
     return TRUE;
 
@@ -870,6 +870,7 @@ netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 	    getHwTs(rtOpts->ifaceName, rtOpts, &info, TRUE);
 	    if(info.txTimestamping) {
 		val = info.tsMode;
+		netPath->hwTimestamping = FALSE;
 		netPath->txTimestamping = TRUE;
 	    }
 	}
@@ -2591,6 +2592,7 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 		ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
 		prepareClockDrivers(netPath, ptpClock, rtOpts);
 		netRefreshIGMP(netPath, rtOpts, ptpClock);
+		ptpClock->isCalibrated = FALSE;
 		}
     } else if(bondInfo->countChanged) {
 	WARNING("Bonding: %s slave count changed, checking clocks\n");
@@ -2793,6 +2795,8 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 
 	getSystemClock()->pushConfig(getSystemClock(), rtOpts);
 
+	if(rtOpts->hwTimestamping && netPath->hwTimestamping) {
+
 	ptpClock->clockDriver = NULL;
 	ptpClock->clockDriver = getClockDriver(netPath->interfaceInfo.physicalDevice, rtOpts);
 
@@ -2813,6 +2817,10 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 		ERROR("Could not start clock driver for primary interface %s\n",
 			netPath->interfaceInfo.physicalDevice);
 		return FALSE;
+	}
+
+	} else {
+	    ptpClock->clockDriver = getSystemClock();
 	}
 
 	ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);

@@ -74,6 +74,8 @@ ptpd_SOURCES =				\
 	dep/clockdriver_unix.c		\
 	dep/clockdriver_linuxphc.h	\
 	dep/clockdriver_linuxphc.c	\
+	dep/linkedlist.h		\
+	globalconfig.h			\
 	dep/piservo.h			\
 	dep/piservo.c			\
 	ptpd.c				\

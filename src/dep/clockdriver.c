@@ -471,10 +471,18 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	a->setState(a, CS_FREERUN);
     }
 
-    if(a->systemClock && (b!= NULL) && b->systemClock) {
+
+// WOJ:CHECK
+
+/*
+
+
+
+    if(a->systemClock && (b!= NULL) && !b->systemClock) {
 	a->servo.kI = b->servo.kI;
 	a->servo.kP = b->servo.kP;
     }
+*/
 
 }
 
