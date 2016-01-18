@@ -897,18 +897,35 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			return b;
 		    }
 
-		    if(a->adev < b->adev) {
+		    if((a->adev > ZEROF) && (b->adev > ZEROF)) {
+
+			if(a->adev < b->adev) {
+			    return a;
+			}
+
+			if(a->adev > b->adev) {
+			    return b;
+			}
+		    }
+
+		    if(!a->systemClock && b->systemClock) {
+			return a;
+		    }
+		    if(a->systemClock && !b->systemClock) {
+			return b;
+		    }
+
+		    if(a->age.seconds > b->age.seconds) {
 			return a;
 		    }
 
-		    if(a->adev > b->adev) {
+		    if(a->age.seconds < b->age.seconds) {
 			return b;
 		    }
 
 		}
 
 	}
-
 	return a;
 }
 
