@@ -93,6 +93,16 @@ createClockDriver(int driverType, const char *name)
 	LINKED_LIST_INSERT(clockDriver);
     }
 
+    StatFilterOptions opts;
+    memset(&opts, 0, sizeof(StatFilterOptions));
+
+    opts.enabled = TRUE;
+    opts.filterType = FILTER_MEDIAN;
+    opts.windowSize = CLOCK_SYNC_RATE;
+    opts.windowType = WINDOW_SLIDING;
+
+    clockDriver->_filter = createDoubleMovingStatFilter(&opts, name);
+
     return clockDriver;
 
 }
@@ -186,6 +196,8 @@ freeClockDriver(ClockDriver** clockDriver)
     if(pdriver == _systemClock) {
 	_systemClock = NULL;
     }
+
+    freeDoubleMovingStatFilter(&pdriver->_filter);
 
     free(*clockDriver);
 
@@ -364,17 +376,18 @@ processUpdate(ClockDriver *driver) {
 	driver->totalAdev = feedIntPermanentAdev(&driver->_totalAdev, driver->lastFrequency);
 
 	if(driver->servo.runningMaxOutput) {
-	    resetIntPermanentAdev(&driver->_adev);
+/* WOJ:CHECK */
+//	    resetIntPermanentAdev(&driver->_adev);
 	}
 
 	/* we have enough allan dev samples to represent adev period */
-	if( (driver->_adev.count * driver->_tau) > driver->config.adevPeriod ) {
+	if( (driver->_tau > ZEROF) && ((driver->_adev.count * driver->_tau) > driver->config.adevPeriod) ) {
 	    driver->adev = driver->_adev.adev;
 	    DBG(THIS_COMPONENT"clock %s  ADEV %.09f\n", driver->name, driver->adev);
 	    if(driver->servo.runningMaxOutput) {
 		driver->setState(driver, CS_TRACKING);
-	    }
-	    if(driver->adev <= driver->config.stableAdev) {
+	    /*WOJ:CHECK was no else */
+	    } else if(driver->adev <= driver->config.stableAdev) {
 		driver->storeFrequency(driver);
 		driver->setState(driver, CS_LOCKED);
 	    } else if((driver->adev >= driver->config.unstableAdev) && (driver->state == CS_LOCKED)) {
@@ -638,8 +651,12 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		    driver->setState(driver, CS_FREERUN);
 		}
 
-		driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
-		return driver->adjustFrequency(driver, driver->servo.output, tau);
+		if(feedDoubleMovingStatFilter(driver->_filter, timeInternalToDouble(&offset))) {
+		    offset = doubleToTimeInternal(driver->_filter->output);
+		    driver->refOffset = offset;
+		    driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
+		    return driver->adjustFrequency(driver, driver->servo.output, tau);
+		}
 
 	}
 
@@ -973,12 +990,18 @@ findBestClock() {
     if(newBest != _bestClock) {
 	if(_bestClock != NULL) {
 	    _bestClock->bestClock = FALSE;
+	    /* we are changing best reference - drop the old one */
+	    LINKED_LIST_FOREACH(cd) {
+		if(!cd->externalReference && (cd->refClock == _bestClock)) {
+		    cd->setReference(cd, NULL);
+		}
+	    }
 	}
-
 	_bestClock = newBest;
 	if(_bestClock != NULL) {
 	    _bestClock->bestClock = TRUE;
 	}
+
 	LINKED_LIST_FOREACH(cd) {
 	    if(!cd->externalReference && (cd != _bestClock)) {
 		cd->setReference(cd, _bestClock);

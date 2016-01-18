@@ -2493,11 +2493,12 @@ static void getBondInfo(char *ifaceName, BondInfo *info)
 
     if(info->updated) {
 	if (strncmp(lastInfo.activeSlave.name, info->activeSlave.name, IFACE_NAME_LENGTH)) {
-	    info->change = TRUE;
+	    info->activeChanged = TRUE;
 	} else if (lastInfo.slaveCount != info->slaveCount) {
-	    info->change = TRUE;
+	    info->countChanged = TRUE;
 	} else {
-	    info->change = FALSE;
+	    info->activeChanged = FALSE;
+	    info->countChanged = FALSE;
 	}
     }
 
@@ -2576,16 +2577,24 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 
     strncpy(netPath->interfaceInfo.physicalDevice, realDevice, IFACE_NAME_LENGTH);
 
-    if(bondInfo->change) {
+    if(bondInfo->activeChanged) {
 	ptpClock->ignoreOffsetUpdates = 2;
 	ptpClock->ignoreDelayUpdates = 2;
-		WARNING("Active bond member changed to %s, resettinng PTP offsets\n", bondInfo->activeSlave);
+		if(bondInfo->activeCount == 0) {
+		    WARNING("Bonding: no active slaves on %s! Interface down\n", realDevice);
+		} else {
+		WARNING("Bonding: %s active bond member changed to %s, resettinng PTP offsets\n", realDevice,
+		 bondInfo->activeSlave.name);
 		if(rtOpts->refreshIgmp) {
 		    INFO("Re-sending IGMP joins\n");
 		}
 		ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
 		prepareClockDrivers(netPath, ptpClock, rtOpts);
 		netRefreshIGMP(netPath, rtOpts, ptpClock);
+		}
+    } else if(bondInfo->countChanged) {
+	WARNING("Bonding: %s slave count changed, checking clocks\n");
+	prepareClockDrivers(netPath, ptpClock, rtOpts);
     }
 }
 
@@ -2624,11 +2633,13 @@ Boolean getHwTs(const char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *targ
 	    {-1}
 	};
 
-	/* "sensible" order - last mode will not support timestamping delay */
+	/* "sensible" order - last mode will not support timestamping delay.
+	 * Preferring ALL to allow VLAN timestamping etc.
+	 */
 	static const OptionName rxFilters[] = {
+	    { HWTSTAMP_FILTER_ALL, "HWTSTAMP_FILTER_ALL"},
 	    { HWTSTAMP_FILTER_PTP_V2_L4_EVENT, "HWTSTAMP_FILTER_PTP_V2_L4_EVENT"},
 	    { HWTSTAMP_FILTER_PTP_V2_EVENT, "HWTSTAMP_FILTER_PTP_V2_EVENT"},
-	    { HWTSTAMP_FILTER_ALL, "HWTSTAMP_FILTER_ALL"},
 	    { HWTSTAMP_FILTER_PTP_V2_L4_SYNC, "HWTSTAMP_FILTER_PTP_V2_L4_SYNC"},
 	    {-1}
 	};

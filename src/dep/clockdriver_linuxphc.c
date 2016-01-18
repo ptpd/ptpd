@@ -469,6 +469,7 @@ pushPrivateConfig(ClockDriver *self, RunTimeOpts *global)
 
     self->servo.kP = global->servoKP_hw;
     self->servo.kI = global->servoKI_hw;
+    self->servo.maxOutput = global->servoMaxPpb_hw;
 
     return TRUE;
 

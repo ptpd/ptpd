@@ -2045,7 +2045,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
 		RANGECHECK_RANGE, 0.1,100000.0);
 
-
 	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:adev_interval",
 		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->adevPeriod, rtOpts->adevPeriod,
 		"Interval (seconds) over which Allan deviation of a clock servo is computed for establishing clock stability.\n",

@@ -35,8 +35,6 @@
 #ifndef PTPD_CLOCKDRIVER_H_
 #define PTPD_CLOCKDRIVER_H_
 
-
-
 #include "../ptpd.h"
 #include "../globalconfig.h"
 #include "linkedlist.h"
@@ -46,7 +44,7 @@
 #define CLOCKDRIVER_NAME_MAX 20
 #define CLOCKDRIVER_UPDATE_INTERVAL 1
 #define CLOCKDRIVER_WARNING_TIMEOUT 60
-#define CLOCK_SYNC_RATE 4
+#define CLOCK_SYNC_RATE 5
 #define SYSTEM_CLOCK_NAME "syst"
 
 #if defined(linux) && !defined(ADJ_SETOFFSET)
@@ -112,6 +110,8 @@ struct ClockDriver {
 
     ClockStatus _status;
     Boolean	_init;
+
+    DoubleMovingStatFilter *_filter;
 
     int _serial;
     Boolean _updated;
