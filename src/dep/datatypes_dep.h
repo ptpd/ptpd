@@ -130,7 +130,7 @@ typedef struct {
 	Boolean txTimestamping;
 	Boolean hwTimestamping;
 	Boolean hwTimestamping_backup;
-	Boolean lateTxTimestamp;
+	Boolean txDelayed;
 	int ignorePackets;
 	Ipv4AccessList* timingAcl;
 	Ipv4AccessList* managementAcl;

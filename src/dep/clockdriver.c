@@ -96,11 +96,13 @@ createClockDriver(int driverType, const char *name)
     StatFilterOptions opts;
     memset(&opts, 0, sizeof(StatFilterOptions));
 
+    /* for now only, hard-coded filter */
     opts.enabled = TRUE;
     opts.filterType = FILTER_MEDIAN;
     opts.windowSize = CLOCK_SYNC_RATE;
     opts.windowType = WINDOW_SLIDING;
 
+    clockDriver->distance = 255;
     clockDriver->_filter = createDoubleMovingStatFilter(&opts, name);
 
     return clockDriver;
@@ -116,18 +118,9 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
     clockDriver->type = driverType;
     strncpy(clockDriver->name, name, CLOCKDRIVER_NAME_MAX);
 
-    REGISTER_CLOCKDRIVER(CLOCKDRIVER_UNIX, unix);
-    REGISTER_CLOCKDRIVER(CLOCKDRIVER_LINUXPHC, linuxphc);
-
-    if(!found) {
-	ERROR(THIS_COMPONENT"Setup requested for unknown clock driver type: %d\n", driverType);
-    } else {
-	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_initTime);
-	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_lastUpdate);
-	DBG(THIS_COMPONENT"Created new clock driver type %d name %s serial %d\n", driverType, name, clockDriver->_serial);
-    }
-
-    /* inherited methods */
+    /* inherited methods - implementation may wish to override them,
+     * or even preserve these pointers in its private data and call both
+     */
 
     clockDriver->setState = setState;
     clockDriver->processUpdate = processUpdate;
@@ -150,10 +143,20 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
 
     /* inherited methods end */
 
+    /* these macros call the setup functions for existing clock drivers */
+    REGISTER_CLOCKDRIVER(CLOCKDRIVER_UNIX, unix);
+    REGISTER_CLOCKDRIVER(CLOCKDRIVER_LINUXPHC, linuxphc);
+
+    if(!found) {
+	ERROR(THIS_COMPONENT"Setup requested for unknown clock driver type: %d\n", driverType);
+    } else {
+	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_initTime);
+	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_lastUpdate);
+	DBG(THIS_COMPONENT"Created new clock driver type %d name %s serial %d\n", driverType, name, clockDriver->_serial);
+    }
+
     clockDriver->state = CS_INIT;
-
     setupPIservo(&clockDriver->servo);
-
     clockDriver->servo.controller = clockDriver;
 
     return found;
@@ -183,12 +186,12 @@ freeClockDriver(ClockDriver** clockDriver)
 	LINKED_LIST_REMOVE(pdriver);
 
 
-    if(pdriver->privateData != NULL) {
-	free(pdriver->privateData);
+    if(pdriver->_privateData != NULL) {
+	free(pdriver->_privateData);
     }
 
-    if(pdriver->privateConfig != NULL) {
-	free(pdriver->privateConfig);
+    if(pdriver->_privateConfig != NULL) {
+	free(pdriver->_privateConfig);
     }
 
     DBG(THIS_COMPONENT"Deleted clock driver type %d name %s serial %d\n", pdriver->type, pdriver->name, pdriver->_serial);
@@ -282,8 +285,8 @@ updateClockDrivers() {
 
 		case CS_INIT:
 		    break;
-		case CS_SUSPENDED:
-		    if(cd->age.seconds >= cd->config.suspendTimeout) {
+		case CS_STEP:
+		    if(cd->age.seconds >= cd->config.stepTimeout) {
 			WARNING(THIS_COMPONENT"Clock %s suspension delay timeout, resuming clock updates\n", cd->name);
 			cd->setState(cd, CS_FREERUN);
 			cd->_canResume = TRUE;
@@ -443,6 +446,22 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	return;
     }
 
+    /* loop detection - do not allow a reference to use
+     * a reference which uses itself, directly or indirectly
+     */
+    if(b != NULL) {
+	ClockDriver *cd;
+	int hops = 0;
+	for( cd = b->refClock; cd != NULL; cd = cd->refClock) {
+	    hops++;
+	    if(cd == a) {
+		NOTICE(THIS_COMPONENT"Cannot set reference of clock %s to %s: %s already references %s (%d hops)\n",
+		    a->name, b->name, a->name, b->name, hops);
+		return;
+	    }
+	}
+    }
+
     /* no change */
     if((a->refClock != NULL) && (a->refClock == b)) {
 	return;
@@ -452,6 +471,11 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	NOTICE(THIS_COMPONENT"Clock %s lost reference %s\n", a->name, a->refClock->name);
 	a->refClock = NULL;
 	memset(a->refName, 0, CLOCKDRIVER_NAME_MAX);
+	if(a->state == CS_LOCKED) {
+	    a->setState(a, CS_HOLDOVER);
+	} else {
+	    a->distance = 255;
+	}
 //	clearTime(&a->refOffset);
 	return;
 	
@@ -462,11 +486,17 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	a->externalReference = FALSE;
 	memset(a->refName, 0, CLOCKDRIVER_NAME_MAX);
 	a->refClock = NULL;
+	if(a->state == CS_LOCKED) {
+	    a->setState(a, CS_HOLDOVER);
+	} else {
+	    a->distance = 255;
+	}
 	return;
     } else if (b != NULL) {
 	NOTICE(THIS_COMPONENT"Clock %s changing reference to %s\n", a->name, b->name);
 	a->externalReference = FALSE;
 	a->refClock = b;
+	a->distance = b->distance + 1;
 	strncpy(a->refName, b->name, CLOCKDRIVER_NAME_MAX);
 	a->setState(a, CS_FREERUN);
     }
@@ -495,14 +525,12 @@ static void setExternalReference(ClockDriver *a, const char* refName) {
 	strncpy(a->refName, refName, CLOCKDRIVER_NAME_MAX);
 	a->externalReference = TRUE;
 	a->refClock = NULL;
+	a->distance = 1;
 	a->setState(a, CS_FREERUN);
 }
 
 static void
 restoreFrequency (ClockDriver *driver) {
-
-    if(driver->systemClock) {
-    }
 
     double frequency = 0;
     char frequencyPath [PATH_MAX + 1];
@@ -515,6 +543,7 @@ restoreFrequency (ClockDriver *driver) {
 	}
     }
 
+    /* goddamn floats! */
     if(fabs(frequency) <= ZEROF) {
 	frequency = driver->getFrequency(driver);
     }
@@ -573,7 +602,7 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
     /* do nothing if offset is zero - prevents from linked clocks being dragged around,
      * and it's not obvious that two clocks can be linked, as we can see with Intel,
      * where multiple NIC ports can present themselves as different clock IDs, but
-     * in fact all drive the same clock.
+     * in fact all show the same frequency (or so it seems...)
      */
 
     if(isTimeZero(&driver->refOffset)) {
@@ -599,7 +628,7 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		}
 
 		/* panic mode */
-		if(driver->state == CS_SUSPENDED) {
+		if(driver->state == CS_STEP) {
 			return FALSE;
 		}
 
@@ -609,7 +638,7 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		}
 
 		/* going into panic mode */
-		if(driver->config.suspendTimeout) {
+		if(driver->config.stepTimeout) {
 			/* ...or in fact exiting it... */
 			if(driver->_canResume) {
 /* WOJ:CHECK */
@@ -617,8 +646,8 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 
 			} else {
 			    WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), suspending clock control for %d seconds (panic mode)\n",
-				    driver->name, buf, driver->config.suspendTimeout);
-			    driver->setState(driver, CS_SUSPENDED);
+				    driver->name, buf, driver->config.stepTimeout);
+			    driver->setState(driver, CS_STEP);
 			    return FALSE;
 			}
 		}
@@ -645,9 +674,9 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		}
 
 	} else {
-		if(driver->state == CS_SUSPENDED) {
+		if(driver->state == CS_STEP) {
 		    /* we are outside the exit threshold, clock is still suspended */
-		    if(driver->config.suspendExitThreshold && (labs(offset.nanoseconds) > driver->config.suspendExitThreshold)) {
+		    if(driver->config.stepExitThreshold && (labs(offset.nanoseconds) > driver->config.stepExitThreshold)) {
 			return FALSE;
 		    }
 		    NOTICE(THIS_COMPONENT"Clock %s offset below 1 second, resuming clock control\n", driver->name);
@@ -655,7 +684,6 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		}
 
 		if(driver->state == CS_NEGSTEP) {
-		    //INFO("%s OFF %d.%d\n", driver->name, offset.seconds, offset.nanoseconds);
 		    driver->lockedUp = FALSE;
 		    driver->setState(driver, CS_FREERUN);
 		}
@@ -709,12 +737,14 @@ const char*
 getClockStateName(ClockState state) {
 
     switch(state) {
+	case CS_SUSPENDED:
+	    return "SUSPENDED";
 	case CS_HWFAULT:
 	    return "HWFAULT";
 	case CS_NEGSTEP:
 	    return "NEGSTEP";
-	case CS_SUSPENDED:
-	    return "SUSPENDED";
+	case CS_STEP:
+	    return "STEP";
 	case CS_INIT:
 	    return "INIT";
 	case CS_FREERUN:
@@ -735,12 +765,14 @@ const char*
 getClockStateShortName(ClockState state) {
 
     switch(state) {
+	case CS_SUSPENDED:
+	    return "SUSP";
 	case CS_HWFAULT:
 	    return "HWFL";
 	case CS_NEGSTEP:
-	    return "NSTE";
-	case CS_SUSPENDED:
-	    return "SUSP";
+	    return "NSTP";
+	case CS_STEP:
+	    return "STEP";
 	case CS_INIT:
 	    return "INIT";
 	case CS_FREERUN:
@@ -819,12 +851,12 @@ pushConfig(ClockDriver *driver, RunTimeOpts *global)
     config->unstableAdev = global->unstableAdev;
     config->lockedAge = global->lockedAge;
     config->holdoverAge = global->holdoverAge;
-    config->freerunAge = global->freerunAge;
-    config->suspendTimeout = (global->enablePanicMode) ? global-> panicModeDuration : 0;
-    config->suspendExitThreshold = global->panicModeExitThreshold;
+    config->stepTimeout = (global->enablePanicMode) ? global-> panicModeDuration : 0;
+    config->stepExitThreshold = global->panicModeExitThreshold;
 
     driver->servo.kP = global->servoKP;
     driver->servo.kI = global->servoKI;
+
     driver->servo.maxOutput = global->servoMaxPpb;
     driver->servo.tauMethod = global->servoDtMethod;
     driver->servo.maxTau = global->servoMaxdT;
@@ -891,12 +923,26 @@ ClockDriver*
 compareClockDriver(ClockDriver *a, ClockDriver *b) {
 
 	/* better state than us - wins */
-	if( (b->state > a->state) && (b->state > CS_FREERUN)) {
-		return b;
+	if( (a->state < b->state) && (b->state > CS_FREERUN)) {
+		/* however, do not prefer a locked with higher distance
+		 * to a holdover with locked distance */
+		if(a->state == CS_HOLDOVER) {
+		    if(a->distance < b->distance) {
+			return a;
+		    }
+		}
+		    return b;
 	}
 
 	/* our state is better - we win */
-	if(b->state < a->state) {
+	if(b->state < a->state && (a->state > CS_FREERUN) ) {
+		/* however, do not prefer a locked with higher distance
+		 * to a holdover with locked distance */
+		if(b->state == CS_HOLDOVER) {
+		    if(b->distance < a->distance) {
+			return b;
+		    }
+		}
 		return a;
 	}
 
@@ -920,6 +966,14 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 
 		    if((b->refClock && (b->refClock==_bestClock)) &&
 			(!a->refClock || (a->refClock != _bestClock))) {
+			return b;
+		    }
+
+		    if(a->distance < b->distance) {
+			return a;
+		    }
+
+		    if(a->distance > b->distance) {
 			return b;
 		    }
 
@@ -979,10 +1033,10 @@ findBestClock() {
 
     if(newBest != NULL) {
 	LINKED_LIST_FOREACH(cd) {
-		if(newBest != cd) {
+	    if(newBest != cd) {
 		    newBest = compareClockDriver(newBest, cd);
-		}
-	}
+	    }
+    }
 
 	if(newBest != _bestClock ) {
 	    NOTICE(THIS_COMPONENT"New best clock selected: %s\n", newBest->name);
@@ -1011,7 +1065,11 @@ findBestClock() {
 	if(_bestClock != NULL) {
 	    _bestClock->bestClock = TRUE;
 	}
-
+	LINKED_LIST_FOREACH(cd) {
+	    if(!cd->externalReference && (cd != _bestClock)) {
+		cd->setReference(cd, NULL);
+	    }
+	}
 	LINKED_LIST_FOREACH(cd) {
 	    if(!cd->externalReference && (cd != _bestClock)) {
 		cd->setReference(cd, _bestClock);
@@ -1044,15 +1102,16 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
     memset(buf, 0, len);
     snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
 
-    if((driver->state == CS_SUSPENDED) && driver->config.suspendTimeout) {
-	snprintf(tmpBuf2, sizeof(tmpBuf2), "SUSP %-4d", driver->config.suspendTimeout - driver->age.seconds);
+    if((driver->state == CS_STEP) && driver->config.stepTimeout) {
+	snprintf(tmpBuf2, sizeof(tmpBuf2), "SUSP %-4d", driver->config.stepTimeout - driver->age.seconds);
     } else {
 	strncpy(tmpBuf2, getClockStateName(driver->state), CLOCKDRIVER_NAME_MAX);
     }
 
-    snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-10s", 
+    snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-7s dist: %d", 
 		driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : " ",
-	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none");
+	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none",
+	    driver->distance);
 
 }
 

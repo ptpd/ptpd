@@ -1994,6 +1994,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:kp",
 		PTPD_RESTART_NONE, &rtOpts->servoKP, rtOpts->servoKP,
 	"Clock servo PI controller proportional component gain (kP) used for software timestamping.", RANGECHECK_MIN, 0.000001, 0);
+
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:ki",
 		PTPD_RESTART_NONE, &rtOpts->servoKI, rtOpts->servoKI,
 	"Clock servo PI controller integral component gain (kI) used for software timestamping.", RANGECHECK_MIN, 0.000001,0);

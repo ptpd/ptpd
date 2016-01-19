@@ -1139,7 +1139,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	}
 
 	fprintf(out, 		STATUSPREFIX"  ","PTP Clock status");
-	    if(ptpClock->clockDriver->state == CS_SUSPENDED) {
+	    if(ptpClock->clockDriver->state == CS_STEP) {
 		fprintf(out,"panic mode,");
 	    }
 	    if(ptpClock->clockDriver->state == CS_NEGSTEP) {

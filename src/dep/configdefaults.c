@@ -294,9 +294,6 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->holdoverAge = 120;
 	rtOpts->holdoverAge_hw = 600;
 
-	rtOpts->freerunAge = 600;
-	rtOpts->freerunAge_hw = 1800;
-
 	rtOpts->adevPeriod = 10;
 
 	rtOpts->negativeStep = FALSE;

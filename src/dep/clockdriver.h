@@ -52,114 +52,152 @@
 #endif
 
 
+/* clock driver types */
 enum {
     CLOCKDRIVER_UNIX = 0,
     CLOCKDRIVER_LINUXPHC = 1
 };
 
+/* clock commands that can be sent to all clock drivers */
 enum {
-    CD_NOTINUSE,
-    CD_SHUTDOWN,
-    CD_CLEANUP,
-    CD_DUMP
+    CD_NOTINUSE,	/* mark all not in use */
+    CD_SHUTDOWN,	/* shutdown all */
+    CD_CLEANUP,		/* clean up drivers not in use */
+    CD_DUMP,		/* dump clock information for all */
+    CD_STEP		/* step all clocks to their last known offsets */
 };
 
+/* clock stepping behaviour */
 enum {
-    CSTEP_NEVER,
-    CSTEP_ALWAYS,
-    CSTEP_STARTUP,
-    CSTEP_STARTUP_FORCE
+    CSTEP_NEVER,	/* never step clock */
+    CSTEP_ALWAYS,	/* always step clock */
+    CSTEP_STARTUP,	/* step only on startup and only if offset > 1 s */
+    CSTEP_STARTUP_FORCE /* always step on startup, regardless of offset and if it's negative */
 };
 
+/* clock states */
 typedef enum {
-    CS_NEGSTEP,
-    CS_SUSPENDED,
-    CS_HWFAULT,
-    CS_INIT,
-    CS_FREERUN,
-    CS_TRACKING,
-    CS_HOLDOVER,
-    CS_LOCKED
+    CS_SUSPENDED,	/* clock is suspended - no updates accepted */
+    CS_NEGSTEP,		/* clock is locked up after negative step attempt */
+    CS_STEP,		/* clock is suspended because of offset > 1 s */
+    CS_HWFAULT,		/* hardware fault */
+    CS_INIT,		/* initial state */
+    CS_FREERUN,		/* clock is not being disciplined */
+    CS_TRACKING,	/* clock is tracking a reference but is not locked */
+    CS_HOLDOVER,	/* clock is in holdover after no updates or losing reference */
+    CS_LOCKED		/* clock is locked to reference (adev below threshold) */
 } ClockState;
 
+/* clock driver configuration */
 typedef struct {
-    Boolean readOnly;
-    Boolean noStep;
-    Boolean negativeStep;
-    Boolean storeToFile;
-    char frequencyFile[PATH_MAX +1];
-    char frequencyDir[PATH_MAX + 1];
-    int adevPeriod;
-    double stableAdev;
-    double unstableAdev;
-    int lockedAge;
-    int holdoverAge;
-    int freerunAge;
-    int stepType;
-    int suspendTimeout;
-    uint32_t suspendExitThreshold;
+    Boolean readOnly;			/* clock is read-only */
+    Boolean noStep;			/* clock cannot be stepped */
+    Boolean negativeStep;		/* clock can be stepped backwards */
+    Boolean storeToFile;		/* clock stores good frequency in a file */
+    char frequencyFile[PATH_MAX +1];	/* frequency file - filled by the driver itself */
+    char frequencyDir[PATH_MAX + 1];	/* frequency file directory */
+    int adevPeriod;			/* Allan deviation measurement period */
+    double stableAdev;			/* Allan deviation low watermark for LOCKED state */
+    double unstableAdev;		/* Allan deviation high watermark for LOCKED state -> TRACKING */
+    int lockedAge;			/* Maximum age in LOCKED (going into HOLDOVER) */
+    int holdoverAge;			/* Maximum age in HOLDOVER (going into FREERUN) */
+    int stepType;			/* Clock reaction to a 1 second+ step */
+    int stepTimeout;			/* Panic mode / suspend period when step detected */
+    uint32_t stepExitThreshold;		/* Offset from reference when we can exit panic mode early */
 } ClockDriverConfig;
 
 typedef struct {
-
+    Boolean inSync;
+    Boolean leapInsert;
+    Boolean leapDelete;
+    Boolean utcOffset;
 } ClockStatus;
 
 typedef struct ClockDriver ClockDriver;
 
+/* enTER THE C L O C K D R I V E R R R R R */
 struct ClockDriver {
 
-    ClockStatus _status;
-    Boolean	_init;
+    int type;				/* clock driver type */
+    char name[CLOCKDRIVER_NAME_MAX];	/* name of the driver's instance */
+    TimeInternal age;			/* clock's age (time spent in current state) */
 
-    DoubleMovingStatFilter *_filter;
+    int timeScale;			/* for future use: clock's native time scale */
+    int utcOffset;			/* for future use: clock timescale's offset to UTC */
 
-    int _serial;
-    Boolean _updated;
-    Boolean _stepped;
-    Boolean _canResume;
-    IntPermanentAdev _adev;
-    IntPermanentAdev _totalAdev;
-    TimeInternal _initTime;
-    TimeInternal _lastSync;
-    TimeInternal _lastUpdate;
-    int _warningTimeout;
-    double _tau;
+    int distance;			/* number of "hops" from topmost reference */
 
-    PIservo servo;
+    ClockDriverConfig config;		/* config container */
 
-    Boolean	lockedUp;
-    Boolean	inUse;
-    TimeInternal age;
+    /* flags */
+    Boolean	inUse;			/* the driver is in active use, if not, can be removed */
+    Boolean	lockedUp;		/* clock is locked up due to failure (like negative step) */
+    Boolean systemClock;		/* this driver is THE system clock */
+    Boolean bestClock;			/* this driver is the current best clock */
+    Boolean externalReference;		/* the clock is using an external reference */
 
-    Boolean externalReference;
+    ClockState state;			/* clock state */
+    ClockState lastState;		/* previous clock state */
 
-    char refName[CLOCKDRIVER_NAME_MAX];
-    ClockDriver *refClock;
-    TimeInternal refOffset;
+    char refName[CLOCKDRIVER_NAME_MAX]; /* instance name of the clock's reference */
+    ClockDriver *refClock;		/* reference clock object */
 
-    ClockState lastState;
-    ClockState state;
+    TimeInternal refOffset;		/* clock's last known offset from reference */
 
-    int type;
-    char name[CLOCKDRIVER_NAME_MAX];
+    double totalAdev;			/* Allan deviation from the driver's init time */
+    double adev;			/* running Allan deviation, periodically updated */
 
-    int timeScale;
-    int utcOffset;
+    PIservo servo;			/* PI servo used to sync the clock */
 
-    double totalAdev;
-    double adev;
+    double lastFrequency;		/* last known frequency offset */
+    double storedFrequency;		/* stored (good) frequency offset */
+    double maxFrequency;		/* maximum frequency offset that can be set */
 
-    Boolean systemClock;
-    Boolean bestClock;
 
-    ClockDriverConfig config;
+    /* BEGIN "private" fields */
 
-    void *privateData;
-    void *privateConfig;
+    int _serial;			/* object serial no */
+    Boolean	_init;			/* the driver was successfully initialised */
+    ClockStatus _status;		/* status flags - leap etc. */
+    Boolean _updated;			/* clock has received at least one update */
+    Boolean _stepped;			/* clock has been stepped at least once */
+    Boolean _canResume;			/* we are OK to resume sync after step */
+    IntPermanentAdev _adev;		/* running Allan deviation container */
+    IntPermanentAdev _totalAdev;	/* totalAllan deviation container */
+    TimeInternal _initTime;		/* time (monotonic) when the driver was initialised */
+    TimeInternal _lastSync;		/* time (monotonic) when the driver was last adjusted */
+    TimeInternal _lastUpdate;		/* time (monotonic) when the driver received the last update */
+    int _warningTimeout;		/* used to silence warnings */
+    double _tau;			/* time constant (servo run interval) */
+    DoubleMovingStatFilter *_filter;	/* offset filter */
 
-    double lastFrequency;
-    double storedFrequency;
-    double maxFrequency;
+    void *_privateData;			/* implementation-specific data */
+    void *_privateConfig;		/* implementation-specific config */
+
+    /* END "private" fields */
+
+    /* inherited methods */
+
+    void (*setState) (ClockDriver *, ClockState);
+    void (*processUpdate) (ClockDriver *);
+
+    Boolean (*pushConfig) (ClockDriver *, RunTimeOpts *);
+
+    void (*setReference) (ClockDriver *, ClockDriver *);
+    void (*setExternalReference) (ClockDriver *, const char *);
+
+    Boolean (*adjustFrequency) (ClockDriver *, double, double);
+    void (*restoreFrequency) (ClockDriver *);
+    void (*storeFrequency) (ClockDriver *);
+
+    Boolean (*syncClock) (ClockDriver*, double);
+    Boolean (*syncClockExternal) (ClockDriver*, TimeInternal, double);
+    void (*putStatsLine) (ClockDriver *, char*, int);
+    void (*putInfoLine) (ClockDriver *, char*, int);
+
+    void (*touchClock) (ClockDriver *);
+
+    /* inherited methods end */
 
     /* public interface - implementations must implement all of those */
 
@@ -185,28 +223,8 @@ struct ClockDriver {
 
     /* public interface end */
 
-    /* inherited methods, provided by ClockDriver */
-    void (*setState) (ClockDriver *, ClockState);
-    void (*processUpdate) (ClockDriver *);
 
-    Boolean (*pushConfig) (ClockDriver *, RunTimeOpts *);
-
-    void (*setReference) (ClockDriver *, ClockDriver *);
-    void (*setExternalReference) (ClockDriver *, const char *);
-
-    Boolean (*adjustFrequency) (ClockDriver *, double, double);
-    void (*restoreFrequency) (ClockDriver *);
-    void (*storeFrequency) (ClockDriver *);
-
-    Boolean (*syncClock) (ClockDriver*, double);
-    Boolean (*syncClockExternal) (ClockDriver*, TimeInternal, double);
-    void (*putStatsLine) (ClockDriver *, char*, int);
-    void (*putInfoLine) (ClockDriver *, char*, int);
-
-    void (*touchClock) (ClockDriver *);
-
-    /* inherited methods end */
-
+    /* attach the linked list */
     LINKED_LIST_TAG(ClockDriver);
 
 };

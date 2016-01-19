@@ -755,7 +755,6 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 
 	if(select(netPath->eventSock + 1, &tmpSet, NULL, NULL, &timeOut) > 0) {
 		if (FD_ISSET(netPath->eventSock, &tmpSet)) {
-
 			length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp,
 			    netPath, MSG_ERRQUEUE);
 			if (length > 0) {
@@ -772,13 +771,9 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 
 	/* we're desperate here, aren't we... */
 	for(i = 0; i <= LATE_TXTIMESTAMP_RETRIES; i++) {
-	    if(i==LATE_TXTIMESTAMP_RETRIES) {
-		usleep(LATE_TXTIMESTAMP_FINAL_US);
-	    } else {
 	    usleep(backoff);
 	    backoff *= 2;
 	    DBG("getTxTimestamp backoff: %d\n", backoff);
-	    }
 	    length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
 	    if(length > 0) {
 		DBG("getTxTimestamp: SO_TIMESTAMPING - delayed TX timestamp caught after %d retries\n", i+1);
@@ -786,14 +781,12 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	    }
 	}
 
-	if(length <= 0) {
-		DBG("getTxTimestamp: NIC failed to deliver TX timestamp\n");
-		clearTime(timeStamp);
-		G_ptpClock->counters.txTimestampFailures++;
-		return FALSE;
-	}
+	netPath->txDelayed = TRUE;
 
-	return TRUE;
+	DBG("getTxTimestamp: NIC failed to deliver TX timestamp\n");
+	clearTime(timeStamp);
+	G_ptpClock->counters.txTimestampFailures++;
+	return FALSE;
 
 }
 #endif /* SO_TIMESTAMPING */
@@ -1662,11 +1655,13 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		ret = recvmsg(netPath->eventSock, &msg, flags | MSG_DONTWAIT);
 
 		/* we may have a TX timestamp stuck in error queue, flush it */
-		if(netPath->txTimestamping && ret <=0 && errno == ENOMSG) {
+		if(netPath->txTimestamping && ((netPath->txDelayed) || (ret <=0 && errno == ENOMSG))) {
 		    DBG("netRecvEvent: Flushed errqueue\n");
 		    ret = recvmsg(netPath->eventSock, &msg, flags | MSG_ERRQUEUE);
 		    ret = recvmsg(netPath->eventSock, &msg, flags);
 		}
+
+		netPath->txDelayed = FALSE;
 
 		if (ret <= 0) {
 			if (errno == EAGAIN || errno == EINTR) {
@@ -2589,6 +2584,7 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 		if(rtOpts->refreshIgmp) {
 		    INFO("Re-sending IGMP joins\n");
 		}
+		initClock(rtOpts, ptpClock);
 		ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
 		prepareClockDrivers(netPath, ptpClock, rtOpts);
 		netRefreshIGMP(netPath, rtOpts, ptpClock);

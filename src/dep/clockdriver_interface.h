@@ -70,16 +70,16 @@ static Boolean isThisMe(ClockDriver *, const char* search);
     var->isThisMe = isThisMe;
 
 #define INIT_DATA(var, type) \
-    if(var->privateData == NULL) { \
-	XCALLOC(var->privateData, sizeof(ClockDriverData_##type)); \
+    if(var->_privateData == NULL) { \
+	XCALLOC(var->_privateData, sizeof(ClockDriverData_##type)); \
     }
 #define INIT_CONFIG(var, type) \
-    if(var->privateConfig == NULL) { \
-	XCALLOC(var->privateConfig, sizeof(ClockDriverConfig_##type)); \
+    if(var->_privateConfig == NULL) { \
+	XCALLOC(var->_privateConfig, sizeof(ClockDriverConfig_##type)); \
     }
 
 #define GET_CONFIG(from, to, type) \
-    ClockDriverConfig_##type *to = (ClockDriverConfig_##type*)from->privateConfig;
+    ClockDriverConfig_##type *to = (ClockDriverConfig_##type*)from->_privateConfig;
 #define GET_DATA(from, to, type) \
-    ClockDriverData_##type *to = (ClockDriverData_##type*)from->privateData;
+    ClockDriverData_##type *to = (ClockDriverData_##type*)from->_privateData;
 

@@ -464,7 +464,6 @@ pushPrivateConfig(ClockDriver *self, RunTimeOpts *global)
     config->unstableAdev = global->unstableAdev_hw;
     config->lockedAge = global->lockedAge_hw;
     config->holdoverAge = global->holdoverAge_hw;
-    config->freerunAge = global->freerunAge_hw;
     config->negativeStep = global->negativeStep_hw;
 
     self->servo.kP = global->servoKP_hw;
