@@ -536,7 +536,7 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 
     strncpy(ifaceInfo->physicalDevice, realDevice, IFACE_NAME_LENGTH);
 
-    INFO("Underlying physical device: %s\n", ifaceInfo->physicalDevice);
+    DBG("Underlying physical device: %s\n", ifaceInfo->physicalDevice);
 
     return TRUE;
 
@@ -598,6 +598,10 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
 	    } else {
 		INFO("%s is a bonded interface, current active slave: %s\n", realDevice, info.bondInfo.activeSlave.name);
 	    }
+    }
+
+    if(strcmp(ifaceName, info.physicalDevice)) {
+	    INFO("Underlying physical device: %s\n", info.physicalDevice);
     }
 
     if(!(info.flags & IFF_MULTICAST)
@@ -746,9 +750,10 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	extern PtpClock *G_ptpClock;
 	ssize_t length;
 	fd_set tmpSet;
-	struct timeval timeOut = {0,0};
+	struct timeval timeOut = {0,1500};
 	int i = 0;
 	int backoff = 10;
+
 
 	FD_ZERO(&tmpSet);
 	FD_SET(netPath->eventSock, &tmpSet);
@@ -761,8 +766,10 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 				DBG("getTxTimestamp: Grabbed sent msg via errqueue: %d bytes, at %d.%d\n", length, timeStamp->seconds, timeStamp->nanoseconds);
 				return TRUE;
 			} else if (length < 0) {
-				DBG("getTxTimestamp: Failed to poll error queue for SO_TIMESTAMPING transmit time\n");
-				G_ptpClock->counters.messageRecvErrors++;
+				clearTime(timeStamp);
+				G_ptpClock->counters.txTimestampFailures++;
+				    ERROR("getTxTimestamp: Failed to poll error queue for SO_TIMESTAMPING transmit time: %s\n", strerror(errno));
+				return FALSE;
 			} else if (length == 0) {
 				DBG("getTxTimestamp: Received no data from TX error queue\n");
 			}
@@ -780,10 +787,8 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 		return TRUE;
 	    }
 	}
-
 	netPath->txDelayed = TRUE;
-
-	DBG("getTxTimestamp: NIC failed to deliver TX timestamp\n");
+	DBG("getTxTimestamp: NIC failed to deliver TX timestamp in time\n");
 	clearTime(timeStamp);
 	G_ptpClock->counters.txTimestampFailures++;
 	return FALSE;
@@ -810,7 +815,12 @@ netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 	    for(int i = 0; i < bi->slaveCount; i++) {
 		ifaceName = bi->slaves[i].name;
 		if(strlen(ifaceName)) {
+
+		    if(bi->slaves[i].id == bi->activeSlave.id) {
+			continue;
+		    }
 		    memset(&info, 0, sizeof(HwTsInfo));
+
 		    if(!getHwTs((const char*)ifaceName, rtOpts, &info, FALSE)) {
 			return FALSE;
 		    }
@@ -1658,7 +1668,10 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		if(netPath->txTimestamping && ((netPath->txDelayed) || (ret <=0 && errno == ENOMSG))) {
 		    DBG("netRecvEvent: Flushed errqueue\n");
 		    ret = recvmsg(netPath->eventSock, &msg, flags | MSG_ERRQUEUE);
+		    /* drop the next regular message as well - it can be severely delayed... */
 		    ret = recvmsg(netPath->eventSock, &msg, flags);
+		    netPath->txDelayed = FALSE;
+		    return 0;
 		}
 
 		netPath->txDelayed = FALSE;
@@ -2584,6 +2597,7 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 		if(rtOpts->refreshIgmp) {
 		    INFO("Re-sending IGMP joins\n");
 		}
+		netInitHwTimestamping(netPath, rtOpts);
 		initClock(rtOpts, ptpClock);
 		ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
 		prepareClockDrivers(netPath, ptpClock, rtOpts);
@@ -2635,9 +2649,9 @@ Boolean getHwTs(const char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *targ
 	 * Preferring ALL to allow VLAN timestamping etc.
 	 */
 	static const OptionName rxFilters[] = {
-	    { HWTSTAMP_FILTER_ALL, "HWTSTAMP_FILTER_ALL"},
 	    { HWTSTAMP_FILTER_PTP_V2_L4_EVENT, "HWTSTAMP_FILTER_PTP_V2_L4_EVENT"},
 	    { HWTSTAMP_FILTER_PTP_V2_EVENT, "HWTSTAMP_FILTER_PTP_V2_EVENT"},
+	    { HWTSTAMP_FILTER_ALL, "HWTSTAMP_FILTER_ALL"},
 	    { HWTSTAMP_FILTER_PTP_V2_L4_SYNC, "HWTSTAMP_FILTER_PTP_V2_L4_SYNC"},
 	    {-1}
 	};
@@ -2742,7 +2756,7 @@ Boolean initHwTs(char *ifaceName, HwTsInfo *info) {
 	    return FALSE;
 	}
 
-	if(config.tx_type != info->txType || config.rx_filter != info->rxFilter) {
+	if((config.tx_type != info->txType) || (config.rx_filter != info->rxFilter)) {
 	    ERROR("Interface %s refused to set required hardware timestamping options\n",
 	    ifaceName);
 	    return FALSE;

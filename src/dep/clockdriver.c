@@ -926,7 +926,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 	if( (a->state < b->state) && (b->state > CS_FREERUN)) {
 		/* however, do not prefer a locked with higher distance
 		 * to a holdover with locked distance */
-		if(a->state == CS_HOLDOVER) {
+		if((a->state == CS_HOLDOVER) && (b->state == CS_LOCKED)) {
 		    if(a->distance < b->distance) {
 			return a;
 		    }
@@ -938,7 +938,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 	if(b->state < a->state && (a->state > CS_FREERUN) ) {
 		/* however, do not prefer a locked with higher distance
 		 * to a holdover with locked distance */
-		if(b->state == CS_HOLDOVER) {
+		if((b->state == CS_HOLDOVER) && (a->state == CS_LOCKED)) {
 		    if(b->distance < a->distance) {
 			return b;
 		    }
@@ -1065,11 +1065,13 @@ findBestClock() {
 	if(_bestClock != NULL) {
 	    _bestClock->bestClock = TRUE;
 	}
+/*
 	LINKED_LIST_FOREACH(cd) {
 	    if(!cd->externalReference && (cd != _bestClock)) {
 		cd->setReference(cd, NULL);
 	    }
 	}
+*/
 	LINKED_LIST_FOREACH(cd) {
 	    if(!cd->externalReference && (cd != _bestClock)) {
 		cd->setReference(cd, _bestClock);
