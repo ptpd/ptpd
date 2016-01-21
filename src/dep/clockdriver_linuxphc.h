@@ -39,6 +39,16 @@
 
 #define OSCLOCK_OFFSET_SAMPLES 9
 
+/* vendor extensions, to allow overloading certain functions */
+enum {
+    LPHC_VEXT_NONE,
+    LPHC_VEXT_SOLARFLARE,
+    LPHC_VEXT_MELLANOX,
+    LPHC_VEXT_INTEL,
+    LPHC_VEXT_OREGANO,
+    LPHC_VEXT_MAX
+};
+
 typedef struct {
     int clockFd;
     int phcIndex;

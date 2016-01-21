@@ -1105,7 +1105,7 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
     snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
 
     if((driver->state == CS_STEP) && driver->config.stepTimeout) {
-	snprintf(tmpBuf2, sizeof(tmpBuf2), "SUSP %-4d", driver->config.stepTimeout - driver->age.seconds);
+	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.stepTimeout - driver->age.seconds);
     } else {
 	strncpy(tmpBuf2, getClockStateName(driver->state), CLOCKDRIVER_NAME_MAX);
     }
@@ -1116,5 +1116,3 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
 	    driver->distance);
 
 }
-
-void		reconfigureClockDrivers(RunTimeOpts *);
