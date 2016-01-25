@@ -128,6 +128,7 @@ typedef struct {
 	struct ether_addr etherDest;
 	struct ether_addr peerEtherDest;
 	Boolean txTimestamping;
+	Boolean txLoop;
 	Boolean hwTimestamping;
 	Boolean hwTimestamping_backup;
 	Boolean txDelayed;

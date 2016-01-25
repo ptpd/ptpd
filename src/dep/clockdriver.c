@@ -336,9 +336,22 @@ syncClocks(double tau) {
     _syncInterval = tau;
 
     ClockDriver *cd;
+
+    /* sync locked clocks first, in case if they are to unlock */
     LINKED_LIST_FOREACH(cd) {
-	    cd->syncClock(cd, tau);
+	    if(cd->state == CS_LOCKED) {
+		cd->syncClock(cd, tau);
+		cd->_skipSync = TRUE;
+	    }
     }
+    /* sync the whole rest */
+    LINKED_LIST_FOREACH(cd) {
+	    if(!cd->_skipSync) {
+		cd->syncClock(cd, tau);
+	    }
+	    cd->_skipSync = FALSE;
+    }
+
 
 }
 
@@ -1089,7 +1102,8 @@ putStatsLine(ClockDriver* driver, char* buf, int len) {
     memset(buf, 0, len);
     snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
 
-    snprintf(buf, len - 1, " offs: %-13s  adev: %-8.3f freq: %.03f",
+    snprintf(buf, len - 1, "%soffs: %-13s  adev: %-8.3f freq: %.03f",
+	    driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : " ",
 	    tmpBuf, driver->adev, driver->lastFrequency);
 
 }
@@ -1110,9 +1124,8 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
 	strncpy(tmpBuf2, getClockStateName(driver->state), CLOCKDRIVER_NAME_MAX);
     }
 
-    snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-7s dist: %d", 
+    snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-7s",
 		driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : " ",
-	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none",
-	    driver->distance);
+	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none");
 
 }

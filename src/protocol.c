@@ -2987,7 +2987,7 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 
 		DBGV("Sync MSG sent ! \n");
 
-		if(ptpClock->netPath.txTimestamping && !isTimeZero(&internalTime)) {
+		if(ptpClock->netPath.txTimestamping && !ptpClock->netPath.txLoop && !isTimeZero(&internalTime)) {
 
 			    if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				    internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
@@ -3094,7 +3094,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		DBGV("DelayReq MSG sent ! \n");
 		
 
-		if(ptpClock->netPath.txTimestamping && !isTimeZero(&internalTime)) {
+		if(ptpClock->netPath.txTimestamping && !ptpClock->netPath.txLoop && !isTimeZero(&internalTime)) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
@@ -3164,13 +3164,14 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	} else {
 		DBGV("PdelayReq MSG sent ! \n");
 		
-		if(ptpClock->netPath.txTimestamping && !isTimeZero(&internalTime)) {
+
+		if(ptpClock->netPath.txTimestamping && !ptpClock->netPath.txLoop && !isTimeZero(&internalTime)) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
 			processPdelayReqFromSelf(&internalTime, rtOpts, ptpClock);
 		}
-		
+
 		ptpClock->sentPdelayReqSequenceId++;
 		ptpClock->counters.pdelayReqMessagesSent++;
 	}
@@ -3211,7 +3212,8 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddr
 	} else {
 		DBGV("PdelayResp MSG sent ! \n");
 		
-		if(ptpClock->netPath.txTimestamping && !isTimeZero(&internalTime)) {
+
+		if(ptpClock->netPath.txTimestamping && !ptpClock->netPath.txLoop && !isTimeZero(&internalTime)) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			

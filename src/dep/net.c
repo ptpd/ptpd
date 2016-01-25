@@ -95,6 +95,7 @@ static void getVlanInfo(char* ifaceName, VlanInfo *info);
 static Boolean getHwTs(const char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target, Boolean quiet);
 static Boolean initHwTs(char *ifaceName, HwTsInfo *info);
 static Boolean prepareClockDrivers(NetPath *, PtpClock *, RunTimeOpts *);
+static ssize_t netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags);
 
 
 /**
@@ -760,7 +761,7 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 
 	if(select(netPath->eventSock + 1, &tmpSet, NULL, NULL, &timeOut) > 0) {
 		if (FD_ISSET(netPath->eventSock, &tmpSet)) {
-			length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp,
+			length = netr(G_ptpClock->msgIbuf, timeStamp,
 			    netPath, MSG_ERRQUEUE);
 			if (length > 0) {
 				DBG("getTxTimestamp: Grabbed sent msg via errqueue: %d bytes, at %d.%d\n", length, timeStamp->seconds, timeStamp->nanoseconds);
@@ -781,7 +782,7 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	    usleep(backoff);
 	    backoff *= 2;
 	    DBG("getTxTimestamp backoff: %d\n", backoff);
-	    length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
+	    length = netr(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
 	    if(length > 0) {
 		DBG("getTxTimestamp: SO_TIMESTAMPING - delayed TX timestamp caught after %d retries\n", i+1);
 		return TRUE;
@@ -842,6 +843,8 @@ netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 
     netPath->txTimestamping = TRUE;
     netPath->hwTimestamping = TRUE;
+
+    netPath->txLoop = FALSE;
 
     INFO("Hardware timestamping successfully enabled on %s\n", primaryName);
 
@@ -1605,8 +1608,8 @@ if (rtOpts.snmpEnabled) {
  * @return
  */
 
-ssize_t
-netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
+static ssize_t
+netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 {
 	ssize_t ret = 0;
 	struct msghdr msg;
@@ -1665,7 +1668,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		ret = recvmsg(netPath->eventSock, &msg, flags | MSG_DONTWAIT);
 
 		/* we may have a TX timestamp stuck in error queue, flush it */
-		if(netPath->txTimestamping && ((netPath->txDelayed) || (ret <=0 && errno == ENOMSG))) {
+		if(netPath->txTimestamping && !netPath->txLoop && ((netPath->txDelayed) || (ret <=0 && errno == ENOMSG))) {
 		    DBG("netRecvEvent: Flushed errqueue\n");
 		    ret = recvmsg(netPath->eventSock, &msg, flags | MSG_ERRQUEUE);
 		    /* drop the next regular message as well - it can be severely delayed... */
@@ -1755,6 +1758,14 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 						    time->nanoseconds = ts[0].tv_nsec;
 					}
 					timestampValid = TRUE;
+					if((flags & MSG_ERRQUEUE) && netPath->txLoop) {
+						char tmpB[PACKET_SIZE];
+						memset(tmpB,0,PACKET_SIZE);
+						memcpy(tmpB, buf, PACKET_SIZE);
+						memset(buf,0,PACKET_SIZE);
+						memcpy(buf, tmpB + 42, PACKET_SIZE - 42);
+					}
+
 					DBG("rcvevent: SO_TIMESTAMPING %s time stamp: %us %dns\n", 
 					    (flags & MSG_ERRQUEUE) ? "TX" : "RX" ,
 					     time->seconds, time->nanoseconds);
@@ -1868,6 +1879,25 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 #endif
 
 	return ret;
+}
+
+ssize_t
+netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags) {
+
+    int ret;
+
+    if(netPath->txTimestamping && netPath->txLoop) {
+	ret = netr(buf, time, netPath, MSG_ERRQUEUE);
+	if(ret > 0) {
+	    return ret;
+	}
+    }
+
+    ret = netr(buf, time, netPath, 0);
+
+    return ret;
+
+
 }
 
 
@@ -2063,9 +2093,9 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #else
 
 #ifdef PTPD_PCAP
-			if((netPath->pcapEvent == NULL) && netPath->txTimestamping) {
+			if((netPath->pcapEvent == NULL) && netPath->txTimestamping && !netPath->txLoop) {
 #else
-			if(netPath->txTimestamping) {
+			if(netPath->txTimestamping && !netPath->txLoop) {
 #endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
 //					netPath->txTimestampFailure = TRUE;
@@ -2098,9 +2128,9 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #ifdef SO_TIMESTAMPING
 
 #ifdef PTPD_PCAP
-			if((netPath->pcapEvent == NULL) && netPath->txTimestamping) {
+			if((netPath->pcapEvent == NULL) && netPath->txTimestamping && !netPath->txLoop) {
 #else
-			if(!netPath->txTimestamping) {
+			if(netPath->txTimestamping && !netPath->txLoop) {
 #endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
 					if (tim) {
@@ -2306,9 +2336,9 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 #else
 
 #ifdef PTPD_PCAP
-		if((netPath->pcapEvent == NULL) && netPath->txTimestamping) {
+		if((netPath->pcapEvent == NULL) && netPath->txTimestamping && !netPath->txLoop) {
 #else
-		if(netPath->txTimestamping) {
+		if(netPath->txTimestamping && !netPath->txLoop) {
 #endif /* PTPD_PCAP */
 			if(!getTxTimestamp(netPath, tim)) {
 				if (tim) {
@@ -2335,7 +2365,7 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 		if (ret <= 0)
 			DBG("Error sending multicast peer event message\n");
 #ifdef SO_TIMESTAMPING
-		if(netPath->txTimestamping) {
+		if(netPath->txTimestamping && !netPath->txLoop) {
 			if(!getTxTimestamp(netPath, tim)) {
 				if (tim) {
 					clearTime(tim);

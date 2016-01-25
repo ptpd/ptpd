@@ -170,6 +170,7 @@ struct ClockDriver {
     int _warningTimeout;		/* used to silence warnings */
     double _tau;			/* time constant (servo run interval) */
     DoubleMovingStatFilter *_filter;	/* offset filter */
+    Boolean _skipSync;			/* skip next sync */
 
     void *_privateData;			/* implementation-specific data */
     void *_privateConfig;		/* implementation-specific config */
