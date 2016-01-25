@@ -400,17 +400,20 @@ processUpdate(ClockDriver *driver) {
 
 	    driver->adev = driver->_adev.adev;
 	    DBG(THIS_COMPONENT"clock %s  ADEV %.09f\n", driver->name, driver->adev);
-	    if(driver->servo.runningMaxOutput) {
-		driver->setState(driver, CS_TRACKING);
+	    if((driver->state == CS_STEP) || (driver->state == CS_NEGSTEP)) {
+		update = FALSE;
+	    } else {
+		if(driver->servo.runningMaxOutput) {
+		    driver->setState(driver, CS_TRACKING);
 	    /*WOJ:CHECK was no else */
-	    } else if(driver->adev <= driver->config.stableAdev) {
-		driver->storeFrequency(driver);
-		driver->setState(driver, CS_LOCKED);
-	    } else if((driver->adev >= driver->config.unstableAdev) && (driver->state == CS_LOCKED)) {
-		driver->setState(driver, CS_TRACKING);
+		} else if(driver->adev <= driver->config.stableAdev) {
+		    driver->storeFrequency(driver);
+		    driver->setState(driver, CS_LOCKED);
+		} else if((driver->adev >= driver->config.unstableAdev) && (driver->state == CS_LOCKED)) {
+		    driver->setState(driver, CS_TRACKING);
+		}
+		update = TRUE;
 	    }
-
-	    update = TRUE;
 	    resetIntPermanentAdev(&driver->_adev);
 	}
 
