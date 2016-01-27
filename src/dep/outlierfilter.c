@@ -319,7 +319,6 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 	/* keep stats containers updated */
 	feedDoubleMovingStdDev(filter->rawStats, sample);
 	feedDoubleMovingMean(filter->filteredStats, filter->output);
-
 	/* re-tune filter twice per window */
 	if( (filter->rawStats->meanContainer->counter % ( filter->rawStats->meanContainer->capacity / 2)) == 0) {
 		outlierFilterTune(filter);
@@ -346,7 +345,7 @@ static int outlierFilterDisplay(OutlierFilter *filter) {
 	INFO("%s outlier filter info:\n",
 	    id);
 	INFO("            %s.threshold : %.02f\n",
-	    id, filter->config.threshold);
+	    id, filter->threshold);
 	INFO("             %s.autotune : %s\n",
 	    id, (filter->config.autoTune) ? "Y" : "N");
 
@@ -360,7 +359,7 @@ static int outlierFilterDisplay(OutlierFilter *filter) {
 	    id, filter->config.minThreshold);
 	INFO("         %s.maxThreshold : %.02f\n",
 	    id, filter->config.maxThreshold);
-	INFO("                 %s.thresholdStep : %.02f\n",
+	INFO("         %s.thresholdStep : %.02f\n",
 	    id, filter->config.thresholdStep);
 
 

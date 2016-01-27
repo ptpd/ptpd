@@ -66,6 +66,12 @@ struct PIservo {
     int tauMethod;
     double tau;
     int maxTau;
+    double delayFactor;
+
+    Integer32 diff;
+    double _lastOutput;
+    Integer32 _lastInput;
+    Boolean _updated;
 
     double (*feed) (PIservo*, Integer32, double);
     void (*prime) (PIservo *, double);

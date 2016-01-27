@@ -301,6 +301,13 @@ updateClockDrivers() {
 			    cd->setState(cd, CS_HOLDOVER);
 			    resetIntPermanentAdev(&cd->_adev);
 			    break;
+			} else if(cd->refClock != NULL) {
+			    if((cd->refClock->state != CS_LOCKED) && (cd->refClock->state != CS_HOLDOVER)) {
+				cd->setState(cd, CS_HOLDOVER);
+				resetIntPermanentAdev(&cd->_adev);
+				cd->setReference(cd, NULL);
+				break;
+			    }
 			}
 			if(cd->age.seconds > cd->config.lockedAge) {
 			    resetIntPermanentAdev(&cd->_adev);
@@ -392,9 +399,8 @@ processUpdate(ClockDriver *driver) {
 	driver->totalAdev = feedIntPermanentAdev(&driver->_totalAdev, driver->lastFrequency);
 
 	if(driver->servo.runningMaxOutput) {
-	    resetIntPermanentAdev(&driver->_adev);
+	    /*resetIntPermanentAdev(&driver->_adev);*/
 	}
-
 	/* we have enough allan dev samples to represent adev period */
 	if( (driver->_tau > ZEROF) && ((driver->_adev.count * driver->_tau) > driver->config.adevPeriod) ) {
 
@@ -405,7 +411,6 @@ processUpdate(ClockDriver *driver) {
 	    } else {
 		if(driver->servo.runningMaxOutput) {
 		    driver->setState(driver, CS_TRACKING);
-	    /*WOJ:CHECK was no else */
 		} else if(driver->adev <= driver->config.stableAdev) {
 		    driver->storeFrequency(driver);
 		    driver->setState(driver, CS_LOCKED);
@@ -414,6 +419,7 @@ processUpdate(ClockDriver *driver) {
 		}
 		update = TRUE;
 	    }
+	    driver->adevValid = TRUE;
 	    resetIntPermanentAdev(&driver->_adev);
 	}
 
@@ -704,7 +710,10 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		    driver->setState(driver, CS_FREERUN);
 		}
 
-		if(feedDoubleMovingStatFilter(driver->_filter, timeInternalToDouble(&offset))) {
+		if(driver->externalReference) {
+		    driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
+		    return driver->adjustFrequency(driver, driver->servo.output, tau);
+		} else if(feedDoubleMovingStatFilter(driver->_filter, timeInternalToDouble(&offset))) {
 		    offset = doubleToTimeInternal(driver->_filter->output);
 		    driver->refOffset = offset;
 		    driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
@@ -985,11 +994,27 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			return b;
 		    }
 
+		    if(a->refClock && b->refClock) {
+			if(!a->refClock->systemClock && b->refClock->systemClock) {
+			    return a;
+			}
+			if(a->refClock->systemClock && !b->refClock->systemClock) {
+			    return b;
+			}
+		    }
+
 		    if(a->distance < b->distance) {
 			return a;
 		    }
 
 		    if(a->distance > b->distance) {
+			return b;
+		    }
+
+		    if(!a->systemClock && b->systemClock) {
+			return a;
+		    }
+		    if(a->systemClock && !b->systemClock) {
 			return b;
 		    }
 
@@ -1004,12 +1029,6 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			}
 		    }
 
-		    if(!a->systemClock && b->systemClock) {
-			return a;
-		    }
-		    if(a->systemClock && !b->systemClock) {
-			return b;
-		    }
 
 		    if(a->age.seconds > b->age.seconds) {
 			return a;
@@ -1081,13 +1100,13 @@ findBestClock() {
 	if(_bestClock != NULL) {
 	    _bestClock->bestClock = TRUE;
 	}
-/*
+
 	LINKED_LIST_FOREACH(cd) {
 	    if(!cd->externalReference && (cd != _bestClock)) {
 		cd->setReference(cd, NULL);
 	    }
 	}
-*/
+
 	LINKED_LIST_FOREACH(cd) {
 	    if(!cd->externalReference && (cd != _bestClock)) {
 		cd->setReference(cd, _bestClock);

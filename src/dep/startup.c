@@ -365,7 +365,6 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    configureAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
 		}
 
-#ifdef PTPD_STATISTICS
                     /* Reinitialising the outlier filter containers */
                     if(rtOpts->restartSubsystems & PTPD_RESTART_FILTERS) {
 
@@ -393,8 +392,6 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				}
 
 		    }
-#endif /* PTPD_STATISTICS */
-
 
 	    ptpClock->timingService.reloadRequested = TRUE;
 
@@ -499,14 +496,12 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			clearCounters(ptpClock);
 			NOTIFY("PTP engine counters cleared\n");
 		}
-#ifdef PTPD_STATISTICS
 		if(rtOpts->oFilterSMConfig.enabled) {
 			ptpClock->oFilterSM.display(&ptpClock->oFilterSM);
 		}
 		if(rtOpts->oFilterMSConfig.enabled) {
 			ptpClock->oFilterMS.display(&ptpClock->oFilterMS);
 		}
-#endif /* PTPD_STATISTICS */
 		sigusr2_received = 0;
 	}
 
@@ -860,11 +855,11 @@ configcheck:
 		 * Always redirect stdout/err to /dev/null
 		 */
 		if (daemon(1,0) == -1) {
-			PERROR("Failed to start as daemon");
+			PERROR("Failed to fork to background");
 			*ret = 3;
 			goto fail;
 		}
-		INFO("  Info:    Now running as a daemon\n");
+		INFO("Now running in the background\n");
 		/*
 		 * Wait for the parent process to terminate, but not forever.
 		 * On some systems this happened after we tried re-acquiring

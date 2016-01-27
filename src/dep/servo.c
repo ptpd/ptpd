@@ -232,6 +232,10 @@ updateDelay(one_way_delay_filter * mpdIirFilter, const RunTimeOpts * rtOpts, Ptp
 	    ptpClock->rawDelaySM = doubleToTimeInternal(ptpClock->filterSM->output);
 	}
 
+	/* don't update if MS had an outlier */
+	if(ptpClock->oFilterMS.config.enabled && ptpClock->oFilterMS.lastOutlier) {
+	    return;
+	}
 	/* run the delaySM outlier filter */
 	if(!rtOpts->noAdjust && ptpClock->oFilterSM.config.enabled && (ptpClock->oFilterSM.config.alwaysFilter || !ptpClock->clockDriver->servo.runningMaxOutput) ) {
 		if(ptpClock->oFilterSM.filter(&ptpClock->oFilterSM, timeInternalToDouble(&ptpClock->rawDelaySM))) {
@@ -447,7 +451,6 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	/* prepare time constant for servo*/
 	if(ptpClock->portDS.logSyncInterval == UNICAST_MESSAGEINTERVAL) {
 		ptpClock->dT = 1;
-
 		if(rtOpts->unicastNegotiation && ptpClock->parentGrants && ptpClock->parentGrants->grantData[SYNC].granted) {
 			ptpClock->dT = pow(2,ptpClock->parentGrants->grantData[SYNC].logInterval);
 		}
@@ -456,9 +459,9 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 		ptpClock->dT = pow(2, ptpClock->portDS.logSyncInterval);
 	}
 
-	/* multiply interval if interval filter used on delayMS */
-	if(rtOpts->filterMSOpts.enabled && rtOpts->filterMSOpts.windowType != WINDOW_SLIDING) {
-	    ptpClock->dT *= rtOpts->filterMSOpts.windowSize;
+	/* Ensure that servo time constant is reduced to factor in filter delay */
+	if(rtOpts->filterMSOpts.enabled) {
+	    ptpClock->clockDriver->servo.delayFactor = rtOpts->filterMSOpts.windowSize;
 	}
 
         /* updates paused, leap second pending - do nothing */
@@ -527,14 +530,11 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 
 	DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 
-
 	/* run the delayMS stats filter */
-
 	if(rtOpts->filterMSOpts.enabled) {
-
 	    /* FALSE if filter wants to skip the update */
 	    if(!feedDoubleMovingStatFilter(ptpClock->filterMS, timeInternalToDouble(&ptpClock->rawDelayMS))) {
-		    goto finish;
+		goto finish;
 	    }
 	    ptpClock->rawDelayMS = doubleToTimeInternal(ptpClock->filterMS->output);
 	}
@@ -691,7 +691,8 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force)
 //	toState(PTP_FAULTY, rtOpts, ptpClock);		/* make a full protocol reset */
 
         if(rtOpts->calibrationDelay) {
-                ptpClock->isCalibrated = FALSE;
+		ptpClock->isCalibrated = FALSE;
+		timerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], rtOpts->calibrationDelay);
         }
 
 }
@@ -767,7 +768,6 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* only run the servo if we are calibrted - if calibration delay configured */
 
 	if((!rtOpts->calibrationDelay) || ptpClock->isCalibrated) {
-
 		/* SYNC ! */
 		/* NEGATIVE - ofm is offset from master, not offset to master. */
 		ptpClock->clockDriver->syncClockExternal(ptpClock->clockDriver, negativeTime(&ptpClock->currentDS.offsetFromMaster), ptpClock->dT);

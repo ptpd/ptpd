@@ -1094,20 +1094,20 @@ median (middle value) - more robust than mean, not influenced by outliers
 .RE
 .TP 8
 \fBdefault\fR
-\fImin\fR
+\fImedian\fR
 
 .RE
 .RE
 .RS 0
 .TP 8
-\fBptpengine:sync_stat_filter_window [\fIINT\fB: 3 .. 128]\fR
+\fBptpengine:sync_stat_filter_window [\fIINT\fB: 3 .. 1280]\fR
 .RS 8
 .TP 8
 \fBusage\fR
 Number of samples used for the Sync statistical filter
 .TP 8
 \fBdefault\fR
-\fI4\fR
+\fI5\fR
 
 .RE
 .RE
@@ -1183,20 +1183,20 @@ median (middle value) - more robust than mean, not influenced by outliers
 .RE
 .TP 8
 \fBdefault\fR
-\fImin\fR
+\fImedian\fR
 
 .RE
 .RE
 .RS 0
 .TP 8
-\fBptpengine:delay_stat_filter_window [\fIINT\fB: 3 .. 128]\fR
+\fBptpengine:delay_stat_filter_window [\fIINT\fB: 3 .. 1280]\fR
 .RS 8
 .TP 8
 \fBusage\fR
 Number of samples used for the Delay statistical filter
 .TP 8
 \fBdefault\fR
-\fI4\fR
+\fI5\fR
 
 .RE
 .RE

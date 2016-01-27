@@ -1512,7 +1512,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_window",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->filterMSOpts.windowSize, rtOpts->filterMSOpts.windowSize,
-		"Number of samples used for the Sync statistical filter",RANGECHECK_RANGE,3,128);
+		"Number of samples used for the Sync statistical filter",RANGECHECK_RANGE,3,1280);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_window_type",
 		PTPD_RESTART_FILTERS, &rtOpts->filterMSOpts.windowType, rtOpts->filterMSOpts.windowType,
@@ -1538,7 +1538,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_window",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->filterSMOpts.windowSize, rtOpts->filterSMOpts.windowSize,
-		"Number of samples used for the Delay statistical filter",RANGECHECK_RANGE,3,128);
+		"Number of samples used for the Delay statistical filter",RANGECHECK_RANGE,3,1280);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_window_type",
 		PTPD_RESTART_FILTERS, &rtOpts->filterSMOpts.windowType, rtOpts->filterSMOpts.windowType,
@@ -1561,7 +1561,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:delay_outlier_filter_capacity",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->oFilterSMConfig.capacity, rtOpts->oFilterSMConfig.capacity,
-		"Number of samples in the Delay Response outlier filter buffer",RANGECHECK_RANGE,10,STATCONTAINER_MAX_SAMPLES);
+		"Number of samples in the Delay Response outlier filter buffer",RANGECHECK_RANGE,5,STATCONTAINER_MAX_SAMPLES);
 
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "ptpengine:delay_outlier_filter_threshold",
 		PTPD_RESTART_NONE, &rtOpts->oFilterSMConfig.threshold, rtOpts->oFilterSMConfig.threshold,
@@ -1654,7 +1654,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
      parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:sync_outlier_filter_capacity",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->oFilterMSConfig.capacity, rtOpts->oFilterMSConfig.capacity,
-    "Number of samples in the Sync outlier filter buffer.",RANGECHECK_RANGE,10,STATCONTAINER_MAX_SAMPLES);
+    "Number of samples in the Sync outlier filter buffer.",RANGECHECK_RANGE,5,STATCONTAINER_MAX_SAMPLES);
 
     parseResult &= configMapDouble(opCode, opArg, dict, target, "ptpengine:sync_outlier_filter_threshold",
 		PTPD_RESTART_NONE, &rtOpts->oFilterMSConfig.threshold, rtOpts->oFilterMSConfig.threshold,
@@ -1962,9 +1962,9 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->servoMaxPpb, rtOpts->servoMaxPpb,
 		"Maximum absolute frequency shift which can be applied to the clock servo\n"
 	"	 when slewing the clock. Expressed in parts per million (1 ppm = shift of\n"
-	"	 1 us per second. Values above 512 will use the tick duration correction\n"
-	"	 to allow even faster slewing. Default maximum is 512 without using tick.", RANGECHECK_RANGE,
-	ADJ_FREQ_MAX/1000,ADJ_FREQ_MAX/500);
+	"	 1 us per second. Values above 500 will use the tick duration correction\n"
+	"	 to allow even faster slewing. Default maximum is 500 without using tick.", RANGECHECK_RANGE,
+	ADJ_FREQ_MAX/1000, ADJ_FREQ_MAX/500);
 #endif /* HAVE_STRUCT_TIMEX_TICK */
 
 	/* This really is clock specific - different clocks may allow different ranges */
@@ -1973,9 +1973,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Maximum absolute frequency shift which can be applied to the clock servo\n"
 	"	 when slewing the clock. Expressed in parts per million (1 ppm = shift of\n"
 	"	 1 us per second. Values above 512 will use the tick duration correction\n"
-	"	 to allow even faster slewing. Default maximum is 512 without using tick.", RANGECHECK_RANGE,
+	"	 to allow even faster slewing. Default maximum is 2000 without using tick.", RANGECHECK_RANGE,
 	200,2000);
-
 
 	/*
 	 * TimeProperties DS - in future when clock driver API is implemented,

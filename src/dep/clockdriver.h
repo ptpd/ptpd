@@ -135,6 +135,7 @@ struct ClockDriver {
     Boolean systemClock;		/* this driver is THE system clock */
     Boolean bestClock;			/* this driver is the current best clock */
     Boolean externalReference;		/* the clock is using an external reference */
+    Boolean adevValid;			/* we have valid adev computed */
 
     ClockState state;			/* clock state */
     ClockState lastState;		/* previous clock state */

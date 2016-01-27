@@ -233,6 +233,7 @@ double
 feedDoublePermanentStdDev(DoublePermanentStdDev* container, double sample)
 {
 
+
 	container->squareSum += ( sample - container->meanContainer.mean) *
 		    ( sample - feedDoublePermanentMean(&container->meanContainer, sample )) ;
 
@@ -265,15 +266,15 @@ feedIntPermanentAdev(IntPermanentAdev* container, int32_t sample)
 	uint64_t newSum;
 
 	if(container->count > 0) {
-
-	    newSum = container->squareSum + (sample - container->_prev) * (sample - container->_prev);
+	    container->lastDiff = sample - container->_prev;
+	    newSum = container->squareSum + (int64_t)container->lastDiff * (int64_t)container->lastDiff;
 	    /* roll over, roll over */
 	    if(newSum < container->squareSum) {
 		resetIntPermanentAdev(container);
 		return 0.0;
 	    }
 	    container->squareSum = newSum;
-	    container->adev = sqrt( (1 / (2.0 * (container->count+0.0))) * container->squareSum );
+	    container->adev = sqrt( (1 / (2.0 * (container->count + 0.0))) * container->squareSum );
 	}
 	container->count++;
 	container->_prev = sample;
@@ -297,8 +298,9 @@ feedDoublePermanentAdev(DoublePermanentAdev* container, double sample)
 {
 
 	if(container->count > 0) {
-	    container->squareSum += (sample - container->_prev) * (sample - container->_prev);
-	    if(container->squareSum < 0) { 
+	    container->lastDiff = sample - container->_prev;
+	    container->squareSum += container->lastDiff * container->lastDiff;
+	    if(container->squareSum < 0) {
 		resetDoublePermanentAdev(container);
 		return 0.0;
 	    }
@@ -647,10 +649,9 @@ IntMovingStatFilter* createIntMovingStatFilter(StatFilterOptions *config, const 
 		return NULL;
 	}
 
-	container->filterType = config->filterType;
-	container->windowType = config->windowType;
+	container->config = *config;
 
-	if(config->windowSize < 2) container->windowType = WINDOW_SLIDING;
+	if(config->windowSize < 2) container->config.windowType = WINDOW_SLIDING;
 
 	strncpy(container->identifier, id, 10);
 
@@ -685,7 +686,7 @@ feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 	if(container == NULL)
 		return 0;
 
-	if(container->filterType == FILTER_NONE) {
+	if(!container->config.enabled || (container->config.filterType == FILTER_NONE)) {
 
 	    container->output = sample;
 	    return TRUE;
@@ -699,7 +700,7 @@ feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 	container->counter++;
 	container->counter = container->counter % container->meanContainer->capacity;
 
-	switch(container->filterType) {
+	switch(container->config.filterType) {
 
 	    case FILTER_MEAN:
 
@@ -781,7 +782,7 @@ feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 
 	DBGV("filter %s, Sample %d output %d\n", container->identifier, sample, container->output);
 
-	if((container->windowType == WINDOW_INTERVAL) && (container->counter != 0)) {
+	if((container->config.windowType == WINDOW_INTERVAL) && (container->counter != 0)) {
 		return FALSE;
 	}
 	return TRUE;
@@ -806,10 +807,9 @@ DoubleMovingStatFilter* createDoubleMovingStatFilter(StatFilterOptions *config, 
 		return NULL;
 	}
 
-	container->filterType = config->filterType;
-	container->windowType = config->windowType;
+	container->config = *config;
 
-	if(config->windowSize < 2) container->windowType = WINDOW_SLIDING;
+	if(config->windowSize < 2) container->config.windowType = WINDOW_SLIDING;
 
 	strncpy(container->identifier, id, 10);
 
@@ -848,7 +848,7 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 	if(container == NULL)
 		return 0;
 
-	if(container->filterType == FILTER_NONE) {
+	if(!container->config.enabled || (container->config.filterType == FILTER_NONE)) {
 
 	    container->output = sample;
 	    return TRUE;
@@ -861,7 +861,7 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 	container->counter++;
 	container->counter = container->counter % container->meanContainer->capacity;
 
-	switch(container->filterType) {
+	switch(container->config.filterType) {
 
 	    case FILTER_MEAN:
 
@@ -870,10 +870,11 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 
 	    case FILTER_MEDIAN:
 		{
+
 		    int count = container->meanContainer->count;
 		    double sortedSamples[count];
 
-		    Boolean odd = ((count %2 ) == 1);
+		    Boolean odd = ((count % 2 ) == 1);
 	
 		    memcpy(sortedSamples, container->meanContainer->samples, count * sizeof(sample));
 
@@ -887,6 +888,24 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 
 			    container->output = (sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2;
 
+		    }
+
+		    /* check if samples are all increasing or decreasing */
+		    Boolean incr = TRUE;
+		    Boolean decr = TRUE;
+
+		    double *samples = container->meanContainer->samples;
+
+		    for(int i = 1; i < count; i++) {
+			incr &= (samples[i] > samples [i-1]);
+			decr &= (samples[i] < samples [i-1]);
+		    }
+
+		    /* don't filter if all going in the same direction:
+		     * this is usually because we are shifting the clock.
+		     */
+		    if(incr || decr) {
+			container->output = sample;
 		    }
 
 		}
@@ -942,7 +961,7 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 
 	DBGV("Filter %s, Sample %.09f output %.09f\n", container->identifier, sample, container->output);
 
-	if((container->windowType == WINDOW_INTERVAL) && (container->counter != 0)) {
+	if((container->config.windowType == WINDOW_INTERVAL) && (container->counter != 0)) {
 		return FALSE;
 	}
 	return TRUE;

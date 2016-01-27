@@ -2622,17 +2622,21 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 		if(bondInfo->activeCount == 0) {
 		    WARNING("Bonding: no active slaves on %s! Interface down\n", realDevice);
 		} else {
-		WARNING("Bonding: %s active bond member changed to %s, resettinng PTP offsets\n", realDevice,
-		 bondInfo->activeSlave.name);
-		if(rtOpts->refreshIgmp) {
-		    INFO("Re-sending IGMP joins\n");
-		}
-		netInitHwTimestamping(netPath, rtOpts);
-		initClock(rtOpts, ptpClock);
-		ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
-		prepareClockDrivers(netPath, ptpClock, rtOpts);
-		netRefreshIGMP(netPath, rtOpts, ptpClock);
-		ptpClock->isCalibrated = FALSE;
+		    WARNING("Bonding: %s active bond member changed to %s\n", realDevice,
+			bondInfo->activeSlave.name);
+		    if(rtOpts->refreshIgmp) {
+			INFO("Re-sending IGMP joins\n");
+		    }
+		    netInitHwTimestamping(netPath, rtOpts);
+		    /*initClock(rtOpts, ptpClock); */
+		    ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
+		    prepareClockDrivers(netPath, ptpClock, rtOpts);
+		    netRefreshIGMP(netPath, rtOpts, ptpClock);
+
+		    if(rtOpts->calibrationDelay) {
+			ptpClock->isCalibrated = FALSE;
+			timerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], rtOpts->calibrationDelay);
+		    }
 		}
     } else if(bondInfo->countChanged) {
 	WARNING("Bonding: %s slave count changed, checking clocks\n");

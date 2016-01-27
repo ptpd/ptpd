@@ -48,6 +48,7 @@ setupPIservo(PIservo *self) {
     self->feed = feed;
     self->prime = prime;
     self->reset = reset;
+    self->delayFactor = 1.0;
 }
 
 static double
@@ -94,7 +95,7 @@ feed (PIservo* self, Integer32 input, double tau) {
     if (self->kI < 0.000001)
 	    self->kI = 0.000001;
 
-    self->integral += self->tau * ((input + 0.0 ) * self->kI);
+    self->integral += (self->tau / self->delayFactor) * ((input + 0.0 ) * self->kI);
     self->output = (self->kP * (input + 0.0) ) + self->integral;
 
     self->integral = clampDouble(self->integral, self->maxOutput);
@@ -116,6 +117,10 @@ feed (PIservo* self, Integer32 input, double tau) {
 	self->lastUpdate = now;
     }
 
+    self->_updated = TRUE;
+    self->_lastInput = self->input;
+    self->_lastOutput = self->output;
+
     return self->output;
 
 }
@@ -133,7 +138,7 @@ prime (PIservo *self, double integral) {
     runningMaxOutput = (fabs(self->output) >= self->maxOutput);
 
     if(runningMaxOutput && !self->runningMaxOutput) {
-	    WARNING(THIS_COMPONENT"Clock %s servo now running at maximum output\n", self->controller->name);
+	    DBG(THIS_COMPONENT"Clock %s servo now running at maximum output\n", self->controller->name);
     }
 
     self->runningMaxOutput = runningMaxOutput;
@@ -146,6 +151,10 @@ reset (PIservo* self) {
     self->input = 0;
     self->output = 0;
     self->integral = 0;
+    self->_updated = FALSE;
+    self->_lastInput = 0;
+    self->_lastOutput = 0;
+    self->delayFactor = 1.0;
 
 }
 

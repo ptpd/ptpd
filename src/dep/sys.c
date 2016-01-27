@@ -1164,20 +1164,6 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 
 	}
 
-	if(ptpClock->clockDriver != NULL) {
-	    char buf[100];
-	    int i = 1;
-	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
-		    cd->putInfoLine(cd, buf, 100);
-		    fprintf(out, "Clock %d: %-9s : %s\n", i++, cd->name, buf);
-	    }
-	    i = 1;
-	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
-		    cd->putStatsLine(cd, buf, 100);
-		    fprintf(out, "Clock %d: %-9s : %s\n",i++, cd->name, buf);
-	    }
-
-	}
 
 	if(ptpClock->portDS.portState == PTP_MASTER || ptpClock->portDS.portState == PTP_PASSIVE) {
 
@@ -1355,6 +1341,22 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 		    (unsigned long)ptpClock->counters.stateTransitions);
 	fprintf(out, 		STATUSPREFIX"  %lu\n","PTP Engine resets",
 		    (unsigned long)ptpClock->resetCount);
+	fprintf(out,"                                   \n");
+	if(ptpClock->clockDriver != NULL) {
+	    char buf[100];
+	    int i = 1;
+	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
+		    cd->putInfoLine(cd, buf, 100);
+		    fprintf(out, "Clock %d: %-9s : %s\n", i++, cd->name, buf);
+	    }
+	    i = 1;
+	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
+		    cd->putStatsLine(cd, buf, 100);
+		    fprintf(out, "Clock %d: %-9s : %s\n",i++, cd->name, buf);
+	    }
+
+	}
+
 
 
 	fflush(out);

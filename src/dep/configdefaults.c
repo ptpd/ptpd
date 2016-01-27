@@ -332,12 +332,12 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->oFilterMSConfig.stepThreshold = 1000000;
 	rtOpts->oFilterMSConfig.stepLevel = 500000;
 	rtOpts->oFilterMSConfig.capacity = 20;
-	rtOpts->oFilterMSConfig.threshold = 1.0;
+	rtOpts->oFilterMSConfig.threshold = 2.0;
 	rtOpts->oFilterMSConfig.weight = 1;
 	rtOpts->oFilterMSConfig.minPercent = 20;
 	rtOpts->oFilterMSConfig.maxPercent = 95;
 	rtOpts->oFilterMSConfig.thresholdStep = 0.1;
-	rtOpts->oFilterMSConfig.minThreshold = 0.1;
+	rtOpts->oFilterMSConfig.minThreshold = 1.5;
 	rtOpts->oFilterMSConfig.maxThreshold = 5.0;
 	rtOpts->oFilterMSConfig.delayCredit = 200;
 	rtOpts->oFilterMSConfig.creditIncrement = 10;
@@ -351,25 +351,25 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->oFilterSMConfig.stepThreshold = 1000000;
 	rtOpts->oFilterSMConfig.stepLevel = 500000;
 	rtOpts->oFilterSMConfig.capacity = 20;
-	rtOpts->oFilterSMConfig.threshold = 1.0;
+	rtOpts->oFilterSMConfig.threshold = 2.0;
 	rtOpts->oFilterSMConfig.weight = 1;
 	rtOpts->oFilterSMConfig.minPercent = 20;
 	rtOpts->oFilterSMConfig.maxPercent = 95;
 	rtOpts->oFilterSMConfig.thresholdStep = 0.1;
-	rtOpts->oFilterSMConfig.minThreshold = 0.1;
+	rtOpts->oFilterSMConfig.minThreshold = 1.5;
 	rtOpts->oFilterSMConfig.maxThreshold = 5.0;
 	rtOpts->oFilterSMConfig.delayCredit = 200;
 	rtOpts->oFilterSMConfig.creditIncrement = 10;
 	rtOpts->oFilterSMConfig.maxDelay = 1500;
 
 	rtOpts->filterMSOpts.enabled = FALSE;
-	rtOpts->filterMSOpts.filterType = FILTER_MIN;
-	rtOpts->filterMSOpts.windowSize = 4;
+	rtOpts->filterMSOpts.filterType = FILTER_MEDIAN;
+	rtOpts->filterMSOpts.windowSize = 5;
 	rtOpts->filterMSOpts.windowType = WINDOW_SLIDING;
 
 	rtOpts->filterSMOpts.enabled = FALSE;
-	rtOpts->filterSMOpts.filterType = FILTER_MIN;
-	rtOpts->filterSMOpts.windowSize = 4;
+	rtOpts->filterSMOpts.filterType = FILTER_MEDIAN;
+	rtOpts->filterSMOpts.windowSize = 5;
 	rtOpts->filterSMOpts.windowType = WINDOW_SLIDING;
 
 	/* How often refresh statistics (seconds) */

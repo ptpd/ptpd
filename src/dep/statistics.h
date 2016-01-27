@@ -54,6 +54,7 @@ typedef struct {
 	double adev;
 	uint32_t count;
 	int32_t _prev;
+	int32_t lastDiff;
 } IntPermanentAdev;
 
 typedef struct {
@@ -61,6 +62,7 @@ typedef struct {
 	double adev;
 	uint32_t count;
 	double _prev;
+	double lastDiff;
 } DoublePermanentAdev;
 
 typedef struct {
@@ -143,13 +145,21 @@ typedef struct {
 
 typedef struct {
 
+	Boolean enabled;
+	uint8_t	filterType;
+	int	windowSize;
+	uint8_t	windowType;
+
+} StatFilterOptions;
+
+typedef struct {
+
 	IntMovingMean* meanContainer;
 	int32_t output;
 	int32_t* sortedSamples;
 	char identifier[10];
 	int counter;
-	uint8_t filterType;
-	uint8_t windowType;
+	StatFilterOptions config;
 
 } IntMovingStatFilter;
 
@@ -160,19 +170,10 @@ typedef struct {
 	double* sortedSamples;
 	char identifier[10];
 	int counter;
-	uint8_t filterType;
-	uint8_t windowType;
+	StatFilterOptions config;
 
 } DoubleMovingStatFilter;
 
-typedef struct {
-
-	Boolean enabled;
-	uint8_t	filterType;
-	int	windowSize;
-	uint8_t	windowType;
-
-} StatFilterOptions;
 
 IntMovingMean* createIntMovingMean(int capacity);
 void freeIntMovingMean(IntMovingMean** container);
