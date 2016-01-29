@@ -41,6 +41,11 @@
 #include "clockdriver_interface.h"
 #include "ptpd_dep.h"
 
+#define THIS_COMPONENT "clock.linuxphc: "
+
+/* tracking the number of instances */
+static int _instanceCount = 0;
+
 static Boolean getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps);
 static Boolean getSystemClockOffset(ClockDriver *self, TimeInternal *delta);
 
@@ -52,7 +57,7 @@ static inline int clock_adjtime(clockid_t clkid, struct timex *timex)
 #endif
 
 
-void
+Boolean
 _setupClockDriver_linuxphc(ClockDriver* self)
 {
 
@@ -64,6 +69,12 @@ _setupClockDriver_linuxphc(ClockDriver* self)
 
     myData->clockFd = -1;
     myData->clockId = -1;
+
+    self->_instanceCount = &_instanceCount;
+
+    _instanceCount++;
+
+    return TRUE;
 
 }
 
@@ -87,7 +98,7 @@ clockdriver_init(ClockDriver* self, const void *userData) {
 
     }
 
-    INFO("Linux PHC clock driver %s starting\n", myConfig->networkDevice);
+    INFO(THIS_COMPONENT"Linux PHC clock driver %s starting\n", myConfig->networkDevice);
 
     self->_init = FALSE;
 
@@ -102,7 +113,7 @@ clockdriver_init(ClockDriver* self, const void *userData) {
 	}
 	myData->phcIndex = info.phc_index;
 	if(myData->phcIndex == -1) {
-	    ERROR("Device %s has no PTP clock\n", myConfig->networkDevice);
+	    ERROR(THIS_COMPONENT"Device %s has no PTP clock\n", myConfig->networkDevice);
 	    return -1;
 	}
 	snprintf(myConfig->characterDevice, PATH_MAX, "/dev/ptp%d", info.phc_index);
@@ -111,7 +122,7 @@ clockdriver_init(ClockDriver* self, const void *userData) {
     if(strlen(myConfig->characterDevice)) {
 	myData->clockFd = open(myConfig->characterDevice, O_RDWR);
 	if(myData->clockFd < 0) {
-	    PERROR("Could not open clock device %s for writing", myConfig->characterDevice);
+	    PERROR(THIS_COMPONENT"Could not open clock device %s for writing", myConfig->characterDevice);
 	    return -1;
 	}
 	myData->clockId = (~(clockid_t) (myData->clockFd) << 3) | 3;
@@ -125,7 +136,7 @@ clockdriver_init(ClockDriver* self, const void *userData) {
 
     self->servo.maxOutput = self->maxFrequency;
 
-    INFO("Successfully started Linux PHC clock driver %s (%s) clock ID %06x\n", self->name, myConfig->characterDevice, myData->clockId);
+    INFO(THIS_COMPONENT"Successfully started Linux PHC clock driver %s (%s) clock ID %06x\n", self->name, myConfig->characterDevice, myData->clockId);
 
     self->_init = TRUE;
 
@@ -144,10 +155,15 @@ clockdriver_shutdown(ClockDriver *self) {
     GET_DATA(self, myData, linuxphc);
     GET_CONFIG(self, myConfig, linuxphc);
 
-    INFO("Linux PHC clock driver %s (%s) shutting down\n", self->name, myConfig->characterDevice);
+    INFO(THIS_COMPONENT"Linux PHC clock driver %s (%s) shutting down\n", self->name, myConfig->characterDevice);
     if(myData->clockFd > -1) {
 	close(myData->clockFd);
     }
+
+    if(_instanceCount > 0) {
+	_instanceCount--;
+    }
+
     return 1;
 
 }
@@ -159,7 +175,7 @@ getTime (ClockDriver *self, TimeInternal *time) {
 
 	struct timespec tp;
 	if (clock_gettime(myData->clockId, &tp) < 0) {
-		PERROR("Linux PHC clock_gettime() failed, exiting.");
+		PERROR(THIS_COMPONENT"Linux PHC clock_gettime() failed, exiting.");
 		exit(0);
 	}
 	time->seconds = tp.tv_sec;
@@ -200,8 +216,8 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 	}
 
 	if(!force && !self->config.negativeStep && isTimeNegative(&delta)) {
-		CRITICAL("Cannot step Linux PHC  clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
-		CRITICAL("Manual intervention required or SIGUSR1 to force %s (%s) clock step\n", self->name, myConfig->characterDevice);
+		CRITICAL(THIS_COMPONENT"Cannot step Linux PHC  clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
+		CRITICAL(THIS_COMPONENT"Manual intervention required or SIGUSR1 to force %s (%s) clock step\n", self->name, myConfig->characterDevice);
 		self->lockedUp = TRUE;
 		self->setState(self, CS_NEGSTEP);
 		return FALSE;
@@ -212,7 +228,7 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 	tp.tv_nsec = time->nanoseconds;
 
 	if (clock_settime(myData->clockId, &tp) < 0) {
-		PERROR("clock driver %s (%s): Could not set time ", self->name, myConfig->characterDevice);
+		PERROR(THIS_COMPONENT"clock driver %s (%s): Could not set time ", self->name, myConfig->characterDevice);
 		return FALSE;
 	}
 
@@ -222,7 +238,7 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 	char timeStr[MAXTIMESTR];
 	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
-	NOTICE("Linux PHC clock %s (%s): stepped clock to: %s.%d\n",
+	NOTICE(THIS_COMPONENT"Linux PHC clock %s (%s): stepped clock to: %s.%d\n",
 		self->name, myConfig->characterDevice,
 	       timeStr, time->nanoseconds);
 
@@ -253,8 +269,8 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	}
 
 	if(!force && !self->config.negativeStep && isTimeNegative(delta)) {
-		CRITICAL("Cannot step Linux PHC clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
-		CRITICAL("Manual intervention required or SIGUSR1 to force %s (%s) clock step\n", self->name, myConfig->characterDevice);
+		CRITICAL(THIS_COMPONENT"Cannot step Linux PHC clock %s (%s) backwards\n", self->name, myConfig->characterDevice);
+		CRITICAL(THIS_COMPONENT"Manual intervention required or SIGUSR1 to force %s (%s) clock step\n", self->name, myConfig->characterDevice);
 		self->lockedUp = TRUE;
 		self->setState(self, CS_NEGSTEP);
 		return FALSE;
@@ -274,7 +290,7 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	    return setTime(self, &newTime, force);
 	}
 
-	NOTICE("Linux PHC clock %s (%s): stepped clock by %s%d.%09d seconds\n", self->name, myConfig->characterDevice,
+	NOTICE(THIS_COMPONENT"Linux PHC clock %s (%s): stepped clock by %s%d.%09d seconds\n", self->name, myConfig->characterDevice,
 		    (delta->seconds <0 || delta->nanoseconds <0) ? "-":"", delta->seconds, delta->nanoseconds);
 
 	self->_stepped = TRUE;
@@ -308,7 +324,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 	tmx.freq = (long)(round(adj * 65.536));
 
 	if(clock_adjtime(myData->clockId, &tmx) < 0) {
-	    PERROR("Could not adjust frequency offset of clock %s (%s)", self->name, myConfig->characterDevice);
+	    PERROR(THIS_COMPONENT"Could not adjust frequency offset of clock %s (%s)", self->name, myConfig->characterDevice);
 	    return FALSE;
 	}
 
@@ -327,7 +343,7 @@ getFrequency (ClockDriver *self) {
 	struct timex tmx;
 	memset(&tmx, 0, sizeof(tmx));
 	if(clock_adjtime(myData->clockId, &tmx) < 0) {
-	    PERROR("Could not get frequency of clock %s (%s)", self->name, myConfig->characterDevice);
+	    PERROR(THIS_COMPONENT"Could not get frequency of clock %s (%s)", self->name, myConfig->characterDevice);
 	    return 0;
 	}
 	return( (tmx.freq + 0.0) / 65.536);
@@ -351,7 +367,7 @@ getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps) {
 	GET_CONFIG(self, myConfig, linuxphc);
 
 	if(ioctl(myData->clockFd, PTP_CLOCK_GETCAPS, caps) < 0) {
-	    PERROR("Could not read clock capabilities for %s (%s): is the clock valid?", self->name, myConfig->characterDevice);
+	    PERROR(THIS_COMPONENT"Could not read clock capabilities for %s (%s): is the clock valid?", self->name, myConfig->characterDevice);
 	    return FALSE;
 	}
 
@@ -381,7 +397,7 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *delta)
 		    return FALSE;
 		}
 		subTime(delta, &deltaA, &deltaB);
-//		INFO("%s -> %s %d", self->name, from->name, delta->nanoseconds);
+//		INFO(THIS_COMPONENT"%s -> %s %d", self->name, from->name, delta->nanoseconds);
 	    }
 	    return TRUE;
 	}
@@ -416,7 +432,7 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
     sof.n_samples = OSCLOCK_OFFSET_SAMPLES;
 
     if(ioctl(myData->clockFd, PTP_SYS_OFFSET, &sof) < 0) {
-	PERROR("Could not read OS clock offset for %s (%s)",
+	PERROR(THIS_COMPONENT"Could not read OS clock offset for %s (%s)",
 		self->name, myConfig->characterDevice);
 	return FALSE;
     }

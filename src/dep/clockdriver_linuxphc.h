@@ -60,7 +60,7 @@ typedef struct {
     char characterDevice[PATH_MAX];
 } ClockDriverConfig_linuxphc;
 
-void _setupClockDriver_linuxphc(ClockDriver* clockDriver);
+Boolean _setupClockDriver_linuxphc(ClockDriver* clockDriver);
 
 
 #endif /* PTPD_CLOCKDRIVER_LINUXPHC_H_ */

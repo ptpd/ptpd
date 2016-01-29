@@ -55,8 +55,11 @@
 /* clock driver types */
 enum {
     CLOCKDRIVER_UNIX = 0,
-    CLOCKDRIVER_LINUXPHC = 1
+    CLOCKDRIVER_LINUXPHC = 1,
+    CLOCKDRIVER_MAX
 };
+
+#define SYSTEM_CLOCK_TYPE CLOCKDRIVER_UNIX
 
 /* clock commands that can be sent to all clock drivers */
 enum {
@@ -91,6 +94,8 @@ typedef enum {
 /* clock driver configuration */
 typedef struct {
     Boolean readOnly;			/* clock is read-only */
+    Boolean externalOnly;		/* this clock will only accept an external reference */
+    Boolean internalOnly;		/* this clock will only accept an internal reference */
     Boolean noStep;			/* clock cannot be stepped */
     Boolean negativeStep;		/* clock can be stepped backwards */
     Boolean storeToFile;		/* clock stores good frequency in a file */
@@ -112,6 +117,13 @@ typedef struct {
     Boolean leapDelete;
     Boolean utcOffset;
 } ClockStatus;
+
+/* clock driver specification container, useful when creating clock drivers specified as string */
+typedef struct {
+    int type;
+    char path[PATH_MAX];
+    char name[CLOCKDRIVER_NAME_MAX+1];
+} ClockDriverSpec;
 
 typedef struct ClockDriver ClockDriver;
 
@@ -147,6 +159,10 @@ struct ClockDriver {
 
     double totalAdev;			/* Allan deviation from the driver's init time */
     double adev;			/* running Allan deviation, periodically updated */
+    double minAdev;			/* minimum Allan deviation in locked state */
+    double maxAdev;			/* maximum Allan deviation in locked state */
+    double minAdevTotal;		/* minimum Allan deviation */
+    double maxAdevTotal;		/* maximum Allan deviation */
 
     PIservo servo;			/* PI servo used to sync the clock */
 
@@ -162,6 +178,7 @@ struct ClockDriver {
     ClockStatus _status;		/* status flags - leap etc. */
     Boolean _updated;			/* clock has received at least one update */
     Boolean _stepped;			/* clock has been stepped at least once */
+    Boolean _locked;			/* clock has locked at least once */
     Boolean _canResume;			/* we are OK to resume sync after step */
     IntPermanentAdev _adev;		/* running Allan deviation container */
     IntPermanentAdev _totalAdev;	/* totalAllan deviation container */
@@ -172,7 +189,7 @@ struct ClockDriver {
     double _tau;			/* time constant (servo run interval) */
     DoubleMovingStatFilter *_filter;	/* offset filter */
     Boolean _skipSync;			/* skip next sync */
-
+    int *_instanceCount;		/* instance counter for the whole clock driver */
     void *_privateData;			/* implementation-specific data */
     void *_privateConfig;		/* implementation-specific config */
 
@@ -249,9 +266,13 @@ ClockDriver*	getClockDriverByName(const char *);
 void		syncClocks();
 void		stepClocks(Boolean);
 void		reconfigureClockDrivers(RunTimeOpts *);
+Boolean createClockDriversFromString(const char*, RunTimeOpts *, Boolean);
 
 const char*	getClockStateName(ClockState);
 const char*	getClockStateShortName(ClockState);
+const char*	getClockDriverName(int);
+int		getClockDriverType(const char*);
+Boolean		parseClockDriverSpec(const char*, ClockDriverSpec *);
 
 #include "clockdriver_unix.h"
 #include "clockdriver_linuxphc.h"

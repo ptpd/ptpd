@@ -1010,7 +1010,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 		if(ifInfo->bondInfo.activeCount>0) {
 		    fprintf(out, ", active %s", ifInfo->physicalDevice);
 		} else {
-		    fprintf(out, "no active slaves!");
+		    fprintf(out, ", no active slaves!");
 		}
 		
 	    }

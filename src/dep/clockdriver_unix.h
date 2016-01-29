@@ -37,7 +37,7 @@
 
 #include "clockdriver.h"
 
-void _setupClockDriver_unix(ClockDriver* clockDriver);
+Boolean _setupClockDriver_unix(ClockDriver* clockDriver);
 
 typedef struct {
 

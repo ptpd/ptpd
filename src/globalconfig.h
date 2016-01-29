@@ -188,6 +188,10 @@ typedef struct {
 	char unicastDomains[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
 	char unicastLocalPreference[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
 
+	/* list of extra clocks to sync */
+	char extraClocks[PATH_MAX];
+	char masterClock[PATH_MAX];
+
 	char productDescription[65];
 	char portDescription[65];
 

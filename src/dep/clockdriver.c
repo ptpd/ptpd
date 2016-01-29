@@ -38,7 +38,7 @@
 
 #define REGISTER_CLOCKDRIVER(type, suffix) \
 	if(driverType==type) { \
-	    _setupClockDriver_##suffix(clockDriver);\
+	    setup = _setupClockDriver_##suffix(clockDriver);\
 	    found = TRUE;\
 	}
 
@@ -49,6 +49,12 @@ static ClockDriver* _systemClock = NULL;
 static ClockDriver* _bestClock = NULL;
 static int _updateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
 static int _syncInterval = 1.0 / (CLOCK_SYNC_RATE + 0.0);
+
+
+static const char *clockDriverNames[] = {
+    [CLOCKDRIVER_UNIX] = "unix",
+    [CLOCKDRIVER_LINUXPHC] = "linuxphc"
+};
 
 /* inherited methods */
 
@@ -87,7 +93,10 @@ createClockDriver(int driverType, const char *name)
     XCALLOC(clockDriver, sizeof(ClockDriver));
 
     if(!setupClockDriver(clockDriver, driverType, name)) {
-	freeClockDriver(&clockDriver);
+	if(clockDriver != NULL) {
+	    free(clockDriver);
+	}
+	return NULL;
     } else {
 	/* maintain the linked list */
 	LINKED_LIST_INSERT(clockDriver);
@@ -114,6 +123,7 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
 {
 
     Boolean found = FALSE;
+    Boolean setup = FALSE;
 
     clockDriver->type = driverType;
     strncpy(clockDriver->name, name, CLOCKDRIVER_NAME_MAX);
@@ -149,6 +159,8 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
 
     if(!found) {
 	ERROR(THIS_COMPONENT"Setup requested for unknown clock driver type: %d\n", driverType);
+    } else if(!setup) {
+	return FALSE;
     } else {
 	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_initTime);
 	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_lastUpdate);
@@ -180,10 +192,12 @@ freeClockDriver(ClockDriver** clockDriver)
 	}
     }
 
-    pdriver->shutdown(pdriver);
+    if(pdriver->_init) {
+	pdriver->shutdown(pdriver);
+    }
 
-	/* maintain the linked list */
-	LINKED_LIST_REMOVE(pdriver);
+    /* maintain the linked list */
+    LINKED_LIST_REMOVE(pdriver);
 
 
     if(pdriver->_privateData != NULL) {
@@ -237,27 +251,106 @@ shutdownClockDrivers() {
 
 }
 
+Boolean
+createClockDriversFromString(const char* list, RunTimeOpts *rtOpts, Boolean quiet) {
+
+	ClockDriverSpec spec;
+	ClockDriver *cd = NULL;
+	int namelen = 0;
+	int pathlen = 0;
+	memset(&spec, 0, sizeof(spec));
+
+	foreach_token_begin(clockspecs, list, specLine, DEFAULT_TOKEN_DELIM);
+
+	    if(!parseClockDriverSpec(specLine, &spec)) {
+		counter_clockspecs--;
+		continue;
+	    }
+
+	    pathlen = strlen(spec.path);
+	    namelen = strlen(spec.name);
+
+	    if( (namelen <= 0) && (pathlen > 0) ) {
+		strncpy(spec.name, spec.path + ( pathlen <= 5 ? 0 : pathlen - 5), CLOCKDRIVER_NAME_MAX);
+	    }
+
+	    namelen = strlen(spec.name);
+
+	    if( (pathlen <= 0) && (namelen > 0) ) {
+		strncpy(spec.path, spec.name, CLOCKDRIVER_NAME_MAX);
+	    }
+
+	    if(!strlen(spec.name) && !strlen(spec.path)) {
+		ERROR(THIS_COMPONENT"Clock driver string: \"%s\": no name or path given\n", specLine);
+		counter_clockspecs--;
+		continue;
+	    }
+
+	    if((cd = getClockDriverByName(spec.name))) {
+		if(!quiet) {
+		    WARNING(THIS_COMPONENT"Clock driver string: \"%s\" : clock driver %s already exists\n", specLine, spec.name);
+		}
+	    } else if((cd = findClockDriver(spec.path))) {
+		if(!quiet) {
+		    WARNING(THIS_COMPONENT"Clock driver string: \"%s\" : cannot create another clock driver of this type\n", specLine, spec.name);
+		}
+	    } else {
+		cd = createClockDriver(spec.type, spec.name);
+	    }
+
+	    if(cd != NULL) {
+		if(!cd->_init) {
+		    INFO(THIS_COMPONENT"Extra clock starting: name %s type %s path %s\n", spec.name, getClockDriverName(spec.type), spec.path);
+		    cd->init(cd, spec.path);
+		}
+		cd->inUse = TRUE;
+		cd->pushConfig(cd, rtOpts);
+	    }
+
+	foreach_token_end(clockspecs);
+
+	return TRUE;
+
+}
+
+
 static void
 setState(ClockDriver *driver, ClockState newState) {
 
-/* todo: switch/case FSM as we get more conditions */
+	/* todo: switch/case FSM leaving+entering as we get more conditions */
 
 	if(driver->state != newState) {
 	    NOTICE(THIS_COMPONENT"Clock %s changed state from %s to %s\n",
 		    driver->name, getClockStateName(driver->state),
 		    getClockStateName(newState));
+
 	    getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastUpdate);
 	    clearTime(&driver->age);
+
 	    /* if we're going into FREERUN, but not from a "good" state, restore last good frequency */
 	    if( (newState == CS_FREERUN) && !(driver->state == CS_LOCKED || driver->state == CS_HOLDOVER)) {
 		driver->restoreFrequency(driver);
 	    }
 
+	    if( (newState == CS_LOCKED) && !driver->_locked) {
+		driver->_locked = TRUE;
+		driver->minAdev = driver->adev;
+		driver->maxAdev = driver->adev;
+	    }
+
+	    /* entering or leaving locked state */
+	    if((newState == CS_LOCKED) || (driver->state == CS_LOCKED)) {
+		findBestClock();
+		INFO(THIS_COMPONENT"Clock %s adev %.03f minAdev %.03f maxAdev %.03f minAdevTotal %.03f maxAdevTotal %.03f totalAdev %.03f\n",
+		driver->name, driver->adev, driver->minAdev, driver->maxAdev, driver->minAdevTotal, driver->maxAdevTotal, driver->totalAdev);
+	    }
+/*
+	    if((newState == CS_TRACKING) && (driver->state == CS_LOCKED)) {
+		int c = 2 / 0;
+	    }
+*/
 	    driver->lastState = driver->state;
 	    driver->state = newState;
-
-	    findBestClock();
-//	syncClocks(_syncInterval);
 
 	}
 
@@ -295,6 +388,11 @@ updateClockDrivers() {
 		case CS_NEGSTEP:
 		    break;
 		case CS_FREERUN:
+		    if((cd->refClock == NULL) && (!cd->externalReference)) {
+			if(_bestClock != NULL) {
+			    cd->setReference(cd, _bestClock);
+			}
+		    }
 		    break;
 		case CS_LOCKED:
 			if((cd->refClock == NULL) && (!cd->externalReference)) {
@@ -388,6 +486,8 @@ reconfigureClockDrivers(RunTimeOpts *rtOpts) {
 	cd->pushConfig(cd, rtOpts);
     }
 
+    findBestClock();
+
 }
 
 static void
@@ -405,7 +505,33 @@ processUpdate(ClockDriver *driver) {
 	if( (driver->_tau > ZEROF) && ((driver->_adev.count * driver->_tau) > driver->config.adevPeriod) ) {
 
 	    driver->adev = driver->_adev.adev;
+
+	    if(driver->adev > ZEROF) {
+		if(!driver->adevValid) {
+		    driver->minAdevTotal = driver->adev;
+		    driver->maxAdevTotal = driver->adev;
+		    }
+
+		if(driver->adev > driver->maxAdevTotal) {
+		    driver->maxAdevTotal = driver->adev;
+		}
+
+		if(driver->adev < driver->minAdevTotal) {
+		    driver->minAdevTotal = driver->adev;
+		}
+	    }
+
 	    DBG(THIS_COMPONENT"clock %s  ADEV %.09f\n", driver->name, driver->adev);
+
+	    if(driver->state == CS_LOCKED) {
+		if(driver->adev > driver->maxAdev) {
+		    driver->maxAdev = driver->adev;
+		}
+		if(driver->adev < driver->minAdev) {
+		    driver->minAdev = driver->adev;
+		}
+	    }
+
 	    if((driver->state == CS_STEP) || (driver->state == CS_NEGSTEP)) {
 		update = FALSE;
 	    } else {
@@ -420,6 +546,7 @@ processUpdate(ClockDriver *driver) {
 		update = TRUE;
 	    }
 	    driver->adevValid = TRUE;
+
 	    resetIntPermanentAdev(&driver->_adev);
 	}
 
@@ -460,6 +587,11 @@ static void
 setReference(ClockDriver *a, ClockDriver *b) {
 
     if(a == NULL) {
+	return;
+    }
+
+    if( (b != NULL) && a->config.externalOnly) {
+	DBG("Clock %s only accepts external reference clocks\n", a->name);
 	return;
     }
 
@@ -540,15 +672,25 @@ setReference(ClockDriver *a, ClockDriver *b) {
 
 static void setExternalReference(ClockDriver *a, const char* refName) {
 
+	if(a == NULL) {
+	    return;
+	}
+
+	if( a->config.internalOnly) {
+	    DBG("Clock %s only accepts internal reference clocks\n", a->name);
+	    return;
+	}
+
 	if(!a->externalReference || strncmp(a->refName, refName, CLOCKDRIVER_NAME_MAX)) {
 	    NOTICE(THIS_COMPONENT"Clock %s changing to external reference %s\n", a->name, refName);
+	    a->setState(a, CS_FREERUN);
 	}
 
 	strncpy(a->refName, refName, CLOCKDRIVER_NAME_MAX);
 	a->externalReference = TRUE;
 	a->refClock = NULL;
 	a->distance = 1;
-	a->setState(a, CS_FREERUN);
+
 }
 
 static void
@@ -759,6 +901,70 @@ syncClockExternal(ClockDriver* driver, TimeInternal offset, double tau) {
 }
 
 const char*
+getClockDriverName(int type) {
+
+    if ((type < 0) || (type >= CLOCKDRIVER_MAX)) {
+	return NULL;
+    }
+
+    return clockDriverNames[type];
+
+}
+
+int
+getClockDriverType(const char* name) {
+
+    for(int i = 0; i < CLOCKDRIVER_MAX; i++) {
+
+	if(!strcmp(name, clockDriverNames[i])) {
+	    return i;
+	}
+
+    }
+
+    return -1;
+
+}
+
+Boolean
+parseClockDriverSpec(const char* line, ClockDriverSpec *spec) {
+
+	memset(spec, 0, sizeof(ClockDriverSpec));
+	spec->type = -1;
+
+	foreach_token_begin(params, line, param, ":");
+		switch(counter_params) {
+		    case 0:
+			spec->type = getClockDriverType(param);
+			if(spec->type == -1) {
+			    ERROR(THIS_COMPONENT"Clock driver string \"%s\" : unknown clock driver type: %s\n", line, param);
+			}
+			break;
+		    case 1:
+			strncpy(spec->path, param, PATH_MAX);
+			break;
+		    case 2:
+			strncpy(spec->name, param, CLOCKDRIVER_NAME_MAX);
+			break;
+		    default:
+			break;
+		}
+	foreach_token_end(params);
+
+	if(counter_params < 1) {
+	    ERROR(THIS_COMPONENT"Clock driver string: \"%s\": no parameters given\n", line);
+	    return FALSE;
+	}
+
+	if(spec->type == -1) {
+	    return FALSE;
+	}
+
+	return TRUE;
+
+}
+
+const char*
 getClockStateName(ClockState state) {
 
     switch(state) {
@@ -833,6 +1039,7 @@ ClockDriver*
 getClockDriverByName(const char * search) {
 
 	ClockDriver *cd;
+
 	LINKED_LIST_FOREACH(cd) {
 	    if(!strncmp(cd->name, search, CLOCKDRIVER_NAME_MAX)) {
 		return cd;

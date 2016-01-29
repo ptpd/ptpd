@@ -195,21 +195,23 @@ static inline Integer32 flip32(x)
  * each token in targetvar on iteration, using id variable name prefix
  * to allow nesting (each loop uses an individual set of variables)
  */
-#define foreach_token_begin(id, var, targetvar, delim) {\
-    char* id_stash; \
-    char* id_text_; \
-    char* id_text__; \
+#define foreach_token_begin(id, var, targetvar, delim) \
+    int counter_##id = -1; \
+    char* stash_##id = NULL; \
+    char* text_##id; \
+    char* text__##id; \
     char* targetvar; \
-    id_text_=strdup(var); \
-    for(id_text__ = id_text_;; id_text__=NULL) { \
-	targetvar = strtok_r(id_text__, delim, &id_stash); \
-	if(targetvar==NULL) break;
+    text_##id=strdup(var); \
+    for(text__##id = text_##id;; text__##id=NULL) { \
+	targetvar = strtok_r(text__##id, delim, &stash_##id); \
+	if(targetvar==NULL) break; \
+	counter_##id++;
 
 #define foreach_token_end(id) } \
-    if(id_text_ != NULL) { \
-	free(id_text_); \
-    }\
-}
+    if(text_##id != NULL) { \
+	free(text_##id); \
+    } \
+    counter_##id++;
 
 /** \name msg.c
  *-Pack and unpack PTP messages */
@@ -382,7 +384,7 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 Boolean netIoctlHelper(struct ifreq *ifr, const char* ifaceName, unsigned long request);
 Boolean getTsInfo(const char *ifaceName, struct ethtool_ts_info *info);
 int interfaceExists(char* ifaceName);
-
+Boolean prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts);
 
 /** \}*/
 

@@ -94,7 +94,6 @@ static void getBondInfo(char *ifaceName, BondInfo *info);
 static void getVlanInfo(char* ifaceName, VlanInfo *info);
 static Boolean getHwTs(const char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target, Boolean quiet);
 static Boolean initHwTs(char *ifaceName, HwTsInfo *info);
-static Boolean prepareClockDrivers(NetPath *, PtpClock *, RunTimeOpts *);
 static ssize_t netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags);
 
 
@@ -806,10 +805,12 @@ netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 	char *primaryName = netPath->interfaceInfo.physicalDevice;
 	char *ifaceName;
 
+	Boolean ret = TRUE;
+
 	memset(&primaryInfo, 0, sizeof(HwTsInfo));
 
 	if(!getHwTs((const char*)primaryName, rtOpts, &primaryInfo, FALSE) || !initHwTs(primaryName, &primaryInfo)) {
-	    return FALSE;
+	    ret = FALSE;
 	}
 
 	if(bi->bonded) {
@@ -823,14 +824,16 @@ netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 		    memset(&info, 0, sizeof(HwTsInfo));
 
 		    if(!getHwTs((const char*)ifaceName, rtOpts, &info, FALSE)) {
-			return FALSE;
+			ret = FALSE;
+			continue;
 		    }
 		    if(info.tsMode != primaryInfo.tsMode) {
 			WARNING("Interface %s does not support the same timestamping modes as primary %s (%03x vs. %03x)\n",
 			ifaceName, primaryName, info.tsMode, primaryInfo.tsMode);
 		    }
 		    if(!initHwTs(ifaceName, &info)) {
-			return FALSE;
+			ret = FALSE;
+			continue;
 		    }
 		}
 	    }
@@ -838,17 +841,18 @@ netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 
 	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &primaryInfo.tsMode, sizeof(primaryInfo.tsMode)) < 0) {
 	    PERROR("Could not set SO_TIMESTAMPING modes on primary interface %s\n", primaryName);
-	    return FALSE;
+	    ret = FALSE;
     }
 
-    netPath->txTimestamping = TRUE;
-    netPath->hwTimestamping = TRUE;
+    if(ret) {
+	netPath->txTimestamping = TRUE;
+	netPath->hwTimestamping = TRUE;
+	INFO("Hardware timestamping successfully enabled on %s\n", primaryName);
+    }
 
     netPath->txLoop = FALSE;
 
-    INFO("Hardware timestamping successfully enabled on %s\n", primaryName);
-
-    return TRUE;
+    return ret;
 
 }
 
@@ -991,7 +995,7 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
 
     for(text__=text_;found < maxCount; text__=NULL) {
 
-	token=strtok_r(text__,", ;\t",&stash);
+	token=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	if(token==NULL) break;
 	if(hostLookup(token, &output[found].transportAddress)) {
 	DBG("hostList %d host: %s addr %08x\n", found, token, output[found]);
@@ -1015,7 +1019,7 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
 
     for(text__=text_;found < total; text__=NULL) {
 
-	token=strtok_r(text__,", ;\t",&stash);
+	token=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	if(token==NULL) break;
 	if (sscanf(token,"%d", &tmp)) {
 	    DBG("hostList %dth host: domain %d\n", found, tmp);
@@ -1035,7 +1039,7 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
 
     for(text__=text_;found < total; text__=NULL) {
 
-	token=strtok_r(text__,", ;\t",&stash);
+	token=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	tmp = LOWEST_LOCALPREFERENCE;
 	if(token!=NULL) {
 	    if (sscanf(token,"%d", &tmp) != 1) {
@@ -1470,10 +1474,19 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 
+		controlClockDrivers(CD_NOTINUSE);
+
 		if(!prepareClockDrivers(netPath, ptpClock, rtOpts)) {
 			ERROR("Cannot start clock drivers - aborting mission\n");
 			exit(-1);
 		}
+
+		createClockDriversFromString(rtOpts->extraClocks, rtOpts, FALSE);
+
+		/* clean up unused clock drivers */
+		controlClockDrivers(CD_CLEANUP);
+
+		reconfigureClockDrivers(rtOpts);
 
 #ifdef SO_TIMESTAMPING
 		/* If we failed to initialise SO_TIMESTAMPING, enable mcast loopback */
@@ -2628,9 +2641,15 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 			INFO("Re-sending IGMP joins\n");
 		    }
 		    netInitHwTimestamping(netPath, rtOpts);
-		    /*initClock(rtOpts, ptpClock); */
 		    ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
-		    prepareClockDrivers(netPath, ptpClock, rtOpts);
+
+		    controlClockDrivers(CD_NOTINUSE);
+		    prepareClockDrivers(&ptpClock->netPath, ptpClock, rtOpts);
+		    createClockDriversFromString(rtOpts->extraClocks, rtOpts, TRUE);
+		    /* clean up unused clock drivers */
+		    controlClockDrivers(CD_CLEANUP);
+		    reconfigureClockDrivers(rtOpts);
+
 		    netRefreshIGMP(netPath, rtOpts, ptpClock);
 
 		    if(rtOpts->calibrationDelay) {
@@ -2639,8 +2658,16 @@ void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptp
 		    }
 		}
     } else if(bondInfo->countChanged) {
-	WARNING("Bonding: %s slave count changed, checking clocks\n");
-	prepareClockDrivers(netPath, ptpClock, rtOpts);
+	WARNING("Bonding: %s slave count changed, checking clocks\n", realDevice);
+
+	ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
+
+	controlClockDrivers(CD_NOTINUSE);
+	prepareClockDrivers(&ptpClock->netPath, ptpClock, rtOpts);
+	createClockDriversFromString(rtOpts->extraClocks, rtOpts, TRUE);
+	/* clean up unused clock drivers */
+	controlClockDrivers(CD_CLEANUP);
+	reconfigureClockDrivers(rtOpts);
     }
 }
 
@@ -2829,25 +2856,33 @@ getClockDriver(const char *ifaceName, RunTimeOpts *rtOpts)
 
 }
 
-static Boolean
+Boolean
 prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 
 	BondInfo *bi = &netPath->interfaceInfo.bondInfo;
 	ClockDriver *cd;
 
-	controlClockDrivers(CD_NOTINUSE);
-
 	getSystemClock()->pushConfig(getSystemClock(), rtOpts);
 
 	if(rtOpts->hwTimestamping && netPath->hwTimestamping) {
 
-	ptpClock->clockDriver = NULL;
-	ptpClock->clockDriver = getClockDriver(netPath->interfaceInfo.physicalDevice, rtOpts);
+	    ptpClock->clockDriver = NULL;
+	    ptpClock->clockDriver = getClockDriver(netPath->interfaceInfo.physicalDevice, rtOpts);
 
-	if(bi->bonded) {
+	    if ((ptpClock->clockDriver == NULL) || !ptpClock->clockDriver->_init) {
+		    ERROR("Could not start clock driver for primary interface %s\n",
+			netPath->interfaceInfo.physicalDevice);
+		    return FALSE;
+	    }
+
+	} else {
+	    ptpClock->clockDriver = getSystemClock();
+	}
+
+	if(rtOpts->hwTimestamping && bi->bonded) {
 	    for(int i = 0; i < bi->slaveCount; i++) {
 		cd = getClockDriver(bi->slaves[i].name, rtOpts);
-		if((cd != NULL) && strlen(bi->slaves[i].name)) {
+		if((cd != NULL) && !cd->systemClock && strlen(bi->slaves[i].name)) {
 		    if(!cd->_init) {
 			cd->init(cd, bi->slaves[i].name);
 		    }
@@ -2857,16 +2892,6 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 	    }
 	}
 
-	if ((ptpClock->clockDriver == NULL) || !ptpClock->clockDriver->_init) {
-		ERROR("Could not start clock driver for primary interface %s\n",
-			netPath->interfaceInfo.physicalDevice);
-		return FALSE;
-	}
-
-	} else {
-	    ptpClock->clockDriver = getSystemClock();
-	}
-
 	ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
 	ptpClock->clockDriver->inUse = TRUE;
 
@@ -2874,10 +2899,9 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 	    ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP");
 	}
 
-	/* clean up unused clock drivers */
-	controlClockDrivers(CD_CLEANUP);
-
 	return TRUE;
 
 
 }
+
+//static Boolean 

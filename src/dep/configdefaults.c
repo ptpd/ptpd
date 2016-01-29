@@ -572,7 +572,7 @@ static void loadFileList(dictionary *dict, char *list) {
     text_=strdup(list);
 
     for(text__=text_;; text__=NULL) {
-	filename=strtok_r(text__,", ;\t",&stash);
+	filename=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	if(filename==NULL) break;
 	if(!iniparser_merge_file(dict, filename,1)) {
 	    ERROR("Could not load template file %s\n", filename);
@@ -624,7 +624,7 @@ applyConfigTemplates(dictionary *target, char *templateNames, char *files) {
 	fFound = -1;
 
 	/* apply from built-in templates */
-	templateName=strtok_r(text__,", ;\t",&stash);
+	templateName=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	if(templateName==NULL) break;
 
 	template = (ConfigTemplate*)configTemplates;

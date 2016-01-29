@@ -28,9 +28,9 @@ Makefile
 /m4/lt~obsolete.m4
 .dirstamp
 .deps
-# binaries and other compiled files
+# binaries and other compiled or generated files
 ptpd*.tar.gz
 *.rpm
-/src/ptpd2
-/src/ptpd2.8
-/src/ptpd2.conf.5
+/src/ptpd
+/src/ptpd.8
+/src/ptpd.conf.5

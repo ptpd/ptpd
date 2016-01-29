@@ -1955,6 +1955,18 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 Example: when set to 86400 (24 hours), an extra 11.5 microseconds is added every second"
 	,RANGECHECK_RANGE,3600,86400);
 
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:extra_clocks",
+		PTPD_RESTART_NONE, rtOpts->extraClocks, sizeof(rtOpts->extraClocks), rtOpts->extraClocks,
+	"Specify a comma, space or tab separated list of extra clocks to be controlled by PTP.\n"
+	"        The format is type:path:name where \"type\" can be: \"unix\" for Unix clocks and \"linuxphc\"\n"
+	"	 for Linux PHC clocks, \"path\" is either the clock device path or interface name, and\n"
+	"	 \"name\" is user's name for the clock (20 characters max)");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:master_clock",
+		PTPD_RESTART_NONE, rtOpts->masterClock, sizeof(rtOpts->masterClock), rtOpts->masterClock,
+	"Specify a clock in the same format as clock:extra_clocks, which is to be the preferred clock source\n"
+	"	 when PTP is running as master, and all other clocks will sinchronise with it.\n"
+	"	 This clock will only accept an external reference such as PTP");
 
 #ifdef HAVE_STRUCT_TIMEX_TICK
 	/* This really is clock specific - different clocks may allow different ranges */
@@ -1975,6 +1987,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 1 us per second. Values above 512 will use the tick duration correction\n"
 	"	 to allow even faster slewing. Default maximum is 2000 without using tick.", RANGECHECK_RANGE,
 	200,2000);
+
+
 
 	/*
 	 * TimeProperties DS - in future when clock driver API is implemented,

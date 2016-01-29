@@ -35,9 +35,12 @@
 #include "clockdriver.h"
 #include "clockdriver_interface.h"
 
+#define THIS_COMPONENT "clock.unix: "
+
 /* accumulates all clock steps to simulate monotonic time */
 static TimeInternal _stepAccumulator = {0,0};
-
+/* tracking the number of instances - only one allowed */
+static int _instanceCount = 0;
 
 static void setRtc(ClockDriver* self, TimeInternal *timeToSet);
 static Boolean adjFreq_unix(ClockDriver *self, double adj);
@@ -47,13 +50,22 @@ static void updateXtmp_unix (TimeInternal oldTime, TimeInternal newTime);
 static const struct sigevent* timerIntHandler(void* data, int id);
 #endif
 
-void
+Boolean
 _setupClockDriver_unix(ClockDriver* self)
 {
+
+    if((self->type == SYSTEM_CLOCK_TYPE) && (_instanceCount > 0)) {
+	WARNING(THIS_COMPONENT"Only one instance of the system clock driver is allowed\n");
+	return FALSE;
+    }
 
     INIT_INTERFACE(self);
     INIT_DATA(self, linuxphc);
     INIT_CONFIG(self, linuxphc);
+
+    _instanceCount++;
+
+    self->_instanceCount = &_instanceCount;
 
     self->systemClock = TRUE;
 
@@ -62,7 +74,9 @@ _setupClockDriver_unix(ClockDriver* self)
 
     strncpy(self->name, SYSTEM_CLOCK_NAME, CLOCKDRIVER_NAME_MAX);
 
-    INFO("Started Unix clock driver %s\n", self->name);
+    INFO(THIS_COMPONENT"Started Unix clock driver %s\n", self->name);
+
+    return TRUE;
 
 }
 
@@ -82,7 +96,8 @@ clockdriver_init(ClockDriver* self, const void *config) {
 
 static int
 clockdriver_shutdown(ClockDriver *self) {
-    INFO("Unix clock driver %s shutting down\n", self->name);
+    _instanceCount--;
+    INFO(THIS_COMPONENT"Unix clock driver %s shutting down\n", self->name);
     return 1;
 }
 
@@ -101,7 +116,7 @@ getTime (ClockDriver *self, TimeInternal *time) {
   if(!tDataUpdated) {
     memset(&tData, 0, sizeof(TimerIntData));
     if(ThreadCtl(_NTO_TCTL_IO, 0) == -1) {
-      ERROR("QNX: could not give process I/O privileges");
+      ERROR(THIS_COMPONENT"QNX: could not give process I/O privileges");
       return FALSE;
     }
 
@@ -113,7 +128,7 @@ getTime (ClockDriver *self, TimeInternal *time) {
     ret = InterruptAttach(0, timerIntHandler, &tData, sizeof(TimerIntData), _NTO_INTR_FLAGS_END | _NTO_INTR_FLAGS_TRK_MSK);
 
     if(ret == -1) {
-      ERROR("QNX: could not attach to timer interrupt");
+      ERROR(THIS_COMPONENT"QNX: could not attach to timer interrupt");
       return FALSE;
     }
     tDataUpdated = TRUE;
@@ -149,7 +164,7 @@ getTime (ClockDriver *self, TimeInternal *time) {
 
 	struct timespec tp;
 	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
-		PERROR("clock_gettime() failed, exiting.");
+		PERROR(THIS_COMPONENT"clock_gettime() failed, exiting.");
 		exit(0);
 	}
 	time->seconds = tp.tv_sec;
@@ -217,8 +232,8 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 	}
 
 	if(!force && !self->config.negativeStep && isTimeNegative(&delta)) {
-		CRITICAL("Cannot step Unix clock %s backwards\n", self->name);
-		CRITICAL("Manual intervention required or SIGUSR1 to force %s clock step\n", self->name);
+		CRITICAL(THIS_COMPONENT"Cannot step Unix clock %s backwards\n", self->name);
+		CRITICAL(THIS_COMPONENT"Manual intervention required or SIGUSR1 to force %s clock step\n", self->name);
 		self->lockedUp = TRUE;
 		self->setState(self, CS_NEGSTEP);
 		return FALSE;
@@ -240,7 +255,7 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 	if (clock_settime(CLOCK_REALTIME, &tp) < 0) {
-		PERROR("Could not set system time");
+		PERROR(THIS_COMPONENT"Could not set system time");
 		return FALSE;
 	}
 	addTime(&_stepAccumulator, &_stepAccumulator, &delta);
@@ -263,7 +278,7 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 	char timeStr[MAXTIMESTR];
 	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
-	NOTICE("Unix clock %s: stepped the system clock to: %s.%d\n", self->name,
+	NOTICE(THIS_COMPONENT"Unix clock %s: stepped the system clock to: %s.%d\n", self->name,
 	       timeStr, time->nanoseconds);
 
 	self->setState(self, CS_FREERUN);
@@ -294,8 +309,8 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	}
 
 	if(!force && !self->config.negativeStep && isTimeNegative(delta)) {
-		CRITICAL("Cannot step Unix clock %s backwards\n", self->name);
-		CRITICAL("Manual intervention required or SIGUSR1 to force %s clock step\n", self->name);
+		CRITICAL(THIS_COMPONENT"Cannot step Unix clock %s backwards\n", self->name);
+		CRITICAL(THIS_COMPONENT"Manual intervention required or SIGUSR1 to force %s clock step\n", self->name);
 		self->lockedUp = TRUE;
 		self->setState(self, CS_NEGSTEP);
 		return FALSE;
@@ -316,7 +331,7 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	    return setTime(self, &newTime, force);
 	}
 
-	NOTICE("Unix clock %s: stepped clock by %s%d.%09d seconds\n", self->name,
+	NOTICE(THIS_COMPONENT"Unix clock %s: stepped clock by %s%d.%09d seconds\n", self->name,
 		    (delta->seconds <0 || delta->nanoseconds <0) ? "-":"", delta->seconds, delta->nanoseconds);
 
 	addTime(&_stepAccumulator, &_stepAccumulator, delta);
@@ -375,7 +390,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 		adj, tau, clockadj.tick_count, clockadj.tick_nsec_inc);
 
 	if (ClockAdjust(CLOCK_REALTIME, &clockadj, NULL) < 0) {
-	    DBGV("QNX: failed to call ClockAdjust: %s\n", strerror(errno));
+	    DBGV("QNX: failed to call ClockAdjust: %s\n", strERROR(THIS_COMPONENTerrno));
 	}
 /* regular adjFreq */
 #elif defined(HAVE_SYS_TIMEX_H)
@@ -406,7 +421,7 @@ getFrequency (ClockDriver * self) {
 	struct timex tmx;
 	memset(&tmx, 0, sizeof(tmx));
 	if(adjtimex(&tmx) < 0) {
-	    PERROR("Could not get frequency of clock %s ", self->name);
+	    PERROR(THIS_COMPONENT"Could not get frequency of clock %s ", self->name);
 	    return 0;
 	}
 
@@ -441,7 +456,7 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *output)
 	}
 
 	if(!from->getOffsetFrom(from, self, &delta)) {
-	    INFO("%s FALSE AGAIN?\n", self->name);
+	    INFO(THIS_COMPONENT"%s FALSE AGAIN?\n", self->name);
 	    return FALSE;
 	}
 
@@ -559,12 +574,12 @@ static void setRtc(ClockDriver *self, TimeInternal *timeToSet)
             	rtcDev="/dev/rtc0\0";
 	    } else {
 
-			ERROR("Could not set RTC time - no suitable rtc device found\n");
+			ERROR(THIS_COMPONENT"Could not set RTC time - no suitable rtc device found\n");
 			return;
 	    }
 
 	    if(!S_ISCHR(statBuf.st_mode)) {
-			ERROR("Could not set RTC time - device %s is not a character device\n",
+			ERROR(THIS_COMPONENT"Could not set RTC time - device %s is not a character device\n",
 			rtcDev);
 			return;
 	    }
@@ -576,7 +591,7 @@ static void setRtc(ClockDriver *self, TimeInternal *timeToSet)
 	}
 
 	if((rtcFd = open(rtcDev, O_RDONLY)) < 0) {
-		PERROR("Could not set RTC time: error opening %s", rtcDev);
+		PERROR(THIS_COMPONENT"Could not set RTC time: error opening %s", rtcDev);
 		return;
 	}
 
@@ -587,11 +602,11 @@ static void setRtc(ClockDriver *self, TimeInternal *timeToSet)
 	DBGV("Set RTC from %d seconds to y: %d m: %d d: %d \n",timeToSet->seconds,tmTime->tm_year,tmTime->tm_mon,tmTime->tm_mday);
 
 	if(ioctl(rtcFd, RTC_SET_TIME, tmTime) < 0) {
-		PERROR("Could not set RTC time on %s - ioctl failed", rtcDev);
+		PERROR(THIS_COMPONENT"Could not set RTC time on %s - ioctl failed", rtcDev);
 		goto cleanup;
 	}
 
-	NOTIFY("Succesfully set RTC time using %s\n", rtcDev);
+	NOTIFY(THIS_COMPONENT"Succesfully set RTC time using %s\n", rtcDev);
 
 cleanup:
 

@@ -308,8 +308,6 @@ void
 restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
-		reconfigureClockDrivers(rtOpts);
-
 			DBG("RestartSubsystems: %d\n",rtOpts->restartSubsystems);
 		    /* So far, PTP_INITIALIZING is required for both network and protocol restart */
 		    if((rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) ||
@@ -425,8 +423,13 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		ptpClock->timingService.timeout = rtOpts->idleTimeout;
 
-		    /* Update PI servo parameters */
-//		    setupservoPI(&ptpClock->servo, ptpClock, rtOpts);
+		controlClockDrivers(CD_NOTINUSE);
+		prepareClockDrivers(&ptpClock->netPath, ptpClock, rtOpts);
+		createClockDriversFromString(rtOpts->extraClocks, rtOpts, TRUE);
+		/* clean up unused clock drivers */
+		controlClockDrivers(CD_CLEANUP);
+		reconfigureClockDrivers(rtOpts);
+
 		    /* Config changes don't require subsystem restarts - acknowledge it */
 		    if(rtOpts->restartSubsystems == PTPD_RESTART_NONE) {
 				NOTIFY("Applying configuration\n");
