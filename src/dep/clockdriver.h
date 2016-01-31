@@ -78,6 +78,13 @@ enum {
     CSTEP_STARTUP_FORCE /* always step on startup, regardless of offset and if it's negative */
 };
 
+/* reference class */
+enum {
+    RC_INTERNAL,
+    RC_EXTERNAL,
+    RC_PTP
+};
+
 /* clock states */
 typedef enum {
     CS_SUSPENDED,	/* clock is suspended - no updates accepted */
@@ -111,11 +118,21 @@ typedef struct {
     uint32_t stepExitThreshold;		/* Offset from reference when we can exit panic mode early */
 } ClockDriverConfig;
 
+/* clock status commands */
+enum {
+    CCMD_INSYNC 	= 1 << 0,
+    CCMD_LEAP_INS 	= 1 << 1,
+    CCMD_LEAP_DEL 	= 1 << 2,
+    CCMD_LEAP_PENDING	= 1 << 3,
+    CCMD_UTC_OFFSET 	= 1 << 3
+};
+
 typedef struct {
+    int cmd;
     Boolean inSync;
     Boolean leapInsert;
     Boolean leapDelete;
-    Boolean utcOffset;
+    int utcOffset;
 } ClockStatus;
 
 /* clock driver specification container, useful when creating clock drivers specified as string */
@@ -153,6 +170,7 @@ struct ClockDriver {
     ClockState lastState;		/* previous clock state */
 
     char refName[CLOCKDRIVER_NAME_MAX]; /* instance name of the clock's reference */
+    int refClass;			/* reference class - internal, external, PTP, etc. */
     ClockDriver *refClock;		/* reference clock object */
 
     TimeInternal refOffset;		/* clock's last known offset from reference */
@@ -203,7 +221,7 @@ struct ClockDriver {
     Boolean (*pushConfig) (ClockDriver *, RunTimeOpts *);
 
     void (*setReference) (ClockDriver *, ClockDriver *);
-    void (*setExternalReference) (ClockDriver *, const char *);
+    void (*setExternalReference) (ClockDriver *, const char *, int);
 
     Boolean (*adjustFrequency) (ClockDriver *, double, double);
     void (*restoreFrequency) (ClockDriver *);

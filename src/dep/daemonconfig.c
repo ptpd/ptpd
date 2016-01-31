@@ -1512,7 +1512,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_window",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->filterMSOpts.windowSize, rtOpts->filterMSOpts.windowSize,
-		"Number of samples used for the Sync statistical filter",RANGECHECK_RANGE,3,1280);
+		"Number of samples used for the Sync statistical filter",RANGECHECK_RANGE,3,2560);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_window_type",
 		PTPD_RESTART_FILTERS, &rtOpts->filterMSOpts.windowType, rtOpts->filterMSOpts.windowType,
@@ -1538,7 +1538,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_window",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->filterSMOpts.windowSize, rtOpts->filterSMOpts.windowSize,
-		"Number of samples used for the Delay statistical filter",RANGECHECK_RANGE,3,1280);
+		"Number of samples used for the Delay statistical filter",RANGECHECK_RANGE,3,2560);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_window_type",
 		PTPD_RESTART_FILTERS, &rtOpts->filterSMOpts.windowType, rtOpts->filterSMOpts.windowType,
@@ -1960,9 +1960,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"Specify a comma, space or tab separated list of extra clocks to be controlled by PTP.\n"
 	"        The format is type:path:name where \"type\" can be: \"unix\" for Unix clocks and \"linuxphc\"\n"
 	"	 for Linux PHC clocks, \"path\" is either the clock device path or interface name, and\n"
-	"	 \"name\" is user's name for the clock (20 characters max)");
+	"	 \"name\" is user's name for the clock (20 characters max). If no name is given, it is\n"
+	"	 extracted from the path name.");
 
-	parseResult &= configMapString(opCode, opArg, dict, target, "clock:master_clock",
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:master_clock_name",
 		PTPD_RESTART_NONE, rtOpts->masterClock, sizeof(rtOpts->masterClock), rtOpts->masterClock,
 	"Specify a clock in the same format as clock:extra_clocks, which is to be the preferred clock source\n"
 	"	 when PTP is running as master, and all other clocks will sinchronise with it.\n"

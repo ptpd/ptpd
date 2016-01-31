@@ -63,7 +63,7 @@ static void processUpdate(ClockDriver *);
 static void touchClock(ClockDriver *driver);
 static Boolean pushConfig(ClockDriver *, RunTimeOpts *);
 static void setReference(ClockDriver *, ClockDriver *);
-static void setExternalReference(ClockDriver *, const char*);
+static void setExternalReference(ClockDriver *, const char*, int);
 static void restoreFrequency (ClockDriver *);
 static void storeFrequency (ClockDriver *);
 static Boolean adjustFrequency (ClockDriver *, double, double);
@@ -101,6 +101,8 @@ createClockDriver(int driverType, const char *name)
 	/* maintain the linked list */
 	LINKED_LIST_INSERT(clockDriver);
     }
+
+    clockDriver->refClass = -1;
 
     StatFilterOptions opts;
     memset(&opts, 0, sizeof(StatFilterOptions));
@@ -630,7 +632,7 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	} else {
 	    a->distance = 255;
 	}
-//	clearTime(&a->refOffset);
+	a->refClass = -1;
 	return;
 	
     }
@@ -645,6 +647,7 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	} else {
 	    a->distance = 255;
 	}
+	a->refClass = -1;
 	return;
     } else if (b != NULL) {
 	NOTICE(THIS_COMPONENT"Clock %s changing reference to %s\n", a->name, b->name);
@@ -670,7 +673,7 @@ setReference(ClockDriver *a, ClockDriver *b) {
 
 }
 
-static void setExternalReference(ClockDriver *a, const char* refName) {
+static void setExternalReference(ClockDriver *a, const char* refName, int refClass) {
 
 	if(a == NULL) {
 	    return;
@@ -688,6 +691,7 @@ static void setExternalReference(ClockDriver *a, const char* refName) {
 
 	strncpy(a->refName, refName, CLOCKDRIVER_NAME_MAX);
 	a->externalReference = TRUE;
+	a->refClass = refClass;
 	a->refClock = NULL;
 	a->distance = 1;
 
@@ -1189,6 +1193,15 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 
 		    if(!a->externalReference && b->externalReference) {
 			return b;
+		    }
+
+		    if(a->externalReference && b->externalReference) {
+			if(a->refClass < b-> refClass) {
+			    return a;
+			}
+			if(b->refClass < a-> refClass) {
+			    return b;
+			}
 		    }
 
 		    if((a->refClock && (a->refClock==_bestClock)) &&

@@ -506,7 +506,7 @@ getPtpPreset(int presetNumber, RunTimeOpts* rtOpts)
 	case PTP_PRESET_MASTERONLY:
 		ret.presetName = "masteronly";
 		ret.slaveOnly = FALSE;
-		ret.noAdjust = TRUE;
+		ret.noAdjust = FALSE;
 		ret.clockClass.minValue = 0;
 		ret.clockClass.maxValue = 127;
 		ret.clockClass.defaultValue = DEFAULT_CLOCK_CLASS__APPLICATION_SPECIFIC_TIME_SOURCE;

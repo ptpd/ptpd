@@ -311,10 +311,18 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		if (timerExpired(&ptpClock->timers[CLOCK_SYNC_TIMER])) {
 			syncClocks(ptpClock->timers[CLOCK_SYNC_TIMER].interval);
+			if(ptpClock->masterClock) {
+//			    TimeInternal zerot = {0,0};
+//			    ptpClock->masterClock->syncClockExternal(ptpClock->masterClock, zerot, 1);
+			    ptpClock->masterClock->touchClock(ptpClock->masterClock);
+			}
 		}
 
 		if (timerExpired(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER])) {
-		    updateClockDrivers();
+			updateClockDrivers();
+			if(ptpClock->masterClock && ((ptpClock->masterClock != ptpClock->clockDriver) || ptpClock->portDS.portState != PTP_SLAVE)) {
+			    ptpClock->masterClock->setState(ptpClock->masterClock, CS_LOCKED);
+			}
 		}
 
 
@@ -352,6 +360,13 @@ void setPortState(PtpClock *ptpClock, Enumeration8 state)
     if(ptpClock->portDS.portState != state) {
 	ptpClock->portDS.lastPortState = ptpClock->portDS.portState;
 	DBG("State change from %s to %s\n", portState_getName(ptpClock->portDS.lastPortState), portState_getName(state));
+
+	if(state != PTP_SLAVE) {
+	    if(ptpClock->masterClock != NULL) {
+		    ptpClock->masterClock->setExternalReference(ptpClock->masterClock, "EXT", RC_EXTERNAL);
+	    }
+	}
+
     }
 
     /* "expected state" checks */
@@ -398,7 +413,9 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[SYNC_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
-		ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
+		if(ptpClock->masterClock != ptpClock->clockDriver) {
+		    ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
+		}
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {
 			/* do not cancel, just start re-requesting so we can still send a cancel on exit */
 			ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].timeLeft = 0;
@@ -638,7 +655,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 
 	case PTP_SLAVE:
-		ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP");
+		ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP", RC_PTP);
 		if(rtOpts->unicastNegotiation) {
 		    timerStart(&ptpClock->timers[UNICAST_GRANT_TIMER], 1);
 		}

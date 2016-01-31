@@ -410,8 +410,8 @@ typedef struct {
 	RunTimeOpts *rtOpts;
 
 	struct ClockDriver *clockDriver;
-	struct ClockDriver *clockDriver2;
-	struct ClockDriver *clockDriver3;
+	struct ClockDriver *masterClock;
+
 
 	/* tell the protocol engine to silently ignore the next n offset/delay updates */
 	int ignoreDelayUpdates;

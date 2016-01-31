@@ -2896,7 +2896,20 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 	ptpClock->clockDriver->inUse = TRUE;
 
 	if(ptpClock->portDS.portState == PTP_SLAVE) {
-	    ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP");
+	    ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP", RC_PTP);
+	}
+
+	if(strlen(rtOpts->masterClock)) {
+	    ptpClock->masterClock = getClockDriverByName(rtOpts->masterClock);
+	    if(ptpClock->masterClock == NULL) {
+		WARNING("Could not find designated master clock: %s\n", rtOpts->masterClock);
+	    }
+	} else {
+	    ptpClock->masterClock = NULL;
+	}
+
+	if((ptpClock->masterClock != NULL) && (ptpClock->masterClock != ptpClock->clockDriver)) {
+	    ptpClock->masterClock->setExternalReference(ptpClock->masterClock, "EXT", RC_EXTERNAL);
 	}
 
 	return TRUE;
