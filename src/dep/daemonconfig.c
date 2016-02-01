@@ -1981,6 +1981,12 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 when PTP is running as master, and all other clocks will sinchronise with it.\n"
 	"	 This clock will only accept an external reference such as PTP");
 
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:sync_rate",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->clockSyncRate,
+		rtOpts->clockSyncRate,
+		"Clock sync rate (per second) - the rate at which internal clocks are synced\n"
+		"	 with each other (excluding PTP-controlled clocks)." ,RANGECHECK_RANGE,1,32);
+
 #ifdef HAVE_STRUCT_TIMEX_TICK
 	/* This really is clock specific - different clocks may allow different ranges */
 	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:max_offset_ppm",
