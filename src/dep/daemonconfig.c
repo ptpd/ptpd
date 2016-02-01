@@ -1514,6 +1514,12 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->filterMSOpts.windowSize, rtOpts->filterMSOpts.windowSize,
 		"Number of samples used for the Sync statistical filter",RANGECHECK_RANGE,3,2560);
 
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_interval",
+		PTPD_RESTART_FILTERS, INTTYPE_U16, &rtOpts->filterMSOpts.samplingInterval, rtOpts->filterMSOpts.samplingInterval,
+		"Sampling interval (samples) used for the Sync statistical filter\n"
+		"	 when the window type is set to interval. If set to zero,\n"
+		"	 the sampling window size is used as the interval.",RANGECHECK_RANGE,0, 65535);
+
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_window_type",
 		PTPD_RESTART_FILTERS, &rtOpts->filterMSOpts.windowType, rtOpts->filterMSOpts.windowType,
 		"Sample window type used for Sync message statistical filter. Delay Response outlier filter action.\n"
@@ -1538,7 +1544,13 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_window",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->filterSMOpts.windowSize, rtOpts->filterSMOpts.windowSize,
-		"Number of samples used for the Delay statistical filter",RANGECHECK_RANGE,3,2560);
+		"Number of samples used for the Delay statistical filter",RANGECHECK_RANGE,3,5120);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_interval",
+		PTPD_RESTART_FILTERS, INTTYPE_U16, &rtOpts->filterSMOpts.samplingInterval, rtOpts->filterSMOpts.samplingInterval,
+		"Sampling interval (samples) used for the Delay statistical filter\n"
+		"	 when the window type is set to interval. If set to zero,\n"
+		"	 the sampling window size is used as the interval.",RANGECHECK_RANGE,0, 65535);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_window_type",
 		PTPD_RESTART_FILTERS, &rtOpts->filterSMOpts.windowType, rtOpts->filterSMOpts.windowType,

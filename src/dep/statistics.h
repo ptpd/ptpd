@@ -149,6 +149,7 @@ typedef struct {
 	uint8_t	filterType;
 	int	windowSize;
 	uint8_t	windowType;
+	uint16_t samplingInterval;
 
 } StatFilterOptions;
 

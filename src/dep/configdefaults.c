@@ -366,11 +366,13 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->filterMSOpts.filterType = FILTER_MEDIAN;
 	rtOpts->filterMSOpts.windowSize = 5;
 	rtOpts->filterMSOpts.windowType = WINDOW_SLIDING;
+	rtOpts->filterMSOpts.samplingInterval = 0;
 
 	rtOpts->filterSMOpts.enabled = FALSE;
 	rtOpts->filterSMOpts.filterType = FILTER_MEDIAN;
 	rtOpts->filterSMOpts.windowSize = 5;
 	rtOpts->filterSMOpts.windowType = WINDOW_SLIDING;
+	rtOpts->filterSMOpts.samplingInterval = 0;
 
 	/* How often refresh statistics (seconds) */
 	rtOpts->statsUpdateInterval = 30;

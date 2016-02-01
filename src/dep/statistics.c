@@ -683,8 +683,15 @@ resetIntMovingStatFilter(IntMovingStatFilter* container)
 Boolean
 feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 {
+
 	if(container == NULL)
 		return 0;
+
+	int interval = container->meanContainer->capacity;
+
+	if(container->config.samplingInterval > 0) {
+	    interval = container->config.samplingInterval;
+	}
 
 	if(!container->config.enabled || (container->config.filterType == FILTER_NONE)) {
 
@@ -698,7 +705,8 @@ feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 	}
 
 	container->counter++;
-	container->counter = container->counter % container->meanContainer->capacity;
+
+	container->counter %= interval;
 
 	switch(container->config.filterType) {
 
@@ -848,6 +856,13 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 	if(container == NULL)
 		return 0;
 
+	int interval = container->meanContainer->capacity;
+
+	if(container->config.samplingInterval > 0) {
+	    interval = container->config.samplingInterval;
+	}
+
+
 	if(!container->config.enabled || (container->config.filterType == FILTER_NONE)) {
 
 	    container->output = sample;
@@ -859,7 +874,7 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 	}
 
 	container->counter++;
-	container->counter = container->counter % container->meanContainer->capacity;
+	container->counter %= interval;
 
 	switch(container->config.filterType) {
 
