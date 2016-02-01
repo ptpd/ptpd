@@ -2012,3 +2012,38 @@ doubleFromFile(const char *filename, double *output)
 
 	return(ret == 1);
 }
+
+
+Boolean
+token_in_list(const char *list, const char * search, const char * delim)
+{
+
+    Boolean ret = FALSE;
+
+    if((list == NULL) || (search == NULL) || (delim == NULL) )  {
+	return FALSE;
+    }
+
+    if(strlen(search) < 1) {
+	return FALSE;
+    }
+
+    if(strlen(list) < 1) {
+	return FALSE;
+    }
+
+    if(strlen(delim) < 1) {
+	return FALSE;
+    }
+
+    foreach_token_begin(tmp, list, token, delim);
+
+	if(!strcmp(token, search)) {
+	    ret = TRUE;
+	}
+
+    foreach_token_end(tmp);
+
+    return ret;
+
+}

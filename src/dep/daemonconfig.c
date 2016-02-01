@@ -1977,9 +1977,22 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "clock:master_clock_name",
 		PTPD_RESTART_NONE, rtOpts->masterClock, sizeof(rtOpts->masterClock), rtOpts->masterClock,
-	"Specify a clock in the same format as clock:extra_clocks, which is to be the preferred clock source\n"
+	"Specify the clock name of a clock which is to be the preferred clock source\n"
 	"	 when PTP is running as master, and all other clocks will sinchronise with it.\n"
 	"	 This clock will only accept an external reference such as PTP");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:disabled_clock_names",
+		PTPD_RESTART_NONE, rtOpts->disabledClocks, sizeof(rtOpts->disabledClocks), rtOpts->disabledClocks,
+	"Specify a comma, space or tab separated list of names of clocks that should be disabled - disabled clocks\n"
+	"	 are excluded from sync and do not show up in the clock list.\n"
+	"	 NOTE: required clocks, such as system clock or PTP NIC clocks cannot be disabled.\n"
+	"	 they can be set to read-only instead (clock:readonly_clock_names)");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:readonly_clock_names",
+		PTPD_RESTART_NONE, rtOpts->readOnlyClocks, sizeof(rtOpts->readOnlyClocks), rtOpts->readOnlyClocks,
+	"Specify a comma, space or tab separated list of names of clocks that should be read only - read only\n"
+	"	 clocks are still compared to best clocks and their frequency is monitored,\n"
+	"	 but they are not adjusted.\n");
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:sync_rate",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->clockSyncRate,

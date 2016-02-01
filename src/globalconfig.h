@@ -191,6 +191,8 @@ typedef struct {
 	/* list of extra clocks to sync */
 	char extraClocks[PATH_MAX];
 	char masterClock[PATH_MAX];
+	char readOnlyClocks[PATH_MAX];
+	char disabledClocks[PATH_MAX];
 
 	char productDescription[65];
 	char portDescription[65];

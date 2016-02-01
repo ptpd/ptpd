@@ -100,6 +100,9 @@ typedef enum {
 
 /* clock driver configuration */
 typedef struct {
+    Boolean disabled;			/* clock is disabled - it's skipped from sync and all other operation.
+					 * if it is being used by PTP, it is set read-only instead */
+    Boolean required;			/* clock cannot be disabled */
     Boolean readOnly;			/* clock is read-only */
     Boolean externalOnly;		/* this clock will only accept an external reference */
     Boolean internalOnly;		/* this clock will only accept an internal reference */

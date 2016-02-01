@@ -319,6 +319,14 @@ createClockDriversFromString(const char* list, RunTimeOpts *rtOpts, Boolean quie
 static void
 setState(ClockDriver *driver, ClockState newState) {
 
+	if(driver == NULL) {
+	    return;
+	}
+
+	if((newState > CS_FREERUN) && driver->config.disabled) {
+	    return;
+	}
+
 	/* todo: switch/case FSM leaving+entering as we get more conditions */
 
 	if(driver->state != newState) {
@@ -346,11 +354,7 @@ setState(ClockDriver *driver, ClockState newState) {
 		INFO(THIS_COMPONENT"Clock %s adev %.03f minAdev %.03f maxAdev %.03f minAdevTotal %.03f maxAdevTotal %.03f totalAdev %.03f\n",
 		driver->name, driver->adev, driver->minAdev, driver->maxAdev, driver->minAdevTotal, driver->maxAdevTotal, driver->totalAdev);
 	    }
-/*
-	    if((newState == CS_TRACKING) && (driver->state == CS_LOCKED)) {
-		int c = 2 / 0;
-	    }
-*/
+
 	    driver->lastState = driver->state;
 	    driver->state = newState;
 
@@ -366,6 +370,10 @@ updateClockDrivers() {
 	TimeInternal now;
 
 	LINKED_LIST_FOREACH(cd) {
+
+	    if(cd->config.disabled) {
+		continue;
+	    }
 
 	    if(cd->_warningTimeout > 0) {
 		cd->_warningTimeout -= _updateInterval;
@@ -446,6 +454,11 @@ syncClocks(double tau) {
 
     /* sync locked clocks first, in case if they are to unlock */
     LINKED_LIST_FOREACH(cd) {
+
+	    if(cd->config.disabled) {
+		continue;
+	    }
+
 	    if(cd->state == CS_LOCKED) {
 		cd->syncClock(cd, tau);
 		cd->_skipSync = TRUE;
@@ -453,6 +466,11 @@ syncClocks(double tau) {
     }
     /* sync the whole rest */
     LINKED_LIST_FOREACH(cd) {
+
+	    if(cd->config.disabled) {
+		continue;
+	    }
+
 	    if(!cd->_skipSync) {
 		cd->syncClock(cd, tau);
 	    }
@@ -467,6 +485,11 @@ stepClocks(Boolean force) {
 
     ClockDriver *cd;
     LINKED_LIST_FOREACH(cd) {
+
+	if(cd->config.disabled) {
+	    continue;
+	}
+
 	if((cd != _bestClock) && ((cd->refClock != NULL) || cd->externalReference)) {
 	DBG("%s STEP ref %d.%d\n", cd->name, cd->refOffset.seconds, cd->refOffset.nanoseconds);
 	    cd->stepTime(cd, &cd->refOffset, force);
@@ -484,9 +507,26 @@ void
 reconfigureClockDrivers(RunTimeOpts *rtOpts) {
 
     ClockDriver *cd;
+
     LINKED_LIST_FOREACH(cd) {
+	cd->config.disabled = (token_in_list(rtOpts->disabledClocks, cd->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
+
+	cd->config.readOnly = (token_in_list(rtOpts->readOnlyClocks, cd->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
+
+	if(cd->config.required && cd->config.disabled) {
+	    if(!cd->config.readOnly) {
+		WARNING(THIS_COMPONENT"clock %s cannot be disabled - set to read-only to exclude from sync\n", cd->name);
+	    } else {
+		WARNING(THIS_COMPONENT"clock %s cannot be disabled - already set to read-only\n", cd->name);
+	    }
+	    cd->config.disabled = FALSE;
+	}
+
 	cd->pushConfig(cd, rtOpts);
     }
+
+	/* system clock cannot be disabled */
+	getSystemClock()->config.disabled = FALSE;
 
     findBestClock();
 
@@ -496,6 +536,10 @@ static void
 processUpdate(ClockDriver *driver) {
 
 	Boolean update = FALSE;
+
+	if(driver->config.disabled) {
+	    return;
+	}
 
 	feedIntPermanentAdev(&driver->_adev, driver->lastFrequency);
 	driver->totalAdev = feedIntPermanentAdev(&driver->_totalAdev, driver->lastFrequency);
@@ -592,6 +636,11 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	return;
     }
 
+    if(a->config.disabled) {
+	return;
+    }
+
+
     if( (b != NULL) && a->config.externalOnly) {
 	DBG("Clock %s only accepts external reference clocks\n", a->name);
 	return;
@@ -679,6 +728,10 @@ static void setExternalReference(ClockDriver *a, const char* refName, int refCla
 	    return;
 	}
 
+	if(a->config.disabled) {
+	    return;
+	}
+
 	if( a->config.internalOnly) {
 	    DBG("Clock %s only accepts internal reference clocks\n", a->name);
 	    return;
@@ -703,6 +756,10 @@ restoreFrequency (ClockDriver *driver) {
     double frequency = 0;
     char frequencyPath [PATH_MAX + 1];
     memset(frequencyPath, 0, PATH_MAX + 1);
+
+    if(driver->config.disabled) {
+	return;
+    }
 
     if(driver->config.storeToFile) {
 	snprintf(frequencyPath, PATH_MAX, "%s/%s", driver->config.frequencyDir, driver->config.frequencyFile);
@@ -729,6 +786,10 @@ storeFrequency (ClockDriver *driver) {
     char frequencyPath [PATH_MAX + 1];
     memset(frequencyPath, 0, PATH_MAX + 1);
 
+    if(driver->config.disabled) {
+	return;
+    }
+
     if(driver->config.storeToFile) {
 	snprintf(frequencyPath, PATH_MAX, "%s/%s", driver->config.frequencyDir, driver->config.frequencyFile);
 	doubleToFile(frequencyPath, driver->lastFrequency);
@@ -741,6 +802,10 @@ storeFrequency (ClockDriver *driver) {
 static Boolean
 adjustFrequency (ClockDriver *driver, double adj, double tau) {
 
+	if(driver->config.disabled) {
+	    return FALSE;
+	}
+
 	Boolean ret = driver->setFrequency(driver, adj, tau);
 	driver->processUpdate(driver);
 	return ret;
@@ -751,6 +816,10 @@ adjustFrequency (ClockDriver *driver, double adj, double tau) {
 static void
 touchClock(ClockDriver *driver) {
 
+	if(driver->config.disabled) {
+	    return;
+	}
+
 	TimeInternal now;
 	getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
 	subTime(&driver->age, &now, &driver->_lastUpdate);
@@ -760,6 +829,10 @@ touchClock(ClockDriver *driver) {
 }
 
 static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double tau) {
+
+    if(driver->config.disabled) {
+	return FALSE;
+    }
 
     driver->refOffset = offset;
 
@@ -877,6 +950,10 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 static Boolean
 syncClock(ClockDriver* driver, double tau) {
 
+	if(driver->config.disabled) {
+	    return FALSE;
+	}
+
 	TimeInternal delta;
 
 	if(driver->externalReference || (driver->refClock == NULL)) {
@@ -895,6 +972,10 @@ syncClock(ClockDriver* driver, double tau) {
 
 static Boolean
 syncClockExternal(ClockDriver* driver, TimeInternal offset, double tau) {
+
+    if(driver->config.disabled) {
+	return FALSE;
+    }
 
     if(!driver->externalReference) {
 	return FALSE;
@@ -1024,7 +1105,6 @@ getClockStateShortName(ClockState state) {
 
 }
 
-
 ClockDriver*
 findClockDriver(const char * search) {
 
@@ -1119,6 +1199,7 @@ controlClockDrivers(int command) {
 	    LINKED_LIST_FOREACH(cd) {
 		if(!cd->systemClock) {
 		    cd->inUse = FALSE;
+		    cd->config.required = FALSE;
 		}
 	    }
 	break;
@@ -1144,6 +1225,9 @@ controlClockDrivers(int command) {
 
 	case CD_DUMP:
 	    LINKED_LIST_FOREACH(cd) {
+		if(cd->config.disabled) {
+		    continue;
+		}
 		INFO(THIS_COMPONENT"Clock driver %s state %s\n", cd->name, getClockStateName(cd->state));
 	    }
 	break;
@@ -1158,10 +1242,36 @@ controlClockDrivers(int command) {
 ClockDriver*
 compareClockDriver(ClockDriver *a, ClockDriver *b) {
 
+	/* if one is null, the other wins, if both are null, no winner */
+	if((a != NULL) && (b == NULL) ) {
+	    return a;
+	}
+
+	if((a == NULL) && (b != NULL) ) {
+	    return b;
+	}
+
+	if((a == NULL) && (b == NULL)) {
+	    return NULL;
+	}
+
+	/* if one is disabled, the other wins, if both are, no winner */
+	if((!a->config.disabled) && (b->config.disabled) ) {
+	    return a;
+	}
+
+	if((!b->config.disabled) && (a->config.disabled) ) {
+	    return b;
+	}
+
+	if((a->config.disabled) && (b->config.disabled) ) {
+	    return NULL;
+	}
+
 	/* better state than us - wins */
 	if( (a->state < b->state) && (b->state > CS_FREERUN)) {
 		/* however, do not prefer a locked with higher distance
-		 * to a holdover with locked distance */
+		 * to a holdover with lower distance */
 		if((a->state == CS_HOLDOVER) && (b->state == CS_LOCKED)) {
 		    if(a->distance < b->distance) {
 			return a;
@@ -1173,7 +1283,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 	/* our state is better - we win */
 	if(b->state < a->state && (a->state > CS_FREERUN) ) {
 		/* however, do not prefer a locked with higher distance
-		 * to a holdover with locked distance */
+		 * to a holdover with lower distance */
 		if((b->state == CS_HOLDOVER) && (a->state == CS_LOCKED)) {
 		    if(b->distance < a->distance) {
 			return b;
@@ -1187,6 +1297,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 
 		if(a->state == CS_LOCKED || a->state == CS_HOLDOVER) {
 
+		    /* external reference is better */
 		    if(a->externalReference && !b->externalReference) {
 			return a;
 		    }
@@ -1195,6 +1306,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			return b;
 		    }
 
+		    /* lower reference class is better */
 		    if(a->externalReference && b->externalReference) {
 			if(a->refClass < b-> refClass) {
 			    return a;
@@ -1204,6 +1316,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			}
 		    }
 
+		    /* clock referencing best clock is better than one with no reference or referencing non-best */
 		    if((a->refClock && (a->refClock==_bestClock)) &&
 			(!b->refClock || (b->refClock != _bestClock))) {
 			return a;
@@ -1214,6 +1327,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			return b;
 		    }
 
+		    /* clock referencing the system clock is worse */
 		    if(a->refClock && b->refClock) {
 			if(!a->refClock->systemClock && b->refClock->systemClock) {
 			    return a;
@@ -1223,6 +1337,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			}
 		    }
 
+		    /* tiebreaker 1: lower reference chain hop count wins */
 		    if(a->distance < b->distance) {
 			return a;
 		    }
@@ -1231,6 +1346,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			return b;
 		    }
 
+		    /* tiebreaker 2: system clock loses */
 		    if(!a->systemClock && b->systemClock) {
 			return a;
 		    }
@@ -1238,6 +1354,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			return b;
 		    }
 
+		    /* tiebreaker 3: lower allan dev wins */
 		    if((a->adev > ZEROF) && (b->adev > ZEROF)) {
 
 			if(a->adev < b->adev) {
@@ -1249,7 +1366,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			}
 		    }
 
-
+		    /* final tiebreaker - clock longer in state wins */
 		    if(a->age.seconds > b->age.seconds) {
 			return a;
 		    }
@@ -1261,6 +1378,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 		}
 
 	}
+	/* erm... what would John Eidson do? */
 	return a;
 }
 
@@ -1271,6 +1389,9 @@ findBestClock() {
     ClockDriver *cd;
 
     LINKED_LIST_FOREACH(cd) {
+	if(cd->config.disabled) {
+	    continue;
+	}
 	if(cd->state == CS_LOCKED) {
 	    newBest = cd;
 	    break;
@@ -1279,6 +1400,9 @@ findBestClock() {
 
     if(newBest == NULL) {
 	LINKED_LIST_FOREACH(cd) {
+	    if(cd->config.disabled) {
+		continue;
+	    }
 	    if(cd->state == CS_HOLDOVER) {
 		newBest = cd;
 		break;
@@ -1288,6 +1412,9 @@ findBestClock() {
 
     if(newBest != NULL) {
 	LINKED_LIST_FOREACH(cd) {
+	    if(cd->config.disabled) {
+		continue;
+	    }
 	    if(newBest != cd) {
 		    newBest = compareClockDriver(newBest, cd);
 	    }
@@ -1310,6 +1437,9 @@ findBestClock() {
 	    _bestClock->bestClock = FALSE;
 	    /* we are changing best reference - drop the old one */
 	    LINKED_LIST_FOREACH(cd) {
+		if(cd->config.disabled) {
+		    continue;
+		}
 		if(!cd->externalReference && (cd->refClock == _bestClock)
 		    && (cd->state != CS_LOCKED) && (cd->state != CS_HOLDOVER)) {
 		    cd->setReference(cd, NULL);
@@ -1322,12 +1452,18 @@ findBestClock() {
 	}
 
 	LINKED_LIST_FOREACH(cd) {
+	    if(cd->config.disabled) {
+		continue;
+	    }
 	    if(!cd->externalReference && (cd != _bestClock)) {
 		cd->setReference(cd, NULL);
 	    }
 	}
 
 	LINKED_LIST_FOREACH(cd) {
+	    if(cd->config.disabled) {
+		continue;
+	    }
 	    if(!cd->externalReference && (cd != _bestClock)) {
 		cd->setReference(cd, _bestClock);
 	    }
@@ -1344,10 +1480,13 @@ putStatsLine(ClockDriver* driver, char* buf, int len) {
     memset(buf, 0, len);
     snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
 
-    snprintf(buf, len - 1, "%soffs: %-13s  adev: %-8.3f freq: %.03f",
+    if(driver->config.disabled) {
+	snprintf(buf, len - 1, "disabled");
+    } else {
+	snprintf(buf, len - 1, "%soffs: %-13s  adev: %-8.3f freq: %.03f",
 	    driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : " ",
 	    tmpBuf, driver->adev, driver->lastFrequency);
-
+    }
 }
 
 static void
@@ -1366,8 +1505,11 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
 	strncpy(tmpBuf2, getClockStateName(driver->state), CLOCKDRIVER_NAME_MAX);
     }
 
-    snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-7s",
+    if(driver->config.disabled) {
+	snprintf(buf, len - 1, "disabled");
+    } else {
+	snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-7s %s",
 		driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : " ",
-	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none");
-
+	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none", driver->config.readOnly ? "r/o" : "");
+    }
 }

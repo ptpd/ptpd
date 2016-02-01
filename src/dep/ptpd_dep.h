@@ -472,6 +472,7 @@ int checkFileLockable(const char *fileName, int *lockPid);
 Boolean checkOtherLocks(RunTimeOpts *rtOpts);
 Boolean doubleToFile(const char *filename, double input);
 Boolean doubleFromFile(const char *filename, double *output);
+Boolean token_in_list(const char *list, const char * search, const char * delim);
 
 void recordSync(UInteger16 sequenceId, TimeInternal * time);
 
