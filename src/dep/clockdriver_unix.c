@@ -245,11 +245,32 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 	tp.tv_sec = time->seconds;
 	tp.tv_nsec = time->nanoseconds;
 
+	if(tp.tv_sec == 0) {
+	    ERROR(THIS_COMPONENT"Unix clock driver %s: cannot set time to zero seconds\n", self->name);
+	    return FALSE;
+	}
+
+	if(tp.tv_sec <= 0) {
+	    ERROR(THIS_COMPONENT"Unic clock driver %s: cannot set time to a negative value %d\n", self->name, tp.tv_sec);
+	    return FALSE;
+	}
+
 #else
 
 	struct timeval tv;
 	tv.tv_sec = time->seconds;
 	tv.tv_usec = time->nanoseconds / 1000;
+
+	if(tv.tv_sec == 0) {
+	    ERROR(THIS_COMPONENT"Unix clock %s: cannot set time to zero seconds\n", self->name);
+	    return FALSE;
+	}
+
+	if(tv.tv_sec < 0) {
+	    ERROR(THIS_COMPONENT"Unic clock %s: cannot set time to a negative value %d\n", self->name, tv.tv_sec);
+	    return FALSE;
+	}
+
 
 #endif /* _POSIX_TIMERS */
 
@@ -296,6 +317,8 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	    return TRUE;
 	}
 
+	struct timespec nts;
+
 	TimeInternal oldTime,newTime;
 	getTime(self, &oldTime);
 	addTime(&newTime, &oldTime, delta);
@@ -324,10 +347,23 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	tmx.time.tv_sec = delta->seconds;
 	tmx.time.tv_usec = delta->nanoseconds;
 
+	getTime(self, &newTime);
+	addTime(&newTime, &newTime, delta);
+
+	nts.tv_sec = newTime.seconds;
+
+	if(nts.tv_sec == 0) {
+	    ERROR(THIS_COMPONENT"Unix clock %s: cannot step time to zero seconds\n", self->name);
+	    return FALSE;
+	}
+
+	if(nts.tv_sec < 0) {
+	    ERROR(THIS_COMPONENT"Unix clock %s: cannot step time to a negative value %d\n", self->name, nts.tv_sec);
+	    return FALSE;
+	}
+
 	if(adjtimex(&tmx) < 0) {
 	    DBG("Could not set clock offset of Unix clock %s\n", self->name);
-	    getTime(self, &newTime);
-	    addTime(&newTime, &newTime, delta);
 	    return setTime(self, &newTime, force);
 	}
 

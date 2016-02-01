@@ -227,8 +227,18 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 	tp.tv_sec = time->seconds;
 	tp.tv_nsec = time->nanoseconds;
 
+	if(tp.tv_sec == 0) {
+	    ERROR(THIS_COMPONENT"Linux PHC clock %s (%s): cannot set time to zero seconds\n", self->name, myConfig->characterDevice);
+	    return FALSE;
+	}
+
+	if(tp.tv_sec < 0) {
+	    ERROR(THIS_COMPONENT"Linux PHC clock %s (%s): cannot set time to a negative value %d\n", self->name, myConfig->characterDevice, tp.tv_sec);
+	    return FALSE;
+	}
+
 	if (clock_settime(myData->clockId, &tp) < 0) {
-		PERROR(THIS_COMPONENT"clock driver %s (%s): Could not set time ", self->name, myConfig->characterDevice);
+		PERROR(THIS_COMPONENT"Linux PHC clock %s (%s): Could not set time ", self->name, myConfig->characterDevice);
 		return FALSE;
 	}
 
@@ -253,6 +263,8 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
 	GET_CONFIG(self, myConfig, linuxphc);
 	GET_DATA(self, myData, linuxphc);
+
+	struct timespec nts;
 
 	if(isTimeZero(delta)) {
 	    return TRUE;
@@ -283,10 +295,23 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	tmx.time.tv_sec = delta->seconds;
 	tmx.time.tv_usec = delta->nanoseconds;
 
+	getTime(self, &newTime);
+	addTime(&newTime, &newTime, delta);
+
+	nts.tv_sec = newTime.seconds;
+
+	if(nts.tv_sec == 0) {
+	    ERROR(THIS_COMPONENT"Linux PHC clock %s (%s): cannot step time to zero seconds\n", self->name, myConfig->characterDevice);
+	    return FALSE;
+	}
+
+	if(nts.tv_sec < 0) {
+	    ERROR(THIS_COMPONENT"Linux PHC clock %s (%s): cannot step time to a negative value %d\n", self->name, myConfig->characterDevice, nts.tv_sec);
+	    return FALSE;
+	}
+
 	if(clock_adjtime(myData->clockId, &tmx) < 0) {
 	    DBG("Could set clock offset of Linux PHC clock %s (%s)", self->name, myConfig->characterDevice);
-	    getTime(self, &newTime);
-	    addTime(&newTime, &newTime, delta);
 	    return setTime(self, &newTime, force);
 	}
 
