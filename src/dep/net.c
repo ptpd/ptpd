@@ -2917,6 +2917,8 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 	    ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP", RC_PTP);
 	}
 
+	ClockDriver *lastMaster = ptpClock->masterClock;
+
 	if(strlen(rtOpts->masterClock) > 0) {
 	    ptpClock->masterClock = getClockDriverByName(rtOpts->masterClock);
 	    if(ptpClock->masterClock == NULL) {
@@ -2924,6 +2926,11 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 	    }
 	} else {
 	    ptpClock->masterClock = NULL;
+	}
+
+	if((lastMaster != NULL) && (lastMaster != ptpClock->masterClock)) {
+	    lastMaster->setReference(lastMaster, NULL);
+	    lastMaster->setState(lastMaster, CS_FREERUN);
 	}
 
 	if((ptpClock->masterClock != NULL) && (ptpClock->masterClock != ptpClock->clockDriver)) {
