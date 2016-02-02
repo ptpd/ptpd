@@ -173,10 +173,15 @@ getTime (ClockDriver *self, TimeInternal *time) {
 
     GET_DATA(self, myData, linuxphc);
 
+	if((!self->_init) || (self->state == CS_HWFAULT)) {
+	    return FALSE;
+	}
+
 	struct timespec tp;
 	if (clock_gettime(myData->clockId, &tp) < 0) {
-		PERROR(THIS_COMPONENT"Linux PHC clock_gettime() failed, exiting.");
-		exit(0);
+		PERROR(THIS_COMPONENT"Linux PHC clock_gettime() failed,");
+		self->setState(self, CS_HWFAULT);
+		return FALSE;
 	}
 	time->seconds = tp.tv_sec;
 	time->nanoseconds = tp.tv_nsec;
@@ -203,11 +208,15 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 	GET_CONFIG(self, myConfig, linuxphc);
 	GET_DATA(self, myData, linuxphc);
 
+	if((!self->_init) || (self->state == CS_HWFAULT)) {
+	    return FALSE;
+	}
+
 	TimeInternal now, delta;
 	getTime(self, &now);
 	subTime(&delta, &now, time);
 
-	if(self->config.readOnly) {
+	if((self->config.readOnly) || (self->config.disabled)) {
 		return TRUE;
 	}
 
@@ -239,6 +248,7 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
 	if (clock_settime(myData->clockId, &tp) < 0) {
 		PERROR(THIS_COMPONENT"Linux PHC clock %s (%s): Could not set time ", self->name, myConfig->characterDevice);
+		self->setState(self, CS_HWFAULT);
 		return FALSE;
 	}
 
@@ -266,13 +276,17 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
 	struct timespec nts;
 
+	if((!self->_init) || (self->state == CS_HWFAULT)) {
+	    return FALSE;
+	}
+
 	if(isTimeZero(delta)) {
 	    return TRUE;
 	}
 
 	TimeInternal newTime;
 
-	if(self->config.readOnly) {
+	if((self->config.readOnly) || (self->config.disabled)) {
 		return TRUE;
 	}
 
@@ -336,7 +350,11 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 
 	self->_tau = tau;
 
-	if(self->config.readOnly) {
+	if((!self->_init) || (self->state == CS_HWFAULT)) {
+	    return FALSE;
+	}
+
+	if((self->config.readOnly) || (self->config.disabled)) {
 		return FALSE;
 	}
 
@@ -350,6 +368,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 
 	if(clock_adjtime(myData->clockId, &tmx) < 0) {
 	    PERROR(THIS_COMPONENT"Could not adjust frequency offset of clock %s (%s)", self->name, myConfig->characterDevice);
+	    self->setState(self, CS_HWFAULT);
 	    return FALSE;
 	}
 
@@ -365,10 +384,15 @@ getFrequency (ClockDriver *self) {
 	GET_CONFIG(self, myConfig, linuxphc);
 	GET_DATA(self, myData, linuxphc);
 
+	if((!self->_init) || (self->state == CS_HWFAULT)) {
+	    return FALSE;
+	}
+
 	struct timex tmx;
 	memset(&tmx, 0, sizeof(tmx));
 	if(clock_adjtime(myData->clockId, &tmx) < 0) {
 	    PERROR(THIS_COMPONENT"Could not get frequency of clock %s (%s)", self->name, myConfig->characterDevice);
+	    self->setState(self, CS_HWFAULT);
 	    return 0;
 	}
 	return( (tmx.freq + 0.0) / 65.536);
@@ -409,6 +433,10 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *delta)
 
 	TimeInternal deltaA, deltaB;
 
+	if((!self->_init) || (self->state == CS_HWFAULT)) {
+	    return FALSE;
+	}
+
 	if(from->type == self->type) {
 	    if(myData->phcIndex == hisData->phcIndex) {
 		delta->seconds = 0;
@@ -422,7 +450,6 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *delta)
 		    return FALSE;
 		}
 		subTime(delta, &deltaA, &deltaB);
-//		INFO(THIS_COMPONENT"%s -> %s %d", self->name, from->name, delta->nanoseconds);
 	    }
 	    return TRUE;
 	}
@@ -456,9 +483,15 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 
     sof.n_samples = OSCLOCK_OFFSET_SAMPLES;
 
+    if((!self->_init) || (self->state == CS_HWFAULT)) {
+	return FALSE;
+    }
+
+
     if(ioctl(myData->clockFd, PTP_SYS_OFFSET, &sof) < 0) {
 	PERROR(THIS_COMPONENT"Could not read OS clock offset for %s (%s)",
 		self->name, myConfig->characterDevice);
+	self->setState(self, CS_HWFAULT);
 	return FALSE;
     }
 
@@ -501,11 +534,15 @@ pushPrivateConfig(ClockDriver *self, RunTimeOpts *global)
 
     ClockDriverConfig *config = &self->config;
 
+    GET_CONFIG(self, myConfig, linuxphc);
+
     config->stableAdev = global->stableAdev_hw;
     config->unstableAdev = global->unstableAdev_hw;
     config->lockedAge = global->lockedAge_hw;
     config->holdoverAge = global->holdoverAge_hw;
     config->negativeStep = global->negativeStep_hw;
+
+    myConfig->lockDevice = global->lockClockDevice;
 
     self->servo.kP = global->servoKP_hw;
     self->servo.kI = global->servoKI_hw;

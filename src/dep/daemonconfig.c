@@ -1969,6 +1969,11 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 Example: when set to 86400 (24 hours), an extra 11.5 microseconds is added every second"
 	,RANGECHECK_RANGE,3600,86400);
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:lock_device",
+		PTPD_RESTART_NONE, &rtOpts->lockClockDevice, rtOpts->lockClockDevice,
+		"Set a write lock on the clock device handle if it's being synced\n"
+	"	 (if the clock driver supports this and implements locking)");
+
 	parseResult &= configMapString(opCode, opArg, dict, target, "clock:extra_clocks",
 		PTPD_RESTART_NONE, rtOpts->extraClocks, sizeof(rtOpts->extraClocks), rtOpts->extraClocks,
 	"Specify a comma, space or tab separated list of extra clocks to be controlled by PTP.\n"
