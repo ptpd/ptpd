@@ -885,3 +885,19 @@ isThisMe(ClockDriver *driver, const char* search)
 	return FALSE;
 
 }
+
+static Boolean
+privateHealthCheck(ClockDriver *driver)
+{
+
+    Boolean ret = TRUE;
+
+    if(driver == NULL) {
+	return FALSE;
+    }
+
+    DBG(THIS_COMPONENT"clock %s private health check...\n", driver->name);
+
+    return ret;
+
+}

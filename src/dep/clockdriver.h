@@ -119,6 +119,7 @@ typedef struct {
     int holdoverAge;			/* Maximum age in HOLDOVER (going into FREERUN) */
     int stepType;			/* Clock reaction to a 1 second+ step */
     int stepTimeout;			/* Panic mode / suspend period when step detected */
+    int failureDelay;			/* Clock fault recovery countdown timer */
     uint32_t stepExitThreshold;		/* Offset from reference when we can exit panic mode early */
 } ClockDriverConfig;
 
@@ -223,6 +224,7 @@ struct ClockDriver {
     void (*processUpdate) (ClockDriver *);
 
     Boolean (*pushConfig) (ClockDriver *, RunTimeOpts *);
+    Boolean (*healthCheck) (ClockDriver *);
 
     void (*setReference) (ClockDriver *, ClockDriver *);
     void (*setExternalReference) (ClockDriver *, const char *, int);
@@ -258,6 +260,7 @@ struct ClockDriver {
     Boolean (*setStatus) (ClockDriver *, ClockStatus *);
     Boolean (*getOffsetFrom) (ClockDriver *, ClockDriver *, TimeInternal*);
 
+    Boolean (*privateHealthCheck) (ClockDriver *); /* NEW! Now with private healthcare! */
 
     Boolean (*pushPrivateConfig) (ClockDriver *, RunTimeOpts *);
     Boolean (*isThisMe) (ClockDriver *, const char* search);

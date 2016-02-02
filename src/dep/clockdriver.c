@@ -62,6 +62,7 @@ static void setState(ClockDriver *, ClockState);
 static void processUpdate(ClockDriver *);
 static void touchClock(ClockDriver *driver);
 static Boolean pushConfig(ClockDriver *, RunTimeOpts *);
+static Boolean healthCheck(ClockDriver *);
 static void setReference(ClockDriver *, ClockDriver *);
 static void setExternalReference(ClockDriver *, const char*, int);
 static void restoreFrequency (ClockDriver *);
@@ -137,6 +138,7 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
     clockDriver->setState = setState;
     clockDriver->processUpdate = processUpdate;
     clockDriver->pushConfig = pushConfig;
+    clockDriver->healthCheck = healthCheck;
 
     clockDriver->setReference = setReference;
     clockDriver->setExternalReference = setExternalReference;
@@ -355,6 +357,10 @@ setState(ClockDriver *driver, ClockState newState) {
 		driver->name, driver->adev, driver->minAdev, driver->maxAdev, driver->minAdevTotal, driver->maxAdevTotal, driver->totalAdev);
 	    }
 
+	    if(newState == CS_HWFAULT) {
+		driver->setReference(driver, NULL);
+	    }
+
 	    driver->lastState = driver->state;
 	    driver->state = newState;
 
@@ -386,6 +392,15 @@ updateClockDrivers() {
 
 	    switch(cd->state) {
 
+		case CS_HWFAULT:
+		    if(cd->age.seconds >= cd->config.failureDelay) {
+			if(cd->healthCheck(cd)) {
+			    cd->setState(cd, CS_FREERUN);
+			} else {
+			    cd->touchClock(cd);
+			}
+		    }
+		    break;
 		case CS_INIT:
 		    break;
 		case CS_STEP:
@@ -467,7 +482,7 @@ syncClocks(double tau) {
     /* sync the whole rest */
     LINKED_LIST_FOREACH(cd) {
 
-	    if(cd->config.disabled) {
+	    if((cd->config.disabled) || (cd->state == CS_HWFAULT)) {
 		continue;
 	    }
 
@@ -486,7 +501,7 @@ stepClocks(Boolean force) {
     ClockDriver *cd;
     LINKED_LIST_FOREACH(cd) {
 
-	if(cd->config.disabled) {
+	if((cd->config.disabled) || (cd->state == CS_HWFAULT)) {
 	    continue;
 	}
 
@@ -525,6 +540,10 @@ processUpdate(ClockDriver *driver) {
 	Boolean update = FALSE;
 
 	if(driver->config.disabled) {
+	    return;
+	}
+
+	if(driver->state == CS_HWFAULT) {
 	    return;
 	}
 
@@ -1406,7 +1425,7 @@ findBestClock() {
     ClockDriver *cd;
 
     LINKED_LIST_FOREACH(cd) {
-	if(cd->config.disabled) {
+	if((cd->config.disabled) || (cd->config.excluded)) {
 	    continue;
 	}
 	if(cd->state == CS_LOCKED) {
@@ -1417,7 +1436,7 @@ findBestClock() {
 
     if(newBest == NULL) {
 	LINKED_LIST_FOREACH(cd) {
-	    if(cd->config.disabled) {
+	    if((cd->config.disabled) || (cd->config.excluded)) {
 		continue;
 	    }
 	    if(cd->state == CS_HOLDOVER) {
@@ -1429,7 +1448,7 @@ findBestClock() {
 
     if(newBest != NULL) {
 	LINKED_LIST_FOREACH(cd) {
-	    if(cd->config.disabled) {
+	    if((cd->config.disabled) || (cd->state == CS_HWFAULT) || (cd->config.excluded)) {
 		continue;
 	    }
 	    if(newBest != cd) {
@@ -1518,6 +1537,8 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
 
     if((driver->state == CS_STEP) && driver->config.stepTimeout) {
 	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.stepTimeout - driver->age.seconds);
+    } else if((driver->state == CS_HWFAULT) && driver->config.failureDelay) {
+	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.failureDelay - driver->age.seconds);
     } else {
 	strncpy(tmpBuf2, getClockStateName(driver->state), CLOCKDRIVER_NAME_MAX);
     }
@@ -1530,4 +1551,19 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
 	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none", driver->config.readOnly ? " r" : "",
 	    driver->config.excluded ? " x" : "");
     }
+}
+
+static Boolean healthCheck(ClockDriver *driver) {
+
+    Boolean ret = TRUE;
+
+    if(driver == NULL) {
+	return FALSE;
+    }
+
+    DBG(THIS_COMPONENT"clock %s health check...\n", driver->name);
+
+    ret &= driver->privateHealthCheck(driver);
+
+    return ret;
 }

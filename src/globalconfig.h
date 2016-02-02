@@ -195,6 +195,8 @@ typedef struct {
 	char disabledClocks[PATH_MAX];
 	char excludedClocks[PATH_MAX];
 
+	int clockFailureDelay;
+
 	char productDescription[65];
 	char portDescription[65];
 

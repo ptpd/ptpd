@@ -981,8 +981,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_PROTOCOL, &rtOpts->unicastNegotiation, rtOpts->unicastNegotiation,
 		"Enable unicast negotiation support using signaling messages\n");
 
-/*	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->ipMode != IPMODE_UNICAST, rtOpts->unicastNegotiation, FALSE, rtOpts->unicastNegotiation); */
-
 	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:preset",
 	 			    (rtOpts->selectedPreset == PTP_PRESET_MASTERSLAVE) && (rtOpts->ipMode == IPMODE_UNICAST) && (rtOpts->unicastNegotiation),
 	 			    "masterslave",
@@ -2009,6 +2007,14 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		rtOpts->clockSyncRate,
 		"Clock sync rate (per second) - the rate at which internal clocks are synced\n"
 		"	 with each other (excluding PTP-controlled clocks)." ,RANGECHECK_RANGE,1,32);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:failure_delay",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->clockFailureDelay,
+		rtOpts->clockFailureDelay,
+		"Clock failure suspension timeout (seconds). When one of clock functions fails unexpectedly,\n"
+		"	 it is placed in HWFAIL state, its operation is suspended for this period,\n"
+		"	 after which a health check is performed, and if it succeeds, clock is brought\n"
+		"	 back into FREERUN state.\n", RANGECHECK_RANGE,5,600);
 
 #ifdef HAVE_STRUCT_TIMEX_TICK
 	/* This really is clock specific - different clocks may allow different ranges */

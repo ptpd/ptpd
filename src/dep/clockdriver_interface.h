@@ -51,6 +51,7 @@ static Boolean setStatus (ClockDriver *, ClockStatus *);
 static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
 
 static Boolean pushPrivateConfig (ClockDriver *, RunTimeOpts *rtOpts);
+static Boolean privateHealthCheck(ClockDriver *driver);
 static Boolean isThisMe(ClockDriver *, const char* search);
 
 #define INIT_INTERFACE(var) \
@@ -67,6 +68,7 @@ static Boolean isThisMe(ClockDriver *, const char* search);
     var->setStatus = setStatus; \
     var->getOffsetFrom = getOffsetFrom; \
     var->pushPrivateConfig = pushPrivateConfig;\
+    var->privateHealthCheck = privateHealthCheck; \
     var->isThisMe = isThisMe;
 
 #define INIT_DATA(var, type) \
