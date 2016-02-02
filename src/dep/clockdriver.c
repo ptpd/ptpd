@@ -1519,8 +1519,8 @@ putStatsLine(ClockDriver* driver, char* buf, int len) {
     if(driver->config.disabled) {
 	snprintf(buf, len - 1, "disabled");
     } else {
-	snprintf(buf, len - 1, "%soffs: %-13s  adev: %-8.3f freq: %.03f",
-	    driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : " ",
+	snprintf(buf, len - 1, "%s%soffs: %-13s  adev: %-8.3f freq: %.03f", driver->config.readOnly ? "r" : " ",
+	    driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : driver->config.excluded ? "-" : " ",
 	    tmpBuf, driver->adev, driver->lastFrequency);
     }
 }
@@ -1546,10 +1546,9 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
     if(driver->config.disabled) {
 	snprintf(buf, len - 1, "disabled");
     } else {
-	snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-7s %s%s",
-		driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : " ",
-	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none", driver->config.readOnly ? " r" : "",
-	    driver->config.excluded ? " x" : "");
+	snprintf(buf, len - 1, "%s%sname:  %-12s state: %-9s ref: %-7s", driver->config.readOnly ? "r" : " ",
+		driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : driver->config.excluded ? "-" : " ",
+	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none");
     }
 }
 
