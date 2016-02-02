@@ -311,7 +311,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		if (timerExpired(&ptpClock->timers[CLOCK_SYNC_TIMER])) {
 			syncClocks(ptpClock->timers[CLOCK_SYNC_TIMER].interval);
-			if(ptpClock->masterClock) {
+			if(ptpClock->masterClock != NULL) {
 //			    TimeInternal zerot = {0,0};
 //			    ptpClock->masterClock->syncClockExternal(ptpClock->masterClock, zerot, 1);
 			    ptpClock->masterClock->touchClock(ptpClock->masterClock);
@@ -320,7 +320,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		if (timerExpired(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER])) {
 			updateClockDrivers();
-			if(ptpClock->masterClock && ((ptpClock->masterClock != ptpClock->clockDriver) || ptpClock->portDS.portState != PTP_SLAVE)) {
+			if((ptpClock->masterClock != NULL) && ((ptpClock->masterClock != ptpClock->clockDriver) || ptpClock->portDS.portState != PTP_SLAVE)) {
 			    ptpClock->masterClock->setState(ptpClock->masterClock, CS_LOCKED);
 			}
 		}
@@ -413,7 +413,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[SYNC_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
-		if(ptpClock->masterClock != ptpClock->clockDriver) {
+		if((ptpClock->masterClock == NULL) || (ptpClock->masterClock != ptpClock->clockDriver)) {
 		    ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
 		}
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {

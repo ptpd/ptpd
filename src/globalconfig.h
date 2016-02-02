@@ -193,6 +193,7 @@ typedef struct {
 	char masterClock[PATH_MAX];
 	char readOnlyClocks[PATH_MAX];
 	char disabledClocks[PATH_MAX];
+	char excludedClocks[PATH_MAX];
 
 	char productDescription[65];
 	char portDescription[65];

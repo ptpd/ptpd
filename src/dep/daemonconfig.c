@@ -935,16 +935,11 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 				(getPtpPreset(PTP_PRESET_MASTERONLY, rtOpts)).presetName,	PTP_PRESET_MASTERONLY,
 				(getPtpPreset(PTP_PRESET_MASTERSLAVE, rtOpts)).presetName,	PTP_PRESET_MASTERSLAVE,
 #endif /* PTPD_SLAVE_ONLY */
-				(getPtpPreset(PTP_PRESET_SLAVEONLY, rtOpts)).presetName,		PTP_PRESET_SLAVEONLY, NULL
+				(getPtpPreset(PTP_PRESET_SLAVEONLY, rtOpts)).presetName,	PTP_PRESET_SLAVEONLY, NULL
 				);
 
-	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:preset",
-	 			    rtOpts->selectedPreset == PTP_PRESET_MASTERSLAVE,
-	 			    "masterslave",
-	 			    "ptpengine:unicast_negotiation");
 
 	ptpPreset = getPtpPreset(rtOpts->selectedPreset, rtOpts);
-
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:transport",
 		PTPD_RESTART_NETWORK, &rtOpts->transport, rtOpts->transport,
@@ -985,6 +980,13 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:unicast_negotiation",
 		PTPD_RESTART_PROTOCOL, &rtOpts->unicastNegotiation, rtOpts->unicastNegotiation,
 		"Enable unicast negotiation support using signaling messages\n");
+
+/*	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->ipMode != IPMODE_UNICAST, rtOpts->unicastNegotiation, FALSE, rtOpts->unicastNegotiation); */
+
+	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:preset",
+	 			    (rtOpts->selectedPreset == PTP_PRESET_MASTERSLAVE) && (rtOpts->ipMode == IPMODE_UNICAST) && (rtOpts->unicastNegotiation),
+	 			    "masterslave",
+	 			    "ptpengine:unicast_negotiation");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:unicast_any_master",
 		PTPD_RESTART_NONE, &rtOpts->unicastAcceptAny, rtOpts->unicastAcceptAny,
@@ -1414,6 +1416,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 				    rtOpts->unicastNegotiation,
 				    "unicast",
 				    "ptpengine:unicast_destinations");
+
+
 
 	/* unicast master without signaling - must specify unicast destinations */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
@@ -1993,6 +1997,12 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"Specify a comma, space or tab separated list of names of clocks that should be read only - read only\n"
 	"	 clocks are still compared to best clocks and their frequency is monitored,\n"
 	"	 but they are not adjusted.\n");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:excluded_clock_names",
+		PTPD_RESTART_NONE, rtOpts->excludedClocks, sizeof(rtOpts->excludedClocks), rtOpts->excludedClocks,
+	"Specify a comma, space or tab separated list of names of clocks that should be excluded from\n"
+	"	 best clock selection - they will be synced unless read only, but will never be\n"
+	"	 selected as best clock.\n");
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:sync_rate",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->clockSyncRate,

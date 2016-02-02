@@ -2675,7 +2675,7 @@ Boolean getTsInfo(const char *ifaceName, struct ethtool_ts_info *info) {
 
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
-	memset(info, 0, sizeof(info));
+	memset(info, 0, sizeof(struct ethtool_ts_info));
 	info->cmd = ETHTOOL_GET_TS_INFO;
 	ifr.ifr_data = (char*) info;
 	if(!netIoctlHelper(&ifr, ifaceName, SIOCETHTOOL)) {
@@ -2710,8 +2710,8 @@ Boolean getHwTs(const char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *targ
 	 * Preferring ALL to allow VLAN timestamping etc.
 	 */
 	static const OptionName rxFilters[] = {
-	    { HWTSTAMP_FILTER_PTP_V2_L4_EVENT, "HWTSTAMP_FILTER_PTP_V2_L4_EVENT"},
 	    { HWTSTAMP_FILTER_PTP_V2_EVENT, "HWTSTAMP_FILTER_PTP_V2_EVENT"},
+	    { HWTSTAMP_FILTER_PTP_V2_L4_EVENT, "HWTSTAMP_FILTER_PTP_V2_L4_EVENT"},
 	    { HWTSTAMP_FILTER_ALL, "HWTSTAMP_FILTER_ALL"},
 	    { HWTSTAMP_FILTER_PTP_V2_L4_SYNC, "HWTSTAMP_FILTER_PTP_V2_L4_SYNC"},
 	    {-1}
@@ -2817,10 +2817,26 @@ Boolean initHwTs(char *ifaceName, HwTsInfo *info) {
 	    return FALSE;
 	}
 
-	if((config.tx_type != info->txType) || (config.rx_filter != info->rxFilter)) {
-	    ERROR("Interface %s refused to set required hardware timestamping options\n",
+	if(config.tx_type != info->txType) {
+	    ERROR("Interface %s refused to set the required hardware transmit timestamping option\n",
 	    ifaceName);
 	    return FALSE;
+	}
+
+	/* if the driver has changed the RX filter, check if we can use what we got */
+	if(config.rx_filter != info->rxFilter) {
+	    if((config.rx_filter == HWTSTAMP_FILTER_PTP_V2_EVENT) ||
+		(config.rx_filter == HWTSTAMP_FILTER_PTP_V2_L4_EVENT) ||
+		(config.rx_filter == HWTSTAMP_FILTER_ALL) ||
+		(config.rx_filter == HWTSTAMP_FILTER_PTP_V2_L4_SYNC)) {
+		WARNING("Interface %s changed hardware receive filter type from %d to %d - still acceptable\n",
+		ifaceName, info->rxFilter, config.rx_filter);
+	    /* nope. */
+	    } else {
+		ERROR("Interface %s changed hardware received filter type from %d to %d - cannot continue\n",
+		ifaceName, info->rxFilter, config.rx_filter);
+		return FALSE;
+	    }
 	}
 
 	return TRUE;
@@ -2886,6 +2902,7 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 		    if(!cd->_init) {
 			cd->init(cd, bi->slaves[i].name);
 		    }
+		    cd->config.required = TRUE;
 		    cd->pushConfig(cd, rtOpts);
 		    cd->inUse = TRUE;
 		}
@@ -2894,12 +2911,13 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 
 	ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
 	ptpClock->clockDriver->inUse = TRUE;
+	ptpClock->clockDriver->config.required = TRUE;
 
 	if(ptpClock->portDS.portState == PTP_SLAVE) {
 	    ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP", RC_PTP);
 	}
 
-	if(strlen(rtOpts->masterClock)) {
+	if(strlen(rtOpts->masterClock) > 0) {
 	    ptpClock->masterClock = getClockDriverByName(rtOpts->masterClock);
 	    if(ptpClock->masterClock == NULL) {
 		WARNING("Could not find designated master clock: %s\n", rtOpts->masterClock);

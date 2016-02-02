@@ -509,19 +509,6 @@ reconfigureClockDrivers(RunTimeOpts *rtOpts) {
     ClockDriver *cd;
 
     LINKED_LIST_FOREACH(cd) {
-	cd->config.disabled = (token_in_list(rtOpts->disabledClocks, cd->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
-
-	cd->config.readOnly = (token_in_list(rtOpts->readOnlyClocks, cd->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
-
-	if(cd->config.required && cd->config.disabled) {
-	    if(!cd->config.readOnly) {
-		WARNING(THIS_COMPONENT"clock %s cannot be disabled - set to read-only to exclude from sync\n", cd->name);
-	    } else {
-		WARNING(THIS_COMPONENT"clock %s cannot be disabled - already set to read-only\n", cd->name);
-	    }
-	    cd->config.disabled = FALSE;
-	}
-
 	cd->pushConfig(cd, rtOpts);
     }
 
@@ -1158,7 +1145,24 @@ pushConfig(ClockDriver *driver, RunTimeOpts *global)
 	config->stepType = CSTEP_STARTUP_FORCE;
     }
 
-    config->readOnly = global->noAdjust;
+    config->disabled = (token_in_list(global->disabledClocks, driver->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
+    config->excluded = (token_in_list(global->excludedClocks, driver->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
+
+    if(global->noAdjust) {
+	config->readOnly = TRUE;
+    } else {
+	config->readOnly = (token_in_list(global->readOnlyClocks, driver->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
+    }
+
+    if(config->required && config->disabled) {
+	if(!config->readOnly) {
+	    WARNING(THIS_COMPONENT"clock %s cannot be disabled - set to read-only to exclude from sync\n", driver->name);
+	} else {
+	    WARNING(THIS_COMPONENT"clock %s cannot be disabled - already set to read-only\n", driver->name);
+	}
+	config->disabled = FALSE;
+    }
+
     config->noStep = global->noResetClock;
     config->negativeStep = global->negativeStep;
     config->storeToFile = global->storeToFile;
@@ -1265,6 +1269,19 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 	}
 
 	if((a->config.disabled) && (b->config.disabled) ) {
+	    return NULL;
+	}
+
+	/* if one is excluded, the other wins, if both are, no winner */
+	if((!a->config.excluded) && (b->config.excluded) ) {
+	    return a;
+	}
+
+	if((!b->config.excluded) && (a->config.excluded) ) {
+	    return b;
+	}
+
+	if((a->config.excluded) && (b->config.excluded) ) {
 	    return NULL;
 	}
 
@@ -1508,8 +1525,9 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
     if(driver->config.disabled) {
 	snprintf(buf, len - 1, "disabled");
     } else {
-	snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-7s %s",
+	snprintf(buf, len - 1, "%sname:  %-12s state: %-9s ref: %-7s %s%s",
 		driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : " ",
-	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none", driver->config.readOnly ? "r/o" : "");
+	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none", driver->config.readOnly ? " r" : "",
+	    driver->config.excluded ? " x" : "");
     }
 }
