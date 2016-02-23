@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Neville-Neil Consulting
+# Copyright (c) 2016, Neville-Neil Consulting
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Author: George V. Neville-Neil
+#' @author George V. Neville-Neil, \email{gnn@neville-neil.com}
 #
 # Description: A set of libraries to process PTP log files.  Used by
 # various command line tools in this directory.
@@ -138,10 +138,10 @@ ptpGraph <- function(logframe, value, start, end, output) {
         dev.off()
 }
     
-#
-# Draw a simple histogram of some one variable in our log
-#
-# e.g. foo$log$offset etc.
+#'
+#' Draw a simple histogram of some one variable in our log
+#'
+#' @examples ptpHistogram(foo$log$offset)
 
 ptpHistogram <- function(log, start, end, output) {
     if (!missing(output))
@@ -162,10 +162,11 @@ ptpHistogram <- function(log, start, end, output) {
         dev.off()
 }
 
-#
-# Compare two data sets to each other using a histogram
-#
-# e.g. foo$log$offset, bar$log$offset
+#'
+#' Compare two data sets to each other using a histogram
+#'
+#' examples ptpHistogramCompare(foo$log$offset, bar$log$offset)
+
 ptpHistogramCompare <- function(loga, logb, starta, enda, startb, endb,
                                 output) {
     if (!missing(output))
@@ -199,14 +200,14 @@ ptpHistogramCompare <- function(loga, logb, starta, enda, startb, endb,
         dev.off()
 }
 
-#
-# Compare two log files on a graph
-#
-# @loga - data frame read using ptplogRead
-# @logb - data frame read using ptplogRead
-# @value - column of the log file to compare
-#          e.g. offset, delay, slave.to.master, master.to.slave
-# @output - an output file name for a PNG image
+#'
+#' Compare two log files on a graph
+#'
+#' @param loga data frame read using ptplogRead
+#' @param logb data frame read using ptplogRead
+#' @param value column of the log file to compare
+#'          e.g. offset, delay, slave.to.master, master.to.slave
+#' @param output an output file name for a PNG image
 ptpCompare <-function(loga, logb, value, start, end, output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
@@ -261,10 +262,11 @@ ptpCompare <-function(loga, logb, value, start, end, output) {
         dev.off()
 }
 
-# Functions for working with PTPd quality files
-#
-#
-# Returns a data frame based on a PTPd quality file.
+#' Functions for working with PTPd quality files
+#'
+#' @param file quality file to read
+#' @return a data frame based on a PTPd quality file.
+#' 
 ptpQualityRead <- function(file) {
     read.table(file, fill=FALSE, sep=" ",
                col.names=c("packet", "timestamp"),
@@ -272,6 +274,13 @@ ptpQualityRead <- function(file) {
                blank.lines.skip=TRUE, header=FALSE)
 }
 
+#' Graph quality data
+#'
+#' @param logA data from host A
+#' @param logB data from host B
+#' @param output optional output file for the graph
+#' @return None
+#' 
 ptpQualityGraph <- function(logA, logB, output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
@@ -284,6 +293,13 @@ ptpQualityGraph <- function(logA, logB, output) {
     return(difference)
 }
 
+#' Compare two quality graphs
+#'
+#' @param diffA difference A
+#' @param diffB difference B
+#' @param output optional output file for the graph
+#' @return None
+#' 
 ptpQualityGraphCompare <- function(diffA, diffB, output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
@@ -295,8 +311,13 @@ ptpQualityGraphCompare <- function(diffA, diffB, output) {
         dev.off()
 }
 
-# Functions for deriving various statistics over a PTP log
-
+#' Functions for deriving various statistics over a PTP log
+#'
+#' @param log dataframe returned by a ptpLogRead() call
+#' @param start start time in strftime format
+#' @param end end time in strftime format
+#' @return None
+#' 
 ptpStats <- function(log, start, end) {
     cat("Measurements: ", length(log$offset))
     cat("Offset",
@@ -329,6 +350,12 @@ ptpStats <- function(log, start, end) {
         " variance: ", var(log$slave.to.master, na.rm=TRUE), "\n")
 }
 
+#' Statistics on offset measurements
+#'
+#' @param log dataframe returend by a ptpLogRead() call
+#' @param start start time in strftime format
+#' @param end end time in strftime format
+#' @param boundary nanoseconds offset boundary
 ptpOffsetStats <- function(log, start, end, boundary = 1000) {
     cat("Measurements: ", length(log$offset))
     cat("\nOffset",
