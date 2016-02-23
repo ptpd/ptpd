@@ -107,7 +107,10 @@ ntpGraph <- function(logframe, value, start, end, output) {
     
 #' Draw a simple histogram of some one variable in our log
 #'
-#' @param foo$log$offset
+#' @param dataframe returned by ntpLoopRead()
+#' @param start start time in strftime format
+#' @param end end time in strftime format
+#' @param output optional file in which to store the graph
 
 ntpHistogram <- function(log, start, end, output) {
     if (!missing(output))
