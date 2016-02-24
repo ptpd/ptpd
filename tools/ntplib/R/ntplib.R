@@ -45,7 +45,8 @@ require(zoo) # Time series objects
 #' @return The raw data frame, merged timeseries (offset, delay, m->s, s->)
 #'          offset time series, delay time series,
 #'          master.to.slave time series, and slave.to.master time series
-#
+#'
+#' @export
 ntpLoopRead <- function(file) {
 
     # Attempt to read log files from version 2.3 first.
@@ -68,6 +69,7 @@ ntpLoopRead <- function(file) {
 #'
 #' @return The raw data frame, merged timeseries (offset, drift, error)
 #'
+#' @export
 ntpPeerRead <- function(file) {
 
     # Attempt to read log files from version 2.3 first.
@@ -89,7 +91,8 @@ ntpPeerRead <- function(file) {
 #' @param logframe A data frame returned by ptpLogRead
 #' @param value Graph only a specific value rather than the four major ones.
 #' @param output An optional file name to place a PNG of the graph into
-#
+#'
+#' @export
 ntpGraph <- function(logframe, value, start, end, output) {
 
   if (!missing(output))
@@ -115,7 +118,8 @@ ntpGraph <- function(logframe, value, start, end, output) {
 #' @param start start time in strftime format
 #' @param end end time in strftime format
 #' @param output optional file in which to store the graph
-
+#'
+#' @export
 ntpHistogram <- function(log, start, end, output) {
     if (!missing(output))
         png(filename=output, height=960, width=1280, bg="white")
