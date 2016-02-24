@@ -47,7 +47,7 @@ output = argv[2]
 if (is.na(output))
   output = paste(basename(file), ".png", sep="")
   
-cat("Data file: ", basename(file))
+cat("Data file: ", basename(file), "\n")
 logA = ptpLogRead(file)
 ptpOffsetStats(logA)
 ptpGraph(logA$offset, output=output)
