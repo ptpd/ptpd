@@ -11,5 +11,6 @@ Draw a simple histogram of some one variable in our log
 }
 \examples{
 ptpHistogram(foo$log$offset)
+
 }
 

@@ -2,6 +2,7 @@
 % Please edit documentation in R/ptplib.R
 \name{ptpLogRead}
 \alias{ptpLogRead}
+\title{Read a PTP log file}
 \usage{
 ptpLogRead(file)
 }
@@ -12,5 +13,8 @@ ptpLogRead(file)
 The raw data frame, merged timeseries (offset, delay, m->s, s->)
          offset time series, delay time series,
          master.to.slave time series, and slave.to.master time series
+}
+\description{
+Read a PTP log file
 }
 
