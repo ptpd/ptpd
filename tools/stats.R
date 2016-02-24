@@ -1,5 +1,5 @@
 #!/usr/local/bin/Rscript --slave
-# Copyright (c) 2012, Neville-Neil Consulting
+# Copyright (c) 2016, Neville-Neil Consulting
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,8 @@
 # to Slave and Slave to Master timings.  An argument is required which
 # is a raw ptpd log produced by the -D flag to ptpd2.
 
-source ("ptplib.R")
+require(zoo)
+require(ptplib)
 
 argv <- commandArgs(TRUE)
 
