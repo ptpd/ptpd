@@ -588,9 +588,8 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
     }
 
     if(info.bondInfo.bonded) {
-
 	    if(!info.bondInfo.activeBackup && rtOpts->hwTimestamping) {
-		WARNING("%s is a bonded interface but is not running Active Backup. Cannot use hardware timestamping\n");
+		WARNING("%s is a bonded interface but is not running Active Backup. Cannot use hardware timestamping\n", ifaceName);
 	    }
 
 	    if(info.bondInfo.activeCount == 0) {
@@ -813,7 +812,12 @@ netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 	    ret = FALSE;
 	}
 
-	if(bi->bonded) {
+	if(bi->bonded && !bi->activeBackup) {
+	    ret = FALSE;
+	    WARNING("%s is a bonded interface but is not running active backup. Cannot enable hardware timestamping.\n",
+		    rtOpts->ifaceName);
+	} else if (bi->bonded) {
+
 	    for(int i = 0; i < bi->slaveCount; i++) {
 		ifaceName = bi->slaves[i].name;
 		if(strlen(ifaceName)) {
