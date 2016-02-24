@@ -49,3 +49,4 @@ if (is.na(output))
   
 logA = ntpLoopRead(file)
 ntpGraph(logA$offset, output=output)
+ntpLoopStats(logA)
