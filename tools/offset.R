@@ -1,4 +1,4 @@
-#!/opt/local/bin/Rscript --slave
+#!/usr/local/bin/Rscript --slave
 # Copyright (c) 2014, Neville-Neil Consulting
 # All rights reserved.
 #
@@ -47,6 +47,7 @@ output = argv[2]
 if (is.na(output))
   output = paste(basename(file), ".png", sep="")
   
+cat("Data file: ", basename(file))
 logA = ptpLogRead(file)
 ptpOffsetStats(logA)
 ptpGraph(logA$offset, output=output)
