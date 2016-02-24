@@ -2,6 +2,7 @@
 % Please edit documentation in R/ntplib.R
 \name{ntpPeerRead}
 \alias{ntpPeerRead}
+\title{Read an NTPd peer file}
 \usage{
 ntpPeerRead(file)
 }
@@ -10,5 +11,8 @@ ntpPeerRead(file)
 }
 \value{
 The raw data frame, merged timeseries (offset, drift, error)
+}
+\description{
+Read an NTPd peer file
 }
 

@@ -139,3 +139,22 @@ ntpHistogram <- function(log, start, end, output) {
         dev.off()
 }
 
+#' Textual output of the loop file's offset statistics
+#'
+#' @param dataframe returned by ntpLoopRead()
+#' @param boundary measure past which we are out of SLA in ns
+#'
+#' @export
+ntpLoopStats <- function(log, boundary = 1000) {
+        cat("Measurements: ", length(log$offset))
+    cat("\nOffset",
+        "\nmin:", min(log$offset, na.rm=TRUE),
+        " max: ", max(log$offset, na.rm=TRUE),
+        " median: ", median(log$offset, na.rm=TRUE),
+        " mean: ", mean(log$offset, na.rm=TRUE),
+        "\nstd dev: ", sd(log$offset, na.rm=TRUE),
+        " variance: ", var(log$offset, na.rm=TRUE), "\n")
+    cat("\nOutside Boundary: ", sum(log$offset > boundary) + sum(log$offset < -boundary),
+        "Percentage: ", (sum(log$offset > boundary) + sum(log$offset < -boundary)) / length(log$offset), "\n")
+}
+

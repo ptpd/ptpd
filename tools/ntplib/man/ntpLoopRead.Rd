@@ -2,6 +2,7 @@
 % Please edit documentation in R/ntplib.R
 \name{ntpLoopRead}
 \alias{ntpLoopRead}
+\title{Read an NTPd loop file}
 \usage{
 ntpLoopRead(file)
 }
@@ -12,5 +13,8 @@ ntpLoopRead(file)
 The raw data frame, merged timeseries (offset, delay, m->s, s->)
          offset time series, delay time series,
          master.to.slave time series, and slave.to.master time series
+}
+\description{
+Read an NTPd loop file
 }
 
