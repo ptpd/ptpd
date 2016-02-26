@@ -74,16 +74,22 @@ ntpPeerRead <- function(file) {
 
     # Attempt to read log files from version 2.3 first.
     data = read.table(file, fill=TRUE, sep=" ",
-        col.names=c("day", "second", "address", "status", "offset", "delay", "dispersion", "skew"),
+        col.names=c("day", "second", "address", "status", "offset", "delay", "dispersion", "skew"), colClasses=c("NULL", NA, NA, NA, NA, NA, NA, NA),
         blank.lines.skip=TRUE, header=FALSE, skip=100)
 
-    offset = zoo(data$offset, data$second)
-    delay = zoo(data$delay, data$second)
-    dispersion = zoo(data$dispersion, data$second)
-    ts = merge(offset, delay, dispersion)
+    sources <- list()
+    addrs = unique(data$address)
+    for (src in addrs) {
+        sources[[toString(src)]] <- data[data$address == src,]
+    }
 
-    return (list(data=data, ts=ts, offset=offset, delay=delay,
-                 dispersion=dispersion))
+    cat("Returning", length(sources), "sources, index as any of: ")
+    for (src in addrs) {
+        cat(toString(src), " ")
+    }
+    cat("\n")
+    return (sources)
+
 }
 
 #' Graphs a dataframe returned by a call to ntpPeer/LogRead
