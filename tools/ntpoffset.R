@@ -47,6 +47,7 @@ output = argv[2]
 if (is.na(output))
   output = paste(basename(file), ".png", sep="")
   
+cat("Data file: ", basename(file), "\n")
 logA = ntpLoopRead(file)
 ntpGraph(logA$offset, output=output)
 ntpLoopStats(logA)
