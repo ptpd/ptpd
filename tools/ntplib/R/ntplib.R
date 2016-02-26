@@ -99,7 +99,7 @@ ntpPeerRead <- function(file) {
 #' @param output An optional file name to place a PNG of the graph into
 #'
 #' @export
-ntpGraph <- function(logframe, value, start, end, output) {
+ntpGraph <- function(logframe, value="offset", start, end, output) {
 
   if (!missing(output))
     png(filename=output, height=960, width=1280, bg="white")
@@ -111,13 +111,21 @@ ntpGraph <- function(logframe, value, start, end, output) {
   if (!missing(start) && !missing(end))
     logframe = logframe[index(logframe) > as.POSIXct(start) &
       index(logframe) < as.POSIXct(end)]
-  plot(logframe, type="p", cex=.1, main="NTP Log Graph", xlab="Time", mar=c(1, 5.1, 1, 5.1))
+
+  plot(logframe[[value]], type="p", cex=.1, main="NTP Log Graph", xlab="Time", mar=c(1, 5.1, 1, 5.1))
   if (!missing(output))
       dev.off()
   return(NULL)
 
 }
     
+ntpGraphAll <- function(frames, value="offset") {
+
+    plot(frames[[1]]["offset"], type="p", cex=.1, main="NTP Log Graph", xlab="Time", mar=c(1, 5.1, 1, 5.1))
+
+}
+
+
 #' Draw a simple histogram of some one variable in our log
 #'
 #' @param dataframe returned by ntpLoopRead()
@@ -145,22 +153,29 @@ ntpHistogram <- function(log, start, end, output) {
         dev.off()
 }
 
-#' Textual output of the loop file's offset statistics
+#' Textual output of the loop or peer file's statistics
 #'
 #' @param dataframe returned by ntpLoopRead()
+#' @param value the value to look at (offset, skew, etc.)
 #' @param boundary measure past which we are out of SLA in ns
 #'
 #' @export
-ntpLoopStats <- function(log, boundary = 1000) {
-        cat("Measurements: ", length(log$offset))
+ntpStats <- function(log, value = "offset", boundary = 1000) {
+
+    if (!(value %in% colnames(log))) {
+        cat("Invalid value, choose one of:", colnames(log))
+        return (NULL)
+    }
+   
+    cat("Measurements: ", length(log[value]))
     cat("\nOffset",
-        "\nmin:", min(log$offset, na.rm=TRUE),
-        " max: ", max(log$offset, na.rm=TRUE),
-        " median: ", median(log$offset, na.rm=TRUE),
-        " mean: ", mean(log$offset, na.rm=TRUE),
-        "\nstd dev: ", sd(log$offset, na.rm=TRUE),
-        " variance: ", var(log$offset, na.rm=TRUE), "\n")
-    cat("\nOutside Boundary: ", sum(log$offset > boundary) + sum(log$offset < -boundary),
-        "Percentage: ", (sum(log$offset > boundary) + sum(log$offset < -boundary)) / length(log$offset), "\n")
+        "\nmin:", min(log[[value]], na.rm=TRUE),
+        " max: ", max(log[[value]], na.rm=TRUE),
+        " median: ", median(log[[value]], na.rm=TRUE),
+        " mean: ", mean(log[[value]], na.rm=TRUE),
+        "\nstd dev: ", sd(log[[value]], na.rm=TRUE),
+        " variance: ", var(log[[value]], na.rm=TRUE), "\n")
+    cat("\nOutside Boundary: ", sum(log[[value]] > boundary) + sum(log[[value]] < -boundary),
+        "Percentage: ", (sum(log[[value]] > boundary) + sum(log[[value]] < -boundary)) / length(log[[value]]), "\n")
 }
 
