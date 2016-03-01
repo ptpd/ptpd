@@ -171,8 +171,6 @@ typedef struct {
     TimeInternal 	lastSyncTimestamp;			/* last Sync timestamp sent */
 } UnicastDestination;
 
-
-
 typedef struct {
     Integer32 transportAddress;
 } SyncDestEntry;
@@ -205,7 +203,6 @@ typedef struct {
 	Integer16  max_foreign_records;
 	Integer16  foreign_record_i;
 	Integer16  foreign_record_best;
-	UInteger32 random_seed;
 	Boolean  record_update;    /* should we run bmc() after receiving an announce message? */
 
 	Boolean disabled;	/* port is permanently disabled */
@@ -257,14 +254,6 @@ typedef struct {
 
 	int followUpGap;
 
-/*
-	20110630: These variables were deprecated in favor of the ones that appear in the stats log (delayMS and delaySM)
-	
-	TimeInternal  master_to_slave_delay;
-	TimeInternal  slave_to_master_delay;
-
-	*/
-
 	TimeInternal  pdelay_req_receive_time;
 	TimeInternal  pdelay_req_send_time;
 	TimeInternal  pdelay_resp_receive_time;
@@ -304,17 +293,12 @@ typedef struct {
 
 	NetPath netPath;
 
-	/*Usefull to init network stuff*/
-	UInteger8 port_communication_technology;
-
 	/*Stats header will be re-printed when set to true*/
 	Boolean resetStatisticsLog;
 
 	int listenCount; // number of consecutive resets to listening
 	int resetCount;
 	int announceTimeouts;
-	int current_init_clock;
-	int can_step_clock;
 	int warned_operator_slow_slewing;
 	int warned_operator_fast_slewing;
 	Boolean warnedUnicastCapacity;
@@ -352,7 +336,6 @@ typedef struct {
 	 */
 	PtpdCounters counters;
 
-
 	/* used to wait on failure while allowing timers to tick */
 	Boolean initFailure;
 	Integer32 initFailureTimeout;
@@ -364,12 +347,10 @@ typedef struct {
 	ClockControlInfo clockControl;
 	ClockStatusInfo clockStatus;
 
-
 	TimeInternal	rawDelayMS;
 	TimeInternal	rawDelaySM;
 	TimeInternal	rawPdelayMS;
 	TimeInternal	rawPdelaySM;
-
 
 	/*
 	 * basic clock statistics information, useful
@@ -411,7 +392,6 @@ typedef struct {
 
 	struct ClockDriver *clockDriver;
 	struct ClockDriver *masterClock;
-
 
 	/* tell the protocol engine to silently ignore the next n offset/delay updates */
 	int ignoreDelayUpdates;

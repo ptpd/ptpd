@@ -59,6 +59,7 @@ fi
 case $host in
 *linux*)
 
+
     AC_CHECK_HEADERS([linux/net_tstamp.h], [], [
 
     if [ test -d "/usr/src/kernels/`uname -r`/include" ]; then
@@ -90,6 +91,7 @@ AC_SEARCH_LIBS([gethostbyname], [nsl])
 AC_HEADER_STDC
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h ifaddrs.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h unix.h linux/rtc.h sys/timex.h getopt.h])
+
 
 AC_CHECK_HEADERS([endian.h machine/endian.h sys/isa_defs.h])
 
@@ -204,7 +206,6 @@ AC_CHECK_MEMBERS([struct ntptimeval.tai], [], [],
 #include <sys/timex.h>
 ])
 
-
 # Check for ifr_hwaddr in the ifreq structure
 AC_CHECK_MEMBERS([struct ifreq.ifr_hwaddr], [], [], [[#include <net/if.h>]])
 
@@ -256,6 +257,17 @@ if test -n "$GCC"; then
     ])
 fi
 
+# Any remaining Linux-specific checks (PHC API)
+case $host in
+*linux*)
+
+	    AC_CHECK_HEADERS([linux/ethtool.h linux/ptp_clock.h linux/net_tstamp.h])
+	    # If we have Linux HWTS headers, check if they are complete...
+	    AC_CHECK_DECLS([PTP_SYS_OFFSET], [], [], [[#include <linux/ptp_clock.h>]])
+	    AC_CHECK_DECLS([ETHTOOL_GET_TS_INFO], [], [], [[#include <linux/ethtool.h>]])
+
+    ;;
+esac
 
 AC_MSG_NOTICE([************************************************************])
 AC_MSG_NOTICE([* PTPD BUILD FLAG AND LIBRARY DEPENDENCY CHECKS START HERE *])
