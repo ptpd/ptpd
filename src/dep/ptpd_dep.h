@@ -9,10 +9,6 @@
 #ifndef PTPD_DEP_H_
 #define PTPD_DEP_H_
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif /* HAVE_CONFIG_H */
-
 #ifdef RUNTIME_DEBUG
 #undef PTPD_DBGV
 #define PTPD_DBGV
@@ -70,7 +66,11 @@
 #include <assert.h>
 #include <linux/ethtool.h>
 
-/* missing but should be supported */
+/*
+ * Some Linux distributions come with kernels which support ETHTOOL_GET_TS_INFO,
+ * but headers do not reflect this. If this fails in runtime,
+ * the system is not fully usable for PTP anyway.
+ */
 #if defined(HAVE_DECL_ETHTOOL_GET_TS_INFO) && !HAVE_DECL_ETHTOOL_GET_TS_INFO
 
 #define ETHTOOL_GET_TS_INFO	0x00000041 /* Get time stamping and PHC info */

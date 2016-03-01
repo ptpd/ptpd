@@ -35,9 +35,17 @@
 #include <linux/sockios.h>
 #include <linux/ethtool.h>
 #include <linux/ptp_clock.h>
+#include <sys/syscall.h>
 
-/* in case if this is missing and should not be... */
+#include "clockdriver.h"
+#include "clockdriver_interface.h"
+#include "ptpd_dep.h"
 
+/*
+ * Some Linux distributions come with kernels which support SYS_OFFSET,
+ * but headers do not reflect this. If this fails in runtime,
+ * the system is not fully usable for PTP anyway.
+ */
 #if defined(HAVE_DECL_PTP_SYS_OFFSET) && !HAVE_DECL_PTP_SYS_OFFSET
 
 #define PTP_MAX_SAMPLES 25
@@ -49,13 +57,6 @@ struct ptp_sys_offset {
 #define PTP_SYS_OFFSET     _IOW(PTP_CLK_MAGIC, 5, struct ptp_sys_offset)
 
 #endif /* HAVE_DECL_PTP_SYS_OFFSET */
-
-
-#include <sys/syscall.h>
-
-#include "clockdriver.h"
-#include "clockdriver_interface.h"
-#include "ptpd_dep.h"
 
 #define THIS_COMPONENT "clock.linuxphc: "
 
