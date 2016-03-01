@@ -39,38 +39,6 @@
 
 #define OSCLOCK_OFFSET_SAMPLES 9
 
-/* missing but should be supported */
-
-#if defined(HAVE_DECL_ETHTOOL_GET_TS_INFO) && !HAVE_DECL_ETHTOOL_GET_TS_INFO
-
-#define ETHTOOL_GET_TS_INFO	0x00000041 /* Get time stamping and PHC info */
-
-struct ethtool_ts_info {
-    __u32	cmd;
-    __u32	so_timestamping;
-    __s32	phc_index;
-    __u32	tx_types;
-    __u32	tx_reserved[3];
-    __u32	rx_filters;
-    __u32	rx_reserved[3];
-};
-
-#endif /* HAVE_DECL_ETHTOOL_GET_TS_INFO */
-
-#if defined(HAVE_DECL_PTP_SYS_OFFSET) && !HAVE_DECL_PTP_SYS_OFFSET
-
-#define PTP_MAX_SAMPLES 25
-
-struct ptp_sys_offset {
-    unsigned int n_samples;
-    unsigned int rsv[3];
-    struct ptp_clock_time ts[2 * PTP_MAX_SAMPLES + 1];
-};
-
-#define PTP_SYS_OFFSET     _IOW(PTP_CLK_MAGIC, 5, struct ptp_sys_offset)
-
-#endif /* HAVE_DECL_PTP_SYS_OFFSET */
-
 /* vendor extensions, to allow overloading certain functions */
 enum {
     LPHC_VEXT_NONE,

@@ -35,6 +35,22 @@
 #include <linux/sockios.h>
 #include <linux/ethtool.h>
 #include <linux/ptp_clock.h>
+
+/* in case if this is missing and should not be... */
+
+#if defined(HAVE_DECL_PTP_SYS_OFFSET) && !HAVE_DECL_PTP_SYS_OFFSET
+
+#define PTP_MAX_SAMPLES 25
+struct ptp_sys_offset {
+    unsigned int n_samples;
+    unsigned int rsv[3];
+    struct ptp_clock_time ts[2 * PTP_MAX_SAMPLES + 1];
+};
+#define PTP_SYS_OFFSET     _IOW(PTP_CLK_MAGIC, 5, struct ptp_sys_offset)
+
+#endif /* HAVE_DECL_PTP_SYS_OFFSET */
+
+
 #include <sys/syscall.h>
 
 #include "clockdriver.h"
