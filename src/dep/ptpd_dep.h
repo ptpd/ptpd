@@ -9,6 +9,10 @@
 #ifndef PTPD_DEP_H_
 #define PTPD_DEP_H_
 
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif /* HAVE_CONFIG_H */
+
 #ifdef RUNTIME_DEBUG
 #undef PTPD_DBGV
 #define PTPD_DBGV
