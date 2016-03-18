@@ -1,4 +1,7 @@
 /*-
+ * Copyright (c) 2015-2016 Eyal Itkin (TAU),
+ *                         Avishai Wool (TAU),
+ *                         In accordance to http://arxiv.org/abs/1603.00707 .
  * Copyright (c) 2012-2015 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer,
@@ -186,6 +189,49 @@ packInteger64( void* i, void *buf )
 	packInteger32(&((Integer64*)i)->msb, buf);
 	packUInteger32(&((Integer64*)i)->lsb, buf + 4);
 }
+
+#ifdef SEC_EXT_RANDOMIZE_SEQ_NUM
+
+#define RAND_BUF_SIZE 1024
+Octet grand_buf[RAND_BUF_SIZE];
+UInteger16 rand_index = RAND_BUF_SIZE;
+
+Octet get_rand()
+{
+	/* should refill the buffer */
+	if( rand_index == RAND_BUF_SIZE )
+	{
+		int randomFD = open("/dev/urandom", O_RDONLY);
+		/* actually read the random */
+		read(randomFD, grand_buf, sizeof (grand_buf));
+		/* close the fd */
+	    close(randomFD);
+		/* reset it to the start of the buffer */
+		rand_index = 0;
+	}
+
+	/* can now extract data from it */
+	return grand_buf[rand_index++];
+}
+
+#endif /* SEC_EXT_RANDOMIZE_SEQ_NUM */
+
+#ifdef SEC_EXT_CRYPTO
+UInteger16
+packSignature( Octet *buf, Octet* sig)
+{
+	memcpy(buf, sig, SIGNATURE_SIZE );
+	return SIGNATURE_SIZE;
+}
+
+UInteger16
+unpackSignature( Octet *buf, Octet* sig )
+{
+	memcpy(sig, buf, SIGNATURE_SIZE );
+	return SIGNATURE_SIZE;
+}
+
+#endif /* SEC_EXT_CRYPTO */
 
 /* NOTE: the unpack functions for management messages can probably be refactored into a macro */
 int
@@ -1682,6 +1728,11 @@ msgUnpackHeader(Octet * buf, MsgHeader * header)
 	header->sourcePortIdentity.portNumber =
 		flip16(*(UInteger16 *) (buf + 28));
 	header->sequenceId = flip16(*(UInteger16 *) (buf + 30));
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    header->reserved2 = 0;
+    header->reserved2 |= ((UInteger8*)(buf+18))[0] << 8;
+    header->reserved2 |= ((UInteger8*)(buf+18))[1] << 0;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 	header->controlField = (*(UInteger8 *) (buf + 32));
 	header->logMessageInterval = (*(Integer8 *) (buf + 33));
 
@@ -1703,6 +1754,11 @@ msgPackHeader(Octet * buf, PtpClock * ptpClock)
 	memset((buf + 6), 0, 2);
 
 	memset((buf + 8), 0, 8);
+
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    memset((buf + 16), 0, 4);
+#endif
+
 	copyClockIdentity((buf + 20), ptpClock->portDS.portIdentity.clockIdentity);
 	*(UInteger16 *) (buf + 28) = flip16(ptpClock->portDS.portIdentity.portNumber);
 	/* LogMessageInterval defaults to 0x7F, will be set to another value if needed as per table 24*/
@@ -1712,8 +1768,13 @@ msgPackHeader(Octet * buf, PtpClock * ptpClock)
 
 #ifndef PTPD_SLAVE_ONLY
 /*Pack SYNC message into OUT buffer of ptpClock*/
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+void
+msgPackSync(Octet * buf, UInteger32 sequenceId, Timestamp * originTimestamp, PtpClock * ptpClock)
+#else
 void
 msgPackSync(Octet * buf, UInteger16 sequenceId, Timestamp * originTimestamp, PtpClock * ptpClock)
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 {
 	msgPackHeader(buf, ptpClock);
 
@@ -1726,7 +1787,13 @@ msgPackSync(Octet * buf, UInteger16 sequenceId, Timestamp * originTimestamp, Ptp
 		*(UInteger8 *) (buf + 6) |= PTP_TWO_STEP;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(SYNC_LENGTH);
-	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    *(UInteger16 *) (buf + 30) = flip16((UInteger16)(sequenceId & 0xFFFF));
+    ((UInteger8*)(buf+18))[0] = (sequenceId & 0xFF000000) >> 24;
+    ((UInteger8*)(buf+18))[1] = (sequenceId & 0x00FF0000) >> 16;
+#else
+    *(UInteger16 *) (buf + 30) = flip16(sequenceId);
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 	*(UInteger8 *) (buf + 32) = 0x00;
 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
@@ -1761,8 +1828,13 @@ msgUnpackSync(Octet * buf, MsgSync * sync)
 /* When building slave only, this code does not get compiled */
 #ifndef PTPD_SLAVE_ONLY
 /*Pack Announce message into OUT buffer of ptpClock*/
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+void
+msgPackAnnounce(Octet * buf, UInteger32 sequenceId, PtpClock * ptpClock)
+#else
 void
 msgPackAnnounce(Octet * buf, UInteger16 sequenceId, PtpClock * ptpClock)
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 {
 	UInteger16 stepsRemoved;
 	
@@ -1774,7 +1846,13 @@ msgPackAnnounce(Octet * buf, UInteger16 sequenceId, PtpClock * ptpClock)
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x0B;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(ANNOUNCE_LENGTH);
-	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
+	#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    *(UInteger16 *) (buf + 30) = flip16((UInteger16)(sequenceId & 0xFFFF));
+    ((UInteger8*)(buf+18))[0] = (sequenceId & 0xFF000000) >> 24;
+    ((UInteger8*)(buf+18))[1] = (sequenceId & 0x00FF0000) >> 16;
+#else
+    *(UInteger16 *) (buf + 30) = flip16(sequenceId);
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 	*(UInteger8 *) (buf + 32) = 0x05;
 	/* Table 24: for Announce, logMessageInterval is never 0x7F */
 	*(Integer8 *) (buf + 33) = ptpClock->portDS.logAnnounceInterval;
@@ -1782,6 +1860,7 @@ msgPackAnnounce(Octet * buf, UInteger16 sequenceId, PtpClock * ptpClock)
 	/* Announce message */
 	memset((buf + 34), 0, 10);
 	*(Integer16 *) (buf + 44) = flip16(ptpClock->timePropertiesDS.currentUtcOffset);
+	*(UInteger8 *) (buf + 46) = 0;
 	*(UInteger8 *) (buf + 47) = ptpClock->parentDS.grandmasterPriority1;
 	*(UInteger8 *) (buf + 48) = ptpClock->defaultDS.clockQuality.clockClass;
 	*(Enumeration8 *) (buf + 49) = ptpClock->defaultDS.clockQuality.clockAccuracy;
@@ -1804,6 +1883,22 @@ msgPackAnnounce(Octet * buf, UInteger16 sequenceId, PtpClock * ptpClock)
 	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.ptpTimescale)		<< 3;
 	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.timeTraceable)		<< 4;
 	*(UInteger8*) (buf + 7) |= (ptpClock->timePropertiesDS.frequencyTraceable)	<< 5;
+
+#ifdef SEC_EXT_CRYPTO
+	/* check if we have a certificate */
+	if(ptpClock->has_cert)
+	{
+		/* security flag */
+		*(UInteger8*) (buf + 6) |= SECURITY_FLAG;
+		/* pack the public key */
+		size_t offset = 0;
+		packPublicKey(&buf[ANNOUNCE_LENGTH + offset], &ptpClock->self_public_pk, &offset);
+		/* pack the known signature */
+		packSignature(&buf[ANNOUNCE_LENGTH + offset], ptpClock->self_cert.sig);
+		/* update the length field */
+		*(UInteger16 *) (buf + 2)  = flip16(ANNOUNCE_EXT_LENGTH);
+	}	
+#endif /* SEC_EXT_CRYPTO */
 }
 #endif /* PTPD_SLAVE_ONLY */
 
@@ -1841,8 +1936,13 @@ msgUnpackAnnounce(Octet * buf, MsgAnnounce * announce)
 
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
 /*pack Follow_up message into OUT buffer of ptpClock*/
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+void
+msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock, const UInteger32 sequenceId)
+#else
 void
 msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 {
 	msgPackHeader(buf, ptpClock);
 	
@@ -1852,7 +1952,14 @@ msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpC
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x08;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(FOLLOW_UP_LENGTH);
-	*(UInteger16 *) (buf + 30) = flip16(sequenceId);
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    *(UInteger16 *) (buf + 30) = flip16((UInteger16)(sequenceId & 0xFFFF));
+    ((UInteger8*)(buf+18))[0] = (sequenceId & 0xFF000000) >> 24;
+    ((UInteger8*)(buf+18))[1] = (sequenceId & 0x00FF0000) >> 16;
+#else
+    *(UInteger16 *) (buf + 30) = flip16(sequenceId);
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
+
 	*(UInteger8 *) (buf + 32) = 0x02;
 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
@@ -1866,6 +1973,22 @@ msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpC
 		flip32(preciseOriginTimestamp->secondsField.lsb);
 	*(UInteger32 *) (buf + 40) =
 		flip32(preciseOriginTimestamp->nanosecondsField);
+
+#ifdef SEC_EXT_CRYPTO
+	/* check if we have a certificate */
+	if(ptpClock->has_cert)
+	{
+		/* security flag */
+		*(UInteger8*) (buf + 6) |= SECURITY_FLAG;
+		/* update the length field */
+		*(UInteger16 *) (buf + 2)  = flip16(FOLLOW_UP_LENGTH + SIGNATURE_SIZE);
+		/* calculate the signature */
+		Signature sig;
+		signMsg(&ptpClock->self_private_pk, buf, FOLLOW_UP_LENGTH, &sig, &ptpClock->ctr_drbg);
+		/* pack the signature */
+		packSignature(&buf[FOLLOW_UP_LENGTH], sig.sig);
+	}	
+#endif /* SEC_EXT_CRYPTO */
 }
 #endif /* PTPD_SLAVE_ONLY */
 
@@ -1898,7 +2021,18 @@ msgPackPdelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x02;
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(PDELAY_REQ_LENGTH);
+#ifdef SEC_EXT_RANDOMIZE_SEQ_NUM
+    ptpClock->sentPdelayReqSequenceId = (get_rand() << 8) | get_rand();
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    ptpClock->sentPdelayReqSequenceId |= ((get_rand() << 8) | get_rand()) << 16;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
+#endif /* SEC_EXT_RANDOMIZE_SEQ_NUM */
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentPdelayReqSequenceId);
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    ((UInteger8*)(buf+18))[0] = (ptpClock->sentPdelayReqSequenceId & 0xFF000000) >> 24;
+    ((UInteger8*)(buf+18))[1] = (ptpClock->sentPdelayReqSequenceId & 0x00FF0000) >> 16;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
+
 	*(UInteger8 *) (buf + 32) = 0x05;
 	/* Table 23 */
 	*(Integer8 *) (buf + 33) = 0x7F;
@@ -1929,7 +2063,19 @@ msgPackDelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 
 	/* -- PTP_UNICAST flag will be set in netsend* if needed */
 
+#ifdef SEC_EXT_RANDOMIZE_SEQ_NUM
+    ptpClock->sentDelayReqSequenceId = (get_rand() << 8) | get_rand();
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    ptpClock->sentDelayReqSequenceId |= ((get_rand() << 8) | get_rand()) << 16;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
+#endif /* SEC_EXT_RANDOMIZE_SEQ_NUM */
+
 	*(UInteger16 *) (buf + 30) = flip16(ptpClock->sentDelayReqSequenceId);
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    ((UInteger8*)(buf+18))[0] = (ptpClock->sentDelayReqSequenceId & 0xFF000000) >> 24;
+    ((UInteger8*)(buf+18))[1] = (ptpClock->sentDelayReqSequenceId & 0x00FF0000) >> 16;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
+
 	*(UInteger8 *) (buf + 32) = 0x01;
 	/* Table 23 */
 	*(Integer8 *) (buf + 33) = 0x7F;
@@ -1959,6 +2105,13 @@ msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, 
 	/* -- PTP_UNICAST flag will be set in netsend* if needed */
 
 	memset((buf + 8), 0, 8);
+
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    UInteger32 seq_id = ptpClock->recvDelayReqSequenceId;
+    header->sequenceId = (UInteger16)(seq_id & 0xFFFF);
+    ((UInteger8*)(buf+18))[0] = (seq_id & 0xFF000000) >> 24;
+    ((UInteger8*)(buf+18))[1] = (seq_id & 0x00FF0000) >> 16;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 
 	/* Copy correctionField of PdelayReqMessage */
 	*(Integer32 *) (buf + 8) = flip32(header->correctionField.msb);
@@ -2002,6 +2155,12 @@ msgPackPdelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTim
 	*(UInteger8 *) (buf + 4) = header->domainNumber;
 	memset((buf + 8), 0, 8);
 
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    UInteger32 seq_id = ptpClock->recvPdelayReqSequenceId;
+    header->sequenceId = (UInteger16)(seq_id & 0xFFFF);
+    ((UInteger8*)(buf+18))[0] = (seq_id & 0xFF000000) >> 24;
+    ((UInteger8*)(buf+18))[1] = (seq_id & 0x00FF0000) >> 16;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 
 	*(UInteger16 *) (buf + 30) = flip16(header->sequenceId);
 
@@ -2107,6 +2266,16 @@ msgPackPdelayRespFollowUp(Octet * buf, MsgHeader * header, Timestamp * responseO
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
 	*(char *)(buf + 0) = *(char *)(buf + 0) | 0x0A;
+
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+    UInteger32 seq_id = ptpClock->recvPdelayReqSequenceId + 1;
+    header->sequenceId = (UInteger16)(seq_id & 0xFFFF);
+    ((UInteger8*)(buf+18))[0] = (seq_id & 0xFF000000) >> 24;
+    ((UInteger8*)(buf+18))[1] = (seq_id & 0x00FF0000) >> 16;
+#else
+    header->sequenceId = sequenceId;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
+
 	/* Table 19 */
 	*(UInteger16 *) (buf + 2) = flip16(PDELAY_RESP_FOLLOW_UP_LENGTH);
 	*(UInteger16 *) (buf + 30) = flip16(sequenceId);

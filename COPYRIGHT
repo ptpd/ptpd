@@ -1,4 +1,7 @@
 /*-
+ * Copyright (c) 2015-2016 Eyal Itkin (TAU),
+ *                         Avishai Wool (TAU),
+ *                         In accordance to http://arxiv.org/abs/1603.00707 .
  * Copyright (c) 2015      Wojciech Owczarek.
  * Copyright (c) 2014      Perseus Telecom.
  * Copyright (c) 2013-2014 Harlan Stenn,

@@ -228,10 +228,19 @@ Boolean msgUnpackManagement(Octet * buf,MsgManagement*, MsgHeader*, PtpClock *pt
 Boolean msgUnpackSignaling(Octet * buf,MsgSignaling*, MsgHeader*, PtpClock *ptpClock, const int tlvOffset);
 void msgPackHeader(Octet * buf,PtpClock*);
 #ifndef PTPD_SLAVE_ONLY
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+void msgPackAnnounce(Octet * buf, UInteger32, PtpClock*);
+void msgPackSync(Octet * buf, UInteger32, Timestamp*,PtpClock*);
+#else
 void msgPackAnnounce(Octet * buf, UInteger16, PtpClock*);
 void msgPackSync(Octet * buf, UInteger16, Timestamp*,PtpClock*);
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 #endif /* PTPD_SLAVE_ONLY */
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+void msgPackFollowUp(Octet * buf,Timestamp*,PtpClock*, const UInteger32);
+#else
 void msgPackFollowUp(Octet * buf,Timestamp*,PtpClock*, const UInteger16);
+#endif /* #ifdef SEC_EXT_USE_RESERVE_SEQUENCE */
 void msgPackDelayReq(Octet * buf,Timestamp *,PtpClock *);
 void msgPackDelayResp(Octet * buf,MsgHeader *,Timestamp *,PtpClock *);
 void msgPackPdelayReq(Octet * buf,Timestamp*,PtpClock*);

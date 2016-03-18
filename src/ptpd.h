@@ -382,6 +382,11 @@ DECLARE_UNPACK( Octet )
 DECLARE_UNPACK( UInteger48 )
 DECLARE_UNPACK( Integer64 )
 
+#ifdef SEC_EXT_CRYPTO
+UInteger16 packSignature( Octet *buf, Octet* sig);
+UInteger16 unpackSignature( Octet *buf, Octet* sig );
+#endif /* SEC_EXT_CRYPTO */
+
 /* display.c */
 void displayRunTimeOpts(const RunTimeOpts*);
 void displayDefault (const PtpClock*);

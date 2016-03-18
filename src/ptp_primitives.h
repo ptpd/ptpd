@@ -10,6 +10,7 @@ typedef int32_t Integer32;
 typedef uint8_t  UInteger8;
 typedef uint16_t UInteger16;
 typedef uint32_t UInteger32;
+typedef uint64_t UInteger64;
 typedef uint16_t Enumeration16;
 typedef unsigned char Enumeration8;
 typedef unsigned char Enumeration4;

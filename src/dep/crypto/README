@@ -1,0 +1,5 @@
+Step 1: wolfssl should be present in a floder named: "wolfssl-3.8.0"
+Step 2: Compiling wolfssl for the PTPd usage should be done using:
+./configure --enable-static --enable-ed25519
+
+Step 2 is done automaticaally in the local Makefile

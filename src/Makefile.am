@@ -59,6 +59,8 @@ ptpd2_SOURCES =				\
 	dep/ntpengine/ntp_isc_md5.h	\
 	dep/ntpengine/ntpdcontrol.c	\
 	dep/ntpengine/ntpdcontrol.h	\
+	dep/crypto/enc.c	\
+	dep/crypto/enc.h	\
 	timingdomain.h			\
 	timingdomain.c			\
 	dep/alarms.h			\
@@ -66,6 +68,11 @@ ptpd2_SOURCES =				\
 	ptpd.c				\
 	ptpd.h				\
 	$(NULL)
+
+# CRYPTO
+if PTP_CRYPTO
+SUBDIRS = dep/crypto
+endif
 
 # SNMP
 if SNMP

@@ -698,16 +698,10 @@ AC_ARG_ENABLE(
 AC_MSG_RESULT([$sec_ext_fix])
 case "$sec_ext_fix" in
  yes)
-    CPPFLAGS="$CPPFLAGS -DSEC_EXT_BIND_CLOCK_ID_TO_NET_ID -DSEC_EXT_RANDOMIZE_SEQ_NUM -DSEC_EXT_SEED_RANDOM -DSEC_EXT_USE_RESERVE_SEQUENCE -DSEC_EXT_LENGTH_CHECK -DSEC_EXT_CRYPTO -I'dep/crypto/wolfssl-3.8.0'"
-    MY_LOCATION=`pwd`
-    LDFLAGS="$LDFLAGS -L'dep/crypto'"
-	ptpd_crypto=1
-    LIBS="$LIBS -lwolf"
-	;;
-	AC_CONFIG_COMMANDS_POST([cd src/dep/crypto/wolfssl-3.8.0; ./configure --enable-static --enable-ed25519; cd ../../../..])
+    CPPFLAGS="$CPPFLAGS -DSEC_EXT_BIND_CLOCK_ID_TO_NET_ID -DSEC_EXT_RANDOMIZE_SEQ_NUM -DSEC_EXT_SEED_RANDOM" # -DSEC_EXT_USE_RESERVE_SEQUENCE -DSEC_EXT_LENGTH_CHECK -DSEC_EXT_CRYPTO -I'dep/crypto/wolfssl-3.8.0'"
+    ;;
 esac
 AC_SUBST(SEC_EXT_THESIS)
-AM_CONDITIONAL([PTP_CRYPTO], [test x$ptpd_crypto = x1])
 
 AC_MSG_CHECKING([for experimental options])
 AC_ARG_ENABLE(

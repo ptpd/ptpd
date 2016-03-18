@@ -1,4 +1,7 @@
 /*-
+ * Copyright (c) 2015-2016 Eyal Itkin (TAU),
+ *                         Avishai Wool (TAU),
+ *                         In accordance to http://arxiv.org/abs/1603.00707 .
  * Copyright (c) 2014-2015 Wojciech Owczarek,
  *                         George V. Neville-Neil
  * Copyright (c) 2012-2013 George V. Neville-Neil,
@@ -1716,6 +1719,10 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		/* do not count packets if from self */
 		} else if(memcmp(&netPath->interfaceInfo.hwAddress, pkt_data + 6, 6)) {
 		    netPath->receivedPackets++;
+#ifdef SEC_EXT_BIND_CLOCK_ID_TO_NET_ID
+            /* store the source address */
+            memcpy(&netPath->lastRecvAddr, pkt_data, 6);
+#endif /* SEC_EXT_BIND_CLOCK_ID_TO_NET_ID */
 		}
 	} else {
 	    /* Retrieve source IP from the payload - 14 eth + 12 IP */
@@ -1817,6 +1824,10 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 		/* do not count packets if from self */
 		} else if(memcmp(&netPath->interfaceInfo.hwAddress, pkt_data + 6, 6)) {
 		    netPath->receivedPackets++;
+#ifdef SEC_EXT_BIND_CLOCK_ID_TO_NET_ID
+            /* store the source address */
+            memcpy(&netPath->lastRecvAddr, pkt_data, 6);
+#endif /* SEC_EXT_BIND_CLOCK_ID_TO_NET_ID */
 		}
 	} else {
 	    /* Retrieve source IP from the payload - 14 eth + 12 IP */
