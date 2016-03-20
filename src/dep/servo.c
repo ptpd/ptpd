@@ -650,7 +650,9 @@ finish:
 	DBGV("offset from master:      %10ds %11dns\n",
 	    ptpClock->currentDS.offsetFromMaster.seconds,
 	    ptpClock->currentDS.offsetFromMaster.nanoseconds);
-	DBGV("observed drift:          %10d\n", ptpClock->servo.integral);
+	if(ptpClock->clockDriver != NULL) {
+	    DBGV("observed drift:          %10d\n", ptpClock->clockDriver->servo.integral);
+	}
 
 }
 
