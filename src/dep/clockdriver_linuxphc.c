@@ -525,13 +525,9 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 
 	subTime(&duration, &t2, &t1);
 
-	if(i==0) {
-	    minDuration = duration;
-	}
-
 	timeDelta(&t1, &tptp, &t2, &tmpDelta);
 
-	if(!gtTime(&duration, &minDuration)) {
+	if((i == 0) || !gtTime(&duration, &minDuration)) {
 	    minDuration = duration;
 	    delta = tmpDelta;
 	}
