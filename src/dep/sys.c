@@ -961,7 +961,7 @@ void
 writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 {
 
-	char outBuf[2048];
+	char outBuf[3072];
 	char tmpBuf[200];
 
 	int n = getAlarmSummary(NULL, 0, ptpClock->alarms, ALRM_MAX);
