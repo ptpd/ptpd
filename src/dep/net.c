@@ -1303,12 +1303,12 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		/* bind sockets */
 		/*
-		 * need INADDR_ANY to receive both unicast and multicast,
+		 * need INADDR_ANY to receive both unicast and multicast (Linux),
 		 * but only need interface address for unicast
 		 */
 
 		if(rtOpts->ipMode == IPMODE_UNICAST ||
-		   rtOpts->ignore_daemon_lock) {
+		   rtOpts->bindToInterface) {
 			addr.sin_addr = netPath->interfaceAddr;
 		} else {
 			addr.sin_addr.s_addr = htonl(INADDR_ANY);

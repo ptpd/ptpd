@@ -187,6 +187,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->ipMode = IPMODE_MULTICAST;
 	rtOpts->dot1AS = FALSE;
+	rtOpts->bindToInterface = FALSE;
 
 	rtOpts->disableUdpChecksums = TRUE;
 

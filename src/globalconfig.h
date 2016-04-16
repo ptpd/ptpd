@@ -144,7 +144,7 @@ typedef struct {
 
 	int statusFileUpdateInterval;
 
-	Boolean ignore_daemon_lock;
+	Boolean ignoreLock;
 	Boolean refreshIgmp;
 	Boolean  nonDaemon;
 
@@ -180,6 +180,7 @@ typedef struct {
 	Enumeration8 transport; /* transport type */
 	Enumeration8 ipMode; /* IP transmission mode */
 	Boolean dot1AS; /* 801.2AS support -> transportSpecific field */
+	Boolean bindToInterface; /* always bind to interface */
 
 	Boolean disableUdpChecksums; /* disable UDP checksum validation where supported */
 

@@ -1,12 +1,12 @@
 ; ========================================
-; PTPDv2 version 2.3.2 default configuration
+; PTPd version 2.3.2-linuxphc default configuration
 ; ========================================
 
 ; NOTE: the following settings are affected by ptpengine:preset selection:
 ;           ptpengine:slave_only
 ;           clock:no_adjust
 ;           ptpengine:clock_class - allowed range and default value
-; To see all preset settings, run ptpd2 -H (--long-help)
+; To see all preset settings, run ptpd -H (--long-help)
 
 ; Network interface to use - eth0, igb0 etc. (required).
 ptpengine:interface = 
@@ -45,6 +45,14 @@ ptpengine:disabled = N
 ; (ptpengine:unicast_destinations).
 ; Options: multicast unicast hybrid 
 ptpengine:ip_mode = multicast
+
+; Always listen on the interface IP address, even if using multicast or hybrid mode.
+; For unicast operation, PTPd always binds to the IP address.
+; On Linux, this option should not be set for multicast on hybrid, but
+; on other systems like FreeBSD, this can help multiple PTPd instances to
+; co-exist on one system and process management messages independently.
+; 
+ptpengine:bind_to_interface = N
 
 ; Enable unicast negotiation support using signaling messages
 ; 
@@ -133,7 +141,7 @@ ptpengine:always_respect_utc_offset = Y
 ; NOTE: this behaviour is not part of the standard.
 ptpengine:prefer_utc_offset_valid = N
 
-; Compatibility option: when enabled, ptpd2 will ignore
+; Compatibility option: when enabled, ptpd will ignore
 ; Announce messages from masters announcing currentUtcOffsetValid
 ; as FALSE.
 ; NOTE: this behaviour is not part of the standard.
@@ -286,6 +294,9 @@ ptpengine:unicast_local_preference =
 ; running unicast mode and P2P delay mode.
 ptpengine:unicast_peer_destination = 
 
+; Enable hardware timestamping and hardware clock support (if available)
+ptpengine:hardware_timestamping = N
+
 ; Enable handling of PTP management messages.
 ptpengine:management_enable = Y
 
@@ -314,10 +325,15 @@ ptpengine:sync_stat_filter_enable = N
 
 ; Type of filter used for Sync message filtering
 ; Options: none mean min max absmin absmax median 
-ptpengine:sync_stat_filter_type = min
+ptpengine:sync_stat_filter_type = median
 
 ; Number of samples used for the Sync statistical filter
-ptpengine:sync_stat_filter_window = 4
+ptpengine:sync_stat_filter_window = 5
+
+; Sampling interval (samples) used for the Sync statistical filter
+; when the window type is set to interval. If set to zero,
+; the sampling window size is used as the interval.
+ptpengine:sync_stat_filter_interval = 0
 
 ; Sample window type used for Sync message statistical filter. Delay Response outlier filter action.
 ; Sliding window is continuous, interval passes every n-th sample only.
@@ -329,10 +345,15 @@ ptpengine:delay_stat_filter_enable = N
 
 ; Type of filter used for Delay message statistical filter
 ; Options: none mean min max absmin absmax median 
-ptpengine:delay_stat_filter_type = min
+ptpengine:delay_stat_filter_type = median
 
 ; Number of samples used for the Delay statistical filter
-ptpengine:delay_stat_filter_window = 4
+ptpengine:delay_stat_filter_window = 5
+
+; Sampling interval (samples) used for the Delay statistical filter
+; when the window type is set to interval. If set to zero,
+; the sampling window size is used as the interval.
+ptpengine:delay_stat_filter_interval = 0
 
 ; Sample window type used for Delay message statistical filter
 ; Sliding window is continuous, interval passes every n-th sample only
@@ -354,7 +375,7 @@ ptpengine:delay_outlier_filter_capacity = 20
 ; standard deviation. When set below 1.0, filter is tighter, when set above
 ; 1.0, filter is looser than standard Peirce's test.
 ; When autotune enabled, this is the starting threshold.
-ptpengine:delay_outlier_filter_threshold = 1.000000
+ptpengine:delay_outlier_filter_threshold = 2.000000
 
 ; Always run the Delay Response outlier filter, even if clock is being slewed at maximum rate
 ptpengine:delay_outlier_filter_always_filter = N
@@ -377,7 +398,7 @@ ptpengine:delay_outlier_filter_autotune_maxpercent = 95
 ptpengine:delay_outlier_autotune_step = 0.100000
 
 ; Minimum Delay Response filter threshold value used when auto-tuning
-ptpengine:delay_outlier_filter_autotune_minthreshold = 0.100000
+ptpengine:delay_outlier_filter_autotune_minthreshold = 1.500000
 
 ; Maximum Delay Response filter threshold value used when auto-tuning
 ptpengine:delay_outlier_filter_autotune_maxthreshold = 5.000000
@@ -420,7 +441,7 @@ ptpengine:sync_outlier_filter_capacity = 20
 ; Sync outlier filter threshold: multiplier for the Peirce's maximum standard
 ; deviation. When set below 1.0, filter is tighter, when set above 1.0,
 ; filter is looser than standard Peirce's test.
-ptpengine:sync_outlier_filter_threshold = 1.000000
+ptpengine:sync_outlier_filter_threshold = 2.000000
 
 ; Always run the Sync outlier filter, even if clock is being slewed at maximum rate
 ptpengine:sync_outlier_filter_always_filter = N
@@ -443,7 +464,7 @@ ptpengine:sync_outlier_filter_autotune_maxpercent = 95
 ptpengine:sync_outlier_autotune_step = 0.100000
 
 ; Minimum Sync outlier filter threshold value used when auto-tuning
-ptpengine:sync_outlier_filter_autotune_minthreshold = 0.100000
+ptpengine:sync_outlier_filter_autotune_minthreshold = 1.500000
 
 ; Maximum Sync outlier filter threshold value used when auto-tuning
 ptpengine:sync_outlier_filter_autotune_maxthreshold = 5.000000
@@ -483,14 +504,19 @@ ptpengine:calibration_delay = 0
 ; 
 ptpengine:idle_timeout = 120
 
+; PTP slave offset from master threshold (nanoseconds - absolute value)
+; When offset exceeds this value, an alarm is raised (also SNMP trap if configured).
+; 0 = disabled.
+ptpengine:offset_alarm_threshold = 0
+
 ; Enable panic mode: when offset from master is above 1 second, stop updating
 ; the clock for a period of time and then step the clock if offset remains
 ; above 1 second.
 ptpengine:panic_mode = N
 
-; Duration (minutes) of the panic mode period (no clock updates) when offset
+; Duration (seconds) of the panic mode period (no clock updates) when offset
 ; above 1 second detected.
-ptpengine:panic_mode_duration = 2
+ptpengine:panic_mode_duration = 30
 
 ; When entering panic mode, release clock control while panic mode lasts
 ; if ntpengine:* configured, this will fail over to NTP,
@@ -567,6 +593,12 @@ clock:no_adjust = N
 ; Do not step the clock - only slew
 clock:no_reset = N
 
+; Allow a software clock (system clock) to be stepped backwards
+clock:allow_step_backwards = N
+
+; Allow a hardware clock to be stepped backwards
+clock:allow_step_backwards_hw = N
+
 ; Force clock step on first sync after startup regardless of offset and clock:no_reset
 clock:step_startup_force = N
 
@@ -581,16 +613,12 @@ clock:step_startup = N
 ; single-boot x86 Linux systems.
 clock:set_rtc_on_step = N
 
-; Observed drift handling method between servo restarts:
-; reset: set to zero (not recommended)
-; preserve: use kernel value,
-; file: load/save to drift file on startup/shutdown, use kernel
-; value inbetween. To specify drift file, use the clock:drift_file setting.
-; Options: reset preserve file 
-clock:drift_handling = preserve
+; Store current clock frequency offset to file when a clock is stable and locked,:
+; and load frequency offset from file when clock is started.
+clock:store_frequency = Y
 
-; Specify drift file
-clock:drift_file = /etc/ptpd2_kernelclock.drift
+; Specify the directory where frequency files are stored and read from
+clock:frequency_directory = /etc
 
 ; Time (seconds) before and after midnight that clock updates should pe suspended for
 ; during a leap second event. The total duration of the pause is twice
@@ -618,20 +646,77 @@ clock:leap_second_handling = accept
 ; Example: when set to 86400 (24 hours), an extra 11.5 microseconds is added every second
 clock:leap_second_smear_period = 86400
 
+; Set a write lock on the clock device handle if it's being synced
+; (if the clock driver supports this and implements locking)
+clock:lock_device = N
+
+; Specify a comma, space or tab separated list of extra clocks to be controlled by PTP.
+; The format is type:path:name where "type" can be: "unix" for Unix clocks and "linuxphc"
+; for Linux PHC clocks, "path" is either the clock device path or interface name, and
+; "name" is user's name for the clock (20 characters max). If no name is given, it is
+; extracted from the path name.
+clock:extra_clocks = 
+
+; Specify the clock name of a clock which is to be the preferred clock source
+; when PTP is running as master, and all other clocks will sinchronise with it.
+; This clock will only accept an external reference such as PTP
+clock:master_clock_name = 
+
+; Specify a comma, space or tab separated list of names of clocks that should be disabled - disabled clocks
+; are excluded from sync and do not show up in the clock list.
+; NOTE: required clocks, such as system clock or PTP NIC clocks cannot be disabled.
+; they can be set to read-only instead (clock:readonly_clock_names)
+clock:disabled_clock_names = 
+
+; Specify a comma, space or tab separated list of names of clocks that should be read only - read only
+; clocks are still compared to best clocks and their frequency is monitored,
+; but they are not adjusted.
+; 
+clock:readonly_clock_names = 
+
+; Specify a comma, space or tab separated list of names of clocks that should be excluded from
+; best clock selection - they will be synced unless read only, but will never be
+; selected as best clock.
+; 
+clock:excluded_clock_names = 
+
+; Clock sync rate (per second) - the rate at which internal clocks are synced
+; with each other (excluding PTP-controlled clocks).
+clock:sync_rate = 5
+
+; Clock failure suspension timeout (seconds). When one of clock functions fails unexpectedly,
+; it is placed in HWFAIL state, its operation is suspended for this period,
+; after which a health check is performed, and if it succeeds, clock is brought
+; back into FREERUN state.
+; 
+clock:failure_delay = 10
+
+; Maximum absolute frequency shift which can be applied to the clock servo
+; when slewing the clock. Expressed in parts per million (1 ppm = shift of
+; 1 us per second. Values above 500 will use the tick duration correction
+; to allow even faster slewing. Default maximum is 500 without using tick.
+clock:max_offset_ppm = 500
+
 ; Maximum absolute frequency shift which can be applied to the clock servo
 ; when slewing the clock. Expressed in parts per million (1 ppm = shift of
 ; 1 us per second. Values above 512 will use the tick duration correction
-; to allow even faster slewing. Default maximum is 512 without using tick.
-clock:max_offset_ppm = 500
+; to allow even faster slewing. Default maximum is 2000 without using tick.
+clock:max_offset_ppm_hardware = 2000
 
 ; One-way delay filter stiffness.
 servo:delayfilter_stiffness = 6
 
-; Clock servo PI controller proportional component gain (kP).
+; Clock servo PI controller proportional component gain (kP) used for software timestamping.
 servo:kp = 0.100000
 
-; Clock servo PI controller integral component gain (kI).
+; Clock servo PI controller integral component gain (kI) used for software timestamping.
 servo:ki = 0.001000
+
+; Clock servo PI controller proportional component gain (kP) used when syncing hardware clocks.
+servo:kp_hardware = 0.700000
+
+; Clock servo PI controller integral component gain (kI) used when syncing gardware clocks.
+servo:ki_hardware = 0.300000
 
 ; How servo update interval (delta t) is calculated:
 ; none:     servo not corrected for update interval (dt always 1),
@@ -644,26 +729,25 @@ servo:dt_method = constant
 ; (servo:dt_method = measured), specified as sync interval multiplier.
 servo:dt_max = 5.000000
 
-; Enable clock synchronisation servo stability detection
-; (based on standard deviation of the observed drift value)
-; - drift will be saved to drift file / cached when considered stable,
-; also clock stability status will be logged.
-servo:stability_detection = N
+; Minimum Allan deviation of a clock frequency (ppb = 10E-9) for a hardware clock to be considered stable (LOCKED).
+; Allan deviation is checked in intervals defined by the servo:adev_interval setting.
+servo:adev_locked_threshold_low_hw = 50.000000
 
-; Specify the observed drift standard deviation threshold in parts per
-; billion (ppb) - if stanard deviation is within the threshold, servo
-; is considered stable.
-servo:stability_threshold = 10.000000
+; Allan deviation of a clock frequency (ppb = 10E-9) for a hardware clock to be considered no longer stable
+; (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.
+servo:adev_locked_threshold_high_hw = 500.000000
 
-; Specify for how many statistics update intervals the observed drift
-; standard deviation has to stay within threshold to be considered stable.
-servo:stability_period = 1
+; Minimum Allan deviation of a clock frequency (ppb = 10E-9) for a software-based clock to be considered stable (LOCKED).
+; Allan deviation is checked in intervals defined by the servo:adev_interval setting.
+servo:adev_locked_threshold_low = 200.000000
 
-; Specify after how many minutes without stabilisation servo is considered
-; unstable. Assists with logging servo stability information and
-; allows to preserve observed drift if servo cannot stabilise.
+; Allan deviation of a clock frequency (ppb = 10E-9) for a software-based clock to be considered no longer stable
+; (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.
+servo:adev_locked_threshold_high = 2000.000000
+
+; Interval (seconds) over which Allan deviation of a clock servo is computed for establishing clock stability.
 ; 
-servo:stability_timeout = 10
+servo:adev_interval = 10
 
 ; Do accept master to slave delay (delayMS - from Sync message) or slave to master delay
 ; (delaySM - from Delay messages) if greater than this value (nanoseconds). 0 = not used.
@@ -689,8 +773,26 @@ ptpengine:clock_update_timeout = 0
 ; than this value (nanoseconds). 0 = not used.
 servo:max_offset = 0
 
+; Enable support for alarm and event notifications.
+; 
+global:enable_alarms = N
+
+; Mininmum alarm age (seconds) - minimal time between alarm set and clear notifications.
+; The condition can clear while alarm lasts, but notification (log or SNMP) will only 
+; be triggered after the timeout. This option prevents from alarms flapping.
+global:alarm_timeout = 30
+
+; Delay the start of alarm processing (seconds) after ptpd startup. This option 
+; allows to avoid unnecessary alarms before PTPd starts synchronising.
+; 
+global:alarm_initial_delay = 0
+
 ; Enable SNMP agent (if compiled with PTPD_SNMP).
 global:enable_snmp = N
+
+; Enable sending SNMP traps (only if global:enable_alarms set and global:enable_snmp set).
+; 
+global:enable_snmp_traps = N
 
 ; Send log messages to syslog. Disabling this
 ; sends all messages to stdout (or speficied log file).
@@ -727,14 +829,18 @@ global:quality_file_max_files = 0
 ; startup and SIGHUP.
 global:quality_file_truncate = N
 
-; File used to log ptpd2 status information.
-global:status_file = /var/run/ptpd2.status
+; File used to log ptpd status information.
+global:status_file = /var/run/ptpd.status
 
 ; Enable / disable writing status information to file.
 global:log_status = N
 
 ; Status file update interval in seconds.
 global:status_update_interval = 1
+
+; Specify debug level (if compiled with RUNTIME_DEBUG).
+; Options: LOG_INFO LOG_DEBUG LOG_DEBUG1 LOG_DEBUG2 LOG_DEBUG3 LOG_DEBUGV 
+global:debug_level = LOG_INFO
 
 ; Specify log file path (event log). Setting this enables logging to file.
 global:log_file = 
@@ -800,7 +906,7 @@ global:log_statistics = N
 ; Options: datetime unix both 
 global:statistics_timestamp_format = datetime
 
-; Bind ptpd2 process to a selected CPU core number.
+; Bind ptpd process to a selected CPU core number.
 ; 0 = first CPU core, etc. -1 = do not bind to a single core.
 global:cpuaffinity_cpucore = -1
 

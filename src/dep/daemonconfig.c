@@ -977,6 +977,14 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 				"hybrid", 	IPMODE_HYBRID, NULL
 				);
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:bind_to_interface",
+		PTPD_RESTART_NETWORK, &rtOpts->bindToInterface, rtOpts->bindToInterface,
+		"Always listen on the interface IP address, even if using multicast or hybrid mode.\n"
+	"        For unicast operation, PTPd always binds to the IP address.\n"
+	"        On Linux, this option should not be set for multicast on hybrid, but\n"
+	"        on other systems like FreeBSD, this can help multiple PTPd instances to\n"
+	"        co-exist on one system and process management messages independently.\n");
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:unicast_negotiation",
 		PTPD_RESTART_PROTOCOL, &rtOpts->unicastNegotiation, rtOpts->unicastNegotiation,
 		"Enable unicast negotiation support using signaling messages\n");
@@ -2203,7 +2211,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 is specified, it's expected to be an absolute path.");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "global:ignore_lock",
-		PTPD_RESTART_DAEMON, &rtOpts->ignore_daemon_lock, rtOpts->ignore_daemon_lock,
+		PTPD_RESTART_DAEMON, &rtOpts->ignoreLock, rtOpts->ignoreLock,
 	"Skip lock file checking and locking.");
 
 	/* if quality file specified, enable quality recording  */

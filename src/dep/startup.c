@@ -616,7 +616,7 @@ ptpdShutdown(PtpClock * ptpClock)
 	G_ptpClock = NULL;
 
 	/* properly clean lockfile (eventough new deaemons can acquire the lock after we die) */
-	if(!rtOpts.ignore_daemon_lock && G_lockFilePointer != NULL) {
+	if(!rtOpts.ignoreLock && G_lockFilePointer != NULL) {
 	    fclose(G_lockFilePointer);
 	    G_lockFilePointer = NULL;
 	}
@@ -789,7 +789,7 @@ configcheck:
 		goto fail;
 
 	/* First lock check, just to be user-friendly to the operator */
-	if(!rtOpts->ignore_daemon_lock) {
+	if(!rtOpts->ignoreLock) {
 		if(!writeLockFile(rtOpts)){
 			/* check and create Lock */
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
@@ -877,7 +877,7 @@ configcheck:
 	}
 
 	/* Second lock check, to replace the contents with our own new PID and re-acquire the advisory lock */
-	if(!rtOpts->nonDaemon && !rtOpts->ignore_daemon_lock){
+	if(!rtOpts->nonDaemon && !rtOpts->ignoreLock){
 		/* check and create Lock */
 		if(!writeLockFile(rtOpts)){
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");

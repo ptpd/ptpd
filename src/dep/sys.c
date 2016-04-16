@@ -1492,7 +1492,7 @@ Boolean ret = TRUE;
 int matches = 0, counter = 0;
 
 	/* no need to check locks */
-	if(rtOpts->ignore_daemon_lock ||
+	if(rtOpts->ignoreLock ||
 		!rtOpts->autoLockFile)
 			return TRUE;
 

@@ -219,6 +219,22 @@ depending on unicast negotiation setting (\fIptpengine:unicast_negotiation\fR) a
 .RE
 .RS 0
 .TP 8
+\fBptpengine:bind_to_interface [\fIBOOLEAN\fB]\fR
+.RS 8
+.TP 8
+\fBusage\fR
+Always listen on the interface IP address, even if using multicast or hybrid mode.
+For unicast operation, PTPd always binds to the IP address. On Linux, this option should not be set for multicast on hybrid, but
+on other systems like FreeBSD, this can help multiple PTPd instances to co-exist on one system and process management messages independently.
+.TP 8
+\fBdefault\fR
+\fIN\fR
+
+
+.RE
+.RE
+.RS 0
+.TP 8
 \fBptpengine:disabled [\fIBOOLEAN\fB]\fR
 .RS 8
 .TP 8
