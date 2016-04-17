@@ -272,6 +272,18 @@ typedef struct {
 	Enumeration8 servoDtMethod;
 	double servoMaxdT;
 
+	/* inter-clock sync filter options */
+
+	Boolean clockStatFilterEnable;
+	int clockStatFilterWindowSize;
+	uint8_t clockStatFilterWindowType;
+	uint8_t clockStatFilterType;
+
+	Boolean clockOutlierFilterEnable;
+	int clockOutlierFilterWindowSize;
+	int clockOutlierFilterDelay;
+	double clockOutlierFilterCutoff;
+
 	/**
 	 *  When enabled, ptpd ensures that Sync message sequence numbers
 	 *  are increasing (consecutive sync is not lower than last).

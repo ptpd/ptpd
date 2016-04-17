@@ -311,6 +311,18 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
 	rtOpts->servoMaxdT = 5.0;
 
+	/* inter-clock sync filter options */
+
+	rtOpts->clockStatFilterEnable = TRUE;
+	rtOpts->clockStatFilterWindowSize = 0; /* this will revert to clock sync rate */
+	rtOpts->clockStatFilterWindowType = WINDOW_SLIDING;
+	rtOpts->clockStatFilterType = FILTER_MEDIAN;
+
+	rtOpts->clockOutlierFilterEnable = FALSE;
+	rtOpts->clockOutlierFilterWindowSize = 200;
+	rtOpts->clockOutlierFilterDelay = 100;
+	rtOpts->clockOutlierFilterCutoff = 5.0;
+
 	/* disabled by default */
 	rtOpts->announceTimeoutGracePeriod = 0;
 

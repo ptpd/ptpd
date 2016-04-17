@@ -1522,7 +1522,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_window",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->filterMSOpts.windowSize, rtOpts->filterMSOpts.windowSize,
-		"Number of samples used for the Sync statistical filter",RANGECHECK_RANGE,3,2560);
+		"Number of samples used for the Sync statistical filter",RANGECHECK_RANGE,3,STATCONTAINER_MAX_SAMPLES);
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_interval",
 		PTPD_RESTART_FILTERS, INTTYPE_U16, &rtOpts->filterMSOpts.samplingInterval, rtOpts->filterMSOpts.samplingInterval,
@@ -1532,7 +1532,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_window_type",
 		PTPD_RESTART_FILTERS, &rtOpts->filterMSOpts.windowType, rtOpts->filterMSOpts.windowType,
-		"Sample window type used for Sync message statistical filter. Delay Response outlier filter action.\n"
+		"Sample window type used for Sync message statistical filter.\n"
 	"        Sliding window is continuous, interval passes every n-th sample only.",
 	"sliding", WINDOW_SLIDING,
 	"interval", WINDOW_INTERVAL, NULL);
@@ -1583,7 +1583,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:delay_outlier_filter_capacity",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->oFilterSMConfig.capacity, rtOpts->oFilterSMConfig.capacity,
-		"Number of samples in the Delay Response outlier filter buffer",RANGECHECK_RANGE,5,STATCONTAINER_MAX_SAMPLES);
+		"Number of samples in the Delay Response outlier filter buffer",RANGECHECK_RANGE,5, PEIRCE_MAX_SAMPLES);
 
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "ptpengine:delay_outlier_filter_threshold",
 		PTPD_RESTART_NONE, &rtOpts->oFilterSMConfig.threshold, rtOpts->oFilterSMConfig.threshold,
@@ -1676,7 +1676,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
      parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:sync_outlier_filter_capacity",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->oFilterMSConfig.capacity, rtOpts->oFilterMSConfig.capacity,
-    "Number of samples in the Sync outlier filter buffer.",RANGECHECK_RANGE,5,STATCONTAINER_MAX_SAMPLES);
+    "Number of samples in the Sync outlier filter buffer.",RANGECHECK_RANGE,5,PEIRCE_MAX_SAMPLES);
 
     parseResult &= configMapDouble(opCode, opArg, dict, target, "ptpengine:sync_outlier_filter_threshold",
 		PTPD_RESTART_NONE, &rtOpts->oFilterMSConfig.threshold, rtOpts->oFilterMSConfig.threshold,
@@ -2028,6 +2028,54 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"	 it is placed in HWFAIL state, its operation is suspended for this period,\n"
 		"	 after which a health check is performed, and if it succeeds, clock is brought\n"
 		"	 back into FREERUN state.\n", RANGECHECK_RANGE,5,600);
+
+	/* BEGIN inter-clock filter settings */
+
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:stat_filter_enable",
+		PTPD_RESTART_NONE, &rtOpts->clockStatFilterEnable, rtOpts->clockStatFilterEnable,
+		 "Enable statistical filter for inter-clock sync (HW to system clock, HW to HW");
+
+	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "clock:stat_filter_type",
+		PTPD_RESTART_FILTERS, &rtOpts->clockStatFilterType, rtOpts->clockStatFilterType,
+		"Type of filter used for inter-clock sync (HW to system clock, HW to HW)",
+	"none", FILTER_NONE,
+	"mean", FILTER_MEAN,
+	"min", FILTER_MIN,
+	"max", FILTER_MAX,
+	"absmin", FILTER_ABSMIN,
+	"absmax", FILTER_ABSMAX,
+	"median", FILTER_MEDIAN, NULL);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:stat_filter_window",
+		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->clockStatFilterWindowSize, rtOpts->clockStatFilterWindowSize,
+		"Number of samples used for the inter-clock sync statistical filter.\n"
+	"	 When set to 0, clock sync rate is used (clock:sync_rate).",RANGECHECK_RANGE,0,STATCONTAINER_MAX_SAMPLES);
+
+	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "clock:stat_filter_window_type",
+		PTPD_RESTART_FILTERS, &rtOpts->clockStatFilterWindowType, rtOpts->clockStatFilterWindowType,
+		"Sample window type used for inter-clock sync (HW to system clock, HW to HW).\n"
+	"        Sliding window is continuous, interval passes every n-th sample only.",
+	"sliding", WINDOW_SLIDING,
+	"interval", WINDOW_INTERVAL, NULL);
+
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:outlier_filter_enable",
+		PTPD_RESTART_NONE, &rtOpts->clockOutlierFilterEnable, rtOpts->clockOutlierFilterEnable,
+		 "Enable outlier filter for inter-clock sync (HW to system clock, HW to HW");
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:outlier_filter_window",
+		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->clockOutlierFilterWindowSize, rtOpts->clockOutlierFilterWindowSize,
+		"Number of samples used for the inter-clock sync outlier filter",RANGECHECK_RANGE,3,STATCONTAINER_MAX_SAMPLES);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:outlier_filter_delay",
+		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->clockOutlierFilterDelay, rtOpts->clockOutlierFilterDelay,
+		"Number of samples after which the inter-clock sync outlier filter is activated",RANGECHECK_RANGE,0,STATCONTAINER_MAX_SAMPLES);
+
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "clock:outlier_filter_threshold",
+		PTPD_RESTART_NONE, &rtOpts->clockOutlierFilterCutoff, rtOpts->clockOutlierFilterCutoff,
+		"Inter-clock sync outlier filter cutoff threshold: maximum number of MAD\n"
+	"	 (Mean Absolute Deviations) from median to consider the sample an outlier", RANGECHECK_RANGE, 0.1, 100000);
+
+	/* END inter-clock filter settings */
 
 #ifdef HAVE_STRUCT_TIMEX_TICK
 	/* This really is clock specific - different clocks may allow different ranges */

@@ -110,11 +110,19 @@ typedef struct {
     Boolean noStep;			/* clock cannot be stepped */
     Boolean negativeStep;		/* clock can be stepped backwards */
     Boolean storeToFile;		/* clock stores good frequency in a file */
+    Boolean outlierFilter;		/* enable MAD-based outlier filter */
+    Boolean statFilter;			/* enable statistical filter */
     char frequencyFile[PATH_MAX +1];	/* frequency file - filled by the driver itself */
     char frequencyDir[PATH_MAX + 1];	/* frequency file directory */
     int adevPeriod;			/* Allan deviation measurement period */
     double stableAdev;			/* Allan deviation low watermark for LOCKED state */
     double unstableAdev;		/* Allan deviation high watermark for LOCKED state -> TRACKING */
+    double madMax;			/* Mad Max! Maximum times MAD from median - outlier cutoff factor */
+    int madDelay;			/* Outlier filter window fill delay (samples) - run only at >= samples */
+    int filterWindowSize;		/* Filter window size */
+    int filterWindowType;		/* Filter window type */
+    int madWindowSize;			/* MAD computation window size */
+    int filterType;			/* Filter type */
     int lockedAge;			/* Maximum age in LOCKED (going into HOLDOVER) */
     int holdoverAge;			/* Maximum age in HOLDOVER (going into FREERUN) */
     int stepType;			/* Clock reaction to a 1 second+ step */
@@ -211,6 +219,7 @@ struct ClockDriver {
     int _warningTimeout;		/* used to silence warnings */
     double _tau;			/* time constant (servo run interval) */
     DoubleMovingStatFilter *_filter;	/* offset filter */
+    DoubleMovingStatFilter *_madFilter;	/* MAD container */
     Boolean _skipSync;			/* skip next sync */
     int *_instanceCount;		/* instance counter for the whole clock driver */
     void *_privateData;			/* implementation-specific data */

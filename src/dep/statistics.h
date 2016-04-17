@@ -11,7 +11,8 @@
 #ifndef STATISTICS_H_
 #define STATISTICS_H_
 
-#define STATCONTAINER_MAX_SAMPLES 60
+#define STATCONTAINER_MAX_SAMPLES 2560
+#define PEIRCE_MAX_SAMPLES 60
 
 /* "Permanent" i.e. non-moving statistics containers - useful for long term measurement */
 

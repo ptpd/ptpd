@@ -53,8 +53,8 @@ static int cmpDouble (const void *vA, const void *vB) {
 
 static int cmpAbsInt32 (const void *vA, const void *vB) {
 
-	int32_t a = abs(*(int32_t*)vA);
-	int32_t b = abs(*(int32_t*)vB);
+	int32_t a = labs(*(int32_t*)vA);
+	int32_t b = labs(*(int32_t*)vB);
 
 	return ((a < b) ? -1 : (a > b) ? 1 : 0);
 }
@@ -739,6 +739,53 @@ feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 		}
 		break;
 
+	    case FILTER_MAD:
+		{
+		    int count = container->meanContainer->count;
+		    int32_t sortedSamples[count];
+		    int32_t median;
+		    int i;
+
+		    Boolean odd = ((count %2 ) == 1);
+	
+		    memcpy(sortedSamples, container->meanContainer->samples, count * sizeof(sample));
+
+		    qsort(sortedSamples, count, sizeof(sample), cmpInt32);
+
+		    /* compute median */
+
+		    if(odd) {
+
+			    median = sortedSamples[(count / 2)];
+
+		    } else {
+
+			    median = (sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2;
+
+		    }
+
+		    /* compute absolute deviations from median */
+		    for(i = 0; i < count; i++) {
+			sortedSamples[i] = labs(sortedSamples[i] - median);
+		    }
+
+		    /* compute median of the deviations */
+
+		    qsort(sortedSamples, count, sizeof(sample), cmpInt32);
+
+		    if(odd) {
+
+			    container->output = sortedSamples[(count / 2)] / 0.6745;
+
+		    } else {
+
+			    container->output = ((sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2) / 0.6745;
+
+		    }
+
+		}
+		break;
+
 	    case FILTER_MIN:
 		{
 		    int count = container->meanContainer->count;
@@ -921,6 +968,53 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 		     */
 		    if(incr || decr) {
 			container->output = sample;
+		    }
+
+		}
+		break;
+
+	    case FILTER_MAD:
+		{
+		    int count = container->meanContainer->count;
+		    double sortedSamples[count];
+		    double median;
+		    int i;
+
+		    Boolean odd = ((count %2 ) == 1);
+	
+		    memcpy(sortedSamples, container->meanContainer->samples, count * sizeof(sample));
+
+		    qsort(sortedSamples, count, sizeof(sample), cmpDouble);
+
+		    /* compute median */
+
+		    if(odd) {
+
+			    median = sortedSamples[(count / 2)];
+
+		    } else {
+
+			    median = (sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2;
+
+		    }
+
+		    /* compute absolute deviations from median */
+		    for(i = 0; i < count; i++) {
+			sortedSamples[i] = fabs(sortedSamples[i] - median);
+		    }
+
+		    /* compute median of the deviations */
+
+		    qsort(sortedSamples, count, sizeof(sample), cmpDouble);
+
+		    if(odd) {
+
+			    container->output = sortedSamples[(count / 2)] / 0.6745;
+
+		    } else {
+
+			    container->output = ((sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2) / 0.6745;
+
 		    }
 
 		}

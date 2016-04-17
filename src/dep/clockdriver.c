@@ -62,6 +62,7 @@ static void setState(ClockDriver *, ClockState);
 static void processUpdate(ClockDriver *);
 static void touchClock(ClockDriver *driver);
 static Boolean pushConfig(ClockDriver *, RunTimeOpts *);
+static void configureFilters(ClockDriver *);
 static Boolean healthCheck(ClockDriver *);
 static void setReference(ClockDriver *, ClockDriver *);
 static void setExternalReference(ClockDriver *, const char*, int);
@@ -104,18 +105,10 @@ createClockDriver(int driverType, const char *name)
     }
 
     clockDriver->refClass = -1;
-
-    StatFilterOptions opts;
-    memset(&opts, 0, sizeof(StatFilterOptions));
-
-    /* for now only, hard-coded filter */
-    opts.enabled = TRUE;
-    opts.filterType = FILTER_MEDIAN;
-    opts.windowSize = CLOCK_SYNC_RATE;
-    opts.windowType = WINDOW_SLIDING;
-
     clockDriver->distance = 255;
-    clockDriver->_filter = createDoubleMovingStatFilter(&opts, name);
+
+    clockDriver->_filter = NULL;
+    clockDriver->_madFilter = NULL;
 
     return clockDriver;
 
@@ -219,6 +212,7 @@ freeClockDriver(ClockDriver** clockDriver)
     }
 
     freeDoubleMovingStatFilter(&pdriver->_filter);
+    freeDoubleMovingStatFilter(&pdriver->_madFilter);
 
     free(*clockDriver);
 
@@ -836,6 +830,8 @@ touchClock(ClockDriver *driver) {
 
 static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double tau) {
 
+    double dOffset = timeInternalToDouble(&offset);
+
     if(driver->config.disabled) {
 	return FALSE;
     }
@@ -938,12 +934,39 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		if(driver->externalReference) {
 		    driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
 		    return driver->adjustFrequency(driver, driver->servo.output, tau);
-		} else if(feedDoubleMovingStatFilter(driver->_filter, timeInternalToDouble(&offset))) {
-		    offset = doubleToTimeInternal(driver->_filter->output);
-		    driver->refOffset = offset;
-		    driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
-		    return driver->adjustFrequency(driver, driver->servo.output, tau);
 		}
+
+		if(driver->config.outlierFilter && feedDoubleMovingStatFilter(driver->_madFilter, dOffset)
+		    && (driver->_madFilter->meanContainer->count > driver->config.madDelay)) {
+			double dev = fabs(dOffset - driver->_madFilter->output);
+			double madd = dev / driver->_madFilter->output;
+			if(madd > driver->config.madMax) {
+#ifdef PTPD_CLOCK_SYNC_PROFILING
+			    INFO(THIS_COMPONENT"prof Clock %s +outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
+#else
+			    DBG(THIS_COMPONENT"prof Clock %s +outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
+#endif
+			    return TRUE;
+			} else {
+#ifdef PTPD_CLOCK_SYNC_PROFILING
+			    INFO(THIS_COMPONENT"prof Clock %s -outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
+#else
+			    DBG(THIS_COMPONENT"prof Clock %s -outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
+#endif
+
+			}
+		}
+
+		if(driver->config.statFilter) {
+		    if(!feedDoubleMovingStatFilter(driver->_filter, dOffset)) {
+			return FALSE;
+		    }
+		    offset = doubleToTimeInternal(driver->_filter->output);
+		}
+
+		driver->refOffset = offset;
+		driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
+		return driver->adjustFrequency(driver, driver->servo.output, tau);
 
 	}
 
@@ -1193,6 +1216,19 @@ pushConfig(ClockDriver *driver, RunTimeOpts *global)
     config->stepTimeout = (global->enablePanicMode) ? global-> panicModeDuration : 0;
     config->stepExitThreshold = global->panicModeExitThreshold;
 
+    config->statFilter = global->clockStatFilterEnable;
+    config->filterWindowSize = global->clockStatFilterWindowSize;
+    if(config->filterWindowSize == 0) {
+	config->filterWindowSize = global->clockSyncRate;
+    }
+    config->filterType = global->clockStatFilterType;
+    config->filterWindowType = global->clockStatFilterWindowType;
+
+    config->outlierFilter = global->clockOutlierFilterEnable;
+    config->madWindowSize = global->clockOutlierFilterWindowSize;
+    config->madDelay = global->clockOutlierFilterDelay;
+    config->madMax = global->clockOutlierFilterCutoff;
+
     driver->servo.kP = global->servoKP;
     driver->servo.kI = global->servoKI;
 
@@ -1202,11 +1238,41 @@ pushConfig(ClockDriver *driver, RunTimeOpts *global)
 
     strncpy(config->frequencyDir, global->frequencyDir, PATH_MAX);
 
+    configureFilters(driver);
+
     ret = ret && (driver->pushPrivateConfig(driver, global));
 
     DBG(THIS_COMPONENT"Clock driver %s configured\n", driver->name);
 
     return ret;
+
+}
+
+static void
+ configureFilters(ClockDriver *driver) {
+
+    StatFilterOptions opts, madOpts;
+    ClockDriverConfig *config = &driver->config;
+
+    memset(&opts, 0, sizeof(StatFilterOptions));
+    memset(&madOpts, 0, sizeof(StatFilterOptions));
+
+    /* filters are reset on reconfig... */
+    freeDoubleMovingStatFilter(&driver->_filter);
+    freeDoubleMovingStatFilter(&driver->_madFilter);
+
+    opts.enabled = config->statFilter;
+    opts.filterType = config->filterType;
+    opts.windowSize = config->filterWindowSize;
+    opts.windowType = config->filterWindowType;
+
+    madOpts.enabled = config->outlierFilter;
+    madOpts.filterType = FILTER_MAD;
+    madOpts.windowSize = config->madWindowSize;
+    madOpts.windowType = WINDOW_SLIDING;
+
+    driver->_filter = createDoubleMovingStatFilter(&opts, driver->name);
+    driver->_madFilter = createDoubleMovingStatFilter(&madOpts, driver->name);
 
 }
 

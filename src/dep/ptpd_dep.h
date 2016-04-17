@@ -443,8 +443,6 @@ void stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force);
  * -Handle with runtime options*/
  /**\{*/
 int setCpuAffinity(int cpu);
-int logToFile(RunTimeOpts * rtOpts);
-int recordToFile(RunTimeOpts * rtOpts);
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
 
 void ptpdShutdown(PtpClock * ptpClock);

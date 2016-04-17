@@ -490,6 +490,8 @@ static Boolean
 getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 {
 
+    char isMin;
+
     GET_DATA(self, myData, linuxphc);
     GET_CONFIG(self, myConfig, linuxphc);
 
@@ -527,11 +529,21 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 
 	timeDelta(&t1, &tptp, &t2, &tmpDelta);
 
+	isMin = ' ';
 	if((i == 0) || !gtTime(&duration, &minDuration)) {
 	    minDuration = duration;
 	    delta = tmpDelta;
+	    isMin = '+';
 	}
-
+#ifdef PTPD_CLOCK_SYNC_PROFILING
+	INFO(THIS_COMPONENT"prof ref meas %c\t clock %s\t seq %d\t dur %d.%09d\t delta %d.%09d\n",
+	isMin, self->name, i, duration.seconds, duration.nanoseconds,
+	tmpDelta.seconds, tmpDelta.nanoseconds);
+#else
+	DBG(THIS_COMPONENT"prof ref meas %c\t clock %s\t seq %d\t dur %d.%09d\t delta %d.%09d\n",
+	isMin, self->name, i, duration.seconds, duration.nanoseconds,
+	tmpDelta.seconds, tmpDelta.nanoseconds);
+#endif
     }
 
     if(output != NULL) {

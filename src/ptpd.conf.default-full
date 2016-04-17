@@ -335,7 +335,7 @@ ptpengine:sync_stat_filter_window = 5
 ; the sampling window size is used as the interval.
 ptpengine:sync_stat_filter_interval = 0
 
-; Sample window type used for Sync message statistical filter. Delay Response outlier filter action.
+; Sample window type used for Sync message statistical filter.
 ; Sliding window is continuous, interval passes every n-th sample only.
 ; Options: sliding interval 
 ptpengine:sync_stat_filter_window_type = sliding
@@ -691,6 +691,35 @@ clock:sync_rate = 5
 ; 
 clock:failure_delay = 10
 
+; Enable statistical filter for inter-clock sync (HW to system clock, HW to HW
+clock:stat_filter_enable = Y
+
+; Type of filter used for inter-clock sync (HW to system clock, HW to HW)
+; Options: none mean min max absmin absmax median 
+clock:stat_filter_type = median
+
+; Number of samples used for the inter-clock sync statistical filter.
+; When set to 0, clock sync rate is used (clock:sync_rate).
+clock:stat_filter_window = 0
+
+; Sample window type used for inter-clock sync (HW to system clock, HW to HW).
+; Sliding window is continuous, interval passes every n-th sample only.
+; Options: sliding interval 
+clock:stat_filter_window_type = sliding
+
+; Enable outlier filter for inter-clock sync (HW to system clock, HW to HW
+clock:outlier_filter_enable = N
+
+; Number of samples used for the inter-clock sync outlier filter
+clock:outlier_filter_window = 200
+
+; Number of samples after which the inter-clock sync outlier filter is activated
+clock:outlier_filter_delay = 100
+
+; Inter-clock sync outlier filter cutoff threshold: maximum number of MAD
+; (Mean Absolute Deviations) from median to consider the sample an outlier
+clock:outlier_filter_threshold = 5.000000
+
 ; Maximum absolute frequency shift which can be applied to the clock servo
 ; when slewing the clock. Expressed in parts per million (1 ppm = shift of
 ; 1 us per second. Values above 500 will use the tick duration correction
@@ -837,10 +866,6 @@ global:log_status = N
 
 ; Status file update interval in seconds.
 global:status_update_interval = 1
-
-; Specify debug level (if compiled with RUNTIME_DEBUG).
-; Options: LOG_INFO LOG_DEBUG LOG_DEBUG1 LOG_DEBUG2 LOG_DEBUG3 LOG_DEBUGV 
-global:debug_level = LOG_INFO
 
 ; Specify log file path (event log). Setting this enables logging to file.
 global:log_file = 

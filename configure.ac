@@ -708,6 +708,25 @@ case "$enable_daemon" in
 esac
 AC_SUBST(PTP_DAEMON)
 
+AC_MSG_CHECKING([for clock sync profiling output])
+AC_ARG_ENABLE(
+    [clock-sync-profiling],
+    [AS_HELP_STRING(
+	[--enable-clock-sync-profiling (disabled by default)],
+	[Enable inter-clock sync profiling log output]
+    )],
+    [],
+    [enable_clock_sync_profiling=no]
+)
+
+AC_MSG_RESULT([$enable_clock_sync_profiling])
+case "$enable_clock_sync_profiling" in
+ yes)
+    PTP_PROFILING_OUTPUT="-DPTPD_CLOCK_SYNC_PROFILING"
+    ;;
+esac
+AC_SUBST(PTP_PROFILING_OUTPUT)
+
 AC_MSG_CHECKING([for experimental options])
 AC_ARG_ENABLE(
     [experimental-options],
