@@ -2060,7 +2060,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:outlier_filter_enable",
 		PTPD_RESTART_NONE, &rtOpts->clockOutlierFilterEnable, rtOpts->clockOutlierFilterEnable,
-		 "Enable outlier filter for inter-clock sync (HW to system clock, HW to HW");
+		 "Enable outlier filter for inter-clock sync (HW to system clock, HW to HW)");
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:outlier_filter_window",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->clockOutlierFilterWindowSize, rtOpts->clockOutlierFilterWindowSize,
