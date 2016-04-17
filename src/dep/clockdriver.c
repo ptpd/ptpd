@@ -937,7 +937,7 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		}
 
 		if(driver->config.outlierFilter && feedDoubleMovingStatFilter(driver->_madFilter, dOffset)
-		    && (driver->_madFilter->meanContainer->count > driver->config.madDelay)) {
+		    && (driver->_madFilter->meanContainer->count >= driver->config.madDelay)) {
 			double dev = fabs(dOffset - driver->_madFilter->output);
 			double madd = dev / driver->_madFilter->output;
 			if(madd > driver->config.madMax) {
@@ -1270,6 +1270,10 @@ static void
     madOpts.filterType = FILTER_MAD;
     madOpts.windowSize = config->madWindowSize;
     madOpts.windowType = WINDOW_SLIDING;
+
+    if(config->madDelay > config->madWindowSize) {
+	config->madDelay = config->madWindowSize;
+    }
 
     driver->_filter = createDoubleMovingStatFilter(&opts, driver->name);
     driver->_madFilter = createDoubleMovingStatFilter(&madOpts, driver->name);
