@@ -996,8 +996,6 @@ syncClock(ClockDriver* driver, double tau) {
 	    return FALSE;
 	}
 
-	driver->refOffset = delta;
-
 	return disciplineClock(driver, delta, tau);
 
 }
