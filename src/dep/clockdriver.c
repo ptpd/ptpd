@@ -831,6 +831,7 @@ touchClock(ClockDriver *driver) {
 static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double tau) {
 
     double dOffset = timeInternalToDouble(&offset);
+    TimeInternal lastOffset = driver->refOffset;
 
     if(driver->config.disabled) {
 	return FALSE;
@@ -946,7 +947,8 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 #else
 			    DBG(THIS_COMPONENT"prof Clock %s +outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
 #endif
-			    return TRUE;
+			    driver->refOffset = lastOffset;
+			    return FALSE;
 			} else {
 #ifdef PTPD_CLOCK_SYNC_PROFILING
 			    INFO(THIS_COMPONENT"prof Clock %s -outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
@@ -959,6 +961,7 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 
 		if(driver->config.statFilter) {
 		    if(!feedDoubleMovingStatFilter(driver->_filter, dOffset)) {
+			driver->refOffset = lastOffset;
 			return FALSE;
 		    }
 		    offset = doubleToTimeInternal(driver->_filter->output);
