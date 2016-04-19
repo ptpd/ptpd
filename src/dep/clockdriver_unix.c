@@ -101,8 +101,6 @@ clockdriver_shutdown(ClockDriver *self) {
     return 1;
 }
 
-
-
 static Boolean
 getTime (ClockDriver *self, TimeInternal *time) {
 

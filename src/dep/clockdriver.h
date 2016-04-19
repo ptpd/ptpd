@@ -224,6 +224,7 @@ struct ClockDriver {
     int *_instanceCount;		/* instance counter for the whole clock driver */
     void *_privateData;			/* implementation-specific data */
     void *_privateConfig;		/* implementation-specific config */
+    void *_extData;			/* implementation-specific external / extra data */
 
     /* END "private" fields */
 

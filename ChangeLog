@@ -93,7 +93,8 @@
 	- PTP MIB enhanced with string values, counter support,
 	  clearing counters and more, added some missing items
 	  from previously supported items
-	- SNMP trap support for common alarm conditions
+	- Alarm subsystem, many events implemented
+	- Alarm handlers: SNMP traps and log
 	- enhanced management message support: enable/disable port,
 	  some missing values, PTPd now properly applies
 	  configuration when receiving SET messages
