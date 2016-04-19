@@ -831,15 +831,19 @@ touchClock(ClockDriver *driver) {
 static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double tau) {
 
     double dOffset = timeInternalToDouble(&offset);
+    char buf[100];
     TimeInternal lastOffset = driver->refOffset;
+    TimeInternal offsetCorrection = { 0, driver->config.offsetCorrection };
 
     if(driver->config.disabled) {
 	return FALSE;
     }
 
+    driver->rawOffset = offset;
     driver->refOffset = offset;
 
-    char buf[100];
+    subTime(&driver->refOffset, &driver->refOffset, &offsetCorrection);
+
     memset(buf, 0, sizeof(buf));
     snprint_TimeInternal(buf, sizeof(buf), &driver->refOffset);
 
@@ -1163,6 +1167,52 @@ getClockDriverByName(const char * search) {
 	return NULL;
 
 }
+
+void
+compareAllClocks() {
+
+    int count = 0;
+    int lineLen = 20 * 50 + 1;
+
+    char lineBuf[lineLen];
+    char timeBuf[100];
+    TimeInternal delta;
+
+    ClockDriver *outer;
+    ClockDriver *inner;
+    ClockDriver *cd;
+
+    memset(lineBuf, 0, lineLen);
+    memset(timeBuf, 0, sizeof(timeBuf));
+
+    LINKED_LIST_FOREACH(cd) {
+	count += snprintf(lineBuf + count, lineLen - count, "\t\t%s", cd->name);
+    }
+
+    INFO("%s\n", lineBuf);
+
+    memset(lineBuf, 0, lineLen);
+    count = 0;
+
+    LINKED_LIST_FOREACH(outer) {
+
+	memset(lineBuf, 0, lineLen);
+	count = 0;
+	count += snprintf(lineBuf + count, lineLen - count, "%s\t", outer->name);
+
+	LINKED_LIST_FOREACH(inner) {
+	    memset(timeBuf, 0, sizeof(timeBuf));
+	    outer->getOffsetFrom(outer, inner, &delta);
+	    snprint_TimeInternal(timeBuf, sizeof(timeBuf), &delta);
+	    count += snprintf(lineBuf + count, lineLen - count, "%s\t", timeBuf);
+	}
+
+	INFO("%s\n", lineBuf);
+
+    }
+
+}
+
 
 static Boolean
 pushConfig(ClockDriver *driver, RunTimeOpts *global)

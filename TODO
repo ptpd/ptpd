@@ -75,3 +75,8 @@
 - reconsider NTP integration? Shm with zero offsets? Forget about mode6 / mode7. Too much work.
 
 - JSON interface for configuration?
+
+- tracking the frequency of extra clocks
+- clock groups, one syncs to another. Group 1: system clock, PTP NIC, group 2: system clock, extra NICs. 
+- audit log: MTIE for each clock, configurable interval
+

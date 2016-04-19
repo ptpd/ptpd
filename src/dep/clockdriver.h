@@ -128,6 +128,7 @@ typedef struct {
     int stepType;			/* Clock reaction to a 1 second+ step */
     int stepTimeout;			/* Panic mode / suspend period when step detected */
     int failureDelay;			/* Clock fault recovery countdown timer */
+    int32_t offsetCorrection;		/* Offset correction / calibration value */
     uint32_t stepExitThreshold;		/* Offset from reference when we can exit panic mode early */
 } ClockDriverConfig;
 
@@ -186,7 +187,8 @@ struct ClockDriver {
     int refClass;			/* reference class - internal, external, PTP, etc. */
     ClockDriver *refClock;		/* reference clock object */
 
-    TimeInternal refOffset;		/* clock's last known offset from reference */
+    TimeInternal refOffset;		/* clock's last known (filtered, accepted) offset from reference */
+    TimeInternal rawOffset;		/* clock's last known raw offset from reference */
 
     double totalAdev;			/* Allan deviation from the driver's init time */
     double adev;			/* running Allan deviation, periodically updated */
@@ -308,6 +310,7 @@ const char*	getClockStateShortName(ClockState);
 const char*	getClockDriverName(int);
 int		getClockDriverType(const char*);
 Boolean		parseClockDriverSpec(const char*, ClockDriverSpec *);
+void		compareAllClocks();
 
 #include "clockdriver_unix.h"
 #include "clockdriver_linuxphc.h"

@@ -506,6 +506,10 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			ptpClock->oFilterMS.display(&ptpClock->oFilterMS);
 		}
 		sigusr2_received = 0;
+
+		INFO("Inter-clock offset table:\n");
+		compareAllClocks();
+
 	}
 
 }
