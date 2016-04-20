@@ -49,5 +49,5 @@ if (is.na(output))
   
 cat("Data file: ", basename(file), "\n")
 logA = ntpLoopRead(file)
-ntpGraph(logA$offset, output=output)
-ntpLoopStats(logA)
+ntpGraph(logA$data, output=output)
+ntpStats(logA)
