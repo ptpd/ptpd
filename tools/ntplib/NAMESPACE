@@ -3,5 +3,5 @@
 export(ntpGraph)
 export(ntpHistogram)
 export(ntpLoopRead)
-export(ntpLoopStats)
+export(ntpStats)
 export(ntpPeerRead)
