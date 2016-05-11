@@ -7,6 +7,8 @@
 CODEFILE="../../ptp_tlv_${TLVGROUPNAME}.c"
 HEADERFILE="../../ptp_tlv_${TLVGROUPNAME}.h"
 
+BASECODEFILE=`basename $CODEFILE`
+BASEHEADERFILE=`basename $HEADERFILE`
 TLVGROUP="${TLVGROUPNAME}Tlv"
 TLVGROUPDEFNAME=`echo $TLVGROUPNAME | awk '{ print toupper($0);}'`
 TLVTYPEPREFIX=`echo $TLVGROUP | awk 'BEGIN {OFS="";} { print toupper(substr($0,1,1)),substr($0,2); }'`
@@ -271,7 +273,7 @@ done
 #suffix
 read -r -d '' code <<EOF
 	default:
-	    PTPDEBUG("${CODEFILE}:unpackPtp${TLVTYPEPREFIX}Data(): Unsupported TLV type %04x\n",
+	    PTPDEBUG("${BASECODEFILE}:unpackPtp${TLVTYPEPREFIX}Data(): Unsupported TLV type %04x\n",
 		tlv->tlvType);
 	    ret = PTP_MESSAGE_UNSUPPORTED_TLV;
 	    break;
@@ -299,7 +301,7 @@ read -r -d '' code <<EOF
 
 EOF
 
-echo "$code" >> $CODEFILE
+echo -e "\t$code" >> $CODEFILE
 
 # ********* packing wrapper
 
@@ -346,7 +348,7 @@ done
 read -r -d '' code <<EOF
 	default:
 	    ret = PTP_MESSAGE_UNSUPPORTED_TLV;
-	    PTPDEBUG("${CODEFILE}:packPtp${TLVTYPEPREFIX}Data(): Unsupported TLV type %04x\n",
+	    PTPDEBUG("${BASECODEFILE}:packPtp${TLVTYPEPREFIX}Data(): Unsupported TLV type %04x\n",
 		tlv->tlvType);
 	    break;
     }
@@ -379,7 +381,7 @@ read -r -d '' code <<EOF
 }
 EOF
 
-echo "$code" >> $CODEFILE
+echo -e "\t$code" >> $CODEFILE
 
 # ************* display wrapper
 
@@ -417,7 +419,7 @@ done
 # suffix
 read -r -d '' code <<EOF
 	default:
-	    PTPINFO("${CODEFILE}:displayPtp${TLVTYPEPREFIX}Data(): Unsupported TLV type %04x\n",
+	    PTPINFO("${BASECODEFILE}:displayPtp${TLVTYPEPREFIX}Data(): Unsupported TLV type %04x\n",
 		tlv->tlvType);
 	    break;
     }
@@ -426,7 +428,7 @@ read -r -d '' code <<EOF
 
 EOF
 
-echo "$code" >> $CODEFILE
+echo -e "\t$code" >> $CODEFILE
 
 
 #************** free wrapper
@@ -466,7 +468,7 @@ done
 # suffix
 read -r -d '' code <<EOF
 	default:
-	    PTPDEBUG("${CODEFILE}:freePtp${TLVTYPEPREFIX}Data(): Unsupported TLV type %04x\n",
+	    PTPDEBUG("${BASECODEFILE}:freePtp${TLVTYPEPREFIX}Data(): Unsupported TLV type %04x\n",
 		tlv->tlvType);
 	    break;
 
@@ -476,7 +478,7 @@ read -r -d '' code <<EOF
 
 EOF
 
-echo "$code" >> $CODEFILE
+echo -e "\t$code" >> $CODEFILE
 
 {
 

@@ -1,5 +1,5 @@
 /* DO NOT REMOVE THE NEXT LINE - used for code generation*/
-/* @tlvtype@PTP_TLVTYPE_MANAGEMENT_ERROR_STATUS@0x0002@ */
+/* @tlvtype@MANAGEMENT_ERROR_STATUS@0x0002@ */
 
 /* Spec Table 71 - MANAGEMENT_ERROR_STATUS TLV data field */
 

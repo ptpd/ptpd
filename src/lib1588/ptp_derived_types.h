@@ -32,6 +32,13 @@
 
 #include <stdio.h>
 
+/* known derived type lenths */
+#define PTP_TYPELEN_TIMEINTERVAL		8
+#define PTP_TYPELEN_TIMESTAMP			10
+#define PTP_TYPELEN_CLOCKIDENTITY		8
+#define PTP_TYPELEN_PORTIDENTITY		10
+#define PTP_TYPELEN_CLOCKQUALITY		4
+
 typedef struct {
     PtpUInteger32 seconds;
     PtpUInteger32 nanoseconds;
@@ -49,7 +56,7 @@ typedef struct  {
 	PtpTimeInternal internalTime;
 } PtpTimestamp;
 
-typedef PtpOctet PtpClockIdentity[8];
+typedef PtpOctet PtpClockIdentity[PTP_TYPELEN_CLOCKIDENTITY];
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
@@ -112,13 +119,6 @@ PtpText createPtpText(const char *text);
 
 void displayPtpTimeInternal(PtpTimeInternal data, const char *name);
 
-/* known derived type lenths */
-
-#define PTP_TYPELEN_TIMEINTERVAL		8
-#define PTP_TYPELEN_TIMESTAMP			10
-#define PTP_TYPELEN_CLOCKIDENTITY		8
-#define PTP_TYPELEN_PORTIDENTITY		10
-#define PTP_TYPELEN_CLOCKQUALITY		4
 
 
 #endif /* PTP_DERIVED_TYPES_H_ */

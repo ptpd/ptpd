@@ -1,0 +1,6 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @tlvtype@AUTHENTICATION@0x2000@unsupported@ */
+
+/* Authentication TLV - unsupported for now */
+
+#undef PROCESS_FIELD

@@ -96,9 +96,10 @@ static void displayPtpTlvAcknowledgeCancelUnicastTransmission(PtpTlvAcknowledgeC
     PTPINFO("\tPtpTlvAcknowledgeCancelUnicastTransmission: \n");
 
     #define PROCESS_FIELD( name, size, type) \
-        display##type (data->name, "\t\t"#name, size);
+        display##type (data->name, "		"#name, size);
     #include "definitions/signalingTlv/acknowledgeCancelUnicastTransmission.def"
 }
+
 static int unpackPtpTlvCancelUnicastTransmission(PtpTlvCancelUnicastTransmission *data, char *buf, char *boundary) {
 
     int offset = 0;
@@ -147,9 +148,10 @@ static void displayPtpTlvCancelUnicastTransmission(PtpTlvCancelUnicastTransmissi
     PTPINFO("\tPtpTlvCancelUnicastTransmission: \n");
 
     #define PROCESS_FIELD( name, size, type) \
-        display##type (data->name, "\t\t"#name, size);
+        display##type (data->name, "		"#name, size);
     #include "definitions/signalingTlv/cancelUnicastTransmission.def"
 }
+
 static int unpackPtpTlvGrantUnicastTransmission(PtpTlvGrantUnicastTransmission *data, char *buf, char *boundary) {
 
     int offset = 0;
@@ -198,9 +200,10 @@ static void displayPtpTlvGrantUnicastTransmission(PtpTlvGrantUnicastTransmission
     PTPINFO("\tPtpTlvGrantUnicastTransmission: \n");
 
     #define PROCESS_FIELD( name, size, type) \
-        display##type (data->name, "\t\t"#name, size);
+        display##type (data->name, "		"#name, size);
     #include "definitions/signalingTlv/grantUnicastTransmission.def"
 }
+
 static int unpackPtpTlvRequestUnicastTransmission(PtpTlvRequestUnicastTransmission *data, char *buf, char *boundary) {
 
     int offset = 0;
@@ -249,41 +252,42 @@ static void displayPtpTlvRequestUnicastTransmission(PtpTlvRequestUnicastTransmis
     PTPINFO("\tPtpTlvRequestUnicastTransmission: \n");
 
     #define PROCESS_FIELD( name, size, type) \
-        display##type (data->name, "\t\t"#name, size);
+        display##type (data->name, "		"#name, size);
     #include "definitions/signalingTlv/requestUnicastTransmission.def"
 }
+
 int unpackPtpSignalingTlvData(PtpTlv *tlv, char* buf, char* boundary) {
 
     int ret = 0;
     int expectedLen = -1;
 
     switch(tlv->tlvType) {
-case PTP_TLVTYPE_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:
 	    #ifdef PTP_TLVLEN_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION
 	    expectedLen = PTP_TLVLEN_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION;
 	    #endif
 	    ret = unpackPtpTlvAcknowledgeCancelUnicastTransmission(&tlv->body.acknowledgeCancelUnicastTransmission, buf, boundary);
 	    break;
-case PTP_TLVTYPE_CANCEL_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_CANCEL_UNICAST_TRANSMISSION:
 	    #ifdef PTP_TLVLEN_CANCEL_UNICAST_TRANSMISSION
 	    expectedLen = PTP_TLVLEN_CANCEL_UNICAST_TRANSMISSION;
 	    #endif
 	    ret = unpackPtpTlvCancelUnicastTransmission(&tlv->body.cancelUnicastTransmission, buf, boundary);
 	    break;
-case PTP_TLVTYPE_GRANT_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_GRANT_UNICAST_TRANSMISSION:
 	    #ifdef PTP_TLVLEN_GRANT_UNICAST_TRANSMISSION
 	    expectedLen = PTP_TLVLEN_GRANT_UNICAST_TRANSMISSION;
 	    #endif
 	    ret = unpackPtpTlvGrantUnicastTransmission(&tlv->body.grantUnicastTransmission, buf, boundary);
 	    break;
-case PTP_TLVTYPE_REQUEST_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_REQUEST_UNICAST_TRANSMISSION:
 	    #ifdef PTP_TLVLEN_REQUEST_UNICAST_TRANSMISSION
 	    expectedLen = PTP_TLVLEN_REQUEST_UNICAST_TRANSMISSION;
 	    #endif
 	    ret = unpackPtpTlvRequestUnicastTransmission(&tlv->body.requestUnicastTransmission, buf, boundary);
 	    break;
-default:
-	    PTPDEBUG("../../ptp_tlv_signaling.c:unpackPtpSignalingTlvData(): Unsupported TLV type %04x\n",
+	default:
+	    PTPDEBUG("ptp_tlv_signaling.c:unpackPtpSignalingTlvData(): Unsupported TLV type %04x\n",
 		tlv->tlvType);
 	    ret = PTP_MESSAGE_UNSUPPORTED_TLV;
 	    break;
@@ -307,39 +311,40 @@ default:
     return ret;
 
 }
+
 int packPtpSignalingTlvData(char *buf, PtpTlv *tlv, char *boundary) {
 
     int ret = 0;
     int expectedLen = -1;
 
     switch(tlv->tlvType) {
-case PTP_TLVTYPE_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:
 	    #ifdef PTP_TLVLEN_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION
 	    expectedLen = PTP_TLVLEN_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION;
 	    #endif
 	    ret = packPtpTlvAcknowledgeCancelUnicastTransmission(buf, &tlv->body.acknowledgeCancelUnicastTransmission, boundary);
 	    break;
-case PTP_TLVTYPE_CANCEL_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_CANCEL_UNICAST_TRANSMISSION:
 	    #ifdef PTP_TLVLEN_CANCEL_UNICAST_TRANSMISSION
 	    expectedLen = PTP_TLVLEN_CANCEL_UNICAST_TRANSMISSION;
 	    #endif
 	    ret = packPtpTlvCancelUnicastTransmission(buf, &tlv->body.cancelUnicastTransmission, boundary);
 	    break;
-case PTP_TLVTYPE_GRANT_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_GRANT_UNICAST_TRANSMISSION:
 	    #ifdef PTP_TLVLEN_GRANT_UNICAST_TRANSMISSION
 	    expectedLen = PTP_TLVLEN_GRANT_UNICAST_TRANSMISSION;
 	    #endif
 	    ret = packPtpTlvGrantUnicastTransmission(buf, &tlv->body.grantUnicastTransmission, boundary);
 	    break;
-case PTP_TLVTYPE_REQUEST_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_REQUEST_UNICAST_TRANSMISSION:
 	    #ifdef PTP_TLVLEN_REQUEST_UNICAST_TRANSMISSION
 	    expectedLen = PTP_TLVLEN_REQUEST_UNICAST_TRANSMISSION;
 	    #endif
 	    ret = packPtpTlvRequestUnicastTransmission(buf, &tlv->body.requestUnicastTransmission, boundary);
 	    break;
-default:
+	default:
 	    ret = PTP_MESSAGE_UNSUPPORTED_TLV;
-	    PTPDEBUG("../../ptp_tlv_signaling.c:packPtpSignalingTlvData(): Unsupported TLV type %04x\n",
+	    PTPDEBUG("ptp_tlv_signaling.c:packPtpSignalingTlvData(): Unsupported TLV type %04x\n",
 		tlv->tlvType);
 	    break;
     }
@@ -370,50 +375,53 @@ default:
     return ret;
 
 }
+
 void displayPtpSignalingTlvData(PtpTlv *tlv) {
 
     switch(tlv->tlvType) {
-case PTP_TLVTYPE_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:
 	    displayPtpTlvAcknowledgeCancelUnicastTransmission(&tlv->body.acknowledgeCancelUnicastTransmission);
 	    break;
-case PTP_TLVTYPE_CANCEL_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_CANCEL_UNICAST_TRANSMISSION:
 	    displayPtpTlvCancelUnicastTransmission(&tlv->body.cancelUnicastTransmission);
 	    break;
-case PTP_TLVTYPE_GRANT_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_GRANT_UNICAST_TRANSMISSION:
 	    displayPtpTlvGrantUnicastTransmission(&tlv->body.grantUnicastTransmission);
 	    break;
-case PTP_TLVTYPE_REQUEST_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_REQUEST_UNICAST_TRANSMISSION:
 	    displayPtpTlvRequestUnicastTransmission(&tlv->body.requestUnicastTransmission);
 	    break;
-default:
-	    PTPINFO("../../ptp_tlv_signaling.c:displayPtpSignalingTlvData(): Unsupported TLV type %04x\n",
+	default:
+	    PTPINFO("ptp_tlv_signaling.c:displayPtpSignalingTlvData(): Unsupported TLV type %04x\n",
 		tlv->tlvType);
 	    break;
     }
 
 }
+
 void freePtpSignalingTlvData(PtpTlv *tlv) {
 
     switch(tlv->tlvType) {
-case PTP_TLVTYPE_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION:
 	    freePtpTlvAcknowledgeCancelUnicastTransmission(&tlv->body.acknowledgeCancelUnicastTransmission);
 	    break;
-case PTP_TLVTYPE_CANCEL_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_CANCEL_UNICAST_TRANSMISSION:
 	    freePtpTlvCancelUnicastTransmission(&tlv->body.cancelUnicastTransmission);
 	    break;
-case PTP_TLVTYPE_GRANT_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_GRANT_UNICAST_TRANSMISSION:
 	    freePtpTlvGrantUnicastTransmission(&tlv->body.grantUnicastTransmission);
 	    break;
-case PTP_TLVTYPE_REQUEST_UNICAST_TRANSMISSION:
+	case PTP_TLVTYPE_REQUEST_UNICAST_TRANSMISSION:
 	    freePtpTlvRequestUnicastTransmission(&tlv->body.requestUnicastTransmission);
 	    break;
-default:
-	    PTPDEBUG("../../ptp_tlv_signaling.c:freePtpSignalingTlvData(): Unsupported TLV type %04x\n",
+	default:
+	    PTPDEBUG("ptp_tlv_signaling.c:freePtpSignalingTlvData(): Unsupported TLV type %04x\n",
 		tlv->tlvType);
 	    break;
 
     }
 
 }
+
 /* end generated code */
 

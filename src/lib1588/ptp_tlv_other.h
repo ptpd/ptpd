@@ -36,8 +36,33 @@
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
+	#include "definitions/otherTlv/alternateTimeOffsetIndicator.def"
+} PtpTlvAlternateTimeOffsetIndicator;
+
+typedef struct {
+	#define PROCESS_FIELD( name, size, type ) type name;
+	#include "definitions/otherTlv/authenticationChallenge.def"
+} PtpTlvAuthenticationChallenge;
+
+typedef struct {
+	#define PROCESS_FIELD( name, size, type ) type name;
+	#include "definitions/otherTlv/authentication.def"
+} PtpTlvAuthentication;
+
+typedef struct {
+	#define PROCESS_FIELD( name, size, type ) type name;
+	#include "definitions/otherTlv/cumFreqScaleFactorOffset.def"
+} PtpTlvCumFreqScaleFactorOffset;
+
+typedef struct {
+	#define PROCESS_FIELD( name, size, type ) type name;
 	#include "definitions/otherTlv/organizationExtension.def"
 } PtpTlvOrganizationExtension;
+
+typedef struct {
+	#define PROCESS_FIELD( name, size, type ) type name;
+	#include "definitions/otherTlv/pathTrace.def"
+} PtpTlvPathTrace;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
@@ -48,6 +73,11 @@ typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
 	#include "definitions/otherTlv/ptpMonResponse.def"
 } PtpTlvPtpMonResponse;
+
+typedef struct {
+	#define PROCESS_FIELD( name, size, type ) type name;
+	#include "definitions/otherTlv/securityAssociationUpdate.def"
+} PtpTlvSecurityAssociationUpdate;
 
 /* end generated code */
 

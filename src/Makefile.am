@@ -20,7 +20,9 @@ NULL=
 #SHAREDLIBVER = $(SHAREDLIB).$(VERSION)
 #	ptp_timers.c			
 
-EXTRA_DIST = def
+EXTRA_DIST = 			\
+	def			\
+	lib1588/definitions
 
 ptpd_SOURCES =				\
 	arith.c				\

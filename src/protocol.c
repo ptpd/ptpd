@@ -1278,6 +1278,13 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 	displayPtpMessage(&m);
     }
 
+    if(m.header.messageType == PTP_MSGTYPE_SIGNALING) {
+	printf("==== Done unpacking. Message:\n");
+	displayPtpOctetBuf(ptpClock->msgIbuf, "ibuf", length);
+	displayPtpMessage(&m);
+    }
+
+
     printf("**** END lib1588 unpack test\n");
 
     freePtpMessage(&m);

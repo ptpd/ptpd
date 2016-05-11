@@ -1,0 +1,6 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @tlvtype@SECURITY_ASSOCIATION_UPDATE@0x2003@unsupported@ */
+
+/* Security association update TLV - unsupported for now */
+
+#undef PROCESS_FIELD

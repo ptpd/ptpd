@@ -1,5 +1,5 @@
 /* DO NOT REMOVE THE NEXT LINE - used for code generation*/
-/* @tlvtype@PTP_TLVTYPE_MANAGEMENT0x0001@ */
+/* @tlvtype@MANAGEMENT@0x0001@ */
 
 /* Spec Table 39 - Management TLV fields */
 

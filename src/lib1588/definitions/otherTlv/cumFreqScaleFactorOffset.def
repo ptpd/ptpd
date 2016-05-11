@@ -1,0 +1,6 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @tlvtype@CUM_FREQ_SCALE_FACTOR_OFFSET@0x2003@unsupported@ */
+
+/* Cumulative frequency scale factor offset TLV - unsupported for now */
+
+#undef PROCESS_FIELD

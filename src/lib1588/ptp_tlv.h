@@ -78,18 +78,24 @@ enum {
 
 /* Bodybag, bodybag, what's in that bodybag... [1] */
 typedef union {
-    PtpTlvRequestUnicastTransmission requestUnicastTransmission;
-    PtpTlvGrantUnicastTransmission grantUnicastTransmission;
-    PtpTlvCancelUnicastTransmission cancelUnicastTransmission;
-    PtpTlvAcknowledgeCancelUnicastTransmission acknowledgeCancelUnicastTransmission;
+    PtpTlvRequestUnicastTransmission		requestUnicastTransmission;
+    PtpTlvGrantUnicastTransmission		grantUnicastTransmission;
+    PtpTlvCancelUnicastTransmission		cancelUnicastTransmission;
+    PtpTlvAcknowledgeCancelUnicastTransmission	acknowledgeCancelUnicastTransmission;
 
-    PtpTlvPtpMonRequest ptpMonRequest;
-    PtpTlvPtpMonResponse ptpMonResponse;
+    PtpTlvPtpMonRequest				ptpMonRequest;
+    PtpTlvPtpMonResponse			ptpMonResponse;
 
-    PtpTlvManagement management;
-    PtpTlvManagementErrorStatus managementErrorStatus;
+    PtpTlvManagement				management;
+    PtpTlvManagementErrorStatus			managementErrorStatus;
 
-    PtpTlvOrganizationExtension organizationExtension;
+    PtpTlvOrganizationExtension			organizationExtension;
+    PtpTlvAlternateTimeOffsetIndicator		alternateTimeOffsetIndicator;
+    PtpTlvAuthentication			authentication;
+    PtpTlvAuthenticationChallenge		authenticationChallenge;
+    PtpTlvCumFreqScaleFactorOffset		cumFreqScaleFactorOffset;
+    PtpTlvPathTrace				pathTrace;
+    PtpTlvSecurityAssociationUpdate		securityAssociationUpdate;
 } PtpTlvBody;
 
 /* The TLV itself */
