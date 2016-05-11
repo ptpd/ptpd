@@ -1,0 +1,7 @@
+/* Spec Table 27 - Follow Up message fields */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+
+PROCESS_FIELD( preciseOriginTimestamp, PTP_TYPELEN_TIMESTAMP, PtpTimestamp );
+
+#undef PROCESS_FIELD

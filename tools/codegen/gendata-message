@@ -1,0 +1,44 @@
+int unpack%type%(%type% *data, char *buf, char *boundary) {
+
+    int offset = 0;
+    #define PROCESS_FIELD( name, size, type) \
+	if((buf + offset + size) > boundary) { \
+	    return offset; \
+	} \
+        unpack##type (&data->name, buf + offset, size); \
+	offset += size;
+    #include "definitions/%file%.def"
+
+    return offset;
+}
+
+int pack%type%(char *buf, %type% *data, char *boundary) {
+
+    int offset = 0;
+
+    #define PROCESS_FIELD( name, size, type) \
+	if((buf + offset + size) > boundary) { \
+	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
+	} \
+        pack##type (buf + offset, &data->name, size); \
+	offset += size;
+    #include "definitions/%file%.def"
+    return offset;
+}
+
+void free%type%(%type% *data) {
+
+    #define PROCESS_FIELD( name, size, type) \
+        free##type (&data->name); \
+    #include "definitions/%file%.def"
+
+}
+
+void display%type%(%type% *data) {
+
+    PTPINFO("%type%: \n");
+
+    #define PROCESS_FIELD( name, size, type) \
+        display##type (data->name, "\t"#name, size);
+    #include "definitions/%file%.def"
+}

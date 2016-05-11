@@ -1,0 +1,11 @@
+/* Spec 5.3.10 FaultRecord */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( faultRecordLength, 2, PtpUInteger16)
+PROCESS_FIELD( faultTime, PTP_TYPELEN_TIMESTAMP, PtpTimestamp)
+PROCESS_FIELD( severityCode, 1, PtpEnumeration8)
+PROCESS_FIELD( faultName, 1 + data->faultName.lengthField, PtpText)
+PROCESS_FIELD( faultValue, 1 + data->faultValue.lengthField, PtpText)
+PROCESS_FIELD( faultDescription, 1 + data->faultDescription.lengthField, PtpText)
+
+#undef PROCESS_FIELD

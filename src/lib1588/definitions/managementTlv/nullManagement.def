@@ -1,0 +1,6 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_NULL_MANAGEMENT@0x0000@ */
+
+/* HTTP 666: nothing to see here (spec 15.5.3.1.1) */
+
+#undef PROCESS_FIELD

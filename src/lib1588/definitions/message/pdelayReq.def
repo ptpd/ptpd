@@ -1,0 +1,8 @@
+/* Spec Table 29 - Peer Delay Request message fields */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+
+PROCESS_FIELD( originTimestamp, PTP_TYPELEN_TIMESTAMP, PtpTimestamp );
+PROCESS_FIELD( reserved, 10, PtpOctet );
+
+#undef PROCESS_FIELD

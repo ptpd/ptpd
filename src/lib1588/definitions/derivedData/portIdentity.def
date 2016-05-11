@@ -1,0 +1,7 @@
+/* Spec 5.3.5 PortIdentity */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( clockIdentity, PTP_TYPELEN_CLOCKIDENTITY, PtpClockIdentity)
+PROCESS_FIELD( portNumber, 2, PtpUInteger16)
+
+#undef PROCESS_FIELD

@@ -1,0 +1,9 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_TIME@0x200F@ */
+
+/* Spec Table 48 - TIME management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( currentTime, PTP_TYPELEN_TIMESTAMP, PtpTimestamp)
+
+#undef PROCESS_FIELD

@@ -1,0 +1,10 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_ANNOUNCE_RECEIPT_TIMEOUT@0x200A@ */
+
+/* Spec Table 63 - ANNOUNCE_RECEIPT_TIMEOUT management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( announceReceiptTimeout, 1, PtpUInteger8)
+PROCESS_FIELD( reserved, 1, PtpOctet)
+
+#undef PROCESS_FIELD

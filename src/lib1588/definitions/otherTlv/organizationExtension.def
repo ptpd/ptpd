@@ -1,0 +1,11 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @tlvtype@ORGANIZATION_EXTENSION@0x0003@ */
+
+/* Spec table 35 */
+
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( organizationId, 3, PtpDynamicOctetBuf)
+PROCESS_FIELD( organizationSubType, 3, PtpDynamicOctetBuf)
+/* PROCESS_FIELD( dataField, tlv->lengthField - 6, PtpDynamicOctetBuf ) */
+#undef PROCESS_FIELD

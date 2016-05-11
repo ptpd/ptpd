@@ -1,0 +1,6 @@
+/* Spec Table 33 - Signaling message fields */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( targetPortIdentity, PTP_TYPELEN_PORTIDENTITY, PtpPortIdentity)
+
+#undef PROCESS_FIELD

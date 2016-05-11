@@ -1,0 +1,14 @@
+/* Spec Table 25 - Announce message fields */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( originTimestamp,		10,	PtpTimestamp )
+PROCESS_FIELD( currentUtcOffset,		2,	PtpUInteger16 )
+PROCESS_FIELD( reserved,			1,	PtpOctet )
+PROCESS_FIELD( grandmasterPriority1,		1,	PtpUInteger8 )
+PROCESS_FIELD( grandmasterClockQuality,	4,	PtpClockQuality )
+PROCESS_FIELD( grandmasterPriority2,		1,	PtpUInteger8 )
+PROCESS_FIELD( grandmasterIdentity,		8,	PtpClockIdentity )
+PROCESS_FIELD( stepsRemoved,			2,	PtpUInteger16 )
+PROCESS_FIELD( timeSource,			1,	PtpEnumeration8 )
+
+#undef PROCESS_FIELD

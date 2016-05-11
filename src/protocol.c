@@ -53,6 +53,8 @@
 
 #include "ptpd.h"
 
+
+
 Boolean doInit(RunTimeOpts*,PtpClock*);
 static void doState(RunTimeOpts*,PtpClock*);
 
@@ -1255,6 +1257,32 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 	ptpClock->counters.messageFormatErrors++;
 	return;
     }
+
+
+#ifdef PTPD_EXPERIMENTAL
+#include "lib1588/ptp_message.h"
+    /* lib1588 testing */
+
+    PtpMessage m;
+    memset(&m, 0, sizeof(PtpMessage));
+
+    printf("**** BEGIN lib1588 unpack test\n");
+
+
+    printf("==== Unpacking received data using lib1588\n");
+    int bob = unpackPtpMessage(&m, ptpClock->msgIbuf, ptpClock->msgIbuf + length);
+    printf("==== RETURNED: %d\n", bob);
+    if(m.header.messageType == PTP_MSGTYPE_MANAGEMENT) {
+	printf("==== Done unpacking. Message:\n");
+	displayPtpOctetBuf(ptpClock->msgIbuf, "ibuf", length);
+	displayPtpMessage(&m);
+    }
+
+    printf("**** END lib1588 unpack test\n");
+
+    freePtpMessage(&m);
+
+#endif /* PTPD_EXPERIMENTAL */
 
     msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
 

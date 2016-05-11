@@ -1,0 +1,7 @@
+/* Spec 5.3.3 Timestamp */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( secondsField, 6, PtpUInteger48)
+PROCESS_FIELD( nanosecondsField, 4, PtpUInteger32)
+
+#undef PROCESS_FIELD

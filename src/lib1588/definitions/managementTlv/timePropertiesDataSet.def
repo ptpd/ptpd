@@ -1,0 +1,11 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_TIME_PROPERTIES_DATA_SET@0x2003@ */
+
+/* Spec Table 57 - TIME_PROPERTIES_DATA_SET management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( currentUtcOffset, 2, PtpInteger16)
+PROCESS_FIELD( ftra_ttra_ptp_utcv_li59_li61, 1, PtpOctet)
+PROCESS_FIELD( timeSource, 1, PtpEnumeration8)
+
+#undef PROCESS_FIELD

@@ -78,6 +78,20 @@ ptpd_SOURCES =				\
 	globalconfig.h			\
 	dep/piservo.h			\
 	dep/piservo.c			\
+	lib1588/ptp_primitives.h	\
+	lib1588/ptp_primitives.c	\
+	lib1588/ptp_derived_types.h	\
+	lib1588/ptp_derived_types.c	\
+	lib1588/ptp_tlv_signaling.h	\
+	lib1588/ptp_tlv_signaling.c	\
+	lib1588/ptp_tlv_management.h	\
+	lib1588/ptp_tlv_management.c	\
+	lib1588/ptp_tlv_other.h	\
+	lib1588/ptp_tlv_other.c	\
+	lib1588/ptp_tlv.h		\
+	lib1588/ptp_tlv.c		\
+	lib1588/ptp_message.h		\
+	lib1588/ptp_message.c		\
 	ptpd.c				\
 	ptpd.h				\
 	$(NULL)

@@ -1,0 +1,11 @@
+/* Spec Table 37 - Management message fields */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( targetPortIdentity, PTP_TYPELEN_PORTIDENTITY, PtpPortIdentity)
+PROCESS_FIELD( startingBoundaryHops, 1, PtpUInteger8)
+PROCESS_FIELD( boundaryHops, 1, PtpUInteger8)
+PROCESS_FIELD( reserved0, 0, PtpNibbleUpper)
+PROCESS_FIELD( actionField, 1, PtpEnumeration4Lower)
+PROCESS_FIELD( reserved1, 1, PtpOctet)
+
+#undef PROCESS_FIELD

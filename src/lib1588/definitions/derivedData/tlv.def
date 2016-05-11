@@ -1,0 +1,7 @@
+/* Spec 5.3.8 TLV */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( tlvType, 2, PtpEnumeration16)
+PROCESS_FIELD( lengthField, 2, PtpUInteger16)
+PROCESS_FIELD( valueField, data->lengthField, PtpDynamicOctetBuf)
+#undef PROCESS_FIELD

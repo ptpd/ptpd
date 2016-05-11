@@ -1,0 +1,15 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @tlvtype@GRANT_UNICAST_TRANSMISSION@0x0005@ */
+
+/* Spec Table 73 - REQUEST_UNICAST_TRANSMISSION signaling TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+
+PROCESS_FIELD( messageType, 0, PtpEnumeration4Upper)
+PROCESS_FIELD( reserved0, 1, PtpUInteger4Lower)
+PROCESS_FIELD( logInterMessagePeriod, 1, PtpInteger8)
+PROCESS_FIELD( durationField, 4, PtpUInteger32)
+PROCESS_FIELD( reserved1, 1, PtpOctet )
+PROCESS_FIELD( renewalInvited,1, PtpUInteger8)
+
+#undef PROCESS_FIELD

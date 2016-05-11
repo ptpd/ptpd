@@ -1,0 +1,26 @@
+function doit() {
+
+    cat gendata-message | sed "s/%type%/$1/g" | sed "s/%file%/$2/g"
+
+}
+
+doit PtpSyncMessage message\\/sync
+doit PtpFollowUpMessage message\\/followUp
+doit PtpDelayReqMessage message\\/delayReq
+doit PtpDelayRespMessage message\\/delayResp
+doit PtpPdelayReqMessage message\\/pdelayReq
+doit PtpPdelayRespMessage message\\/pdelayResp
+doit PtpPdelayRespFollowUpMessage message\\/pdelayRespFollowUp
+doit PtpAnnounceMessage message\\/announce
+doit PtpManagementMessage message\\/management
+doit PtpSignalingMessage message\\/signaling
+
+echo
+echo "* ==================== *\\/"
+echo
+
+doit PtpTlvAcknowledgeCancelUnicastTransmission signalingTLV\\/acknowledgeCancelUnicastTransmission
+doit PtpTlvCancelUnicastTransmission signalingTLV\\/cancelUnicastTransmission
+doit PtpTlvGrantUnicastTransmission signalingTLV\\/grantUnicastTransmission
+doit PtpTlvRequestUnicastTransmission signalingTLV\\/requestUnicastTransmission
+

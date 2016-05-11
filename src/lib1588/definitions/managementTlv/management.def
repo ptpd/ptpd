@@ -1,0 +1,10 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @tlvtype@PTP_TLVTYPE_MANAGEMENT0x0001@ */
+
+/* Spec Table 39 - Management TLV fields */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( managementId, 2, PtpEnumeration16)
+PROCESS_FIELD( dataField, data->lengthField - PTP_MTLV_DATAFIELD_OFFSET, PtpDynamicOctetBuf)
+
+#undef PROCESS_FIELD

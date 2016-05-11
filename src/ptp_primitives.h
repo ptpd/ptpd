@@ -1,7 +1,7 @@
 #ifndef PTP_PRIMITIVES_H_
 #define PTP_PRIMITIVES_H_
 
-typedef enum {FALSE=0, TRUE} Boolean;
+typedef enum {FALSE=0, TRUE=1} Boolean;
 typedef char Octet;
 typedef int8_t Integer8;
 typedef int16_t Integer16;

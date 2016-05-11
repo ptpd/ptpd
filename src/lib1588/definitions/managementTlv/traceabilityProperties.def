@@ -1,0 +1,10 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_TRACEABILITY_PROPERTIES@0x2012@ */
+
+/* Spec Table 59 - TRACEABILITY_PROPERTIES management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( ftra_ttra, 1, PtpOctet)
+PROCESS_FIELD( reserved, 1, PtpOctet)
+
+#undef PROCESS_FIELD

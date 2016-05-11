@@ -1,0 +1,11 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_USER_DESCRIPTION@0x0002@ */
+
+/* Spec Table 43 - USER_DESCRIPTION management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( userDescription,
+	1 + data->userDescription.lengthField,
+	PtpText)
+
+#undef PROCESS_FIELD

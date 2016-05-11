@@ -1,0 +1,17 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_DEFAULT_DATA_SET@0x2000@ */
+
+/* Spec Table 50 - DEFAULT_DATA_SET management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( so_tsc, 1, PtpOctet)
+PROCESS_FIELD( reserved0, 1, PtpOctet)
+PROCESS_FIELD( numberPorts, 2, PtpUInteger16)
+PROCESS_FIELD( priority1, 1, PtpUInteger8)
+PROCESS_FIELD( clockQuality, PTP_TYPELEN_CLOCKQUALITY, PtpClockQuality)
+PROCESS_FIELD( priority2, 1, PtpUInteger8)
+PROCESS_FIELD( clockIdentity, PTP_TYPELEN_CLOCKIDENTITY, PtpClockIdentity)
+PROCESS_FIELD( domainNumber, 1, PtpUInteger8)
+PROCESS_FIELD( reserved1, 1, PtpOctet)
+
+#undef PROCESS_FIELD

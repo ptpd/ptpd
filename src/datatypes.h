@@ -317,11 +317,6 @@ typedef struct {
 
 	Boolean	offsetFirstUpdated;
 
-	uint32_t init_timestamp;                        /* When the clock was last initialised */
-	Integer32 stabilisation_time;                   /* How long (seconds) it took to stabilise the clock */
-	double last_saved_drift;                     /* Last observed drift value written to file */
-	Boolean drift_saved;                            /* Did we save a drift value already? */
-
 	/* user description is max size + 1 to leave space for a null terminator */
 	Octet userDescription[USER_DESCRIPTION_MAX + 1];
 	Octet profileIdentity[6];
