@@ -47,6 +47,8 @@ PTP_TYPE_FUNCDEFS(PtpTlvAuthentication)
 PTP_TYPE_FUNCDEFS(PtpTlvCumFreqScaleFactorOffset)
 PTP_TYPE_FUNCDEFS(PtpTlvOrganizationExtension)
 PTP_TYPE_FUNCDEFS(PtpTlvPathTrace)
+PTP_TYPE_FUNCDEFS(PtpTlvPtpMonMtieRequest)
+PTP_TYPE_FUNCDEFS(PtpTlvPtpMonMtieResponse)
 PTP_TYPE_FUNCDEFS(PtpTlvPtpMonRequest)
 PTP_TYPE_FUNCDEFS(PtpTlvPtpMonResponse)
 PTP_TYPE_FUNCDEFS(PtpTlvSecurityAssociationUpdate)
@@ -56,13 +58,9 @@ PTP_TYPE_FUNCDEFS(PtpTlvSecurityAssociationUpdate)
 static int unpackPtpTlvAlternateTimeOffsetIndicator(PtpTlvAlternateTimeOffsetIndicator *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/otherTlv/alternateTimeOffsetIndicator.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -71,20 +69,10 @@ static int packPtpTlvAlternateTimeOffsetIndicator(char *buf, PtpTlvAlternateTime
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/otherTlv/alternateTimeOffsetIndicator.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -93,7 +81,7 @@ static void freePtpTlvAlternateTimeOffsetIndicator(PtpTlvAlternateTimeOffsetIndi
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/otherTlv/alternateTimeOffsetIndicator.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvAlternateTimeOffsetIndicator(PtpTlvAlternateTimeOffsetIndicator *data) {
@@ -103,18 +91,15 @@ static void displayPtpTlvAlternateTimeOffsetIndicator(PtpTlvAlternateTimeOffsetI
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/otherTlv/alternateTimeOffsetIndicator.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvAuthenticationChallenge(PtpTlvAuthenticationChallenge *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/otherTlv/authenticationChallenge.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -123,20 +108,10 @@ static int packPtpTlvAuthenticationChallenge(char *buf, PtpTlvAuthenticationChal
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/otherTlv/authenticationChallenge.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -145,7 +120,7 @@ static void freePtpTlvAuthenticationChallenge(PtpTlvAuthenticationChallenge *dat
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/otherTlv/authenticationChallenge.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvAuthenticationChallenge(PtpTlvAuthenticationChallenge *data) {
@@ -155,18 +130,15 @@ static void displayPtpTlvAuthenticationChallenge(PtpTlvAuthenticationChallenge *
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/otherTlv/authenticationChallenge.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvAuthentication(PtpTlvAuthentication *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/otherTlv/authentication.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -175,20 +147,10 @@ static int packPtpTlvAuthentication(char *buf, PtpTlvAuthentication *data, char 
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/otherTlv/authentication.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -197,7 +159,7 @@ static void freePtpTlvAuthentication(PtpTlvAuthentication *data) {
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/otherTlv/authentication.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvAuthentication(PtpTlvAuthentication *data) {
@@ -207,18 +169,15 @@ static void displayPtpTlvAuthentication(PtpTlvAuthentication *data) {
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/otherTlv/authentication.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvCumFreqScaleFactorOffset(PtpTlvCumFreqScaleFactorOffset *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/otherTlv/cumFreqScaleFactorOffset.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -227,20 +186,10 @@ static int packPtpTlvCumFreqScaleFactorOffset(char *buf, PtpTlvCumFreqScaleFacto
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/otherTlv/cumFreqScaleFactorOffset.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -249,7 +198,7 @@ static void freePtpTlvCumFreqScaleFactorOffset(PtpTlvCumFreqScaleFactorOffset *d
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/otherTlv/cumFreqScaleFactorOffset.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvCumFreqScaleFactorOffset(PtpTlvCumFreqScaleFactorOffset *data) {
@@ -259,18 +208,15 @@ static void displayPtpTlvCumFreqScaleFactorOffset(PtpTlvCumFreqScaleFactorOffset
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/otherTlv/cumFreqScaleFactorOffset.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvOrganizationExtension(PtpTlvOrganizationExtension *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/otherTlv/organizationExtension.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -279,20 +225,10 @@ static int packPtpTlvOrganizationExtension(char *buf, PtpTlvOrganizationExtensio
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/otherTlv/organizationExtension.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -301,7 +237,7 @@ static void freePtpTlvOrganizationExtension(PtpTlvOrganizationExtension *data) {
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/otherTlv/organizationExtension.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvOrganizationExtension(PtpTlvOrganizationExtension *data) {
@@ -311,18 +247,15 @@ static void displayPtpTlvOrganizationExtension(PtpTlvOrganizationExtension *data
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/otherTlv/organizationExtension.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvPathTrace(PtpTlvPathTrace *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/otherTlv/pathTrace.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -331,20 +264,10 @@ static int packPtpTlvPathTrace(char *buf, PtpTlvPathTrace *data, char *boundary)
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/otherTlv/pathTrace.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -353,7 +276,7 @@ static void freePtpTlvPathTrace(PtpTlvPathTrace *data) {
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/otherTlv/pathTrace.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvPathTrace(PtpTlvPathTrace *data) {
@@ -363,18 +286,93 @@ static void displayPtpTlvPathTrace(PtpTlvPathTrace *data) {
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/otherTlv/pathTrace.def"
+    #undef PROCESS_FIELD
+}
+
+static int unpackPtpTlvPtpMonMtieRequest(PtpTlvPtpMonMtieRequest *data, char *buf, char *boundary) {
+
+    int offset = 0;
+    #include "definitions/field_unpack_bufcheck.h"
+    #include "definitions/otherTlv/ptpMonMtieRequest.def"
+    #undef PROCESS_FIELD
+
+    return offset;
+}
+
+static int packPtpTlvPtpMonMtieRequest(char *buf, PtpTlvPtpMonMtieRequest *data, char *boundary) {
+
+    int offset = 0;
+
+    #include "definitions/field_pack_bufcheck.h"
+    #include "definitions/otherTlv/ptpMonMtieRequest.def"
+    #undef PROCESS_FIELD
+
+    return offset;
+}
+
+static void freePtpTlvPtpMonMtieRequest(PtpTlvPtpMonMtieRequest *data) {
+
+    #define PROCESS_FIELD( name, size, type) \
+        free##type (&data->name);
+    #include "definitions/otherTlv/ptpMonMtieRequest.def"
+    #undef PROCESS_FIELD
+}
+
+static void displayPtpTlvPtpMonMtieRequest(PtpTlvPtpMonMtieRequest *data) {
+
+    PTPINFO("\tPtpTlvPtpMonMtieRequest: \n");
+
+    #define PROCESS_FIELD( name, size, type) \
+        display##type (data->name, "		"#name, size);
+    #include "definitions/otherTlv/ptpMonMtieRequest.def"
+    #undef PROCESS_FIELD
+}
+
+static int unpackPtpTlvPtpMonMtieResponse(PtpTlvPtpMonMtieResponse *data, char *buf, char *boundary) {
+
+    int offset = 0;
+    #include "definitions/field_unpack_bufcheck.h"
+    #include "definitions/otherTlv/ptpMonMtieResponse.def"
+    #undef PROCESS_FIELD
+
+    return offset;
+}
+
+static int packPtpTlvPtpMonMtieResponse(char *buf, PtpTlvPtpMonMtieResponse *data, char *boundary) {
+
+    int offset = 0;
+
+    #include "definitions/field_pack_bufcheck.h"
+    #include "definitions/otherTlv/ptpMonMtieResponse.def"
+    #undef PROCESS_FIELD
+
+    return offset;
+}
+
+static void freePtpTlvPtpMonMtieResponse(PtpTlvPtpMonMtieResponse *data) {
+
+    #define PROCESS_FIELD( name, size, type) \
+        free##type (&data->name);
+    #include "definitions/otherTlv/ptpMonMtieResponse.def"
+    #undef PROCESS_FIELD
+}
+
+static void displayPtpTlvPtpMonMtieResponse(PtpTlvPtpMonMtieResponse *data) {
+
+    PTPINFO("\tPtpTlvPtpMonMtieResponse: \n");
+
+    #define PROCESS_FIELD( name, size, type) \
+        display##type (data->name, "		"#name, size);
+    #include "definitions/otherTlv/ptpMonMtieResponse.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvPtpMonRequest(PtpTlvPtpMonRequest *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/otherTlv/ptpMonRequest.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -383,20 +381,10 @@ static int packPtpTlvPtpMonRequest(char *buf, PtpTlvPtpMonRequest *data, char *b
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/otherTlv/ptpMonRequest.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -405,7 +393,7 @@ static void freePtpTlvPtpMonRequest(PtpTlvPtpMonRequest *data) {
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/otherTlv/ptpMonRequest.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvPtpMonRequest(PtpTlvPtpMonRequest *data) {
@@ -415,18 +403,15 @@ static void displayPtpTlvPtpMonRequest(PtpTlvPtpMonRequest *data) {
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/otherTlv/ptpMonRequest.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvPtpMonResponse(PtpTlvPtpMonResponse *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/otherTlv/ptpMonResponse.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -435,20 +420,10 @@ static int packPtpTlvPtpMonResponse(char *buf, PtpTlvPtpMonResponse *data, char 
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/otherTlv/ptpMonResponse.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -457,7 +432,7 @@ static void freePtpTlvPtpMonResponse(PtpTlvPtpMonResponse *data) {
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/otherTlv/ptpMonResponse.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvPtpMonResponse(PtpTlvPtpMonResponse *data) {
@@ -467,18 +442,15 @@ static void displayPtpTlvPtpMonResponse(PtpTlvPtpMonResponse *data) {
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/otherTlv/ptpMonResponse.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvSecurityAssociationUpdate(PtpTlvSecurityAssociationUpdate *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/otherTlv/securityAssociationUpdate.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -487,20 +459,10 @@ static int packPtpTlvSecurityAssociationUpdate(char *buf, PtpTlvSecurityAssociat
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/otherTlv/securityAssociationUpdate.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -509,7 +471,7 @@ static void freePtpTlvSecurityAssociationUpdate(PtpTlvSecurityAssociationUpdate 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/otherTlv/securityAssociationUpdate.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvSecurityAssociationUpdate(PtpTlvSecurityAssociationUpdate *data) {
@@ -519,6 +481,7 @@ static void displayPtpTlvSecurityAssociationUpdate(PtpTlvSecurityAssociationUpda
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/otherTlv/securityAssociationUpdate.def"
+    #undef PROCESS_FIELD
 }
 
 int unpackPtpOtherTlvData(PtpTlv *tlv, char* buf, char* boundary) {
@@ -562,6 +525,18 @@ int unpackPtpOtherTlvData(PtpTlv *tlv, char* buf, char* boundary) {
 	    expectedLen = PTP_TLVLEN_PATH_TRACE;
 	    #endif
 	    ret = unpackPtpTlvPathTrace(&tlv->body.pathTrace, buf, boundary);
+	    break;
+	case PTP_TLVTYPE_PTPMON_MTIE_REQUEST:
+	    #ifdef PTP_TLVLEN_PTPMON_MTIE_REQUEST
+	    expectedLen = PTP_TLVLEN_PTPMON_MTIE_REQUEST;
+	    #endif
+	    ret = unpackPtpTlvPtpMonMtieRequest(&tlv->body.ptpMonMtieRequest, buf, boundary);
+	    break;
+	case PTP_TLVTYPE_PTPMON_MTIE_RESPONSE:
+	    #ifdef PTP_TLVLEN_PTPMON_MTIE_RESPONSE
+	    expectedLen = PTP_TLVLEN_PTPMON_MTIE_RESPONSE;
+	    #endif
+	    ret = unpackPtpTlvPtpMonMtieResponse(&tlv->body.ptpMonMtieResponse, buf, boundary);
 	    break;
 	case PTP_TLVTYPE_PTPMON_REQUEST:
 	    #ifdef PTP_TLVLEN_PTPMON_REQUEST
@@ -649,6 +624,18 @@ int packPtpOtherTlvData(char *buf, PtpTlv *tlv, char *boundary) {
 	    #endif
 	    ret = packPtpTlvPathTrace(buf, &tlv->body.pathTrace, boundary);
 	    break;
+	case PTP_TLVTYPE_PTPMON_MTIE_REQUEST:
+	    #ifdef PTP_TLVLEN_PTPMON_MTIE_REQUEST
+	    expectedLen = PTP_TLVLEN_PTPMON_MTIE_REQUEST;
+	    #endif
+	    ret = packPtpTlvPtpMonMtieRequest(buf, &tlv->body.ptpMonMtieRequest, boundary);
+	    break;
+	case PTP_TLVTYPE_PTPMON_MTIE_RESPONSE:
+	    #ifdef PTP_TLVLEN_PTPMON_MTIE_RESPONSE
+	    expectedLen = PTP_TLVLEN_PTPMON_MTIE_RESPONSE;
+	    #endif
+	    ret = packPtpTlvPtpMonMtieResponse(buf, &tlv->body.ptpMonMtieResponse, boundary);
+	    break;
 	case PTP_TLVTYPE_PTPMON_REQUEST:
 	    #ifdef PTP_TLVLEN_PTPMON_REQUEST
 	    expectedLen = PTP_TLVLEN_PTPMON_REQUEST;
@@ -722,6 +709,12 @@ void displayPtpOtherTlvData(PtpTlv *tlv) {
 	case PTP_TLVTYPE_PATH_TRACE:
 	    displayPtpTlvPathTrace(&tlv->body.pathTrace);
 	    break;
+	case PTP_TLVTYPE_PTPMON_MTIE_REQUEST:
+	    displayPtpTlvPtpMonMtieRequest(&tlv->body.ptpMonMtieRequest);
+	    break;
+	case PTP_TLVTYPE_PTPMON_MTIE_RESPONSE:
+	    displayPtpTlvPtpMonMtieResponse(&tlv->body.ptpMonMtieResponse);
+	    break;
 	case PTP_TLVTYPE_PTPMON_REQUEST:
 	    displayPtpTlvPtpMonRequest(&tlv->body.ptpMonRequest);
 	    break;
@@ -759,6 +752,12 @@ void freePtpOtherTlvData(PtpTlv *tlv) {
 	    break;
 	case PTP_TLVTYPE_PATH_TRACE:
 	    freePtpTlvPathTrace(&tlv->body.pathTrace);
+	    break;
+	case PTP_TLVTYPE_PTPMON_MTIE_REQUEST:
+	    freePtpTlvPtpMonMtieRequest(&tlv->body.ptpMonMtieRequest);
+	    break;
+	case PTP_TLVTYPE_PTPMON_MTIE_RESPONSE:
+	    freePtpTlvPtpMonMtieResponse(&tlv->body.ptpMonMtieResponse);
 	    break;
 	case PTP_TLVTYPE_PTPMON_REQUEST:
 	    freePtpTlvPtpMonRequest(&tlv->body.ptpMonRequest);

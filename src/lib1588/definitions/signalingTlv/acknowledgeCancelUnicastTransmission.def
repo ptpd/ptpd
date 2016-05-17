@@ -9,4 +9,4 @@ PROCESS_FIELD( messageType, 0, PtpEnumeration4Upper)
 PROCESS_FIELD( reserved0, 1, PtpUInteger4Lower)
 PROCESS_FIELD( reserved1, 1, PtpOctet )
 
-#undef PROCESS_FIELD
+

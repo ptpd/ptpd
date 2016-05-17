@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Wojciech Owczarek,
+ * Copyright (c) 2012-2016 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer,
  *                         Martin Burnicki,
@@ -53,6 +53,7 @@
 
 #include "ptpd.h"
 
+#include "lib1588/ptp_message.h"
 
 
 Boolean doInit(RunTimeOpts*,PtpClock*);
@@ -85,6 +86,8 @@ static void issuePdelayResp(const TimeInternal*,MsgHeader*,Integer32,const RunTi
 static void issueDelayResp(const TimeInternal*,MsgHeader*,Integer32,const RunTimeOpts*,PtpClock*);
 static void issuePdelayRespFollowUp(const TimeInternal*,MsgHeader*, Integer32, const RunTimeOpts*,PtpClock*, const UInteger16);
 
+static int populatePtpMon(char *buf, MsgHeader *header, PtpClock *ptpClock);
+
 static void processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp, ssize_t length);
 
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
@@ -102,6 +105,124 @@ static void timestampCorrection(const RunTimeOpts * rtOpts, PtpClock *ptpClock, 
 static Integer32 lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, SyncDestEntry *index);
 static Integer32 findSyncDestination(TimeInternal *timeStamp, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 
+
+static int populatePtpMon(char *buf, MsgHeader *header, PtpClock *ptpClock) {
+
+    PtpTlv *tlv;
+    PtpMessage message;
+    PtpTlvPtpMonResponse *monresp;
+    PtpTlvPtpMonMtieResponse *mtieresp;
+    int ret = 0;
+
+    memset(&message, 0, sizeof(PtpMessage));
+
+    ret = unpackPtpMessage(&message, buf, buf + DELAY_RESP_LENGTH);
+
+    if(ret < DELAY_RESP_LENGTH) {
+	return 0;
+    }
+
+    if(header->ptpmon) {
+
+	tlv = createPtpTlv();
+
+	if(tlv == NULL) {
+	    freePtpMessage(&message);
+	    return 0;
+	}
+
+	tlv->tlvType = PTP_TLVTYPE_PTPMON_RESPONSE;
+
+	attachPtpTlv(&message, tlv);
+
+	monresp = &tlv->body.ptpMonResponse;
+
+		/* port state and parentPortaddress */
+		monresp->portState = ptpClock->portDS.portState;
+                monresp->parentPortAddress.addressLength = 16;
+                monresp->parentPortAddress.networkProtocol = 1;
+                XCALLOC(monresp->parentPortAddress.addressField,
+                        monresp->parentPortAddress.addressLength);
+
+		if(ptpClock->portDS.portState > PTP_MASTER &&
+		    ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
+        		memcpy(monresp->parentPortAddress.addressField,
+                    	    &ptpClock->bestMaster->sourceAddr, 4);
+		}
+
+		/* parentDS */
+		copyPortIdentity((PortIdentity*)&monresp->parentPortIdentity, &ptpClock->parentDS.parentPortIdentity);
+		monresp->PS = ptpClock->parentDS.parentStats;
+		monresp->reserved = 0;
+		monresp->observedParentOffsetScaledLogVariance =
+				ptpClock->parentDS.observedParentOffsetScaledLogVariance;
+		monresp->observedParentClockPhaseChangeRate =
+				ptpClock->parentDS.observedParentClockPhaseChangeRate;
+		monresp->grandmasterPriority1 = ptpClock->parentDS.grandmasterPriority1;
+		monresp->grandmasterClockQuality.clockAccuracy =
+				ptpClock->parentDS.grandmasterClockQuality.clockAccuracy;
+		monresp->grandmasterClockQuality.clockClass =
+				ptpClock->parentDS.grandmasterClockQuality.clockClass;
+		monresp->grandmasterClockQuality.offsetScaledLogVariance =
+				ptpClock->parentDS.grandmasterClockQuality.offsetScaledLogVariance;
+		monresp->grandmasterPriority2 = ptpClock->parentDS.grandmasterPriority2;
+		copyClockIdentity(monresp->grandmasterIdentity, ptpClock->parentDS.grandmasterIdentity);
+
+		/* currentDS */
+		monresp->stepsRemoved = ptpClock->currentDS.stepsRemoved;
+		if(monresp->portState == PTP_SLAVE) {
+		    monresp->offsetFromMaster.internalTime.seconds  = ptpClock->currentDS.offsetFromMaster.seconds;
+		    monresp->offsetFromMaster.internalTime.nanoseconds  = ptpClock->currentDS.offsetFromMaster.nanoseconds;
+		    monresp->meanPathDelay.internalTime.seconds = ptpClock->currentDS.meanPathDelay.seconds;
+		    monresp->meanPathDelay.internalTime.nanoseconds = ptpClock->currentDS.meanPathDelay.nanoseconds;
+		}
+
+		/* timePropertiesDS */
+		monresp->currentUtcOffset = ptpClock->timePropertiesDS.currentUtcOffset;
+		Octet ftra = SET_FIELD(ptpClock->timePropertiesDS.frequencyTraceable, FTRA);
+		Octet ttra = SET_FIELD(ptpClock->timePropertiesDS.timeTraceable, TTRA);
+		Octet ptp = SET_FIELD(ptpClock->timePropertiesDS.ptpTimescale, PTPT);
+		Octet utcv = SET_FIELD(ptpClock->timePropertiesDS.currentUtcOffsetValid, UTCV);
+		Octet li59 = SET_FIELD(ptpClock->timePropertiesDS.leap59, LI59);
+		Octet li61 = SET_FIELD(ptpClock->timePropertiesDS.leap61, LI61);
+		monresp->ftra_ttra_ptp_utcv_li59_li61 = ftra | ttra | ptp | utcv | li59 | li61;
+		monresp->timeSource = ptpClock->timePropertiesDS.timeSource;
+
+		if(monresp->portState == PTP_SLAVE) {
+		    monresp->lastSyncTimestamp.internalTime.seconds = ptpClock->lastOriginTimestamp.seconds;
+		    monresp->lastSyncTimestamp.internalTime.nanoseconds = ptpClock->lastOriginTimestamp.nanoseconds;
+		}
+#ifdef PTPD_EXPERIMENTAL
+		displayPtpMessage(&message);
+#endif
+		ret = packPtpMessage(buf, &message, buf + PACKET_SIZE);
+    }
+
+    if(header->mtie) {
+
+	tlv = createPtpTlv();
+
+	if(tlv == NULL) {
+	    freePtpMessage(&message);
+	    return 0;
+	}
+
+	tlv->tlvType = PTP_TLVTYPE_PTPMON_MTIE_RESPONSE;
+
+	attachPtpTlv(&message, tlv);
+
+	mtieresp = &tlv->body.ptpMonMtieResponse;
+    }
+
+    freePtpMessage(&message);
+
+    if(ret < DELAY_RESP_LENGTH) {
+	return 0;
+    }
+
+    return ret;
+
+}
 
 #ifndef PTPD_SLAVE_ONLY
 
@@ -1231,6 +1352,10 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 
     Boolean isFromSelf;
 
+    PtpMessage m;
+    PtpTlv *tlv;
+    int ret;
+
     /*
      * make sure we use the TAI to UTC offset specified, if the
      * master is sending the UTC_VALID bit
@@ -1258,13 +1383,41 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 	return;
     }
 
+    msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
 
-#ifdef PTPD_EXPERIMENTAL
-#include "lib1588/ptp_message.h"
+    /*Spec 9.5.2.2*/
+    isFromSelf = !cmpPortIdentity(&ptpClock->portDS.portIdentity, &ptpClock->msgTmpHeader.sourcePortIdentity);
+
+    memset(&m, 0, sizeof(PtpMessage));
+
+    ptpClock->msgTmpHeader.ptpmon = FALSE;
+    ptpClock->msgTmpHeader.mtie = FALSE;
+
+    if(rtOpts->ptpMonEnabled && !isFromSelf && (ptpClock->msgTmpHeader.messageType == DELAY_REQ)) {
+
+	ret  = unpackPtpMessage(&m, ptpClock->msgIbuf, ptpClock->msgIbuf + length);
+
+	if (ret > 0) {
+		ptpClock->msgTmpHeader.ptpmon = FALSE;
+		ptpClock->msgTmpHeader.mtie = FALSE;
+		for(tlv = m.firstTlv; tlv != NULL; tlv = tlv->next) {
+		    if(tlv->tlvType == PTP_TLVTYPE_PTPMON_REQUEST) {
+			DBG("PTPMON REQUEST TLV RECEIVED in DLYREQ\n");
+			ptpClock->msgTmpHeader.ptpmon = TRUE;
+		    }
+		    if(tlv->tlvType == PTP_TLVTYPE_PTPMON_MTIE_REQUEST) {
+			DBG("PTPMON MTIE REQUEST TLV RECEIVED in DLYREQ\n");
+			ptpClock->msgTmpHeader.mtie = TRUE;
+		    }
+		}
+	    freePtpMessage(&m);
+	}
+
+    }
+
+#if 0
     /* lib1588 testing */
 
-    PtpMessage m;
-    memset(&m, 0, sizeof(PtpMessage));
 
     printf("**** BEGIN lib1588 unpack test\n");
 
@@ -1272,13 +1425,10 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
     printf("==== Unpacking received data using lib1588\n");
     int bob = unpackPtpMessage(&m, ptpClock->msgIbuf, ptpClock->msgIbuf + length);
     printf("==== RETURNED: %d\n", bob);
-    if(m.header.messageType == PTP_MSGTYPE_MANAGEMENT) {
-	printf("==== Done unpacking. Message:\n");
-	displayPtpOctetBuf(ptpClock->msgIbuf, "ibuf", length);
-	displayPtpMessage(&m);
-    }
 
-    if(m.header.messageType == PTP_MSGTYPE_SIGNALING) {
+    if((m.header.messageType == PTP_MSGTYPE_SIGNALING) ||
+	(m.header.messageType == PTP_MSGTYPE_MANAGEMENT)
+	) {
 	printf("==== Done unpacking. Message:\n");
 	displayPtpOctetBuf(ptpClock->msgIbuf, "ibuf", length);
 	displayPtpMessage(&m);
@@ -1291,7 +1441,7 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 
 #endif /* PTPD_EXPERIMENTAL */
 
-    msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
+
 
     /* packet is not from self, and is from a non-zero source address - check ACLs */
     if(ptpClock->netPath.lastSourceAddr &&
@@ -1372,9 +1522,11 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
     	    if((rtOpts->ipMode == IPMODE_MULTICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) ||
     		(rtOpts->ipMode == IPMODE_HYBRID && ptpClock->msgTmpHeader.messageType != DELAY_REQ &&
 		    ptpClock->msgTmpHeader.messageType != DELAY_RESP)) {
-			DBG("ignored unicast message in multicast mode%d\n");
-			ptpClock->counters.discardedMessages++;
-			return;
+			if(!ptpClock->msgTmpHeader.ptpmon && !ptpClock->msgTmpHeader.mtie) {
+			    DBG("ignored unicast message in multicast mode%d\n");
+			    ptpClock->counters.discardedMessages++;
+			    return;
+			}
 	    }
 	    /* received a MULTICAST message */
 	} else {
@@ -1390,9 +1542,6 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 
     /* what shall we do with the drunken sailor? */
     timestampCorrection(rtOpts, ptpClock, timeStamp);
-
-    /*Spec 9.5.2.2*/
-    isFromSelf = !cmpPortIdentity(&ptpClock->portDS.portIdentity, &ptpClock->msgTmpHeader.sourcePortIdentity);
 
     /*
      * subtract the inbound latency adjustment if it is not a loop
@@ -1957,6 +2106,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 				ptpClock->waitingForFollow = FALSE;
 				toInternalTime(&OriginTimestamp,
 					       &ptpClock->msgTmp.sync.originTimestamp);
+				ptpClock->lastOriginTimestamp = OriginTimestamp;
 				updateOffset(&OriginTimestamp,
 					     &ptpClock->sync_receive_time,
 					     &ptpClock->ofm_filt,rtOpts,
@@ -2091,6 +2241,7 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 					ptpClock->waitingForFollow = FALSE;
 					toInternalTime(&preciseOriginTimestamp,
 						       &ptpClock->msgTmp.follow.preciseOriginTimestamp);
+					ptpClock->lastOriginTimestamp = preciseOriginTimestamp;
 					integer64_to_internalTime(ptpClock->msgTmpHeader.correctionField,
 								  &correctionField);
 					addTime(&correctionField,&correctionField,
@@ -2156,6 +2307,30 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 {
 
 	UnicastGrantTable *nodeTable = NULL;
+
+	if(header->ptpmon) {
+			msgUnpackHeader(ptpClock->msgIbuf,
+					&ptpClock->delayReqHeader);
+			ptpClock->delayReqHeader.ptpmon = TRUE;
+			ptpClock->counters.delayReqMessagesReceived++;
+
+			issueDelayResp(tint,&ptpClock->delayReqHeader, sourceAddress,
+				       rtOpts,ptpClock);
+			DBG("HANDLED PTPMON DLYRESP\n");
+			return;
+	}
+
+	if(header->mtie) {
+			msgUnpackHeader(ptpClock->msgIbuf,
+					&ptpClock->delayReqHeader);
+			ptpClock->delayReqHeader.mtie = TRUE;
+			ptpClock->counters.delayReqMessagesReceived++;
+
+			issueDelayResp(tint,&ptpClock->delayReqHeader, sourceAddress,
+				       rtOpts,ptpClock);
+			DBG("HANDLED PTPMON MTIE DLYRESP\n");
+			return;
+	}
 
 	if (ptpClock->portDS.delayMechanism == E2E) {
 
@@ -3283,22 +3458,30 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddr
 static void
 issueDelayResp(const TimeInternal *tint,MsgHeader *header,Integer32 sourceAddress, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
+
+	int len = DELAY_RESP_LENGTH;
 	Timestamp requestReceiptTimestamp;
-	Integer32 dst;
+	Integer32 dst = 0;
 
 	fromInternalTime(tint,&requestReceiptTimestamp);
 	msgPackDelayResp(ptpClock->msgObuf,header,&requestReceiptTimestamp,
 			 ptpClock);
 
 	/* if request was unicast and we're running unicast, reply to source */
-	if ( (rtOpts->ipMode != IPMODE_MULTICAST) &&
+	if(header->ptpmon || header->mtie) {
+		DBG("Populating PTPMON response\n");
+		dst = sourceAddress;
+		len = populatePtpMon(ptpClock->msgObuf, header, ptpClock);
+		if(len == 0) {
+		    DBG("Could not populate PTPMON response!\n");
+		    return;
+		}
+	} else if ( (rtOpts->ipMode != IPMODE_MULTICAST) &&
 	     (header->flagField0 & PTP_UNICAST) == PTP_UNICAST) {
 		dst = sourceAddress;
-	} else {
-		dst = 0;
 	}
 
-	if (!netSendGeneral(ptpClock->msgObuf, DELAY_RESP_LENGTH,
+	if (!netSendGeneral(ptpClock->msgObuf, len,
 			    &ptpClock->netPath, rtOpts, dst)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
@@ -3307,6 +3490,12 @@ issueDelayResp(const TimeInternal *tint,MsgHeader *header,Integer32 sourceAddres
 		DBGV("PdelayResp MSG sent ! \n");
 		ptpClock->counters.delayRespMessagesSent++;
 	}
+
+	if(header->ptpmon) {
+	    DBG("Issuing SYNC for PTPMON\n");
+	    (void)issueSyncSingle(dst, &header->sequenceId, rtOpts, ptpClock);
+	}
+
 }
 
 static void

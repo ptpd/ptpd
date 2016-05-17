@@ -9,4 +9,4 @@ PROCESS_FIELD( managementId, 2, PtpEnumeration16)
 PROCESS_FIELD( reserved, 4, PtpUInteger32)
 PROCESS_FIELD( displayData, 1 + data->displayData.lengthField, PtpText)
 
-#undef PROCESS_FIELD
+

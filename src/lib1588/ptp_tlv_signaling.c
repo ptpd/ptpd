@@ -51,13 +51,9 @@ PTP_TYPE_FUNCDEFS(PtpTlvRequestUnicastTransmission)
 static int unpackPtpTlvAcknowledgeCancelUnicastTransmission(PtpTlvAcknowledgeCancelUnicastTransmission *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/signalingTlv/acknowledgeCancelUnicastTransmission.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -66,20 +62,10 @@ static int packPtpTlvAcknowledgeCancelUnicastTransmission(char *buf, PtpTlvAckno
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/signalingTlv/acknowledgeCancelUnicastTransmission.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -88,7 +74,7 @@ static void freePtpTlvAcknowledgeCancelUnicastTransmission(PtpTlvAcknowledgeCanc
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/signalingTlv/acknowledgeCancelUnicastTransmission.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvAcknowledgeCancelUnicastTransmission(PtpTlvAcknowledgeCancelUnicastTransmission *data) {
@@ -98,18 +84,15 @@ static void displayPtpTlvAcknowledgeCancelUnicastTransmission(PtpTlvAcknowledgeC
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/signalingTlv/acknowledgeCancelUnicastTransmission.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvCancelUnicastTransmission(PtpTlvCancelUnicastTransmission *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/signalingTlv/cancelUnicastTransmission.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -118,20 +101,10 @@ static int packPtpTlvCancelUnicastTransmission(char *buf, PtpTlvCancelUnicastTra
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/signalingTlv/cancelUnicastTransmission.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -140,7 +113,7 @@ static void freePtpTlvCancelUnicastTransmission(PtpTlvCancelUnicastTransmission 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/signalingTlv/cancelUnicastTransmission.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvCancelUnicastTransmission(PtpTlvCancelUnicastTransmission *data) {
@@ -150,18 +123,15 @@ static void displayPtpTlvCancelUnicastTransmission(PtpTlvCancelUnicastTransmissi
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/signalingTlv/cancelUnicastTransmission.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvGrantUnicastTransmission(PtpTlvGrantUnicastTransmission *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/signalingTlv/grantUnicastTransmission.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -170,20 +140,10 @@ static int packPtpTlvGrantUnicastTransmission(char *buf, PtpTlvGrantUnicastTrans
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/signalingTlv/grantUnicastTransmission.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -192,7 +152,7 @@ static void freePtpTlvGrantUnicastTransmission(PtpTlvGrantUnicastTransmission *d
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/signalingTlv/grantUnicastTransmission.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvGrantUnicastTransmission(PtpTlvGrantUnicastTransmission *data) {
@@ -202,18 +162,15 @@ static void displayPtpTlvGrantUnicastTransmission(PtpTlvGrantUnicastTransmission
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/signalingTlv/grantUnicastTransmission.def"
+    #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvRequestUnicastTransmission(PtpTlvRequestUnicastTransmission *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        unpack##type (&data->name, buf + offset, size); \
-	offset += size;
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/signalingTlv/requestUnicastTransmission.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -222,20 +179,10 @@ static int packPtpTlvRequestUnicastTransmission(char *buf, PtpTlvRequestUnicastT
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf == NULL) && (boundary == NULL)) {\
-	    offset += size; \
-	} else { \
-	     if((buf + offset + size) > boundary) { \
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	    } \
-	    pack##type (buf + offset, &data->name, size); \
-	    offset += size; \
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/signalingTlv/requestUnicastTransmission.def"
+    #undef PROCESS_FIELD
+
     return offset;
 }
 
@@ -244,7 +191,7 @@ static void freePtpTlvRequestUnicastTransmission(PtpTlvRequestUnicastTransmissio
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
     #include "definitions/signalingTlv/requestUnicastTransmission.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlvRequestUnicastTransmission(PtpTlvRequestUnicastTransmission *data) {
@@ -254,6 +201,7 @@ static void displayPtpTlvRequestUnicastTransmission(PtpTlvRequestUnicastTransmis
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
     #include "definitions/signalingTlv/requestUnicastTransmission.def"
+    #undef PROCESS_FIELD
 }
 
 int unpackPtpSignalingTlvData(PtpTlv *tlv, char* buf, char* boundary) {

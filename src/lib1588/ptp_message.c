@@ -42,11 +42,8 @@
 
 #include <string.h> /* memset and friends */
 
-static void attachPtpTlv(PtpMessage *message, PtpTlv *tlv);
 static int unpackPtpTlvs(PtpMessage *data, char *buf, char *boundary);
 static int packPtpTlvs(char *buf, PtpMessage *message, char *boundary);
-static void displayPtpTlvs(PtpMessage *message);
-static void freePtpTlvs(PtpMessage *message);
 
 #define PTP_TYPE_FUNCDEFS( type ) \
 static int unpack##type (type *data, char *buf, char *boundary); \
@@ -525,7 +522,7 @@ static void displayPtpSignalingMessage(PtpSignalingMessage *data) {
 
 /* end generated code */
 
-static void attachPtpTlv(PtpMessage *message, PtpTlv *tlv) {
+void attachPtpTlv(PtpMessage *message, struct PtpTlv *tlv) {
 
     PtpTlv *t;
 
@@ -540,6 +537,7 @@ static void attachPtpTlv(PtpMessage *message, PtpTlv *tlv) {
 	message->lastTlv = tlv;
 	tlv->prev = NULL;
 	tlv->next = NULL;
+	message->tlvCount++;
     } else {
 	for(t = message->firstTlv; t->next != NULL; t = t->next);
 	t->next = tlv;
@@ -555,10 +553,10 @@ static int unpackPtpTlvs(PtpMessage *message, char *buf, char *boundary) {
 
     int offset = 0;
     int ret = 0;
-int i = 0;
+
     /* cycle through any TLVs available */
     do {
-i++;
+
 	/* movin' on up */
 	offset += ret;
 
@@ -622,7 +620,7 @@ static int packPtpTlvs(char *buf, PtpMessage *message, char *boundary) {
 
 }
 
-static void displayPtpTlvs(PtpMessage *message) {
+void displayPtpTlvs(PtpMessage *message) {
 
     PtpTlv *tlv = NULL;
 
@@ -636,7 +634,7 @@ static void displayPtpTlvs(PtpMessage *message) {
 
 }
 
-static void freePtpTlvs(PtpMessage *message) {
+void freePtpTlvs(PtpMessage *message) {
 
     PtpTlv *tlv = message->lastTlv;
     PtpTlv *prev = NULL;
@@ -749,6 +747,8 @@ int unpackPtpMessage(PtpMessage *data, char *buf, char *boundary) {
 
     /* message body too short */
 
+//    PTPINFO("******** l %d ex %d ret %d ret+h %d\n", header->messageLength, expectedLen, ret, ret + PTP_MSGLEN_HEADER);
+
     if(header->messageLength < expectedLen) {
 	return PTP_MESSAGE_BODY_TOO_SHORT;
     }
@@ -781,27 +781,17 @@ int packPtpMessage(char *buf, PtpMessage *data, char *boundary) {
     int offset = 0;
     int ret = 0;
 
-    /* unpack header first */
+    /* skip the header - it will be packed last, to include message length */
 
-    ret = packPtpMessageHeader(buf, header, boundary);
-
-    /* handle errors */
-
-    if (ret < 0 ) {
-	return ret;
-    }
-
-    /* header too short */
-
-    if (ret < PTP_MSGLEN_HEADER) {
-	return PTP_MESSAGE_HEADER_TOO_SHORT;
+    if( (boundary - buf) < PTP_MSGLEN_HEADER) {
+	return PTP_MESSAGE_BUFFER_TOO_SMALL;
     }
 
     /* movin' on up */
 
-    offset += ret;
+    offset += PTP_MSGLEN_HEADER;
 
-    /* unpack message body */
+    /* pack message body */
 
     switch(header->messageType) {
 
@@ -868,10 +858,6 @@ int packPtpMessage(char *buf, PtpMessage *data, char *boundary) {
 
     /* message body too short */
 
-    if(header->messageLength < expectedLen) {
-	return PTP_MESSAGE_BODY_TOO_SHORT;
-    }
-
     if ((ret + PTP_MSGLEN_HEADER) < expectedLen) {
 	return PTP_MESSAGE_BODY_TOO_SHORT;
     }
@@ -884,6 +870,26 @@ int packPtpMessage(char *buf, PtpMessage *data, char *boundary) {
 
     if (ret < 0 ) {
 	return ret;
+    }
+
+    offset += ret;
+
+    /* pack the header last to include messageLength */
+
+    header->messageLength = offset + PTP_MSGLEN_HEADER;
+
+    ret = packPtpMessageHeader(buf, header, boundary);
+
+    /* handle errors */
+
+    if (ret < 0 ) {
+	return ret;
+    }
+
+    /* header too short */
+
+    if (ret < PTP_MSGLEN_HEADER) {
+	return PTP_MESSAGE_HEADER_TOO_SHORT;
     }
 
     offset += ret;

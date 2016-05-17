@@ -479,6 +479,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->hwTimestamping = FALSE;
 
+	rtOpts->ptpMonEnabled = FALSE;
+
 }
 
 /* The PtpEnginePreset structure for reference:

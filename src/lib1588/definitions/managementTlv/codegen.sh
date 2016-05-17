@@ -92,8 +92,9 @@ type=`echo $file | awk 'BEGIN {OFS="";} { print toupper(substr($0,1,1)),substr($
 echo
 read -r -d '' code <<EOF
 typedef struct {
-	#define PROCESS_FIELD( name, size, type ) type name;
+	#include "definitions/field_declare.h"
 	#include "definitions/managementTlv/$file.def"
+	#undef PROCESS_FIELD
 } PtpTlv$type;
 EOF
 echo "$code"
@@ -126,8 +127,9 @@ typedef struct {
 
     PtpUInteger16 lengthField; /* from parent PtpTlv */
 
-    #define PROCESS_FIELD( name, size, type ) type name;
+    #include "definitions/field_declare.h"
     #include "definitions/managementTlv/management.def"
+    #undef PROCESS_FIELD
 
     PtpManagementTlvBody body;
     PtpBoolean empty;
@@ -136,8 +138,9 @@ typedef struct {
 
 typedef struct {
 
-    #define PROCESS_FIELD( name, size, type ) type name;
+    #include "definitions/field_declare.h"
     #include "definitions/managementTlv/managementErrorStatus.def"
+    #undef PROCESS_FIELD
 
 } PtpTlvManagementErrorStatus;
 
@@ -232,13 +235,10 @@ read -r -d '' code <<EOF
 static int unpackPtpTlv$type(PtpTlv$type *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #define PROCESS_FIELD( name, size, type) \\
-	if((buf + offset + size) > boundary) { \\
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \\
-	} \\
-        unpack##type (&data->name, buf + offset, size); \\
-	offset += size;
+
+    #include "definitions/field_unpack_bufcheck.h"
     #include "definitions/managementTlv/$file.def"
+    #undef PROCESS_FIELD
 
     return offset;
 }
@@ -247,20 +247,9 @@ static int packPtpTlv$type(char *buf, PtpTlv$type *data, char *boundary) {
 
     int offset = 0;
 
-
-    /* if no boundary and buffer provided, we only report the length. */
-    /* this is used to help pre-allocate memory to fit this */
-    #define PROCESS_FIELD( name, size, type) \\
-	if((buf == NULL) && (boundary == NULL)) {\\
-	    offset += size; \\
-	} else { \\
-	     if((buf + offset + size) > boundary) { \\
-		return PTP_MESSAGE_BUFFER_TOO_SMALL; \\
-	    } \\
-	    pack##type (buf + offset, &data->name, size); \\
-	    offset += size; \\
-	}
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/managementTlv/$file.def"
+    #undef PROCESS_FIELD
     return offset;
 }
 
@@ -269,7 +258,7 @@ static void freePtpTlv$type(PtpTlv$type *data) {
     #define PROCESS_FIELD( name, size, type) \\
         free##type (&data->name);
     #include "definitions/managementTlv/$file.def"
-
+    #undef PROCESS_FIELD
 }
 
 static void displayPtpTlv$type(PtpTlv$type *data) {
@@ -279,6 +268,7 @@ static void displayPtpTlv$type(PtpTlv$type *data) {
     #define PROCESS_FIELD( name, size, type) \\
         display##type (data->name, "\t\t"#name, size);
     #include "definitions/managementTlv/$file.def"
+    #undef PROCESS_FIELD
 }
 
 EOF

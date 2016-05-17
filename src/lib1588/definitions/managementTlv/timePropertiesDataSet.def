@@ -8,4 +8,4 @@ PROCESS_FIELD( currentUtcOffset, 2, PtpInteger16)
 PROCESS_FIELD( ftra_ttra_ptp_utcv_li59_li61, 1, PtpOctet)
 PROCESS_FIELD( timeSource, 1, PtpEnumeration8)
 
-#undef PROCESS_FIELD
+

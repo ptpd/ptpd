@@ -344,6 +344,8 @@ typedef struct {
 
 	Boolean hwTimestamping;
 
+	Boolean ptpMonEnabled;
+
 } RunTimeOpts;
 
 #endif /*PTPD_GLOBALCONFIG_H_*/

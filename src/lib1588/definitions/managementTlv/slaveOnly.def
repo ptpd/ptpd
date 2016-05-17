@@ -7,4 +7,4 @@
 PROCESS_FIELD( so, 1, PtpBoolean)
 PROCESS_FIELD( reserved, 1, PtpOctet)
 
-#undef PROCESS_FIELD
+

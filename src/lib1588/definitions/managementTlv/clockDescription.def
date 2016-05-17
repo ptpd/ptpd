@@ -35,4 +35,4 @@ PROCESS_FIELD( profileIdentity3, 1, PtpOctet)
 PROCESS_FIELD( profileIdentity4, 1, PtpOctet)
 PROCESS_FIELD( profileIdentity5, 1, PtpOctet)
 
-#undef PROCESS_FIELD
+

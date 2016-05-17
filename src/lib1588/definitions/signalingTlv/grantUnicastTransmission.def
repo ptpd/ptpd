@@ -12,4 +12,4 @@ PROCESS_FIELD( durationField, 4, PtpUInteger32)
 PROCESS_FIELD( reserved1, 1, PtpOctet )
 PROCESS_FIELD( renewalInvited,1, PtpUInteger8)
 
-#undef PROCESS_FIELD
+

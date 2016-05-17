@@ -8,4 +8,4 @@
 PROCESS_FIELD( organizationId, 3, PtpDynamicOctetBuf)
 PROCESS_FIELD( organizationSubType, 3, PtpDynamicOctetBuf)
 /* PROCESS_FIELD( dataField, tlv->lengthField - 6, PtpDynamicOctetBuf ) */
-#undef PROCESS_FIELD
+

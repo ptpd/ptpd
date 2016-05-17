@@ -19,5 +19,5 @@ cd ..
 
 
 echo "typedef struct {"
-grep -Rl @tlvtype@ --include *.def | sort | { while read file; do base=`basename $file | awk 'BEGIN{ FS=".";} { printf("PtpTlv%s%s\t\t\t%s,", toupper(substr($1,1,1)), substr($1,2 ), $1);}'`; echo $base; done } | sort
+grep -Rl @tlvtype@ --include *.def | sort | { while read file; do echo -en "\t"; base=`basename $file | awk 'BEGIN{ FS=".";} { printf("PtpTlv%s%s\t\t\t%s,", toupper(substr($1,1,1)), substr($1,2 ), $1);}'`; echo $base; done } | sort
 echo "} PtpTlvBody;"

@@ -237,12 +237,12 @@ void freePtpUInteger48 (PtpUInteger48 *var) {
 void freePtpInteger64 (PtpInteger64 *var) {
 }
 
-void packPtpOctetBuf(char *to, PtpOctetBuf *from, size_t len ) {
-    memcpy(to, *from, len);
+void packPtpOctetBuf(char *buf, PtpOctetBuf *data, size_t len ) {
+    memcpy(buf, *data, len);
 }
 
-void unpackPtpOctetBuf(PtpOctetBuf *to, char *from, size_t len ) {
-    memcpy(*to, from, len);
+void unpackPtpOctetBuf(PtpOctetBuf *data, char *buf, size_t len ) {
+    memcpy(*data, buf, len);
 }
 
 void displayPtpOctetBuf(PtpOctetBuf var, const char *name, size_t len ) {
@@ -268,8 +268,8 @@ void displayPtpOctetBuf(PtpOctetBuf var, const char *name, size_t len ) {
 void freePtpOctetBuf(PtpOctetBuf *var) {
 }
 
-void packPtpDynamicOctetBuf(char *to, PtpDynamicOctetBuf *from, size_t len ) {
-    memcpy(to, *from, len);
+void packPtpDynamicOctetBuf(char *buf, PtpDynamicOctetBuf *data, size_t len ) {
+    memcpy(buf, *data, len);
 }
 
 void unpackPtpDynamicOctetBuf(PtpDynamicOctetBuf *to, char *from, size_t len ) {

@@ -8,4 +8,4 @@ PROCESS_FIELD( reserved0, 0, PtpNibbleUpper)
 PROCESS_FIELD( versionNumber, 1, PtpUInteger4Lower)
 PROCESS_FIELD( reserved1, 1, PtpOctet)
 
-#undef PROCESS_FIELD
+

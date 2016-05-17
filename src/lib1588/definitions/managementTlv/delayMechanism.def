@@ -7,4 +7,4 @@
 PROCESS_FIELD( delayMechanism, 1, PtpEnumeration8)
 PROCESS_FIELD( reserved, 1, PtpOctet)
 
-#undef PROCESS_FIELD
+

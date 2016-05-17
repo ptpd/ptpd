@@ -62,6 +62,8 @@ int unpackPtpTlvData(PtpTlv *tlv, char* buf, char* boundary) {
 
 	case PTP_TLVTYPE_PTPMON_REQUEST:
 	case PTP_TLVTYPE_PTPMON_RESPONSE:
+	case PTP_TLVTYPE_PTPMON_MTIE_REQUEST:
+	case PTP_TLVTYPE_PTPMON_MTIE_RESPONSE:
 
 		return unpackPtpOtherTlvData(tlv, buf, boundary);
 
@@ -103,6 +105,8 @@ int packPtpTlvData(char *buf, PtpTlv *tlv, char *boundary) {
 
 	case PTP_TLVTYPE_PTPMON_REQUEST:
 	case PTP_TLVTYPE_PTPMON_RESPONSE:
+	case PTP_TLVTYPE_PTPMON_MTIE_REQUEST:
+	case PTP_TLVTYPE_PTPMON_MTIE_RESPONSE:
 
 		return packPtpOtherTlvData(buf, tlv, boundary);
 
@@ -147,6 +151,8 @@ void displayPtpTlvData(PtpTlv *tlv) {
 
 	case PTP_TLVTYPE_PTPMON_REQUEST:
 	case PTP_TLVTYPE_PTPMON_RESPONSE:
+	case PTP_TLVTYPE_PTPMON_MTIE_REQUEST:
+	case PTP_TLVTYPE_PTPMON_MTIE_RESPONSE:
 
 		displayPtpOtherTlvData(tlv);
 		break;
@@ -191,6 +197,8 @@ void freePtpTlvData(PtpTlv *tlv) {
 
 	case PTP_TLVTYPE_PTPMON_REQUEST:
 	case PTP_TLVTYPE_PTPMON_RESPONSE:
+	case PTP_TLVTYPE_PTPMON_MTIE_REQUEST:
+	case PTP_TLVTYPE_PTPMON_MTIE_RESPONSE:
 
 	    freePtpOtherTlvData(tlv);
 	    break;
@@ -266,7 +274,7 @@ int packPtpTlv(char *buf, PtpTlv *data, char *boundary) {
 	return PTP_MESSAGE_OTHER_ERROR;
     }
 
-    ret = packPtpTlvData(buf, data, boundary);
+    ret = packPtpTlvData(data->valueField, data, data->valueField + data->lengthField);
 
     if(ret != data->lengthField) {
 	return PTP_MESSAGE_CORRUPT_TLV;
@@ -274,12 +282,7 @@ int packPtpTlv(char *buf, PtpTlv *data, char *boundary) {
 
     data->lengthField += pad;
 
-    #define PROCESS_FIELD( name, size, type) \
-	if((buf + offset + size) > boundary) { \
-	    return PTP_MESSAGE_BUFFER_TOO_SMALL; \
-	} \
-        pack##type (buf + offset, &data->name, size); \
-	offset += size;
+    #include "definitions/field_pack_bufcheck.h"
     #include "definitions/derivedData/tlv.def"
 
     return offset + pad;

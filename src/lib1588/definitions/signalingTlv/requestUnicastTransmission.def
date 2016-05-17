@@ -9,4 +9,4 @@ PROCESS_FIELD( reserved0, 1, PtpUInteger4Lower)
 PROCESS_FIELD( logInterMessagePeriod, 1, PtpInteger8)
 PROCESS_FIELD( durationField, 4, PtpUInteger32)
 
-#undef PROCESS_FIELD
+

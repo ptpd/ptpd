@@ -6,4 +6,4 @@
 /* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
 PROCESS_FIELD( currentTime, PTP_TYPELEN_TIMESTAMP, PtpTimestamp)
 
-#undef PROCESS_FIELD
+

@@ -8,4 +8,4 @@ PROCESS_FIELD( userDescription,
 	1 + data->userDescription.lengthField,
 	PtpText)
 
-#undef PROCESS_FIELD
+

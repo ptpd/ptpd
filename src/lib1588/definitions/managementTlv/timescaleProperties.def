@@ -7,4 +7,4 @@
 PROCESS_FIELD( ptp, 1, PtpBoolean )
 PROCESS_FIELD( timeSource, 1, PtpEnumeration8 )
 
-#undef PROCESS_FIELD
+

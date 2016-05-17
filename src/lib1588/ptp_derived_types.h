@@ -40,8 +40,8 @@
 #define PTP_TYPELEN_CLOCKQUALITY		4
 
 typedef struct {
-    PtpUInteger32 seconds;
-    PtpUInteger32 nanoseconds;
+    PtpInteger32 seconds;
+    PtpInteger32 nanoseconds;
 } PtpTimeInternal;
 
 typedef struct {
@@ -94,10 +94,10 @@ typedef struct {
 } PtpPhysicalAddress;
 
 #define PTP_TYPE_FUNCDEFS( type ) \
-void pack##type (char *to, type *from, size_t len); \
-void unpack##type (type* to, char *from, size_t len); \
-void display##type (type var, const char *name, size_t len); \
-void free##type (type *var);
+void pack##type (char *buf, type *data, size_t len); \
+void unpack##type (type* data, char *buf, size_t len); \
+void display##type (type data, const char *name, size_t len); \
+void free##type (type *data);
 
 PTP_TYPE_FUNCDEFS(PtpTimeInterval)
 PTP_TYPE_FUNCDEFS(PtpTimestamp)

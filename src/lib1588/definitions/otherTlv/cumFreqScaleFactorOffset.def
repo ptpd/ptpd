@@ -3,4 +3,3 @@
 
 /* Cumulative frequency scale factor offset TLV - unsupported for now */
 
-#undef PROCESS_FIELD

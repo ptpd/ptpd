@@ -1,6 +1,6 @@
 /* DO NOT REMOVE THE NEXT LINE - used for code generation*/
-/* @tlvtype@PTPMON_REQUEST@0x21FE@ */
+/* @tlvtype@PTPMON_MTIE_REQUEST@0x2200@ */
 
-/* PTPMon request TLV */
+/* PTPMon MTIE_REQUEST */
 
 /* nothing to see here */

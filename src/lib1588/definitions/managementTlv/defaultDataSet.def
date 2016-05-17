@@ -14,4 +14,4 @@ PROCESS_FIELD( clockIdentity, PTP_TYPELEN_CLOCKIDENTITY, PtpClockIdentity)
 PROCESS_FIELD( domainNumber, 1, PtpUInteger8)
 PROCESS_FIELD( reserved1, 1, PtpOctet)
 
-#undef PROCESS_FIELD
+

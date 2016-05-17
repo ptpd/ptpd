@@ -269,6 +269,7 @@ typedef struct {
 	TimeInternal	delaySM;
 	TimeInternal  lastSyncCorrectionField;
 	TimeInternal  lastPdelayRespCorrectionField;
+	TimeInternal	lastOriginTimestamp;
 
 	Boolean  sentPdelayReq;
 	UInteger16  sentPdelayReqSequenceId;

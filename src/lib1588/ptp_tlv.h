@@ -56,7 +56,9 @@ enum {
 	PTP_TLVTYPE_CUM_FREQ_SCALE_FACTOR_OFFSET=0x2003,
 	/* PTPMon extension */
 	PTP_TLVTYPE_PTPMON_REQUEST = 0x21FE,
-	PTP_TLVTYPE_PTPMON_RESPONSE = 0x21FF
+	PTP_TLVTYPE_PTPMON_RESPONSE = 0x21FF,
+	PTP_TLVTYPE_PTPMON_MTIE_REQUEST = 0x2200,
+	PTP_TLVTYPE_PTPMON_MTIE_RESPONSE = 0x2201
 };
 
 /* known TLV lengths */
@@ -85,6 +87,8 @@ typedef union {
 
     PtpTlvPtpMonRequest				ptpMonRequest;
     PtpTlvPtpMonResponse			ptpMonResponse;
+    PtpTlvPtpMonMtieRequest			ptpMonMtieRequest;
+    PtpTlvPtpMonMtieResponse			ptpMonMtieResponse;
 
     PtpTlvManagement				management;
     PtpTlvManagementErrorStatus			managementErrorStatus;

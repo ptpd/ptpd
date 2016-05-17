@@ -222,6 +222,12 @@ PTP_TYPE_FUNCDEFS(PtpMessage);
 
 void freePtpMessage(PtpMessage *message);
 
+void attachPtpTlv(PtpMessage *message, struct PtpTlv *tlv);
+void displayPtpTlvs(PtpMessage *message);
+void freePtpTlvs(PtpMessage *message);
+
+
+
 #undef PTP_TYPE_FUNCDEFS
 
 #endif /* PTP_MESSAGES_H_ */

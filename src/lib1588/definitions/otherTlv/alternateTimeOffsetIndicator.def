@@ -3,4 +3,3 @@
 
 /* Alternate time offset indicator TLV - unsupported for now */
 
-#undef PROCESS_FIELD

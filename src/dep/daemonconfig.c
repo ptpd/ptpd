@@ -1484,6 +1484,12 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, &rtOpts->managementSetEnable, rtOpts->managementSetEnable,
 	"Accept SET and COMMAND management messages.");
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:ptpmon_enable",
+		PTPD_RESTART_NONE, &rtOpts->ptpMonEnabled, rtOpts->ptpMonEnabled,
+		"Enable support for PTPMON monitoring extensions.\n"
+	"	 NOTE: if used in conjunction with hardware timestamping, timestamping\n"
+	"	 support for unicast packets is required!");
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:igmp_refresh",
 		PTPD_RESTART_NONE, &rtOpts->refreshIgmp, rtOpts->refreshIgmp,
 	"Send explicit IGMP joins between engine resets and periodically\n"

@@ -116,6 +116,8 @@ typedef struct {
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
 	#include "def/message/header.def"
+	Boolean ptpmon;
+	Boolean mtie;
 } MsgHeader;
 
 /**

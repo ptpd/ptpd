@@ -7,4 +7,4 @@
 PROCESS_FIELD( managementId, 2, PtpEnumeration16)
 PROCESS_FIELD( dataField, data->lengthField - PTP_MTLV_DATAFIELD_OFFSET, PtpDynamicOctetBuf)
 
-#undef PROCESS_FIELD
+

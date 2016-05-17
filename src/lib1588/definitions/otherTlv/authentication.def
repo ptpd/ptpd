@@ -3,4 +3,3 @@
 
 /* Authentication TLV - unsupported for now */
 
-#undef PROCESS_FIELD

@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
  * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
@@ -25,39 +25,12 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PTP_TLV_SIGNALING_H_
-#define PTP_TLV_SIGNALING_H_
+#include "field_cleanup.h"
 
-#include "ptp_tlv.h"
+#define PROCESS_FIELD( name, size, type) \
+    pack##type (buf + offset, &data->name, size); \
+    offset += size;
 
-/* begin generated code */
-
-/* signaling TLV data types */
-
-typedef struct {
-	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/signalingTlv/acknowledgeCancelUnicastTransmission.def"
-	#undef PROCESS_FIELD
-} PtpTlvAcknowledgeCancelUnicastTransmission;
-
-typedef struct {
-	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/signalingTlv/cancelUnicastTransmission.def"
-	#undef PROCESS_FIELD
-} PtpTlvCancelUnicastTransmission;
-
-typedef struct {
-	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/signalingTlv/grantUnicastTransmission.def"
-	#undef PROCESS_FIELD
-} PtpTlvGrantUnicastTransmission;
-
-typedef struct {
-	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/signalingTlv/requestUnicastTransmission.def"
-	#undef PROCESS_FIELD
-} PtpTlvRequestUnicastTransmission;
-
-/* end generated code */
-
-#endif /* PTP_TLV_SIGNALING_H */
+#define PROCESS_NESTED_FIELD( parent, name, size, type) \
+    pack##type (buf + offset, &data->parent.name, size); \
+    offset += size;
