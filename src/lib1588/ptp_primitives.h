@@ -56,7 +56,6 @@ typedef char* PtpOctetBuf; 		/* pre-defined array field, copy n bytes */
 typedef char* PtpDynamicOctetBuf;	/* dynamically allocate n bytes, then copy */
 typedef char* PtpSharedOctetBuf;	/* pre-allocated buffer */
 
-
 typedef struct {
 	uint32_t low;
 	uint16_t high;

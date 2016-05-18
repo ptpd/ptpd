@@ -760,8 +760,10 @@ displayCounters(const PtpClock * ptpClock)
 		(unsigned long)ptpClock->counters.signalingMessagesReceived);
 	INFO("            managementMessagesSent : %lu\n",
 		(unsigned long)ptpClock->counters.managementMessagesSent);
-	INFO("        managementMessagesReceived : %lu\n",
-		(unsigned long)ptpClock->counters.managementMessagesReceived);
+	INFO("                 ptpMonReqReceived : %lu\n",
+		(unsigned long)ptpClock->counters.ptpMonReqReceived);
+	INFO("              ptpMonMtieReqRecived : %lu\n",
+		(unsigned long)ptpClock->counters.ptpMonMtieReqReceived);
 
     if(ptpClock->counters.signalingMessagesReceived ||
 	    ptpClock->counters.signalingMessagesSent) {

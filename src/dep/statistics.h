@@ -238,6 +238,7 @@ typedef struct
     double mpdMinFinal;
     double mpdMax;
     double mpdMaxFinal;
+    UInteger16 windowNumber;
     Boolean mpdIsStable;
     double mpdStabilityThreshold;
     int mpdStabilityPeriod;

@@ -6,7 +6,8 @@
 /* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
 
 /* From PortDS */
-PROCESS_FIELD( portState, 2, PtpUInteger16)
+PROCESS_FIELD( portState, 1, PtpUInteger8)
+PROCESS_FIELD( reserved1, 1, PtpOctet)
 PROCESS_FIELD( parentPortAddress, 4 + data->parentPortAddress.addressLength, PtpPortAddress)
 
 /* ParentDS */

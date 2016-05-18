@@ -816,6 +816,7 @@ updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 	ptpClock->slaveStats.ofmMaxFinal = ptpClock->slaveStats.ofmMax;
 
 	ptpClock->slaveStats.statsCalculated = TRUE;
+	ptpClock->slaveStats.windowNumber++;
 
 	resetDoublePermanentMean(&ptpClock->oFilterMS.acceptedStats);
 	resetDoublePermanentMean(&ptpClock->oFilterSM.acceptedStats);

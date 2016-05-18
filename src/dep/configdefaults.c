@@ -480,6 +480,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->hwTimestamping = FALSE;
 
 	rtOpts->ptpMonEnabled = FALSE;
+	rtOpts->ptpMonDomainNumber = rtOpts->domainNumber;
+	rtOpts->ptpMonAnyDomain = FALSE;
 
 }
 

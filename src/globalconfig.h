@@ -344,7 +344,10 @@ typedef struct {
 
 	Boolean hwTimestamping;
 
+	/* PTP monitoring extensions */
 	Boolean ptpMonEnabled;
+	Boolean ptpMonAnyDomain;
+	UInteger8 ptpMonDomainNumber;
 
 } RunTimeOpts;
 

@@ -892,8 +892,6 @@ int packPtpMessage(char *buf, PtpMessage *data, char *boundary) {
 	return PTP_MESSAGE_HEADER_TOO_SHORT;
     }
 
-    offset += ret;
-
     return offset;
 }
 

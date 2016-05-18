@@ -47,6 +47,10 @@ typedef struct
 	uint32_t managementMessagesSent;
 	uint32_t managementMessagesReceived;
 
+	/* ptpmon counters */
+	uint32_t ptpMonReqReceived;
+	uint32_t ptpMonMtieReqReceived;
+
 /* not implemented yet */
 
 	/* FMR counters */

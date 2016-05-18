@@ -5,8 +5,8 @@
 
 PROCESS_FIELD( mtieValid, 1, PtpBoolean)
 PROCESS_FIELD( reserved, 1, PtpOctet)
-PROCESS_FIELD( windowNumber, 1, PtpUInteger16)
-PROCESS_FIELD( windowDuration, 1, PtpUInteger16)
+PROCESS_FIELD( windowNumber, 2, PtpUInteger16)
+PROCESS_FIELD( windowDuration, 2, PtpUInteger16)
 PROCESS_FIELD( minOffsetFromMaster, PTP_TYPELEN_TIMEINTERVAL, PtpTimeInterval)
 PROCESS_FIELD( maxOffsetFromMaster, PTP_TYPELEN_TIMEINTERVAL, PtpTimeInterval)
 

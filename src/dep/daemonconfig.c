@@ -1490,6 +1490,15 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 NOTE: if used in conjunction with hardware timestamping, timestamping\n"
 	"	 support for unicast packets is required!");
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:ptpmon_any_domain",
+		PTPD_RESTART_NONE, &rtOpts->ptpMonAnyDomain, rtOpts->ptpMonAnyDomain,
+		"Accept PTPMON Delay Request from any domain.");
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:ptpmon_domain",
+		PTPD_RESTART_NONE, INTTYPE_I8, &rtOpts->ptpMonDomainNumber, rtOpts->domainNumber,
+		"Allowed PTP domain number to accept PTPMON Delay Requests from.\n"
+	"	 The default is to use the PTPd domain number (ptpengine:domain).", RANGECHECK_RANGE,0,255);
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:igmp_refresh",
 		PTPD_RESTART_NONE, &rtOpts->refreshIgmp, rtOpts->refreshIgmp,
 	"Send explicit IGMP joins between engine resets and periodically\n"
@@ -1861,7 +1870,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:management_acl_permit",
 		PTPD_RESTART_ACLS, rtOpts->managementAclPermitText, sizeof(rtOpts->managementAclPermitText), rtOpts->managementAclPermitText,
-		"Permit access control list for management messages. Format is a series of \n"
+		"Permit access control list for management messages and monitoring extensions. Format is a series of \n"
 	"	 comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
 	"	 where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
 	"        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
@@ -1869,7 +1878,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:management_acl_deny",
 		PTPD_RESTART_ACLS, rtOpts->managementAclDenyText, sizeof(rtOpts->managementAclDenyText), rtOpts->managementAclDenyText,
-		"Deny access control list for management messages. Format is a series of \n"
+		"Deny access control list for management messages and monitoring extensions. Format is a series of \n"
         "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
         "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
         "        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
