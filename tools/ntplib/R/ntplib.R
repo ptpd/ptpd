@@ -54,6 +54,9 @@ ntpLoopRead <- function(file) {
         col.names=c("day", "second", "offset", "drift", "error", "stability", "interval"),
         blank.lines.skip=TRUE, header=FALSE, skip=100)
 
+    # Remove any duplicates
+    data = data[!duplicated(data$second), ]
+
     offset = zoo(data$offset, data$second)
     drift = zoo(data$drift, data$second)
     stability = zoo(data$stability, data$second)
