@@ -451,7 +451,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		if (timerExpired(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER])) {
 			updateClockDrivers();
 			if(ptpClock->masterClock != NULL) {
-			    if(ptpClock->portDS.portState == PTP_MASTER) {
+			    if((ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
 				    ptpClock->masterClock->setState(ptpClock->masterClock, CS_LOCKED);
 			    }
 			}
@@ -493,10 +493,11 @@ void setPortState(PtpClock *ptpClock, Enumeration8 state)
 	DBG("State change from %s to %s\n", portState_getName(ptpClock->portDS.lastPortState), portState_getName(state));
 
 	if(ptpClock->masterClock != NULL) {
-	    if(state == PTP_MASTER) {
+	    /* entering MASTER or PASSIVE */
+	    if((state == PTP_MASTER) || (state == PTP_PASSIVE)) {
 		    ptpClock->masterClock->setExternalReference(ptpClock->masterClock, "PREFMST", RC_EXTERNAL);
-	    }
-	    if(ptpClock->portDS.portState == PTP_MASTER) {
+	    /* leaving MASTER or PASSIVE */
+	    } else if((ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
 		    ptpClock->masterClock->setReference(ptpClock->masterClock, NULL);
 	    }
 	}

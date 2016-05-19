@@ -2008,8 +2008,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	parseResult &= configMapString(opCode, opArg, dict, target, "clock:master_clock_name",
 		PTPD_RESTART_NONE, rtOpts->masterClock, sizeof(rtOpts->masterClock), rtOpts->masterClock,
 	"Specify the clock name of a clock which is to be the preferred clock source\n"
-	"	 when PTP is running as master (and all other clocks will sinchronise with it).\n"
-	"	 When not running as master, this clock will sync to the current best clock");
+	"	 when PTP is running as master or passive (and all other clocks will sinchronise with it).\n"
+	"	 When not running as master / passive, this clock will sync to the current best clock");
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "clock:disabled_clock_names",
 		PTPD_RESTART_NONE, rtOpts->disabledClocks, sizeof(rtOpts->disabledClocks), rtOpts->disabledClocks,
