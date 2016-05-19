@@ -450,11 +450,12 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		if (timerExpired(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER])) {
 			updateClockDrivers();
-			if((ptpClock->masterClock != NULL) && ((ptpClock->masterClock != ptpClock->clockDriver) || ptpClock->portDS.portState != PTP_SLAVE)) {
-			    ptpClock->masterClock->setState(ptpClock->masterClock, CS_LOCKED);
+			if(ptpClock->masterClock != NULL) {
+			    if(ptpClock->portDS.portState == PTP_MASTER) {
+				    ptpClock->masterClock->setState(ptpClock->masterClock, CS_LOCKED);
+			    }
 			}
 		}
-
 
 		if (timerExpired(&ptpClock->timers[INTERFACE_CHECK_TIMER])) {
 		    updateInterfaceInfo(&ptpClock->netPath, rtOpts, ptpClock);
@@ -491,9 +492,12 @@ void setPortState(PtpClock *ptpClock, Enumeration8 state)
 	ptpClock->portDS.lastPortState = ptpClock->portDS.portState;
 	DBG("State change from %s to %s\n", portState_getName(ptpClock->portDS.lastPortState), portState_getName(state));
 
-	if(state != PTP_SLAVE) {
-	    if(ptpClock->masterClock != NULL) {
-		    ptpClock->masterClock->setExternalReference(ptpClock->masterClock, "EXT", RC_EXTERNAL);
+	if(ptpClock->masterClock != NULL) {
+	    if(state == PTP_MASTER) {
+		    ptpClock->masterClock->setExternalReference(ptpClock->masterClock, "PREFMST", RC_EXTERNAL);
+	    }
+	    if(ptpClock->portDS.portState == PTP_MASTER) {
+		    ptpClock->masterClock->setReference(ptpClock->masterClock, NULL);
 	    }
 	}
 

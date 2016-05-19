@@ -640,7 +640,6 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	return;
     }
 
-
     if( (b != NULL) && a->config.externalOnly) {
 	DBG("Clock %s only accepts external reference clocks\n", a->name);
 	return;

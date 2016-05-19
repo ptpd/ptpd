@@ -2938,7 +2938,9 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 	}
 
 	if((ptpClock->masterClock != NULL) && (ptpClock->masterClock != ptpClock->clockDriver)) {
-	    ptpClock->masterClock->setExternalReference(ptpClock->masterClock, "EXT", RC_EXTERNAL);
+	    if(ptpClock->portDS.portState == PTP_MASTER) {
+		ptpClock->masterClock->setExternalReference(ptpClock->masterClock, "PREFMST", RC_EXTERNAL);
+	    }
 	}
 
 	return TRUE;

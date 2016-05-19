@@ -458,7 +458,7 @@ int dictionary_merge(dictionary* source, dictionary* dest, int overwrite, int wa
 	if((strcmp(dictionary_get(dest,source->key[i],""),"") != 0) &&
 		    (strcmp(dictionary_get(dest,source->key[i],""),source->val[i]) != 0)) {
 		if(overwrite && warn) {
-		    WARNING("Warning: %s=\"%s\" : value \"%s\" takes priority %s\n",
+		    WARNING("Warning: %s=\"%s\" : value \"%s\" %s takes priority\n",
 				source->key[i], dictionary_get(dest,source->key[i],""),
 				source->val[i], warnStr);
 		}

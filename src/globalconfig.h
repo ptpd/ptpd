@@ -257,9 +257,6 @@ typedef struct {
 	int holdoverAge;
 	int holdoverAge_hw;
 
-	int freerunAge;
-	int freerunAge_hw;
-
 	int adevPeriod;
 
 	Boolean negativeStep;

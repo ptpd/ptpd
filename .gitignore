@@ -4,6 +4,7 @@
 # various autotools generated files
 Makefile.in
 Makefile
+/config.cache
 /autom4te.cache
 /autoscan.log
 /autoscan-*.log

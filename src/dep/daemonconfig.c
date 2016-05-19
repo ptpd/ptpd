@@ -2008,8 +2008,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	parseResult &= configMapString(opCode, opArg, dict, target, "clock:master_clock_name",
 		PTPD_RESTART_NONE, rtOpts->masterClock, sizeof(rtOpts->masterClock), rtOpts->masterClock,
 	"Specify the clock name of a clock which is to be the preferred clock source\n"
-	"	 when PTP is running as master, and all other clocks will sinchronise with it.\n"
-	"	 This clock will only accept an external reference such as PTP");
+	"	 when PTP is running as master (and all other clocks will sinchronise with it).\n"
+	"	 When not running as master, this clock will sync to the current best clock");
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "clock:disabled_clock_names",
 		PTPD_RESTART_NONE, rtOpts->disabledClocks, sizeof(rtOpts->disabledClocks), rtOpts->disabledClocks,
@@ -2171,6 +2171,16 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
 		RANGECHECK_RANGE, 0.1,100000.0);
 
+	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:holdover_delay_hw",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->lockedAge_hw, rtOpts->lockedAge_hw,
+		"Maximum idle time allowed (no sync) before a hardware clock in LOCKED state to transitions into HOLDOVER.",
+		RANGECHECK_RANGE, 5, 86400);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:holdover_timeout_hw",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->holdoverAge_hw, rtOpts->holdoverAge_hw,
+		"Maximum time allowed before a hardware clock in HOLDOVER state transitions to FREERUN.",
+		RANGECHECK_RANGE, 5, 86400);
+
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:adev_locked_threshold_low",
 		PTPD_RESTART_NONE, &rtOpts->stableAdev, rtOpts->stableAdev,
 		"Minimum Allan deviation of a clock frequency (ppb = 10E-9) for a software-based clock to be considered stable (LOCKED).\n"
@@ -2182,6 +2192,16 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Allan deviation of a clock frequency (ppb = 10E-9) for a software-based clock to be considered no longer stable\n"
 	"	 (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
 		RANGECHECK_RANGE, 0.1,100000.0);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:holdover_delay",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->lockedAge, rtOpts->lockedAge,
+		"Maximum idle time allowed (no sync) before a software-based clock in LOCKED state to transitions into HOLDOVER.",
+		RANGECHECK_RANGE, 5, 86400);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:holdover_timeout",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->holdoverAge, rtOpts->holdoverAge,
+		"Maximum time allowed before a software-based clock in HOLDOVER state transitions to FREERUN.",
+		RANGECHECK_RANGE, 5, 86400);
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:adev_interval",
 		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->adevPeriod, rtOpts->adevPeriod,

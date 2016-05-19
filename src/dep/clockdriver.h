@@ -80,9 +80,9 @@ enum {
 
 /* reference class */
 enum {
-    RC_PTP,
-    RC_EXTERNAL,
-    RC_INTERNAL
+    RC_PTP = 0,
+    RC_EXTERNAL = 1,
+    RC_INTERNAL = 2
 };
 
 /* clock states */
