@@ -1,7 +1,7 @@
 .\" -*- nroff -*"
-.TH ptpd2.conf 5 "@RELEASE_DATE@" "version @VERSION_NUMBER@" "PTPd config file"
+.TH ptpd2.conf 5 "@MAN_DATE@" "version @MAN_VERSION@" "PTPd configuration file"
 .SH NAME
-ptpd2.conf \- Precision Time Protocol daemon config file
+ptpd2.conf \- Precision Time Protocol daemon configuration file
 
 .SH CONFIGURATION FILE FORMAT
 Settings in the PTPd configuration file are grouped into sections and take

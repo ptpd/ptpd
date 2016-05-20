@@ -1,5 +1,5 @@
 .\" -*- nroff -*"
-.TH ptpd2 8 "@RELEASE_DATE@" "version @VERSION_NUMBER@" "Precision Time Protocol daemon"
+.TH ptpd2 8 "@MAN_DATE@" "version @MAN_VERSION@" "Precision Time Protocol daemon"
 .SH NAME
 ptpd2 \- Precision Time Protocol daemon (1588-2008)
 .SH SYNOPSIS

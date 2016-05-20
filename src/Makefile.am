@@ -16,6 +16,8 @@ AM_CPPFLAGS    += -DDATADIR='"$(datadir)"' $(PTP_DBL) $(PTP_DAEMON) $(PTP_EXP) $
 
 NULL=
 
+BOB=@VERSION_NUMBER@
+
 #VERSION = 2.3.1
 #SHAREDLIBVER = $(SHAREDLIB).$(VERSION)
 #	ptp_timers.c			

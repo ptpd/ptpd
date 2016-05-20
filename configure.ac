@@ -4,10 +4,10 @@ m4_include([m4/version.m4])
 AC_PREREQ(2.59)
 AC_INIT(
     [ptpd],
-    [VERSION_NUMBER],
-    [ptpd-bugs@nwtime.org],
+    VERSION_NUMBER,
+    [ptpd-devel@sourceforge.net],
     [],
-    [PTPD_URL]dnl
+    PTPD_URL
 )
 AC_CONFIG_SRCDIR([src/arith.c])
 AC_CONFIG_HEADER([config.h])
@@ -16,10 +16,11 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE([1.9 foreign -Wall])
 
-[RELEASE_DATE]="RELEASE_DATE"
-AC_SUBST([RELEASE_DATE])
-[VERSION_NUMBER]="VERSION_NUMBER"
-AC_SUBST([VERSION_NUMBER])
+MAN_DATE="RELEASE_DATE"
+MAN_VERSION="VERSION_NUMBER"
+
+AC_SUBST(MAN_DATE)
+AC_SUBST(MAN_VERSION)
 
 # Checks for programs.
 AC_PROG_AWK
@@ -28,7 +29,7 @@ ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99])
 AC_PROG_LIBTOOL
 AM_PROG_CC_C_O
 
-# Check for svnversion, cut and tr
+# Check for date, cut and tr
 
 AC_PATH_PROG(cutpath, cut)
 AC_PATH_PROG(trpath, tr)
@@ -39,19 +40,21 @@ if test -n "$datepath"; then
     AC_DEFINE_UNQUOTED(BUILD_DATE, ["$build_date"], [build date year-month-day])
 fi
 
-# Set CODE_REVISION if svnversion found, version is suffixed with "-svn" and code is versioned
+# Set CODE_REVISION if git, version is suffixed with "-git" and code is versioned
 if test -n "$cutpath" && test -n "$trpath"; then
-    ver_prefix=`echo VERSION_NUMBER | $cutpath -s -d- -f2`
-    AC_PATH_PROG(svnverpath, svnversion)
-    if test "$ver_prefix" = "svn" && test -n "$svnverpath"; then
-	svn_rev=`$svnverpath 2>/dev/null | $cutpath -s -d: -f2 | $trpath -d MS`
-	if test -n "$svn_rev"; then
-	    AC_DEFINE_UNQUOTED(CODE_REVISION, ["$svn_rev"], [source code revision])
-	else
-	svn_rev=`$svnverpath 2>/dev/null | $trpath -d MS`
-	    if test -n "$svn_rev"; then
-		AC_DEFINE_UNQUOTED(CODE_REVISION, ["$svn_rev"], [source code revision])
-	    fi
+    ver_suffix=`echo VERSION_NUMBER | $cutpath -s -d- -f4`
+    if test -z "$ver_suffix"; then
+	ver_suffix=`echo VERSION_NUMBER | $cutpath -s -d- -f3`
+	if test -z "$ver_suffix"; then
+	    ver_suffix=`echo VERSION_NUMBER | $cutpath -s -d- -f2`
+	fi
+    fi
+
+    AC_PATH_PROG(gitpath, git)
+    if test "$ver_suffix" = "git" && test -n "$gitpath"; then
+	git_rev=`$gitpath log -1 --format="%h" 2>/dev/null`
+	if test -n "$git_rev"; then
+	    AC_DEFINE_UNQUOTED(CODE_REVISION, ["$git_rev"], [source code revision])
 	fi
     fi
 fi
