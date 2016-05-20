@@ -946,11 +946,25 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 			double madd = dev / driver->_madFilter->output;
 			if(madd > driver->config.madMax) {
 #ifdef PTPD_CLOCK_SYNC_PROFILING
-			    INFO(THIS_COMPONENT"prof Clock %s +outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
+			    INFO(THIS_COMPONENT"prof Clock %s +outlier Offset %.09f mads %.09f MAD %.09f blocking for %.02f\n",
+						    driver->name, dOffset, madd, driver->_madFilter->output, driver->_madFilter->blockingTime);
 #else
-			    DBG(THIS_COMPONENT"prof Clock %s +outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
+			    DBG(THIS_COMPONENT"prof Clock %s +outlier Offset %.09f mads %.09f MAD %.09f blocking for %.02f\n",
+						    driver->name, dOffset, madd, driver->_madFilter->output, driver->_madFilter->blockingTime);
 #endif
 			    driver->refOffset = lastOffset;
+			    if(driver->_madFilter->lastBlocked) {
+				driver->_madFilter->consecutiveBlocked++;
+				driver->_madFilter->blockingTime += tau;
+			    }
+			    driver->_madFilter->lastBlocked = TRUE;
+
+			    if(driver->_madFilter->blockingTime > driver->config.outlierFilterBlockTimeout) {
+				WARNING(THIS_COMPONENT"Clock %s outlier filter blocking for more than %d seconds - resetting filter\n",
+				driver->name, driver->config.outlierFilterBlockTimeout);
+				resetDoubleMovingStatFilter(driver->_madFilter);
+			    }
+
 			    return FALSE;
 			} else {
 #ifdef PTPD_CLOCK_SYNC_PROFILING
@@ -958,14 +972,24 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 #else
 			    DBG(THIS_COMPONENT"prof Clock %s -outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
 #endif
-
+			    driver->_madFilter->lastBlocked = FALSE;
+			    driver->_madFilter->consecutiveBlocked = 0;
+			    driver->_madFilter->blockingTime = 0;
 			}
+
 		}
 
 		if(driver->config.statFilter) {
 		    if(!feedDoubleMovingStatFilter(driver->_filter, dOffset)) {
 			driver->refOffset = lastOffset;
+			if(driver->_filter->lastBlocked) {
+			    driver->_filter->consecutiveBlocked++;
+			}
+			driver->_filter->lastBlocked = TRUE;
 			return FALSE;
+		    } else {
+			    driver->_filter->lastBlocked = FALSE;
+			    driver->_filter->consecutiveBlocked = 0;
 		    }
 		    offset = doubleToTimeInternal(driver->_filter->output);
 		}
@@ -1278,6 +1302,7 @@ pushConfig(ClockDriver *driver, RunTimeOpts *global)
     config->madWindowSize = global->clockOutlierFilterWindowSize;
     config->madDelay = global->clockOutlierFilterDelay;
     config->madMax = global->clockOutlierFilterCutoff;
+    config->outlierFilterBlockTimeout = global->clockOutlierFilterBlockTimeout;
 
     driver->servo.kP = global->servoKP;
     driver->servo.kI = global->servoKI;

@@ -322,6 +322,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->clockOutlierFilterWindowSize = 200;
 	rtOpts->clockOutlierFilterDelay = 100;
 	rtOpts->clockOutlierFilterCutoff = 5.0;
+	rtOpts->clockOutlierFilterBlockTimeout = 30; /* filter block timeout */
 
 	/* disabled by default */
 	rtOpts->announceTimeoutGracePeriod = 0;

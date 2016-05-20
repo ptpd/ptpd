@@ -118,6 +118,7 @@ typedef struct {
     double stableAdev;			/* Allan deviation low watermark for LOCKED state */
     double unstableAdev;		/* Allan deviation high watermark for LOCKED state -> TRACKING */
     double madMax;			/* Mad Max! Maximum times MAD from median - outlier cutoff factor */
+    int outlierFilterBlockTimeout;	/* Maximum (tau * blocked samples) before filter is forcefully unlocked */
     int madDelay;			/* Outlier filter window fill delay (samples) - run only at >= samples */
     int filterWindowSize;		/* Filter window size */
     int filterWindowType;		/* Filter window type */

@@ -2090,6 +2090,11 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Inter-clock sync outlier filter cutoff threshold: maximum number of MAD\n"
 	"	 (Mean Absolute Deviations) from median to consider the sample an outlier", RANGECHECK_RANGE, 0.1, 100000);
 
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:outlier_filter_block_timeout",
+		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->clockOutlierFilterBlockTimeout, rtOpts->clockOutlierFilterBlockTimeout,
+		"Maximum blocking time (seconds) before outlier filter is reset",RANGECHECK_RANGE,0,3600);
+
+
 	/* END inter-clock filter settings */
 
 #ifdef HAVE_STRUCT_TIMEX_TICK

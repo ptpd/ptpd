@@ -161,6 +161,9 @@ typedef struct {
 	int32_t* sortedSamples;
 	char identifier[10];
 	int counter;
+	int lastBlocked;
+	double blockingTime;
+	uint32_t consecutiveBlocked;
 	StatFilterOptions config;
 
 } IntMovingStatFilter;
@@ -172,6 +175,9 @@ typedef struct {
 	double* sortedSamples;
 	char identifier[10];
 	int counter;
+	int lastBlocked;
+	double blockingTime;
+	uint32_t consecutiveBlocked;
 	StatFilterOptions config;
 
 } DoubleMovingStatFilter;

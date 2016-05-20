@@ -1,5 +1,5 @@
 ; ========================================
-; PTPd version 2.3.2-linuxphc default configuration
+; PTPd version 2.3.2-linuxphc-git default configuration
 ; ========================================
 
 ; NOTE: the following settings are affected by ptpengine:preset selection:
@@ -303,6 +303,18 @@ ptpengine:management_enable = Y
 ; Accept SET and COMMAND management messages.
 ptpengine:management_set_enable = N
 
+; Enable support for PTPMON monitoring extensions.
+; NOTE: if used in conjunction with hardware timestamping, timestamping
+; support for unicast packets is required!
+ptpengine:ptpmon_enable = N
+
+; Accept PTPMON Delay Request from any domain.
+ptpengine:ptpmon_any_domain = N
+
+; Allowed PTP domain number to accept PTPMON Delay Requests from.
+; The default is to use the PTPd domain number (ptpengine:domain).
+ptpengine:ptpmon_domain = 0
+
 ; Send explicit IGMP joins between engine resets and periodically
 ; in master state.
 ptpengine:igmp_refresh = Y
@@ -563,14 +575,14 @@ ptpengine:timing_acl_permit =
 ; incoming messages. IP access lists are only supported when using the IP transport.
 ptpengine:timing_acl_deny = 
 
-; Permit access control list for management messages. Format is a series of 
+; Permit access control list for management messages and monitoring extensions. Format is a series of 
 ; comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,
 ; where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the
 ; subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the
 ; incoming messages. IP access lists are only supported when using the IP transport.
 ptpengine:management_acl_permit = 
 
-; Deny access control list for management messages. Format is a series of 
+; Deny access control list for management messages and monitoring extensions. Format is a series of 
 ; comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,
 ; where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the
 ; subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the
@@ -658,8 +670,8 @@ clock:lock_device = N
 clock:extra_clocks = 
 
 ; Specify the clock name of a clock which is to be the preferred clock source
-; when PTP is running as master, and all other clocks will sinchronise with it.
-; This clock will only accept an external reference such as PTP
+; when PTP is running as master or passive (and all other clocks will sinchronise with it).
+; When not running as master / passive, this clock will sync to the current best clock
 clock:master_clock_name = 
 
 ; Specify a comma, space or tab separated list of names of clocks that should be disabled - disabled clocks
@@ -707,7 +719,7 @@ clock:stat_filter_window = 0
 ; Options: sliding interval 
 clock:stat_filter_window_type = sliding
 
-; Enable outlier filter for inter-clock sync (HW to system clock, HW to HW
+; Enable outlier filter for inter-clock sync (HW to system clock, HW to HW)
 clock:outlier_filter_enable = N
 
 ; Number of samples used for the inter-clock sync outlier filter
@@ -719,6 +731,9 @@ clock:outlier_filter_delay = 100
 ; Inter-clock sync outlier filter cutoff threshold: maximum number of MAD
 ; (Mean Absolute Deviations) from median to consider the sample an outlier
 clock:outlier_filter_threshold = 5.000000
+
+; Maximum blocking time (seconds) before outlier filter is reset
+clock:outlier_filter_block_timeout = 30
 
 ; Maximum absolute frequency shift which can be applied to the clock servo
 ; when slewing the clock. Expressed in parts per million (1 ppm = shift of
@@ -766,6 +781,12 @@ servo:adev_locked_threshold_low_hw = 50.000000
 ; (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.
 servo:adev_locked_threshold_high_hw = 500.000000
 
+; Maximum idle time allowed (no sync) before a hardware clock in LOCKED state to transitions into HOLDOVER.
+servo:holdover_delay_hw = 20
+
+; Maximum time allowed before a hardware clock in HOLDOVER state transitions to FREERUN.
+servo:holdover_timeout_hw = 600
+
 ; Minimum Allan deviation of a clock frequency (ppb = 10E-9) for a software-based clock to be considered stable (LOCKED).
 ; Allan deviation is checked in intervals defined by the servo:adev_interval setting.
 servo:adev_locked_threshold_low = 200.000000
@@ -773,6 +794,12 @@ servo:adev_locked_threshold_low = 200.000000
 ; Allan deviation of a clock frequency (ppb = 10E-9) for a software-based clock to be considered no longer stable
 ; (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.
 servo:adev_locked_threshold_high = 2000.000000
+
+; Maximum idle time allowed (no sync) before a software-based clock in LOCKED state to transitions into HOLDOVER.
+servo:holdover_delay = 10
+
+; Maximum time allowed before a software-based clock in HOLDOVER state transitions to FREERUN.
+servo:holdover_timeout = 120
 
 ; Interval (seconds) over which Allan deviation of a clock servo is computed for establishing clock stability.
 ; 

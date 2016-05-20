@@ -280,6 +280,7 @@ typedef struct {
 	int clockOutlierFilterWindowSize;
 	int clockOutlierFilterDelay;
 	double clockOutlierFilterCutoff;
+	int clockOutlierFilterBlockTimeout;
 
 	/**
 	 *  When enabled, ptpd ensures that Sync message sequence numbers
