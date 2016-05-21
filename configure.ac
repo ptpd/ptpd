@@ -4,11 +4,12 @@ m4_include([m4/version.m4])
 AC_PREREQ(2.59)
 AC_INIT(
     [ptpd],
-    VERSION_NUMBER,
+    [VERSION_NUMBER],
     [ptpd-devel@sourceforge.net],
     [],
-    PTPD_URL
+    [PTPD_URL]dnl
 )
+
 AC_CONFIG_SRCDIR([src/arith.c])
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -54,7 +55,7 @@ if test -n "$cutpath" && test -n "$trpath"; then
     if test "$ver_suffix" = "git" && test -n "$gitpath"; then
 	git_rev=`$gitpath log -1 --format="%h" 2>/dev/null`
 	if test -n "$git_rev"; then
-	    AC_DEFINE_UNQUOTED(CODE_REVISION, ["$git_rev"], [source code revision])
+	    AC_DEFINE_UNQUOTED(CODE_REVISION, ["-$git_rev"], [source code revision])
 	fi
     fi
 fi
