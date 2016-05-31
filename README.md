@@ -22,7 +22,7 @@ probably want something that implements the Network Time Protocol. It can
 coordinate computer clocks with an absolute time reference such as UTC.
 
 Please refer to the
-[INSTALL](https://raw.githubusercontent.com/cfengine/core/master/INSTALL) file
+[INSTALL](https://raw.githubusercontent.com/ptpd/ptpd/master/INSTALL) file
 for build instructions and configuration options. Please refer to the
 [README.repocheckout](https://github.com/ptpd/ptpd/blob/master/README.repocheckout)
 file for information on how to build from source code repositories.
