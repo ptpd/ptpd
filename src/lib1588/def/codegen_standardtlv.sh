@@ -78,7 +78,7 @@ echo
 read -r -d '' code <<EOF
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/$TLVGROUP/$file.def"
+	#include "def/$TLVGROUP/$file.def"
 	#undef PROCESS_FIELD
 } PtpTlv$type;
 EOF
@@ -177,8 +177,8 @@ read -r -d '' code <<EOF
 static int unpackPtpTlv$type(PtpTlv$type *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/$TLVGROUP/$file.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/$TLVGROUP/$file.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -188,8 +188,8 @@ static int packPtpTlv$type(char *buf, PtpTlv$type *data, char *boundary) {
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/$TLVGROUP/$file.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/$TLVGROUP/$file.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -199,7 +199,7 @@ static void freePtpTlv$type(PtpTlv$type *data) {
 
     #define PROCESS_FIELD( name, size, type) \\
         free##type (&data->name);
-    #include "definitions/$TLVGROUP/$file.def"
+    #include "def/$TLVGROUP/$file.def"
     #undef PROCESS_FIELD
 }
 
@@ -209,7 +209,7 @@ static void displayPtpTlv$type(PtpTlv$type *data) {
 
     #define PROCESS_FIELD( name, size, type) \\
         display##type (data->name, "\t\t"#name, size);
-    #include "definitions/$TLVGROUP/$file.def"
+    #include "def/$TLVGROUP/$file.def"
     #undef PROCESS_FIELD
 }
 

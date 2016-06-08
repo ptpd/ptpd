@@ -88,14 +88,17 @@ enum {
 /* clock states */
 typedef enum {
     CS_SUSPENDED,	/* clock is suspended - no updates accepted */
-    CS_NEGSTEP,		/* clock is locked up after negative step attempt */
-    CS_STEP,		/* clock is suspended because of offset > 1 s */
+    CS_NEGSTEP,		/* clock is locked up because of negative offset (< -1 s) - requires manual step with SIGUSR1 */
+    CS_STEP,		/* clock is suspended because of offset > 1 s, counting down to step */
     CS_HWFAULT,		/* hardware fault */
-    CS_INIT,		/* initial state */
-    CS_FREERUN,		/* clock is not being disciplined */
-    CS_TRACKING,	/* clock is tracking a reference but is not locked */
-    CS_HOLDOVER,	/* clock is in holdover after no updates or losing reference */
+    CS_INIT,		/* initial state, proceeds to FREERUN */
+    CS_FREERUN,		/* clock is not being disciplined - or has a reference but has not been updated*/
+    CS_TRACKING,	/* clock is tracking a reference but is not (yet) locked, or was locked and adev is outside threshold. */
+    CS_HOLDOVER,	/* clock is in holdover: was LOCKED but has been idle (no updates) or lost its reference */
     CS_LOCKED		/* clock is locked to reference (adev below threshold) */
+
+    /* Note: only clocks in LOCKED or HOLDOVER state are considered for best clock selection */
+
 } ClockState;
 
 /* clock driver configuration */
@@ -208,6 +211,7 @@ struct ClockDriver {
     /* BEGIN "private" fields */
 
     int _serial;			/* object serial no */
+    unsigned char _uid[8];		/* 64-bit uid (like MAC) */
     Boolean	_init;			/* the driver was successfully initialised */
     ClockStatus _status;		/* status flags - leap etc. */
     Boolean _updated;			/* clock has received at least one update */
@@ -227,7 +231,7 @@ struct ClockDriver {
     int *_instanceCount;		/* instance counter for the whole clock driver */
     void *_privateData;			/* implementation-specific data */
     void *_privateConfig;		/* implementation-specific config */
-    void *_extData;			/* implementation-specific external / extra data */
+    void *_extData;			/* implementation-specific external / extension / extra data */
 
     /* END "private" fields */
 
@@ -278,8 +282,15 @@ struct ClockDriver {
     Boolean (*pushPrivateConfig) (ClockDriver *, RunTimeOpts *);
     Boolean (*isThisMe) (ClockDriver *, const char* search);
 
+    void (*loadVendorExt) (ClockDriver *, const char *);
+
     /* public interface end */
 
+    /* vendor-specific init and shutdown callbacks */
+
+    int (*_vendorInit) (ClockDriver *);
+    int (*_vendorShutdown) (ClockDriver *);
+    int (*_vendorHealthCheck) (ClockDriver *);
 
     /* attach the linked list */
     LINKED_LIST_TAG(ClockDriver);
@@ -290,6 +301,7 @@ struct ClockDriver {
 ClockDriver*  	createClockDriver(int driverType, const char* name);
 Boolean 	setupClockDriver(ClockDriver* clockDriver, int type, const char* name);
 void 		freeClockDriver(ClockDriver** clockDriver);
+int		clockDriverDummyCallback(ClockDriver*);
 
 ClockDriver* 	getSystemClock();
 

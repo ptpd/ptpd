@@ -25,34 +25,22 @@
  */
 
 /**
- * @file   clockdriver_linuxphc.h
- * @date   Sat Jan 9 16:14:10 2015
+ * @file   net_utils.h
+ * @date   Wed Jun 8 16:14:10 2016
  *
- * @brief  structure definitions for the Linux PHC clock driver
+ * @brief  Definitions for network utility functions
  *
  */
 
-#ifndef PTPD_CLOCKDRIVER_LINUXPHC_H_
-#define PTPD_CLOCKDRIVER_LINUXPHC_H_
+#ifndef PTPD_NET_UTILS_H_
+#define PTPD_NET_UTILS_H_
 
-#include "clockdriver.h"
+#include "../ptpd.h"
 
-#define OSCLOCK_OFFSET_SAMPLES 9
+/* Try getting hwAddrSize bytes of ifaceName hardware address,
+   and place them in hwAddr. Return 1 on success, 0 when no suitable
+   hw address available, -1 on failure.
+ */
+int getHwAddr (const char* ifaceName, unsigned char* hwAddr, const int hwAddrSize);
 
-typedef struct {
-    int clockFd;
-    int helperFd;
-    int phcIndex;
-    clockid_t clockId;
-} ClockDriverData_linuxphc;
-
-typedef struct {
-    char networkDevice[IFACE_NAME_LENGTH];
-    char characterDevice[PATH_MAX];
-    Boolean lockDevice;
-} ClockDriverConfig_linuxphc;
-
-Boolean _setupClockDriver_linuxphc(ClockDriver* clockDriver);
-
-
-#endif /* PTPD_CLOCKDRIVER_LINUXPHC_H_ */
+#endif /* PTPD_NET_UTILS_H_ */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2016 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -25,34 +25,19 @@
  */
 
 /**
- * @file   clockdriver_linuxphc.h
- * @date   Sat Jan 9 16:14:10 2015
+ * @file   clockdriver_linuxphc_vext_intel.h
+ * @date   Wed Jun 8 16:14:10 2016
  *
- * @brief  structure definitions for the Linux PHC clock driver
+ * @brief  Linux PHC clock driver Intel extension definitions
  *
  */
 
-#ifndef PTPD_CLOCKDRIVER_LINUXPHC_H_
-#define PTPD_CLOCKDRIVER_LINUXPHC_H_
+#ifndef PTPD_CLOCKDRIVER_LINUXPHC_VEXT_INTEL_H_
+#define PTPD_CLOCKDRIVER_LINUXPHC_VEXT_INTEL_H_
 
 #include "clockdriver.h"
 
-#define OSCLOCK_OFFSET_SAMPLES 9
-
-typedef struct {
-    int clockFd;
-    int helperFd;
-    int phcIndex;
-    clockid_t clockId;
-} ClockDriverData_linuxphc;
-
-typedef struct {
-    char networkDevice[IFACE_NAME_LENGTH];
-    char characterDevice[PATH_MAX];
-    Boolean lockDevice;
-} ClockDriverConfig_linuxphc;
-
-Boolean _setupClockDriver_linuxphc(ClockDriver* clockDriver);
+int loadCdVendorExt_intel(ClockDriver *driver, const char *ifname);
 
 
-#endif /* PTPD_CLOCKDRIVER_LINUXPHC_H_ */
+#endif /* PTPD_CLOCKDRIVER_LINUXPHC_VEXT_INTEL_H_ */

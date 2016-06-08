@@ -89,6 +89,7 @@ clockdriver_init(ClockDriver* self, const void *config) {
     snprintf(self->config.frequencyFile, PATH_MAX, PTPD_PROGNAME"_systemclock.frequency");
     self->maxFrequency = ADJ_FREQ_MAX;
     self->servo.maxOutput = self->maxFrequency;
+    self->_vendorInit(self);
     self->setState(self, CS_FREERUN);
     return 1;
 
@@ -96,6 +97,7 @@ clockdriver_init(ClockDriver* self, const void *config) {
 
 static int
 clockdriver_shutdown(ClockDriver *self) {
+    self->_vendorShutdown(self);
     _instanceCount--;
     INFO(THIS_COMPONENT"Unix clock driver %s shutting down\n", self->name);
     return 1;
@@ -883,6 +885,11 @@ isThisMe(ClockDriver *driver, const char* search)
 	return FALSE;
 
 }
+
+static void
+loadVendorExt(ClockDriver *driver, const char *ifname) {
+}
+
 
 static Boolean
 privateHealthCheck(ClockDriver *driver)

@@ -240,7 +240,7 @@ int unpackPtpTlv(PtpTlv *data, char *buf, char *boundary) {
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/derivedData/tlv.def"
+    #include "def/derivedData/tlv.def"
 
     ret = unpackPtpTlvData(data, data->valueField, data->valueField + data->lengthField);
 
@@ -282,8 +282,8 @@ int packPtpTlv(char *buf, PtpTlv *data, char *boundary) {
 
     data->lengthField += pad;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/derivedData/tlv.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/derivedData/tlv.def"
 
     return offset + pad;
 }
@@ -294,7 +294,7 @@ void displayPtpTlv(PtpTlv *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/derivedData/tlv.def"
+    #include "def/derivedData/tlv.def"
 
     displayPtpTlvData(data);
 
@@ -308,7 +308,7 @@ void freePtpTlv(PtpTlv *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/derivedData/tlv.def"
+    #include "def/derivedData/tlv.def"
 
 	free(data);
     }

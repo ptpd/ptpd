@@ -36,25 +36,25 @@
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/signalingTlv/acknowledgeCancelUnicastTransmission.def"
+	#include "def/signalingTlv/acknowledgeCancelUnicastTransmission.def"
 	#undef PROCESS_FIELD
 } PtpTlvAcknowledgeCancelUnicastTransmission;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/signalingTlv/cancelUnicastTransmission.def"
+	#include "def/signalingTlv/cancelUnicastTransmission.def"
 	#undef PROCESS_FIELD
 } PtpTlvCancelUnicastTransmission;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/signalingTlv/grantUnicastTransmission.def"
+	#include "def/signalingTlv/grantUnicastTransmission.def"
 	#undef PROCESS_FIELD
 } PtpTlvGrantUnicastTransmission;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/signalingTlv/requestUnicastTransmission.def"
+	#include "def/signalingTlv/requestUnicastTransmission.def"
 	#undef PROCESS_FIELD
 } PtpTlvRequestUnicastTransmission;
 

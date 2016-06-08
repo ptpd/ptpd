@@ -36,67 +36,67 @@
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/alternateTimeOffsetIndicator.def"
+	#include "def/otherTlv/alternateTimeOffsetIndicator.def"
 	#undef PROCESS_FIELD
 } PtpTlvAlternateTimeOffsetIndicator;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/authenticationChallenge.def"
+	#include "def/otherTlv/authenticationChallenge.def"
 	#undef PROCESS_FIELD
 } PtpTlvAuthenticationChallenge;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/authentication.def"
+	#include "def/otherTlv/authentication.def"
 	#undef PROCESS_FIELD
 } PtpTlvAuthentication;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/cumFreqScaleFactorOffset.def"
+	#include "def/otherTlv/cumFreqScaleFactorOffset.def"
 	#undef PROCESS_FIELD
 } PtpTlvCumFreqScaleFactorOffset;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/organizationExtension.def"
+	#include "def/otherTlv/organizationExtension.def"
 	#undef PROCESS_FIELD
 } PtpTlvOrganizationExtension;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/pathTrace.def"
+	#include "def/otherTlv/pathTrace.def"
 	#undef PROCESS_FIELD
 } PtpTlvPathTrace;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/ptpMonMtieRequest.def"
+	#include "def/otherTlv/ptpMonMtieRequest.def"
 	#undef PROCESS_FIELD
 } PtpTlvPtpMonMtieRequest;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/ptpMonMtieResponse.def"
+	#include "def/otherTlv/ptpMonMtieResponse.def"
 	#undef PROCESS_FIELD
 } PtpTlvPtpMonMtieResponse;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/ptpMonRequest.def"
+	#include "def/otherTlv/ptpMonRequest.def"
 	#undef PROCESS_FIELD
 } PtpTlvPtpMonRequest;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/ptpMonResponse.def"
+	#include "def/otherTlv/ptpMonResponse.def"
 	#undef PROCESS_FIELD
 } PtpTlvPtpMonResponse;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/otherTlv/securityAssociationUpdate.def"
+	#include "def/otherTlv/securityAssociationUpdate.def"
 	#undef PROCESS_FIELD
 } PtpTlvSecurityAssociationUpdate;
 

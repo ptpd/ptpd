@@ -40,6 +40,7 @@
 #include "clockdriver.h"
 #include "clockdriver_interface.h"
 #include "ptpd_dep.h"
+#include "net_utils.h"
 
 /*
  * Some Linux distributions come with kernels which support SYS_OFFSET,
@@ -134,6 +135,9 @@ clockdriver_init(ClockDriver* self, const void *userData) {
 	    return -1;
 	}
 	snprintf(myConfig->characterDevice, PATH_MAX, "/dev/ptp%d", info.phc_index);
+
+	self->loadVendorExt(self, myConfig->networkDevice);
+
     }
 
     if(strlen(myConfig->characterDevice)) {
@@ -148,6 +152,9 @@ clockdriver_init(ClockDriver* self, const void *userData) {
     if(!getClockCapabilities(self, &caps)) {
 	return -1;
     }
+
+    /* run any vendor-specific initialisation code */
+    self->_vendorInit(self);
 
     self->maxFrequency = caps.max_adj;
 
@@ -173,6 +180,10 @@ clockdriver_shutdown(ClockDriver *self) {
     GET_CONFIG(self, myConfig, linuxphc);
 
     INFO(THIS_COMPONENT"Linux PHC clock driver %s (%s) shutting down\n", self->name, myConfig->characterDevice);
+
+    /* run any vendor-specific shutdown code */
+    self->_vendorShutdown(self);
+
     if(myData->clockFd > -1) {
 	close(myData->clockFd);
     }
@@ -598,6 +609,54 @@ isThisMe(ClockDriver *self, const char* search)
 	return FALSE;
 
 }
+
+static void
+loadVendorExt(ClockDriver *self, const char *ifname) {
+
+	Boolean found = FALSE;
+	char vendorName[100];
+	uint32_t oui;
+	int (*loader)(ClockDriver*, const char*);
+
+	int ret = getHwAddr(ifname, (unsigned char*)&oui, 4);
+
+	oui = ntohl(oui) >> 8;
+
+	if(ret != 1) {
+	    WARNING(THIS_COMPONENT"%s: could not retrieve hardware address for vendor extension check\n",
+		    self->name);
+	} else {
+
+	    memset(vendorName, 0, 100);
+	    INFO(THIS_COMPONENT"%s: probing for vendor extensions (OUI %06x)\n", self->name,
+				oui);
+
+	    #define LOAD_VENDOR_EXT(voui,vendor,name) \
+		case voui: \
+		    found = TRUE; \
+		    strncpy(vendorName, name, 100); \
+		    loader = loadCdVendorExt_##vendor; \
+		    break;
+
+	    switch(oui) {
+
+		#include "clockdriver_linuxphc_vext.def"
+
+		default:
+		    INFO(THIS_COMPONENT"%s: no vendor extensions available\n", self->name);
+	    }
+
+	    #undef LOAD_VENDOR_EXT
+
+	    if(found) {
+		INFO(THIS_COMPONENT"%s: vendor: %s, testing extensions\n", self->name, vendorName);
+		loader(self, ifname);
+	    }
+
+	}
+
+}
+
 
 static Boolean
 privateHealthCheck(ClockDriver *driver)

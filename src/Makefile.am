@@ -24,7 +24,7 @@ BOB=@VERSION_NUMBER@
 
 EXTRA_DIST = 			\
 	def			\
-	lib1588/definitions
+	lib1588/def	
 
 ptpd_SOURCES =				\
 	arith.c				\
@@ -65,6 +65,8 @@ ptpd_SOURCES =				\
 	dep/ntpengine/ntpdcontrol.h	\
 	timingdomain.h			\
 	timingdomain.c			\
+	dep/net_utils.h			\
+	dep/net_utils.c			\
 	dep/statistics.h		\
 	dep/statistics.c		\
 	dep/outlierfilter.h		\
@@ -76,6 +78,11 @@ ptpd_SOURCES =				\
 	dep/clockdriver_interface.h	\
 	dep/clockdriver_unix.h		\
 	dep/clockdriver_unix.c		\
+	dep/clockdriver_linuxphc_vext_intel.h \
+	dep/clockdriver_linuxphc_vext_intel.c \
+	dep/clockdriver_linuxphc_vext_solarflare.h \
+	dep/clockdriver_linuxphc_vext_solarflare.c \
+	dep/clockdriver_linuxphc_vext.def \
 	dep/clockdriver_linuxphc.h	\
 	dep/clockdriver_linuxphc.c	\
 	dep/linkedlist.h		\

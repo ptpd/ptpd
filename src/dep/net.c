@@ -2948,4 +2948,3 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 
 }
 
-//static Boolean 

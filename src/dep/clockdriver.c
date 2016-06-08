@@ -1563,6 +1563,12 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 	return a;
 }
 
+/* dummy placeholder callback */
+int
+clockDriverDummyCallback(ClockDriver* self) {
+    return 1;
+}
+
 static void
 findBestClock() {
 
@@ -1708,6 +1714,9 @@ static Boolean healthCheck(ClockDriver *driver) {
     DBG(THIS_COMPONENT"clock %s health check...\n", driver->name);
 
     ret &= driver->privateHealthCheck(driver);
+    ret &= driver->_vendorHealthCheck(driver);
 
     return ret;
 }
+
+

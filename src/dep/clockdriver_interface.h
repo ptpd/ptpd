@@ -54,6 +54,8 @@ static Boolean pushPrivateConfig (ClockDriver *, RunTimeOpts *rtOpts);
 static Boolean privateHealthCheck(ClockDriver *driver);
 static Boolean isThisMe(ClockDriver *, const char* search);
 
+static void loadVendorExt(ClockDriver *, const char *ifname);
+
 #define INIT_INTERFACE(var) \
     var->init = clockdriver_init; \
     var->shutdown = clockdriver_shutdown; \
@@ -69,7 +71,11 @@ static Boolean isThisMe(ClockDriver *, const char* search);
     var->getOffsetFrom = getOffsetFrom; \
     var->pushPrivateConfig = pushPrivateConfig;\
     var->privateHealthCheck = privateHealthCheck; \
-    var->isThisMe = isThisMe;
+    var->isThisMe = isThisMe; \
+    var->loadVendorExt = loadVendorExt; \
+    var->_vendorInit = clockDriverDummyCallback; \
+    var->_vendorShutdown = clockDriverDummyCallback; \
+    var->_vendorHealthCheck = clockDriverDummyCallback;
 
 #define INIT_DATA(var, type) \
     if(var->_privateData == NULL) { \

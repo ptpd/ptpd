@@ -74,164 +74,164 @@ enum {
 /* management TLV data types */
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/announceReceiptTimeout.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/announceReceiptTimeout.def"
 	#undef PROCESS_FIELD
 } PtpTlvAnnounceReceiptTimeout;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/clockAccuracy.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/clockAccuracy.def"
 	#undef PROCESS_FIELD
 } PtpTlvClockAccuracy;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/clockDescription.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/clockDescription.def"
 	#undef PROCESS_FIELD
 } PtpTlvClockDescription;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/currentDataSet.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/currentDataSet.def"
 	#undef PROCESS_FIELD
 } PtpTlvCurrentDataSet;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/defaultDataSet.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/defaultDataSet.def"
 	#undef PROCESS_FIELD
 } PtpTlvDefaultDataSet;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/delayMechanism.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/delayMechanism.def"
 	#undef PROCESS_FIELD
 } PtpTlvDelayMechanism;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/disablePort.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/disablePort.def"
 	#undef PROCESS_FIELD
 } PtpTlvDisablePort;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/domain.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/domain.def"
 	#undef PROCESS_FIELD
 } PtpTlvDomain;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/enablePort.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/enablePort.def"
 	#undef PROCESS_FIELD
 } PtpTlvEnablePort;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/initialize.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/initialize.def"
 	#undef PROCESS_FIELD
 } PtpTlvInitialize;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/logAnnounceInterval.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/logAnnounceInterval.def"
 	#undef PROCESS_FIELD
 } PtpTlvLogAnnounceInterval;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/logMinPdelayReqInterval.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/logMinPdelayReqInterval.def"
 	#undef PROCESS_FIELD
 } PtpTlvLogMinPdelayReqInterval;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/logSyncInterval.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/logSyncInterval.def"
 	#undef PROCESS_FIELD
 } PtpTlvLogSyncInterval;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/nullManagement.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/nullManagement.def"
 	#undef PROCESS_FIELD
 } PtpTlvNullManagement;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/parentDataSet.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/parentDataSet.def"
 	#undef PROCESS_FIELD
 } PtpTlvParentDataSet;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/portDataSet.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/portDataSet.def"
 	#undef PROCESS_FIELD
 } PtpTlvPortDataSet;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/priority1.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/priority1.def"
 	#undef PROCESS_FIELD
 } PtpTlvPriority1;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/priority2.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/priority2.def"
 	#undef PROCESS_FIELD
 } PtpTlvPriority2;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/slaveOnly.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/slaveOnly.def"
 	#undef PROCESS_FIELD
 } PtpTlvSlaveOnly;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/time.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/time.def"
 	#undef PROCESS_FIELD
 } PtpTlvTime;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/timePropertiesDataSet.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/timePropertiesDataSet.def"
 	#undef PROCESS_FIELD
 } PtpTlvTimePropertiesDataSet;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/timescaleProperties.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/timescaleProperties.def"
 	#undef PROCESS_FIELD
 } PtpTlvTimescaleProperties;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/traceabilityProperties.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/traceabilityProperties.def"
 	#undef PROCESS_FIELD
 } PtpTlvTraceabilityProperties;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/unicastNegotiationEnable.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/unicastNegotiationEnable.def"
 	#undef PROCESS_FIELD
 } PtpTlvUnicastNegotiationEnable;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/userDescription.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/userDescription.def"
 	#undef PROCESS_FIELD
 } PtpTlvUserDescription;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/utcProperties.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/utcProperties.def"
 	#undef PROCESS_FIELD
 } PtpTlvUtcProperties;
 
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/versionNumber.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/versionNumber.def"
 	#undef PROCESS_FIELD
 } PtpTlvVersionNumber;
 
@@ -275,8 +275,8 @@ typedef struct {
 
     PtpUInteger16 lengthField; /* from parent PtpTlv */
 
-    #include "definitions/field_declare.h"
-    #include "definitions/managementTlv/management.def"
+    #include "def/field_declare.h"
+    #include "def/managementTlv/management.def"
     #undef PROCESS_FIELD
 
     PtpManagementTlvBody body;
@@ -286,8 +286,8 @@ typedef struct {
 
 typedef struct {
 
-    #include "definitions/field_declare.h"
-    #include "definitions/managementTlv/managementErrorStatus.def"
+    #include "def/field_declare.h"
+    #include "def/managementTlv/managementErrorStatus.def"
     #undef PROCESS_FIELD
 
 } PtpTlvManagementErrorStatus;

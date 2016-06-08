@@ -58,7 +58,7 @@ void unpackPtpTimeInterval(PtpTimeInterval *data, char *buf, size_t len) {
     #define PROCESS_FIELD( name, size, type) \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/derivedData/timeInterval.def"
+    #include "def/derivedData/timeInterval.def"
 
     sns = data->scaledNanoseconds.high;
     sns <<= 32;
@@ -90,7 +90,7 @@ void packPtpTimeInterval(char *buf, PtpTimeInterval *data, size_t len) {
     #define PROCESS_FIELD( name, size, type) \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/derivedData/timeInterval.def"
+    #include "def/derivedData/timeInterval.def"
 
 }
 
@@ -100,7 +100,7 @@ void displayPtpTimeInterval(PtpTimeInterval data, const char *name, size_t len) 
 	PTPINFO("%s (TimeInterval):\n", name);
     #define PROCESS_FIELD( name, size, type) \
         display##type (data.name, "\t\t\t"#name, size);
-    #include "definitions/derivedData/timeInterval.def"
+    #include "def/derivedData/timeInterval.def"
 
 	displayPtpTimeInternal(data.internalTime, "\t\tinternalTime");
 
@@ -119,7 +119,7 @@ void unpackPtpTimestamp(PtpTimestamp *data, char *buf, size_t len) {
     #define PROCESS_FIELD( name, size, type) \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/derivedData/timestamp.def"
+    #include "def/derivedData/timestamp.def"
 
     data->internalTime.seconds = data->secondsField.low;
     data->internalTime.nanoseconds = data->nanosecondsField;
@@ -137,7 +137,7 @@ void packPtpTimestamp(char *buf, PtpTimestamp *data, size_t len) {
     #define PROCESS_FIELD( name, size, type) \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/derivedData/timestamp.def"
+    #include "def/derivedData/timestamp.def"
 
 }
 
@@ -147,7 +147,7 @@ void displayPtpTimestamp(PtpTimestamp data, const char *name, size_t len) {
 	PTPINFO("%s (Timestamp):\n", name);
     #define PROCESS_FIELD( name, size, type) \
         display##type (data.name, "\t\t\t"#name, size);
-    #include "definitions/derivedData/timestamp.def"
+    #include "def/derivedData/timestamp.def"
 
 	displayPtpTimeInternal(data.internalTime, "\t\tinternalTime");
 
@@ -181,16 +181,16 @@ void unpackPtpPortIdentity(PtpPortIdentity *data, char *buf, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_unpack_nocheck.h"
-    #include "definitions/derivedData/portIdentity.def"
+    #include "def/field_unpack_nocheck.h"
+    #include "def/derivedData/portIdentity.def"
 }
 
 void packPtpPortIdentity(char *buf, PtpPortIdentity *data, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_pack_nocheck.h"
-    #include "definitions/derivedData/portIdentity.def"
+    #include "def/field_pack_nocheck.h"
+    #include "def/derivedData/portIdentity.def"
 
 }
 
@@ -200,7 +200,7 @@ void displayPtpPortIdentity(PtpPortIdentity data, const char *name, size_t len) 
 	PTPINFO("%s (PortIdentity):\n", name);
     #define PROCESS_FIELD( name, size, type) \
         display##type (data.name, "\t\t"#name, size);
-    #include "definitions/derivedData/portIdentity.def"
+    #include "def/derivedData/portIdentity.def"
 
     }
 
@@ -213,16 +213,16 @@ void unpackPtpPortAddress(PtpPortAddress *data, char *buf, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_unpack_nocheck.h"
-    #include "definitions/derivedData/portAddress.def"
+    #include "def/field_unpack_nocheck.h"
+    #include "def/derivedData/portAddress.def"
 }
 
 void packPtpPortAddress(char *buf, PtpPortAddress *data, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_pack_nocheck.h"
-    #include "definitions/derivedData/portAddress.def"
+    #include "def/field_pack_nocheck.h"
+    #include "def/derivedData/portAddress.def"
 
 }
 
@@ -234,7 +234,7 @@ void displayPtpPortAddress(PtpPortAddress a, const char *name, size_t len) {
 	PTPINFO("%s (PortAddress):\n", name);
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t\t\t"#name, size);
-    #include "definitions/derivedData/portAddress.def"
+    #include "def/derivedData/portAddress.def"
 
     }
 
@@ -244,7 +244,7 @@ void freePtpPortAddress(PtpPortAddress *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/derivedData/portAddress.def"
+    #include "def/derivedData/portAddress.def"
 
 }
 
@@ -252,16 +252,16 @@ void unpackPtpClockQuality(PtpClockQuality *data, char *buf, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_unpack_nocheck.h"
-    #include "definitions/derivedData/clockQuality.def"
+    #include "def/field_unpack_nocheck.h"
+    #include "def/derivedData/clockQuality.def"
 }
 
 void packPtpClockQuality(char *buf, PtpClockQuality *data, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_pack_nocheck.h"
-    #include "definitions/derivedData/clockQuality.def"
+    #include "def/field_pack_nocheck.h"
+    #include "def/derivedData/clockQuality.def"
 
 }
 
@@ -271,7 +271,7 @@ void displayPtpClockQuality(PtpClockQuality data, const char *name, size_t len) 
 	PTPINFO("%s (ClockQuality):\n", name);
     #define PROCESS_FIELD( name, size, type) \
         display##type (data.name, "\t\t"#name, size);
-    #include "definitions/derivedData/clockQuality.def"
+    #include "def/derivedData/clockQuality.def"
 
     }
 
@@ -284,16 +284,16 @@ void unpackPtpTimePropertiesDS(PtpTimePropertiesDS *data, char *buf, size_t len)
 
     int offset = 0;
 
-    #include "definitions/field_unpack_nocheck.h"
-    #include "definitions/derivedData/timePropertiesDS.def"
+    #include "def/field_unpack_nocheck.h"
+    #include "def/derivedData/timePropertiesDS.def"
 }
 
 void packPtpTimePropertiesDS(char *buf, PtpTimePropertiesDS *data, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_pack_nocheck.h"
-    #include "definitions/derivedData/timePropertiesDS.def"
+    #include "def/field_pack_nocheck.h"
+    #include "def/derivedData/timePropertiesDS.def"
 
 }
 
@@ -303,7 +303,7 @@ void displayPtpTimePropertiesDS(PtpTimePropertiesDS data, const char *name, size
 	PTPINFO("%s (TimePropertiesDS):\n", name);
     #define PROCESS_FIELD( name, size, type) \
         display##type (data.name, "\t\t"#name, size);
-    #include "definitions/derivedData/timePropertiesDS.def"
+    #include "def/derivedData/timePropertiesDS.def"
 
     }
 
@@ -316,8 +316,8 @@ void unpackPtpText(PtpText *data, char *buf, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_pack_nocheck.h"
-    #include "definitions/derivedData/ptpText.def"
+    #include "def/field_pack_nocheck.h"
+    #include "def/derivedData/ptpText.def"
 
 }
 
@@ -325,8 +325,8 @@ void packPtpText(char *buf, PtpText *data, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_pack_nocheck.h"
-    #include "definitions/derivedData/ptpText.def"
+    #include "def/field_pack_nocheck.h"
+    #include "def/derivedData/ptpText.def"
 }
 
 void displayPtpText(PtpText t, const char *name, size_t len) {
@@ -337,7 +337,7 @@ void displayPtpText(PtpText t, const char *name, size_t len) {
 	PTPINFO("%s (PtpText):\n", name);
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t\t\t"#name, size);
-    #include "definitions/derivedData/ptpText.def"
+    #include "def/derivedData/ptpText.def"
 
 	PTPINFO("\t\t\ttext: \t%s\n", data->textField);
 
@@ -349,7 +349,7 @@ void freePtpText(PtpText *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/derivedData/ptpText.def"
+    #include "def/derivedData/ptpText.def"
 
 }
 
@@ -359,16 +359,16 @@ void unpackPtpPhysicalAddress(PtpPhysicalAddress *data, char *buf, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_unpack_nocheck.h"
-    #include "definitions/derivedData/physicalAddress.def"
+    #include "def/field_unpack_nocheck.h"
+    #include "def/derivedData/physicalAddress.def"
 }
 
 void packPtpPhysicalAddress(char *buf, PtpPhysicalAddress *data, size_t len) {
 
     int offset = 0;
 
-    #include "definitions/field_pack_nocheck.h"
-    #include "definitions/derivedData/physicalAddress.def"
+    #include "def/field_pack_nocheck.h"
+    #include "def/derivedData/physicalAddress.def"
 
 }
 
@@ -380,7 +380,7 @@ void displayPtpPhysicalAddress(PtpPhysicalAddress a, const char *name, size_t le
 	PTPINFO("%s (PtpPhysicalAddress):\n", name);
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t\t\t"#name, size);
-    #include "definitions/derivedData/physicalAddress.def"
+    #include "def/derivedData/physicalAddress.def"
 
     }
 
@@ -390,7 +390,7 @@ void freePtpPhysicalAddress(PtpPhysicalAddress *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/derivedData/physicalAddress.def"
+    #include "def/derivedData/physicalAddress.def"
 
 }
 

@@ -112,7 +112,7 @@ enum {
 typedef struct {
 
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/header.def"
+    #include "def/message/header.def"
 
     struct {
 	/* field 1 */
@@ -137,52 +137,52 @@ typedef struct {
 
 typedef struct {
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/sync.def"
+    #include "def/message/sync.def"
 } PtpSyncMessage;
 
 typedef struct {
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/followUp.def"
+    #include "def/message/followUp.def"
 } PtpFollowUpMessage;
 
 typedef struct {
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/delayReq.def"
+    #include "def/message/delayReq.def"
 } PtpDelayReqMessage;
 
 typedef struct {
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/delayResp.def"
+    #include "def/message/delayResp.def"
 } PtpDelayRespMessage;
 
 typedef struct {
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/pdelayReq.def"
+    #include "def/message/pdelayReq.def"
 } PtpPdelayReqMessage;
 
 typedef struct {
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/pdelayResp.def"
+    #include "def/message/pdelayResp.def"
 } PtpPdelayRespMessage;
 
 typedef struct {
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/pdelayRespFollowUp.def"
+    #include "def/message/pdelayRespFollowUp.def"
 } PtpPdelayRespFollowUpMessage;
 
 typedef struct {
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/announce.def"
+    #include "def/message/announce.def"
 } PtpAnnounceMessage;
 
 typedef struct {
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/management.def"
+    #include "def/message/management.def"
 } PtpManagementMessage;
 
 typedef struct {
     #define PROCESS_FIELD( name, size, type ) type name;
-    #include "definitions/message/signaling.def"
+    #include "def/message/signaling.def"
 } PtpSignalingMessage;
 
 typedef union {

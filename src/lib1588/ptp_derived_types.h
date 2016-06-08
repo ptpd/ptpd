@@ -46,13 +46,13 @@ typedef struct {
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/derivedData/timeInterval.def"
+	#include "def/derivedData/timeInterval.def"
 	PtpTimeInternal internalTime;
 } PtpTimeInterval;
 
 typedef struct  {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/derivedData/timestamp.def"
+	#include "def/derivedData/timestamp.def"
 	PtpTimeInternal internalTime;
 } PtpTimestamp;
 
@@ -60,37 +60,37 @@ typedef PtpOctet PtpClockIdentity[PTP_TYPELEN_CLOCKIDENTITY];
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/derivedData/portIdentity.def"
+	#include "def/derivedData/portIdentity.def"
 } PtpPortIdentity;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/derivedData/portAddress.def"
+	#include "def/derivedData/portAddress.def"
 } PtpPortAddress;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/derivedData/clockQuality.def"
+	#include "def/derivedData/clockQuality.def"
 } PtpClockQuality;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/derivedData/timePropertiesDS.def"
+	#include "def/derivedData/timePropertiesDS.def"
 } PtpTimePropertiesDS;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/derivedData/ptpText.def"
+	#include "def/derivedData/ptpText.def"
 } PtpText;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/derivedData/faultRecord.def"
+	#include "def/derivedData/faultRecord.def"
 } PtpFaultRecord;
 
 typedef struct {
 	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "definitions/derivedData/physicalAddress.def"
+	#include "def/derivedData/physicalAddress.def"
 } PtpPhysicalAddress;
 
 #define PTP_TYPE_FUNCDEFS( type ) \

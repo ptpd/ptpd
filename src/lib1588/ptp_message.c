@@ -72,7 +72,7 @@ int unpackPtpMessageHeader(PtpMessageHeader *data, char *buf, char *boundary) {
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/header.def"
+    #include "def/message/header.def"
 
     /* populate flag data from flag fields */
 
@@ -119,7 +119,7 @@ int packPtpMessageHeader(char *buf, PtpMessageHeader *data, char *boundary) {
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/header.def"
+    #include "def/message/header.def"
     return offset;
 }
 
@@ -145,7 +145,7 @@ void displayPtpMessageHeader(PtpMessageHeader *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/header.def"
+    #include "def/message/header.def"
 }
 
 /* begin generated code */
@@ -159,7 +159,7 @@ static int unpackPtpSyncMessage(PtpSyncMessage *data, char *buf, char *boundary)
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/sync.def"
+    #include "def/message/sync.def"
 
     return offset;
 }
@@ -174,7 +174,7 @@ static int packPtpSyncMessage(char *buf, PtpSyncMessage *data, char *boundary) {
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/sync.def"
+    #include "def/message/sync.def"
     return offset;
 }
 
@@ -184,7 +184,7 @@ static void displayPtpSyncMessage(PtpSyncMessage *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/sync.def"
+    #include "def/message/sync.def"
 }
 
 static int unpackPtpFollowUpMessage(PtpFollowUpMessage *data, char *buf, char *boundary) {
@@ -196,7 +196,7 @@ static int unpackPtpFollowUpMessage(PtpFollowUpMessage *data, char *buf, char *b
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/followUp.def"
+    #include "def/message/followUp.def"
 
     return offset;
 }
@@ -211,7 +211,7 @@ static int packPtpFollowUpMessage(char *buf, PtpFollowUpMessage *data, char *bou
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/followUp.def"
+    #include "def/message/followUp.def"
     return offset;
 }
 
@@ -221,7 +221,7 @@ static void displayPtpFollowUpMessage(PtpFollowUpMessage *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/followUp.def"
+    #include "def/message/followUp.def"
 }
 
 static int unpackPtpDelayReqMessage(PtpDelayReqMessage *data, char *buf, char *boundary) {
@@ -233,7 +233,7 @@ static int unpackPtpDelayReqMessage(PtpDelayReqMessage *data, char *buf, char *b
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/delayReq.def"
+    #include "def/message/delayReq.def"
 
     return offset;
 }
@@ -248,7 +248,7 @@ static int packPtpDelayReqMessage(char *buf, PtpDelayReqMessage *data, char *bou
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/delayReq.def"
+    #include "def/message/delayReq.def"
     return offset;
 }
 
@@ -258,7 +258,7 @@ static void displayPtpDelayReqMessage(PtpDelayReqMessage *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/delayReq.def"
+    #include "def/message/delayReq.def"
 }
 
 static int unpackPtpDelayRespMessage(PtpDelayRespMessage *data, char *buf, char *boundary) {
@@ -270,7 +270,7 @@ static int unpackPtpDelayRespMessage(PtpDelayRespMessage *data, char *buf, char 
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/delayResp.def"
+    #include "def/message/delayResp.def"
 
     return offset;
 }
@@ -285,7 +285,7 @@ static int packPtpDelayRespMessage(char *buf, PtpDelayRespMessage *data, char *b
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/delayResp.def"
+    #include "def/message/delayResp.def"
     return offset;
 }
 
@@ -295,7 +295,7 @@ static void displayPtpDelayRespMessage(PtpDelayRespMessage *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/delayResp.def"
+    #include "def/message/delayResp.def"
 }
 
 static int unpackPtpPdelayReqMessage(PtpPdelayReqMessage *data, char *buf, char *boundary) {
@@ -307,7 +307,7 @@ static int unpackPtpPdelayReqMessage(PtpPdelayReqMessage *data, char *buf, char 
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/pdelayReq.def"
+    #include "def/message/pdelayReq.def"
 
     return offset;
 }
@@ -322,7 +322,7 @@ static int packPtpPdelayReqMessage(char *buf, PtpPdelayReqMessage *data, char *b
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/pdelayReq.def"
+    #include "def/message/pdelayReq.def"
     return offset;
 }
 
@@ -332,7 +332,7 @@ static void displayPtpPdelayReqMessage(PtpPdelayReqMessage *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/pdelayReq.def"
+    #include "def/message/pdelayReq.def"
 }
 
 static int unpackPtpPdelayRespMessage(PtpPdelayRespMessage *data, char *buf, char *boundary) {
@@ -344,7 +344,7 @@ static int unpackPtpPdelayRespMessage(PtpPdelayRespMessage *data, char *buf, cha
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/pdelayResp.def"
+    #include "def/message/pdelayResp.def"
 
     return offset;
 }
@@ -359,7 +359,7 @@ static int packPtpPdelayRespMessage(char *buf, PtpPdelayRespMessage *data, char 
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/pdelayResp.def"
+    #include "def/message/pdelayResp.def"
     return offset;
 }
 
@@ -369,7 +369,7 @@ static void displayPtpPdelayRespMessage(PtpPdelayRespMessage *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/pdelayResp.def"
+    #include "def/message/pdelayResp.def"
 }
 
 static int unpackPtpPdelayRespFollowUpMessage(PtpPdelayRespFollowUpMessage *data, char *buf, char *boundary) {
@@ -381,7 +381,7 @@ static int unpackPtpPdelayRespFollowUpMessage(PtpPdelayRespFollowUpMessage *data
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/pdelayRespFollowUp.def"
+    #include "def/message/pdelayRespFollowUp.def"
 
     return offset;
 }
@@ -396,7 +396,7 @@ static int packPtpPdelayRespFollowUpMessage(char *buf, PtpPdelayRespFollowUpMess
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/pdelayRespFollowUp.def"
+    #include "def/message/pdelayRespFollowUp.def"
     return offset;
 }
 
@@ -406,7 +406,7 @@ static void displayPtpPdelayRespFollowUpMessage(PtpPdelayRespFollowUpMessage *da
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/pdelayRespFollowUp.def"
+    #include "def/message/pdelayRespFollowUp.def"
 }
 
 static int unpackPtpAnnounceMessage(PtpAnnounceMessage *data, char *buf, char *boundary) {
@@ -418,7 +418,7 @@ static int unpackPtpAnnounceMessage(PtpAnnounceMessage *data, char *buf, char *b
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/announce.def"
+    #include "def/message/announce.def"
 
     return offset;
 }
@@ -433,7 +433,7 @@ static int packPtpAnnounceMessage(char *buf, PtpAnnounceMessage *data, char *bou
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/announce.def"
+    #include "def/message/announce.def"
     return offset;
 }
 
@@ -443,7 +443,7 @@ static void displayPtpAnnounceMessage(PtpAnnounceMessage *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/announce.def"
+    #include "def/message/announce.def"
 }
 
 static int unpackPtpManagementMessage(PtpManagementMessage *data, char *buf, char *boundary) {
@@ -455,7 +455,7 @@ static int unpackPtpManagementMessage(PtpManagementMessage *data, char *buf, cha
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/management.def"
+    #include "def/message/management.def"
 
     return offset;
 }
@@ -470,7 +470,7 @@ static int packPtpManagementMessage(char *buf, PtpManagementMessage *data, char 
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/management.def"
+    #include "def/message/management.def"
     return offset;
 }
 
@@ -480,7 +480,7 @@ static void displayPtpManagementMessage(PtpManagementMessage *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/management.def"
+    #include "def/message/management.def"
 }
 
 static int unpackPtpSignalingMessage(PtpSignalingMessage *data, char *buf, char *boundary) {
@@ -492,7 +492,7 @@ static int unpackPtpSignalingMessage(PtpSignalingMessage *data, char *buf, char 
 	} \
         unpack##type (&data->name, buf + offset, size); \
 	offset += size;
-    #include "definitions/message/signaling.def"
+    #include "def/message/signaling.def"
 
     return offset;
 }
@@ -507,7 +507,7 @@ static int packPtpSignalingMessage(char *buf, PtpSignalingMessage *data, char *b
 	} \
         pack##type (buf + offset, &data->name, size); \
 	offset += size;
-    #include "definitions/message/signaling.def"
+    #include "def/message/signaling.def"
     return offset;
 }
 
@@ -517,7 +517,7 @@ static void displayPtpSignalingMessage(PtpSignalingMessage *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "\t"#name, size);
-    #include "definitions/message/signaling.def"
+    #include "def/message/signaling.def"
 }
 
 /* end generated code */

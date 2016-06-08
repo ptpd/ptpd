@@ -58,8 +58,8 @@ PTP_TYPE_FUNCDEFS(PtpTlvSecurityAssociationUpdate)
 static int unpackPtpTlvAlternateTimeOffsetIndicator(PtpTlvAlternateTimeOffsetIndicator *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/alternateTimeOffsetIndicator.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/alternateTimeOffsetIndicator.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -69,8 +69,8 @@ static int packPtpTlvAlternateTimeOffsetIndicator(char *buf, PtpTlvAlternateTime
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/alternateTimeOffsetIndicator.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/alternateTimeOffsetIndicator.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -80,7 +80,7 @@ static void freePtpTlvAlternateTimeOffsetIndicator(PtpTlvAlternateTimeOffsetIndi
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/alternateTimeOffsetIndicator.def"
+    #include "def/otherTlv/alternateTimeOffsetIndicator.def"
     #undef PROCESS_FIELD
 }
 
@@ -90,15 +90,15 @@ static void displayPtpTlvAlternateTimeOffsetIndicator(PtpTlvAlternateTimeOffsetI
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/alternateTimeOffsetIndicator.def"
+    #include "def/otherTlv/alternateTimeOffsetIndicator.def"
     #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvAuthenticationChallenge(PtpTlvAuthenticationChallenge *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/authenticationChallenge.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/authenticationChallenge.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -108,8 +108,8 @@ static int packPtpTlvAuthenticationChallenge(char *buf, PtpTlvAuthenticationChal
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/authenticationChallenge.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/authenticationChallenge.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -119,7 +119,7 @@ static void freePtpTlvAuthenticationChallenge(PtpTlvAuthenticationChallenge *dat
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/authenticationChallenge.def"
+    #include "def/otherTlv/authenticationChallenge.def"
     #undef PROCESS_FIELD
 }
 
@@ -129,15 +129,15 @@ static void displayPtpTlvAuthenticationChallenge(PtpTlvAuthenticationChallenge *
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/authenticationChallenge.def"
+    #include "def/otherTlv/authenticationChallenge.def"
     #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvAuthentication(PtpTlvAuthentication *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/authentication.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/authentication.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -147,8 +147,8 @@ static int packPtpTlvAuthentication(char *buf, PtpTlvAuthentication *data, char 
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/authentication.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/authentication.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -158,7 +158,7 @@ static void freePtpTlvAuthentication(PtpTlvAuthentication *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/authentication.def"
+    #include "def/otherTlv/authentication.def"
     #undef PROCESS_FIELD
 }
 
@@ -168,15 +168,15 @@ static void displayPtpTlvAuthentication(PtpTlvAuthentication *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/authentication.def"
+    #include "def/otherTlv/authentication.def"
     #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvCumFreqScaleFactorOffset(PtpTlvCumFreqScaleFactorOffset *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/cumFreqScaleFactorOffset.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/cumFreqScaleFactorOffset.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -186,8 +186,8 @@ static int packPtpTlvCumFreqScaleFactorOffset(char *buf, PtpTlvCumFreqScaleFacto
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/cumFreqScaleFactorOffset.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/cumFreqScaleFactorOffset.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -197,7 +197,7 @@ static void freePtpTlvCumFreqScaleFactorOffset(PtpTlvCumFreqScaleFactorOffset *d
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/cumFreqScaleFactorOffset.def"
+    #include "def/otherTlv/cumFreqScaleFactorOffset.def"
     #undef PROCESS_FIELD
 }
 
@@ -207,15 +207,15 @@ static void displayPtpTlvCumFreqScaleFactorOffset(PtpTlvCumFreqScaleFactorOffset
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/cumFreqScaleFactorOffset.def"
+    #include "def/otherTlv/cumFreqScaleFactorOffset.def"
     #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvOrganizationExtension(PtpTlvOrganizationExtension *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/organizationExtension.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/organizationExtension.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -225,8 +225,8 @@ static int packPtpTlvOrganizationExtension(char *buf, PtpTlvOrganizationExtensio
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/organizationExtension.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/organizationExtension.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -236,7 +236,7 @@ static void freePtpTlvOrganizationExtension(PtpTlvOrganizationExtension *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/organizationExtension.def"
+    #include "def/otherTlv/organizationExtension.def"
     #undef PROCESS_FIELD
 }
 
@@ -246,15 +246,15 @@ static void displayPtpTlvOrganizationExtension(PtpTlvOrganizationExtension *data
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/organizationExtension.def"
+    #include "def/otherTlv/organizationExtension.def"
     #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvPathTrace(PtpTlvPathTrace *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/pathTrace.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/pathTrace.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -264,8 +264,8 @@ static int packPtpTlvPathTrace(char *buf, PtpTlvPathTrace *data, char *boundary)
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/pathTrace.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/pathTrace.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -275,7 +275,7 @@ static void freePtpTlvPathTrace(PtpTlvPathTrace *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/pathTrace.def"
+    #include "def/otherTlv/pathTrace.def"
     #undef PROCESS_FIELD
 }
 
@@ -285,15 +285,15 @@ static void displayPtpTlvPathTrace(PtpTlvPathTrace *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/pathTrace.def"
+    #include "def/otherTlv/pathTrace.def"
     #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvPtpMonMtieRequest(PtpTlvPtpMonMtieRequest *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/ptpMonMtieRequest.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/ptpMonMtieRequest.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -303,8 +303,8 @@ static int packPtpTlvPtpMonMtieRequest(char *buf, PtpTlvPtpMonMtieRequest *data,
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/ptpMonMtieRequest.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/ptpMonMtieRequest.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -314,7 +314,7 @@ static void freePtpTlvPtpMonMtieRequest(PtpTlvPtpMonMtieRequest *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/ptpMonMtieRequest.def"
+    #include "def/otherTlv/ptpMonMtieRequest.def"
     #undef PROCESS_FIELD
 }
 
@@ -324,15 +324,15 @@ static void displayPtpTlvPtpMonMtieRequest(PtpTlvPtpMonMtieRequest *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/ptpMonMtieRequest.def"
+    #include "def/otherTlv/ptpMonMtieRequest.def"
     #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvPtpMonMtieResponse(PtpTlvPtpMonMtieResponse *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/ptpMonMtieResponse.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/ptpMonMtieResponse.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -342,8 +342,8 @@ static int packPtpTlvPtpMonMtieResponse(char *buf, PtpTlvPtpMonMtieResponse *dat
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/ptpMonMtieResponse.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/ptpMonMtieResponse.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -353,7 +353,7 @@ static void freePtpTlvPtpMonMtieResponse(PtpTlvPtpMonMtieResponse *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/ptpMonMtieResponse.def"
+    #include "def/otherTlv/ptpMonMtieResponse.def"
     #undef PROCESS_FIELD
 }
 
@@ -363,15 +363,15 @@ static void displayPtpTlvPtpMonMtieResponse(PtpTlvPtpMonMtieResponse *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/ptpMonMtieResponse.def"
+    #include "def/otherTlv/ptpMonMtieResponse.def"
     #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvPtpMonRequest(PtpTlvPtpMonRequest *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/ptpMonRequest.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/ptpMonRequest.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -381,8 +381,8 @@ static int packPtpTlvPtpMonRequest(char *buf, PtpTlvPtpMonRequest *data, char *b
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/ptpMonRequest.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/ptpMonRequest.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -392,7 +392,7 @@ static void freePtpTlvPtpMonRequest(PtpTlvPtpMonRequest *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/ptpMonRequest.def"
+    #include "def/otherTlv/ptpMonRequest.def"
     #undef PROCESS_FIELD
 }
 
@@ -402,15 +402,15 @@ static void displayPtpTlvPtpMonRequest(PtpTlvPtpMonRequest *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/ptpMonRequest.def"
+    #include "def/otherTlv/ptpMonRequest.def"
     #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvPtpMonResponse(PtpTlvPtpMonResponse *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/ptpMonResponse.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/ptpMonResponse.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -420,8 +420,8 @@ static int packPtpTlvPtpMonResponse(char *buf, PtpTlvPtpMonResponse *data, char 
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/ptpMonResponse.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/ptpMonResponse.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -431,7 +431,7 @@ static void freePtpTlvPtpMonResponse(PtpTlvPtpMonResponse *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/ptpMonResponse.def"
+    #include "def/otherTlv/ptpMonResponse.def"
     #undef PROCESS_FIELD
 }
 
@@ -441,15 +441,15 @@ static void displayPtpTlvPtpMonResponse(PtpTlvPtpMonResponse *data) {
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/ptpMonResponse.def"
+    #include "def/otherTlv/ptpMonResponse.def"
     #undef PROCESS_FIELD
 }
 
 static int unpackPtpTlvSecurityAssociationUpdate(PtpTlvSecurityAssociationUpdate *data, char *buf, char *boundary) {
 
     int offset = 0;
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/otherTlv/securityAssociationUpdate.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/otherTlv/securityAssociationUpdate.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -459,8 +459,8 @@ static int packPtpTlvSecurityAssociationUpdate(char *buf, PtpTlvSecurityAssociat
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/otherTlv/securityAssociationUpdate.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/otherTlv/securityAssociationUpdate.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -470,7 +470,7 @@ static void freePtpTlvSecurityAssociationUpdate(PtpTlvSecurityAssociationUpdate 
 
     #define PROCESS_FIELD( name, size, type) \
         free##type (&data->name);
-    #include "definitions/otherTlv/securityAssociationUpdate.def"
+    #include "def/otherTlv/securityAssociationUpdate.def"
     #undef PROCESS_FIELD
 }
 
@@ -480,7 +480,7 @@ static void displayPtpTlvSecurityAssociationUpdate(PtpTlvSecurityAssociationUpda
 
     #define PROCESS_FIELD( name, size, type) \
         display##type (data->name, "		"#name, size);
-    #include "definitions/otherTlv/securityAssociationUpdate.def"
+    #include "def/otherTlv/securityAssociationUpdate.def"
     #undef PROCESS_FIELD
 }
 

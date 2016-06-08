@@ -92,8 +92,8 @@ type=`echo $file | awk 'BEGIN {OFS="";} { print toupper(substr($0,1,1)),substr($
 echo
 read -r -d '' code <<EOF
 typedef struct {
-	#include "definitions/field_declare.h"
-	#include "definitions/managementTlv/$file.def"
+	#include "def/field_declare.h"
+	#include "def/managementTlv/$file.def"
 	#undef PROCESS_FIELD
 } PtpTlv$type;
 EOF
@@ -127,8 +127,8 @@ typedef struct {
 
     PtpUInteger16 lengthField; /* from parent PtpTlv */
 
-    #include "definitions/field_declare.h"
-    #include "definitions/managementTlv/management.def"
+    #include "def/field_declare.h"
+    #include "def/managementTlv/management.def"
     #undef PROCESS_FIELD
 
     PtpManagementTlvBody body;
@@ -138,8 +138,8 @@ typedef struct {
 
 typedef struct {
 
-    #include "definitions/field_declare.h"
-    #include "definitions/managementTlv/managementErrorStatus.def"
+    #include "def/field_declare.h"
+    #include "def/managementTlv/managementErrorStatus.def"
     #undef PROCESS_FIELD
 
 } PtpTlvManagementErrorStatus;
@@ -236,8 +236,8 @@ static int unpackPtpTlv$type(PtpTlv$type *data, char *buf, char *boundary) {
 
     int offset = 0;
 
-    #include "definitions/field_unpack_bufcheck.h"
-    #include "definitions/managementTlv/$file.def"
+    #include "def/field_unpack_bufcheck.h"
+    #include "def/managementTlv/$file.def"
     #undef PROCESS_FIELD
 
     return offset;
@@ -247,8 +247,8 @@ static int packPtpTlv$type(char *buf, PtpTlv$type *data, char *boundary) {
 
     int offset = 0;
 
-    #include "definitions/field_pack_bufcheck.h"
-    #include "definitions/managementTlv/$file.def"
+    #include "def/field_pack_bufcheck.h"
+    #include "def/managementTlv/$file.def"
     #undef PROCESS_FIELD
     return offset;
 }
@@ -257,7 +257,7 @@ static void freePtpTlv$type(PtpTlv$type *data) {
 
     #define PROCESS_FIELD( name, size, type) \\
         free##type (&data->name);
-    #include "definitions/managementTlv/$file.def"
+    #include "def/managementTlv/$file.def"
     #undef PROCESS_FIELD
 }
 
@@ -267,7 +267,7 @@ static void displayPtpTlv$type(PtpTlv$type *data) {
 
     #define PROCESS_FIELD( name, size, type) \\
         display##type (data->name, "\t\t"#name, size);
-    #include "definitions/managementTlv/$file.def"
+    #include "def/managementTlv/$file.def"
     #undef PROCESS_FIELD
 }
 
