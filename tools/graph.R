@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript --slave
+#!/usr/bin/env Rscript
 # Copyright (c) 2016, Neville-Neil Consulting
 # All rights reserved.
 #
