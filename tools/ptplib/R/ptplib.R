@@ -330,7 +330,7 @@ ptpQualityGraphCompare <- function(diffA, diffB, output) {
 #' @export
 ptpStats <- function(log, start, end) {
     cat("Measurements: ", length(log$offset))
-    cat("Offset",
+    cat("\nOffset",
         "\nmin:", min(log$offset, na.rm=TRUE),
         " max: ", max(log$offset, na.rm=TRUE),
         " median: ", median(log$offset, na.rm=TRUE),
