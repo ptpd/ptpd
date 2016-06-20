@@ -18,9 +18,9 @@ DAEMON_DESC="IEEE 1588 Precision Time Protocol (v2) daemon"
 
 . /etc/init.d/functions
 
-if test -e /etc/sysconfig/ptpd ; then
+if test -e /etc/sysconfig/__SERVICENAME__ ; then
 
-    . /etc/sysconfig/ptpd
+    . /etc/sysconfig/__SERVICENAME__
     
     PTPD_OPTIONS="--global:lock_file=$PTPD_PID_FILE --global:status_file=$PTPD_STATUS_FILE -c $PTPD_CONFIG_FILE $PTPD_EXTRA_OPTIONS"
 

@@ -7,8 +7,26 @@ fi
 # ptpd RPM building script
 # (c) 2013-2015: Wojciech Owczarek, PTPd project
 
-# First argument: 1/0 to add a git tag (timestamp.lastgitcommit)
-ADD_TAG=${1:-0}
+while [[ $# -gt 0 ]]; do
+    opt="$1";
+    shift;              #expose next argument
+    case "$opt" in
+        "--tag" )
+            # Add git-based tag
+            ADD_TAG=1;;
+        "--service2" )
+            # Create ptpd2 service
+            SERVICESUFFIX='2';;
+        *) cat >&2 <<EOF
+Invalid option: $opt (remainder $@)
+Supported options:
+    --tag: add a git-based tag to the rpm release
+    --service2: generate the service as ptpd2 (instead of default ptpd)
+EOF
+           exit 1;;
+    esac
+done
+
 
 SPEC=ptpd.spec
 PWD=`pwd`
@@ -58,13 +76,21 @@ for slaveonly in 0 1; do
     RPMFILE=$BUILDDIR/RPMS/`uname -m`/$ARCHIVE.`uname -m`.rpm
     SRPMFILE=$BUILDDIR/SRPMS/$ARCHIVE.src.rpm
 
-    TAG_ARG=''
-    if [ $ADD_TAG -ne 0 ]; then
+    if [ -z "$ADD_TAG" ]; then
+        TAG_ARG='__gittag notag' # cannot be empty
+    else
         tag=`git log --format=.%ct.%h -1` # based on last commit, timestamp for increasing versions
         TAG_ARG="gittag $tag"
     fi
 
-    rpmbuild --define "$TAG_ARG" --define "build_slaveonly $slaveonly" --define "_topdir $BUILDDIR" -ba $BUILDDIR/SPECS/$SPEC && {
+    if [ -z "$SERVICESUFFIX" ]; then
+        SERVICESUFFIX_ARG='__servicesuffix nosuffix' # cannot be empty
+    else
+        SERVICESUFFIX_ARG="servicesuffix $SERVICESUFFIX"
+    fi
+
+
+    rpmbuild --define "$TAG_ARG" --define "$SERVICESUFFIX_ARG" --define "build_slaveonly $slaveonly" --define "_topdir $BUILDDIR" -ba $BUILDDIR/SPECS/$SPEC && {
         find $BUILDDIR -name "*.rpm" -exec mv {} $PWD \;
     }
 
