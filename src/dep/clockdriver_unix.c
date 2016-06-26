@@ -60,8 +60,8 @@ _setupClockDriver_unix(ClockDriver* self)
     }
 
     INIT_INTERFACE(self);
-    INIT_DATA(self, linuxphc);
-    INIT_CONFIG(self, linuxphc);
+    INIT_DATA_CLOCKDRIVER(self, linuxphc);
+    INIT_CONFIG_CLOCKDRIVER(self, linuxphc);
 
     _instanceCount++;
 
@@ -215,7 +215,7 @@ getUtcTime (ClockDriver *self, TimeInternal *out) {
 static Boolean
 setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
-	GET_CONFIG(self, myConfig, unix);
+	GET_CONFIG_CLOCKDRIVER(self, myConfig, unix);
 
 	TimeInternal oldTime, delta;
 
@@ -311,7 +311,7 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 static Boolean
 stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
-	GET_CONFIG(self, myConfig, unix);
+	GET_CONFIG_CLOCKDRIVER(self, myConfig, unix);
 
 	if(isTimeZero(delta)) {
 	    return TRUE;
@@ -463,6 +463,14 @@ getFrequency (ClockDriver * self) {
 
 	return((tmx.freq + 0.0) / 65.536);
 
+}
+
+static Boolean
+getSystemClockOffset(ClockDriver *self, TimeInternal *output)
+{
+    output->seconds = 0;
+    output->nanoseconds = 0;
+    return TRUE;
 }
 
 static Boolean
@@ -864,7 +872,7 @@ static Boolean
 pushPrivateConfig(ClockDriver *self, RunTimeOpts *global)
 {
 
-    GET_CONFIG(self, myConfig, unix);
+    GET_CONFIG_CLOCKDRIVER(self, myConfig, unix);
 
     myConfig->setRtc = global->setRtc;
 

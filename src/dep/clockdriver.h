@@ -276,6 +276,7 @@ struct ClockDriver {
     Boolean (*getStatus) (ClockDriver *, ClockStatus *);
     Boolean (*setStatus) (ClockDriver *, ClockStatus *);
     Boolean (*getOffsetFrom) (ClockDriver *, ClockDriver *, TimeInternal*);
+    Boolean (*getSystemClockOffset) (ClockDriver *, TimeInternal*);
 
     Boolean (*privateHealthCheck) (ClockDriver *); /* NEW! Now with private healthcare! */
 
@@ -327,5 +328,27 @@ void		compareAllClocks();
 
 #include "clockdriver_unix.h"
 #include "clockdriver_linuxphc.h"
+
+#define INIT_DATA_CLOCKDRIVER(var, type) \
+    if(var->_privateData == NULL) { \
+	XCALLOC(var->_privateData, sizeof(ClockDriverData_##type)); \
+    }
+#define INIT_CONFIG_CLOCKDRIVER(var, type) \
+    if(var->_privateConfig == NULL) { \
+	XCALLOC(var->_privateConfig, sizeof(ClockDriverConfig_##type)); \
+    }
+#define INIT_EXTDATA_CLOCKDRIVER(var, type) \
+    if(var->_extData == NULL) { \
+	XCALLOC(var->_extData, sizeof(ClockDriverExtData_##type)); \
+    }
+
+#define GET_CONFIG_CLOCKDRIVER(from, to, type) \
+    ClockDriverConfig_##type *to = (ClockDriverConfig_##type*)from->_privateConfig;
+
+#define GET_DATA_CLOCKDRIVER(from, to, type) \
+    ClockDriverData_##type *to = (ClockDriverData_##type*)from->_privateData;
+
+#define GET_EXTDATA_CLOCKDRIVER(from, to, type) \
+    ClockDriverExtData_##type *to = (ClockDriverExtData_##type*)from->_extData;
 
 #endif /* PTPD_CLOCKDRIVER_H_ */

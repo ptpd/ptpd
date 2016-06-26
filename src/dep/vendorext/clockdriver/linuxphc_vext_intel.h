@@ -25,7 +25,7 @@
  */
 
 /**
- * @file   clockdriver_linuxphc_vext_intel.h
+ * @file   vendorext/clockdriver/linuxphc_vext_intel.h
  * @date   Wed Jun 8 16:14:10 2016
  *
  * @brief  Linux PHC clock driver Intel extension definitions
@@ -35,7 +35,7 @@
 #ifndef PTPD_CLOCKDRIVER_LINUXPHC_VEXT_INTEL_H_
 #define PTPD_CLOCKDRIVER_LINUXPHC_VEXT_INTEL_H_
 
-#include "clockdriver.h"
+#include "../../clockdriver.h"
 
 int loadCdVendorExt_intel(ClockDriver *driver, const char *ifname);
 

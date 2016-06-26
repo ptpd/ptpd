@@ -25,18 +25,27 @@
  */
 
 /**
- * @file   clockdriver_linuxphc_vext_intel.c
+ * @file   vendorext/clockdriver/linuxphc_vext_solarflare.h
  * @date   Wed Jun 8 16:14:10 2016
  *
- * @brief  Linux PHC clock driver Intel vendor extensions
+ * @brief  Linux PHC clock driver Solarflare extension definitions
  *
  */
 
-#include "clockdriver_linuxphc_vext_intel.h"
+#ifndef PTPD_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_
+#define PTPD_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_
 
-int
-loadCdVendorExt_intel(ClockDriver *driver, const char *ifname) {
+#include "../../clockdriver.h"
+#include "efx_ioctl_timesync.h"
 
-    return 1;
+typedef struct {
+	struct ifreq ifr;
+	struct efx_sock_ioctl sfioctl;
+	int fd;
+	char ifName[IFACE_NAME_LENGTH + 1];
+} ClockDriverExtData_solarflare;
 
-}
+int loadCdVendorExt_solarflare(ClockDriver *driver, const char *ifname);
+
+
+#endif /* PTPD_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_ */

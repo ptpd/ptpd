@@ -48,6 +48,7 @@ static double getFrequency (ClockDriver *);
 
 static Boolean getStatus (ClockDriver *, ClockStatus *);
 static Boolean setStatus (ClockDriver *, ClockStatus *);
+static Boolean getSystemClockOffset (ClockDriver *, TimeInternal *);
 static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
 
 static Boolean pushPrivateConfig (ClockDriver *, RunTimeOpts *rtOpts);
@@ -68,6 +69,7 @@ static void loadVendorExt(ClockDriver *, const char *ifname);
     var->getFrequency = getFrequency; \
     var->getStatus = getStatus; \
     var->setStatus = setStatus; \
+    var->getSystemClockOffset = getSystemClockOffset; \
     var->getOffsetFrom = getOffsetFrom; \
     var->pushPrivateConfig = pushPrivateConfig;\
     var->privateHealthCheck = privateHealthCheck; \
@@ -76,18 +78,4 @@ static void loadVendorExt(ClockDriver *, const char *ifname);
     var->_vendorInit = clockDriverDummyCallback; \
     var->_vendorShutdown = clockDriverDummyCallback; \
     var->_vendorHealthCheck = clockDriverDummyCallback;
-
-#define INIT_DATA(var, type) \
-    if(var->_privateData == NULL) { \
-	XCALLOC(var->_privateData, sizeof(ClockDriverData_##type)); \
-    }
-#define INIT_CONFIG(var, type) \
-    if(var->_privateConfig == NULL) { \
-	XCALLOC(var->_privateConfig, sizeof(ClockDriverConfig_##type)); \
-    }
-
-#define GET_CONFIG(from, to, type) \
-    ClockDriverConfig_##type *to = (ClockDriverConfig_##type*)from->_privateConfig;
-#define GET_DATA(from, to, type) \
-    ClockDriverData_##type *to = (ClockDriverData_##type*)from->_privateData;
 

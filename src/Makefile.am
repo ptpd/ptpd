@@ -78,11 +78,12 @@ ptpd_SOURCES =				\
 	dep/clockdriver_interface.h	\
 	dep/clockdriver_unix.h		\
 	dep/clockdriver_unix.c		\
-	dep/clockdriver_linuxphc_vext_intel.h \
-	dep/clockdriver_linuxphc_vext_intel.c \
-	dep/clockdriver_linuxphc_vext_solarflare.h \
-	dep/clockdriver_linuxphc_vext_solarflare.c \
-	dep/clockdriver_linuxphc_vext.def \
+	dep/vendorext/clockdriver/linuxphc_vext_intel.h \
+	dep/vendorext/clockdriver/linuxphc_vext_intel.c \
+	dep/vendorext/clockdriver/efx_ioctl_timesync.h \
+	dep/vendorext/clockdriver/linuxphc_vext_solarflare.h \
+	dep/vendorext/clockdriver/linuxphc_vext_solarflare.c \
+	dep/vendorext/clockdriver/linuxphc_vext.def \
 	dep/clockdriver_linuxphc.h	\
 	dep/clockdriver_linuxphc.c	\
 	dep/linkedlist.h		\
@@ -103,6 +104,7 @@ ptpd_SOURCES =				\
 	lib1588/ptp_tlv.c		\
 	lib1588/ptp_message.h		\
 	lib1588/ptp_message.c		\
+	lib1588/tmp.h			\
 	ptpd.c				\
 	ptpd.h				\
 	$(NULL)

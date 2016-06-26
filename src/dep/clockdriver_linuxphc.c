@@ -65,7 +65,6 @@ struct ptp_sys_offset {
 static int _instanceCount = 0;
 
 static Boolean getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps);
-static Boolean getSystemClockOffset(ClockDriver *self, TimeInternal *delta);
 
 #ifndef HAVE_CLOCK_ADJTIME
 static inline int clock_adjtime(clockid_t clkid, struct timex *timex)
@@ -80,10 +79,10 @@ _setupClockDriver_linuxphc(ClockDriver* self)
 {
 
     INIT_INTERFACE(self);
-    INIT_DATA(self, linuxphc);
-    INIT_CONFIG(self, linuxphc);
+    INIT_DATA_CLOCKDRIVER(self, linuxphc);
+    INIT_CONFIG_CLOCKDRIVER(self, linuxphc);
 
-    GET_DATA(self, myData, linuxphc);
+    GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
 
     myData->clockFd = -1;
     myData->clockId = -1;
@@ -99,8 +98,8 @@ _setupClockDriver_linuxphc(ClockDriver* self)
 static int
 clockdriver_init(ClockDriver* self, const void *userData) {
 
-    GET_DATA(self, myData, linuxphc);
-    GET_CONFIG(self, myConfig, linuxphc);
+    GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
+    GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
 
     struct ptp_clock_caps caps;
 
@@ -176,8 +175,8 @@ clockdriver_init(ClockDriver* self, const void *userData) {
 static int
 clockdriver_shutdown(ClockDriver *self) {
 
-    GET_DATA(self, myData, linuxphc);
-    GET_CONFIG(self, myConfig, linuxphc);
+    GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
+    GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
 
     INFO(THIS_COMPONENT"Linux PHC clock driver %s (%s) shutting down\n", self->name, myConfig->characterDevice);
 
@@ -199,7 +198,7 @@ clockdriver_shutdown(ClockDriver *self) {
 static Boolean
 getTime (ClockDriver *self, TimeInternal *time) {
 
-    GET_DATA(self, myData, linuxphc);
+    GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
 
 	if((!self->_init) || (self->state == CS_HWFAULT)) {
 	    return FALSE;
@@ -233,8 +232,8 @@ getUtcTime (ClockDriver *self, TimeInternal *out) {
 static Boolean
 setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 
-	GET_CONFIG(self, myConfig, linuxphc);
-	GET_DATA(self, myData, linuxphc);
+	GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
+	GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
 
 	if((!self->_init) || (self->state == CS_HWFAULT)) {
 	    return FALSE;
@@ -299,8 +298,8 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 static Boolean
 stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
-	GET_CONFIG(self, myConfig, linuxphc);
-	GET_DATA(self, myData, linuxphc);
+	GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
+	GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
 
 	struct timespec nts;
 
@@ -373,8 +372,8 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 static Boolean
 setFrequency (ClockDriver *self, double adj, double tau) {
 
-	GET_CONFIG(self, myConfig, linuxphc);
-	GET_DATA(self, myData, linuxphc);
+	GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
+	GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
 
 	self->_tau = tau;
 
@@ -409,8 +408,8 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 static double
 getFrequency (ClockDriver *self) {
 
-	GET_CONFIG(self, myConfig, linuxphc);
-	GET_DATA(self, myData, linuxphc);
+	GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
+	GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
 
 	if((!self->_init) || (self->state == CS_HWFAULT)) {
 	    return FALSE;
@@ -440,8 +439,8 @@ setStatus (ClockDriver *self, ClockStatus *status) {
 static Boolean
 getClockCapabilities(ClockDriver *self, struct ptp_clock_caps *caps) {
 
-	GET_DATA(self, myData, linuxphc);
-	GET_CONFIG(self, myConfig, linuxphc);
+	GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
+	GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
 
 	if(ioctl(myData->clockFd, PTP_CLOCK_GETCAPS, caps) < 0) {
 	    PERROR(THIS_COMPONENT"Could not read clock capabilities for %s (%s): is the clock valid?", self->name, myConfig->characterDevice);
@@ -456,8 +455,8 @@ static Boolean
 getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *delta)
 {
 
-	GET_DATA(self, myData, linuxphc);
-	GET_DATA(from, hisData, linuxphc);
+	GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
+	GET_DATA_CLOCKDRIVER(from, hisData, linuxphc);
 
 	TimeInternal deltaA, deltaB;
 
@@ -471,10 +470,10 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *delta)
 		delta->nanoseconds = 0;
 		return TRUE;
 	    } else {
-		if(!getSystemClockOffset(self, &deltaA)) {
+		if(!self->getSystemClockOffset(self, &deltaA)) {
 		    return FALSE;
 		}
-		if(!getSystemClockOffset(from, &deltaB)) {
+		if(!self->getSystemClockOffset(from, &deltaB)) {
 		    return FALSE;
 		}
 		subTime(delta, &deltaA, &deltaB);
@@ -483,7 +482,7 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, TimeInternal *delta)
 	}
 
 	if((from->type == CLOCKDRIVER_UNIX) && from->systemClock) {
-	    if(!getSystemClockOffset(self, delta)) {
+	    if(!self->getSystemClockOffset(self, delta)) {
 		return FALSE;
 	    }
 /*
@@ -505,8 +504,8 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
     char isMin;
 #endif
 
-    GET_DATA(self, myData, linuxphc);
-    GET_CONFIG(self, myConfig, linuxphc);
+    GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
+    GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
 
     TimeInternal t1, t2, tptp, tmpDelta, duration, minDuration, delta;
 
@@ -575,7 +574,7 @@ pushPrivateConfig(ClockDriver *self, RunTimeOpts *global)
 
     ClockDriverConfig *config = &self->config;
 
-    GET_CONFIG(self, myConfig, linuxphc);
+    GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
 
     config->stableAdev = global->stableAdev_hw;
     config->unstableAdev = global->unstableAdev_hw;
@@ -596,7 +595,7 @@ pushPrivateConfig(ClockDriver *self, RunTimeOpts *global)
 static Boolean
 isThisMe(ClockDriver *self, const char* search)
 {
-	GET_CONFIG(self, myConfig, linuxphc);
+	GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
 
 	if(!strncmp(search, myConfig->characterDevice, PATH_MAX)) {
 		return TRUE;
@@ -640,7 +639,7 @@ loadVendorExt(ClockDriver *self, const char *ifname) {
 
 	    switch(oui) {
 
-		#include "clockdriver_linuxphc_vext.def"
+		#include "vendorext/clockdriver/linuxphc_vext.def"
 
 		default:
 		    INFO(THIS_COMPONENT"%s: no vendor extensions available\n", self->name);
@@ -649,8 +648,11 @@ loadVendorExt(ClockDriver *self, const char *ifname) {
 	    #undef LOAD_VENDOR_EXT
 
 	    if(found) {
-		INFO(THIS_COMPONENT"%s: vendor: %s, testing extensions\n", self->name, vendorName);
-		loader(self, ifname);
+		if(loader(self, ifname) < 0) {
+		    ERROR(THIS_COMPONENT"%s: vendor: %s, failed loading extensions, using Linux PHC\n", self->name, vendorName);
+		} else {
+		    INFO(THIS_COMPONENT"%s: vendor: %s, extensions loaded successfully\n", self->name, vendorName);
+		}
 	    }
 
 	}

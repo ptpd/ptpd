@@ -25,17 +25,17 @@
  */
 
 /**
- * @file   clockdriver_linuxphc_vext_solarflare.c
+ * @file   vendorext/clockdriver/linuxphc_vext_intel.c
  * @date   Wed Jun 8 16:14:10 2016
  *
- * @brief  Linux PHC clock driver Solarflare vendor extensions
+ * @brief  Linux PHC clock driver Intel vendor extensions
  *
  */
 
-#include "clockdriver_linuxphc_vext_solarflare.h"
+#include "linuxphc_vext_intel.h"
 
 int
-loadCdVendorExt_solarflare(ClockDriver *driver, const char *ifname) {
+loadCdVendorExt_intel(ClockDriver *driver, const char *ifname) {
 
     return 1;
 
