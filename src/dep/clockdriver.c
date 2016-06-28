@@ -601,7 +601,7 @@ processUpdate(ClockDriver *driver) {
 	    update = TRUE;
 	}
 
-	if((driver->state == CS_HOLDOVER) && (driver->age.seconds >= driver->config.holdoverAge)) {
+	if((driver->state == CS_HOLDOVER) && (driver->age.seconds <= driver->config.holdoverAge)) {
 	    driver->setState(driver, CS_TRACKING);
 	    update = TRUE;
 	}
