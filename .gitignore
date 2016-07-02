@@ -29,6 +29,7 @@ Makefile
 /m4/lt~obsolete.m4
 .dirstamp
 .deps
+conf[0-9]*
 # binaries and other compiled or generated files
 ptpd*.tar.gz
 *.rpm
