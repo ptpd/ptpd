@@ -23,11 +23,11 @@ Name: ptpd-linuxphc
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard. Full version with master and slave support.
 %endif
 Version: 2.3.2
-Release: 4%{distver}
+Release: 4%{distver}%{?gittag}
 License: distributable
 Group: System Environment/Daemons
 Vendor: PTPd project team
-Source0: ptpd-2.3.2-linuxphc.tar.gz
+Source0: ptpd-2.3.2-linuxphc-git.tar.gz
 
 Source2: ptpd.sysconfig
 Source3: ptpd.conf
@@ -68,7 +68,7 @@ time synchronised via the PTP protocol or serving PTP time.
 
 %prep 
 
-%setup -n ptpd-2.3.2-linuxphc
+%setup -n ptpd-2.3.2-linuxphc-git
 
 %build
 
