@@ -126,8 +126,10 @@ ptpengine:outbound_latency = 0
 ; in slave state. Value can be positive or negative - useful for
 ; correcting for antenna latencies, delay assymetry
 ; and IP stack latencies. This will not be visible in the offset 
-; from master value - only in the resulting clock correction.
-ptpengine:offset_shift = 0
+; from master value - only in the resulting clock correction. 
+; A positive value shifts the phase right (moves signal further behind reference), 
+; A negative value shifts the phase left (moves signal ahead of reference).
+ptpengine:offset_correction = 0
 
 ; Compatibility option: In slave state, always respect UTC offset
 ; announced by best master, even if the the

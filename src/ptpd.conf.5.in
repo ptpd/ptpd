@@ -486,11 +486,13 @@ Specify latency correction (nanoseconds) for outgoing packets.
 .RE
 .RS 0
 .TP 8
-\fBptpengine:offset_shift [\fIINT\fB]\fR
+\fBptpengine:offset_correction [\fIINT\fB]\fR
 .RS 8
 .TP 8
 \fBusage\fR
-Apply an arbitrary shift (nanoseconds) to offset from master when in slave state. Value can be positive or negative - useful for correcting for of antenna latencies, delay assymetry and IP stack latencies. This will not be visible in the offset from master value - only in the resulting clock correction.
+Apply an arbitrary shift / correction (nanoseconds) to offset from master when in slave state. Value can be positive or negative -
+useful for correcting for of antenna latencies, delay assymetry and IP stack latencies. This will not be visible in the offset from master value - only in the resulting clock correction.
+A positive value shifts the phase right (moves signal further behind reference), a negative value shifts the phase left (moves signal ahead of reference).
 .TP 8
 \fBdefault\fR
 \fI0\fR

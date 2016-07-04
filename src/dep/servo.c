@@ -601,8 +601,8 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	ptpClock->currentDS.offsetFromMaster.nanoseconds = ofm_filt->y;
 
 	/* Apply the offset shift */
-	subTime(&ptpClock->currentDS.offsetFromMaster, &ptpClock->currentDS.offsetFromMaster,
-	&rtOpts->ofmShift);
+	addTime(&ptpClock->currentDS.offsetFromMaster, &ptpClock->currentDS.offsetFromMaster,
+	&rtOpts->ofmCorrection);
 
 	DBGV("offset filter %d\n", ofm_filt->y);
 

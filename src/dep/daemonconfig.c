@@ -1127,13 +1127,15 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->outboundLatency.nanoseconds, rtOpts->outboundLatency.nanoseconds,
 	"Specify latency correction (nanoseconds) for outgoing packets.", RANGECHECK_NONE,0,0);
 
-	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:offset_shift",
-		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->ofmShift.nanoseconds, rtOpts->ofmShift.nanoseconds,
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:offset_correction",
+		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->ofmCorrection.nanoseconds, rtOpts->ofmCorrection.nanoseconds,
 	"Apply an arbitrary shift (nanoseconds) to offset from master when\n"
 	"	 in slave state. Value can be positive or negative - useful for\n"
 	"	 correcting for antenna latencies, delay assymetry\n"
 	"	 and IP stack latencies. This will not be visible in the offset \n"
-	"	 from master value - only in the resulting clock correction.", RANGECHECK_NONE, 0,0);
+	"	 from master value - only in the resulting clock correction. \n"
+	"	 A positive value shifts the phase right (moves signal further behind reference), \n"
+	"	 A negative value shifts the phase left (moves signal ahead of reference).", RANGECHECK_NONE, 0,0);
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:always_respect_utc_offset",
 		PTPD_RESTART_NONE, &rtOpts->alwaysRespectUtcOffset, rtOpts->alwaysRespectUtcOffset,

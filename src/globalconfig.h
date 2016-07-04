@@ -104,7 +104,7 @@ typedef struct {
 
 	Boolean displayPackets;
 	Integer16 s;
-	TimeInternal inboundLatency, outboundLatency, ofmShift;
+	TimeInternal inboundLatency, outboundLatency, ofmCorrection;
 	Integer16 max_foreign_records;
 	Enumeration8 delayMechanism;
 
