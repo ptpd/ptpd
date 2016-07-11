@@ -36,8 +36,8 @@ under the control of the authors of PTPd. Users of IEEE 1588 may need to obtain
 a license for the patented technology in the protocol. Contact the IEEE for
 licensing information.
 
-PTPd is licenced under a 2 Clause BSD Open Source License see
-[COPYRIGHT](https://github.com/ptpd/ptpd/blob/master/COPYRIGHT) for full
-information.
+PTPd is licensed under a 2 Clause BSD Open Source License. Please refer to the
+[COPYRIGHT](https://github.com/ptpd/ptpd/blob/master/COPYRIGHT) file for
+additional information.
 
 PTPd comes with absolutely no warranty.
