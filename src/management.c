@@ -504,7 +504,7 @@ void initOutgoingMsgManagement(MsgManagement* incoming, MsgManagement* outgoing,
         outgoing->header.correctionField.lsb = 0;
 	copyPortIdentity(&outgoing->header.sourcePortIdentity, &ptpClock->portDS.portIdentity);
 	outgoing->header.sequenceId = incoming->header.sequenceId;
-	outgoing->header.controlField = 0x0; /* deprecrated for ptp version 2 */
+	outgoing->header.controlField = 0x4; /* deprecrated for ptp version 2 */
 	outgoing->header.logMessageInterval = 0x7F;
 
 	/* set management message fields */
