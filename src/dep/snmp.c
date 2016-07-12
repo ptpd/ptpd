@@ -390,7 +390,7 @@ snmpHeaderIndexBest(struct snmpHeaderIndex *idx)
 
 #define SNMP_LOCAL_VARIABLES			\
 	static unsigned long long_ret;		\
-	static U64 counter64_ret;		\
+	static struct counter64 counter64_ret;	\
 	static uint32_t ipaddr;			\
 	Integer32 i32_ret;			\
 	Integer64 bigint;			\
@@ -1836,7 +1836,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *ev
 		case PTPBASE_NOTIFS_SLAVE_OFFSET_THRESHOLD_EXCEEDED:
 		case PTPBASE_NOTIFS_SLAVE_OFFSET_THRESHOLD_ACCEPTABLE:
 		    {
-			U64 ofmNum;
+			struct counter64 ofmNum;
 			Integer64  tmpi64;
 			internalTime_to_integer64(eventData->currentDS.offsetFromMaster, &tmpi64);
 			ofmNum.low = htonl(tmpi64.lsb);
@@ -1923,7 +1923,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *ev
 		case PTPBASE_NOTIFS_OFFSET_SECONDS:
 		case PTPBASE_NOTIFS_OFFSET_SUB_SECONDS:
 		    {
-			U64 ofmNum;
+			struct counter64 ofmNum;
 			Integer64  tmpi64;
 			internalTime_to_integer64(eventData->currentDS.offsetFromMaster, &tmpi64);
 			ofmNum.low = htonl(tmpi64.lsb);
