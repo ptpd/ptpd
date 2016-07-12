@@ -15,6 +15,8 @@
 %define distver %(/usr/lib/rpm/redhat/dist.sh --dist)
 %endif
 
+%define servicename ptpd%{?servicesuffix}
+
 %if %{slaveonly_build} == 1
 Name: ptpd-slaveonly
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard. Slave-only version.
@@ -23,7 +25,7 @@ Name: ptpd
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard. Full version with master and slave support.
 %endif
 Version: 2.3.2
-Release: 1%{distver}
+Release: 1%{distver}%{?gittag}
 License: distributable
 Group: System Environment/Daemons
 Vendor: PTPd project team
@@ -66,7 +68,7 @@ coordination of LAN connected computers.
 Install the ptpd package if you need tools for keeping your system's
 time synchronised via the PTP protocol or serving PTP time.
 
-%prep 
+%prep
 
 %setup -n ptpd-2.3.2
 
@@ -104,14 +106,16 @@ install -m 644 src/templates.conf $RPM_BUILD_ROOT%{_datadir}/ptpd/templates.conf
 
 %if %{?_unitdir:1}%{!?_unitdir:0}
   mkdir -p .%{_unitdir}
-  install -m644 $RPM_SOURCE_DIR/ptpd.service .%{_unitdir}/ptpd.service
+  install -m644 $RPM_SOURCE_DIR/ptpd.service .%{_unitdir}/%{servicename}.service
+  sed -i 's#/etc/sysconfig/__SERVICENAME__#/etc/sysconfig/%{servicename}#' .%{_unitdir}/%{servicename}.service
 %else
   mkdir -p .%{_initrddir}
-  install -m755 $RPM_SOURCE_DIR/ptpd.init .%{_initrddir}/ptpd
+  install -m755 $RPM_SOURCE_DIR/ptpd.init .%{_initrddir}/%{servicename}
+  sed -i 's#/etc/sysconfig/__SERVICENAME__#/etc/sysconfig/%{servicename}#' .%{_initrddir}/%{servicename}
 %endif
 
   mkdir -p .%{_sysconfdir}/sysconfig
-  install -m644 %{SOURCE2} .%{_sysconfdir}/sysconfig/ptpd
+  install -m644 %{SOURCE2} .%{_sysconfdir}/sysconfig/%{servicename}
   install -m644 %{SOURCE3} .%{_sysconfdir}/ptpd2.conf
 
 }
@@ -125,9 +129,9 @@ rm -rf $RPM_BUILD_ROOT
 %post
 
 %if %{?_unitdir:1}%{!?_unitdir:0}
-/usr/bin/systemctl enable ptpd  >/dev/null 2>&1
+/usr/bin/systemctl enable %{servicename} >/dev/null 2>&1
 %else
-/sbin/chkconfig --add ptpd
+/sbin/chkconfig --add %{servicename}
 %endif
 echo
 echo -e "**** PTPd - Running post-install checks...\n"
@@ -185,18 +189,18 @@ done
 %preun
 if [ $1 = 0 ]; then
 %if %{?_unitdir:1}%{!?_unitdir:0}
-systemctl stop ptpd > /dev/null 2>&1
-systemctl disable ptpd  >/dev/null 2>&1
+systemctl stop %{servicename} > /dev/null 2>&1
+systemctl disable %{servicename}  >/dev/null 2>&1
 %else
-    service ptpd stop > /dev/null 2>&1
-    /sbin/chkconfig --del ptpd
+    service %{servicename} stop > /dev/null 2>&1
+    /sbin/chkconfig --del %{servicename}
 %endif
 fi
 :
 
 %postun
 if [ "$1" -ge "1" ]; then
-  service ptpd condrestart > /dev/null 2>&1
+  service %{servicename} condrestart > /dev/null 2>&1
 fi
 :
 
@@ -204,11 +208,11 @@ fi
 %defattr(-,root,root)
 %{_sbindir}/ptpd2
 %if %{?_unitdir:1}%{!?_unitdir:0}
-%{_unitdir}/ptpd.service
+%{_unitdir}/%{servicename}.service
 %else
-%config			%{_initrddir}/ptpd
+%config			%{_initrddir}/%{servicename}
 %endif
-%config(noreplace)	%{_sysconfdir}/sysconfig/ptpd
+%config(noreplace)	%{_sysconfdir}/sysconfig/%{servicename}
 %config(noreplace)	%{_sysconfdir}/ptpd2.conf
 %config(noreplace)	%{_datadir}/ptpd/templates.conf
 %{_mandir}/man8/*
