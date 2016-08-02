@@ -152,6 +152,15 @@ clockdriver_init(ClockDriver* self, const void *userData) {
 	return -1;
     }
 
+    if(caps.pps) {
+	INFO(THIS_COMPONENT"Linux PHC clock %s supports 1PPS output\n", self->name);
+	if (ioctl(myData->clockFd, PTP_ENABLE_PPS, 1) < 0) {
+		ERROR(THIS_COMPONENT"Could not enable 1PPS output for Linux PHC clock %s\n", self->name);
+	} else {
+		INFO(THIS_COMPONENT"Successfully enabled 1PPS output for Linux PHC clock %s\n", self->name);
+	}
+    }
+
     /* run any vendor-specific initialisation code */
     self->_vendorInit(self);
 
