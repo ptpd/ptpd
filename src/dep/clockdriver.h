@@ -54,8 +54,12 @@
 
 /* clock driver types */
 enum {
-    CLOCKDRIVER_UNIX = 0,
-    CLOCKDRIVER_LINUXPHC = 1,
+
+#define REGISTER_CLOCKDRIVER(fulltype, shorttype, textname) \
+    fulltype,
+
+#include "clockdriver.def"
+
     CLOCKDRIVER_MAX
 };
 
@@ -326,8 +330,7 @@ int		getClockDriverType(const char*);
 Boolean		parseClockDriverSpec(const char*, ClockDriverSpec *);
 void		compareAllClocks();
 
-#include "clockdriver_unix.h"
-#include "clockdriver_linuxphc.h"
+#include "clockdriver.def"
 
 #define INIT_DATA_CLOCKDRIVER(var, type) \
     if(var->_privateData == NULL) { \

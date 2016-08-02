@@ -36,11 +36,6 @@
 
 #define THIS_COMPONENT "clock: "
 
-#define REGISTER_CLOCKDRIVER(type, suffix) \
-	if(driverType==type) { \
-	    setup = _setupClockDriver_##suffix(clockDriver);\
-	    found = TRUE;\
-	}
 
 /* linked list - so that we can control all registered objects centrally */
 LINKED_LIST_HOOK(ClockDriver);
@@ -52,8 +47,14 @@ static int _syncInterval = 1.0 / (CLOCK_SYNC_RATE + 0.0);
 
 
 static const char *clockDriverNames[] = {
-    [CLOCKDRIVER_UNIX] = "unix",
-    [CLOCKDRIVER_LINUXPHC] = "linuxphc"
+
+    #define REGISTER_CLOCKDRIVER(fulltype, shorttype, textname) \
+	[fulltype] = textname,
+
+    #include "clockdriver.def"
+
+    [CLOCKDRIVER_MAX] = "nosuchtype"
+
 };
 
 /* inherited methods */
@@ -151,8 +152,13 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
     /* inherited methods end */
 
     /* these macros call the setup functions for existing clock drivers */
-    REGISTER_CLOCKDRIVER(CLOCKDRIVER_UNIX, unix);
-    REGISTER_CLOCKDRIVER(CLOCKDRIVER_LINUXPHC, linuxphc);
+
+    #define REGISTER_CLOCKDRIVER(fulltype, shorttype, textname) \
+	if(driverType==fulltype) { \
+	    setup = _setupClockDriver_##shorttype(clockDriver);\
+	    found = TRUE;\
+	}
+    #include "clockdriver.def"
 
     if(!found) {
 	ERROR(THIS_COMPONENT"Setup requested for unknown clock driver type: %d\n", driverType);
