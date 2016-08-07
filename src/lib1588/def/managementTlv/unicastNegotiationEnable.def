@@ -1,0 +1,10 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_UNICAST_NEGOTIATION_ENABLE@0x2014@ */
+
+/* Spec Table 77 - UNICAST_NEGOTIATION_ENABLE */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( en , 1, PtpBoolean)
+PROCESS_FIELD( reserved, 1, PtpOctet)
+
+

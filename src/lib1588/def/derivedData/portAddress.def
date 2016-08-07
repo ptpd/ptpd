@@ -1,0 +1,8 @@
+/* Spec 5.3.6 PortAddress */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( networkProtocol, 2, PtpEnumeration16)
+PROCESS_FIELD( addressLength, 2, PtpUInteger16)
+PROCESS_FIELD( addressField, data->addressLength, PtpDynamicOctetBuf)
+
+#undef PROCESS_FIELD

@@ -47,3 +47,36 @@
   informs can also send date and time
 - MGMT clear and get fault record
 - configurable alarm severities?
+
+- selectively enable SNMP traps
+
+- clockdriver_linuxphc: implement PTP device locking
+- clockdriver: implement health checks for linuxphc and unix
+- clockdriver: rework kernel flags / leap seconds, remove TimeService
+- protocol: PTPMon implementation
+- msg: extract TLVs from any message
+- clockdriver: allow system clock to be the preferred source. PTP -> sys -> rest
+- clockdriver: MAD filter autotune and /  or unlock condition?
+- PTP offsets: remove Peirce's outlier filter, replace with MAD
+- MAD: use bucket median rather than qsort to speed up
+- clockdriver: third kP/kI pair: for inter-clock sync
+
+- man: diff -O vs. man, complete any missing entries
+- man: alarms and descriptions
+- document SNMP integration and alarm handling
+- document HW/w integrationc, clock states and clock selection
+- clockdriver: implement vendor-specific extensions. Dependency: get MAC address, ioctl helper,
+  dependency: netutils.c
+- net: source address selection
+
+- net: extract helper code to netutils.c, create a "static class" providing functions netutils()->fun()
+
+- start working on transport implementation, TransportAddress etc.
+- reconsider NTP integration? Shm with zero offsets? Forget about mode6 / mode7. Too much work.
+
+- JSON interface for configuration?
+
+- tracking the frequency of extra clocks
+- clock groups, one syncs to another. Group 1: system clock, PTP NIC, group 2: system clock, extra NICs. 
+- audit log: MTIE for each clock, configurable interval
+

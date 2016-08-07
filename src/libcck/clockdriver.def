@@ -1,0 +1,17 @@
+/*
+ * Register available clock drivers here (we are so modular...)
+ * If not included in the REGISTER_CLOCKDRIVER context,
+ * just include the headers. The REGISTER_CLOCKDRIVER x-macro
+ * arguments are: ENUM_NAME, type_suffix, "text_name"
+ * This means that the function and type suffixes in your
+ * implementation must match type_suffix.
+ */
+
+#ifndef REGISTER_CLOCKDRIVER
+    #include "clockdriver_unix.h"
+    #include "clockdriver_linuxphc.h"
+#else
+    REGISTER_CLOCKDRIVER(CLOCKDRIVER_UNIX, unix, "unix")
+    REGISTER_CLOCKDRIVER(CLOCKDRIVER_LINUXPHC, linuxphc, "linuxphc")
+    #undef REGISTER_CLOCKDRIVER
+#endif /* REGISTER_CLOCKDRIVER */

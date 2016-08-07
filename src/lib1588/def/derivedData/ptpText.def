@@ -1,0 +1,7 @@
+/* Spec 5.3.9 PTPText */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( lengthField, 1, PtpUInteger8)
+PROCESS_FIELD( textField, data->lengthField , PtpDynamicOctetBuf)
+
+#undef PROCESS_FIELD

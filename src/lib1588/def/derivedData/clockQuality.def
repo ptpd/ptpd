@@ -1,0 +1,8 @@
+/* Spec 5.3.7 ClockQuality */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( clockClass, 1, PtpUInteger8 )
+PROCESS_FIELD( clockAccuracy, 1, PtpEnumeration8 )
+PROCESS_FIELD( offsetScaledLogVariance, 2, PtpUInteger16)
+
+#undef PROCESS_FIELD

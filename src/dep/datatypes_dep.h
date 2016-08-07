@@ -30,6 +30,46 @@ typedef struct {
     Integer32  s_exp;
 } one_way_delay_filter;
 
+#define BOND_SLAVES_MAX 10
+
+typedef struct {
+    char name[IFACE_NAME_LENGTH + 1];
+    int id;
+    Boolean hwTimestamping;
+    Boolean txTimestamping;
+} BondSlave;
+
+typedef struct {
+	Boolean updated;
+	Boolean bonded;
+	Boolean activeBackup;
+	int slaveCount;
+	int activeCount;
+	BondSlave activeSlave;
+	BondSlave slaves[BOND_SLAVES_MAX];
+	Boolean activeChanged;
+	Boolean countChanged;
+} BondInfo;
+
+typedef struct {
+	Boolean vlan;
+	int vlanId;
+	char realDevice[IFACE_NAME_LENGTH + 1];
+} VlanInfo;
+
+typedef struct {
+	int value;
+	char name[40];
+} OptionName;
+
+typedef struct {
+	int rxFilter;
+	int tsMode;
+	int txType;
+	Boolean txTimestamping;
+	Boolean hwTimestamping;
+} HwTsInfo;
+
 /**
 * \brief Struct containing interface information and capabilities
  */
@@ -41,7 +81,11 @@ typedef struct {
         int addressFamily;
         unsigned int flags;
 	int ifIndex;
+	char physicalDevice[IFACE_NAME_LENGTH + 1];
+	BondInfo bondInfo;
+	VlanInfo vlanInfo;
 } InterfaceInfo;
+
 
 /**
 * \brief Struct describing network transport data
@@ -83,12 +127,17 @@ typedef struct {
 	Boolean joinedGeneral;
 	struct ether_addr etherDest;
 	struct ether_addr peerEtherDest;
-	Boolean txTimestampFailure;
-
+	Boolean txTimestamping;
+	Boolean txLoop;
+	Boolean hwTimestamping;
+	Boolean hwTimestamping_backup;
+	Boolean txDelayed;
+	int ignorePackets;
 	Ipv4AccessList* timingAcl;
 	Ipv4AccessList* managementAcl;
 
 } NetPath;
+
 
 typedef struct {
 

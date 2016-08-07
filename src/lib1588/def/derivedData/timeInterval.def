@@ -1,0 +1,6 @@
+/* Spec 5.3.2 TimeInterval*/
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( scaledNanoseconds, 8, PtpInteger64)
+
+#undef PROCESS_FIELD

@@ -64,7 +64,27 @@
 #endif
 
 #include <assert.h>
+#include <linux/ethtool.h>
 
+/*
+ * Some Linux distributions come with kernels which support ETHTOOL_GET_TS_INFO,
+ * but headers do not reflect this. If this fails in runtime,
+ * the system is not fully usable for PTP anyway.
+ */
+#if defined(HAVE_DECL_ETHTOOL_GET_TS_INFO) && !HAVE_DECL_ETHTOOL_GET_TS_INFO
+
+#define ETHTOOL_GET_TS_INFO	0x00000041 /* Get time stamping and PHC info */
+struct ethtool_ts_info {
+    __u32	cmd;
+    __u32	so_timestamping;
+    __s32	phc_index;
+    __u32	tx_types;
+    __u32	tx_reserved[3];
+    __u32	rx_filters;
+    __u32	rx_reserved[3];
+};
+
+#endif /* HAVE_DECL_ETHTOOL_GET_TS_INFO */
 
 /*
   list of per-module defines:
@@ -195,21 +215,23 @@ static inline Integer32 flip32(x)
  * each token in targetvar on iteration, using id variable name prefix
  * to allow nesting (each loop uses an individual set of variables)
  */
-#define foreach_token_begin(id, var, targetvar, delim) {\
-    char* id_stash; \
-    char* id_text_; \
-    char* id_text__; \
+#define foreach_token_begin(id, var, targetvar, delim) \
+    int counter_##id = -1; \
+    char* stash_##id = NULL; \
+    char* text_##id; \
+    char* text__##id; \
     char* targetvar; \
-    id_text_=strdup(var); \
-    for(id_text__ = id_text_;; id_text__=NULL) { \
-	targetvar = strtok_r(id_text__, delim, &id_stash); \
-	if(targetvar==NULL) break;
+    text_##id=strdup(var); \
+    for(text__##id = text_##id;; text__##id=NULL) { \
+	targetvar = strtok_r(text__##id, delim, &stash_##id); \
+	if(targetvar==NULL) break; \
+	counter_##id++;
 
 #define foreach_token_end(id) } \
-    if(id_text_ != NULL) { \
-	free(id_text_); \
-    }\
-}
+    if(text_##id != NULL) { \
+	free(text_##id); \
+    } \
+    counter_##id++;
 
 /** \name msg.c
  *-Pack and unpack PTP messages */
@@ -229,8 +251,8 @@ Boolean msgUnpackSignaling(Octet * buf,MsgSignaling*, MsgHeader*, PtpClock *ptpC
 void msgPackHeader(Octet * buf,PtpClock*);
 #ifndef PTPD_SLAVE_ONLY
 void msgPackAnnounce(Octet * buf, UInteger16, PtpClock*);
-void msgPackSync(Octet * buf, UInteger16, Timestamp*,PtpClock*);
 #endif /* PTPD_SLAVE_ONLY */
+void msgPackSync(Octet * buf, UInteger16, Timestamp*,PtpClock*);
 void msgPackFollowUp(Octet * buf,Timestamp*,PtpClock*, const UInteger16);
 void msgPackDelayReq(Octet * buf,Timestamp *,PtpClock *);
 void msgPackDelayResp(Octet * buf,MsgHeader *,Timestamp *,PtpClock *);
@@ -368,7 +390,7 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
 
 Boolean testInterface(char* ifaceName, const RunTimeOpts* rtOpts);
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
-Boolean netShutdown(NetPath*);
+Boolean netShutdown(NetPath*, PtpClock*);
 int netSelect(TimeInternal*,NetPath*,fd_set*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*,int);
 ssize_t netRecvGeneral(Octet*,NetPath*);
@@ -378,6 +400,11 @@ ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*,const RunTimeOpts*, Intege
 ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32,TimeInternal*);
 Boolean netRefreshIGMP(NetPath *, const RunTimeOpts *, PtpClock *);
 Boolean hostLookup(const char* hostname, Integer32* addr);
+void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock);
+Boolean netIoctlHelper(struct ifreq *ifr, const char* ifaceName, unsigned long request);
+Boolean getTsInfo(const char *ifaceName, struct ethtool_ts_info *info);
+int interfaceExists(char* ifaceName);
+Boolean prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts);
 
 /** \}*/
 
@@ -408,7 +435,7 @@ void updateOffset(TimeInternal*,TimeInternal*,
   offset_from_master_filter*,const RunTimeOpts*,PtpClock*,TimeInternal*);
 void checkOffset(const RunTimeOpts*, PtpClock*);
 void updateClock(const RunTimeOpts*,PtpClock*);
-void stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
+void stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force);
 
 /** \}*/
 
@@ -416,8 +443,6 @@ void stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
  * -Handle with runtime options*/
  /**\{*/
 int setCpuAffinity(int cpu);
-int logToFile(RunTimeOpts * rtOpts);
-int recordToFile(RunTimeOpts * rtOpts);
 PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
 
 void ptpdShutdown(PtpClock * ptpClock);
@@ -457,24 +482,17 @@ void displayStatus(PtpClock *ptpClock, const char *prefixMessage);
 void displayPortIdentity(PortIdentity *port, const char *prefixMessage);
 int snprint_PortIdentity(char *s, int max_len, const PortIdentity *id);
 Boolean nanoSleep(TimeInternal*);
-void getTime(TimeInternal*);
-void getTimeMonotonic(TimeInternal*);
-void setTime(TimeInternal*);
-#ifdef linux
-void setRtc(TimeInternal *);
-#endif /* linux */
+
 double getRand(void);
 int lockFile(int fd);
 int checkLockStatus(int fd, short lockType, int *lockPid);
 int checkFileLockable(const char *fileName, int *lockPid);
 Boolean checkOtherLocks(RunTimeOpts *rtOpts);
+Boolean doubleToFile(const char *filename, double input);
+Boolean doubleFromFile(const char *filename, double *output);
+Boolean token_in_list(const char *list, const char * search, const char * delim);
 
 void recordSync(UInteger16 sequenceId, TimeInternal * time);
-
-void adjFreq_wrapper(const RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj);
-
-Boolean adjFreq(double);
-double getAdjFreq(void);
 
 #ifdef HAVE_SYS_TIMEX_H
 void informClockSource(PtpClock* ptpClock);
@@ -492,25 +510,14 @@ Boolean getKernelUtcOffset(int *utc_offset);
 
 #endif /* HAVE_SYS_TIMEX_H */
 
-/* Observed drift save / recovery functions */
-void restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet);
-void saveDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet);
-
 int parseLeapFile(char * path, LeapSecondInfo *info);
 
 void
 resetWarnings(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
 
-void setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts);
-void resetPIservo(PIservo* servo);
-double runPIservo(PIservo* servo, const Integer32 input);
-
-#ifdef PTPD_STATISTICS
 void updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts);
-#endif /* PTPD_STATISTICS */
 
 void writeStatusFile(PtpClock *ptpClock, const RunTimeOpts *rtOpts, Boolean quiet);
-void updateXtmp (TimeInternal oldTime, TimeInternal newTime);
 
 
 #endif /*PTPD_DEP_H_*/

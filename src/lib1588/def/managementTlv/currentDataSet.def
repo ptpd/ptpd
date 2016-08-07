@@ -1,0 +1,11 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_CURRENT_DATA_SET@0x2001@ */
+
+/* Spec Table 55 - CURRENT_DATA_SET management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( stepsRemoved, 2, PtpUInteger16)
+PROCESS_FIELD( offsetFromMaster, PTP_TYPELEN_TIMEINTERVAL, PtpTimeInterval)
+PROCESS_FIELD( meanPathDelay, PTP_TYPELEN_TIMEINTERVAL, PtpTimeInterval)
+
+

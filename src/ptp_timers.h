@@ -71,16 +71,16 @@ enum {
   OPERATOR_MESSAGES_TIMER,  /* used to limit the operator messages */
   LEAP_SECOND_PAUSE_TIMER, /* timer used for pausing updates when leap second is imminent */
   STATUSFILE_UPDATE_TIMER, /* timer used for refreshing the status file */
-  PANIC_MODE_TIMER,	   /* timer used for the duration of "panic mode" */
   PERIODIC_INFO_TIMER,	   /* timer used for dumping periodic status updates */
-#ifdef PTPD_STATISTICS
   STATISTICS_UPDATE_TIMER, /* online mean / std dev updare interval (non-moving statistics) */
-#endif /* PTPD_STATISTICS */
   ALARM_UPDATE_TIMER,
   MASTER_NETREFRESH_TIMER,
   CALIBRATION_DELAY_TIMER,
   CLOCK_UPDATE_TIMER,
   TIMINGDOMAIN_UPDATE_TIMER,
+  INTERFACE_CHECK_TIMER,
+  CLOCK_SYNC_TIMER,
+  CLOCKDRIVER_UPDATE_TIMER,
   PTP_MAX_TIMER
 };
 

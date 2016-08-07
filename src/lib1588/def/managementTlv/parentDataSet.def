@@ -1,0 +1,17 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_PARENT_DATA_SET@0x2002@ */
+
+/* Spec Table 56 - PARENT_DATA_SET management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( parentPortIdentity, PTP_TYPELEN_PORTIDENTITY, PtpPortIdentity)
+PROCESS_FIELD( PS, 1, PtpBoolean)
+PROCESS_FIELD( reserved, 1, PtpOctet)
+PROCESS_FIELD( observedParentOffsetScaledLogVariance, 2, PtpUInteger16)
+PROCESS_FIELD( observedParentClockPhaseChangeRate, 4, PtpInteger32)
+PROCESS_FIELD( grandmasterPriority1, 1, PtpUInteger8)
+PROCESS_FIELD( grandmasterClockQuality, PTP_TYPELEN_CLOCKQUALITY, PtpClockQuality)
+PROCESS_FIELD( grandmasterPriority2, 1, PtpUInteger8)
+PROCESS_FIELD( grandmasterIdentity, PTP_TYPELEN_CLOCKIDENTITY, PtpClockIdentity)
+
+

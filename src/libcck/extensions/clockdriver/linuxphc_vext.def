@@ -1,0 +1,23 @@
+/*
+
+   * Linux PHC clock driver vendor extension mappings *
+
+   to add support for vendor-specific clock driver extensions:
+
+   1. create a source file and header extensions/clockdriver/linuxphc_vext_[name]
+   2. define function: int loadCdVendorExt_[name](ClockDriver *driver, const char ifName):
+
+      - overload driver->_vendorInit, driver->_vendorShutdown and driver->_vendorHealthCheck if needed
+      - overload any other clock driver's methods to your liking
+
+   3. include the header file here
+   3. call: LOAD_VENDOR_EXT(0xOOUUII, name, "description")
+
+*/
+
+#include "linuxphc_vext_solarflare.h"
+LOAD_VENDOR_EXT(0x000F53, solarflare,	"Solarflare Communications, inc.")
+LOAD_VENDOR_EXT(0x000A68, solarflare,	"Solarflare Communications, inc.")
+
+#include "linuxphc_vext_intel.h"
+LOAD_VENDOR_EXT(0x0CC47A, intel,	"Supermicro (Intel)")

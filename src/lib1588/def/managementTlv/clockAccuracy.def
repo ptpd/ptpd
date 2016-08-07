@@ -1,0 +1,10 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_CLOCK_ACCURACY@0x2010@ */
+
+/* Spec Table 49 - CLOCK_ACCURACY management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( clockAccuracy, 1, PtpEnumeration8)
+PROCESS_FIELD( reserved, 1, PtpOctet)
+
+

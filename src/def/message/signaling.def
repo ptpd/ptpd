@@ -3,4 +3,5 @@
 /* to use these definitions, #define OPERATE then #include this file in your source */
 OPERATE( header, 34, MsgHeader)
 OPERATE( targetPortIdentity, 10, PortIdentity)
+
 #undef OPERATE

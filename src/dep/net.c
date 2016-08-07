@@ -85,6 +85,18 @@
 #include <linux/ethtool.h>
 #endif /* SO_TIMESTAMPING */
 
+#include "linux/if_bonding.h"
+#include "linux/if_vlan.h"
+
+static Boolean bondQuery(char *ifaceName, ifbond *ifb);
+static Boolean bondSlaveQuery(char *ifaceName, ifslave *ifs, int member);
+static void getBondInfo(char *ifaceName, BondInfo *info);
+static void getVlanInfo(char* ifaceName, VlanInfo *info);
+static Boolean getHwTs(const char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target, Boolean quiet);
+static Boolean initHwTs(char *ifaceName, HwTsInfo *info);
+static ssize_t netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags);
+
+
 /**
  * shutdown the IPv4 multicast for specific address
  *
@@ -151,8 +163,9 @@ isIpMulticast(struct in_addr in)
 
 /* shut down the UDP stuff */
 Boolean
-netShutdown(NetPath * netPath)
+netShutdown(NetPath * netPath, PtpClock *ptpClock)
 {
+
 	netShutdownMulticast(netPath);
 
 	/* Close sockets */
@@ -177,14 +190,18 @@ netShutdown(NetPath * netPath)
 
 	freeIpv4AccessList(&netPath->timingAcl);
 	freeIpv4AccessList(&netPath->managementAcl);
-
+/*
+	freeClockDriver(&ptpClock->clockDriver);
+	freeClockDriver(&ptpClock->clockDriver2);
+	freeClockDriver(&ptpClock->clockDriver3);
+*/
 	return TRUE;
 }
 
 /* Check if interface ifaceName exists. Return 1 on success, 0 when interface doesn't exists, -1 on failure.
  */
 
-static int
+int
 interfaceExists(char* ifaceName)
 {
 
@@ -430,9 +447,12 @@ static int getInterfaceIndex(char *ifaceName)
 
     if (ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0) {
             DBGV("failed to request hardware address for %s", ifaceName);
+	    close(sockfd);
 	    return -1;
 
     }
+
+    close(sockfd);
 
 #if defined(HAVE_STRUCT_IFREQ_IFR_INDEX)
     return ifr.ifr_index;
@@ -450,6 +470,11 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 {
 
     int res;
+
+    char *realDevice = ifaceName;
+
+    BondInfo *bondInfo = &ifaceInfo->bondInfo;
+    VlanInfo *vlanInfo = &ifaceInfo->vlanInfo;
 
     res = interfaceExists(ifaceName);
 
@@ -499,6 +524,23 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 	ifaceInfo->ifIndex = res;
     }
 
+    getVlanInfo(ifaceName, vlanInfo);
+
+    if(vlanInfo->vlan) {
+	    realDevice = vlanInfo->realDevice;
+
+    }
+
+    getBondInfo(realDevice, bondInfo);
+
+    if(bondInfo->bonded && bondInfo->activeCount > 0) {
+	    realDevice = bondInfo->activeSlave.name;
+    }
+
+    strncpy(ifaceInfo->physicalDevice, realDevice, IFACE_NAME_LENGTH);
+
+    DBG("Underlying physical device: %s\n", ifaceInfo->physicalDevice);
+
     return TRUE;
 
 
@@ -507,9 +549,9 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 Boolean
 testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
 {
-
+	char *realDevice = ifaceName;
 	InterfaceInfo info;
-
+	memset(&info, 0, sizeof(InterfaceInfo));
 	info.addressFamily = AF_INET;
 
 	if(getInterfaceInfo(ifaceName, &info) != 1)
@@ -542,6 +584,27 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
 
     if(info.flags & IFF_LOOPBACK)
 	    WARNING("Interface %s is a loopback interface.\n", ifaceName);
+
+    if(info.vlanInfo.vlan) {
+	    realDevice = info.vlanInfo.realDevice;
+	    INFO("%s is a VLAN interface, VLAN ID %d, underlying device %s\n", ifaceName, info.vlanInfo.vlanId, info.vlanInfo.realDevice);
+    }
+
+    if(info.bondInfo.bonded) {
+	    if(!info.bondInfo.activeBackup && rtOpts->hwTimestamping) {
+		WARNING("%s is a bonded interface but is not running Active Backup. Cannot use hardware timestamping\n", ifaceName);
+	    }
+
+	    if(info.bondInfo.activeCount == 0) {
+		WARNING("%s is a bonded interface with no active slaves\n");
+	    } else {
+		INFO("%s is a bonded interface, current active slave: %s\n", realDevice, info.bondInfo.activeSlave.name);
+	    }
+    }
+
+    if(strcmp(ifaceName, info.physicalDevice)) {
+	    INFO("Underlying physical device: %s\n", info.physicalDevice);
+    }
 
     if(!(info.flags & IFF_MULTICAST)
 	    && rtOpts->transport==UDP_IPV4
@@ -689,26 +752,26 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	extern PtpClock *G_ptpClock;
 	ssize_t length;
 	fd_set tmpSet;
-	struct timeval timeOut = {0,0};
-	int val = 1;
+	struct timeval timeOut = {0,1500};
 	int i = 0;
-	if(netPath->txTimestampFailure)
-		goto failure;
+	int backoff = 10;
+
 
 	FD_ZERO(&tmpSet);
 	FD_SET(netPath->eventSock, &tmpSet);
 
 	if(select(netPath->eventSock + 1, &tmpSet, NULL, NULL, &timeOut) > 0) {
 		if (FD_ISSET(netPath->eventSock, &tmpSet)) {
-
-			length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp,
+			length = netr(G_ptpClock->msgIbuf, timeStamp,
 			    netPath, MSG_ERRQUEUE);
 			if (length > 0) {
 				DBG("getTxTimestamp: Grabbed sent msg via errqueue: %d bytes, at %d.%d\n", length, timeStamp->seconds, timeStamp->nanoseconds);
 				return TRUE;
 			} else if (length < 0) {
-				DBG("getTxTimestamp: Failed to poll error queue for SO_TIMESTAMPING transmit time\n");
-				G_ptpClock->counters.messageRecvErrors++;
+				clearTime(timeStamp);
+				G_ptpClock->counters.txTimestampFailures++;
+				    ERROR("getTxTimestamp: Failed to poll error queue for SO_TIMESTAMPING transmit time: %s\n", strerror(errno));
+				return FALSE;
 			} else if (length == 0) {
 				DBG("getTxTimestamp: Received no data from TX error queue\n");
 			}
@@ -716,43 +779,89 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	}
 
 	/* we're desperate here, aren't we... */
-	for(i = 0; i < 3; i++) {
-	    length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
+	for(i = 0; i <= LATE_TXTIMESTAMP_RETRIES; i++) {
+	    usleep(backoff);
+	    backoff *= 2;
+	    DBG("getTxTimestamp backoff: %d\n", backoff);
+	    length = netr(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
 	    if(length > 0) {
-		DBG("getTxTimestamp: SO_TIMESTAMPING - delayed TX timestamp caught\n");
+		DBG("getTxTimestamp: SO_TIMESTAMPING - delayed TX timestamp caught after %d retries\n", i+1);
 		return TRUE;
 	    }
-	    usleep(10);
 	}
-
-	/* try for the last time: sleep and poll the error queue, if nothing, consider SO_TIMESTAMPING inoperable */
-	usleep(LATE_TXTIMESTAMP_US);
-
-	length = netRecvEvent(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
-
-	if(length > 0) {
-		DBG("getTxTimestamp: SO_TIMESTAMPING - even more delayed TX timestamp caught\n");
-		return TRUE;
-	} else {
-		DBG("getTxTimestamp: SO_TIMESTAMPING - TX timestamp retry failed - will use loop from now on\n");
-	}
-
-failure:
-	DBG("net.c: SO_TIMESTAMPING TX software timestamp failure - reverting to SO_TIMESTAMPNS\n");
-	/* unset SO_TIMESTAMPING first! otherwise we get an always-exiting select! */
-	val = 0;
-	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(int)) < 0) {
-		DBG("getTxTimestamp: failed to unset SO_TIMESTAMPING");
-	}
-	val = 1;
-	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
-		DBG("getTxTimestamp: failed to revert to SO_TIMESTAMPNS");
-	}
-
+	netPath->txDelayed = TRUE;
+	DBG("getTxTimestamp: NIC failed to deliver TX timestamp in time\n");
+	clearTime(timeStamp);
+	G_ptpClock->counters.txTimestampFailures++;
 	return FALSE;
+
 }
 #endif /* SO_TIMESTAMPING */
 
+
+static Boolean
+netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
+
+	HwTsInfo info, primaryInfo;
+	BondInfo *bi = &netPath->interfaceInfo.bondInfo;
+	char *primaryName = netPath->interfaceInfo.physicalDevice;
+	char *ifaceName;
+
+	Boolean ret = TRUE;
+
+	memset(&primaryInfo, 0, sizeof(HwTsInfo));
+
+	if(!getHwTs((const char*)primaryName, rtOpts, &primaryInfo, FALSE) || !initHwTs(primaryName, &primaryInfo)) {
+	    ret = FALSE;
+	}
+
+	if(bi->bonded && !bi->activeBackup) {
+	    ret = FALSE;
+	    WARNING("%s is a bonded interface but is not running active backup. Cannot enable hardware timestamping.\n",
+		    rtOpts->ifaceName);
+	} else if (bi->bonded) {
+
+	    for(int i = 0; i < bi->slaveCount; i++) {
+		ifaceName = bi->slaves[i].name;
+		if(strlen(ifaceName)) {
+
+		    if(bi->slaves[i].id == bi->activeSlave.id) {
+			continue;
+		    }
+		    memset(&info, 0, sizeof(HwTsInfo));
+
+		    if(!getHwTs((const char*)ifaceName, rtOpts, &info, FALSE)) {
+			ret = FALSE;
+			continue;
+		    }
+		    if(info.tsMode != primaryInfo.tsMode) {
+			WARNING("Interface %s does not support the same timestamping modes as primary %s (%03x vs. %03x)\n",
+			ifaceName, primaryName, info.tsMode, primaryInfo.tsMode);
+		    }
+		    if(!initHwTs(ifaceName, &info)) {
+			ret = FALSE;
+			continue;
+		    }
+		}
+	    }
+	}
+
+	if(setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPING, &primaryInfo.tsMode, sizeof(primaryInfo.tsMode)) < 0) {
+	    PERROR("Could not set SO_TIMESTAMPING modes on primary interface %s\n", primaryName);
+	    ret = FALSE;
+    }
+
+    if(ret) {
+	netPath->txTimestamping = TRUE;
+	netPath->hwTimestamping = TRUE;
+	INFO("Hardware timestamping successfully enabled on %s\n", primaryName);
+    }
+
+    netPath->txLoop = FALSE;
+
+    return ret;
+
+}
 
 /**
  * Initialize timestamping of packets
@@ -768,42 +877,26 @@ netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 	int val = 1;
 	Boolean result = TRUE;
 #if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)/* Linux - current API */
-	DBG("netInitTimestamping: trying to use SO_TIMESTAMPING\n");
-	val = SOF_TIMESTAMPING_TX_SOFTWARE |
-	    SOF_TIMESTAMPING_RX_SOFTWARE |
-	    SOF_TIMESTAMPING_SOFTWARE;
-
-/* unless compiled with PTPD_EXPERIMENTAL, check if we support the desired tstamp capabilities */
-#ifndef PTPD_EXPERIMENTAL
-#ifdef ETHTOOL_GET_TS_INFO
-
-       struct ethtool_ts_info tsInfo;
-	struct ifreq ifRequest;
-        int res;
-
-        memset(&tsInfo, 0, sizeof(tsInfo));
-        memset(&ifRequest, 0, sizeof(ifRequest));
-        tsInfo.cmd = ETHTOOL_GET_TS_INFO;
-        strncpy( ifRequest.ifr_name, rtOpts->ifaceName, IFNAMSIZ - 1);
-        ifRequest.ifr_data = (char *) &tsInfo;
-        res = ioctl(netPath->eventSock, SIOCETHTOOL, &ifRequest);
-
-	if (res < 0) {
-		PERROR("Could not retrieve ethtool timestamping capabilities for %s - reverting to SO_TIMESTAMPNS",
-			    rtOpts->ifaceName);
-		val = 1;
-		netPath->txTimestampFailure = FALSE;
-	} else if((tsInfo.so_timestamping & val) != val) {
-		DBGV("Required SO_TIMESTAMPING flags not supported - reverting to SO_TIMESTAMPNS\n");
-		val = 1;
-		netPath->txTimestampFailure = TRUE;
+	if(rtOpts->hwTimestamping) {
+	    DBG("netInitTimestamping: attempting HW timestamp init\n");
+	    if(netInitHwTimestamping(netPath, rtOpts)) {
+		return TRUE;
+	    }
+	} else {
+	    HwTsInfo info;
+	    getHwTs(rtOpts->ifaceName, rtOpts, &info, TRUE);
+	    if(info.txTimestamping) {
+		val = info.tsMode;
+		netPath->hwTimestamping = FALSE;
+		netPath->txTimestamping = TRUE;
+	    }
 	}
 #else
-	netPath->txTimestampFailure = TRUE;
+	netPath->txTimestamping = FALSE;
 	val = 1;
-#endif /* ETHTOOL_GET_TS_INFO */
-#endif /* PTPD_EXPERIMENTAL */
+#endif /* SO_TIMESTAMPING */
 
+#if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)
 	if(val == 1) {
 	    if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
 		    PERROR("netInitTimestamping: failed to enable SO_TIMESTAMPNS");
@@ -909,7 +1002,7 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
 
     for(text__=text_;found < maxCount; text__=NULL) {
 
-	token=strtok_r(text__,", ;\t",&stash);
+	token=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	if(token==NULL) break;
 	if(hostLookup(token, &output[found].transportAddress)) {
 	DBG("hostList %d host: %s addr %08x\n", found, token, output[found]);
@@ -933,7 +1026,7 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
 
     for(text__=text_;found < total; text__=NULL) {
 
-	token=strtok_r(text__,", ;\t",&stash);
+	token=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	if(token==NULL) break;
 	if (sscanf(token,"%d", &tmp)) {
 	    DBG("hostList %dth host: domain %d\n", found, tmp);
@@ -953,7 +1046,7 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
 
     for(text__=text_;found < total; text__=NULL) {
 
-	token=strtok_r(text__,", ;\t",&stash);
+	token=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	tmp = LOWEST_LOCALPREFERENCE;
 	if(token!=NULL) {
 	    if (sscanf(token,"%d", &tmp) != 1) {
@@ -1013,6 +1106,16 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	netPath->generalSock = -1;
 	netPath->eventSock = -1;
 
+	netPath->hwTimestamping = FALSE;
+	netPath->txTimestamping = FALSE;
+
+	if(rtOpts->backupIfaceEnabled &&
+		ptpClock->runningBackupInterface) {
+		strncpy(rtOpts->ifaceName, rtOpts->backupIfaceName, IFACE_NAME_LENGTH);
+	} else {
+		strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFACE_NAME_LENGTH);
+	}
+
 #ifdef PTPD_PCAP
 	if (rtOpts->transport == IEEE_802_3) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
@@ -1046,7 +1149,11 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		/* backup enabled - try the other interface */
 		ptpClock->runningBackupInterface = !ptpClock->runningBackupInterface;
 
-		rtOpts->ifaceName = (ptpClock->runningBackupInterface)?rtOpts->backupIfaceName : rtOpts->primaryIfaceName;
+		if(ptpClock->runningBackupInterface) {
+		    strncpy(rtOpts->ifaceName, rtOpts->backupIfaceName, IFACE_NAME_LENGTH);
+		} else {
+		    strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFACE_NAME_LENGTH);
+		}
 
 		NOTICE("Last resort - attempting to switch to %s interface\n", ptpClock->runningBackupInterface ? "backup" : "primary");
 		/* if this fails, we have no reason to live */
@@ -1054,7 +1161,6 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		    return FALSE;
 		}
 	}
-
 
 	netPath->interfaceInfo.addressFamily = AF_INET;
 
@@ -1081,7 +1187,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #ifdef PTPD_PCAP
 	if (rtOpts->pcap == TRUE) {
 
-		netPath->txTimestampFailure = TRUE;
+		netPath->txTimestamping = FALSE;
 
 		int promisc = (rtOpts->transport == IEEE_802_3 ) ? 1 : 0;
 
@@ -1112,7 +1218,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				 "host (224.0.1.129 or 224.0.0.107) and udp port 319" ,
 				 1, 0) < 0) {
 			PERROR("failed to compile pcap event filter");
-			pcap_perror(netPath->pcapEvent, "ptpd2");
+			pcap_perror(netPath->pcapEvent, "ptpd");
 			return FALSE;
 		}
 		if (pcap_setfilter(netPath->pcapEvent, &program) < 0) {
@@ -1141,7 +1247,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 					 "host (224.0.1.129 or 224.0.0.107) and udp port 320" ,
 					 1, 0) < 0) {
 				PERROR("failed to compile pcap general filter");
-				pcap_perror(netPath->pcapGeneral, "ptpd2");
+				pcap_perror(netPath->pcapGeneral, "ptpd");
 				return FALSE;
 			}
 			if (pcap_setfilter(netPath->pcapGeneral, &program) < 0) {
@@ -1166,7 +1272,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		netPath->generalSock = -1;
 		/* TX timestamp is not generated for PCAP mode and Ethernet transport */
 #ifdef SO_TIMESTAMPING
-		netPath->txTimestampFailure = TRUE;
+		netPath->txTimestamping = FALSE;
 #endif /* SO_TIMESTAMPING */
 	} else {
 #endif
@@ -1200,12 +1306,12 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		/* bind sockets */
 		/*
-		 * need INADDR_ANY to receive both unicast and multicast,
+		 * need INADDR_ANY to receive both unicast and multicast (Linux),
 		 * but only need interface address for unicast
 		 */
 
 		if(rtOpts->ipMode == IPMODE_UNICAST ||
-		   rtOpts->ignore_daemon_lock) {
+		   rtOpts->bindToInterface) {
 			addr.sin_addr = netPath->interfaceAddr;
 		} else {
 			addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -1361,7 +1467,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 #ifdef SO_TIMESTAMPING
 			/* Reset the failure indicator when (re)starting network */
-			netPath->txTimestampFailure = FALSE;
+			netPath->txTimestamping = FALSE;
 			/* for SO_TIMESTAMPING we're receiving transmitted packets via ERRQUEUE */
 			temp = 0;
 #else
@@ -1375,9 +1481,23 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			return FALSE;
 		}
 
+		controlClockDrivers(CD_NOTINUSE);
+
+		if(!prepareClockDrivers(netPath, ptpClock, rtOpts)) {
+			ERROR("Cannot start clock drivers - aborting mission\n");
+			exit(-1);
+		}
+
+		createClockDriversFromString(rtOpts->extraClocks, rtOpts, FALSE);
+
+		/* clean up unused clock drivers */
+		controlClockDrivers(CD_CLEANUP);
+
+		reconfigureClockDrivers(rtOpts);
+
 #ifdef SO_TIMESTAMPING
 		/* If we failed to initialise SO_TIMESTAMPING, enable mcast loopback */
-		if(netPath->txTimestampFailure)
+		if(!netPath->txTimestamping)
 			temp = 1;
 #endif
 
@@ -1420,7 +1540,7 @@ netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
 #endif
 
 	if (timeout) {
-		if(isTimeInternalNegative(timeout)) {
+		if(isTimeNegative(timeout)) {
 			ERROR("Negative timeout attempted for select()\n");
 			return -1;
 		}
@@ -1508,8 +1628,8 @@ if (rtOpts.snmpEnabled) {
  * @return
  */
 
-ssize_t
-netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
+static ssize_t
+netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 {
 	ssize_t ret = 0;
 	struct msghdr msg;
@@ -1524,7 +1644,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 	TimeInternal tmpTime;
 	/* get system time interpolated with TSC / clockCycles as soon as we have data on the socket */
-	getTime(&tmpTime);
+	getSystemClock()->getTime(getSystemClock(), &tmpTime);
 #endif
 
 	union {
@@ -1566,12 +1686,27 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		msg.msg_flags = 0;
 
 		ret = recvmsg(netPath->eventSock, &msg, flags | MSG_DONTWAIT);
-		if (ret <= 0) {
-			if (errno == EAGAIN || errno == EINTR)
-				return 0;
 
-			return ret;
+		/* we may have a TX timestamp stuck in error queue, flush it */
+		if(netPath->txTimestamping && !netPath->txLoop && ((netPath->txDelayed) || (ret <=0 && errno == ENOMSG))) {
+		    DBG("netRecvEvent: Flushed errqueue\n");
+		    ret = recvmsg(netPath->eventSock, &msg, flags | MSG_ERRQUEUE);
+		    /* drop the next regular message as well - it can be severely delayed... */
+		    ret = recvmsg(netPath->eventSock, &msg, flags);
+		    netPath->txDelayed = FALSE;
+		    return 0;
+		}
+
+		netPath->txDelayed = FALSE;
+
+		if (ret <= 0) {
+			if (errno == EAGAIN || errno == EINTR) {
+				return 0;
+			} else {
+				return ret;
+			}
 		};
+
 		if (msg.msg_flags & MSG_TRUNC) {
 			ERROR("received truncated message\n");
 			return 0;
@@ -1595,7 +1730,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 
 		/* do not report "from self" */
 		if(!netPath->lastSourceAddr || (netPath->lastSourceAddr != netPath->interfaceAddr.s_addr)) {
-		    netPath->receivedPackets++;
+			netPath->receivedPackets++;
 		}
 
 		if (msg.msg_controllen <= 0) {
@@ -1626,22 +1761,39 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 				DBG("IP_RECVDSTADDR Dst: %s\n", inet_ntoa(*pa));
 			}
 #endif
-
-
 			if (cmsg->cmsg_level == SOL_SOCKET) {
-#if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)
-				if(cmsg->cmsg_type == SO_TIMESTAMPING ||
-				    cmsg->cmsg_type == SO_TIMESTAMPNS) {
+#if defined(SO_TIMESTAMPING)
+				if(cmsg->cmsg_type == SO_TIMESTAMPING) {
 					ts = (struct timespec *)CMSG_DATA(cmsg);
-					time->seconds = ts->tv_sec;
-					time->nanoseconds = ts->tv_nsec;
+					if(netPath->hwTimestamping) {
+						if (cmsg->cmsg_len >= sizeof(*ts) * 3) {
+						    time->seconds = ts[2].tv_sec;
+						    time->nanoseconds = ts[2].tv_nsec;
+						} else {
+						    ERROR("SO_TIMESTAMPING: HW timestamp control message too short\n");
+						    return 0;
+						}
+					} else {
+						    time->seconds = ts[0].tv_sec;
+						    time->nanoseconds = ts[0].tv_nsec;
+					}
 					timestampValid = TRUE;
-					DBG("rcvevent: SO_TIMESTAMP%s %s time stamp: %us %dns\n", netPath->txTimestampFailure ?
-					    "NS" : "ING",
-					    (flags & MSG_ERRQUEUE) ? "(TX)" : "(RX)" , time->seconds, time->nanoseconds);
+					if((flags & MSG_ERRQUEUE) && netPath->txLoop) {
+						char tmpB[PACKET_SIZE];
+						memset(tmpB,0,PACKET_SIZE);
+						memcpy(tmpB, buf, PACKET_SIZE);
+						memset(buf,0,PACKET_SIZE);
+						memcpy(buf, tmpB + 42, PACKET_SIZE - 42);
+					}
+
+					DBG("rcvevent: SO_TIMESTAMPING %s time stamp: %us %dns\n", 
+					    (flags & MSG_ERRQUEUE) ? "TX" : "RX" ,
+					     time->seconds, time->nanoseconds);
 					break;
 				}
-#elif defined(SO_TIMESTAMPNS)
+#endif
+
+#if defined(SO_TIMESTAMPNS)
 				if(cmsg->cmsg_type == SCM_TIMESTAMPNS) {
 					ts = (struct timespec *)CMSG_DATA(cmsg);
 					time->seconds = ts->tv_sec;
@@ -1677,7 +1829,6 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 			 }
 
 		}
-
 
 		if (!timestampValid) {
 			/*
@@ -1748,6 +1899,25 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 #endif
 
 	return ret;
+}
+
+ssize_t
+netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags) {
+
+    int ret;
+
+    if(netPath->txTimestamping && netPath->txLoop) {
+	ret = netr(buf, time, netPath, MSG_ERRQUEUE);
+	if(ret > 0) {
+	    return ret;
+	}
+    }
+
+    ret = netr(buf, time, netPath, 0);
+
+    return ret;
+
+
 }
 
 
@@ -1883,7 +2053,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 	TimeInternal tmpTime;
 	/* get system time interpolated with TSC / clockCycles as soon as we have data on the socket */
-	getTime(&tmpTime);
+	getSystemClock()->getTime(getSystemClock(), &tmpTime);
 #endif
 
 #ifdef PTPD_PCAP
@@ -1943,28 +2113,18 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #else
 
 #ifdef PTPD_PCAP
-			if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
+			if((netPath->pcapEvent == NULL) && netPath->txTimestamping && !netPath->txLoop) {
 #else
-			if(!netPath->txTimestampFailure) {
+			if(netPath->txTimestamping && !netPath->txLoop) {
 #endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
-					netPath->txTimestampFailure = TRUE;
+//					netPath->txTimestampFailure = TRUE;
 					if (tim) {
 						clearTime(tim);
 					}
 				}
 			}
 
-			if(netPath->txTimestampFailure)
-			{
-				/* We've had a TX timestamp receipt timeout - falling back to packet looping */
-				addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
-				ret = sendto(netPath->eventSock, buf, length, 0,
-				     (struct sockaddr *)&addr,
-				     sizeof(struct sockaddr_in));
-				if (ret <= 0)
-					DBG("Error looping back unicast event message\n");
-			}
 #endif /* SO_TIMESTAMPING */		
 		} else {
 			addr.sin_addr.s_addr = netPath->multicastAddr;
@@ -1988,19 +2148,14 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #ifdef SO_TIMESTAMPING
 
 #ifdef PTPD_PCAP
-			if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
+			if((netPath->pcapEvent == NULL) && netPath->txTimestamping && !netPath->txLoop) {
 #else
-			if(!netPath->txTimestampFailure) {
+			if(netPath->txTimestamping && !netPath->txLoop) {
 #endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
 					if (tim) {
 						clearTime(tim);
 					}
-					
-					netPath->txTimestampFailure = TRUE;
-
-					/* Try re-enabling MULTICAST_LOOP */
-					netSetMulticastLoopback(netPath, TRUE);
 				}
 			}
 #endif /* SO_TIMESTAMPING */
@@ -2201,27 +2356,17 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 #else
 
 #ifdef PTPD_PCAP
-		if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
+		if((netPath->pcapEvent == NULL) && netPath->txTimestamping && !netPath->txLoop) {
 #else
-		if(!netPath->txTimestampFailure) {
+		if(netPath->txTimestamping && !netPath->txLoop) {
 #endif /* PTPD_PCAP */
 			if(!getTxTimestamp(netPath, tim)) {
-				netPath->txTimestampFailure = TRUE;
 				if (tim) {
 					clearTime(tim);
 				}
 			}
 		}
 
-		if(netPath->txTimestampFailure) {
-			/* We've had a TX timestamp receipt timeout - falling back to packet looping */
-			addr.sin_addr.s_addr = netPath->interfaceAddr.s_addr;
-			ret = sendto(netPath->eventSock, buf, length, 0,
-				     (struct sockaddr *)&addr,
-				     sizeof(struct sockaddr_in));
-			if (ret <= 0)
-				DBG("Error looping back unicast event message\n");
-		}
 #endif /* SO_TIMESTAMPING */
 
 	} else {
@@ -2240,16 +2385,11 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 		if (ret <= 0)
 			DBG("Error sending multicast peer event message\n");
 #ifdef SO_TIMESTAMPING
-		if(!netPath->txTimestampFailure) {
+		if(netPath->txTimestamping && !netPath->txLoop) {
 			if(!getTxTimestamp(netPath, tim)) {
 				if (tim) {
 					clearTime(tim);
 				}
-					
-				netPath->txTimestampFailure = TRUE;
-
-				/* Try re-enabling MULTICAST_LOOP */
-				netSetMulticastLoopback(netPath, TRUE);
 			}
 		}
 #endif /* SO_TIMESTAMPING */
@@ -2295,3 +2435,519 @@ netRefreshIGMP(NetPath * netPath, const RunTimeOpts * rtOpts, PtpClock * ptpCloc
 
 	return TRUE;
 }
+
+Boolean netIoctlHelper(struct ifreq *ifr, const char* ifaceName, unsigned long request) {
+
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if(sockfd < 0) {
+	PERROR("ioctlHelper: could not create helper socket");
+	return FALSE;
+    }
+
+    strncpy(ifr->ifr_name, ifaceName, IFACE_NAME_LENGTH);
+
+    if (ioctl(sockfd, request, ifr) < 0) {
+            DBG("ioctlHelper: failed to call ioctl 0x%x on %s: %s\n", request, ifaceName, strerror(errno));
+	    close(sockfd);
+	    return FALSE;
+    }
+    close(sockfd);
+    return TRUE;
+
+}
+
+static Boolean bondQuery(char *ifaceName, ifbond *ifb)
+{
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(struct ifreq));
+    memset(ifb, 0, sizeof(ifbond));
+    ifr.ifr_data = (caddr_t)ifb;
+    return netIoctlHelper(&ifr, ifaceName, SIOCBONDINFOQUERY);
+
+}
+
+static Boolean bondSlaveQuery(char *ifaceName, ifslave *ifs, int member)
+{
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(struct ifreq));
+    memset(ifs, 0, sizeof(ifslave));
+    ifs->slave_id = member;
+    ifr.ifr_data = (caddr_t)ifs;
+    return netIoctlHelper(&ifr, ifaceName, SIOCBONDSLAVEINFOQUERY);
+
+}
+
+static int getBondSlaves(char * ifaceName, BondInfo *info)
+{
+
+    ifbond ifb;
+    ifslave ifs;
+
+    memset(&ifb, 0, sizeof(ifb));
+    memset(&ifs, 0, sizeof(ifs));
+
+
+    memset(&info->activeSlave, 0, sizeof(BondSlave));
+
+    info->activeSlave.id = -1;
+
+    for(int i = 0; i < BOND_SLAVES_MAX; i++) {
+	memset(&info->slaves[i], 0, sizeof(BondSlave));
+	info->slaves[i].id = -1;
+    }
+
+    if(bondQuery(ifaceName, &ifb)) {
+
+	if(ifb.num_slaves == 0) return -1;
+
+	for(int i = 0; i < ifb.num_slaves; i++) {
+	    if(bondSlaveQuery(ifaceName, &ifs, i) && ifs.state == BOND_STATE_ACTIVE) {
+		strncpy(info->activeSlave.name, ifs.slave_name, IFACE_NAME_LENGTH);
+		info->activeSlave.id = i;
+	    break;
+	    }
+	}
+
+	for(int i = 0; (i < ifb.num_slaves) && (i < BOND_SLAVES_MAX); i++) {
+	    if(bondSlaveQuery(ifaceName, &ifs, i)) {
+		strncpy(info->slaves[i].name, ifs.slave_name, IFACE_NAME_LENGTH);
+		info->slaves[i].id = i;
+	    }
+	}
+
+    }
+
+    return ( ifb.num_slaves );
+
+}
+
+
+static void getBondInfo(char *ifaceName, BondInfo *info)
+{
+
+    ifbond ifb;
+    BondInfo lastInfo;
+
+    if(!bondQuery(ifaceName, &ifb)) {
+	info->bonded = FALSE;
+	return;
+    }
+
+    memset(&lastInfo, 0, sizeof(BondInfo));
+
+    if(info->updated) {
+	memcpy(&lastInfo, info, sizeof(BondInfo));
+    }
+
+    info->bonded = TRUE;
+    info->activeBackup = (ifb.bond_mode == BOND_MODE_ACTIVEBACKUP);
+    info->slaveCount = getBondSlaves(ifaceName, info);
+
+    if(info->activeSlave.id >= 0) {
+	info->activeCount = 1;
+    } else {
+	info->activeCount = 0;
+    }
+
+    if(info->updated) {
+	if (strncmp(lastInfo.activeSlave.name, info->activeSlave.name, IFACE_NAME_LENGTH)) {
+	    info->activeChanged = TRUE;
+	} else if (lastInfo.slaveCount != info->slaveCount) {
+	    info->countChanged = TRUE;
+	} else {
+	    info->activeChanged = FALSE;
+	    info->countChanged = FALSE;
+	}
+    }
+
+    info->updated = TRUE;
+    return;
+
+}
+
+static void getVlanInfo(char* ifaceName, VlanInfo *info)
+{
+
+    struct vlan_ioctl_args args;
+
+    int sockfd = socket(PF_INET, SOCK_DGRAM, 0);
+
+    if(sockfd < 0) {
+	PERROR("ioctlHelper: could not create helper socket");
+	info->vlan = FALSE;
+	return;
+    }
+
+    memset(&args, 0, sizeof(struct vlan_ioctl_args));
+    strncpy(args.device1, ifaceName, min(sizeof(args.device1), IFACE_NAME_LENGTH));
+    args.cmd = GET_VLAN_REALDEV_NAME_CMD;
+    if (ioctl(sockfd, SIOCGIFVLAN, &args) < 0) {
+            DBG("getVlanInfo: failed to call SIOCGIFVLAN ioctl on %s: %s\n", ifaceName, strerror(errno));
+	    close(sockfd);
+	    info->vlan = FALSE;
+	    return;
+    }
+
+    info->vlan = TRUE;
+
+    strncpy(info->realDevice, args.u.device2, min(sizeof(args.device1), IFACE_NAME_LENGTH));
+    memset(&args, 0, sizeof(struct vlan_ioctl_args));
+    strncpy(args.device1, ifaceName, min(sizeof(args.device1), IFACE_NAME_LENGTH));
+    args.cmd = GET_VLAN_VID_CMD;
+    if (ioctl(sockfd, SIOCGIFVLAN, &args) < 0) {
+            DBG("getVlanInfo: failed to call SIOCGIFVLAN ioctl on %s: %s\n", ifaceName, strerror(errno));
+	    close(sockfd);
+	    info->vlan = FALSE;
+	    return;
+    }
+
+    info->vlanId = args.u.VID;
+
+
+    close(sockfd);
+    return;
+
+
+}
+
+void updateInterfaceInfo(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
+{
+
+    BondInfo *bondInfo = &netPath->interfaceInfo.bondInfo;
+    VlanInfo *vlanInfo = &netPath->interfaceInfo.vlanInfo;
+    char * realDevice = rtOpts->ifaceName;
+    char * ifaceName = rtOpts->ifaceName;
+
+
+    getVlanInfo(rtOpts->ifaceName, vlanInfo);
+
+    if(vlanInfo->vlan) {
+	    ifaceName = vlanInfo->realDevice;
+	    realDevice = ifaceName;
+    }
+
+    getBondInfo(ifaceName, bondInfo);
+
+
+    if(bondInfo->bonded && bondInfo->activeCount > 0) {
+	    realDevice = bondInfo->activeSlave.name;
+    }
+
+    strncpy(netPath->interfaceInfo.physicalDevice, realDevice, IFACE_NAME_LENGTH);
+
+    if(bondInfo->activeChanged) {
+	ptpClock->ignoreOffsetUpdates = 2;
+	ptpClock->ignoreDelayUpdates = 2;
+		if(bondInfo->activeCount == 0) {
+		    WARNING("Bonding: no active slaves on %s! Interface down\n", realDevice);
+		} else {
+		    WARNING("Bonding: %s active bond member changed to %s\n", realDevice,
+			bondInfo->activeSlave.name);
+		    if(rtOpts->refreshIgmp) {
+			INFO("Re-sending IGMP joins\n");
+		    }
+		    netInitHwTimestamping(netPath, rtOpts);
+		    ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
+
+		    controlClockDrivers(CD_NOTINUSE);
+		    prepareClockDrivers(&ptpClock->netPath, ptpClock, rtOpts);
+		    createClockDriversFromString(rtOpts->extraClocks, rtOpts, TRUE);
+		    /* clean up unused clock drivers */
+		    controlClockDrivers(CD_CLEANUP);
+		    reconfigureClockDrivers(rtOpts);
+
+		    netRefreshIGMP(netPath, rtOpts, ptpClock);
+
+		    if(rtOpts->calibrationDelay) {
+			ptpClock->isCalibrated = FALSE;
+			timerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], rtOpts->calibrationDelay);
+		    }
+		}
+    } else if(bondInfo->countChanged) {
+	WARNING("Bonding: %s slave count changed, checking clocks\n", realDevice);
+
+	ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
+
+	controlClockDrivers(CD_NOTINUSE);
+	prepareClockDrivers(&ptpClock->netPath, ptpClock, rtOpts);
+	createClockDriversFromString(rtOpts->extraClocks, rtOpts, TRUE);
+	/* clean up unused clock drivers */
+	controlClockDrivers(CD_CLEANUP);
+	reconfigureClockDrivers(rtOpts);
+    }
+}
+
+Boolean getTsInfo(const char *ifaceName, struct ethtool_ts_info *info) {
+
+	struct ifreq ifr;
+	memset(&ifr, 0, sizeof(ifr));
+	memset(info, 0, sizeof(struct ethtool_ts_info));
+	info->cmd = ETHTOOL_GET_TS_INFO;
+	ifr.ifr_data = (char*) info;
+	if(!netIoctlHelper(&ifr, ifaceName, SIOCETHTOOL)) {
+	    PERROR("Could not get ethtool information from %s", ifaceName);
+	    return FALSE;
+	}
+
+	return TRUE;
+
+}
+
+Boolean getHwTs(const char *ifaceName, const RunTimeOpts *rtOpts, HwTsInfo *target, Boolean quiet) {
+
+	HwTsInfo output;
+	memset(&output, 0, sizeof(HwTsInfo));
+
+	static const OptionName hwtsMode[] = {
+	    {SOF_TIMESTAMPING_TX_HARDWARE, "SOF_TIMESTAMPING_TX_HARDWARE"},
+	    {SOF_TIMESTAMPING_RX_HARDWARE, "SOF_TIMESTAMPING_RX_HARDWARE"},
+	    {SOF_TIMESTAMPING_RAW_HARDWARE, "SOF_TIMESTAMPING_RAW_HARDWARE"},
+	    {-1}
+	};
+
+	static const OptionName swtsMode[] = {
+	    {SOF_TIMESTAMPING_TX_SOFTWARE, "SOF_TIMESTAMPING_TX_SOFTWARE"},
+	    {SOF_TIMESTAMPING_RX_SOFTWARE, "SOF_TIMESTAMPING_RX_SOFTWARE"},
+	    {SOF_TIMESTAMPING_SOFTWARE, "SOF_TIMESTAMPING_SOFTWARE"},
+	    {-1}
+	};
+
+	/* "sensible" order - last mode will not support timestamping delay.
+	 * Preferring ALL to allow VLAN timestamping etc.
+	 */
+	static const OptionName rxFilters[] = {
+	    { HWTSTAMP_FILTER_PTP_V2_EVENT, "HWTSTAMP_FILTER_PTP_V2_EVENT"},
+	    { HWTSTAMP_FILTER_PTP_V2_L4_EVENT, "HWTSTAMP_FILTER_PTP_V2_L4_EVENT"},
+	    { HWTSTAMP_FILTER_ALL, "HWTSTAMP_FILTER_ALL"},
+	    { HWTSTAMP_FILTER_PTP_V2_L4_SYNC, "HWTSTAMP_FILTER_PTP_V2_L4_SYNC"},
+	    {-1}
+	};
+#define HWTSTAMP_TX_ONESTEP_SYNC 2
+	/* "sensible" order - last mode will not support timestamping delay */
+	static const OptionName txTypes[] = {
+	    { HWTSTAMP_TX_ON, "HWTSTAMP_TX_ON"},
+	    { HWTSTAMP_TX_ONESTEP_SYNC, "HWTSTAMP_TX_ONESTEP_SYNC"},
+	    {-1}
+	};
+
+	struct ethtool_ts_info info;
+
+	if(!getTsInfo(ifaceName, &info)) {
+	    return FALSE;
+	}
+
+	for(const OptionName *mode = hwtsMode; mode->value != -1; mode++) {
+	    if((info.so_timestamping & mode->value) == mode->value) {
+		DBG("hwts: Interface %s supports mode %s\n", ifaceName, mode->name);
+		output.tsMode |= mode->value;
+	    } else {
+		output.tsMode = 0;
+
+		if(!quiet && !rtOpts->hwTimestamping) NOTICE("Interface %s does not support required hardware timestamping mode %s\n", ifaceName, mode->name);
+
+		for(const OptionName *mode = swtsMode; mode->value != -1; mode++) {
+		    if((info.so_timestamping & mode->value) == mode->value) {
+		    DBG("hwts: Interface %s supports mode %s\n", ifaceName, mode->name);
+		    output.tsMode |= mode->value;
+		    } else {
+			if(!quiet) NOTICE("Interface %s does not support required software timextamping mode  %s\n", ifaceName, mode->name);
+			output.tsMode = 0;
+			return FALSE;
+		    }
+		}
+		output.txTimestamping = TRUE;
+		output.hwTimestamping = FALSE;
+		if(target != NULL) {
+		    *target = output;
+		}
+		return TRUE;
+	    }
+	}
+
+	for(const OptionName *mode = rxFilters; mode->value != -1; mode++) {
+	    if(info.rx_filters & (1 << mode->value) ) {
+		DBG("hwts: Interface %s supports RX filter %s\n", ifaceName, mode->name);
+		output.rxFilter = mode->value;
+		break;
+	    } else {
+		DBG("Interface %s does not support RX filter %s\n", ifaceName, mode->name);
+	    }
+	}
+
+	if(!output.rxFilter) {
+		if(!quiet) ERROR("Interface %s does not support suitable hardware timestamping filters \n", ifaceName);
+		return FALSE;
+	}
+
+	if(info.tx_types & (1 << HWTSTAMP_TX_ON)) {
+		DBG("hwts: Interface %s supports HWTSTAMP_TX_ON\n", ifaceName);
+		output.txType = HWTSTAMP_TX_ON;
+	} else {
+		if(!quiet) ERROR("Interface %s does not support hardware transmit timestamps(HWTSTAMP_TX_ON)\n");
+		return FALSE;
+	}
+	output.hwTimestamping = TRUE;
+	output.txTimestamping = TRUE;
+
+	for(const OptionName *mode = txTypes; mode->value != -1; mode++) {
+	    if(info.tx_types & (1 << mode->value) ) {
+		DBG("hwts: Interface %s supports TX type %s\n", ifaceName, mode->name);
+	    } else {
+		DBG("Interface %s does not support TX  type %s\n", ifaceName, mode->name);
+	    }
+	}
+
+	if(target != NULL) {
+	    *target = output;
+	}
+
+	return TRUE;
+
+}
+
+Boolean initHwTs(char *ifaceName, HwTsInfo *info) {
+
+	struct ifreq ifr;
+	struct hwtstamp_config config;
+
+	memset(&ifr, 0, sizeof(ifr));
+	memset(&config, 0, sizeof(config));
+
+	config.tx_type = info->txType;
+	config.rx_filter = info->rxFilter;
+
+	ifr.ifr_data = (void*) &config;
+
+	if(!netIoctlHelper(&ifr, ifaceName, SIOCSHWTSTAMP)) {
+	    PERROR("Could not init hardware timestamping on %s", ifaceName);
+	    return FALSE;
+	}
+
+	if(config.tx_type != info->txType) {
+	    ERROR("Interface %s refused to set the required hardware transmit timestamping option\n",
+	    ifaceName);
+	    return FALSE;
+	}
+
+	/* if the driver has changed the RX filter, check if we can use what we got */
+	if(config.rx_filter != info->rxFilter) {
+	    if((config.rx_filter == HWTSTAMP_FILTER_PTP_V2_EVENT) ||
+		(config.rx_filter == HWTSTAMP_FILTER_PTP_V2_L4_EVENT) ||
+		(config.rx_filter == HWTSTAMP_FILTER_ALL) ||
+		(config.rx_filter == HWTSTAMP_FILTER_PTP_V2_L4_SYNC)) {
+		WARNING("Interface %s changed hardware receive filter type from %d to %d - still acceptable\n",
+		ifaceName, info->rxFilter, config.rx_filter);
+	    /* nope. */
+	    } else {
+		ERROR("Interface %s changed hardware received filter type from %d to %d - cannot continue\n",
+		ifaceName, info->rxFilter, config.rx_filter);
+		return FALSE;
+	    }
+	}
+
+	return TRUE;
+
+}
+
+static ClockDriver *
+getClockDriver(const char *ifaceName, RunTimeOpts *rtOpts)
+{
+
+    ClockDriver *cd = NULL;
+    HwTsInfo info;
+
+    cd = findClockDriver(ifaceName);
+
+    if(cd != NULL) {
+	return cd;
+    }
+
+    memset(&info, 0, sizeof(HwTsInfo));
+
+    if(!getHwTs(ifaceName, rtOpts, &info, TRUE) || !info.hwTimestamping) {
+	cd = getSystemClock();
+    } else {
+	cd = createClockDriver(CLOCKDRIVER_LINUXPHC, ifaceName);
+    }
+
+    if(cd != NULL && !cd->_init) {
+	cd->init(cd, ifaceName);
+    }
+
+    return cd;
+
+}
+
+Boolean
+prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
+
+	BondInfo *bi = &netPath->interfaceInfo.bondInfo;
+	ClockDriver *cd;
+
+	getSystemClock()->pushConfig(getSystemClock(), rtOpts);
+
+	if(rtOpts->hwTimestamping && netPath->hwTimestamping) {
+
+	    ptpClock->clockDriver = NULL;
+	    ptpClock->clockDriver = getClockDriver(netPath->interfaceInfo.physicalDevice, rtOpts);
+
+	    if ((ptpClock->clockDriver == NULL) || !ptpClock->clockDriver->_init) {
+		    ERROR("Could not start clock driver for primary interface %s\n",
+			netPath->interfaceInfo.physicalDevice);
+		    return FALSE;
+	    }
+
+	} else {
+	    ptpClock->clockDriver = getSystemClock();
+	}
+
+	if(rtOpts->hwTimestamping && bi->bonded) {
+	    for(int i = 0; i < bi->slaveCount; i++) {
+		cd = getClockDriver(bi->slaves[i].name, rtOpts);
+		if((cd != NULL) && !cd->systemClock && strlen(bi->slaves[i].name)) {
+		    if(!cd->_init) {
+			cd->init(cd, bi->slaves[i].name);
+		    }
+		    cd->config.required = TRUE;
+		    cd->pushConfig(cd, rtOpts);
+		    cd->inUse = TRUE;
+		}
+	    }
+	}
+
+	ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
+	ptpClock->clockDriver->inUse = TRUE;
+	ptpClock->clockDriver->config.required = TRUE;
+
+	if(ptpClock->portDS.portState == PTP_SLAVE) {
+	    ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP", RC_PTP);
+	}
+
+	ClockDriver *lastMaster = ptpClock->masterClock;
+
+	if(strlen(rtOpts->masterClock) > 0) {
+	    ptpClock->masterClock = getClockDriverByName(rtOpts->masterClock);
+	    if(ptpClock->masterClock == NULL) {
+		WARNING("Could not find designated master clock: %s\n", rtOpts->masterClock);
+	    }
+	} else {
+	    ptpClock->masterClock = NULL;
+	}
+
+	if((lastMaster != NULL) && (lastMaster != ptpClock->masterClock)) {
+	    lastMaster->setReference(lastMaster, NULL);
+	    lastMaster->setState(lastMaster, CS_FREERUN);
+	}
+
+	if((ptpClock->masterClock != NULL) && (ptpClock->masterClock != ptpClock->clockDriver)) {
+	    if( (ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
+		ptpClock->masterClock->setExternalReference(ptpClock->masterClock, "PREFMST", RC_EXTERNAL);
+	    }
+	}
+
+	return TRUE;
+
+
+}
+

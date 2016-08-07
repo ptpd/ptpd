@@ -390,7 +390,7 @@ snmpHeaderIndexBest(struct snmpHeaderIndex *idx)
 
 #define SNMP_LOCAL_VARIABLES			\
 	static unsigned long long_ret;		\
-	static U64 counter64_ret;		\
+	static struct counter64 counter64_ret;	\
 	static uint32_t ipaddr;			\
 	Integer32 i32_ret;			\
 	Integer64 bigint;			\
@@ -853,10 +853,8 @@ snmpWriteClearCounters (int action, u_char *var_val, u_char var_val_type, size_t
 				if(myOid2 == 5) {
 					snmpPtpClock->counters.consecutiveSequenceErrors = 0;
 					snmpPtpClock->counters.ignoredAnnounce = 0;
-#ifdef PTPD_STATISTICS
 					snmpPtpClock->counters.delayMSOutliersFound = 0;
 					snmpPtpClock->counters.delaySMOutliersFound = 0;
-#endif
 					snmpPtpClock->counters.maxDelayDrops = 0;
 					return SNMP_ERR_NOERROR;
 				}
@@ -1165,7 +1163,6 @@ snmpSlaveOfmStatsTable(SNMP_SIGNATURE) {
 	case PTPBASE_SLAVE_OFM_STATS_CURRENT_VALUE_STRING:
 		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->currentDS.offsetFromMaster));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
-#ifdef PTPD_STATISTICS
 	case PTPBASE_SLAVE_OFM_STATS_PERIOD_SECONDS:
 		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
 	case PTPBASE_SLAVE_OFM_STATS_VALID:
@@ -1195,7 +1192,6 @@ snmpSlaveOfmStatsTable(SNMP_SIGNATURE) {
 	case PTPBASE_SLAVE_OFM_STATS_MEDIAN_STRING:
 		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.ofmMedian);
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
-#endif
 	}
 
 	return NULL;
@@ -1226,7 +1222,6 @@ snmpSlaveMpdStatsTable(SNMP_SIGNATURE) {
 	case PTPBASE_SLAVE_MPD_STATS_CURRENT_VALUE_STRING:
 		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->currentDS.meanPathDelay));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
-#ifdef PTPD_STATISTICS
 	case PTPBASE_SLAVE_MPD_STATS_PERIOD_SECONDS:
 		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
 	case PTPBASE_SLAVE_MPD_STATS_VALID:
@@ -1256,7 +1251,6 @@ snmpSlaveMpdStatsTable(SNMP_SIGNATURE) {
 	case PTPBASE_SLAVE_MPD_STATS_MEDIAN_STRING:
 		snprintf(tmpStr, 64, "%.09f", snmpPtpClock->slaveStats.mpdMedian);
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
-#endif
 	}
 
 	return NULL;
@@ -1283,10 +1277,10 @@ snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
 
 	switch (vp->magic) {
 	    case PTPBASE_SLAVE_FREQADJ_STATS_CURRENT_VALUE:
-		return SNMP_INTEGER(snmpPtpClock->servo.observedDrift);
-#ifdef PTPD_STATISTICS
+		return SNMP_INTEGER(snmpPtpClock->clockDriver->lastFrequency);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_PERIOD_SECONDS:
 		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
+/*
 	    case PTPBASE_SLAVE_FREQADJ_STATS_VALID:
 		return SNMP_BOOLEAN(snmpPtpClock->servo.statsCalculated);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_MIN:
@@ -1299,7 +1293,7 @@ snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
 		return SNMP_INTEGER(snmpPtpClock->servo.driftStdDev);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_MEDIAN:
 		return SNMP_INTEGER(snmpPtpClock->servo.driftMedian);
-#endif
+*/
 	}
 
 	return NULL;
@@ -1333,12 +1327,10 @@ snmpPtpdSpecificCountersTable(SNMP_SIGNATURE) {
 	return SNMP_INTEGER(snmpPtpClock->counters.ignoredAnnounce);
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_CONSECUTIVE_SEQUENCE_ERRORS:
 	return SNMP_INTEGER(snmpPtpClock->counters.consecutiveSequenceErrors);
-#ifdef PTPD_STATISTICS
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_DELAYMS_OUTLIERS_FOUND:
 	return SNMP_INTEGER(snmpPtpClock->counters.delayMSOutliersFound);
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_DELAYSM_OUTLIERS_FOUND:
 	return SNMP_INTEGER(snmpPtpClock->counters.delaySMOutliersFound);
-#endif
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_MAX_DELAY_DROPS:
 	return SNMP_INTEGER(snmpPtpClock->counters.maxDelayDrops);
 	}
@@ -1365,7 +1357,6 @@ snmpPtpdSpecificDataTable(SNMP_SIGNATURE) {
 
 	if (!SNMP_BEST_MATCH) return NULL;
 
-#ifdef PTPD_STATISTICS
 	switch (vp->magic) {
 	    case PTPBASE_PTPD_SPECIFIC_DATA_RAW_DELAYMS:
 		return SNMP_TIMEINTERNAL(snmpPtpClock->rawDelayMS);
@@ -1378,7 +1369,6 @@ snmpPtpdSpecificDataTable(SNMP_SIGNATURE) {
 		snprintf(tmpStr, 64, "%.09f", timeInternalToDouble(&snmpPtpClock->rawDelaySM));
 		return SNMP_OCTETSTR(&tmpStr, strlen(tmpStr));
 	}
-#endif
 
 	return NULL;
 }
@@ -1846,7 +1836,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *ev
 		case PTPBASE_NOTIFS_SLAVE_OFFSET_THRESHOLD_EXCEEDED:
 		case PTPBASE_NOTIFS_SLAVE_OFFSET_THRESHOLD_ACCEPTABLE:
 		    {
-			U64 ofmNum;
+			struct counter64 ofmNum;
 			Integer64  tmpi64;
 			internalTime_to_integer64(eventData->currentDS.offsetFromMaster, &tmpi64);
 			ofmNum.low = htonl(tmpi64.lsb);
@@ -1933,7 +1923,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *ev
 		case PTPBASE_NOTIFS_OFFSET_SECONDS:
 		case PTPBASE_NOTIFS_OFFSET_SUB_SECONDS:
 		    {
-			U64 ofmNum;
+			struct counter64 ofmNum;
 			Integer64  tmpi64;
 			internalTime_to_integer64(eventData->currentDS.offsetFromMaster, &tmpi64);
 			ofmNum.low = htonl(tmpi64.lsb);

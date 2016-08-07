@@ -64,6 +64,7 @@ timerStart(IntervalTimer * itimer, double interval)
         }
 
 	itimer->interval = interval;
+
 	EventTimer* timer = (EventTimer *)(itimer->data);
 
 	timer->start(timer, interval);
@@ -114,16 +115,16 @@ Boolean timerSetup(IntervalTimer *itimers)
   "OPERATOR_MESSAGES",
   "LEAP_SECOND_PAUSE",
   "STATUSFILE_UPDATE",
-  "PANIC_MODE",
-  "PERIODIC_INFO_TIMER",
-#ifdef PTPD_STATISTICS
+  "PERIODIC_INFO",
   "STATISTICS_UPDATE",
-#endif /* PTPD_STATISTICS */
   "ALARM_UPDATE",
   "MASTER_NETREFRESH",
   "CALIBRATION_DELAY",
   "CLOCK_UPDATE",
-  "TIMINGDOMAIN_UPDATE"
+  "TIMINGDOMAIN_UPDATE",
+  "INTERFACE_CHECK",
+  "CLOCK_SYNC",
+  "CLOCK_DRIVER_UPDATE"
     };
 
     int i = 0;

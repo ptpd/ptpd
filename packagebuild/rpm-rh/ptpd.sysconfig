@@ -1,9 +1,9 @@
 # Config file location
-PTPD_CONFIG_FILE="/etc/ptpd2.conf"
+PTPD_CONFIG_FILE="/etc/ptpd.conf"
 # Lock / PID file location
-PTPD_PID_FILE="/var/run/ptpd2.lock"
+PTPD_PID_FILE="/var/run/ptpd.lock"
 # Status file location
-PTPD_STATUS_FILE="/var/run/ptpd2.status"
+PTPD_STATUS_FILE="/var/run/ptpd.status"
 
 # Any extra command-line options
 PTPD_EXTRA_OPTIONS=""

@@ -6,11 +6,12 @@
 
 #include <stdio.h>
 #include <dep/iniparser/dictionary.h>
-#ifdef PTPD_STATISTICS
 #include <dep/statistics.h>
-#endif /* PTPD_STATISTICS */
 #include "dep/alarms.h"
 
+
+#include "libcck/clockdriver.h"
+#include "globalconfig.h"
 
 /**
  * \struct PtpdCounters
@@ -46,6 +47,10 @@ typedef struct
 	uint32_t managementMessagesSent;
 	uint32_t managementMessagesReceived;
 
+	/* ptpmon counters */
+	uint32_t ptpMonReqReceived;
+	uint32_t ptpMonMtieReqReceived;
+
 /* not implemented yet */
 
 	/* FMR counters */
@@ -78,6 +83,9 @@ typedef struct
 	uint32_t delayMechanismMismatchErrors; /* P2P received, E2E expected or vice versa - incremets discarded */
 	uint32_t consecutiveSequenceErrors;    /* number of consecutive sequence mismatch errors */
 
+	/* not in SNMP yet */
+	uint32_t txTimestampFailures;		/* number of transmit timestamp delivery failures */
+
 	/* unicast sgnaling counters */
 	uint32_t unicastGrantsRequested;  /* slave: how many we requested, master: how many requests we received */
 	uint32_t unicastGrantsGranted;	  /* slave: how many we got granted, master: how many we granted */
@@ -87,10 +95,9 @@ typedef struct
 	uint32_t unicastGrantsCancelAckSent; /* how many cancel ack we sent */
 	uint32_t unicastGrantsCancelAckReceived; /* how many cancel ack we received */
 
-#ifdef PTPD_STATISTICS
+
 	uint32_t delayMSOutliersFound;	  /* Number of outliers found by the delayMS filter */
 	uint32_t delaySMOutliersFound;	  /* Number of outliers found by the delaySM filter */
-#endif /* PTPD_STATISTICS */
 	uint32_t maxDelayDrops; /* number of samples dropped due to maxDelay threshold */
 
 	uint32_t messageSendRate;	/* RX message rate per sec */
@@ -98,49 +105,13 @@ typedef struct
 
 } PtpdCounters;
 
-/**
- * \struct PIservo
- * \brief PI controller model structure
- */
-
-typedef struct{
-    int maxOutput;
-    Integer32 input;
-    double output;
-    double observedDrift;
-    double kP, kI;
-    TimeInternal lastUpdate;
-    Boolean runningMaxOutput;
-    int dTmethod;
-    double dT;
-    int maxdT;
-#ifdef PTPD_STATISTICS
-    int updateCount;
-    int stableCount;
-    Boolean statsUpdated;
-    Boolean statsCalculated;
-    Boolean isStable;
-    double stabilityThreshold;
-    int stabilityPeriod;
-    int stabilityTimeout;
-    double driftMean;
-    double driftStdDev;
-    double driftMedian;
-    double driftMin;
-    double driftMax;
-    double driftMinFinal;
-    double driftMaxFinal;
-    DoublePermanentStdDev driftStats;
-    DoublePermanentMedian driftMedianContainer;
-#endif /* PTPD_STATISTICS */
-} PIservo;
-
 typedef struct {
 	Boolean activity; 		/* periodic check, updateClock sets this to let the watchdog know we're holding clock control */
 	Boolean	available; 	/* flags that we can control the clock */
 	Boolean granted; 	/* upstream watchdog will grant this when we're the best provider */
 	Boolean updateOK;		/* if not, updateClock() will not run */
 	Boolean stepRequired;		/* if set, we need to step the clock */
+	Boolean stepFailed;		/* clock driver refused to step clock, we're locked until it's forcefully stepped */
 	Boolean offsetOK;		/* if set, updateOffset accepted oFm */
 } ClockControlInfo;
 
@@ -204,270 +175,9 @@ typedef struct {
     TimeInternal 	lastSyncTimestamp;			/* last Sync timestamp sent */
 } UnicastDestination;
 
-
-
 typedef struct {
     Integer32 transportAddress;
 } SyncDestEntry;
-
-
-/**
- * \struct RunTimeOpts
- * \brief Program options set at run-time
- */
-/* program options set at run-time */
-typedef struct {
-	Integer8 logAnnounceInterval;
-	Integer8 announceReceiptTimeout;
-	Integer8 logSyncInterval;
-	Integer8 logMinDelayReqInterval;
-	Integer8 logMinPdelayReqInterval;
-
-	Boolean slaveOnly;
-
-	ClockQuality clockQuality;
-	TimePropertiesDS timeProperties;
-
-	UInteger8 priority1;
-	UInteger8 priority2;
-	UInteger8 domainNumber;
-	UInteger16 portNumber;
-
-
-	/* Max intervals for unicast negotiation */
-	Integer8 logMaxPdelayReqInterval;
-	Integer8 logMaxDelayReqInterval;
-	Integer8 logMaxSyncInterval;
-	Integer8 logMaxAnnounceInterval;
-
-	/* optional BMC extension: accept any domain, prefer configured domain, prefer lower domain */
-	Boolean anyDomain;
-
-	/*
-	 * For slave state, grace period of n * announceReceiptTimeout
-	 * before going into LISTENING again - we disqualify the best GM
-	 * and keep waiting for BMC to act - if a new GM picks up,
-	 * we don't lose the calculated offsets etc. Allows seamless GM
-	 * failover with little time variation
-	 */
-
-	int announceTimeoutGracePeriod;
-//	Integer16 currentUtcOffset;
-
-	Octet* ifaceName;
-	Octet primaryIfaceName[IFACE_NAME_LENGTH];
-	Octet backupIfaceName[IFACE_NAME_LENGTH];
-	Boolean backupIfaceEnabled;
-
-	Boolean	noResetClock; // don't step the clock if offset > 1s
-	Boolean stepForce; // force clock step on first sync after startup
-	Boolean stepOnce; // only step clock on first sync after startup
-#ifdef linux
-	Boolean setRtc;
-#endif /* linux */
-
-	Boolean clearCounters;
-
-	Integer8 masterRefreshInterval;
-
-	Integer32 maxOffset; /* Maximum number of nanoseconds of offset */
-	Integer32 maxDelay; /* Maximum number of nanoseconds of delay */
-
-	Boolean	noAdjust;
-
-	Boolean displayPackets;
-	Integer16 s;
-	TimeInternal inboundLatency, outboundLatency, ofmShift;
-	Integer16 max_foreign_records;
-	Enumeration8 delayMechanism;
-
-	Boolean portDisabled;
-
-	int ttl;
-	int dscpValue;
-#if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined (__QNXNTO__)
-	int cpuNumber;
-#endif /* linux && HAVE_SCHED_H || HAVE_SYS_CPUSET_H*/
-
-	Boolean alwaysRespectUtcOffset;
-	Boolean preferUtcValid;
-	Boolean requireUtcValid;
-	Boolean useSysLog;
-	Boolean checkConfigOnly;
-	Boolean printLockFile;
-
-	char configFile[PATH_MAX+1];
-
-	LogFileHandler statisticsLog;
-	LogFileHandler recordLog;
-	LogFileHandler eventLog;
-	LogFileHandler statusLog;
-
-	int leapSecondPausePeriod;
-	Enumeration8 leapSecondHandling;
-	Integer32 leapSecondSmearPeriod;
-	int leapSecondNoticePeriod;
-
-	Boolean periodicUpdates;
-	Boolean logStatistics;
-	Enumeration8 statisticsTimestamp;
-
-	Enumeration8 logLevel;
-	int statisticsLogInterval;
-
-	int statusFileUpdateInterval;
-
-	Boolean ignore_daemon_lock;
-	Boolean do_IGMP_refresh;
-	Boolean  nonDaemon;
-
-	int initial_delayreq;
-
-	Boolean ignore_delayreq_interval_master;
-	Boolean autoDelayReqInterval;
-
-	Boolean autoLockFile; /* mode and interface specific lock files are used
-				    * when set to TRUE */
-	char lockDirectory[PATH_MAX+1]; /* Directory to store lock files
-				       * When automatic lock files used */
-	char lockFile[PATH_MAX+1]; /* lock file location */
-	char driftFile[PATH_MAX+1]; /* drift file location */
-	char leapFile[PATH_MAX+1]; /* leap seconds file location */
-	Enumeration8 drift_recovery_method; /* how the observed drift is managed
-				      between restarts */
-
-	LeapSecondInfo	leapInfo;
-
-	Boolean snmpEnabled;		/* SNMP subsystem enabled / disabled even if compiled in */
-	Boolean snmpTrapsEnabled; 	/* enable sending of SNMP traps (requires alarms enabled) */
-	Boolean alarmsEnabled; 		/* enable support for alarms */
-	int	alarmMinAge;		/* minimal alarm age in seconds (from set to clear notification) */
-	int	alarmInitialDelay;	/* initial delay before we start processing alarms; example:  */
-					/* we don't need a port state alarm just before the port starts to sync */
-
-	Boolean pcap; /* Receive and send packets using libpcap, bypassing the
-			 network stack. */
-	Enumeration8 transport; /* transport type */
-	Enumeration8 ipMode; /* IP transmission mode */
-	Boolean dot1AS; /* 801.2AS support -> transportSpecific field */
-
-	Boolean disableUdpChecksums; /* disable UDP checksum validation where supported */
-
-	/* list of unicast destinations for use with unicast with or without signaling */
-	char unicastDestinations[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
-	char unicastDomains[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
-	char unicastLocalPreference[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
-
-	char productDescription[65];
-	char portDescription[65];
-
-	Boolean		unicastDestinationsSet;
-	char unicastPeerDestination[MAXHOSTNAMELEN];
-	Boolean		unicastPeerDestinationSet;
-
-	UInteger32	unicastGrantDuration;
-
-	Boolean unicastNegotiation; /* Enable unicast negotiation support */
-	Boolean	unicastNegotiationListening; /* Master: Reply to signaling messages when in LISTENING */
-	Boolean disableBMCA; /* used to achieve master-only for unicast */
-	Boolean unicastAcceptAny; /* Slave: accept messages from all GMs, regardless of grants */
-	/*
-	 * port mask to apply to portNumber when using negotiation:
-	 * treats different port numbers as the same port ID for clocks which
-	 * transmit signaling using one port ID, and rest of messages with another
-	 */
-	UInteger16  unicastPortMask; /* port mask to apply to portNumber when using negotiation */
-
-#ifdef RUNTIME_DEBUG
-	int debug_level;
-#endif
-	Boolean pidAsClockId;
-
-	/**
-	 * This field holds the flags denoting which subsystems
-	 * have to be re-initialised as a result of config reload.
-	 * Flags are defined in daemonconfig.h
-	 * 0 = no change
-	 */
-	UInteger32 restartSubsystems;
-	/* config dictionary containers - current, candidate, and from CLI */
-	dictionary *currentConfig, *candidateConfig, *cliConfig;
-
-	Enumeration8 selectedPreset;
-
-	int servoMaxPpb;
-	double servoKP;
-	double servoKI;
-	Enumeration8 servoDtMethod;
-	double servoMaxdT;
-
-	/**
-	 *  When enabled, ptpd ensures that Sync message sequence numbers
-	 *  are increasing (consecutive sync is not lower than last).
-	 *  This can prevent reordered sequences, but can also lock the slave
-         *  up if, say, GM restarted and reset sequencing.
-	 */
-	Boolean syncSequenceChecking;
-
-	/**
-	  * (seconds) - if set to non-zero, slave will reset if no clock updates
-	  * after this amount of time. Used to "unclog" slave stuck on offset filter
-	  * threshold or after GM reset the Sync sequence number
-          */
-	int clockUpdateTimeout;
-
-#ifdef	PTPD_STATISTICS
-	OutlierFilterConfig oFilterMSConfig;
-	OutlierFilterConfig oFilterSMConfig;
-
-	StatFilterOptions filterMSOpts;
-	StatFilterOptions filterSMOpts;
-
-
-	Boolean servoStabilityDetection;
-	double servoStabilityThreshold;
-	int servoStabilityTimeout;
-	int servoStabilityPeriod;
-
-	Boolean maxDelayStableOnly;
-#endif
-	/* also used by the periodic message ticker */
-	int statsUpdateInterval;
-
-	int calibrationDelay;
-	Boolean enablePanicMode;
-	Boolean panicModeReleaseClock;
-	int panicModeDuration;
-	UInteger32 panicModeExitThreshold;
-	int idleTimeout;
-
-	UInteger32 ofmAlarmThreshold;
-
-	NTPoptions ntpOptions;
-	Boolean preferNTP;
-
-	int electionDelay; /* timing domain election delay to prevent flapping */
-
-	int maxDelayMaxRejected;
-
-	/* max reset cycles in LISTENING before full network restart */
-	int maxListen;
-
-	Boolean managementEnabled;
-	Boolean managementSetEnable;
-
-	/* Access list settings */
-	Boolean timingAclEnabled;
-	Boolean managementAclEnabled;
-	char timingAclPermitText[PATH_MAX+1];
-	char timingAclDenyText[PATH_MAX+1];
-	char managementAclPermitText[PATH_MAX+1];
-	char managementAclDenyText[PATH_MAX+1];
-	Enumeration8 timingAclOrder;
-	Enumeration8 managementAclOrder;
-
-} RunTimeOpts;
-
 
 /**
  * \struct PtpClock
@@ -497,7 +207,6 @@ typedef struct {
 	Integer16  max_foreign_records;
 	Integer16  foreign_record_i;
 	Integer16  foreign_record_best;
-	UInteger32 random_seed;
 	Boolean  record_update;    /* should we run bmc() after receiving an announce message? */
 
 	Boolean disabled;	/* port is permanently disabled */
@@ -549,14 +258,6 @@ typedef struct {
 
 	int followUpGap;
 
-/*
-	20110630: These variables were deprecated in favor of the ones that appear in the stats log (delayMS and delaySM)
-	
-	TimeInternal  master_to_slave_delay;
-	TimeInternal  slave_to_master_delay;
-
-	*/
-
 	TimeInternal  pdelay_req_receive_time;
 	TimeInternal  pdelay_req_send_time;
 	TimeInternal  pdelay_resp_receive_time;
@@ -572,6 +273,7 @@ typedef struct {
 	TimeInternal	delaySM;
 	TimeInternal  lastSyncCorrectionField;
 	TimeInternal  lastPdelayRespCorrectionField;
+	TimeInternal	lastOriginTimestamp;
 
 	Boolean  sentPdelayReq;
 	UInteger16  sentPdelayReqSequenceId;
@@ -586,7 +288,7 @@ typedef struct {
 	Boolean  waitingForDelayResp;
 	
 	offset_from_master_filter  ofm_filt;
-	one_way_delay_filter  mpd_filt;
+	one_way_delay_filter  mpdIirFilter;
 
 	Boolean message_activity;
 
@@ -596,17 +298,12 @@ typedef struct {
 
 	NetPath netPath;
 
-	/*Usefull to init network stuff*/
-	UInteger8 port_communication_technology;
-
 	/*Stats header will be re-printed when set to true*/
 	Boolean resetStatisticsLog;
 
 	int listenCount; // number of consecutive resets to listening
 	int resetCount;
 	int announceTimeouts;
-	int current_init_clock;
-	int can_step_clock;
 	int warned_operator_slow_slewing;
 	int warned_operator_fast_slewing;
 	Boolean warnedUnicastCapacity;
@@ -625,11 +322,6 @@ typedef struct {
 
 	Boolean	offsetFirstUpdated;
 
-	uint32_t init_timestamp;                        /* When the clock was last initialised */
-	Integer32 stabilisation_time;                   /* How long (seconds) it took to stabilise the clock */
-	double last_saved_drift;                     /* Last observed drift value written to file */
-	Boolean drift_saved;                            /* Did we save a drift value already? */
-
 	/* user description is max size + 1 to leave space for a null terminator */
 	Octet userDescription[USER_DESCRIPTION_MAX + 1];
 	Octet profileIdentity[6];
@@ -644,14 +336,6 @@ typedef struct {
 	 */
 	PtpdCounters counters;
 
-	/* PI servo model */
-	PIservo servo;
-
-	/* "panic mode" support */
-	Boolean panicMode; /* in panic mode - do not update clock or calculate offsets */
-	Boolean panicOver; /* panic mode is over, we can reset the clock */
-	int panicModeTimeLeft; /* How many 30-second periods left in panic mode */
-
 	/* used to wait on failure while allowing timers to tick */
 	Boolean initFailure;
 	Integer32 initFailureTimeout;
@@ -663,13 +347,11 @@ typedef struct {
 	ClockControlInfo clockControl;
 	ClockStatusInfo clockStatus;
 
-
 	TimeInternal	rawDelayMS;
 	TimeInternal	rawDelaySM;
 	TimeInternal	rawPdelayMS;
 	TimeInternal	rawPdelaySM;
 
-#ifdef	PTPD_STATISTICS
 	/*
 	 * basic clock statistics information, useful
 	 * for monitoring servo performance and estimating
@@ -684,12 +366,11 @@ typedef struct {
 	DoubleMovingStatFilter *filterMS;
 	DoubleMovingStatFilter *filterSM;
 
-#endif
-
 	Integer32 acceptedUpdates;
 	Integer32 offsetUpdates;
 
 	Boolean isCalibrated;
+	double dT;
 
 	NTPcontrol ntpControl;
 
@@ -708,6 +389,13 @@ typedef struct {
 #endif
 
 	RunTimeOpts *rtOpts;
+
+	struct ClockDriver *clockDriver;
+	struct ClockDriver *masterClock;
+
+	/* tell the protocol engine to silently ignore the next n offset/delay updates */
+	int ignoreDelayUpdates;
+	int ignoreOffsetUpdates;
 
 } PtpClock;
 

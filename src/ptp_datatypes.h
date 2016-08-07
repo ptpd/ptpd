@@ -116,6 +116,8 @@ typedef struct {
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
 	#include "def/message/header.def"
+	Boolean ptpmon;
+	Boolean mtie;
 } MsgHeader;
 
 /**
@@ -131,7 +133,7 @@ typedef struct {
 	ClockIdentity grandmasterIdentity;
 	UInteger16 stepsRemoved;
 	Enumeration8 timeSource;
-}MsgAnnounce;
+} MsgAnnounce;
 
 
 /**
@@ -140,7 +142,7 @@ typedef struct {
 /*Sync Message */
 typedef struct {
 	Timestamp originTimestamp;
-}MsgSync;
+} MsgSync;
 
 /**
 * \brief DelayReq message fields (Table 26 of the spec)
@@ -148,7 +150,7 @@ typedef struct {
 /*DelayReq Message */
 typedef struct {
 	Timestamp originTimestamp;
-}MsgDelayReq;
+} MsgDelayReq;
 
 /**
 * \brief DelayResp message fields (Table 30 of the spec)
@@ -157,7 +159,7 @@ typedef struct {
 typedef struct {
 	Timestamp receiveTimestamp;
 	PortIdentity requestingPortIdentity;
-}MsgDelayResp;
+} MsgDelayResp;
 
 /**
 * \brief FollowUp message fields (Table 27 of the spec)
@@ -165,7 +167,7 @@ typedef struct {
 /*Follow-up Message*/
 typedef struct {
 	Timestamp preciseOriginTimestamp;
-}MsgFollowUp;
+} MsgFollowUp;
 
 /**
 * \brief PdelayReq message fields (Table 29 of the spec)
@@ -173,7 +175,7 @@ typedef struct {
 /*PdelayReq Message*/
 typedef struct {
 	Timestamp originTimestamp;
-}MsgPdelayReq;
+} MsgPdelayReq;
 
 /**
 * \brief PdelayResp message fields (Table 30 of the spec)
@@ -182,7 +184,7 @@ typedef struct {
 typedef struct {
 	Timestamp requestReceiptTimestamp;
 	PortIdentity requestingPortIdentity;
-}MsgPdelayResp;
+} MsgPdelayResp;
 
 /**
 * \brief PdelayRespFollowUp message fields (Table 31 of the spec)

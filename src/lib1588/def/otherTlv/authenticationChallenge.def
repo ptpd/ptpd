@@ -1,0 +1,5 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @tlvtype@AUTHENTICATION_CHALLENGE@0x2002@unsupported@ */
+
+/* Authentication challenge TLV - unsupported for now */
+

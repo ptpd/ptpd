@@ -5,10 +5,11 @@ AC_PREREQ(2.59)
 AC_INIT(
     [ptpd],
     [VERSION_NUMBER],
-    [ptpd-bugs@nwtime.org],
+    [ptpd-devel@sourceforge.net],
     [],
     [PTPD_URL]dnl
 )
+
 AC_CONFIG_SRCDIR([src/arith.c])
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -16,10 +17,11 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE([1.9 foreign -Wall])
 
-[RELEASE_DATE]="RELEASE_DATE"
-AC_SUBST([RELEASE_DATE])
-[VERSION_NUMBER]="VERSION_NUMBER"
-AC_SUBST([VERSION_NUMBER])
+MAN_DATE="RELEASE_DATE"
+MAN_VERSION="VERSION_NUMBER"
+
+AC_SUBST(MAN_DATE)
+AC_SUBST(MAN_VERSION)
 
 # Checks for programs.
 AC_PROG_AWK
@@ -28,7 +30,7 @@ ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99])
 AC_PROG_LIBTOOL
 AM_PROG_CC_C_O
 
-# Check for svnversion, cut and tr
+# Check for date, cut and tr
 
 AC_PATH_PROG(cutpath, cut)
 AC_PATH_PROG(trpath, tr)
@@ -39,25 +41,28 @@ if test -n "$datepath"; then
     AC_DEFINE_UNQUOTED(BUILD_DATE, ["$build_date"], [build date year-month-day])
 fi
 
-# Set CODE_REVISION if svnversion found, version is suffixed with "-svn" and code is versioned
+# Set CODE_REVISION if git, version is suffixed with "-git" and code is versioned
 if test -n "$cutpath" && test -n "$trpath"; then
-    ver_prefix=`echo VERSION_NUMBER | $cutpath -s -d- -f2`
-    AC_PATH_PROG(svnverpath, svnversion)
-    if test "$ver_prefix" = "svn" && test -n "$svnverpath"; then
-	svn_rev=`$svnverpath 2>/dev/null | $cutpath -s -d: -f2 | $trpath -d MS`
-	if test -n "$svn_rev"; then
-	    AC_DEFINE_UNQUOTED(CODE_REVISION, ["$svn_rev"], [source code revision])
-	else
-	svn_rev=`$svnverpath 2>/dev/null | $trpath -d MS`
-	    if test -n "$svn_rev"; then
-		AC_DEFINE_UNQUOTED(CODE_REVISION, ["$svn_rev"], [source code revision])
-	    fi
+    ver_suffix=`echo VERSION_NUMBER | $cutpath -s -d- -f4`
+    if test -z "$ver_suffix"; then
+	ver_suffix=`echo VERSION_NUMBER | $cutpath -s -d- -f3`
+	if test -z "$ver_suffix"; then
+	    ver_suffix=`echo VERSION_NUMBER | $cutpath -s -d- -f2`
+	fi
+    fi
+
+    AC_PATH_PROG(gitpath, git)
+    if test "$ver_suffix" = "git" && test -n "$gitpath"; then
+	git_rev=`$gitpath log -1 --format="%h" 2>/dev/null`
+	if test -n "$git_rev"; then
+	    AC_DEFINE_UNQUOTED(CODE_REVISION, ["-$git_rev"], [source code revision])
 	fi
     fi
 fi
 
 case $host in
 *linux*)
+
 
     AC_CHECK_HEADERS([linux/net_tstamp.h], [], [
 
@@ -91,6 +96,7 @@ AC_HEADER_STDC
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h ifaddrs.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h unix.h linux/rtc.h sys/timex.h getopt.h])
 
+
 AC_CHECK_HEADERS([endian.h machine/endian.h sys/isa_defs.h])
 
 AC_CHECK_HEADERS([math.h],[],[AC_MSG_ERROR([math.h is required to compile PTPd])],[])
@@ -113,6 +119,18 @@ AC_CHECK_HEADERS([net/if.h], [], [],
     #include <sys/types.h>
 #endif
 ])
+
+# Similar case for linux/if.h
+AC_CHECK_HEADERS([linux/if.h], [], [],
+[
+#ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+    #include <sys/types.h>
+#endif
+])
+
 
 # Similar case for if_arp.h
 AC_CHECK_HEADERS([net/if_arp.h], [], [],
@@ -192,7 +210,6 @@ AC_CHECK_MEMBERS([struct ntptimeval.tai], [], [],
 #include <sys/timex.h>
 ])
 
-
 # Check for ifr_hwaddr in the ifreq structure
 AC_CHECK_MEMBERS([struct ifreq.ifr_hwaddr], [], [], [[#include <net/if.h>]])
 
@@ -230,7 +247,7 @@ AC_FUNC_SELECT_ARGTYPES
 AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal ntp_gettime getopt_long])
+AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal ntp_gettime getopt_long clock_adjtime])
 
 if test -n "$GCC"; then
     AC_MSG_CHECKING(if GCC -fstack-protector is usable)
@@ -244,6 +261,17 @@ if test -n "$GCC"; then
     ])
 fi
 
+# Any remaining Linux-specific checks (PHC API)
+case $host in
+*linux*)
+
+	    AC_CHECK_HEADERS([linux/ethtool.h linux/ptp_clock.h linux/net_tstamp.h])
+	    # If we have Linux HWTS headers, check if they are complete...
+	    AC_CHECK_DECLS([PTP_SYS_OFFSET], [], [], [[#include <linux/ptp_clock.h>]])
+	    AC_CHECK_DECLS([ETHTOOL_GET_TS_INFO], [], [], [[#include <linux/ethtool.h>]])
+
+    ;;
+esac
 
 AC_MSG_NOTICE([************************************************************])
 AC_MSG_NOTICE([* PTPD BUILD FLAG AND LIBRARY DEPENDENCY CHECKS START HERE *])
@@ -684,6 +712,25 @@ case "$enable_daemon" in
 esac
 AC_SUBST(PTP_DAEMON)
 
+AC_MSG_CHECKING([for clock sync profiling output])
+AC_ARG_ENABLE(
+    [clock-sync-profiling],
+    [AS_HELP_STRING(
+	[--enable-clock-sync-profiling (disabled by default)],
+	[Enable inter-clock sync profiling log output]
+    )],
+    [],
+    [enable_clock_sync_profiling=no]
+)
+
+AC_MSG_RESULT([$enable_clock_sync_profiling])
+case "$enable_clock_sync_profiling" in
+ yes)
+    PTP_PROFILING_OUTPUT="-DPTPD_CLOCK_SYNC_PROFILING"
+    ;;
+esac
+AC_SUBST(PTP_PROFILING_OUTPUT)
+
 AC_MSG_CHECKING([for experimental options])
 AC_ARG_ENABLE(
     [experimental-options],
@@ -702,26 +749,6 @@ case "$enable_experimental_options" in
 esac
 AC_SUBST(PTP_EXP)
 AM_CONDITIONAL([EXP], [test x$enable_experimental_options = xyes])
-
-AC_MSG_CHECKING([for realtime statistics support])
-AC_ARG_ENABLE(
-    [statistics],
-    [AS_HELP_STRING(
-	[--disable-statistics (enabled by default)],
-	[Disable support for realtime statistics and statistics based filtering]
-    )],
-    [],
-    [enable_statistics=yes]
-)
-AC_MSG_RESULT([$enable_statistics])
-case "$enable_statistics" in
- yes)
-    PTP_STATISTICS="-DPTPD_STATISTICS"
-    ;;
-esac
-AC_SUBST(PTP_STATISTICS)
-
-AM_CONDITIONAL([STATISTICS], [test x$enable_statistics = xyes])
 
 AC_MSG_CHECKING([if we want to enable SO_TIMESTAMPING support on Linux if available])
 AC_ARG_ENABLE(
@@ -771,7 +798,7 @@ AC_MSG_NOTICE([************************************************************])
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
-AC_CONFIG_FILES([src/ptpd2.8])
-AC_CONFIG_FILES([src/ptpd2.conf.5])
+AC_CONFIG_FILES([src/ptpd.8])
+AC_CONFIG_FILES([src/ptpd.conf.5])
 
 AC_OUTPUT

@@ -98,8 +98,11 @@ getAlarmMessage(char *out, int count, AlarmEntry *alarm)
 			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster));
 	    return;
 	case ALRM_CLOCK_STEP:
+	    {
+	    TimeInternal neg = negativeTime(&alarm->eventData.currentDS.offsetFromMaster);
 	    snprintf(out, count, ": Clock stepped by %.09f s",
-			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster));
+			timeInternalToDouble(&neg));
+	    }
 	    return;
 	case ALRM_NO_SYNC:
 	    if(alarm->state == ALARM_UNSET) {
@@ -266,9 +269,9 @@ setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock)
 	capturePtpEventData(&alarm->eventData, ptpClock, ptpClock->rtOpts);
 
 	if(condition) {
-	    getTime(&alarm->timeSet);
+	    getSystemClock()->getTime(getSystemClock(), &alarm->timeSet);
 	} else {
-	    getTime(&alarm->timeCleared);
+	    getSystemClock()->getTime(getSystemClock(), &alarm->timeCleared);
 	}
 
 	DBG("Alarm %s condition set to %s\n", alarm->name, condition ? "TRUE" : "FALSE");

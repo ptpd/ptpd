@@ -1,9 +1,9 @@
-# Makefile for ptpd2
+# Makefile for ptpd
 
 AUTOMAKE_OPTIONS = subdir-objects
 lib_LTLIBRARIES = $(LIBPTPD2_LIBS_LA)
-sbin_PROGRAMS = ptpd2
-man_MANS = ptpd2.8 ptpd2.conf.5
+sbin_PROGRAMS = ptpd
+man_MANS = ptpd.8 ptpd.conf.5
 
 AM_CFLAGS	= $(SNMP_CFLAGS) $(PCAP_CFLAGS) -Wall -fexceptions
 AM_CPPFLAGS	= $(SNMP_CPPFLAGS) $(PCAP_CPPFLAGS)
@@ -12,17 +12,21 @@ AM_LDFLAGS	= $(SNMP_LIBS) $(PCAP_LIBS)
 if LINUX_KERNEL_HEADERS
 AM_CFLAGS += $(LINUX_KERNEL_INCLUDES)
 endif
-AM_CPPFLAGS    += -DDATADIR='"$(datadir)"' $(PTP_DBL) $(PTP_DAEMON) $(PTP_EXP) $(PTP_SNMP) $(PTP_PCAP) $(PTP_STATISTICS) $(PTP_SLAVE_ONLY) $(PTP_PTIMERS) $(PTP_UNICAST_MAX) $(PTP_DISABLE_SOTIMESTAMPING)
+AM_CPPFLAGS    += -DDATADIR='"$(datadir)"' $(PTP_DBL) $(PTP_DAEMON) $(PTP_EXP) $(PTP_SNMP) $(PTP_PCAP) $(PTP_SLAVE_ONLY) $(PTP_PTIMERS) $(PTP_UNICAST_MAX) $(PTP_DISABLE_SOTIMESTAMPING) $(PTP_PROFILING_OUTPUT)
 
 NULL=
+
+BOB=@VERSION_NUMBER@
 
 #VERSION = 2.3.1
 #SHAREDLIBVER = $(SHAREDLIB).$(VERSION)
 #	ptp_timers.c			
 
-EXTRA_DIST = def
+EXTRA_DIST = 			\
+	def			\
+	lib1588/def	
 
-ptpd2_SOURCES =				\
+ptpd_SOURCES =				\
 	arith.c				\
 	bmc.c				\
 	constants.h			\
@@ -61,30 +65,60 @@ ptpd2_SOURCES =				\
 	dep/ntpengine/ntpdcontrol.h	\
 	timingdomain.h			\
 	timingdomain.c			\
+	libcck/net_utils.h		\
+	libcck/net_utils.c		\
+	dep/statistics.h		\
+	dep/statistics.c		\
+	dep/outlierfilter.h		\
+	dep/outlierfilter.c		\
 	dep/alarms.h			\
 	dep/alarms.c			\
+	libcck/clockdriver.h		\
+	libcck/clockdriver.c		\
+	libcck/clockdriver_interface.h	\
+	libcck/clockdriver_unix.h		\
+	libcck/clockdriver_unix.c		\
+	libcck/extensions/clockdriver/linuxphc_vext_intel.h \
+	libcck/extensions/clockdriver/linuxphc_vext_intel.c \
+	libcck/extensions/clockdriver/efx_ioctl_timesync.h \
+	libcck/extensions/clockdriver/linuxphc_vext_solarflare.h \
+	libcck/extensions/clockdriver/linuxphc_vext_solarflare.c \
+	libcck/extensions/clockdriver/linuxphc_vext.def \
+	libcck/clockdriver_linuxphc.h	\
+	libcck/clockdriver_linuxphc.c	\
+	libcck/linkedlist.h		\
+	globalconfig.h			\
+	libcck/piservo.h		\
+	libcck/piservo.c		\
+	lib1588/ptp_primitives.h	\
+	lib1588/ptp_primitives.c	\
+	lib1588/ptp_derived_types.h	\
+	lib1588/ptp_derived_types.c	\
+	lib1588/ptp_tlv_signaling.h	\
+	lib1588/ptp_tlv_signaling.c	\
+	lib1588/ptp_tlv_management.h	\
+	lib1588/ptp_tlv_management.c	\
+	lib1588/ptp_tlv_other.h	\
+	lib1588/ptp_tlv_other.c	\
+	lib1588/ptp_tlv.h		\
+	lib1588/ptp_tlv.c		\
+	lib1588/ptp_message.h		\
+	lib1588/ptp_message.c		\
+	lib1588/tmp.h			\
 	ptpd.c				\
 	ptpd.h				\
 	$(NULL)
 
 # SNMP
 if SNMP
-ptpd2_SOURCES += dep/snmp.c
-endif
-
-# STATISTICS
-if STATISTICS
-ptpd2_SOURCES += dep/statistics.h
-ptpd2_SOURCES += dep/statistics.c
-ptpd2_SOURCES += dep/outlierfilter.h
-ptpd2_SOURCES += dep/outlierfilter.c
+ptpd_SOURCES += dep/snmp.c
 endif
 
 # posix timers
 if PTIMERS
-ptpd2_SOURCES +=dep/eventtimer_posix.c
+ptpd_SOURCES +=dep/eventtimer_posix.c
 else
-ptpd2_SOURCES +=dep/eventtimer_itimer.c
+ptpd_SOURCES +=dep/eventtimer_itimer.c
 endif
 
 CSCOPE = cscope

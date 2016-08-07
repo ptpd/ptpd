@@ -1,0 +1,38 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_CLOCK_DESCRIPTION@0x0001@ */
+
+/* Spec Table 41 - CLOCK_DESCRIPTION management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( clockType0, 1, PtpOctet)
+PROCESS_FIELD( clockType1, 1, PtpOctet)
+PROCESS_FIELD( physicalLayerProtocol,
+	 1 + data->physicalLayerProtocol.lengthField,
+	 PtpText)
+PROCESS_FIELD( physicalAddress,
+         2 + data->physicalAddress.addressLength,
+	 PtpPhysicalAddress)
+PROCESS_FIELD( protocolAddress,
+	 4 + data->protocolAddress.addressLength,
+	 PtpPortAddress)
+PROCESS_FIELD( manufacturerIdentity, 1, PtpOctet)
+PROCESS_FIELD( manufacturerIdentity1, 1, PtpOctet)
+PROCESS_FIELD( manufacturerIdentity2, 1, PtpOctet)
+PROCESS_FIELD( reserved, 1, PtpOctet)
+PROCESS_FIELD( productDescription,
+	 1 + data->productDescription.lengthField,
+	 PtpText)
+PROCESS_FIELD( revisionData,
+	 1 + data->revisionData.lengthField,
+	 PtpText)
+PROCESS_FIELD( userDescription,
+	 1 + data->userDescription.lengthField,
+	 PtpText)
+PROCESS_FIELD( profileIdentity, 1, PtpOctet)
+PROCESS_FIELD( profileIdentity1, 1, PtpOctet)
+PROCESS_FIELD( profileIdentity2, 1, PtpOctet)
+PROCESS_FIELD( profileIdentity3, 1, PtpOctet)
+PROCESS_FIELD( profileIdentity4, 1, PtpOctet)
+PROCESS_FIELD( profileIdentity5, 1, PtpOctet)
+
+

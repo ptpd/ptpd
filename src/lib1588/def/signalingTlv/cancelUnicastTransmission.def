@@ -1,0 +1,12 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @tlvtype@CANCEL_UNICAST_TRANSMISSION@0x0006@ */
+
+/* Spec Table 75 - CANCEL_UNICAST_TRANSMISSION signaling TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+
+PROCESS_FIELD( messageType, 0, PtpEnumeration4Upper)
+PROCESS_FIELD( reserved0, 1, PtpUInteger4Lower)
+PROCESS_FIELD( reserved1, 1, PtpOctet )
+
+

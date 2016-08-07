@@ -9,7 +9,7 @@
 * and enumeration defined in the spec
  */
 
-#define PTPD_PROGNAME "ptpd2"
+#define PTPD_PROGNAME "ptpd"
 
 /* FIXME: make these parameterized, either through command-line options or make variables */
 /* wowczarek@25oct15: fixed: product description suffix is variables:product_description */
@@ -304,7 +304,10 @@ enum {
 	AUTHENTICATION_CHALLENGE=0x2001,
 	SECURITY_ASSOCIATION_UPDATE=0x2002,
 	/* Cumulative frequency scale factor offset */
-	CUM_FREQ_SCALE_FACTOR_OFFSET=0x2003
+	CUM_FREQ_SCALE_FACTOR_OFFSET=0x2003,
+	/* PTPMon extension */
+	TLV_PTPMON_REQ = 0x21FE,
+	TLV_PTPMON_RESP = 0x21FF
 };
 
 /**

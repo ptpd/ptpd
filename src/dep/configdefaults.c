@@ -107,26 +107,26 @@ static const ConfigTemplate configTemplates[] = {
 
     { "full-logging", "Enable logging for all facilities (statistics, status, log file)", {
 	{"global:log_status", "y"},
-	{"global:status_file", "/var/run/ptpd2.status"},
+	{"global:status_file", "/var/run/ptpd.status"},
 	{"global:statistics_log_interval", "1"},
-	{"global:lock_file", "/var/run/ptpd2.pid"},
+	{"global:lock_file", "/var/run/ptpd.pid"},
 	{"global:log_statistics", "y"},
-	{"global:statistics_file", "/var/log/ptpd2.statistics"},
+	{"global:statistics_file", "/var/log/ptpd.statistics"},
 //	{"global:statistics_file_truncate", "n"},
-	{"global:log_file", "/var/log/ptpd2.log"},
+	{"global:log_file", "/var/log/ptpd.log"},
 	{"global:statistics_timestamp_format", "both"},
 	{NULL}}
     },
 
     { "full-logging-instance", "Logging for all facilities using 'instance' variable which the user should provide", {
 	{"global:log_status", "y"},
-	{"global:status_file", "@rundir@/ptpd2.@instance@.status"},
+	{"global:status_file", "@rundir@/ptpd.@instance@.status"},
 	{"global:statistics_log_interval", "1"},
-	{"global:lock_file", "@rundir@/ptpd2.@instance@.pid"},
+	{"global:lock_file", "@rundir@/ptpd.@instance@.pid"},
 	{"global:log_statistics", "y"},
-	{"global:statistics_file", "@logdir@/ptpd2.@instance@.statistics"},
+	{"global:statistics_file", "@logdir@/ptpd.@instance@.statistics"},
 //	{"global:statistics_file_truncate", "n"},
-	{"global:log_file", "@logdir@/ptpd2.@instance@.log"},
+	{"global:log_file", "@logdir@/ptpd.@instance@.log"},
 	{"global:statistics_timestamp_format", "both"},
 	{NULL}}
     },
@@ -187,6 +187,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->ipMode = IPMODE_MULTICAST;
 	rtOpts->dot1AS = FALSE;
+	rtOpts->bindToInterface = FALSE;
 
 	rtOpts->disableUdpChecksums = TRUE;
 
@@ -216,7 +217,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	 * defaults for new options
 	 */
 	rtOpts->ignore_delayreq_interval_master = FALSE;
-	rtOpts->do_IGMP_refresh = TRUE;
+	rtOpts->refreshIgmp = TRUE;
 	rtOpts->useSysLog       = FALSE;
 	rtOpts->announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
 #ifdef RUNTIME_DEBUG
@@ -249,6 +250,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->drift_recovery_method = DRIFT_KERNEL;
 	strncpy(rtOpts->lockDirectory, DEFAULT_LOCKDIR, PATH_MAX);
 	strncpy(rtOpts->driftFile, DEFAULT_DRIFTFILE, PATH_MAX);
+	strncpy(rtOpts->frequencyDir, "/etc", PATH_MAX);
 /*	strncpy(rtOpts->lockFile, DEFAULT_LOCKFILE, PATH_MAX); */
 	rtOpts->autoLockFile = FALSE;
 	rtOpts->snmpEnabled = FALSE;
@@ -273,13 +275,54 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	/* ADJ_FREQ_MAX by default */
 	rtOpts->servoMaxPpb = ADJ_FREQ_MAX / 1000;
+	rtOpts->servoMaxPpb_hw = 2000000 / 1000;
 	/* kP and kI are scaled to 10000 and are gains now - values same as originally */
 	rtOpts->servoKP = 0.1;
 	rtOpts->servoKI = 0.001;
 
+	rtOpts->servoKI_hw = 0.3;
+	rtOpts->servoKP_hw = 0.7;
+
+	rtOpts->stableAdev = 200;
+	rtOpts->stableAdev_hw = 50;
+
+	rtOpts->unstableAdev = 2000;
+	rtOpts->unstableAdev_hw = 500;
+
+	rtOpts->lockedAge = 10;
+	rtOpts->lockedAge_hw = 20;
+
+	rtOpts->holdoverAge = 120;
+	rtOpts->holdoverAge_hw = 600;
+
+	rtOpts->adevPeriod = 10;
+
+	rtOpts->negativeStep = FALSE;
+	rtOpts->negativeStep_hw = FALSE;
+
 	rtOpts->servoDtMethod = DT_CONSTANT;
+
+	rtOpts->storeToFile = TRUE;
+
+	rtOpts->clockUpdateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
+	rtOpts->clockSyncRate = CLOCK_SYNC_RATE;
+	rtOpts->clockFailureDelay = 10;
+
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
 	rtOpts->servoMaxdT = 5.0;
+
+	/* inter-clock sync filter options */
+
+	rtOpts->clockStatFilterEnable = TRUE;
+	rtOpts->clockStatFilterWindowSize = 0; /* this will revert to clock sync rate */
+	rtOpts->clockStatFilterWindowType = WINDOW_SLIDING;
+	rtOpts->clockStatFilterType = FILTER_MEDIAN;
+
+	rtOpts->clockOutlierFilterEnable = FALSE;
+	rtOpts->clockOutlierFilterWindowSize = 200;
+	rtOpts->clockOutlierFilterDelay = 100;
+	rtOpts->clockOutlierFilterCutoff = 5.0;
+	rtOpts->clockOutlierFilterBlockTimeout = 30; /* filter block timeout */
 
 	/* disabled by default */
 	rtOpts->announceTimeoutGracePeriod = 0;
@@ -296,8 +339,6 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts-> cpuNumber = -1;
 #endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H*/
 
-#ifdef PTPD_STATISTICS
-
 	rtOpts->oFilterMSConfig.enabled = FALSE;
 	rtOpts->oFilterMSConfig.discard = TRUE;
 	rtOpts->oFilterMSConfig.autoTune = TRUE;
@@ -306,12 +347,12 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->oFilterMSConfig.stepThreshold = 1000000;
 	rtOpts->oFilterMSConfig.stepLevel = 500000;
 	rtOpts->oFilterMSConfig.capacity = 20;
-	rtOpts->oFilterMSConfig.threshold = 1.0;
+	rtOpts->oFilterMSConfig.threshold = 2.0;
 	rtOpts->oFilterMSConfig.weight = 1;
 	rtOpts->oFilterMSConfig.minPercent = 20;
 	rtOpts->oFilterMSConfig.maxPercent = 95;
 	rtOpts->oFilterMSConfig.thresholdStep = 0.1;
-	rtOpts->oFilterMSConfig.minThreshold = 0.1;
+	rtOpts->oFilterMSConfig.minThreshold = 1.5;
 	rtOpts->oFilterMSConfig.maxThreshold = 5.0;
 	rtOpts->oFilterMSConfig.delayCredit = 200;
 	rtOpts->oFilterMSConfig.creditIncrement = 10;
@@ -325,44 +366,38 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->oFilterSMConfig.stepThreshold = 1000000;
 	rtOpts->oFilterSMConfig.stepLevel = 500000;
 	rtOpts->oFilterSMConfig.capacity = 20;
-	rtOpts->oFilterSMConfig.threshold = 1.0;
+	rtOpts->oFilterSMConfig.threshold = 2.0;
 	rtOpts->oFilterSMConfig.weight = 1;
 	rtOpts->oFilterSMConfig.minPercent = 20;
 	rtOpts->oFilterSMConfig.maxPercent = 95;
 	rtOpts->oFilterSMConfig.thresholdStep = 0.1;
-	rtOpts->oFilterSMConfig.minThreshold = 0.1;
+	rtOpts->oFilterSMConfig.minThreshold = 1.5;
 	rtOpts->oFilterSMConfig.maxThreshold = 5.0;
 	rtOpts->oFilterSMConfig.delayCredit = 200;
 	rtOpts->oFilterSMConfig.creditIncrement = 10;
 	rtOpts->oFilterSMConfig.maxDelay = 1500;
 
 	rtOpts->filterMSOpts.enabled = FALSE;
-	rtOpts->filterMSOpts.filterType = FILTER_MIN;
-	rtOpts->filterMSOpts.windowSize = 4;
+	rtOpts->filterMSOpts.filterType = FILTER_MEDIAN;
+	rtOpts->filterMSOpts.windowSize = 5;
 	rtOpts->filterMSOpts.windowType = WINDOW_SLIDING;
+	rtOpts->filterMSOpts.samplingInterval = 0;
 
 	rtOpts->filterSMOpts.enabled = FALSE;
-	rtOpts->filterSMOpts.filterType = FILTER_MIN;
-	rtOpts->filterSMOpts.windowSize = 4;
+	rtOpts->filterSMOpts.filterType = FILTER_MEDIAN;
+	rtOpts->filterSMOpts.windowSize = 5;
 	rtOpts->filterSMOpts.windowType = WINDOW_SLIDING;
+	rtOpts->filterSMOpts.samplingInterval = 0;
 
 	/* How often refresh statistics (seconds) */
 	rtOpts->statsUpdateInterval = 30;
-	/* Servo stability detection settings follow */
-	rtOpts->servoStabilityDetection = FALSE;
-	/* Stability threshold (ppb) - observed drift std dev value considered stable */
-	rtOpts->servoStabilityThreshold = 10;
-	/* How many consecutive statsUpdateInterval periods of observed drift std dev within threshold  means stable servo */
-	rtOpts->servoStabilityPeriod = 1;
-	/* How many minutes without servo stabilisation means servo has not stabilised */
-	rtOpts->servoStabilityTimeout = 10;
+
 	/* How long to wait for one-way delay prefiltering */
 	rtOpts->calibrationDelay = 0;
 	/* if set to TRUE and maxDelay is defined, only check against threshold if servo is stable */
 	rtOpts->maxDelayStableOnly = FALSE;
 	/* if set to non-zero, reset slave if more than this amount of consecutive delay measurements was above maxDelay */
 	rtOpts->maxDelayMaxRejected = 0;
-#endif
 
 	/* status file options */
 	rtOpts->statusFileUpdateInterval = 1;
@@ -371,7 +406,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	/* panic mode options */
 	rtOpts->enablePanicMode = FALSE;
-	rtOpts->panicModeDuration = 2;
+	rtOpts->panicModeDuration = 30;
 	rtOpts->panicModeExitThreshold = 0;
 
 	/* full network reset after 5 times in listening */
@@ -443,6 +478,12 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->syncSequenceChecking = FALSE;
 	rtOpts->clockUpdateTimeout = 0;
 
+	rtOpts->hwTimestamping = FALSE;
+
+	rtOpts->ptpMonEnabled = FALSE;
+	rtOpts->ptpMonDomainNumber = rtOpts->domainNumber;
+	rtOpts->ptpMonAnyDomain = FALSE;
+
 }
 
 /* The PtpEnginePreset structure for reference:
@@ -486,7 +527,7 @@ getPtpPreset(int presetNumber, RunTimeOpts* rtOpts)
 	case PTP_PRESET_MASTERONLY:
 		ret.presetName = "masteronly";
 		ret.slaveOnly = FALSE;
-		ret.noAdjust = TRUE;
+		ret.noAdjust = FALSE;
 		ret.clockClass.minValue = 0;
 		ret.clockClass.maxValue = 127;
 		ret.clockClass.defaultValue = DEFAULT_CLOCK_CLASS__APPLICATION_SPECIFIC_TIME_SOURCE;
@@ -552,7 +593,7 @@ static void loadFileList(dictionary *dict, char *list) {
     text_=strdup(list);
 
     for(text__=text_;; text__=NULL) {
-	filename=strtok_r(text__,", ;\t",&stash);
+	filename=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	if(filename==NULL) break;
 	if(!iniparser_merge_file(dict, filename,1)) {
 	    ERROR("Could not load template file %s\n", filename);
@@ -604,7 +645,7 @@ applyConfigTemplates(dictionary *target, char *templateNames, char *files) {
 	fFound = -1;
 
 	/* apply from built-in templates */
-	templateName=strtok_r(text__,", ;\t",&stash);
+	templateName=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	if(templateName==NULL) break;
 
 	template = (ConfigTemplate*)configTemplates;

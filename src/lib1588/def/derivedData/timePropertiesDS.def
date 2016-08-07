@@ -1,0 +1,13 @@
+/* Spec 8.2.4 timePropertiesDS */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( currentUtcOffset, 2, PtpUInteger16 )
+PROCESS_FIELD( currentUtcOffsetValid, 1, PtpBoolean )
+PROCESS_FIELD( leap59, 1, PtpBoolean )
+PROCESS_FIELD( leap61, 1, PtpBoolean )
+PROCESS_FIELD( timeTraceable, 1, PtpBoolean )
+PROCESS_FIELD( frequencyTraceable, 1, PtpBoolean )
+PROCESS_FIELD( ptpTimescale, 1, PtpBoolean )
+PROCESS_FIELD( timeSource, 1, PtpEnumeration8 )
+
+#undef PROCESS_FIELD

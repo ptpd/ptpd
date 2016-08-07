@@ -5,7 +5,7 @@ After=syslog.target ntpdate.service sntp.service ntp.service chronyd.service net
 [Service]
 Type=forking
 EnvironmentFile=-/etc/sysconfig/ptpd
-ExecStart=/usr/sbin/ptpd2 \
+ExecStart=/usr/sbin/ptpd \
     --global:lock_file=${PTPD_PID_FILE} \
     --global:status_file=${PTPD_STATUS_FILE} \
     -c ${PTPD_CONFIG_FILE} \

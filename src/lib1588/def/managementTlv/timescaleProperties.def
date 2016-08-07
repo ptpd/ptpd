@@ -1,0 +1,10 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_TIMESCALE_PROPERTIES@0x2013@ */
+
+/* Spec Table 60 - TIMESCALE_PROPERTIES management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( ptp, 1, PtpBoolean )
+PROCESS_FIELD( timeSource, 1, PtpEnumeration8 )
+
+

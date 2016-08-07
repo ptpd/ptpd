@@ -1,0 +1,10 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_PRIORITY2@0x2006@ */
+
+/* Spec Table 52 - PRIORITY2 management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( priority2, 1, PtpUInteger8)
+PROCESS_FIELD( reserved, 1, PtpOctet)
+
+

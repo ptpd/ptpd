@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Wojciech Owczarek,
+ * Copyright (c) 2012-2016 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer,
  *                         Martin Burnicki,
@@ -53,6 +53,9 @@
 
 #include "ptpd.h"
 
+#include "lib1588/ptp_message.h"
+
+
 Boolean doInit(RunTimeOpts*,PtpClock*);
 static void doState(RunTimeOpts*,PtpClock*);
 
@@ -74,21 +77,24 @@ static void handlePdelayRespFollowUp(const MsgHeader*, ssize_t, Boolean, const R
 static void issueAnnounce(const RunTimeOpts*,PtpClock*);
 static void issueAnnounceSingle(Integer32, UInteger16*, const RunTimeOpts*,PtpClock*);
 static void issueSync(const RunTimeOpts*,PtpClock*);
+#endif /* PTPD_SLAVE_ONLY */
+
+/* enabled for slave-only to support PTPMon */
 static TimeInternal issueSyncSingle(Integer32, UInteger16*, const RunTimeOpts*,PtpClock*);
 static void issueFollowup(const TimeInternal*,const RunTimeOpts*,PtpClock*, Integer32, const UInteger16);
-#endif /* PTPD_SLAVE_ONLY */
+
 static void issuePdelayReq(const RunTimeOpts*,PtpClock*);
 static void issueDelayReq(const RunTimeOpts*,PtpClock*);
 static void issuePdelayResp(const TimeInternal*,MsgHeader*,Integer32,const RunTimeOpts*,PtpClock*);
 static void issueDelayResp(const TimeInternal*,MsgHeader*,Integer32,const RunTimeOpts*,PtpClock*);
 static void issuePdelayRespFollowUp(const TimeInternal*,MsgHeader*, Integer32, const RunTimeOpts*,PtpClock*, const UInteger16);
 
+static int populatePtpMon(char *buf, MsgHeader *header, PtpClock *ptpClock, const RunTimeOpts *rtOpts);
+
 static void processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp, ssize_t length);
 
-#ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
 static void processSyncFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 dst, const UInteger16 sequenceId);
 static void indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAddress, SyncDestEntry *index);
-#endif /* PTPD_SLAVE_ONLY */
 
 static void processDelayReqFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock);
 static void processPdelayReqFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock);
@@ -101,7 +107,133 @@ static Integer32 lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId,
 static Integer32 findSyncDestination(TimeInternal *timeStamp, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 
 
-#ifndef PTPD_SLAVE_ONLY
+static int populatePtpMon(char *buf, MsgHeader *header, PtpClock *ptpClock, const RunTimeOpts *rtOpts) {
+
+    PtpTlv *tlv;
+    PtpMessage message;
+    PtpTlvPtpMonResponse *monresp;
+    PtpTlvPtpMonMtieResponse *mtieresp;
+    TimeInternal tmpTime;
+    int ret = 0;
+
+    memset(&message, 0, sizeof(PtpMessage));
+
+    ret = unpackPtpMessage(&message, buf, buf + DELAY_RESP_LENGTH);
+
+    if(ret < DELAY_RESP_LENGTH) {
+	return 0;
+    }
+
+    if(header->ptpmon) {
+
+	tlv = createPtpTlv();
+
+	if(tlv == NULL) {
+	    freePtpMessage(&message);
+	    return 0;
+	}
+
+	tlv->tlvType = PTP_TLVTYPE_PTPMON_RESPONSE;
+	attachPtpTlv(&message, tlv);
+	monresp = &tlv->body.ptpMonResponse;
+
+		/* port state and parentPortaddress */
+		monresp->portState = ptpClock->portDS.portState;
+                monresp->parentPortAddress.addressLength = 4;
+                monresp->parentPortAddress.networkProtocol = 1;
+                XCALLOC(monresp->parentPortAddress.addressField,
+                        monresp->parentPortAddress.addressLength);
+
+		if(ptpClock->portDS.portState > PTP_MASTER &&
+		    ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
+        		memcpy(monresp->parentPortAddress.addressField,
+                    	    &ptpClock->bestMaster->sourceAddr, 4);
+		}
+
+		/* parentDS */
+		copyPortIdentity((PortIdentity*)&monresp->parentPortIdentity, &ptpClock->parentDS.parentPortIdentity);
+		monresp->PS = ptpClock->parentDS.parentStats;
+		monresp->reserved = 0;
+		monresp->observedParentOffsetScaledLogVariance =
+				ptpClock->parentDS.observedParentOffsetScaledLogVariance;
+		monresp->observedParentClockPhaseChangeRate =
+				ptpClock->parentDS.observedParentClockPhaseChangeRate;
+		monresp->grandmasterPriority1 = ptpClock->parentDS.grandmasterPriority1;
+		monresp->grandmasterClockQuality.clockAccuracy =
+				ptpClock->parentDS.grandmasterClockQuality.clockAccuracy;
+		monresp->grandmasterClockQuality.clockClass =
+				ptpClock->parentDS.grandmasterClockQuality.clockClass;
+		monresp->grandmasterClockQuality.offsetScaledLogVariance =
+				ptpClock->parentDS.grandmasterClockQuality.offsetScaledLogVariance;
+		monresp->grandmasterPriority2 = ptpClock->parentDS.grandmasterPriority2;
+		copyClockIdentity(monresp->grandmasterIdentity, ptpClock->parentDS.grandmasterIdentity);
+
+		/* currentDS */
+		monresp->stepsRemoved = ptpClock->currentDS.stepsRemoved;
+		if(monresp->portState == PTP_SLAVE) {
+		    monresp->offsetFromMaster.internalTime.seconds  = ptpClock->currentDS.offsetFromMaster.seconds;
+		    monresp->offsetFromMaster.internalTime.nanoseconds  = ptpClock->currentDS.offsetFromMaster.nanoseconds;
+		    monresp->meanPathDelay.internalTime.seconds = ptpClock->currentDS.meanPathDelay.seconds;
+		    monresp->meanPathDelay.internalTime.nanoseconds = ptpClock->currentDS.meanPathDelay.nanoseconds;
+		}
+
+		/* timePropertiesDS */
+		monresp->currentUtcOffset = ptpClock->timePropertiesDS.currentUtcOffset;
+		Octet ftra = SET_FIELD(ptpClock->timePropertiesDS.frequencyTraceable, FTRA);
+		Octet ttra = SET_FIELD(ptpClock->timePropertiesDS.timeTraceable, TTRA);
+		Octet ptp = SET_FIELD(ptpClock->timePropertiesDS.ptpTimescale, PTPT);
+		Octet utcv = SET_FIELD(ptpClock->timePropertiesDS.currentUtcOffsetValid, UTCV);
+		Octet li59 = SET_FIELD(ptpClock->timePropertiesDS.leap59, LI59);
+		Octet li61 = SET_FIELD(ptpClock->timePropertiesDS.leap61, LI61);
+		monresp->ftra_ttra_ptp_utcv_li59_li61 = ftra | ttra | ptp | utcv | li59 | li61;
+		monresp->timeSource = ptpClock->timePropertiesDS.timeSource;
+
+		if(monresp->portState == PTP_SLAVE) {
+		    monresp->lastSyncTimestamp.internalTime.seconds = ptpClock->lastOriginTimestamp.seconds;
+		    monresp->lastSyncTimestamp.internalTime.nanoseconds = ptpClock->lastOriginTimestamp.nanoseconds;
+		}
+    }
+
+    if(header->mtie) {
+
+	tlv = createPtpTlv();
+
+	if(tlv == NULL) {
+	    freePtpMessage(&message);
+	    return 0;
+	}
+
+	tlv->tlvType = PTP_TLVTYPE_PTPMON_MTIE_RESPONSE;
+	attachPtpTlv(&message, tlv);
+	mtieresp = &tlv->body.ptpMonMtieResponse;
+
+	if(ptpClock->portDS.portState == PTP_SLAVE) {
+	    mtieresp->mtieValid = ptpClock->slaveStats.statsCalculated;
+	    if(mtieresp->mtieValid) {
+		mtieresp->windowNumber = ptpClock->slaveStats.windowNumber;
+		mtieresp->windowDuration = rtOpts->statsUpdateInterval;
+		tmpTime = doubleToTimeInternal(ptpClock->slaveStats.ofmMinFinal);
+		mtieresp->minOffsetFromMaster.internalTime.seconds = tmpTime.seconds;
+		mtieresp->minOffsetFromMaster.internalTime.nanoseconds = tmpTime.nanoseconds;
+		tmpTime = doubleToTimeInternal(ptpClock->slaveStats.ofmMaxFinal);
+		mtieresp->maxOffsetFromMaster.internalTime.seconds = tmpTime.seconds;
+		mtieresp->maxOffsetFromMaster.internalTime.nanoseconds = tmpTime.nanoseconds;
+	    }
+	}
+
+    }
+
+    ret = packPtpMessage(buf, &message, buf + PACKET_SIZE);
+
+    freePtpMessage(&message);
+
+    if(ret < DELAY_RESP_LENGTH) {
+	return 0;
+    }
+
+    return ret;
+
+}
 
 /* store transportAddress in an index table */
 static void
@@ -130,8 +262,6 @@ indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAdd
     }
 
 }
-
-#endif /* PTPD_SLAVE_ONLY */
 
 /* sync destination index lookup */
 static Integer32
@@ -200,6 +330,9 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	timerStart(&ptpClock->timers[TIMINGDOMAIN_UPDATE_TIMER],timingDomain.updateInterval);
 	timerStart(&ptpClock->timers[ALARM_UPDATE_TIMER],ALARM_UPDATE_INTERVAL);
+	timerStart(&ptpClock->timers[INTERFACE_CHECK_TIMER],1);
+	timerStart(&ptpClock->timers[CLOCK_SYNC_TIMER], 1.0 / (rtOpts->clockSyncRate + 0.0));
+	timerStart(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER], rtOpts->clockUpdateInterval);
 
 	ptpClock->disabled = rtOpts->portDisabled;
 
@@ -207,7 +340,7 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    toState(PTP_DISABLED, rtOpts, ptpClock);
 	    WARNING("PTP port starting in DISABLED state. Awaiting config change or management message\n");
 	    /* initialize networking so we can be remotely enabled */
-	    netShutdown(&ptpClock->netPath);
+	    netShutdown(&ptpClock->netPath, ptpClock);
 	    if (!netInit(&ptpClock->netPath, rtOpts, ptpClock)) {
 		ERROR("Failed to initialize network in disabled state, will not be able to re-enable!\n");
 	    }
@@ -306,6 +439,27 @@ protocol(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    updateAlarms(ptpClock->alarms, ALRM_MAX);
 		}
 
+		if (timerExpired(&ptpClock->timers[CLOCK_SYNC_TIMER])) {
+			syncClocks(ptpClock->timers[CLOCK_SYNC_TIMER].interval);
+			if(ptpClock->masterClock != NULL) {
+//			    TimeInternal zerot = {0,0};
+//			    ptpClock->masterClock->syncClockExternal(ptpClock->masterClock, zerot, 1);
+			    ptpClock->masterClock->touchClock(ptpClock->masterClock);
+			}
+		}
+
+		if (timerExpired(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER])) {
+			updateClockDrivers();
+			if(ptpClock->masterClock != NULL) {
+			    if((ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
+				    ptpClock->masterClock->setState(ptpClock->masterClock, CS_LOCKED);
+			    }
+			}
+		}
+
+		if (timerExpired(&ptpClock->timers[INTERFACE_CHECK_TIMER])) {
+		    updateInterfaceInfo(&ptpClock->netPath, rtOpts, ptpClock);
+		}
 
 		if (timerExpired(&ptpClock->timers[UNICAST_GRANT_TIMER])) {
 			if(rtOpts->unicastDestinationsSet) {
@@ -337,6 +491,17 @@ void setPortState(PtpClock *ptpClock, Enumeration8 state)
     if(ptpClock->portDS.portState != state) {
 	ptpClock->portDS.lastPortState = ptpClock->portDS.portState;
 	DBG("State change from %s to %s\n", portState_getName(ptpClock->portDS.lastPortState), portState_getName(state));
+
+	if(ptpClock->masterClock != NULL) {
+	    /* entering MASTER or PASSIVE */
+	    if((state == PTP_MASTER) || (state == PTP_PASSIVE)) {
+		    ptpClock->masterClock->setExternalReference(ptpClock->masterClock, "PREFMST", RC_EXTERNAL);
+	    /* leaving MASTER or PASSIVE */
+	    } else if((ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
+		    ptpClock->masterClock->setReference(ptpClock->masterClock, NULL);
+	    }
+	}
+
     }
 
     /* "expected state" checks */
@@ -383,7 +548,9 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		timerStop(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[SYNC_RECEIPT_TIMER]);
 		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
-		
+		if((ptpClock->masterClock == NULL) || (ptpClock->masterClock != ptpClock->clockDriver)) {
+		    ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
+		}
 		if(rtOpts->unicastNegotiation && rtOpts->ipMode==IPMODE_UNICAST && ptpClock->parentGrants != NULL) {
 			/* do not cancel, just start re-requesting so we can still send a cancel on exit */
 			ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].timeLeft = 0;
@@ -404,21 +571,10 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			timerStop(&ptpClock->timers[DELAYREQ_INTERVAL_TIMER]);
 		else if (ptpClock->portDS.delayMechanism == P2P)
 			timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
-/* If statistics are enabled, drift should have been saved already - otherwise save it*/
-#ifndef PTPD_STATISTICS
-		/* save observed drift value, don't inform user */
-		saveDrift(ptpClock, rtOpts, TRUE);
-#endif /* PTPD_STATISTICS */
 
-#ifdef PTPD_STATISTICS
 		resetPtpEngineSlaveStats(&ptpClock->slaveStats);
 		timerStop(&ptpClock->timers[STATISTICS_UPDATE_TIMER]);
-#endif /* PTPD_STATISTICS */
-		ptpClock->panicMode = FALSE;
-		ptpClock->panicOver = FALSE;
-		timerStop(&ptpClock->timers[PANIC_MODE_TIMER]);
-		initClock(rtOpts, ptpClock);
-		
+
 	case PTP_PASSIVE:
 		timerStop(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER]);
 		timerStop(&ptpClock->timers[DELAY_RECEIPT_TIMER]);
@@ -553,7 +709,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->portDS.logMinDelayReqInterval = rtOpts->initial_delayreq;
 
 		/* force a IGMP refresh per reset */
-		if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
+		if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->refreshIgmp && rtOpts->transport != IEEE_802_3) {
 		    /* if multicast refresh failed, restart network - helps recover after driver reloads and such */
                     if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
                             WARNING("Error while refreshing multicast - restarting transports\n");
@@ -600,7 +756,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
 			MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinPdelayReqInterval))));
 		}
-		if( rtOpts->do_IGMP_refresh &&
+		if( rtOpts->refreshIgmp &&
 		    rtOpts->transport == UDP_IPV4 &&
 		    rtOpts->ipMode != IPMODE_UNICAST &&
 		    rtOpts->masterRefreshInterval > 9 )
@@ -634,6 +790,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		break;
 
 	case PTP_SLAVE:
+		ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP", RC_PTP);
 		if(rtOpts->unicastNegotiation) {
 		    timerStart(&ptpClock->timers[UNICAST_GRANT_TIMER], 1);
 		}
@@ -641,11 +798,6 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			timerStart(&ptpClock->timers[CLOCK_UPDATE_TIMER], rtOpts->clockUpdateTimeout);
 		}
 		initClock(rtOpts, ptpClock);
-		/*
-		 * restore the observed drift value using the selected method,
-		 * reset on failure or when -F 0 (default) is used, don't inform user
-		 */
-		restoreDrift(ptpClock, rtOpts, TRUE);
 
 		ptpClock->waitingForFollow = FALSE;
 		ptpClock->waitingForDelayResp = FALSE;
@@ -700,7 +852,6 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		displayStatus(ptpClock, "Now in state: ");
 		ptpClock->followUpGap = 0;
 
-#ifdef PTPD_STATISTICS
 		if(rtOpts->oFilterMSConfig.enabled) {
 			ptpClock->oFilterMS.reset(&ptpClock->oFilterMS);
 		}
@@ -714,17 +865,9 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			resetDoubleMovingStatFilter(ptpClock->filterSM);
 		}
 		clearPtpEngineSlaveStats(&ptpClock->slaveStats);
-		ptpClock->servo.driftMean = 0;
-		ptpClock->servo.driftStdDev = 0;
-		ptpClock->servo.isStable = FALSE;
-		ptpClock->servo.stableCount = 0;
-		ptpClock->servo.updateCount = 0;
-		ptpClock->servo.statsCalculated = FALSE;
-		ptpClock->servo.statsUpdated = FALSE;
-		resetDoublePermanentMedian(&ptpClock->servo.driftMedianContainer);
-		resetDoublePermanentStdDev(&ptpClock->servo.driftStats);
+
 		timerStart(&ptpClock->timers[STATISTICS_UPDATE_TIMER], rtOpts->statsUpdateInterval);
-#endif /* PTPD_STATISTICS */
+
 		break;
 	default:
 		DBG("to unrecognized state\n");
@@ -746,13 +889,13 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		MANUFACTURER_ID_OUI1,
 		MANUFACTURER_ID_OUI2);
 	/* initialize networking */
-	netShutdown(&ptpClock->netPath);
+	netShutdown(&ptpClock->netPath, ptpClock);
 
 	if(rtOpts->backupIfaceEnabled &&
 		ptpClock->runningBackupInterface) {
-		rtOpts->ifaceName = rtOpts->backupIfaceName;
+		strncpy(rtOpts->ifaceName, rtOpts->backupIfaceName, IFACE_NAME_LENGTH);
 	} else {
-		rtOpts->ifaceName = rtOpts->primaryIfaceName;
+		strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFACE_NAME_LENGTH);
 	}
 
 	if (!netInit(&ptpClock->netPath, rtOpts, ptpClock)) {
@@ -766,10 +909,7 @@ doInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	/* initialize other stuff */
 	initData(rtOpts, ptpClock);
 	initClock(rtOpts, ptpClock);
-	setupPIservo(&ptpClock->servo, rtOpts);
-	/* restore observed drift and inform user */
-	if(ptpClock->defaultDS.clockQuality.clockClass > 127)
-		restoreDrift(ptpClock, rtOpts, FALSE);
+
 	m1(rtOpts, ptpClock );
 	msgPackHeader(ptpClock->msgObuf, ptpClock);
 	
@@ -851,10 +991,8 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				toState(PTP_MASTER, rtOpts, ptpClock);
 
 			} else if(ptpClock->portDS.portState != PTP_LISTENING) {
-#ifdef PTPD_STATISTICS
 				/* stop statistics updates */
 				timerStop(&ptpClock->timers[STATISTICS_UPDATE_TIMER]);
-#endif /* PTPD_STATISTICS */
 
 				if(ptpClock->announceTimeouts < rtOpts->announceTimeoutGracePeriod) {
 				/*
@@ -869,7 +1007,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					ptpClock->counters.announceTimeouts++;
 				}
 
-				if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->do_IGMP_refresh && rtOpts->transport != IEEE_802_3) {
+				if (rtOpts->ipMode != IPMODE_UNICAST && rtOpts->refreshIgmp && rtOpts->transport != IEEE_802_3) {
 				/* if multicast refresh failed, restart network - helps recover after driver reloads and such */
                 		    if(!netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock)) {
                         		WARNING("Error while refreshing multicast - restarting transports\n");
@@ -921,7 +1059,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		/* Reset the slave if clock update timeout configured */
 		if ( ptpClock->portDS.portState == PTP_SLAVE && (rtOpts->clockUpdateTimeout > 0) &&
 		    timerExpired(&ptpClock->timers[CLOCK_UPDATE_TIMER])) {
-			if(ptpClock->panicMode || rtOpts->noAdjust) {
+			if(rtOpts->noAdjust) {
 				timerStart(&ptpClock->timers[CLOCK_UPDATE_TIMER], rtOpts->clockUpdateTimeout);
 			} else {
 			    WARNING("No offset updates in %d seconds - resetting slave\n",
@@ -1006,12 +1144,10 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		}
 
 /* Update PTP slave statistics from online statistics containers */
-#ifdef PTPD_STATISTICS
 		if (timerExpired(&ptpClock->timers[STATISTICS_UPDATE_TIMER])) {
-			if(!rtOpts->enablePanicMode || !ptpClock->panicMode)
-				updatePtpEngineStats(ptpClock, rtOpts);
+/* WOJ:CHECK */
+			updatePtpEngineStats(ptpClock, rtOpts);
 		}
-#endif /* PTPD_STATISTICS */
 
 		SET_ALARM(ALRM_NO_SYNC, timerExpired(&ptpClock->timers[SYNC_RECEIPT_TIMER]));
 		SET_ALARM(ALRM_NO_DELAY, timerExpired(&ptpClock->timers[DELAY_RECEIPT_TIMER]));
@@ -1109,7 +1245,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			}
 		}
 
-		if(rtOpts->do_IGMP_refresh &&
+		if(rtOpts->refreshIgmp &&
 		    rtOpts->transport == UDP_IPV4 &&
 		    rtOpts->ipMode != IPMODE_UNICAST &&
 		    rtOpts->masterRefreshInterval > 9 &&
@@ -1182,18 +1318,6 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		/* ensures that the current updare interval is used */
 		timerStart(&ptpClock->timers[STATUSFILE_UPDATE_TIMER],rtOpts->statusFileUpdateInterval);
         }
-
-	if(rtOpts->enablePanicMode && timerExpired(&ptpClock->timers[PANIC_MODE_TIMER])) {
-
-		DBG("Panic check\n");
-
-		if(--ptpClock->panicModeTimeLeft <= 0) {
-			ptpClock->panicMode = FALSE;
-			ptpClock->panicOver = TRUE;
-			DBG("panic over!\n");
-		}
-	}
-
 }
 
 static Boolean
@@ -1239,6 +1363,11 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 {
 
     Boolean isFromSelf;
+    MsgHeader *header;
+
+    PtpMessage m;
+    PtpTlv *tlv;
+    int ret;
 
     /*
      * make sure we use the TAI to UTC offset specified, if the
@@ -1268,15 +1397,80 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
     }
 
     msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
+    header = &ptpClock->msgTmpHeader;
+
+    /*Spec 9.5.2.2*/
+    isFromSelf = !cmpPortIdentity(&ptpClock->portDS.portIdentity, &header->sourcePortIdentity);
+
+    memset(&m, 0, sizeof(PtpMessage));
+
+    header->ptpmon = FALSE;
+    header->mtie = FALSE;
+
+    if(rtOpts->ptpMonEnabled && !isFromSelf && (header->messageType == DELAY_REQ) &&
+    (header->messageLength > DELAY_REQ_LENGTH)) {
+
+	ret  = unpackPtpMessage(&m, ptpClock->msgIbuf, ptpClock->msgIbuf + length);
+
+	if (ret > 0) {
+		header->ptpmon = FALSE;
+		header->mtie = FALSE;
+		for(tlv = m.firstTlv; tlv != NULL; tlv = tlv->next) {
+		    if(tlv->tlvType == PTP_TLVTYPE_PTPMON_REQUEST) {
+			DBG("PTPMON REQUEST TLV RECEIVED in DLYREQ\n");
+			header->ptpmon = TRUE;
+			ptpClock->counters.ptpMonReqReceived++;
+		    }
+		    if(tlv->tlvType == PTP_TLVTYPE_PTPMON_MTIE_REQUEST) {
+			DBG("PTPMON MTIE REQUEST TLV RECEIVED in DLYREQ\n");
+			header->mtie = TRUE;
+			ptpClock->counters.ptpMonMtieReqReceived++;
+		    }
+		}
+	    freePtpMessage(&m);
+	}
+
+    }
+
+#if 0
+    /* lib1588 testing */
+
+
+    printf("**** BEGIN lib1588 unpack test\n");
+
+
+    printf("==== Unpacking received data using lib1588\n");
+    int bob = unpackPtpMessage(&m, ptpClock->msgIbuf, ptpClock->msgIbuf + length);
+    printf("==== RETURNED: %d\n", bob);
+
+    if((m.header.messageType == PTP_MSGTYPE_SIGNALING) ||
+	(m.header.messageType == PTP_MSGTYPE_MANAGEMENT)
+	) {
+	printf("==== Done unpacking. Message:\n");
+	displayPtpOctetBuf(ptpClock->msgIbuf, "ibuf", length);
+	displayPtpMessage(&m);
+    }
+
+
+    printf("**** END lib1588 unpack test\n");
+
+    freePtpMessage(&m);
+
+#endif /* PTPD_EXPERIMENTAL */
+
+
 
     /* packet is not from self, and is from a non-zero source address - check ACLs */
-    if(ptpClock->netPath.lastSourceAddr &&
-	(ptpClock->netPath.lastSourceAddr != ptpClock->netPath.interfaceAddr.s_addr)) {
+    if(rtOpts->managementAclEnabled || rtOpts->timingAclEnabled) {
+	if(ptpClock->netPath.lastSourceAddr &&
+	    (ptpClock->netPath.lastSourceAddr != ptpClock->netPath.interfaceAddr.s_addr)) {
 #ifdef RUNTIME_DEBUG
 		struct in_addr tmpAddr;
 		tmpAddr.s_addr = ptpClock->netPath.lastSourceAddr;
 #endif /* RUNTIME_DEBUG */
-		if(ptpClock->msgTmpHeader.messageType == MANAGEMENT) {
+		if((header->messageType == MANAGEMENT) ||
+		    (header->ptpmon) ||
+		    (header->mtie)) {
 			if(rtOpts->managementAclEnabled) {
 			    if (!matchIpv4AccessList(
 				ptpClock->netPath.managementAcl,
@@ -1296,38 +1490,51 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 			} else
 				DBG("ACL accepted timing message from %s\n", inet_ntoa(tmpAddr));
 		}
+	}
     }
 
-    if (ptpClock->msgTmpHeader.versionPTP != ptpClock->portDS.versionNumber) {
-	DBG("ignore version %d message\n", ptpClock->msgTmpHeader.versionPTP);
+    if (header->versionPTP != ptpClock->portDS.versionNumber) {
+	DBG("ignore version %d message\n", header->versionPTP);
 	ptpClock->counters.discardedMessages++;
 	ptpClock->counters.versionMismatchErrors++;
 	return;
     }
 
-    if(ptpClock->msgTmpHeader.domainNumber != ptpClock->defaultDS.domainNumber) {
+    if(header->domainNumber != ptpClock->defaultDS.domainNumber) {
 	Boolean domainOK = FALSE;
 	int i = 0;
 	if (rtOpts->unicastNegotiation && ptpClock->unicastDestinationCount) {
 	    for (i = 0; i < ptpClock->unicastDestinationCount; i++) {
-		if(ptpClock->msgTmpHeader.domainNumber == ptpClock->unicastGrants[i].domainNumber) {
+		if(header->domainNumber == ptpClock->unicastGrants[i].domainNumber) {
 		    domainOK = TRUE;
 		    DBG("Accepted message type %s from domain %d (unicast neg)\n",
-			getMessageTypeName(ptpClock->msgTmpHeader.messageType),ptpClock->msgTmpHeader.domainNumber);
+			getMessageTypeName(header->messageType),header->domainNumber);
 		    break;
 		}
 	    }
 	}
+
 	if(ptpClock->defaultDS.slaveOnly && rtOpts->anyDomain) {
 		DBG("anyDomain enabled: accepting announce from domain %d (we are %d)\n",
-			ptpClock->msgTmpHeader.domainNumber,
-			ptpClock->defaultDS.domainNumber
-			);
-	} else if(!domainOK) {
+			header->domainNumber,
+			ptpClock->defaultDS.domainNumber);
+		domainOK = TRUE;
+	}
+
+	if(header->ptpmon || header->mtie) {
+		if(rtOpts->ptpMonAnyDomain || (header->domainNumber == rtOpts->ptpMonDomainNumber)) {
+		    DBG("accepted ptpMon message from domain %d (we are %d)\n",
+			header->domainNumber,
+			ptpClock->defaultDS.domainNumber);
+		    domainOK = TRUE;
+		}
+	}
+
+	if(!domainOK) {
 		DBG("Ignored message %s received from %d domain\n",
-			getMessageTypeName(ptpClock->msgTmpHeader.messageType),
-			ptpClock->msgTmpHeader.domainNumber);
-		ptpClock->portDS.lastMismatchedDomain = ptpClock->msgTmpHeader.domainNumber;
+			getMessageTypeName(header->messageType),
+			header->domainNumber);
+		ptpClock->portDS.lastMismatchedDomain = header->domainNumber;
 		ptpClock->counters.discardedMessages++;
 		ptpClock->counters.domainMismatchErrors++;
 
@@ -1343,19 +1550,21 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
     if(rtOpts->transport != IEEE_802_3) {
 
 	/* received a UNICAST message */
-        if((ptpClock->msgTmpHeader.flagField0 & PTP_UNICAST) == PTP_UNICAST) {
+        if((header->flagField0 & PTP_UNICAST) == PTP_UNICAST) {
     	/* in multicast mode, accept only management unicast messages, in hybrid mode accept only unicast delay messages */
-    	    if((rtOpts->ipMode == IPMODE_MULTICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) ||
-    		(rtOpts->ipMode == IPMODE_HYBRID && ptpClock->msgTmpHeader.messageType != DELAY_REQ &&
-		    ptpClock->msgTmpHeader.messageType != DELAY_RESP)) {
-			DBG("ignored unicast message in multicast mode%d\n");
-			ptpClock->counters.discardedMessages++;
-			return;
+    	    if((rtOpts->ipMode == IPMODE_MULTICAST && header->messageType != MANAGEMENT) ||
+    		(rtOpts->ipMode == IPMODE_HYBRID && header->messageType != DELAY_REQ &&
+		    header->messageType != DELAY_RESP)) {
+			if(!header->ptpmon && !header->mtie) {
+			    DBG("ignored unicast message in multicast mode%d\n");
+			    ptpClock->counters.discardedMessages++;
+			    return;
+			}
 	    }
 	    /* received a MULTICAST message */
 	} else {
 	/* in unicast mode, accept only management multicast messages */
-		if(rtOpts->ipMode == IPMODE_UNICAST && ptpClock->msgTmpHeader.messageType != MANAGEMENT) {
+		if(rtOpts->ipMode == IPMODE_UNICAST && header->messageType != MANAGEMENT) {
 		    DBG("ignored multicast message in unicast mode%d\n");
 		    ptpClock->counters.discardedMessages++;
 		    return;
@@ -1367,9 +1576,6 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
     /* what shall we do with the drunken sailor? */
     timestampCorrection(rtOpts, ptpClock, timeStamp);
 
-    /*Spec 9.5.2.2*/
-    isFromSelf = !cmpPortIdentity(&ptpClock->portDS.portIdentity, &ptpClock->msgTmpHeader.sourcePortIdentity);
-
     /*
      * subtract the inbound latency adjustment if it is not a loop
      *  back and the time stamp seems reasonable
@@ -1377,8 +1583,8 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
     if (!isFromSelf && timeStamp->seconds > 0)
 	subTime(timeStamp, timeStamp, &rtOpts->inboundLatency);
 
-    DBG("      ==> %s message received, sequence %d\n", getMessageTypeName(ptpClock->msgTmpHeader.messageType),
-							ptpClock->msgTmpHeader.sequenceId);
+    DBG("      ==> %s message received, sequence %d\n", getMessageTypeName(header->messageType),
+							header->sequenceId);
 
     /*
      *  on the table below, note that only the event messsages are passed the local time,
@@ -1386,7 +1592,7 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
      *
      *  (SYNC / DELAY_REQ / PDELAY_REQ / PDELAY_RESP)
      */
-    switch(ptpClock->msgTmpHeader.messageType)
+    switch(header->messageType)
     {
     case ANNOUNCE:
 	handleAnnounce(&ptpClock->msgTmpHeader,
@@ -1640,11 +1846,11 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 					    /* the flags are probably off by now, using the shift sign to detect leap second type */
 					    if(ptpClock->leapSmearFudge < 0) {
 						DBG("Reversed LEAP59 smear frequency offset\n");
-						ptpClock->servo.observedDrift += 1E9 / rtOpts->leapSecondSmearPeriod;
+						ptpClock->clockDriver->servo.integral += 1E9 / rtOpts->leapSecondSmearPeriod;
 					    }
 					    if(ptpClock->leapSmearFudge > 0) {
 						DBG("Reversed LEAP61 smear frequency offset\n");
-						ptpClock->servo.observedDrift -= 1E9 / rtOpts->leapSecondSmearPeriod;
+						ptpClock->clockDriver->servo.integral -= 1E9 / rtOpts->leapSecondSmearPeriod;
 					    }
 					    ptpClock->leapSmearFudge = 0;
 					}
@@ -1665,11 +1871,10 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 				   (ptpClock->portDS.announceReceiptTimeout) *
 				   (pow(2,ptpClock->portDS.logAnnounceInterval)));
 			}
-#ifdef PTPD_STATISTICS
+
 		if(!timerRunning(&ptpClock->timers[STATISTICS_UPDATE_TIMER])) {
 			timerStart(&ptpClock->timers[STATISTICS_UPDATE_TIMER], rtOpts->statsUpdateInterval);
 		}
-#endif /* PTPD_STATISTICS */
 
 			if (rtOpts->announceTimeoutGracePeriod &&
 				ptpClock->announceTimeouts > 0) {
@@ -1934,6 +2139,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 				ptpClock->waitingForFollow = FALSE;
 				toInternalTime(&OriginTimestamp,
 					       &ptpClock->msgTmp.sync.originTimestamp);
+				ptpClock->lastOriginTimestamp = OriginTimestamp;
 				updateOffset(&OriginTimestamp,
 					     &ptpClock->sync_receive_time,
 					     &ptpClock->ofm_filt,rtOpts,
@@ -2005,7 +2211,6 @@ handleSync(const MsgHeader *header, ssize_t length,
 	}
 }
 
-#ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
 static void
 processSyncFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 dst, const UInteger16 sequenceId) {
 	TimeInternal timestamp;
@@ -2014,7 +2219,6 @@ processSyncFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpCl
 	/* Issue follow-up CORRESPONDING TO THIS SYNC */
 	issueFollowup(&timestamp, rtOpts, ptpClock, dst, sequenceId);
 }
-#endif /* PTPD_SLAVE_ONLY */
 
 static void
 handleFollowUp(const MsgHeader *header, ssize_t length,
@@ -2068,6 +2272,7 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 					ptpClock->waitingForFollow = FALSE;
 					toInternalTime(&preciseOriginTimestamp,
 						       &ptpClock->msgTmp.follow.preciseOriginTimestamp);
+					ptpClock->lastOriginTimestamp = preciseOriginTimestamp;
 					integer64_to_internalTime(ptpClock->msgTmpHeader.correctionField,
 								  &correctionField);
 					addTime(&correctionField,&correctionField,
@@ -2133,6 +2338,20 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 {
 
 	UnicastGrantTable *nodeTable = NULL;
+
+	if(header->ptpmon || header->mtie) {
+			msgUnpackHeader(ptpClock->msgIbuf,
+					&ptpClock->delayReqHeader);
+			ptpClock->delayReqHeader.ptpmon = header->ptpmon;
+			ptpClock->delayReqHeader.mtie = header->mtie;
+			ptpClock->counters.delayReqMessagesReceived++;
+
+			issueDelayResp(tint,&ptpClock->delayReqHeader, sourceAddress,
+				       rtOpts,ptpClock);
+			DBG("HANDLED %s%sDLYRESP\n", header->ptpmon ? "PTPMON " : "",
+					    header->mtie ? "MTIE " : "" );
+			return;
+	}
 
 	if (ptpClock->portDS.delayMechanism == E2E) {
 
@@ -2237,9 +2456,7 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 static void
 processDelayReqFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock) {
 
-
 	ptpClock->waitingForDelayResp = TRUE;
-
 	ptpClock->delay_req_send_time.seconds = tint->seconds;
 	ptpClock->delay_req_send_time.nanoseconds = tint->nanoseconds;
 
@@ -2348,7 +2565,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 					recv_time = requestReceiptTimestamp (received inside delayResp)
 				*/
 
-				updateDelay(&ptpClock->mpd_filt,
+				updateDelay(&ptpClock->mpdIirFilter,
 					    rtOpts,ptpClock, &correctionField);
 				if (ptpClock->delayRespWaiting) {
 
@@ -2594,7 +2811,7 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 					ptpClock->pdelay_resp_receive_time.nanoseconds = tint->nanoseconds;
 					
 					integer64_to_internalTime(header->correctionField,&correctionField);
-					updatePeerDelay (&ptpClock->mpd_filt,rtOpts,ptpClock,&correctionField,FALSE);
+					updatePeerDelay (&ptpClock->mpdIirFilter,rtOpts,ptpClock,&correctionField,FALSE);
 				if (rtOpts->ignore_delayreq_interval_master == 0) {
 					DBGV("current pdelay_req: %d  new pdelay req: %d \n",
 						ptpClock->portDS.logMinPdelayReqInterval,
@@ -2732,7 +2949,7 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 					&correctionField);
 				addTime(&correctionField,&correctionField,
 					&ptpClock->lastPdelayRespCorrectionField);
-				updatePeerDelay (&ptpClock->mpd_filt,
+				updatePeerDelay (&ptpClock->mpdIirFilter,
 						 rtOpts, ptpClock,
 						 &correctionField,TRUE);
 
@@ -2971,6 +3188,8 @@ issueSync(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 }
 
+#endif /* PTPD_SLAVE_ONLY */
+
 /*Pack and send a single Sync message, return the embedded timestamp*/
 static TimeInternal
 issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts,PtpClock *ptpClock)
@@ -2978,7 +3197,7 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 	Timestamp originTimestamp;
 	TimeInternal internalTime, now;
 
-	getTime(&internalTime);
+	getSystemClock()->getTime(getSystemClock(), &internalTime);
 
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
@@ -3018,22 +3237,13 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 
 		DBGV("Sync MSG sent ! \n");
 
-#ifdef SO_TIMESTAMPING
-
-#ifdef PTPD_PCAP
-		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
-#else
-		if(!ptpClock->netPath.txTimestampFailure) {
-#endif /* PTPD_PCAP */
-			if(internalTime.seconds && internalTime.nanoseconds) {
+		if(ptpClock->netPath.txTimestamping && !ptpClock->netPath.txLoop && !isTimeZero(&internalTime)) {
 
 			    if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				    internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			    }
 			    processSyncFromSelf(&internalTime, rtOpts, ptpClock, dst, *sequenceId);
-			}
 		}
-#endif
 
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 	if(internalTime.seconds && internalTime.nanoseconds) {
@@ -3062,8 +3272,6 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
     return internalTime;
 }
 
-
-
 /*Pack and send on general multicast ip adress a FollowUp message*/
 static void
 issueFollowup(const TimeInternal *tint,const RunTimeOpts *rtOpts,PtpClock *ptpClock, Integer32 dst, UInteger16 sequenceId)
@@ -3084,7 +3292,6 @@ issueFollowup(const TimeInternal *tint,const RunTimeOpts *rtOpts,PtpClock *ptpCl
 	}
 }
 
-#endif /* PTPD_SLAVE_ONLY */
 
 /*Pack and send on event multicast ip adress a DelayReq message*/
 static void
@@ -3107,7 +3314,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	 * call GTOD. This time is later replaced in handleDelayReq,
 	 * to get the actual send timestamp from the OS
 	 */
-	getTime(&internalTime);
+	getSystemClock()->getTime(getSystemClock(), &internalTime);
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
@@ -3133,20 +3340,14 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	} else {
 		DBGV("DelayReq MSG sent ! \n");
 		
-#ifdef SO_TIMESTAMPING
 
-#ifdef PTPD_PCAP
-		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
-#else
-		if(!ptpClock->netPath.txTimestampFailure) {
-#endif /* PTPD_PCAP */
+		if(ptpClock->netPath.txTimestamping && !ptpClock->netPath.txLoop && !isTimeZero(&internalTime)) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
 			
 			processDelayReqFromSelf(&internalTime, rtOpts, ptpClock);
 		}
-#endif
 
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
@@ -3191,7 +3392,7 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	    return;
 	}
 
-	getTime(&internalTime);
+	getSystemClock()->getTime(getSystemClock(), &internalTime);
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
@@ -3210,20 +3411,14 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	} else {
 		DBGV("PdelayReq MSG sent ! \n");
 		
-#ifdef SO_TIMESTAMPING
 
-#ifdef PTPD_PCAP
-		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
-#else
-		if(!ptpClock->netPath.txTimestampFailure) {
-#endif /* PTPD_PCAP */
+		if(ptpClock->netPath.txTimestamping && !ptpClock->netPath.txLoop && !isTimeZero(&internalTime)) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
 			processPdelayReqFromSelf(&internalTime, rtOpts, ptpClock);
 		}
-#endif
-		
+
 		ptpClock->sentPdelayReqSequenceId++;
 		ptpClock->counters.pdelayReqMessagesSent++;
 	}
@@ -3264,19 +3459,14 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddr
 	} else {
 		DBGV("PdelayResp MSG sent ! \n");
 		
-#ifdef SO_TIMESTAMPING
 
-#ifdef PTPD_PCAP
-		if((ptpClock->netPath.pcapEvent == NULL) && !ptpClock->netPath.txTimestampFailure) {
-#else
-		if(!ptpClock->netPath.txTimestampFailure) {
-#endif /* PTPD_PCAP */
+		if(ptpClock->netPath.txTimestamping && !ptpClock->netPath.txLoop && !isTimeZero(&internalTime)) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 				internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 			}			
 			processPdelayRespFromSelf(&internalTime, rtOpts, ptpClock, dst, header->sequenceId);
 		}
-#endif
+
 		
 		ptpClock->counters.pdelayRespMessagesSent++;
 		ptpClock->lastPdelayRespDst = dst;
@@ -3288,22 +3478,32 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddr
 static void
 issueDelayResp(const TimeInternal *tint,MsgHeader *header,Integer32 sourceAddress, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
+
+	int len = DELAY_RESP_LENGTH;
 	Timestamp requestReceiptTimestamp;
-	Integer32 dst;
+	Integer32 dst = 0;
 
 	fromInternalTime(tint,&requestReceiptTimestamp);
+	/* rewrite domain number with our own */
+	header->domainNumber = ptpClock->defaultDS.domainNumber;
 	msgPackDelayResp(ptpClock->msgObuf,header,&requestReceiptTimestamp,
 			 ptpClock);
 
 	/* if request was unicast and we're running unicast, reply to source */
-	if ( (rtOpts->ipMode != IPMODE_MULTICAST) &&
+	if(header->ptpmon || header->mtie) {
+		DBG("Populating PTPMON response\n");
+		dst = sourceAddress;
+		len = populatePtpMon(ptpClock->msgObuf, header, ptpClock, rtOpts);
+		if(len == 0) {
+		    DBG("Could not populate PTPMON response!\n");
+		    return;
+		}
+	} else if ( (rtOpts->ipMode != IPMODE_MULTICAST) &&
 	     (header->flagField0 & PTP_UNICAST) == PTP_UNICAST) {
 		dst = sourceAddress;
-	} else {
-		dst = 0;
 	}
 
-	if (!netSendGeneral(ptpClock->msgObuf, DELAY_RESP_LENGTH,
+	if (!netSendGeneral(ptpClock->msgObuf, len,
 			    &ptpClock->netPath, rtOpts, dst)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
@@ -3312,6 +3512,12 @@ issueDelayResp(const TimeInternal *tint,MsgHeader *header,Integer32 sourceAddres
 		DBGV("PdelayResp MSG sent ! \n");
 		ptpClock->counters.delayRespMessagesSent++;
 	}
+
+	if(header->ptpmon) {
+	    DBG("Issuing SYNC for PTPMON\n");
+	    (void)issueSyncSingle(dst, &header->sequenceId, rtOpts, ptpClock);
+	}
+
 }
 
 static void

@@ -935,16 +935,11 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 				(getPtpPreset(PTP_PRESET_MASTERONLY, rtOpts)).presetName,	PTP_PRESET_MASTERONLY,
 				(getPtpPreset(PTP_PRESET_MASTERSLAVE, rtOpts)).presetName,	PTP_PRESET_MASTERSLAVE,
 #endif /* PTPD_SLAVE_ONLY */
-				(getPtpPreset(PTP_PRESET_SLAVEONLY, rtOpts)).presetName,		PTP_PRESET_SLAVEONLY, NULL
+				(getPtpPreset(PTP_PRESET_SLAVEONLY, rtOpts)).presetName,	PTP_PRESET_SLAVEONLY, NULL
 				);
 
-	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:preset",
-	 			    rtOpts->selectedPreset == PTP_PRESET_MASTERSLAVE,
-	 			    "masterslave",
-	 			    "ptpengine:unicast_negotiation");
 
 	ptpPreset = getPtpPreset(rtOpts->selectedPreset, rtOpts);
-
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:transport",
 		PTPD_RESTART_NETWORK, &rtOpts->transport, rtOpts->transport,
@@ -982,9 +977,22 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 				"hybrid", 	IPMODE_HYBRID, NULL
 				);
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:bind_to_interface",
+		PTPD_RESTART_NETWORK, &rtOpts->bindToInterface, rtOpts->bindToInterface,
+		"Always listen on the interface IP address, even if using multicast or hybrid mode.\n"
+	"        For unicast operation, PTPd always binds to the IP address.\n"
+	"        On Linux, this option should not be set for multicast on hybrid, but\n"
+	"        on other systems like FreeBSD, this can help multiple PTPd instances to\n"
+	"        co-exist on one system and process management messages independently.\n");
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:unicast_negotiation",
 		PTPD_RESTART_PROTOCOL, &rtOpts->unicastNegotiation, rtOpts->unicastNegotiation,
 		"Enable unicast negotiation support using signaling messages\n");
+
+	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:preset",
+	 			    (rtOpts->selectedPreset == PTP_PRESET_MASTERSLAVE) && (rtOpts->ipMode == IPMODE_UNICAST) && (rtOpts->unicastNegotiation),
+	 			    "masterslave",
+	 			    "ptpengine:unicast_negotiation");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:unicast_any_master",
 		PTPD_RESTART_NONE, &rtOpts->unicastAcceptAny, rtOpts->unicastAcceptAny,
@@ -1119,13 +1127,15 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->outboundLatency.nanoseconds, rtOpts->outboundLatency.nanoseconds,
 	"Specify latency correction (nanoseconds) for outgoing packets.", RANGECHECK_NONE,0,0);
 
-	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:offset_shift",
-		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->ofmShift.nanoseconds, rtOpts->ofmShift.nanoseconds,
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:offset_correction",
+		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->ofmCorrection.nanoseconds, rtOpts->ofmCorrection.nanoseconds,
 	"Apply an arbitrary shift (nanoseconds) to offset from master when\n"
 	"	 in slave state. Value can be positive or negative - useful for\n"
 	"	 correcting for antenna latencies, delay assymetry\n"
 	"	 and IP stack latencies. This will not be visible in the offset \n"
-	"	 from master value - only in the resulting clock correction.", RANGECHECK_NONE, 0,0);
+	"	 from master value - only in the resulting clock correction. \n"
+	"	 A positive value shifts the phase right (moves signal further behind reference), \n"
+	"	 A negative value shifts the phase left (moves signal ahead of reference).", RANGECHECK_NONE, 0,0);
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:always_respect_utc_offset",
 		PTPD_RESTART_NONE, &rtOpts->alwaysRespectUtcOffset, rtOpts->alwaysRespectUtcOffset,
@@ -1143,7 +1153,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:require_utc_offset_valid",
 		PTPD_RESTART_NONE, &rtOpts->requireUtcValid, rtOpts->requireUtcValid,
-		"Compatibility option: when enabled, ptpd2 will ignore\n"
+		"Compatibility option: when enabled, ptpd will ignore\n"
 	"	 Announce messages from masters announcing currentUtcOffsetValid\n"
 	"	 as FALSE.\n"
 	"	 NOTE: this behaviour is not part of the standard.");
@@ -1415,6 +1425,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 				    "unicast",
 				    "ptpengine:unicast_destinations");
 
+
+
 	/* unicast master without signaling - must specify unicast destinations */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
 				     rtOpts->clockQuality.clockClass <= 127 &&
@@ -1462,6 +1474,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Specify peer unicast adress for P2P unicast. Mandatory when\n"
 	"	 running unicast mode and P2P delay mode.");
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:hardware_timestamping",
+		PTPD_RESTART_NETWORK, &rtOpts->hwTimestamping, rtOpts->hwTimestamping,
+	"Enable hardware timestamping and hardware clock support (if available)");
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:management_enable",
 		PTPD_RESTART_NONE, &rtOpts->managementEnabled, rtOpts->managementEnabled,
 	"Enable handling of PTP management messages.");
@@ -1470,8 +1486,23 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, &rtOpts->managementSetEnable, rtOpts->managementSetEnable,
 	"Accept SET and COMMAND management messages.");
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:ptpmon_enable",
+		PTPD_RESTART_NONE, &rtOpts->ptpMonEnabled, rtOpts->ptpMonEnabled,
+		"Enable support for PTPMON monitoring extensions.\n"
+	"	 NOTE: if used in conjunction with hardware timestamping, timestamping\n"
+	"	 support for unicast packets is required!");
+
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:ptpmon_any_domain",
+		PTPD_RESTART_NONE, &rtOpts->ptpMonAnyDomain, rtOpts->ptpMonAnyDomain,
+		"Accept PTPMON Delay Request from any domain.");
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:ptpmon_domain",
+		PTPD_RESTART_NONE, INTTYPE_I8, &rtOpts->ptpMonDomainNumber, rtOpts->domainNumber,
+		"Allowed PTP domain number to accept PTPMON Delay Requests from.\n"
+	"	 The default is to use the PTPd domain number (ptpengine:domain).", RANGECHECK_RANGE,0,255);
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:igmp_refresh",
-		PTPD_RESTART_NONE, &rtOpts->do_IGMP_refresh, rtOpts->do_IGMP_refresh,
+		PTPD_RESTART_NONE, &rtOpts->refreshIgmp, rtOpts->refreshIgmp,
 	"Send explicit IGMP joins between engine resets and periodically\n"
 	"	 in master state.");
 
@@ -1491,8 +1522,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"DiffServ CodepPoint for packet prioritisation (decimal). When set to zero, \n"
 	"	 this option is not used. Use 46 for Expedited Forwarding (0x2e).",RANGECHECK_RANGE,0,63);
 
-#ifdef PTPD_STATISTICS
-
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_enable",
 		PTPD_RESTART_FILTERS, &rtOpts->filterMSOpts.enabled, rtOpts->filterMSOpts.enabled,
 		 "Enable statistical filter for Sync messages.");
@@ -1510,11 +1539,17 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_window",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->filterMSOpts.windowSize, rtOpts->filterMSOpts.windowSize,
-		"Number of samples used for the Sync statistical filter",RANGECHECK_RANGE,3,128);
+		"Number of samples used for the Sync statistical filter",RANGECHECK_RANGE,3,STATCONTAINER_MAX_SAMPLES);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_interval",
+		PTPD_RESTART_FILTERS, INTTYPE_U16, &rtOpts->filterMSOpts.samplingInterval, rtOpts->filterMSOpts.samplingInterval,
+		"Sampling interval (samples) used for the Sync statistical filter\n"
+		"	 when the window type is set to interval. If set to zero,\n"
+		"	 the sampling window size is used as the interval.",RANGECHECK_RANGE,0, 65535);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_window_type",
 		PTPD_RESTART_FILTERS, &rtOpts->filterMSOpts.windowType, rtOpts->filterMSOpts.windowType,
-		"Sample window type used for Sync message statistical filter. Delay Response outlier filter action.\n"
+		"Sample window type used for Sync message statistical filter.\n"
 	"        Sliding window is continuous, interval passes every n-th sample only.",
 	"sliding", WINDOW_SLIDING,
 	"interval", WINDOW_INTERVAL, NULL);
@@ -1536,7 +1571,13 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_window",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->filterSMOpts.windowSize, rtOpts->filterSMOpts.windowSize,
-		"Number of samples used for the Delay statistical filter",RANGECHECK_RANGE,3,128);
+		"Number of samples used for the Delay statistical filter",RANGECHECK_RANGE,3,5120);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_interval",
+		PTPD_RESTART_FILTERS, INTTYPE_U16, &rtOpts->filterSMOpts.samplingInterval, rtOpts->filterSMOpts.samplingInterval,
+		"Sampling interval (samples) used for the Delay statistical filter\n"
+		"	 when the window type is set to interval. If set to zero,\n"
+		"	 the sampling window size is used as the interval.",RANGECHECK_RANGE,0, 65535);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_window_type",
 		PTPD_RESTART_FILTERS, &rtOpts->filterSMOpts.windowType, rtOpts->filterSMOpts.windowType,
@@ -1559,7 +1600,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:delay_outlier_filter_capacity",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->oFilterSMConfig.capacity, rtOpts->oFilterSMConfig.capacity,
-		"Number of samples in the Delay Response outlier filter buffer",RANGECHECK_RANGE,10,STATCONTAINER_MAX_SAMPLES);
+		"Number of samples in the Delay Response outlier filter buffer",RANGECHECK_RANGE,5, PEIRCE_MAX_SAMPLES);
 
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "ptpengine:delay_outlier_filter_threshold",
 		PTPD_RESTART_NONE, &rtOpts->oFilterSMConfig.threshold, rtOpts->oFilterSMConfig.threshold,
@@ -1652,7 +1693,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
      parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:sync_outlier_filter_capacity",
 		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->oFilterMSConfig.capacity, rtOpts->oFilterMSConfig.capacity,
-    "Number of samples in the Sync outlier filter buffer.",RANGECHECK_RANGE,10,STATCONTAINER_MAX_SAMPLES);
+    "Number of samples in the Sync outlier filter buffer.",RANGECHECK_RANGE,5,PEIRCE_MAX_SAMPLES);
 
     parseResult &= configMapDouble(opCode, opArg, dict, target, "ptpengine:sync_outlier_filter_threshold",
 		PTPD_RESTART_NONE, &rtOpts->oFilterMSConfig.threshold, rtOpts->oFilterMSConfig.threshold,
@@ -1742,9 +1783,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 Activated when going into slave state and during slave's GM failover.\n"
 	"	 0 - not used.",RANGECHECK_RANGE,0,300);
 
-#endif /* PTPD_STATISTICS */
-
-
         parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:idle_timeout",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->idleTimeout, rtOpts->idleTimeout,
 		"PTP idle timeout: if PTPd is in SLAVE state and there have been no clock\n"
@@ -1763,8 +1801,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
     parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:panic_mode_duration",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->panicModeDuration, rtOpts->panicModeDuration,
-		"Duration (minutes) of the panic mode period (no clock updates) when offset\n"
-	"	 above 1 second detected.",RANGECHECK_RANGE,1,60);
+		"Duration (seconds) of the panic mode period (no clock updates) when offset\n"
+	"	 above 1 second detected.",RANGECHECK_RANGE,1,7200);
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:panic_mode_release_clock",
 		PTPD_RESTART_NONE, &rtOpts->panicModeReleaseClock, rtOpts->panicModeReleaseClock,
@@ -1834,7 +1872,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:management_acl_permit",
 		PTPD_RESTART_ACLS, rtOpts->managementAclPermitText, sizeof(rtOpts->managementAclPermitText), rtOpts->managementAclPermitText,
-		"Permit access control list for management messages. Format is a series of \n"
+		"Permit access control list for management messages and monitoring extensions. Format is a series of \n"
 	"	 comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
 	"	 where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
 	"        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
@@ -1842,7 +1880,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:management_acl_deny",
 		PTPD_RESTART_ACLS, rtOpts->managementAclDenyText, sizeof(rtOpts->managementAclDenyText), rtOpts->managementAclDenyText,
-		"Deny access control list for management messages. Format is a series of \n"
+		"Deny access control list for management messages and monitoring extensions. Format is a series of \n"
         "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
         "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
         "        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
@@ -1870,8 +1908,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3, rtOpts->timingAclEnabled,FALSE, rtOpts->timingAclEnabled);
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3, rtOpts->managementAclEnabled,FALSE, rtOpts->managementAclEnabled);
 
-
-
 /* ===== clock section ===== */
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:no_adjust",
@@ -1882,6 +1918,15 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, &rtOpts->noResetClock, rtOpts->noResetClock,
 	"Do not step the clock - only slew");
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:allow_step_backwards",
+		PTPD_RESTART_NONE, &rtOpts->negativeStep,rtOpts->negativeStep,
+	"Allow a software clock (system clock) to be stepped backwards");
+
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:allow_step_backwards_hw",
+		PTPD_RESTART_NONE, &rtOpts->negativeStep_hw, rtOpts->negativeStep_hw,
+	"Allow a hardware clock to be stepped backwards");
+
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:step_startup_force",
 		PTPD_RESTART_NONE, &rtOpts->stepForce, rtOpts->stepForce,
 	"Force clock step on first sync after startup regardless of offset and clock:no_reset");
@@ -1890,7 +1935,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, &rtOpts->stepOnce, rtOpts->stepOnce,
 		"Step clock on startup if offset >= 1 second, ignoring\n"
 	"        panic mode and clock:no_reset");
-
 
 #ifdef HAVE_LINUX_RTC_H
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:set_rtc_on_step",
@@ -1902,22 +1946,14 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"        single-boot x86 Linux systems.");
 #endif /* HAVE_LINUX_RTC_H */
 
-	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "clock:drift_handling",
-		PTPD_RESTART_NONE, &rtOpts->drift_recovery_method, rtOpts->drift_recovery_method,
-		"Observed drift handling method between servo restarts:\n"
-	"	 reset: set to zero (not recommended)\n"
-	"	 preserve: use kernel value,\n"
-	"	 file: load/save to drift file on startup/shutdown, use kernel\n"
-	"	 value inbetween. To specify drift file, use the clock:drift_file setting."
-	,
-				"reset", 	DRIFT_RESET,
-				"preserve", 	DRIFT_KERNEL,
-				"file", 	DRIFT_FILE, NULL
-				);
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:store_frequency",
+		PTPD_RESTART_NONE, &rtOpts->storeToFile, rtOpts->storeToFile,
+		"Store current clock frequency offset to file when a clock is stable and locked,:\n"
+	"	 and load frequency offset from file when clock is started.");
 
-	parseResult &= configMapString(opCode, opArg, dict, target, "clock:drift_file",
-		PTPD_RESTART_NONE, rtOpts->driftFile, sizeof(rtOpts->driftFile), rtOpts->driftFile,
-	"Specify drift file");
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:frequency_directory",
+		PTPD_RESTART_NONE, rtOpts->frequencyDir, sizeof(rtOpts->frequencyDir), rtOpts->frequencyDir,
+	"Specify the directory where frequency files are stored and read from");
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:leap_second_pause_period",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->leapSecondPausePeriod,
@@ -1958,6 +1994,110 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 Example: when set to 86400 (24 hours), an extra 11.5 microseconds is added every second"
 	,RANGECHECK_RANGE,3600,86400);
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:lock_device",
+		PTPD_RESTART_NONE, &rtOpts->lockClockDevice, rtOpts->lockClockDevice,
+		"Set a write lock on the clock device handle if it's being synced\n"
+	"	 (if the clock driver supports this and implements locking)");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:extra_clocks",
+		PTPD_RESTART_NONE, rtOpts->extraClocks, sizeof(rtOpts->extraClocks), rtOpts->extraClocks,
+	"Specify a comma, space or tab separated list of extra clocks to be controlled by PTP.\n"
+	"        The format is type:path:name where \"type\" can be: \"unix\" for Unix clocks and \"linuxphc\"\n"
+	"	 for Linux PHC clocks, \"path\" is either the clock device path or interface name, and\n"
+	"	 \"name\" is user's name for the clock (20 characters max). If no name is given, it is\n"
+	"	 extracted from the path name.");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:master_clock_name",
+		PTPD_RESTART_NONE, rtOpts->masterClock, sizeof(rtOpts->masterClock), rtOpts->masterClock,
+	"Specify the clock name of a clock which is to be the preferred clock source\n"
+	"	 when PTP is running as master or passive (and all other clocks will sinchronise with it).\n"
+	"	 When not running as master / passive, this clock will sync to the current best clock");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:disabled_clock_names",
+		PTPD_RESTART_NONE, rtOpts->disabledClocks, sizeof(rtOpts->disabledClocks), rtOpts->disabledClocks,
+	"Specify a comma, space or tab separated list of names of clocks that should be disabled - disabled clocks\n"
+	"	 are excluded from sync and do not show up in the clock list.\n"
+	"	 NOTE: required clocks, such as system clock or PTP NIC clocks cannot be disabled.\n"
+	"	 they can be set to read-only instead (clock:readonly_clock_names)");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:readonly_clock_names",
+		PTPD_RESTART_NONE, rtOpts->readOnlyClocks, sizeof(rtOpts->readOnlyClocks), rtOpts->readOnlyClocks,
+	"Specify a comma, space or tab separated list of names of clocks that should be read only - read only\n"
+	"	 clocks are still compared to best clocks and their frequency is monitored,\n"
+	"	 but they are not adjusted.\n");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:excluded_clock_names",
+		PTPD_RESTART_NONE, rtOpts->excludedClocks, sizeof(rtOpts->excludedClocks), rtOpts->excludedClocks,
+	"Specify a comma, space or tab separated list of names of clocks that should be excluded from\n"
+	"	 best clock selection - they will be synced unless read only, but will never be\n"
+	"	 selected as best clock.\n");
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:sync_rate",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->clockSyncRate,
+		rtOpts->clockSyncRate,
+		"Clock sync rate (per second) - the rate at which internal clocks are synced\n"
+		"	 with each other (excluding PTP-controlled clocks)." ,RANGECHECK_RANGE,1,32);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:failure_delay",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->clockFailureDelay,
+		rtOpts->clockFailureDelay,
+		"Clock failure suspension timeout (seconds). When one of clock functions fails unexpectedly,\n"
+		"	 it is placed in HWFAIL state, its operation is suspended for this period,\n"
+		"	 after which a health check is performed, and if it succeeds, clock is brought\n"
+		"	 back into FREERUN state.\n", RANGECHECK_RANGE,5,600);
+
+	/* BEGIN inter-clock filter settings */
+
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:stat_filter_enable",
+		PTPD_RESTART_NONE, &rtOpts->clockStatFilterEnable, rtOpts->clockStatFilterEnable,
+		 "Enable statistical filter for inter-clock sync (HW to system clock, HW to HW");
+
+	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "clock:stat_filter_type",
+		PTPD_RESTART_FILTERS, &rtOpts->clockStatFilterType, rtOpts->clockStatFilterType,
+		"Type of filter used for inter-clock sync (HW to system clock, HW to HW)",
+	"none", FILTER_NONE,
+	"mean", FILTER_MEAN,
+	"min", FILTER_MIN,
+	"max", FILTER_MAX,
+	"absmin", FILTER_ABSMIN,
+	"absmax", FILTER_ABSMAX,
+	"median", FILTER_MEDIAN, NULL);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:stat_filter_window",
+		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->clockStatFilterWindowSize, rtOpts->clockStatFilterWindowSize,
+		"Number of samples used for the inter-clock sync statistical filter.\n"
+	"	 When set to 0, clock sync rate is used (clock:sync_rate).",RANGECHECK_RANGE,0,STATCONTAINER_MAX_SAMPLES);
+
+	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "clock:stat_filter_window_type",
+		PTPD_RESTART_FILTERS, &rtOpts->clockStatFilterWindowType, rtOpts->clockStatFilterWindowType,
+		"Sample window type used for inter-clock sync (HW to system clock, HW to HW).\n"
+	"        Sliding window is continuous, interval passes every n-th sample only.",
+	"sliding", WINDOW_SLIDING,
+	"interval", WINDOW_INTERVAL, NULL);
+
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:outlier_filter_enable",
+		PTPD_RESTART_NONE, &rtOpts->clockOutlierFilterEnable, rtOpts->clockOutlierFilterEnable,
+		 "Enable outlier filter for inter-clock sync (HW to system clock, HW to HW)");
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:outlier_filter_window",
+		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->clockOutlierFilterWindowSize, rtOpts->clockOutlierFilterWindowSize,
+		"Number of samples used for the inter-clock sync outlier filter",RANGECHECK_RANGE,3,STATCONTAINER_MAX_SAMPLES);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:outlier_filter_delay",
+		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->clockOutlierFilterDelay, rtOpts->clockOutlierFilterDelay,
+		"Number of samples after which the inter-clock sync outlier filter is activated",RANGECHECK_RANGE,0,STATCONTAINER_MAX_SAMPLES);
+
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "clock:outlier_filter_threshold",
+		PTPD_RESTART_NONE, &rtOpts->clockOutlierFilterCutoff, rtOpts->clockOutlierFilterCutoff,
+		"Inter-clock sync outlier filter cutoff threshold: maximum number of MAD\n"
+	"	 (Mean Absolute Deviations) from median to consider the sample an outlier", RANGECHECK_RANGE, 0.1, 100000);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:outlier_filter_block_timeout",
+		PTPD_RESTART_FILTERS, INTTYPE_INT, &rtOpts->clockOutlierFilterBlockTimeout, rtOpts->clockOutlierFilterBlockTimeout,
+		"Maximum blocking time (seconds) before outlier filter is reset",RANGECHECK_RANGE,0,3600);
+
+
+	/* END inter-clock filter settings */
 
 #ifdef HAVE_STRUCT_TIMEX_TICK
 	/* This really is clock specific - different clocks may allow different ranges */
@@ -1965,10 +2105,21 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->servoMaxPpb, rtOpts->servoMaxPpb,
 		"Maximum absolute frequency shift which can be applied to the clock servo\n"
 	"	 when slewing the clock. Expressed in parts per million (1 ppm = shift of\n"
-	"	 1 us per second. Values above 512 will use the tick duration correction\n"
-	"	 to allow even faster slewing. Default maximum is 512 without using tick.", RANGECHECK_RANGE,
-	ADJ_FREQ_MAX/1000,ADJ_FREQ_MAX/500);
+	"	 1 us per second. Values above 500 will use the tick duration correction\n"
+	"	 to allow even faster slewing. Default maximum is 500 without using tick.", RANGECHECK_RANGE,
+	ADJ_FREQ_MAX/1000, ADJ_FREQ_MAX/500);
 #endif /* HAVE_STRUCT_TIMEX_TICK */
+
+	/* This really is clock specific - different clocks may allow different ranges */
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:max_offset_ppm_hardware",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->servoMaxPpb_hw, rtOpts->servoMaxPpb_hw,
+		"Maximum absolute frequency shift which can be applied to the clock servo\n"
+	"	 when slewing the clock. Expressed in parts per million (1 ppm = shift of\n"
+	"	 1 us per second. Values above 512 will use the tick duration correction\n"
+	"	 to allow even faster slewing. Default maximum is 2000 without using tick.", RANGECHECK_RANGE,
+	200,2000);
+
+
 
 	/*
 	 * TimeProperties DS - in future when clock driver API is implemented,
@@ -1986,10 +2137,18 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:kp",
 		PTPD_RESTART_NONE, &rtOpts->servoKP, rtOpts->servoKP,
-	"Clock servo PI controller proportional component gain (kP).", RANGECHECK_MIN, 0.000001, 0);
+	"Clock servo PI controller proportional component gain (kP) used for software timestamping.", RANGECHECK_MIN, 0.000001, 0);
+
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:ki",
 		PTPD_RESTART_NONE, &rtOpts->servoKI, rtOpts->servoKI,
-	"Clock servo PI controller integral component gain (kI).", RANGECHECK_MIN, 0.000001,0);
+	"Clock servo PI controller integral component gain (kI) used for software timestamping.", RANGECHECK_MIN, 0.000001,0);
+
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:kp_hardware",
+		PTPD_RESTART_NONE, &rtOpts->servoKP_hw, rtOpts->servoKP_hw,
+	"Clock servo PI controller proportional component gain (kP) used when syncing hardware clocks.", RANGECHECK_MIN, 0.000001, 0);
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:ki_hardware",
+		PTPD_RESTART_NONE, &rtOpts->servoKI_hw, rtOpts->servoKI_hw,
+	"Clock servo PI controller integral component gain (kI) used when syncing gardware clocks.", RANGECHECK_MIN, 0.000001,0);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "servo:dt_method",
 		PTPD_RESTART_NONE, &rtOpts->servoDtMethod, rtOpts->servoDtMethod,
@@ -2007,38 +2166,54 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Maximum servo update interval (delta t) when using measured servo update interval\n"
 	"	 (servo:dt_method = measured), specified as sync interval multiplier.", RANGECHECK_RANGE, 1.5,100.0);
 
-#ifdef PTPD_STATISTICS
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "servo:stability_detection",
-		PTPD_RESTART_NONE, &rtOpts->servoStabilityDetection,
-							rtOpts->servoStabilityDetection,
-		 "Enable clock synchronisation servo stability detection\n"
-	"	 (based on standard deviation of the observed drift value)\n"
-	"	 - drift will be saved to drift file / cached when considered stable,\n"
-	"	 also clock stability status will be logged.");
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:adev_locked_threshold_low_hw",
+		PTPD_RESTART_NONE, &rtOpts->stableAdev_hw, rtOpts->stableAdev_hw,
+		"Minimum Allan deviation of a clock frequency (ppb = 10E-9) for a hardware clock to be considered stable (LOCKED).\n"
+	"        Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
+		RANGECHECK_RANGE, 0.1,100000.0);
 
-	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:stability_threshold",
-		PTPD_RESTART_NONE, &rtOpts->servoStabilityThreshold,
-							rtOpts->servoStabilityThreshold,
-		"Specify the observed drift standard deviation threshold in parts per\n"
-	"	 billion (ppb) - if stanard deviation is within the threshold, servo\n"
-	"	 is considered stable.", RANGECHECK_RANGE, 1.0,10000.0);
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:adev_locked_threshold_high_hw",
+		PTPD_RESTART_NONE, &rtOpts->unstableAdev_hw, rtOpts->unstableAdev_hw,
+		"Allan deviation of a clock frequency (ppb = 10E-9) for a hardware clock to be considered no longer stable\n"
+	"	 (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
+		RANGECHECK_RANGE, 0.1,100000.0);
 
-	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:stability_period",
-		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->servoStabilityPeriod,
-							rtOpts->servoStabilityPeriod,
-		"Specify for how many statistics update intervals the observed drift\n"
-	"	standard deviation has to stay within threshold to be considered stable.", RANGECHECK_RANGE,
-	1,100);
+	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:holdover_delay_hw",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->lockedAge_hw, rtOpts->lockedAge_hw,
+		"Maximum idle time allowed (no sync) before a hardware clock in LOCKED state to transitions into HOLDOVER.",
+		RANGECHECK_RANGE, 5, 86400);
 
-	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:stability_timeout",
-		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->servoStabilityTimeout,
-							rtOpts->servoStabilityTimeout,
-		"Specify after how many minutes without stabilisation servo is considered\n"
-	"	 unstable. Assists with logging servo stability information and\n"
-	"	 allows to preserve observed drift if servo cannot stabilise.\n", RANGECHECK_RANGE,
-	1,60);
+	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:holdover_timeout_hw",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->holdoverAge_hw, rtOpts->holdoverAge_hw,
+		"Maximum time allowed before a hardware clock in HOLDOVER state transitions to FREERUN.",
+		RANGECHECK_RANGE, 5, 86400);
 
-#endif
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:adev_locked_threshold_low",
+		PTPD_RESTART_NONE, &rtOpts->stableAdev, rtOpts->stableAdev,
+		"Minimum Allan deviation of a clock frequency (ppb = 10E-9) for a software-based clock to be considered stable (LOCKED).\n"
+	"        Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
+		RANGECHECK_RANGE, 0.1,100000.0);
+
+	parseResult &= configMapDouble(opCode, opArg, dict, target, "servo:adev_locked_threshold_high",
+		PTPD_RESTART_NONE, &rtOpts->unstableAdev, rtOpts->unstableAdev,
+		"Allan deviation of a clock frequency (ppb = 10E-9) for a software-based clock to be considered no longer stable\n"
+	"	 (transition from LOCKED to TRACKING). Allan deviation is checked in intervals defined by the servo:adev_interval setting.",
+		RANGECHECK_RANGE, 0.1,100000.0);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:holdover_delay",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->lockedAge, rtOpts->lockedAge,
+		"Maximum idle time allowed (no sync) before a software-based clock in LOCKED state to transitions into HOLDOVER.",
+		RANGECHECK_RANGE, 5, 86400);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:holdover_timeout",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->holdoverAge, rtOpts->holdoverAge,
+		"Maximum time allowed before a software-based clock in HOLDOVER state transitions to FREERUN.",
+		RANGECHECK_RANGE, 5, 86400);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:adev_interval",
+		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->adevPeriod, rtOpts->adevPeriod,
+		"Interval (seconds) over which Allan deviation of a clock servo is computed for establishing clock stability.\n",
+		RANGECHECK_RANGE, 5, 3600);
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "servo:max_delay",
 		PTPD_RESTART_NONE, INTTYPE_I32, &rtOpts->maxDelay, rtOpts->maxDelay,
@@ -2051,11 +2226,9 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Maximum number of consecutive delay measurements exceeding maxDelay threshold,\n"
 	"	 before slave is reset.", RANGECHECK_MIN,0,0);
 
-#ifdef PTPD_STATISTICS
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "servo:max_delay_stable_only",
 		PTPD_RESTART_NONE, &rtOpts->maxDelayStableOnly, rtOpts->maxDelayStableOnly,
 		"If servo:max_delay is set, perform the check only if clock servo has stabilised.\n");
-#endif
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:sync_sequence_checking",
 		PTPD_RESTART_NONE, &rtOpts->syncSequenceChecking, rtOpts->syncSequenceChecking,
@@ -2128,7 +2301,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 is specified, it's expected to be an absolute path.");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "global:ignore_lock",
-		PTPD_RESTART_DAEMON, &rtOpts->ignore_daemon_lock, rtOpts->ignore_daemon_lock,
+		PTPD_RESTART_DAEMON, &rtOpts->ignoreLock, rtOpts->ignoreLock,
 	"Skip lock file checking and locking.");
 
 	/* if quality file specified, enable quality recording  */
@@ -2316,16 +2489,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Log a status update every time statistics are updated (global:statistics_update_interval).\n"
 	"        The updates are logged even when ptpd is configured without statistics support");
 
-#ifdef PTPD_STATISTICS
-
-	CONFIG_CONDITIONAL_ASSERTION( rtOpts->servoStabilityDetection && (
-				    (rtOpts->statsUpdateInterval * rtOpts->servoStabilityPeriod) / 60 >=
-				    rtOpts->servoStabilityTimeout),
-			"The configured servo stabilisation timeout has to be longer than\n"
-		"	 servo stabilisation period");
-
-#endif /* PTPD_STATISTICS */
-
 	parseResult &= configMapInt(opCode, opArg, dict, target, "global:timingdomain_election_delay",
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->electionDelay, rtOpts->electionDelay,
 		" Delay (seconds) before releasing a time service (NTP or PTP)"
@@ -2368,7 +2531,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 /* ==== Any additional logic should go here ===== */
 
-	rtOpts->ifaceName = rtOpts->primaryIfaceName;
+	strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFACE_NAME_LENGTH);
 
 	/* Check timing packet ACLs */
 	if(rtOpts->timingAclEnabled) {
@@ -2419,6 +2582,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	/* Scale the maxPPM to PPB */
 	rtOpts->servoMaxPpb *= 1000;
+	rtOpts->servoMaxPpb_hw *= 1000;
 
 	/* Shift DSCP to accept the 6-bit value */
 	rtOpts->dscpValue = rtOpts->dscpValue << 2;
@@ -2879,7 +3043,7 @@ short_help:
 			break;
 		/* Auto-lock */
 		case 'A':
-			dictionary_set(dict,"global:auto_lock", "Y");
+			dictionary_set(dict,"global:auto_lockfile", "Y");
 			break;
 		/* Print lock file only */
 		case 'p':
@@ -2972,7 +3136,7 @@ printShortHelp()
 			"-S --statistics-file [path]	global:statistics_file=[path]	Statistics file\n"
 			"-T --show-templates		display available configuration templates\n"
 			"-t --templates [name],[name],[...]\n"
-			"                               apply configuration template(s) - see man(5) ptpd2.conf\n"
+			"                               apply configuration template(s) - see man(5) ptpd.conf\n"
 			"\n"
 			"Basic PTP protocol and daemon configuration options: \n"
 			"\n"
@@ -3051,7 +3215,7 @@ printLongHelp()
 	printPresetHelp();
 
 	printf("\n"
-		"                  Configuration templates available (see man(5) ptpd2.conf):\n"
+		"                  Configuration templates available (see man(5) ptpd.conf):\n"
 		"\n usage:\n"
 		"                         -t [name],[name],...\n"
 		"                --templates [name],[name],...\n"

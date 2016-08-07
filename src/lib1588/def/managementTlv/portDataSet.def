@@ -1,0 +1,19 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @mgmtid@PTP_MGMTID_PORT_DATA_SET@0x2004@ */
+
+/* Spec Table 61 - PORT_DATA_SET management TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( portIdentity, PTP_TYPELEN_PORTIDENTITY, PtpPortIdentity)
+PROCESS_FIELD( portState, 1, PtpEnumeration8)
+PROCESS_FIELD( logMinDelayReqInterval, 1, PtpInteger8)
+PROCESS_FIELD( peerMeanPathDelay, PTP_TYPELEN_TIMEINTERVAL, PtpTimeInterval)
+PROCESS_FIELD( logAnnounceInterval, 1, PtpInteger8)
+PROCESS_FIELD( announceReceiptTimeout, 1, PtpUInteger8)
+PROCESS_FIELD( logSyncInterval, 1, PtpInteger8)
+PROCESS_FIELD( delayMechanism, 1, PtpEnumeration8)
+PROCESS_FIELD( logMinPdelayReqInterval, 1, PtpInteger8)
+PROCESS_FIELD( reserved, 0, PtpNibbleUpper)
+PROCESS_FIELD( versionNumber, 1, PtpUInteger4Lower)
+
+

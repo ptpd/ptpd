@@ -504,7 +504,7 @@ void initOutgoingMsgManagement(MsgManagement* incoming, MsgManagement* outgoing,
         outgoing->header.correctionField.lsb = 0;
 	copyPortIdentity(&outgoing->header.sourcePortIdentity, &ptpClock->portDS.portIdentity);
 	outgoing->header.sequenceId = incoming->header.sequenceId;
-	outgoing->header.controlField = 0x0; /* deprecrated for ptp version 2 */
+	outgoing->header.controlField = 0x4; /* deprecrated for ptp version 2 */
 	outgoing->header.logMessageInterval = 0x7F;
 
 	/* set management message fields */
@@ -1449,7 +1449,7 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 		data = (MMTime*)outgoing->tlv->dataField;
 		/* GET actions */
 		TimeInternal internalTime;
-		getTime(&internalTime);
+		getSystemClock()->getTime(getSystemClock(), &internalTime);
 		if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 			internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 		}
@@ -1857,6 +1857,54 @@ issueManagementRespOrAck(MsgManagement *outgoing, Integer32 dst, const RunTimeOp
 
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
 
+
+#ifdef PTPD_EXPERIMENTAL
+
+#include "lib1588/ptp_message.h"
+
+/* lib1588 testing */
+
+
+    PtpMessage m;
+    PtpMessage n;
+    memset(&m, 0, sizeof(PtpMessage));
+    memset(&n, 0, sizeof(PtpMessage));
+
+    char buf[3000];
+    memset(buf, 0, 3000);
+
+    printf("**** BEGIN lib1588 re-create test\n");
+    printf("==== Unpacking data packed by old code (length: %d) using lib1588\n", outgoing->header.messageLength);
+
+    int bob = unpackPtpMessage(&m, ptpClock->msgObuf, ptpClock->msgObuf + outgoing->header.messageLength);
+
+    printf("==== RETURNED: %d\n", bob);
+    printf("==== Done unpacking. Message:\n");
+
+    displayPtpMessage(&m);
+
+    printf("==== Packing message using  lib1588 \n");
+
+    bob = packPtpMessage(buf, &m, buf + 3000);
+
+    printf("==== RETURNED: %d\n", bob);
+    printf("==== Done packing.\n");
+
+    printf("==== Unpacking message using lib1588 \n");
+
+    bob = unpackPtpMessage(&n, buf, buf + bob);
+
+    printf("==== RETURNED: %d\n", bob);
+    printf("==== Done unpacking. Message:\n");
+
+    displayPtpMessage(&n);
+
+    printf("**** END lib1588 re-create test\n");
+
+    freePtpMessage(&m);
+    freePtpMessage(&n);
+
+#endif
 
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
 			   &ptpClock->netPath, rtOpts, dst)) {

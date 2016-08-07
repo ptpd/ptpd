@@ -16,18 +16,18 @@
 %endif
 
 %if %{slaveonly_build} == 1
-Name: ptpd-slaveonly
+Name: ptpd-linuxphc-slaveonly
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard. Slave-only version.
 %else
-Name: ptpd
+Name: ptpd-linuxphc
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard. Full version with master and slave support.
 %endif
 Version: 2.3.2
-Release: 1%{distver}
+Release: 4%{distver}%{?gittag}
 License: distributable
 Group: System Environment/Daemons
 Vendor: PTPd project team
-Source0: ptpd-2.3.2.tar.gz
+Source0: ptpd-2.3.2-linuxphc-git.tar.gz
 
 Source2: ptpd.sysconfig
 Source3: ptpd.conf
@@ -68,7 +68,7 @@ time synchronised via the PTP protocol or serving PTP time.
 
 %prep 
 
-%setup -n ptpd-2.3.2
+%setup -n ptpd-2.3.2-linuxphc-git
 
 %build
 
@@ -78,7 +78,7 @@ time synchronised via the PTP protocol or serving PTP time.
 ./configure --with-max-unicast-destinations=512
 %endif
 
-make
+make -j8
 
 find . -type f | xargs chmod 644
 find . -type d | xargs chmod 755
@@ -91,13 +91,13 @@ mkdir -p $RPM_BUILD_ROOT%{_sbindir}
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/ptpd
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/snmp/mibs
 
-install -m 755 src/ptpd2 $RPM_BUILD_ROOT%{_sbindir}
-install -m 644 src/ptpd2.8 $RPM_BUILD_ROOT%{_mandir}/man8/ptpd2.8
-install -m 644 src/ptpd2.conf.5 $RPM_BUILD_ROOT%{_mandir}/man5/ptpd2.conf.5
+install -m 755 src/ptpd $RPM_BUILD_ROOT%{_sbindir}
+install -m 644 src/ptpd.8 $RPM_BUILD_ROOT%{_mandir}/man8/ptpd.8
+install -m 644 src/ptpd.conf.5 $RPM_BUILD_ROOT%{_mandir}/man5/ptpd.conf.5
 install -m 644 doc/PTPBASE-MIB.txt $RPM_BUILD_ROOT%{_datadir}/snmp/mibs/PTPBASE-MIB.txt
 install -m 644 src/leap-seconds.list $RPM_BUILD_ROOT%{_datadir}/ptpd/leap-seconds.list
-install -m 644 src/ptpd2.conf.minimal $RPM_BUILD_ROOT%{_datadir}/ptpd/ptpd2.conf.minimal
-install -m 644 src/ptpd2.conf.default-full $RPM_BUILD_ROOT%{_datadir}/ptpd/ptpd2.conf.default-full
+install -m 644 src/ptpd.conf.minimal $RPM_BUILD_ROOT%{_datadir}/ptpd/ptpd.conf.minimal
+install -m 644 src/ptpd.conf.default-full $RPM_BUILD_ROOT%{_datadir}/ptpd/ptpd.conf.default-full
 install -m 644 src/templates.conf $RPM_BUILD_ROOT%{_datadir}/ptpd/templates.conf
 
 { cd $RPM_BUILD_ROOT
@@ -112,7 +112,7 @@ install -m 644 src/templates.conf $RPM_BUILD_ROOT%{_datadir}/ptpd/templates.conf
 
   mkdir -p .%{_sysconfdir}/sysconfig
   install -m644 %{SOURCE2} .%{_sysconfdir}/sysconfig/ptpd
-  install -m644 %{SOURCE3} .%{_sysconfdir}/ptpd2.conf
+  install -m644 %{SOURCE3} .%{_sysconfdir}/ptpd.conf
 
 }
 
@@ -202,14 +202,14 @@ fi
 
 %files
 %defattr(-,root,root)
-%{_sbindir}/ptpd2
+%{_sbindir}/ptpd
 %if %{?_unitdir:1}%{!?_unitdir:0}
 %{_unitdir}/ptpd.service
 %else
 %config			%{_initrddir}/ptpd
 %endif
 %config(noreplace)	%{_sysconfdir}/sysconfig/ptpd
-%config(noreplace)	%{_sysconfdir}/ptpd2.conf
+%config(noreplace)	%{_sysconfdir}/ptpd.conf
 %config(noreplace)	%{_datadir}/ptpd/templates.conf
 %{_mandir}/man8/*
 %{_mandir}/man5/*
@@ -217,6 +217,12 @@ fi
 %{_datadir}/ptpd/*
 
 %changelog
+* Fri Feb 05 2016 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.2-4
+- third build, further improvements to clock selection and clock control options
+* Mon Jan 25 2016 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.2-3
+- second linuxphc build, clock election and TX timestamp fixes
+* Mon Jan 18 2016 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.2-2
+- first linuxphc build
 * Thu Oct 23 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.2-1
 - version 2.3.2
 * Wed Jul 1 2015 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.1-2

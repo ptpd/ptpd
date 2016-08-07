@@ -1,0 +1,12 @@
+/* DO NOT REMOVE THE NEXT LINE - used for code generation*/
+/* @tlvtype@MANAGEMENT_ERROR_STATUS@0x0002@ */
+
+/* Spec Table 71 - MANAGEMENT_ERROR_STATUS TLV data field */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( managementErrorId, 2, PtpEnumeration16)
+PROCESS_FIELD( managementId, 2, PtpEnumeration16)
+PROCESS_FIELD( reserved, 4, PtpUInteger32)
+PROCESS_FIELD( displayData, 1 + data->displayData.lengthField, PtpText)
+
+

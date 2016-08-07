@@ -1,0 +1,20 @@
+/* Spec Table 18 - Common message header */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+PROCESS_FIELD( transportSpecific, 0, PtpNibbleUpper)
+PROCESS_FIELD( messageType, 1, PtpEnumeration4Lower)
+PROCESS_FIELD( reserved0, 0, PtpNibbleUpper)
+PROCESS_FIELD( versionPTP, 1, PtpUInteger4Lower)
+PROCESS_FIELD( messageLength, 2, PtpUInteger16)
+PROCESS_FIELD( domainNumber, 1, PtpUInteger8)
+PROCESS_FIELD( reserved1, 1, PtpOctet)
+PROCESS_FIELD( flagField0, 1, PtpOctet)
+PROCESS_FIELD( flagField1, 1, PtpOctet)
+PROCESS_FIELD( correctionField, 8, PtpInteger64)
+PROCESS_FIELD( reserved2, 4, PtpUInteger32)
+PROCESS_FIELD( sourcePortIdentity, PTP_TYPELEN_PORTIDENTITY, PtpPortIdentity)
+PROCESS_FIELD( sequenceId, 2, PtpUInteger16)
+PROCESS_FIELD( controlField, 1, PtpUInteger8)
+PROCESS_FIELD( logMessageInterval, 1, PtpInteger8)
+
+#undef PROCESS_FIELD

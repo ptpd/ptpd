@@ -226,7 +226,7 @@ maskParser(const char* input, AclEntry* output)
 
     for(text__=text_;;text__=NULL) {
 
-	token=strtok_r(text__,", ;\t",&stash);
+	token=strtok_r(text__,DEFAULT_TOKEN_DELIM,&stash);
 	if(token==NULL) break;
 
 	if(parseAclEntry(token,&tmp)<1) {

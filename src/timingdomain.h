@@ -1,6 +1,8 @@
 #ifndef TIMINGDOMAIN_H_
 #define TIMINGDOMAIN_H_
 
+#include "ptpd.h"
+
 /* simple compare 2, lower wins */
 #define CMP2L(a,b) \
     if (a < b ) return 1;\
@@ -45,10 +47,11 @@ enum {
 typedef enum {
     TIMINGSERVICE_NONE 	= 0x00,
     TIMINGSERVICE_PTP 	= 0x10,
-    TIMINGSERVICE_PPS 	= 0x20,
-    TIMINGSERVICE_GPS 	= 0x30,
-    TIMINGSERVICE_NTP 	= 0x40,
-    TIMINGSERVICE_OTHER 	= 0xFE,
+    TIMINGSERVICE_PHC   = 0x20,
+    TIMINGSERVICE_PPS 	= 0x30,
+    TIMINGSERVICE_GPS 	= 0x40,
+    TIMINGSERVICE_NTP 	= 0x50,
+    TIMINGSERVICE_OTHER = 0xFE,
     TIMINGSERVICE_MAX	= 0xFF
 }
 TimingServiceType;

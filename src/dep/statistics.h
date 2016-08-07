@@ -11,7 +11,8 @@
 #ifndef STATISTICS_H_
 #define STATISTICS_H_
 
-#define STATCONTAINER_MAX_SAMPLES 60
+#define STATCONTAINER_MAX_SAMPLES 2560
+#define PEIRCE_MAX_SAMPLES 60
 
 /* "Permanent" i.e. non-moving statistics containers - useful for long term measurement */
 
@@ -36,7 +37,7 @@ typedef struct {
 typedef struct {
 
 	IntPermanentMean meanContainer;
-	int32_t squareSum;
+	uint32_t squareSum;
 	int32_t stdDev;
 
 } IntPermanentStdDev;
@@ -48,6 +49,22 @@ typedef struct {
 	double stdDev;
 
 } DoublePermanentStdDev;
+
+typedef struct {
+	uint64_t squareSum;
+	double adev;
+	uint32_t count;
+	int32_t _prev;
+	int32_t lastDiff;
+} IntPermanentAdev;
+
+typedef struct {
+	double squareSum;
+	double adev;
+	uint32_t count;
+	double _prev;
+	double lastDiff;
+} DoublePermanentAdev;
 
 typedef struct {
 	int32_t median;
@@ -68,12 +85,20 @@ int32_t feedIntPermanentStdDev(IntPermanentStdDev* container, int32_t sample);
 void 	resetIntPermanentMedian(IntPermanentMedian* container);
 int32_t feedIntPermanentMedian(IntPermanentMedian* container, int32_t sample);
 
+void 	resetIntPermanentAdev(IntPermanentAdev* container);
+double feedIntPermanentAdev(IntPermanentAdev* container, int32_t sample);
+
+
 void 	resetDoublePermanentMean(DoublePermanentMean* container);
 double 	feedDoublePermanentMean(DoublePermanentMean* container, double sample);
 void 	resetDoublePermanentStdDev(DoublePermanentStdDev* container);
 double 	feedDoublePermanentStdDev(DoublePermanentStdDev* container, double sample);
 void 	resetDoublePermanentMedian(DoublePermanentMedian* container);
 double 	feedDoublePermanentMedian(DoublePermanentMedian* container, double sample);
+
+void 	resetDoublePermanentAdev(DoublePermanentAdev* container);
+double feedDoublePermanentAdev(DoublePermanentAdev* container, double sample);
+
 
 /* Moving statistics - up to last n samples */
 
@@ -121,13 +146,25 @@ typedef struct {
 
 typedef struct {
 
+	Boolean enabled;
+	uint8_t	filterType;
+	int	windowSize;
+	uint8_t	windowType;
+	uint16_t samplingInterval;
+
+} StatFilterOptions;
+
+typedef struct {
+
 	IntMovingMean* meanContainer;
 	int32_t output;
 	int32_t* sortedSamples;
 	char identifier[10];
 	int counter;
-	uint8_t filterType;
-	uint8_t windowType;
+	int lastBlocked;
+	double blockingTime;
+	uint32_t consecutiveBlocked;
+	StatFilterOptions config;
 
 } IntMovingStatFilter;
 
@@ -138,19 +175,13 @@ typedef struct {
 	double* sortedSamples;
 	char identifier[10];
 	int counter;
-	uint8_t filterType;
-	uint8_t windowType;
+	int lastBlocked;
+	double blockingTime;
+	uint32_t consecutiveBlocked;
+	StatFilterOptions config;
 
 } DoubleMovingStatFilter;
 
-typedef struct {
-
-	Boolean enabled;
-	uint8_t	filterType;
-	int	windowSize;
-	uint8_t	windowType;
-
-} StatFilterOptions;
 
 IntMovingMean* createIntMovingMean(int capacity);
 void freeIntMovingMean(IntMovingMean** container);
@@ -213,6 +244,7 @@ typedef struct
     double mpdMinFinal;
     double mpdMax;
     double mpdMaxFinal;
+    UInteger16 windowNumber;
     Boolean mpdIsStable;
     double mpdStabilityThreshold;
     int mpdStabilityPeriod;

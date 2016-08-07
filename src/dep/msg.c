@@ -1709,8 +1709,6 @@ msgPackHeader(Octet * buf, PtpClock * ptpClock)
 	*(UInteger8 *) (buf + 33) = 0x7F;
 }
 
-
-#ifndef PTPD_SLAVE_ONLY
 /*Pack SYNC message into OUT buffer of ptpClock*/
 void
 msgPackSync(Octet * buf, UInteger16 sequenceId, Timestamp * originTimestamp, PtpClock * ptpClock)
@@ -1739,7 +1737,6 @@ msgPackSync(Octet * buf, UInteger16 sequenceId, Timestamp * originTimestamp, Ptp
 	*(UInteger32 *) (buf + 36) = flip32(originTimestamp->secondsField.lsb);
 	*(UInteger32 *) (buf + 40) = flip32(originTimestamp->nanosecondsField);
 }
-#endif /* PTPD_SLAVE_ONLY */
 
 /*Unpack Sync message from IN buffer */
 void
@@ -1839,7 +1836,6 @@ msgUnpackAnnounce(Octet * buf, MsgAnnounce * announce)
 	#endif /* PTPD_DBG */
 }
 
-#ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
 /*pack Follow_up message into OUT buffer of ptpClock*/
 void
 msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
@@ -1867,7 +1863,6 @@ msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpC
 	*(UInteger32 *) (buf + 40) =
 		flip32(preciseOriginTimestamp->nanosecondsField);
 }
-#endif /* PTPD_SLAVE_ONLY */
 
 /*Unpack Follow_up message from IN buffer of ptpClock to msgtmp.follow*/
 void

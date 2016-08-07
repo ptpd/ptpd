@@ -239,6 +239,26 @@ nano_to_Time(TimeInternal *x, int nano)
 	normalizeTime(x);
 }
 
+double clampDouble(double var, double bound) {
+
+    if(var < -bound) {
+	return -bound;
+    }
+
+    if(var > bound) {
+	return bound;
+    }
+    return var;
+
+}
+
+TimeInternal
+negativeTime(TimeInternal *time)
+{
+    TimeInternal neg = {-time->seconds, -time->nanoseconds};
+    return neg;
+}
+
 /* greater than operation */
 int
 gtTime(const TimeInternal *x, const TimeInternal *y)
@@ -246,7 +266,7 @@ gtTime(const TimeInternal *x, const TimeInternal *y)
 	TimeInternal r;
 
 	subTime(&r, x, y);
-	return !isTimeInternalNegative(&r);
+	return !isTimeNegative(&r);
 }
 
 /* remove sign from variable */
@@ -289,19 +309,37 @@ check_timestamp_is_fresh2(const TimeInternal * timeA, const TimeInternal * timeB
 	return ret;
 }
 
+Boolean
+isTimeZero(const TimeInternal *time)
+{
+    return(!time->seconds && !time->nanoseconds);
+}
+
+void timeDelta(TimeInternal *before, TimeInternal *meas, TimeInternal *after, TimeInternal *delta)
+{
+
+	TimeInternal tmpDelta;
+
+	div2Time(before);
+	div2Time(after);
+	addTime(&tmpDelta, before, after);
+	subTime(delta, &tmpDelta, meas);
+
+}
+
 
 int
 check_timestamp_is_fresh(const TimeInternal * timeA)
 {
 	TimeInternal timeB;
-	getTime(&timeB);
+	getSystemClock()->getTime(getSystemClock(), &timeB);
 
 	return check_timestamp_is_fresh2(timeA, &timeB);
 }
 
 
 int
-isTimeInternalNegative(const TimeInternal * p)
+isTimeNegative(const TimeInternal * p)
 {
 	return (p->seconds < 0) || (p->nanoseconds < 0);
 }
@@ -311,7 +349,7 @@ secondsToMidnight(void)
 {
 	TimeInternal now;
 	double stm, ret;
-	getTime(&now);
+	getSystemClock()->getTime(getSystemClock(), &now);
 	stm = 86400.0 - (now.seconds % 86400);
 	ret =  (stm - now.nanoseconds / 1E9);
 	return ret;

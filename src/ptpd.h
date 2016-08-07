@@ -58,9 +58,7 @@
 #include <netdb.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#ifdef HAVE_SYS_TIMEX_H
 #include <sys/timex.h>
-#endif
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>
@@ -106,9 +104,12 @@
 #include <net/if_arp.h>
 #endif /* HAVE_NET_IF_ARP_H*/
 
-#ifdef HAVE_NET_IF_H
+#ifdef HAVE_LINUX_IF_H
+#include <linux/if.h>
+#define IF_NAMESIZE IFNAMSIZ
+#elif defined(HAVE_NET_IF_H)
 #include <net/if.h>
-#endif /* HAVE_NET_IF_H*/
+#endif /* HAVE_LINUX_IF_H*/
 
 #ifdef HAVE_NETINET_IF_ETHER_H
 #include <netinet/if_ether.h>
@@ -160,15 +161,11 @@
 
 #include "timingdomain.h"
 
-#ifdef PTPD_STATISTICS
 #include "dep/outlierfilter.h"
-#endif
 
 #include "datatypes.h"
 
-#ifdef PTPD_STATISTICS
 #include "dep/statistics.h"
-#endif
 
 #include "dep/ptpd_dep.h"
 #include "dep/iniparser/dictionary.h"
@@ -177,6 +174,7 @@
 
 #include "dep/alarms.h"
 
+#include "libcck/clockdriver.h"
 
 
 /* NOTE: this macro can be refactored into a function */
@@ -186,6 +184,13 @@
 		ptpdShutdown(ptpClock); \
 		exit(1); \
 	}
+
+#define XCALLOC(ptr,size) \
+	if(!((ptr)=malloc(size))) { \
+		PERROR("failed to allocate memory"); \
+		exit(1); \
+	} \
+	memset(ptr, 0, size);
 
 #define SAFE_FREE(pointer) \
 	if(pointer != NULL) { \
@@ -198,6 +203,7 @@
 
 #define SET_FIELD(data, bitpos) \
 	data << bitpos
+
 
 #ifndef min
 #define min(a,b)     (((a)<(b))?(a):(b))
@@ -240,7 +246,7 @@ void toInternalTime(TimeInternal*, const Timestamp*);
 void ts_to_InternalTime(const struct timespec *, TimeInternal *);
 void tv_to_InternalTime(const struct timeval  *, TimeInternal *);
 
-
+double clampDouble(double var, double bound);
 
 
 /**
@@ -266,6 +272,12 @@ void subTime(TimeInternal*,const TimeInternal*,const TimeInternal*);
  * \brief Divied an InternalTime by 2
  */
 void div2Time(TimeInternal *);
+
+void timeDelta(TimeInternal *before, TimeInternal *meas, TimeInternal *after, TimeInternal *delta);
+
+TimeInternal negativeTime(TimeInternal *time);
+
+Boolean isTimeZero(const TimeInternal *time);
 
 /** \name bmc.c
  * -Best Master Clock Algorithm functions*/
@@ -469,7 +481,7 @@ void nano_to_Time(TimeInternal *time, int nano);
 int gtTime(const TimeInternal *x, const TimeInternal *b);
 void absTime(TimeInternal *time);
 int is_Time_close(const TimeInternal *x, const TimeInternal *b, int nanos);
-int isTimeInternalNegative(const TimeInternal * p);
+int isTimeNegative(const TimeInternal * p);
 double timeInternalToDouble(const TimeInternal * p);
 TimeInternal doubleToTimeInternal(const double d);
 

@@ -17,10 +17,10 @@ rm -rf $BUILDDIR
 rpm -q rpm-build --quiet || { echo "Error: rpm-build not installed"; exit 1; }
 rpm -q libpcap-devel --quiet || { echo "Error: libpcap-devel not installed"; exit 1; }
 
-
-
+GITTAG="gittag .git.`git log --format=%h.%ct -1 2>/dev/null`" || GITTAG="__gittag notag"
 
 for dir in BUILD BUILDROOT RPMS SOURCES SPECS SRPMS; do mkdir -p $BUILDDIR/$dir; done
+
 
 
 TARBALL=`cat $SPEC | grep ^Source0 | awk '{ print $2; }'`
@@ -47,7 +47,7 @@ RPMFILE=$BUILDDIR/RPMS/`uname -m`/$ARCHIVE.`uname -m`.rpm
 SRPMFILE=$BUILDDIR/SRPMS/$ARCHIVE.src.rpm
 
 
-rpmbuild  --define "build_slaveonly $slaveonly" --define "_topdir $BUILDDIR" -ba $BUILDDIR/SPECS/$SPEC && { 
+rpmbuild  --define "$GITTAG" --define "build_slaveonly $slaveonly" --define "_topdir $BUILDDIR" -ba $BUILDDIR/SPECS/$SPEC && { 
     find $BUILDDIR -name "*.rpm" -exec mv {} $PWD \;
 }
 

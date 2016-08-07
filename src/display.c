@@ -359,145 +359,6 @@ mMClockDescription_display(const MMClockDescription *clockDescription, const Ptp
 	DBGV("profileIdentity5 : %d \n", clockDescription->profileIdentity5);
 }
 
-void
-mMUserDescription_display(const MMUserDescription* userDescription, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMInitialize_display(const MMInitialize* initialize, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMDefaultDataSet_display(const MMDefaultDataSet* defaultDataSet, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMCurrentDataSet_display(const MMCurrentDataSet* currentDataSet, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMParentDataSet_display(const MMParentDataSet* parentDataSet, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMTimePropertiesDataSet_display(const MMTimePropertiesDataSet* timePropertiesDataSet, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMPortDataSet_display(const MMPortDataSet* portDataSet, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMPriority1_display(const MMPriority1* priority1, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMPriority2_display(const MMPriority2* priority2, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMDomain_display(const MMDomain* domain, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMLogAnnounceInterval_display(const MMLogAnnounceInterval* logAnnounceInterval, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMAnnounceReceiptTimeout_display(const MMAnnounceReceiptTimeout* announceReceiptTimeout, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMLogSyncInterval_display(const MMLogSyncInterval* logSyncInterval, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMVersionNumber_display(const MMVersionNumber* versionNumber, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMTime_display(const MMTime* time, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMClockAccuracy_display(const MMClockAccuracy* clockAccuracy, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMUtcProperties_display(const MMUtcProperties* utcProperties, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMTraceabilityProperties_display(const MMTraceabilityProperties* traceabilityProperties, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMTimescaleProperties_display(const MMTimescaleProperties* TimescaleProperties, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMUnicastNegotiationEnable_display(const MMUnicastNegotiationEnable* unicastNegotiationEnable, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-
-void
-mMDelayMechanism_display(const MMDelayMechanism* delayMechanism, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMLogMinPdelayReqInterval_display(const MMLogMinPdelayReqInterval* logMinPdelayReqInterval, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
-void
-mMErrorStatus_display(const MMErrorStatus* errorStatus, const PtpClock *ptpClock)
-{
-	/* TODO: implement me */
-}
-
 /**\brief Display Signaling message*/
 void
 msgSignaling_display(const MsgSignaling * signaling)
@@ -753,11 +614,13 @@ displayOthers(const PtpClock * ptpClock)
 	DBGV("y : %d \n", ptpClock->ofm_filt.y);
 	DBGV("\n");
 	DBGV("One way delay filter : \n");
-	DBGV("nsec_prev : %d \n", ptpClock->mpd_filt.nsec_prev);
-	DBGV("y : %d \n", ptpClock->mpd_filt.y);
-	DBGV("s_exp : %d \n", ptpClock->mpd_filt.s_exp);
+	DBGV("nsec_prev : %d \n", ptpClock->mpdIirFilter.nsec_prev);
+	DBGV("y : %d \n", ptpClock->mpdIirFilter.y);
+	DBGV("s_exp : %d \n", ptpClock->mpdIirFilter.s_exp);
 	DBGV("\n");
-	DBGV("observed drift : "FORMAT_SERVO" \n", ptpClock->servo.observedDrift);
+	if(ptpClock->clockDriver != NULL) {
+	    DBGV("observed drift : "FORMAT_SERVO" \n", ptpClock->clockDriver->servo.integral);
+	}
 	DBGV("message activity %d \n", ptpClock->message_activity);
 	DBGV("\n");
 
@@ -768,7 +631,6 @@ displayOthers(const PtpClock * ptpClock)
 	}
 
 	netPath_display(&ptpClock->netPath);
-	DBGV("mCommunication technology %d \n", ptpClock->port_communication_technology);
 	clockUUID_display(ptpClock->netPath.interfaceID);
 	DBGV("\n");
 }
@@ -898,8 +760,10 @@ displayCounters(const PtpClock * ptpClock)
 		(unsigned long)ptpClock->counters.signalingMessagesReceived);
 	INFO("            managementMessagesSent : %lu\n",
 		(unsigned long)ptpClock->counters.managementMessagesSent);
-	INFO("        managementMessagesReceived : %lu\n",
-		(unsigned long)ptpClock->counters.managementMessagesReceived);
+	INFO("                 ptpMonReqReceived : %lu\n",
+		(unsigned long)ptpClock->counters.ptpMonReqReceived);
+	INFO("              ptpMonMtieReqRecived : %lu\n",
+		(unsigned long)ptpClock->counters.ptpMonMtieReqReceived);
 
     if(ptpClock->counters.signalingMessagesReceived ||
 	    ptpClock->counters.signalingMessagesSent) {
@@ -974,15 +838,14 @@ displayCounters(const PtpClock * ptpClock)
 		(unsigned long)ptpClock->counters.delayMechanismMismatchErrors);
 	INFO("           maxDelayDrops : %lu\n",
 		(unsigned long)ptpClock->counters.maxDelayDrops);
+	INFO("     txTimestampFailures : %lu\n",
+		(unsigned long)ptpClock->counters.txTimestampFailures);
 
-
-#ifdef PTPD_STATISTICS
 	INFO("Outlier filter hits:\n");
 	INFO("              delayMSOutliersFound : %lu\n",
 		(unsigned long)ptpClock->counters.delayMSOutliersFound);
 	INFO("              delaySMOutliersFound : %lu\n",
 		(unsigned long)ptpClock->counters.delaySMOutliersFound);
-#endif /* PTPD_STATISTICS */
 
 }
 

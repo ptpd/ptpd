@@ -227,7 +227,7 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 
 #endif 	/* HAVE_SYS_TIMEX_H  */
 
-	getTime(&now);
+	getSystemClock()->getTime(getSystemClock(), &now);
 
 
 	ptpClock->clockStatus.override = FALSE;
@@ -472,7 +472,7 @@ ptpServiceClockUpdate (TimingService* service)
 	}
 #endif /* HAVE_SYS_TIMEX_H */
 
-	getTime(&oldTime);
+	getSystemClock()->getTime(getSystemClock(), &oldTime);
 	subTime(&newTime, &oldTime, &ptpClock->currentDS.offsetFromMaster);
 
 	/* Major time change */
@@ -481,17 +481,6 @@ ptpServiceClockUpdate (TimingService* service)
 	    if(strcmp(rtOpts->leapFile,"")) {
 		memset(&rtOpts->leapInfo, 0, sizeof(LeapSecondInfo));
 		parseLeapFile(rtOpts->leapFile, &rtOpts->leapInfo);
-	    }
-#ifdef HAVE_LINUX_RTC_H
-	    if(rtOpts->setRtc) {
-		NOTICE_LOCAL_ID(service, "Major time change - syncing the RTC\n");
-		setRtc(&newTime);
-		clockStatus->majorChange = FALSE;
-	    }
-#endif /* HAVE_LINUX_RTC_H */
-	    /* need to inform utmp / wtmp */
-	    if(oldTime.seconds != newTime.seconds) {
-		updateXtmp(oldTime, newTime);
 	    }
 	}
 

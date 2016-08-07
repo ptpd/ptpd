@@ -978,7 +978,7 @@ ptpBaseSlaveOfmThresholdAcceptable NOTIFICATION-TYPE
 ::= { ptpbaseMIBNotifs 4 }
 
 
-ptpBaseSaveClockStep NOTIFICATION-TYPE
+ptpBaseslaveClockStep NOTIFICATION-TYPE
 	OBJECTS {
 		ptpbaseClockCurrentDSOffsetFromMaster,
 		ptpbaseClockCurrentDSOffsetFromMasterString}
@@ -5686,7 +5686,7 @@ ptpbaseMIBNotificationGroup NOTIFICATION-GROUP
 		ptpBasePortUnexpectedState,
 		ptpBaseSlaveOfmThresholdExceeded,
 		ptpBaseSlaveOfmThresholdAcceptable,
-		ptpBaseSaveClockStep,
+		ptpBaseslaveClockStep,
 		ptpBaseSlaveNoSync,
 		ptpBaseSlaveReceivingSync,
 		ptpBaseSlaveNoDelay,

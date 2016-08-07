@@ -53,8 +53,8 @@ static int cmpDouble (const void *vA, const void *vB) {
 
 static int cmpAbsInt32 (const void *vA, const void *vB) {
 
-	int32_t a = abs(*(int32_t*)vA);
-	int32_t b = abs(*(int32_t*)vB);
+	int32_t a = labs(*(int32_t*)vA);
+	int32_t b = labs(*(int32_t*)vB);
 
 	return ((a < b) ? -1 : (a > b) ? 1 : 0);
 }
@@ -233,6 +233,7 @@ double
 feedDoublePermanentStdDev(DoublePermanentStdDev* container, double sample)
 {
 
+
 	container->squareSum += ( sample - container->meanContainer.mean) *
 		    ( sample - feedDoublePermanentMean(&container->meanContainer, sample )) ;
 
@@ -245,6 +246,69 @@ feedDoublePermanentStdDev(DoublePermanentStdDev* container, double sample)
 
 	return container->stdDev;
 
+}
+
+void
+resetIntPermanentAdev(IntPermanentAdev* container)
+{
+	if(container == NULL)
+	    return;
+	container->squareSum = 0;
+	container->adev = 0;
+	container->_prev = 0;
+	container->count = 0;
+}
+
+double
+feedIntPermanentAdev(IntPermanentAdev* container, int32_t sample)
+{
+
+	uint64_t newSum;
+
+	if(container->count > 0) {
+	    container->lastDiff = sample - container->_prev;
+	    newSum = container->squareSum + (int64_t)container->lastDiff * (int64_t)container->lastDiff;
+	    /* roll over, roll over */
+	    if(newSum < container->squareSum) {
+		resetIntPermanentAdev(container);
+		return 0.0;
+	    }
+	    container->squareSum = newSum;
+	    container->adev = sqrt( (1 / (2.0 * (container->count + 0.0))) * container->squareSum );
+	}
+	container->count++;
+	container->_prev = sample;
+	return container->adev;
+}
+
+void
+resetDoublePermanentAdev(DoublePermanentAdev* container)
+{
+
+	if(container == NULL)
+	    return;
+	container->squareSum = 0.0;
+	container->adev = 0.0;
+	container->_prev = 0.0;
+	container->count = 0;
+}
+
+double
+feedDoublePermanentAdev(DoublePermanentAdev* container, double sample)
+{
+
+	if(container->count > 0) {
+	    container->lastDiff = sample - container->_prev;
+	    container->squareSum += container->lastDiff * container->lastDiff;
+	    if(container->squareSum < 0) {
+		resetDoublePermanentAdev(container);
+		return 0.0;
+	    }
+	    container->adev = sqrt( (1 / (2 * (container->count))) * container->squareSum );
+	}
+	container->count++;
+	container->_prev = sample;
+	return container->adev;
 }
 
 void
@@ -585,10 +649,9 @@ IntMovingStatFilter* createIntMovingStatFilter(StatFilterOptions *config, const 
 		return NULL;
 	}
 
-	container->filterType = config->filterType;
-	container->windowType = config->windowType;
+	container->config = *config;
 
-	if(config->windowSize < 2) container->windowType = WINDOW_SLIDING;
+	if(config->windowSize < 2) container->config.windowType = WINDOW_SLIDING;
 
 	strncpy(container->identifier, id, 10);
 
@@ -620,10 +683,17 @@ resetIntMovingStatFilter(IntMovingStatFilter* container)
 Boolean
 feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 {
+
 	if(container == NULL)
 		return 0;
 
-	if(container->filterType == FILTER_NONE) {
+	int interval = container->meanContainer->capacity;
+
+	if(container->config.samplingInterval > 0) {
+	    interval = container->config.samplingInterval;
+	}
+
+	if(!container->config.enabled || (container->config.filterType == FILTER_NONE)) {
 
 	    container->output = sample;
 	    return TRUE;
@@ -635,9 +705,10 @@ feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 	}
 
 	container->counter++;
-	container->counter = container->counter % container->meanContainer->capacity;
 
-	switch(container->filterType) {
+	container->counter %= interval;
+
+	switch(container->config.filterType) {
 
 	    case FILTER_MEAN:
 
@@ -662,6 +733,53 @@ feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 		    } else {
 
 			    container->output = (sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2;
+
+		    }
+
+		}
+		break;
+
+	    case FILTER_MAD:
+		{
+		    int count = container->meanContainer->count;
+		    int32_t sortedSamples[count];
+		    int32_t median;
+		    int i;
+
+		    Boolean odd = ((count %2 ) == 1);
+	
+		    memcpy(sortedSamples, container->meanContainer->samples, count * sizeof(sample));
+
+		    qsort(sortedSamples, count, sizeof(sample), cmpInt32);
+
+		    /* compute median */
+
+		    if(odd) {
+
+			    median = sortedSamples[(count / 2)];
+
+		    } else {
+
+			    median = (sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2;
+
+		    }
+
+		    /* compute absolute deviations from median */
+		    for(i = 0; i < count; i++) {
+			sortedSamples[i] = labs(sortedSamples[i] - median);
+		    }
+
+		    /* compute median of the deviations */
+
+		    qsort(sortedSamples, count, sizeof(sample), cmpInt32);
+
+		    if(odd) {
+
+			    container->output = sortedSamples[(count / 2)] / 0.6745;
+
+		    } else {
+
+			    container->output = ((sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2) / 0.6745;
 
 		    }
 
@@ -719,7 +837,7 @@ feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 
 	DBGV("filter %s, Sample %d output %d\n", container->identifier, sample, container->output);
 
-	if((container->windowType == WINDOW_INTERVAL) && (container->counter != 0)) {
+	if((container->config.windowType == WINDOW_INTERVAL) && (container->counter != 0)) {
 		return FALSE;
 	}
 	return TRUE;
@@ -744,10 +862,9 @@ DoubleMovingStatFilter* createDoubleMovingStatFilter(StatFilterOptions *config, 
 		return NULL;
 	}
 
-	container->filterType = config->filterType;
-	container->windowType = config->windowType;
+	container->config = *config;
 
-	if(config->windowSize < 2) container->windowType = WINDOW_SLIDING;
+	if(config->windowSize < 2) container->config.windowType = WINDOW_SLIDING;
 
 	strncpy(container->identifier, id, 10);
 
@@ -786,7 +903,14 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 	if(container == NULL)
 		return 0;
 
-	if(container->filterType == FILTER_NONE) {
+	int interval = container->meanContainer->capacity;
+
+	if(container->config.samplingInterval > 0) {
+	    interval = container->config.samplingInterval;
+	}
+
+
+	if(!container->config.enabled || (container->config.filterType == FILTER_NONE)) {
 
 	    container->output = sample;
 	    return TRUE;
@@ -797,9 +921,9 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 	}
 
 	container->counter++;
-	container->counter = container->counter % container->meanContainer->capacity;
+	container->counter %= interval;
 
-	switch(container->filterType) {
+	switch(container->config.filterType) {
 
 	    case FILTER_MEAN:
 
@@ -808,10 +932,11 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 
 	    case FILTER_MEDIAN:
 		{
+
 		    int count = container->meanContainer->count;
 		    double sortedSamples[count];
 
-		    Boolean odd = ((count %2 ) == 1);
+		    Boolean odd = ((count % 2 ) == 1);
 	
 		    memcpy(sortedSamples, container->meanContainer->samples, count * sizeof(sample));
 
@@ -824,6 +949,71 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 		    } else {
 
 			    container->output = (sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2;
+
+		    }
+
+		    /* check if samples are all increasing or decreasing */
+		    Boolean incr = TRUE;
+		    Boolean decr = TRUE;
+
+		    double *samples = container->meanContainer->samples;
+
+		    for(int i = 1; i < count; i++) {
+			incr &= (samples[i] > samples [i-1]);
+			decr &= (samples[i] < samples [i-1]);
+		    }
+
+		    /* don't filter if all going in the same direction:
+		     * this is usually because we are shifting the clock.
+		     */
+		    if(incr || decr) {
+			container->output = sample;
+		    }
+
+		}
+		break;
+
+	    case FILTER_MAD:
+		{
+		    int count = container->meanContainer->count;
+		    double sortedSamples[count];
+		    double median;
+		    int i;
+
+		    Boolean odd = ((count %2 ) == 1);
+	
+		    memcpy(sortedSamples, container->meanContainer->samples, count * sizeof(sample));
+
+		    qsort(sortedSamples, count, sizeof(sample), cmpDouble);
+
+		    /* compute median */
+
+		    if(odd) {
+
+			    median = sortedSamples[(count / 2)];
+
+		    } else {
+
+			    median = (sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2;
+
+		    }
+
+		    /* compute absolute deviations from median */
+		    for(i = 0; i < count; i++) {
+			sortedSamples[i] = fabs(sortedSamples[i] - median);
+		    }
+
+		    /* compute median of the deviations */
+
+		    qsort(sortedSamples, count, sizeof(sample), cmpDouble);
+
+		    if(odd) {
+
+			    container->output = sortedSamples[(count / 2)] / 0.6745;
+
+		    } else {
+
+			    container->output = ((sortedSamples[(count / 2) -1] + sortedSamples[(count / 2)]) / 2) / 0.6745;
 
 		    }
 
@@ -880,7 +1070,7 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 
 	DBGV("Filter %s, Sample %.09f output %.09f\n", container->identifier, sample, container->output);
 
-	if((container->windowType == WINDOW_INTERVAL) && (container->counter != 0)) {
+	if((container->config.windowType == WINDOW_INTERVAL) && (container->counter != 0)) {
 		return FALSE;
 	}
 	return TRUE;
@@ -983,7 +1173,7 @@ Boolean isIntPeircesOutlier(IntMovingStdDev *container, int32_t sample, double t
 	 * - safeguard: std dev is zero and filter is blocking
 	 *   everything, hus, we let the sample through
 	 */
-	if (maxDev <= 0.0 ) return FALSE;
+	if (maxDev <= ZEROF ) return FALSE;
 
 	if(fabs((double)(sample - container->meanContainer->mean)) > maxDev) {
 	DBGV("Peirce %s outlier: val: %d, cnt: %d, mxd: %.09f (%.03f * dev * %.03f), dev: %.09f, mea: %.09f, dif: %.09f\n", container->identifier,
@@ -1013,7 +1203,7 @@ Boolean isDoublePeircesOutlier(DoubleMovingStdDev *container, double sample, dou
 	 * - safeguard: std dev is zero and filter is blocking
 	 *   everything, thus, we let the sample through
 	 */
-	if (maxDev <= 0.0 ) {
+	if (maxDev <= ZEROF ) {
 		return FALSE;
 	}
 

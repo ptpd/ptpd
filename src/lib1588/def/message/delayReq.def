@@ -1,0 +1,7 @@
+/* Spec Table 26 - Delay Request message fields */
+
+/* to use these definitions, #define PROCESS_FIELD then #include this file in your source */
+
+PROCESS_FIELD( originTimestamp, PTP_TYPELEN_TIMESTAMP, PtpTimestamp );
+
+#undef PROCESS_FIELD
