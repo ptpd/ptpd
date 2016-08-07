@@ -39,7 +39,7 @@
 
 #include "clockdriver.h"
 #include "clockdriver_interface.h"
-#include "ptpd_dep.h"
+#include "../dep/ptpd_dep.h"
 #include "net_utils.h"
 
 /*
@@ -648,7 +648,7 @@ loadVendorExt(ClockDriver *self, const char *ifname) {
 
 	    switch(oui) {
 
-		#include "vendorext/clockdriver/linuxphc_vext.def"
+		#include "extensions/clockdriver/linuxphc_vext.def"
 
 		default:
 		    INFO(THIS_COMPONENT"%s: no vendor extensions available\n", self->name);

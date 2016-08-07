@@ -174,7 +174,7 @@
 
 #include "dep/alarms.h"
 
-#include "dep/clockdriver.h"
+#include "libcck/clockdriver.h"
 
 
 /* NOTE: this macro can be refactored into a function */

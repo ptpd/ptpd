@@ -4,7 +4,7 @@
 
    to add support for vendor-specific clock driver extensions:
 
-   1. create a source file and header vendorext/clockdriver/linuxphc_vext_[name]
+   1. create a source file and header extensions/clockdriver/linuxphc_vext_[name]
    2. define function: int loadCdVendorExt_[name](ClockDriver *driver, const char ifName):
 
       - overload driver->_vendorInit, driver->_vendorShutdown and driver->_vendorHealthCheck if needed

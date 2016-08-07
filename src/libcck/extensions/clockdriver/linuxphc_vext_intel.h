@@ -25,7 +25,7 @@
  */
 
 /**
- * @file   vendorext/clockdriver/linuxphc_vext_intel.h
+ * @file   extensions/clockdriver/linuxphc_vext_intel.h
  * @date   Wed Jun 8 16:14:10 2016
  *
  * @brief  Linux PHC clock driver Intel extension definitions

@@ -25,7 +25,7 @@
  */
 
 /**
- * @file   vendorext/clockdriver/linuxphc_vext_solarflare.c
+ * @file   extensions/clockdriver/linuxphc_vext_solarflare.c
  * @date   Wed Jun 8 16:14:10 2016
  *
  * @brief  Linux PHC clock driver Solarflare vendor extensions

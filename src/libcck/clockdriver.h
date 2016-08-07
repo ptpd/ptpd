@@ -25,7 +25,7 @@
  */
 
 /**
- * @file   clockdriver.c
+ * @file   clockdriver.h
  * @date   Sat Jan 9 16:14:10 2015
  *
  * @brief  structure definitions for the clock driver

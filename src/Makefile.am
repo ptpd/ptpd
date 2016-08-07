@@ -65,31 +65,31 @@ ptpd_SOURCES =				\
 	dep/ntpengine/ntpdcontrol.h	\
 	timingdomain.h			\
 	timingdomain.c			\
-	dep/net_utils.h			\
-	dep/net_utils.c			\
+	libcck/net_utils.h		\
+	libcck/net_utils.c		\
 	dep/statistics.h		\
 	dep/statistics.c		\
 	dep/outlierfilter.h		\
 	dep/outlierfilter.c		\
 	dep/alarms.h			\
 	dep/alarms.c			\
-	dep/clockdriver.h		\
-	dep/clockdriver.c		\
-	dep/clockdriver_interface.h	\
-	dep/clockdriver_unix.h		\
-	dep/clockdriver_unix.c		\
-	dep/vendorext/clockdriver/linuxphc_vext_intel.h \
-	dep/vendorext/clockdriver/linuxphc_vext_intel.c \
-	dep/vendorext/clockdriver/efx_ioctl_timesync.h \
-	dep/vendorext/clockdriver/linuxphc_vext_solarflare.h \
-	dep/vendorext/clockdriver/linuxphc_vext_solarflare.c \
-	dep/vendorext/clockdriver/linuxphc_vext.def \
-	dep/clockdriver_linuxphc.h	\
-	dep/clockdriver_linuxphc.c	\
-	dep/linkedlist.h		\
+	libcck/clockdriver.h		\
+	libcck/clockdriver.c		\
+	libcck/clockdriver_interface.h	\
+	libcck/clockdriver_unix.h		\
+	libcck/clockdriver_unix.c		\
+	libcck/extensions/clockdriver/linuxphc_vext_intel.h \
+	libcck/extensions/clockdriver/linuxphc_vext_intel.c \
+	libcck/extensions/clockdriver/efx_ioctl_timesync.h \
+	libcck/extensions/clockdriver/linuxphc_vext_solarflare.h \
+	libcck/extensions/clockdriver/linuxphc_vext_solarflare.c \
+	libcck/extensions/clockdriver/linuxphc_vext.def \
+	libcck/clockdriver_linuxphc.h	\
+	libcck/clockdriver_linuxphc.c	\
+	libcck/linkedlist.h		\
 	globalconfig.h			\
-	dep/piservo.h			\
-	dep/piservo.c			\
+	libcck/piservo.h		\
+	libcck/piservo.c		\
 	lib1588/ptp_primitives.h	\
 	lib1588/ptp_primitives.c	\
 	lib1588/ptp_derived_types.h	\

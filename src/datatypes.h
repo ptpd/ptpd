@@ -10,7 +10,7 @@
 #include "dep/alarms.h"
 
 
-#include "dep/clockdriver.h"
+#include "libcck/clockdriver.h"
 #include "globalconfig.h"
 
 /**
