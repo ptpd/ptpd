@@ -35,7 +35,7 @@
 #ifndef PTPD_CLOCKDRIVER_LINUXPHC_VEXT_INTEL_H_
 #define PTPD_CLOCKDRIVER_LINUXPHC_VEXT_INTEL_H_
 
-#include "../../clockdriver.h"
+#include <libcck/clockdriver.h>
 
 int loadCdVendorExt_intel(ClockDriver *driver, const char *ifname);
 

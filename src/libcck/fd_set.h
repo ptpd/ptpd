@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2016 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -25,27 +25,46 @@
  */
 
 /**
- * @file   clockdriver_unix.h
- * @date   Sat Jan 9 16:14:10 2015
+ * @file   cck_fdset.h
+ * @date   Sat Jan 9 16:14:10 2016
  *
- * @brief  structure definitions for the Unix OS clock driver
+ * @brief  FD set watcher definitions
  *
  */
 
-#ifndef PTPD_CLOCKDRIVER_UNIX_H_
-#define PTPD_CLOCKDRIVER_UNIX_H_
+#ifndef CCK_FD_SET_H_
+#define CCK_FD_SET_H_
 
-#include "clockdriver.h"
+#include <sys/select.h>		/* fd_set */
+#include <sys/time.h>		/* struct timeval */
+#include <libcck/cck_types.h>
+#include <libcck/linkedlist.h>
 
-Boolean _setupClockDriver_unix(ClockDriver* clockDriver);
+typedef struct CckFd CckFd;
+
+/* LibCCK file descriptor wrapper */
+struct CckFd {
+	LINKED_LIST_TAG(CckFd);
+	int 		fd;			/* the actual FD */
+	void 		* owner;		/* component owning this fd */
+	int (*callback) (void *, void *);	/* callback when data available */
+	CckBool hasData;			/* flag marking that this fd has data available */
+	CckFd *nextData;			/* linked list for fds with data available */
+
+};
 
 typedef struct {
+	LINKED_LIST_HOOK_LOCAL(CckFd);
+	CckBool hasData;
+	CckFd *firstData;
+	fd_set fdSet;
+	fd_set _workSet;
+	int maxFd;
+} CckFdSet;
 
-} ClockDriverData_unix;
-
-typedef struct {
-    Boolean setRtc;
-} ClockDriverConfig_unix;
+void	cckAddFd(CckFdSet *set, CckFd *fd);
+void	cckRemoveFd(CckFdSet *set, CckFd *fd);
+int	cckSelect(CckFdSet *set, struct timeval *timeout);
 
 
-#endif /* PTPD_CLOCKDRIVER_UNIX_H_ */
+#endif /* CCK_FD_SET_H_ */

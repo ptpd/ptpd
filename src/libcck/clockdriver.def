@@ -8,8 +8,8 @@
  */
 
 #ifndef REGISTER_CLOCKDRIVER
-    #include "clockdriver_unix.h"
-    #include "clockdriver_linuxphc.h"
+    #include "clockdriver/clockdriver_unix.h"
+    #include "clockdriver/clockdriver_linuxphc.h"
 #else
     REGISTER_CLOCKDRIVER(CLOCKDRIVER_UNIX, unix, "unix")
     REGISTER_CLOCKDRIVER(CLOCKDRIVER_LINUXPHC, linuxphc, "linuxphc")

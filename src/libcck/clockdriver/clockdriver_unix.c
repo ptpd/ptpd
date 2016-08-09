@@ -32,8 +32,8 @@
  *
  */
 
-#include "clockdriver.h"
-#include "clockdriver_interface.h"
+#include <libcck/clockdriver.h>
+#include <libcck/clockdriver_interface.h>
 
 #define THIS_COMPONENT "clock.unix: "
 

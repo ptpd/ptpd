@@ -37,10 +37,10 @@
 #include <linux/ptp_clock.h>
 #include <sys/syscall.h>
 
-#include "clockdriver.h"
-#include "clockdriver_interface.h"
-#include "../dep/ptpd_dep.h"
-#include "net_utils.h"
+#include <libcck/clockdriver.h>
+#include <libcck/clockdriver_interface.h>
+#include "../../dep/ptpd_dep.h"
+#include <libcck/net_utils.h>
 
 /*
  * Some Linux distributions come with kernels which support SYS_OFFSET,
@@ -648,7 +648,7 @@ loadVendorExt(ClockDriver *self, const char *ifname) {
 
 	    switch(oui) {
 
-		#include "extensions/clockdriver/linuxphc_vext.def"
+		#include "vext/linuxphc_vext.def"
 
 		default:
 		    INFO(THIS_COMPONENT"%s: no vendor extensions available\n", self->name);

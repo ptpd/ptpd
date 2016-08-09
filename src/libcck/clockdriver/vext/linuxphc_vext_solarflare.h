@@ -35,7 +35,7 @@
 #ifndef PTPD_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_
 #define PTPD_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_
 
-#include "../../clockdriver.h"
+#include <libcck/clockdriver.h>
 #include "efx_ioctl_timesync.h"
 
 typedef struct {

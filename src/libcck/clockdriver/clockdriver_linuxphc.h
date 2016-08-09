@@ -25,34 +25,34 @@
  */
 
 /**
- * @file   cck_types.h
- * @date   Sat Jan 9 16:14:10 2016
+ * @file   clockdriver_linuxphc.h
+ * @date   Sat Jan 9 16:14:10 2015
  *
- * @brief  LibCCK-specific data types
+ * @brief  structure definitions for the Linux PHC clock driver
  *
  */
 
-#ifndef CCK_TYPES_H_
-#define CCK_TYPES_H_
+#ifndef PTPD_CLOCKDRIVER_LINUXPHC_H_
+#define PTPD_CLOCKDRIVER_LINUXPHC_H_
 
-#include <stdint.h>
+#include <libcck/clockdriver.h>
 
-/* LibCCK bool type */
-typedef enum {CCK_FALSE=0, CCK_TRUE=1} CckBool;
+#define OSCLOCK_OFFSET_SAMPLES 9
+
+typedef struct {
+    int clockFd;
+    int helperFd;
+    int phcIndex;
+    clockid_t clockId;
+} ClockDriverData_linuxphc;
+
+typedef struct {
+    char networkDevice[IFACE_NAME_LENGTH];
+    char characterDevice[PATH_MAX];
+    Boolean lockDevice;
+} ClockDriverConfig_linuxphc;
+
+Boolean _setupClockDriver_linuxphc(ClockDriver* clockDriver);
 
 
-/* Generic integer types */
-
-typedef uint8_t 		CckUShort;
-typedef unsigned char 		CckUChar;
-typedef unsigned char 		CckOctet;
-
-typedef uint8_t 		CckU8;
-typedef int8_t 			CckI8;
-typedef uint16_t 		CckU16;
-typedef int16_t 		CckI16;
-typedef uint32_t 		CckU32;
-typedef int32_t 		CckI32;
-
-
-#endif /* CCK_TYPES_H_ */
+#endif /* PTPD_CLOCKDRIVER_LINUXPHC_H_ */

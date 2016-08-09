@@ -25,34 +25,27 @@
  */
 
 /**
- * @file   clockdriver_linuxphc.h
+ * @file   clockdriver_unix.h
  * @date   Sat Jan 9 16:14:10 2015
  *
- * @brief  structure definitions for the Linux PHC clock driver
+ * @brief  structure definitions for the Unix OS clock driver
  *
  */
 
-#ifndef PTPD_CLOCKDRIVER_LINUXPHC_H_
-#define PTPD_CLOCKDRIVER_LINUXPHC_H_
+#ifndef PTPD_CLOCKDRIVER_UNIX_H_
+#define PTPD_CLOCKDRIVER_UNIX_H_
 
-#include "clockdriver.h"
+#include <libcck/clockdriver.h>
 
-#define OSCLOCK_OFFSET_SAMPLES 9
-
-typedef struct {
-    int clockFd;
-    int helperFd;
-    int phcIndex;
-    clockid_t clockId;
-} ClockDriverData_linuxphc;
+Boolean _setupClockDriver_unix(ClockDriver* clockDriver);
 
 typedef struct {
-    char networkDevice[IFACE_NAME_LENGTH];
-    char characterDevice[PATH_MAX];
-    Boolean lockDevice;
-} ClockDriverConfig_linuxphc;
 
-Boolean _setupClockDriver_linuxphc(ClockDriver* clockDriver);
+} ClockDriverData_unix;
+
+typedef struct {
+    Boolean setRtc;
+} ClockDriverConfig_unix;
 
 
-#endif /* PTPD_CLOCKDRIVER_LINUXPHC_H_ */
+#endif /* PTPD_CLOCKDRIVER_UNIX_H_ */

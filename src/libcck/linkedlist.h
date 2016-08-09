@@ -40,12 +40,16 @@
 	static vartype *_last = NULL; \
 	static uint32_t _serial = 0;
 
+#define LINKED_LIST_HOOK_LOCAL(vartype) \
+	vartype *_first;\
+	vartype *_last;
+
 #define LINKED_LIST_TAG(vartype) \
 	vartype *_first; \
 	vartype *_next; \
 	vartype *_prev;
 
-#define LINKED_LIST_INSERT(var) \
+#define LINKED_LIST_APPEND(var) \
 	if(_first == NULL) { \
 		_first = var; \
 	} \
@@ -57,6 +61,17 @@
 	var->_first = _first; \
 	var->_serial = _serial; \
 	_serial++;
+
+#define LINKED_LIST_APPEND_LOCAL(holder, var) \
+	if(holder->_first == NULL) { \
+		holder->_first = var; \
+	} \
+	if(holder->_last != NULL) { \
+	    var->_prev = holder->_last; \
+	    var->_prev->_next = var; \
+	} \
+	holder->_last = var; \
+	var->_first = holder->_first;
 
 #define LINKED_LIST_REMOVE(var) \
 	if(var == _last) { \
@@ -86,8 +101,36 @@
 		} \
 	}
 
+#define LINKED_LIST_REMOVE_LOCAL(holder, var) \
+	if(var->_prev != NULL) { \
+		if(var == holder->_last) { \
+			holder->_last = var->_prev; \
+		} \
+		if(var->_next != NULL) { \
+			var->_prev->_next = var->_next; \
+		} else { \
+			var->_prev->_next = NULL; \
+		} \
+	} else if (var->_next == NULL) { \
+		holder->_first = NULL; \
+		holder->_last = NULL; \
+	} \
+	if(var->_next != NULL) { \
+		if(var == holder->_first) { \
+			holder->_first = var->_next; \
+		} \
+		if(var->_prev != NULL) { \
+			var->_next->_prev = var->_prev; \
+		} else { \
+			var->_next->_prev = NULL; \
+		} \
+	}
+
 #define LINKED_LIST_FOREACH(var) \
 	for(var = _first; var != NULL; var = var->_next)
+
+#define LINKED_LIST_FOREACH_LOCAL(holder, var) \
+	for(var = holder->_first; var != NULL; var = var->_next)
 
 #define LINKED_LIST_DESTROYALL(helper, fun) \
 	while(_first != NULL) { \

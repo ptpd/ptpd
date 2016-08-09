@@ -1,0 +1,39 @@
+/*
+ * Register available timestamping transport types here (we are so modular...)
+ * If not included in the REGISTER_TTRANSPORT context,
+ * just include the headers. The REGISTER_TTRANSPORT x-macro
+ * arguments are: ENUM_NAME, type_suffix, "text_name", family, capabilities, extends
+ *  	family:	one of TT_FAMILY_...	transport types as per ttransport.h
+ *  	capabilities:	one of TT_CAPS_...	transport capabilities as per ttransport.h
+ *  	extends:	transport type this transport inherits from
+ * Function and type suffixes in your implementation must match type_suffix.
+ */
+
+#ifndef REGISTER_TTRANSPORT
+    #include "ttransport_socket_udpv4.h"
+    #include "ttransport_socket_udpv6.h"
+    #include "ttranaport_pcap_udpv4.h"
+    #include "ttransport_pcap_udpv6.h"
+    #include "ttransport_linuxsw_udpv4.h"
+    #include "ttransport_linuxsw_udpv6.h"
+    #include "ttransport_linuxhw_udpv4.h"
+    #include "ttransport_linuxhw_udpv6.h"
+#else
+
+    /* 			enum name,		type suffix,	text name,		address family,		capabilities,	base type	/*
+
+    REGISTER_TTRANSPORT(TT_TYPE_SOCKET_UDPV4,	socket_ipv4,	"sock_udp_ipv4",	TT_FAMILY_UDP_IPV4,	TT_CAPS_NONE,	TT_TYPE_NONE)
+    REGISTER_TTRANSPORT(TT_TYPE_SOCKET_UDPV6,	socket_ipv6,	"sock_udp_ipv6",	TT_FAMILY_UDP_IPV6,	TT_CAPS_NONE,	TT_TYPE_NONE)
+
+    REGISTER_TTRANSPORT(TT_TYPE_PCAP_UDPV4,	pcap_ipv4,	"pcap_udp_ipv4",	TT_FAMILY_UDP_IPV4,	TT_CAPS_NONE,	TT_TYPE_SOCKET_UDPV4)
+    REGISTER_TTRANSPORT(TT_TYPE_PCAP_UDPV6,	pcap_ipv6,	"pcap_udp_ipv6",	TT_FAMILY_UDP_IPV6,	TT_CAPS_NONE,	TT_TYPE_SOCKET_UDPV6)
+
+    REGISTER_TTRANSPORT(TT_TYPE_LINUXSW_UDPV4,	linuxsw_ipv4,	"linuxsw_udp_ipv4",	TT_FAMILY_UDP_IPV4,	TT_CAPS_NONE,	TT_TYPE_SOCKET_UDPV4)
+    REGISTER_TTRANSPORT(TT_TYPE_LINUXSW_UDPV6,	linuxsw_ipv6,	"linuxsw_udp_ipv6",	TT_FAMILY_UDP_IPV6,	TT_CAPS_NONE,	TT_TYPE_SOCKET_UDPV6)
+
+    REGISTER_TTRANSPORT(TT_TYPE_LINUXHW_UDPV4,	linuxhw_ipv4,	"linuxhw_udp_ipv4",	TT_FAMILY_UDP_IPV4,	TT_CAPS_NONE,	TT_TYPE_SOCKET_UDPV4)
+    REGISTER_TTRANSPORT(TT_TYPE_LINUXHW_UDPV6,	linuxhw_ipv6,	"linuxhw_udp_ipv6",	TT_FAMILY_UDP_IPV6,	TT_CAPS_NONE,	TT_TYPE_SOCKET_UDPV6)
+
+    #undef REGISTER_TTRANSPORT
+
+#endif /* REGISTER_TTRANSPORT */

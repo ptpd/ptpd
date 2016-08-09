@@ -28,7 +28,7 @@
  * @file   clockdriver.c
  * @date   Sat Jan 9 16:14:10 2015
  *
- * @brief  Initialisation and control code for the clock driver
+ * @brief  Initialisation code for the clock driver
  *
  */
 
