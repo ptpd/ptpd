@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2016 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -25,38 +25,44 @@
  */
 
 /**
- * @file   cck_types.h
- * @date   Sat Jan 9 16:14:10 2016
+ * @file   transport_address.c
+ * @date   Tue Aug 2 34:44 2016
  *
- * @brief  LibCCK-specific data types
+ * @brief  transport address management and conversion functions
  *
  */
 
-#ifndef CCK_TYPES_H_
-#define CCK_TYPES_H_
+#include <stdio.h>	/* stddef.h -> size_t */
 
-#include <stdint.h>
+#include <libcck/cck_types.h>
+#include <libcck/transport_address.h>
 
-/* LibCCK bool type */
-typedef enum {CCK_FALSE=0, CCK_TRUE=1} CckBool;
+CckBool
+isAddressMulticast(CckTransportAddress *address)
+{
+    return CCK_TRUE;
+}
 
+CckBool
+isAddressEmpty(CckTransportAddress *address)
+{
+    return CCK_TRUE;
+}
 
-/* Generic integer types */
+int
+transportAddressToString(const CckTransportAddress *address, char *string, size_t len)
+{
+    return 1;
+}
 
-typedef uint8_t 		CckUShort;
-typedef unsigned char 		CckUChar;
-typedef unsigned char 		CckOctet;
+int
+transportAddressFromString(const char *string, int family, CckTransportAddress *address)
+{
+    return 1;
+}
 
-typedef uint8_t 		CckU8;
-typedef int8_t 			CckI8;
-typedef uint16_t 		CckU16;
-typedef int16_t 		CckI16;
-typedef uint32_t 		CckU32;
-typedef int32_t 		CckI32;
-
-typedef struct {
-	int32_t		seconds;
-	int32_t		nanoseconds;
-} CckTimestamp;
-
-#endif /* CCK_TYPES_H_ */
+CckU32
+transportAddressHash(const CckTransportAddress *address, int modulo)
+{
+    return 1;
+}

@@ -101,9 +101,8 @@ cckSelect(CckFdSet *set, struct timeval *timeout)
 {
 
     int ret;
-    int found = 0;
     CckFd *fd;
-    CckFd *lastFd;
+    CckFd *lastFd = NULL;
 
 
     if(set == NULL) {
@@ -114,15 +113,18 @@ cckSelect(CckFdSet *set, struct timeval *timeout)
     set->hasData = CCK_FALSE;
     set->firstData = NULL;
 
+    /* copy the clean fd set to work fd set */
     memcpy(&set->_workSet, &set->fdSet, sizeof(fd_set));
 
     /* run select () */
     ret = select(set->maxFd + 1, &set->_workSet, NULL, NULL, timeout);
 
+    /* these are expected - signals, etc. */
     if(ret < 0 && (errno == EAGAIN || errno == EINTR)) {
 	return 0;
     }
 
+    /* walk through all fds used, mark them if they have data to read */
     if(ret > 0) {
 	LINKED_LIST_FOREACH_LOCAL(set, fd) {
 	    fd->hasData = CCK_FALSE;
@@ -132,14 +134,24 @@ cckSelect(CckFdSet *set, struct timeval *timeout)
 		set->hasData = CCK_TRUE;
 		fd->hasData = CCK_TRUE;
 
-		if(found == 0) {
+		/* build a linked list of fds which have data to read */
+		if(lastFd == NULL) {
 		    set->firstData = fd;
 		} else {
 		    lastFd->nextData = fd;
 		}
 
+		/*
+		 * todo: callbacks - they will be optional. The user may want control over the order of FDs read,
+		 * as is the case with PTP(d), where we always check the event transport first -
+		 * naturally, if we start the transports in the right order, we achieve the same,
+		 * however not explicitly so. The callback could also automatically read the data.
+		 */
+
+		/* fd->callback(fd->owner, ...); */
+
 		lastFd = fd;
-		found++;
+
 	    }
 
 	}

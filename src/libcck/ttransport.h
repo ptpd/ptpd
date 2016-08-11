@@ -39,18 +39,11 @@
 #include "../ptpd.h"
 #include "../globalconfig.h"
 #include <libcck/linkedlist.h>
+#include <libcck/cck_types.h>
 
 #define TTRANSPORT_NAME_MAX 20
 #define TTRANSPORT_UPDATE_INTERVAL 1
 #define TTRANSPORT_WARNING_TIMEOUT 60
-
-/* transport types provided by timestamping transports */
-enum {
-    TT_FAMILY_UDP_IPV4,
-    TT_FAMILY_UDP_IPV6,
-    TT_FAMILY_ETHERNET,
-    TT_FAMILY_LOCAL
-};
 
 /* timestamping transport capabilities */
 #define TT_CAPS_NONE		0
@@ -72,8 +65,7 @@ enum {
     TT_TYPE_MAX
 };
 
-
-/* clock commands that can be sent to all clock drivers */
+/* commands that can be sent to all transports */
 enum {
     TT_NOTINUSE,	/* mark all not in use */
     TT_SHUTDOWN,	/* shutdown all */
@@ -126,7 +118,10 @@ struct TTransport {
     } counters;
 
     CckFd fd;				/* file descriptor wrapper */
-    CckFdSet fdSet;			/* file descriptor set watching this transport */
+    CckFdSet *fdSet;			/* file descriptor set watching this transport */
+
+    CckOctet	*inputBuffer;		/* data read buffer, supplied by user */
+    int		bufferSize;
 
     /* flags */
 
@@ -168,7 +163,6 @@ struct TTransport {
     CckBool (*getSystemClockOffset) (TTransport *, TimeInternal*);
 
     CckBool (*privateHealthCheck) (TTransport *); /* NEW! Now with private healthcare! */
-
     CckBool (*pushPrivateConfig) (TTransport *, RunTimeOpts *);
     CckBool (*isThisMe) (TTransport *, const char* search);
 

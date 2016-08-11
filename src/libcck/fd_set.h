@@ -46,8 +46,8 @@ typedef struct CckFd CckFd;
 struct CckFd {
 	LINKED_LIST_TAG(CckFd);
 	int 		fd;			/* the actual FD */
-	void 		* owner;		/* component owning this fd */
-	int (*callback) (void *, void *);	/* callback when data available */
+	void 		*owner;			/* component owning this fd */
+	void (*callback) (void *, void *);	/* callback when data available */
 	CckBool hasData;			/* flag marking that this fd has data available */
 	CckFd *nextData;			/* linked list for fds with data available */
 

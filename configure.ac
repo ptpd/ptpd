@@ -94,10 +94,12 @@ AC_SEARCH_LIBS([gethostbyname], [nsl])
 # Checks for header files.
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h ifaddrs.h sys/time.h syslog.h unistd.h glob.h sched.h utmp.h utmpx.h unix.h linux/rtc.h sys/timex.h getopt.h])
-
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h])
+AC_CHECK_HEADERS([stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h ifaddrs.h sys/time.h syslog.h unistd.h])
+AC_CHECK_HEADERS([glob.h sched.h utmp.h utmpx.h unix.h linux/rtc.h sys/timex.h getopt.h sys/un.h])
 
 AC_CHECK_HEADERS([endian.h machine/endian.h sys/isa_defs.h])
+
 
 AC_CHECK_HEADERS([math.h],[],[AC_MSG_ERROR([math.h is required to compile PTPd])],[])
 
@@ -131,6 +133,16 @@ AC_CHECK_HEADERS([linux/if.h], [], [],
 #endif
 ])
 
+# Similar case for linux/un.h
+AC_CHECK_HEADERS([linux/un.h], [], [],
+[
+#ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+    #include <sys/types.h>
+#endif
+])
 
 # Similar case for if_arp.h
 AC_CHECK_HEADERS([net/if_arp.h], [], [],
