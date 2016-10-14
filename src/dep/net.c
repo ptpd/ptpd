@@ -430,8 +430,8 @@ static int getInterfaceIndex(char *ifaceName)
 
     if (ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0) {
             DBGV("failed to request hardware address for %s", ifaceName);
-	    return -1;
 	    close(sockfd);
+	    return -1;
 
     }
 
