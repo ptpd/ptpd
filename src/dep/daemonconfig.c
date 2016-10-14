@@ -1,4 +1,7 @@
 /*-
+ * Copyright (c) 2015-2016 Eyal Itkin (TAU),
+ *                         Avishai Wool (TAU),
+ *                         In accordance to http://arxiv.org/abs/1603.00707 .
  * Copyright (c) 2013-2015 Wojciech Owczarek,
  *
  * All Rights Reserved
@@ -919,6 +922,12 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 slave will keep alternating between primary and secondary until a GM is found.\n");
 
 	CONFIG_KEY_TRIGGER("ptpengine:backup_interface", rtOpts->backupIfaceEnabled,TRUE,FALSE);
+
+	/* from 0 (off) to 255 */
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:window_size",
+		PTPD_RESTART_PROTOCOL, INTTYPE_U8, &rtOpts->window_size, rtOpts->window_size,
+		"Sequence check window size - used for Sync and Announce msgs from the grandmaster.\n"
+	"	 0 means that there will be no check.\n", RANGECHECK_RANGE, 0, 255);
 
 	/* Preset option names have to be mapped to defined presets - no free strings here */
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:preset",
@@ -1870,7 +1879,22 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3, rtOpts->timingAclEnabled,FALSE, rtOpts->timingAclEnabled);
 	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3, rtOpts->managementAclEnabled,FALSE, rtOpts->managementAclEnabled);
 
+#ifdef SEC_EXT_CRYPTO
+/* ===== crypto section ===== */
 
+	configMapString(opCode, opArg, dict, target, "ptpengine:crypt_tech_pub", 0, rtOpts->techPubPath, sizeof(rtOpts->techPubPath), rtOpts->techPubPath,
+		"Path to the Technician's public key file (.pem).\n");
+
+	configMapString(opCode, opArg, dict, target, "ptpengine:crypt_master_pub", 0, rtOpts->selfPubPath, sizeof(rtOpts->techPubPath), rtOpts->selfPubPath,
+		"Path to clock's public key file (.pem) - master candidate.\n");
+
+	configMapString(opCode, opArg, dict, target, "ptpengine:crypt_master_prv", 0, rtOpts->selfPrvPath, sizeof(rtOpts->selfPrvPath), rtOpts->selfPrvPath,
+		"Path to clock's private key file (.pem) - master candidate.\n");
+
+	configMapString(opCode, opArg, dict, target, "ptpengine:crypt_master_cert", 0, rtOpts->selfCertPath, sizeof(rtOpts->selfCertPath), rtOpts->selfCertPath,
+		"Path to clock's certificate file (.cert) - master candidate.\n");
+
+#endif /* SEC_EXT_CRYPTO */
 
 /* ===== clock section ===== */
 

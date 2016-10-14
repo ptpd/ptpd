@@ -1,4 +1,7 @@
 /*-
+ * Copyright (c) 2015-2016 Eyal Itkin (TAU),
+ *                         Avishai Wool (TAU),
+ *                         In accordance to http://arxiv.org/abs/1603.00707 .
  * Copyright (c) 2012-2015 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer,
@@ -53,7 +56,9 @@
  */
 
 #include "ptpd.h"
-
+#ifdef SEC_EXT_CRYPTO
+#include "dep/crypto/enc.h"
+#endif /* SEC_EXT_CRYPTO */
 
 /* Init ptpClock with run time values (initialization constants are in constants.h)*/
 void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
@@ -65,6 +70,47 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	/* Default data set */
 	ptpClock->defaultDS.twoStepFlag = TWO_STEP_FLAG;
 
+#ifdef SEC_EXT_BIND_CLOCK_ID_TO_NET_ID
+    char net_id[6] = {0};
+    /* net was allready init and done the basic checks for us */
+    switch(rtOpts->transport) {
+
+	    case UDP_IPV4:
+			{
+		        /* PTP over IP (4 bytes IP | 2 bytes port) */
+				UInteger32 addr = ((struct sockaddr_in*)&(ptpClock->netPath.interfaceInfo.afAddress))->sin_addr.s_addr;
+				net_id[0] = (UInteger8)((addr & 0xFF000000) >> 24);
+				net_id[1] = (UInteger8)((addr & 0x00FF0000) >> 16);
+				net_id[2] = (UInteger8)((addr & 0x0000FF00) >>  8);
+				net_id[3] = (UInteger8)((addr & 0x000000FF) >>  0);
+
+				net_id[4] = (UInteger8)((PTP_EVENT_PORT & 0xFF00) >> 8);
+				net_id[5] = (UInteger8)((PTP_EVENT_PORT & 0x00FF) >> 0);
+			}
+            break;
+	    case IEEE_802_3:
+		    /* PTP over Ethernet (802.3) */
+            memcpy(net_id, ptpClock->netPath.interfaceID, sizeof(net_id));
+		    break;
+
+	    default:
+		    ERROR("Unsupported transport: %d\n", rtOpts->transport);
+		    return;
+	}
+
+    /* now actually init the clock id based on the net id */
+    for (i=0;i<CLOCK_IDENTITY_LENGTH;i++)
+    {
+        if (i==3) ptpClock->defaultDS.clockIdentity[i]=0xFF;
+        else if (i==4) ptpClock->defaultDS.clockIdentity[i]=0xFE;
+        else
+        {
+          ptpClock->defaultDS.clockIdentity[i]=net_id[j];
+          j++;
+        }
+    }
+
+#else
 	/*
 	 * init clockIdentity with MAC address and 0xFF and 0xFE. see
 	 * spec 7.5.2.2.2
@@ -86,6 +132,7 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    uint16_t pid = htons(getpid());
 	    memcpy(ptpClock->defaultDS.clockIdentity + 3, &pid, 2);
 	}
+#endif /* SEC_EXT_BIND_CLOCK_ID_TO_NET_ID */
 
 	ptpClock->bestMaster = NULL;
 	ptpClock->defaultDS.numberPorts = NUMBER_PORTS;
@@ -159,12 +206,120 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    ptpClock->portDS.transportSpecific = TSP_DEFAULT;
 	}
 
+#ifdef SEC_EXT_SEED_RANDOM
+    /*
+	 *  Initialize random number generator using a "private" secret,
+     *  instead of the public MAC address (in the clock ID) that anybody knows
+	 */
+    int randomData = open("/dev/urandom", O_RDONLY);
+    /* revert to old init in case of read failure */
+    char random_seed[2] = {ptpClock->netPath.interfaceID[PTP_UUID_LENGTH - 1], ptpClock->netPath.interfaceID[PTP_UUID_LENGTH - 2]};
+
+    /* actually read the random */
+    if(read(randomData, random_seed, sizeof (random_seed)) != sizeof(random_seed))
+    {
+        return;
+    }
+
+#ifdef SEC_EXT_RANDOMIZE_SEQ_NUM
+
+    /* sync counter */
+    if(read(randomData, (char*)(&(ptpClock->sentSyncSequenceId)), sizeof (ptpClock->sentSyncSequenceId)) != sizeof(ptpClock->sentSyncSequenceId))
+    {
+        return;
+    }
+    
+    /* announce counter */
+    if(read(randomData, (char*)(&(ptpClock->sentAnnounceSequenceId)), sizeof (ptpClock->sentAnnounceSequenceId)) != sizeof(ptpClock->sentAnnounceSequenceId))
+    {
+        return;
+    }
+#endif /* SEC_EXT_RANDOMIZE_SEQ_NUM */
+
+    close(randomData);
+    /* now actually init srand with this seed */
+    srand((random_seed[0] << 8) + random_seed[1]);
+
+#else
  	/*
 	 *  Initialize random number generator using same method as ptpv1:
 	 *  seed is now initialized from the last bytes of our mac addres (collected in net.c:findIface())
 	 */
 	srand((ptpClock->netPath.interfaceID[PTP_UUID_LENGTH - 1] << 8) +
 	    ptpClock->netPath.interfaceID[PTP_UUID_LENGTH - 2]);
+#endif /* SEC_EXT_SEED_RANDOM */
+
+#ifdef SEC_EXT_CRYPTO
+	/* init crypto contexts */
+	FILE *cert_f;
+    char pers[16] = {0};
+	
+	/* init the random seed */
+	randomData = open("/dev/urandom", O_RDONLY);
+    if(read(randomData, pers, 16) != 16)
+    {
+        return;
+    }
+	close(randomData);
+
+	/* init the key for the technician */
+    init_key( &ptpClock->tech_pk );
+
+    if( !importPublicKey( &ptpClock->tech_pk, rtOpts->techPubPath ) )
+    {
+        ERROR("failed\n  ! Could not open '%s'\n", rtOpts->techPubPath);
+        return;
+    }
+
+	/* master candidate fields */
+	if ( strlen(rtOpts->selfPubPath) != 0 )
+	{
+		/* sanity check */
+		if ( strlen(rtOpts->selfPrvPath) == 0 || strlen(rtOpts->selfCertPath) == 0 )
+		{
+	        ERROR("Error in configuraiton, not all master candidate paths are set!");
+	        return;
+		}
+		/* mark that has a certificate */
+		ptpClock->has_cert = TRUE;
+
+		/* init the self pk context */
+	    init_key( &ptpClock->self_public_pk );
+	    if( !importPublicKey( &ptpClock->self_public_pk, rtOpts->selfPubPath ) )
+		{
+		    ERROR("failed\n  ! Could not open '%s'\n", rtOpts->selfPubPath );
+		    return;
+		}
+
+	    init_key( &ptpClock->self_private_pk );
+	    if( !importPrivateKey( &ptpClock->self_private_pk, rtOpts->selfPrvPath, &ptpClock->self_public_pk ) )
+		{
+		    ERROR("failed\n  ! Could not open '%s'\n", rtOpts->selfPrvPath );
+		    return;
+		}
+
+		/* read the certificate signature */
+		if( ( cert_f = fopen( rtOpts->selfCertPath, "rb" ) ) == NULL )
+		{
+		    ERROR("\n  ! Could not open %s, reason %d\n", rtOpts->selfCertPath, cert_f );
+		    return;
+		}
+
+		fread( (char*)&ptpClock->self_cert, 1, sizeof(ptpClock->self_cert), cert_f );
+
+		fclose( cert_f );
+
+	} else
+	{
+		/* mark that doesn't have a certificate */
+		ptpClock->has_cert = FALSE;
+	}
+
+	/* clean all of the used structs (avoid padding problems) */
+	memset(&ptpClock->msgTmpHeader, 0, sizeof(MsgHeader));
+	memset(&ptpClock->msgTmp,       0, sizeof(MsgAnnounce));
+
+#endif /* SEC_EXT_CRYPTO */
 
 	/*Init other stuff*/
 	ptpClock->number_foreign_records = 0;
@@ -253,6 +408,11 @@ void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->parentDS.grandmasterPriority1 = ptpClock->defaultDS.priority1;
 	ptpClock->parentDS.grandmasterPriority2 = ptpClock->defaultDS.priority2;
         ptpClock->portDS.logMinDelayReqInterval = rtOpts->logMinDelayReqInterval;
+
+#ifdef SEC_EXT_CRYPTO
+	ptpClock->parentDS.gmHasPK = ptpClock->has_cert;
+	memcpy(&ptpClock->parentDS.gm_public_pk,  &ptpClock->self_public_pk,  sizeof(key_type));
+#endif /* SEC_EXT_CRYPTO */
 
 	/*Time Properties data set*/
 	ptpClock->timePropertiesDS.currentUtcOffsetValid = rtOpts->timeProperties.currentUtcOffsetValid;
@@ -387,7 +547,21 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	if(!firstUpdate && memcmp(&tpPrevious,&ptpClock->timePropertiesDS, sizeof(TimePropertiesDS))) {
 	    /* this is an event - will be picked up and dispatched, no need to set false */
 	    SET_ALARM(ALRM_TIMEPROP_CHANGE, TRUE);
-	} 
+	}
+
+	/* store the recv sequence id for the window checks */
+	if(rtOpts->window_size)
+	{
+		ptpClock->recvAnnounceSequenceId = header->sequenceId;
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+		ptpClock->recvAnnounceSequenceId |= header->reserved2 << 16;
+#endif
+	}
+
+#ifdef SEC_EXT_CRYPTO
+	ptpClock->parentDS.gmHasPK = ptpClock->bestMaster->hasPK;
+	memcpy(&ptpClock->parentDS.gm_public_pk, &ptpClock->bestMaster->fmPK, sizeof(key_type));
+#endif /* SEC_EXT_CRYPTO */
 
 	/* non-slave logic done, exit if not slave */
         if (ptpClock->portDS.portState != PTP_SLAVE) {
@@ -477,7 +651,9 @@ copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
         header->flagField1 |= ptpClock->timePropertiesDS.ptpTimescale		<< 3;
         header->flagField1 |= ptpClock->timePropertiesDS.timeTraceable		<< 4;
         header->flagField1 |= ptpClock->timePropertiesDS.frequencyTraceable	<< 5;
-
+#ifdef SEC_EXT_CRYPTO
+        header->flagField0 |= ptpClock->has_cert ? SECURITY_FLAG : 0;	
+#endif /* SEC_EXT_CRYPTO */
 }
 
 
@@ -645,18 +821,17 @@ dataset_comp_part_1:
 static UInteger8
 bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	Integer8 comp;
+	Integer8 comp = 0;
 	Boolean newBM;
 	ForeignMasterRecord me;
 
 	memset(&me, 0, sizeof(me));
 	me.localPreference = LOWEST_LOCALPREFERENCE;
 
-	newBM = ((memcmp(foreign->header.sourcePortIdentity.clockIdentity,
+	newBM = !cmpPortIdentity(&ptpClock->parentDS.parentPortIdentity, &ptpClock->portDS.portIdentity);
+	newBM = newBM || ((memcmp(foreign->header.sourcePortIdentity.clockIdentity,
 			    ptpClock->parentDS.parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH)) ||
 		(foreign->header.sourcePortIdentity.portNumber != ptpClock->parentDS.parentPortIdentity.portNumber));
-
-
 	
 	if (ptpClock->defaultDS.slaveOnly) {
 		/* master has changed: mark old grants for cancellation - refreshUnicastGrants will pick this up */
@@ -699,15 +874,32 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 
 	DBGV("local clockQuality.clockClass: %d \n", ptpClock->defaultDS.clockQuality.clockClass);
 
-	comp = bmcDataSetComparison(&me, foreign, ptpClock, rtOpts);
+#ifdef SEC_EXT_CRYPTO
+	Boolean oldPK, newPK;
+	/* first check the PK status */	
+	newPK = (me.header.flagField0 & SECURITY_FLAG) == SECURITY_FLAG;
+	oldPK = ptpClock->bestMaster->hasPK;
+
+	if(newPK != oldPK)
+	{
+		comp = newPK ? -1 : +1;
+	}
+
+#endif /* SEC_EXT_CRYPTO */
+
+	/* calculate comp only if have no result from previous check */
+	if (comp == 0)
+	{
+		comp = bmcDataSetComparison(&me, foreign, ptpClock, rtOpts);
+	}
 	if (ptpClock->defaultDS.clockQuality.clockClass < 128) {
 		if (comp < 0) {
 			m1(rtOpts, ptpClock);
 			return PTP_MASTER;
 		} else if (comp > 0) {
-			s1(&foreign->header, &foreign->announce, ptpClock, rtOpts);
 			if (newBM) {
 			/* New BM #2 */
+				s1(&foreign->header, &foreign->announce, ptpClock, rtOpts);
 				SET_ALARM(ALRM_MASTER_CHANGE, TRUE);
 				displayPortIdentity(&foreign->header.sourcePortIdentity,
 						    "New best master selected:");
@@ -724,9 +916,9 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 			m1(rtOpts,ptpClock);
 			return PTP_MASTER;
 		} else if (comp > 0) {
-			s1(&foreign->header, &foreign->announce,ptpClock, rtOpts);
 			if (newBM) {
 			/* New BM #3 */
+				s1(&foreign->header, &foreign->announce,ptpClock, rtOpts);
 				SET_ALARM(ALRM_MASTER_CHANGE, TRUE);
 				displayPortIdentity(&foreign->header.sourcePortIdentity,
 						    "New best master selected:");
@@ -767,9 +959,19 @@ bmc(ForeignMasterRecord *foreignMaster,
 		}
 
 	for (i=1,best = 0; i<ptpClock->number_foreign_records;i++)
+	{
+#ifdef SEC_EXT_CRYPTO
+		/* PK is the first bit */
+		if ( foreignMaster[i].hasPK != foreignMaster[best].hasPK )
+		{
+			best = foreignMaster[i].hasPK ? i : best ;
+			continue;
+		}
+#endif /* SEC_EXT_CRYPTO */
 		if ((bmcDataSetComparison(&foreignMaster[i], &foreignMaster[best],
 					  ptpClock, rtOpts)) < 0)
 			best = i;
+	}
 
 	DBGV("Best record : %d \n",best);
 	ptpClock->foreign_record_best = best;

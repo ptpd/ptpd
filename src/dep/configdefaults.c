@@ -443,6 +443,17 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->syncSequenceChecking = FALSE;
 	rtOpts->clockUpdateTimeout = 0;
 
+	/* constants used for msg ID window checking (freshness check) */
+	rtOpts->window_size = 0;
+
+#ifdef SEC_EXT_CRYPTO
+	/* Cryptography extension */
+	rtOpts->techPubPath[0]  = 0;
+	rtOpts->selfPubPath[0]  = 0;
+	rtOpts->selfPrvPath[0]  = 0;
+	rtOpts->selfCertPath[0] = 0;
+#endif /* SEC_EXT_CRYPTO */
+
 }
 
 /* The PtpEnginePreset structure for reference:

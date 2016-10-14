@@ -11,7 +11,6 @@
 #endif /* PTPD_STATISTICS */
 #include "dep/alarms.h"
 
-
 /**
  * \struct PtpdCounters
  * \brief Ptpd engine counters per port
@@ -466,6 +465,16 @@ typedef struct {
 	Enumeration8 timingAclOrder;
 	Enumeration8 managementAclOrder;
 
+	UInteger8 window_size;
+
+#ifdef SEC_EXT_CRYPTO
+	/* Cryptography extension */
+	char techPubPath[PATH_MAX];
+	char selfPubPath[PATH_MAX];
+	char selfPrvPath[PATH_MAX];
+	char selfCertPath[PATH_MAX];
+#endif
+
 } RunTimeOpts;
 
 
@@ -501,6 +510,18 @@ typedef struct {
 	Boolean  record_update;    /* should we run bmc() after receiving an announce message? */
 
 	Boolean disabled;	/* port is permanently disabled */
+
+#ifdef SEC_EXT_CRYPTO
+	/* crypto fields - globals */
+    prng_type ctr_drbg;
+	key_type  tech_pk;
+
+	/* crypto - master candidate */
+	Boolean has_cert;
+	key_type self_private_pk;
+	key_type self_public_pk;
+	Signature self_cert;
+#endif /* SEC_EXT_CRYPTO */
 
 	/* unicast grant table - our own grants or our slaves' grants or grants to peers */
 	UnicastGrantTable unicastGrants[UNICAST_MAX_DESTINATIONS];
@@ -574,14 +595,28 @@ typedef struct {
 	TimeInternal  lastPdelayRespCorrectionField;
 
 	Boolean  sentPdelayReq;
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+	UInteger32  sentDelayReqSequenceId;
+	UInteger32  sentPdelayReqSequenceId;
+	UInteger32  sentSyncSequenceId;
+	UInteger32  sentAnnounceSequenceId;
+    UInteger32  recvDelayReqSequenceId;
+    UInteger32  recvDelayRespSequenceId;
+    UInteger32  recvPdelayReqSequenceId;
+	UInteger32  recvPdelayRespSequenceId;
+	UInteger32  recvAnnounceSequenceId;
+	UInteger32  recvSyncSequenceId;
+#else
 	UInteger16  sentPdelayReqSequenceId;
 	UInteger16  sentDelayReqSequenceId;
 	UInteger16  sentSyncSequenceId;
 	UInteger16  sentAnnounceSequenceId;
-	UInteger16  sentSignalingSequenceId;
-	UInteger16  recvPdelayReqSequenceId;
-	UInteger16  recvSyncSequenceId;
+    UInteger16  recvPdelayReqSequenceId;
 	UInteger16  recvPdelayRespSequenceId;
+	UInteger16  recvAnnounceSequenceId;
+	UInteger16  recvSyncSequenceId;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
+	UInteger16  sentSignalingSequenceId;
 	Boolean  waitingForFollow;
 	Boolean  waitingForDelayResp;
 	

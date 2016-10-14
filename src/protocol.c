@@ -1,4 +1,7 @@
 /*-
+ * Copyright (c) 2015-2016 Eyal Itkin (TAU),
+ *                         Avishai Wool (TAU),
+ *                         In accordance to http://arxiv.org/abs/1603.00707 .
  * Copyright (c) 2012-2015 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer,
@@ -72,10 +75,16 @@ static void handlePdelayRespFollowUp(const MsgHeader*, ssize_t, Boolean, const R
 
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
 static void issueAnnounce(const RunTimeOpts*,PtpClock*);
-static void issueAnnounceSingle(Integer32, UInteger16*, const RunTimeOpts*,PtpClock*);
 static void issueSync(const RunTimeOpts*,PtpClock*);
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+static TimeInternal issueSyncSingle(Integer32, UInteger32*, const RunTimeOpts*,PtpClock*);
+static void issueAnnounceSingle(Integer32, UInteger32*, const RunTimeOpts*,PtpClock*);
+static void issueFollowup(const TimeInternal*,const RunTimeOpts*,PtpClock*, Integer32, const UInteger32);
+#else
 static TimeInternal issueSyncSingle(Integer32, UInteger16*, const RunTimeOpts*,PtpClock*);
+static void issueAnnounceSingle(Integer32, UInteger16*, const RunTimeOpts*,PtpClock*);
 static void issueFollowup(const TimeInternal*,const RunTimeOpts*,PtpClock*, Integer32, const UInteger16);
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 #endif /* PTPD_SLAVE_ONLY */
 static void issuePdelayReq(const RunTimeOpts*,PtpClock*);
 static void issueDelayReq(const RunTimeOpts*,PtpClock*);
@@ -86,7 +95,11 @@ static void issuePdelayRespFollowUp(const TimeInternal*,MsgHeader*, Integer32, c
 static void processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp, ssize_t length);
 
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+static void processSyncFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 dst, const UInteger32 sequenceId);
+#else
 static void processSyncFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 dst, const UInteger16 sequenceId);
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 static void indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, Integer32 transportAddress, SyncDestEntry *index);
 #endif /* PTPD_SLAVE_ONLY */
 
@@ -99,6 +112,10 @@ static void timestampCorrection(const RunTimeOpts * rtOpts, PtpClock *ptpClock, 
 
 static Integer32 lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, SyncDestEntry *index);
 static Integer32 findSyncDestination(TimeInternal *timeStamp, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
+
+#ifdef SEC_EXT_CRYPTO
+Boolean checkCertificate(Octet *buf, ForeignMasterRecord *record, MsgAnnounce* announce, PtpClock *ptpClock, Boolean firstCheck);
+#endif /* SEC_EXT_CRYPTO */
 
 
 #ifndef PTPD_SLAVE_ONLY
@@ -1269,6 +1286,65 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 
     msgUnpackHeader(ptpClock->msgIbuf, &ptpClock->msgTmpHeader);
 
+#ifdef SEC_EXT_LENGTH_CHECK
+	/* check the length */
+	if (length != ptpClock->msgTmpHeader.messageLength)
+	{
+		NOTICE("Error: message length field (%d) does NOT match the packet's length (%d) \n", ptpClock->msgTmpHeader.messageLength, length );
+		ptpClock->counters.messageFormatErrors++;
+		return;
+	}
+#endif /* SEC_EXT_LENGTH_CHECK */
+
+#ifdef SEC_EXT_BIND_CLOCK_ID_TO_NET_ID
+    char net_id[6] = {0};
+    /* should check the clock ID against the network ID */
+    switch(rtOpts->transport) {
+
+	    case UDP_IPV4:
+            /* PTP over IP (4 bytes IP | 2 bytes port) */
+			net_id[0] = (UInteger8)((ptpClock->netPath.lastSourceAddr & 0xFF000000) >> 24);
+			net_id[1] = (UInteger8)((ptpClock->netPath.lastSourceAddr & 0x00FF0000) >> 16);
+			net_id[2] = (UInteger8)((ptpClock->netPath.lastSourceAddr & 0x0000FF00) >>  8);
+			net_id[3] = (UInteger8)((ptpClock->netPath.lastSourceAddr & 0x000000FF) >>  0);
+
+			net_id[4] = (UInteger8)((PTP_EVENT_PORT & 0xFF00) >> 8);
+			net_id[5] = (UInteger8)((PTP_EVENT_PORT & 0x00FF) >> 0);
+            break;
+	    case IEEE_802_3:
+		    /* PTP over Ethernet (802.3) */
+            memcpy(net_id, (void*)&(ptpClock->netPath.lastRecvAddr), sizeof(net_id));
+		    break;
+
+	    default:
+		    return;
+	}
+
+    /* set the net id the same way we init the clock id */
+    char temp_clock_id[CLOCK_IDENTITY_LENGTH] = {0};
+    for (int i=0,j=0;i<CLOCK_IDENTITY_LENGTH;i++)
+    {
+        if (i==3) temp_clock_id[i]=0xFF;
+        else if (i==4) temp_clock_id[i]=0xFE;
+        else
+        {
+          temp_clock_id[i]=net_id[j];
+          j++;
+        }
+    }
+
+    /* can now memcmp the tmp clock id and the received clock id */
+    if ( memcmp(temp_clock_id, ptpClock->msgTmpHeader.sourcePortIdentity.clockIdentity, CLOCK_IDENTITY_LENGTH) != 0 )
+    {
+		struct in_addr tmpAddr;
+		tmpAddr.s_addr = ptpClock->netPath.lastSourceAddr;
+        WARNING("Error: message network source (%s) does NOT match the src clock ID\n", inet_ntoa(tmpAddr));
+        ptpClock->counters.discardedMessages++;
+        return;
+    }
+
+#endif /* SEC_EXT_BIND_CLOCK_ID_TO_NET_ID */
+
     /* packet is not from self, and is from a non-zero source address - check ACLs */
     if(ptpClock->netPath.lastSourceAddr &&
 	(ptpClock->netPath.lastSourceAddr != ptpClock->netPath.interfaceAddr.s_addr)) {
@@ -1611,6 +1687,45 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 	   		msgUnpackAnnounce(ptpClock->msgIbuf,
 					  &ptpClock->msgTmp.announce);
 
+			if ( rtOpts->window_size )
+			{
+				UInteger32 seq_id = header->sequenceId;
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+				seq_id |= header->reserved2 << 16;
+				UInteger64 limit = ((UInteger64)1) << 32;
+#else
+				UInteger32 limit = 1 << 16;
+#endif
+		        /* !(clock->recvId <= header->sequenceId <= clock->recvId + window_size) */
+		        if(!((ptpClock->recvAnnounceSequenceId < seq_id && 
+						seq_id <= ptpClock->recvAnnounceSequenceId + rtOpts->window_size) ||
+				   (ptpClock->recvAnnounceSequenceId < (seq_id + limit) &&
+						(seq_id + limit - rtOpts->window_size) <= ptpClock->recvAnnounceSequenceId))) {
+		            /* msg is not in the recv window */
+				    WARNING("HandleAnnounce : msg (%d) not in window (%d,%d], dropping it\n",
+						seq_id,
+						ptpClock->recvAnnounceSequenceId,
+						ptpClock->recvAnnounceSequenceId + rtOpts->window_size);
+		            ptpClock->counters.discardedMessages++;
+		            return;
+		        }
+		        ptpClock->recvAnnounceSequenceId = seq_id;
+			}
+
+#ifdef SEC_EXT_CRYPTO
+			/* check if has a certificate */
+			if(ptpClock->parentDS.gmHasPK)
+			{
+				/* check the certificate */
+				if(!checkCertificate(ptpClock->msgIbuf, ptpClock->bestMaster,
+						&ptpClock->msgTmp.announce, ptpClock, FALSE))
+				{
+					WARNING("Error: Announce message from grandmaster did NOT pass the certificate check\n");
+					return;
+				}
+			}
+#endif /* SEC_EXT_CRYPTO */
+
 			/* update datasets (file bmc.c) */
 	   		s1(header,&ptpClock->msgTmp.announce,ptpClock, rtOpts);
 
@@ -1834,6 +1949,10 @@ handleSync(const MsgHeader *header, ssize_t length,
 		}
 
 		if (isFromCurrentParent(ptpClock, header)) {
+			UInteger32 seq_id = header->sequenceId;
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+			seq_id |= header->reserved2 << 16;
+#endif
 			ptpClock->counters.syncMessagesReceived++;
 			timerStart(&ptpClock->timers[SYNC_RECEIPT_TIMER], max(
 			    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
@@ -1852,19 +1971,33 @@ handleSync(const MsgHeader *header, ssize_t length,
 				else if (ptpClock->portDS.delayMechanism == P2P)
 					timerStart(&ptpClock->timers[PDELAYREQ_INTERVAL_TIMER],
 						   pow(2,ptpClock->portDS.logMinPdelayReqInterval));
-			} else if ( rtOpts->syncSequenceChecking ) {
-				if(  (ptpClock->counters.consecutiveSequenceErrors < MAX_SEQ_ERRORS) &&
-					((((UInteger16)(ptpClock->recvSyncSequenceId + 32768)) >
-					(header->sequenceId + 32767)) ||
-				    (((UInteger16)(ptpClock->recvSyncSequenceId + 1)) >
-					(header->sequenceId)))  )  {
+			} else if ( rtOpts->syncSequenceChecking || rtOpts->window_size != 0 ) {
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+				UInteger64 limit = ((UInteger64)1) << 32;
+#else
+				UInteger32 limit = 1 << 16;
+#endif
+				if( (ptpClock->counters.consecutiveSequenceErrors < MAX_SEQ_ERRORS) && 
+					 ( (rtOpts->window_size &&
+		                	/* !(clock->recvId <= header->sequenceId <= clock->recvId + window_size) */
+				            !((ptpClock->recvSyncSequenceId < seq_id &&
+									seq_id <= ptpClock->recvSyncSequenceId + rtOpts->window_size) ||
+				               (ptpClock->recvSyncSequenceId < (seq_id + limit) &&
+									(seq_id + limit - rtOpts->window_size) <= ptpClock->recvSyncSequenceId)))
+					 ||
+
+					  ( (!rtOpts->window_size && 
+							((((UInteger16)(ptpClock->recvSyncSequenceId + 32768)) > (header->sequenceId + 32767)) ||
+							(((UInteger16)(ptpClock->recvSyncSequenceId + 1)) >	(header->sequenceId))))))
+					)  {
 					ptpClock->counters.discardedMessages++;
 					ptpClock->counters.sequenceMismatchErrors++;
 					ptpClock->counters.consecutiveSequenceErrors++;
 					DBG("HandleSync : sequence mismatch - "
-					    "received: %d, expected %d or greater, consecutive errors %d\n",
-					    header->sequenceId,
-					    (UInteger16)(ptpClock->recvSyncSequenceId + 1),
+					    "received: %d, expected (%d,%d], consecutive errors %d\n",
+					    seq_id,
+					    ptpClock->recvSyncSequenceId,
+					    ptpClock->recvSyncSequenceId + rtOpts->window_size,
 					    ptpClock->counters.consecutiveSequenceErrors
 					    );
 					break;
@@ -1916,10 +2049,19 @@ handleSync(const MsgHeader *header, ssize_t length,
 				ptpClock->lastSyncCorrectionField.nanoseconds =
 					correctionField.nanoseconds;
 				ptpClock->recvSyncSequenceId =
-					header->sequenceId;
+					seq_id;
 				break;
 			} else {
 
+#ifdef SEC_EXT_CRYPTO
+				/* if master should sign the msg, than this case should NOT exist */
+				if (ptpClock->parentDS.gmHasPK)
+				{
+					WARNING("Received a Sync without FollowUP from a PK-Enabled Master!\n");
+					break;
+				}
+#endif /* SEC_EXT_CRYPTO */
+				ptpClock->recvSyncSequenceId = seq_id;
 				ptpClock->sync_receive_time.seconds = tint->seconds;
 				ptpClock->sync_receive_time.nanoseconds = tint->nanoseconds;
 
@@ -1996,7 +2138,11 @@ handleSync(const MsgHeader *header, ssize_t length,
 			}
 
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
-			processSyncFromSelf(tint, rtOpts, ptpClock, dst, header->sequenceId);
+			UInteger32 seq_id = header->sequenceId;
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+			seq_id |= header->reserved2 << 16;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
+			processSyncFromSelf(tint, rtOpts, ptpClock, dst, seq_id);
 #endif /* PTPD_SLAVE_ONLY */
 			break;
 		} else {
@@ -2006,8 +2152,13 @@ handleSync(const MsgHeader *header, ssize_t length,
 }
 
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+static void
+processSyncFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 dst, const UInteger32 sequenceId) {
+#else
 static void
 processSyncFromSelf(const TimeInternal * tint, const RunTimeOpts * rtOpts, PtpClock * ptpClock, Integer32 dst, const UInteger16 sequenceId) {
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 	TimeInternal timestamp;
 	/*Add latency*/
 	addTime(&timestamp, tint, &rtOpts->outboundLatency);
@@ -2060,11 +2211,49 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 			}
 
 			if (ptpClock->waitingForFollow)	{
+				UInteger32 seq_id = header->sequenceId;
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+				seq_id |= header->reserved2 << 16;
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 				if (ptpClock->recvSyncSequenceId ==
-				     header->sequenceId) {
+				     seq_id) {
 					ptpClock->followUpGap = 0;
 					msgUnpackFollowUp(ptpClock->msgIbuf,
 							  &ptpClock->msgTmp.follow);
+
+#ifdef SEC_EXT_CRYPTO
+					/* if master should sign the msg, than should first verify the msg */
+					if (ptpClock->parentDS.gmHasPK)
+					{
+						/* check the security flag */
+						if((ptpClock->msgIbuf[6] & SECURITY_FLAG) != SECURITY_FLAG)
+						{
+							WARNING("Error: Follow up message should be signed, and was sent without signature\n");
+							return;
+						}
+
+						/* check size */
+						if ( length < FOLLOW_UP_EXT_LENGTH )
+						{
+							WARNING("Error: Follow up message (signature) too short\n");
+							ptpClock->counters.messageFormatErrors++;
+							return;
+						}
+
+						/* get the signature */
+						Signature msgSig;
+						unpackSignature(&ptpClock->msgIbuf[FOLLOW_UP_LENGTH], msgSig.sig);
+						/* "clean" the msg */
+						memset(&ptpClock->msgIbuf[8], 0, 8);
+						/* verify the msg + timestamp */
+						if(	!verifyMsg(&ptpClock->parentDS.gm_public_pk, ptpClock->msgIbuf, FOLLOW_UP_LENGTH, msgSig.sig) )
+						{
+							WARNING("Error: Follow up message signature is NOT valid\n");
+							return;
+						}
+					}
+#endif /* SEC_EXT_CRYPTO */
+
 					ptpClock->waitingForFollow = FALSE;
 					toInternalTime(&preciseOriginTimestamp,
 						       &ptpClock->msgTmp.follow.preciseOriginTimestamp);
@@ -2093,7 +2282,7 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 					    DBG("HandleFollowUp : sequence mismatch - "
 					    "last Sync: %d, this FollowUp: %d\n",
 					    ptpClock->recvSyncSequenceId,
-					    header->sequenceId);
+					    seq_id);
 					    ptpClock->counters.sequenceMismatchErrors++;
 					    ptpClock->counters.discardedMessages++;
 					}
@@ -2317,9 +2506,13 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 					ptpClock->counters.discardedMessages++;
 					break;
 				}
-
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+                ptpClock->recvDelayRespSequenceId = (header->reserved2 << 16) + header->sequenceId;
+                if ( ptpClock->recvDelayRespSequenceId + 1 != ptpClock->sentDelayReqSequenceId) {
+#else
 				if (ptpClock->sentDelayReqSequenceId !=
 				((UInteger16)(header->sequenceId + 1))) {
+#endif
 					DBG("HandledelayResp : sequence mismatch - "
 					    "last DelayReq sent: %d, delayResp received: %d\n",
 					    ptpClock->sentDelayReqSequenceId,
@@ -2470,6 +2663,10 @@ handlePdelayReq(MsgHeader *header, ssize_t length,
 		case PTP_MASTER:
 		case PTP_PASSIVE:
 
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+            ptpClock->recvPdelayReqSequenceId = (header->reserved2 << 16) + header->sequenceId;
+#endif
+
 			if (isFromSelf) {
 				processPdelayReqFromSelf(tint, rtOpts, ptpClock);
 				break;
@@ -2561,8 +2758,13 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 			msgUnpackPdelayResp(ptpClock->msgIbuf,
 					    &ptpClock->msgTmp.presp);
 
-			if (ptpClock->sentPdelayReqSequenceId !=
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+            ptpClock->recvPdelayRespSequenceId = (header->reserved2 << 16) + header->sequenceId;
+            if ( ptpClock->recvPdelayRespSequenceId + 1 != ptpClock->sentPdelayReqSequenceId) {
+#else
+			if (ptpClock->sentPdelayReqSequenceId != 
 			       ((UInteger16)(header->sequenceId + 1))) {
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 				    DBG("PdelayResp: sequence mismatch - sent: %d, received: %d\n",
 					    ptpClock->sentPdelayReqSequenceId,
 					    header->sequenceId);
@@ -2714,8 +2916,13 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 				DBGV("HandlePdelayRespFollowUp : Ignore message from self \n");
 				return;
 			}
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+            UInteger32 seq_id = (header->reserved2 << 16) + header->sequenceId;
+            if ( ptpClock->recvPdelayRespSequenceId == seq_id && ptpClock->sentPdelayReqSequenceId != seq_id + 1) {
+#else
 			if (( ((UInteger16)(header->sequenceId + 1)) ==
 			    ptpClock->sentPdelayReqSequenceId) && (header->sequenceId == ptpClock->recvPdelayRespSequenceId)) {
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 				msgUnpackPdelayRespFollowUp(
 					ptpClock->msgIbuf,
 					&ptpClock->msgTmp.prespfollow);
@@ -2898,12 +3105,23 @@ issueAnnounce(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 /* send single announce to a single destination */
 static void
-issueAnnounceSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts,PtpClock *ptpClock)
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+issueAnnounceSingle(Integer32 dst, UInteger32 *sequenceId, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+#else
+issueAnnounceSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+#endif
 {
-
+	UInteger16 length = ANNOUNCE_LENGTH;
 	msgPackAnnounce(ptpClock->msgObuf, *sequenceId,ptpClock);
 
-	if (!netSendGeneral(ptpClock->msgObuf,ANNOUNCE_LENGTH,
+#ifdef SEC_EXT_CRYPTO
+	if( ptpClock->has_cert )
+	{
+		length = ANNOUNCE_EXT_LENGTH;
+	}
+#endif /* SEC_EXT_CRYPTO */
+
+	if (!netSendGeneral(ptpClock->msgObuf, length,
 			    &ptpClock->netPath, rtOpts, dst)) {
 		    toState(PTP_FAULTY,rtOpts,ptpClock);
 		    ptpClock->counters.messageSendErrors++;
@@ -2973,7 +3191,11 @@ issueSync(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 /*Pack and send a single Sync message, return the embedded timestamp*/
 static TimeInternal
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+issueSyncSingle(Integer32 dst, UInteger32 *sequenceId, const RunTimeOpts *rtOpts,PtpClock *ptpClock)
+#else
 issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts,PtpClock *ptpClock)
+#endif
 {
 	Timestamp originTimestamp;
 	TimeInternal internalTime, now;
@@ -3066,14 +3288,26 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 
 /*Pack and send on general multicast ip adress a FollowUp message*/
 static void
+#ifdef SEC_EXT_USE_RESERVE_SEQUENCE
+issueFollowup(const TimeInternal *tint,const RunTimeOpts *rtOpts,PtpClock *ptpClock, Integer32 dst, UInteger32 sequenceId)
+#else
 issueFollowup(const TimeInternal *tint,const RunTimeOpts *rtOpts,PtpClock *ptpClock, Integer32 dst, UInteger16 sequenceId)
+#endif /* SEC_EXT_USE_RESERVE_SEQUENCE */
 {
+	UInteger16 length = FOLLOW_UP_LENGTH;
 	Timestamp preciseOriginTimestamp;
 	fromInternalTime(tint,&preciseOriginTimestamp);
 	
 	msgPackFollowUp(ptpClock->msgObuf,&preciseOriginTimestamp,ptpClock,sequenceId);	
 
-	if (!netSendGeneral(ptpClock->msgObuf,FOLLOW_UP_LENGTH,
+#ifdef SEC_EXT_CRYPTO
+	if ( ptpClock->has_cert )
+	{
+		length += SIGNATURE_SIZE;
+	}
+#endif /* SEC_EXT_CRYPTO */
+
+	if (!netSendGeneral(ptpClock->msgObuf, length,
 			    &ptpClock->netPath, rtOpts, dst)) {
 		toState(PTP_FAULTY,rtOpts,ptpClock);
 		ptpClock->counters.messageSendErrors++;
@@ -3335,11 +3569,105 @@ issuePdelayRespFollowUp(const TimeInternal *tint, MsgHeader *header, Integer32 d
 	}
 }
 
+#ifdef SEC_EXT_CRYPTO
+
+Boolean
+checkCertificate(Octet *buf, ForeignMasterRecord *record, MsgAnnounce* announce, PtpClock *ptpClock, Boolean firstCheck)
+{
+	Boolean checkCrypto = firstCheck;
+	key_type localPK;
+	Octet temp_buffer[PACKET_SIZE];
+	MsgAnnounce msg_announce, rec_announce;
+
+	/* clean the localPK */
+	memset(&localPK, 0, sizeof(localPK));
+
+	/* only if has a certificate */
+	if( record->hasPK )
+	{
+		/* should have a security flag */
+		if((buf[6] & SECURITY_FLAG) != SECURITY_FLAG)
+		{
+			WARNING("Error: Announce message should be signed, and was sent without certificate\n");
+			return FALSE;
+		}
+
+		/* check size */
+		if ( ptpClock->msgTmpHeader.messageLength < ANNOUNCE_EXT_LENGTH )
+		{
+			WARNING("Error: Announce message (certificate) too short\n");
+			ptpClock->counters.messageFormatErrors++;
+			return FALSE;
+		}
+
+		/* read the public key */
+		unpackPublicKey(&buf[ANNOUNCE_LENGTH], &localPK);
+
+		/* check what check should be done */
+		if ( !firstCheck )
+		{
+			/* "clean" the msg */
+			memcpy(&msg_announce, announce, sizeof(MsgAnnounce));
+			memset(&msg_announce.originTimestamp, 0, sizeof(Timestamp));
+			msg_announce.currentUtcOffset = 0;
+			msg_announce.stepsRemoved = 0;
+
+			/* "clean" the announce record */
+			memcpy(&rec_announce, &record->announce, sizeof(MsgAnnounce));
+			memset(&rec_announce.originTimestamp, 0, sizeof(Timestamp));
+			rec_announce.currentUtcOffset = 0;
+			rec_announce.stepsRemoved = 0;			
+
+			/* memcmp the certificate */
+			if(memcmp(&rec_announce, &msg_announce, sizeof(MsgAnnounce)) != 0)
+			{
+				checkCrypto = TRUE;
+			} else {
+				/* compare the pubkey */
+				if(memcmp(&record->fmPK, &localPK, sizeof(key_type)) != 0)
+				{
+					checkCrypto = TRUE;
+				}
+				
+				/* otherwise, no need to check things */
+			}
+		}
+
+		if ( checkCrypto )
+		{
+			/* copy the msg to the temp buffer */
+			memcpy(temp_buffer, &ptpClock->msgIbuf[HEADER_LENGTH], ANNOUNCE_EXT_LENGTH - HEADER_LENGTH);
+			/* zero the redundent fields */
+			memset(temp_buffer, 0, 10 + 2 + 1);					  				/* origin timestamp + UTC Offset + reserved */
+			memset(&temp_buffer[ANNOUNCE_PAYLOAD - 3], 0, sizeof(UInteger16));	/* steps removed */
+
+			/* verify the signature */
+			if( !verifyMsg(&ptpClock->tech_pk, temp_buffer,
+								ANNOUNCE_VERIFY_LENGTH, &temp_buffer[ANNOUNCE_PAYLOAD + PUBLIC_KEY_SIZE]) )
+			{
+				WARNING("Error: Announce message (certificate) is not valid\n");
+				return FALSE;
+			}
+				
+			/* update the PK to the record */
+			memcpy(&record->fmPK, &localPK, sizeof(key_type));
+		}
+	}
+
+	return TRUE;
+}
+
+#endif /* SEC_EXT_CRYPTO */
+
+
 void
 addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPreference, UInteger32 sourceAddr)
 {
 	int i,j;
-	Boolean found = FALSE;
+	Boolean found = FALSE, failed_check = FALSE;
+	MsgAnnounce local;
+	/* avoid padding problems */
+	memset(&local, 0, sizeof(MsgAnnounce));
 
 	DBGV("addForeign localPref: %d\n", localPreference);
 
@@ -3354,6 +3682,15 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPrefe
 		     ptpClock->foreign[j].foreignMasterPortIdentity.portNumber))
 		{
 			/*Foreign Master is already in Foreignmaster data set*/
+#ifdef SEC_EXT_CRYPTO
+			msgUnpackAnnounce(buf,&local);
+			/* check validity before using the msg */
+			if (!checkCertificate(buf, &ptpClock->foreign[j], &local, ptpClock, FALSE))
+			{
+				NOTICE("Known foreign master sent an invalid certificate.");
+				return;
+			}
+#endif /* SEC_EXT_CRYPTO */
 			ptpClock->foreign[j].foreignMasterAnnounceMessages++;
 			found = TRUE;
 			DBGV("addForeign : AnnounceMessage incremented \n");
@@ -3381,6 +3718,45 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPrefe
 		}
 		
 		j = ptpClock->foreign_record_i;
+
+#ifdef SEC_EXT_CRYPTO
+		/* check if has a certificate */
+		if((ptpClock->msgIbuf[6] & SECURITY_FLAG) == SECURITY_FLAG)
+		{
+			/* check size */
+			if ( ptpClock->msgTmpHeader.messageLength < ANNOUNCE_EXT_LENGTH )
+			{
+				WARNING("Error: Announce message (certificate) too short\n");
+				ptpClock->counters.messageFormatErrors++;
+				goto foreign_fail;
+			}
+			
+			/* mark that has a PK */
+			ptpClock->foreign[j].hasPK = TRUE;
+
+			/* check the certificate */
+			if(!checkCertificate(ptpClock->msgIbuf, &ptpClock->foreign[j], NULL, ptpClock, TRUE))
+			{
+				WARNING("Error: Announce message (certificate) did not pass checks :(\n");
+				goto foreign_fail;
+			}
+
+			/* mark check success */
+			failed_check = FALSE;
+
+			/* fail case */
+			if (failed_check)
+			{
+foreign_fail:
+				ptpClock->number_foreign_records--;
+				return;
+			}
+		} else 
+		{
+			ptpClock->foreign[j].hasPK = FALSE;
+		}
+
+#endif /* SEC_EXT_CRYPTO */
 		
 		/*Copy new foreign master data set from Announce message*/
 		copyClockIdentity(ptpClock->foreign[j].foreignMasterPortIdentity.clockIdentity,

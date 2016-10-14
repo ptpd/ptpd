@@ -3,6 +3,10 @@
 
 #include "ptp_primitives.h"
 
+#ifdef SEC_EXT_CRYPTO
+#include <dep/crypto/enc.h>
+#endif /* SEC_EXT_CRYPTO */
+
 /*Struct defined in spec*/
 
 
@@ -510,6 +514,13 @@ typedef struct
 	UInteger8    localPreference; /* local preference - only used by telecom profile */
 	UInteger32   sourceAddr; /* source address */
 	Boolean	     disqualified; /* if true, this one always loses */
+
+#ifdef SEC_EXT_CRYPTO
+	/* pk information */
+	Boolean 			hasPK; /* does the foreign master have a certificate? */
+	key_type		 	fmPK;  /* pk of the foreign master */
+#endif /* SEC_EXT_CRYPTO */
+
 } ForeignMasterRecord;
 
 typedef struct {
@@ -551,6 +562,10 @@ typedef struct {
 	ClockQuality grandmasterClockQuality;
 	UInteger8 grandmasterPriority1;
 	UInteger8 grandmasterPriority2;
+#ifdef SEC_EXT_CRYPTO
+	Boolean  gmHasPK;
+	key_type gm_public_pk;
+#endif /* SEC_EXT_CRYPTO */
 } ParentDS;
 
 typedef struct {

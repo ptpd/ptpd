@@ -126,6 +126,9 @@ section 7.6.2.5, page 56:
  /**\{*/
 #define HEADER_LENGTH					34
 #define ANNOUNCE_LENGTH					64
+#ifdef SEC_EXT_CRYPTO
+#define ANNOUNCE_PAYLOAD				(ANNOUNCE_LENGTH - HEADER_LENGTH)
+#endif /* SEC_EXT_CRYPTO */
 #define SYNC_LENGTH					44
 #define FOLLOW_UP_LENGTH				44
 #define PDELAY_REQ_LENGTH				54
