@@ -359,6 +359,145 @@ mMClockDescription_display(const MMClockDescription *clockDescription, const Ptp
 	DBGV("profileIdentity5 : %d \n", clockDescription->profileIdentity5);
 }
 
+void
+mMUserDescription_display(const MMUserDescription* userDescription, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMInitialize_display(const MMInitialize* initialize, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMDefaultDataSet_display(const MMDefaultDataSet* defaultDataSet, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMCurrentDataSet_display(const MMCurrentDataSet* currentDataSet, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMParentDataSet_display(const MMParentDataSet* parentDataSet, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMTimePropertiesDataSet_display(const MMTimePropertiesDataSet* timePropertiesDataSet, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMPortDataSet_display(const MMPortDataSet* portDataSet, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMPriority1_display(const MMPriority1* priority1, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMPriority2_display(const MMPriority2* priority2, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMDomain_display(const MMDomain* domain, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMLogAnnounceInterval_display(const MMLogAnnounceInterval* logAnnounceInterval, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMAnnounceReceiptTimeout_display(const MMAnnounceReceiptTimeout* announceReceiptTimeout, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMLogSyncInterval_display(const MMLogSyncInterval* logSyncInterval, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMVersionNumber_display(const MMVersionNumber* versionNumber, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMTime_display(const MMTime* time, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMClockAccuracy_display(const MMClockAccuracy* clockAccuracy, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMUtcProperties_display(const MMUtcProperties* utcProperties, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMTraceabilityProperties_display(const MMTraceabilityProperties* traceabilityProperties, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMTimescaleProperties_display(const MMTimescaleProperties* TimescaleProperties, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMUnicastNegotiationEnable_display(const MMUnicastNegotiationEnable* unicastNegotiationEnable, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+
+void
+mMDelayMechanism_display(const MMDelayMechanism* delayMechanism, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMLogMinPdelayReqInterval_display(const MMLogMinPdelayReqInterval* logMinPdelayReqInterval, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
+void
+mMErrorStatus_display(const MMErrorStatus* errorStatus, const PtpClock *ptpClock)
+{
+	/* TODO: implement me */
+}
+
 /**\brief Display Signaling message*/
 void
 msgSignaling_display(const MsgSignaling * signaling)

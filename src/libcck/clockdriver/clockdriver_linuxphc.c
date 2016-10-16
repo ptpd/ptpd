@@ -509,7 +509,7 @@ static Boolean
 getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 {
 
-#ifdef PTPD_CLOCK_SYNC_PROFILING
+#if defined(PTPD_CLOCK_SYNC_PROFILING) || defined(RUNTIME_DEBUG)
     char isMin;
 #endif
 
