@@ -509,9 +509,7 @@ static Boolean
 getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 {
 
-#if defined(PTPD_CLOCK_SYNC_PROFILING) || defined(RUNTIME_DEBUG)
     char isMin;
-#endif
 
     GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
     GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
@@ -549,15 +547,12 @@ getSystemClockOffset(ClockDriver *self, TimeInternal *output)
 	subTime(&duration, &t2, &t1);
 
 	timeDelta(&t1, &tptp, &t2, &tmpDelta);
-#ifdef PTPD_CLOCK_SYNC_PROFILING
 	isMin = ' ';
-#endif
+
 	if((i == 0) || !gtTime(&duration, &minDuration)) {
 	    minDuration = duration;
 	    delta = tmpDelta;
-#ifdef PTPD_CLOCK_SYNC_PROFILING
 	    isMin = '+';
-#endif
 	}
 #ifdef PTPD_CLOCK_SYNC_PROFILING
 	INFO(THIS_COMPONENT"prof ref meas %c\t clock %s\t seq %d\t dur %d.%09d\t delta %d.%09d\n",
