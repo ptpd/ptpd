@@ -75,8 +75,6 @@ setupEventTimer(EventTimer *timer)
 	    return;
 	}
 
-	memset(timer, 0, sizeof(EventTimer));
-
 	timer->start = eventTimerStart_itimer;
 	timer->stop = eventTimerStop_itimer;
 	timer->reset = eventTimerReset_itimer;
@@ -183,10 +181,8 @@ eventTimerIsExpired_itimer(EventTimer *timer)
 
 	ret = timer->expired;
 
-	DBG2("timerIsExpired:   Timer %s %s expired\n", timer->id,
-		timer->expired ? "is" : "is not");
-
 	if(ret) {
+	    DBG2("timerIsExpired:   Timer %s is expired\n", timer->id);
 	    timer->expired = FALSE;
 	}
 

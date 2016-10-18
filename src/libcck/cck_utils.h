@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Wojciech Owczarek,
+/* Copyright (c) 2015 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -25,16 +25,20 @@
  */
 
 /**
- * @file   libcck.h
- * @date   Sat Jan 9 16:14:10 2016
+ * @file   cck_utils.h
+ * @date   Wed Jun 8 16:14:10 2016
  *
- * @brief  libCCK global header
+ * @brief  Definitions for general utility functions used by libCCK
  *
  */
 
-#ifndef CCK_CCK_H_
-#define CCK_CCK_H_
+#ifndef CCK_UTILS_H_
+#define CCK_UTILS_H_
 
-#include <libcck/fd_set.h>
+#include <stdio.h>		/* stddef.h -> size_t */
+#include <libcck/cck_types.h>
 
-#endif /* CCK_CCK_H_ */
+CckU32 getFnvHash(void *input, size_t len, int modulo);
+
+
+#endif /* CCK_UTILS_H_ */

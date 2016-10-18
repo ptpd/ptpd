@@ -42,7 +42,6 @@
 
 static int getMaxFd(CckFdSet *set);
 
-
 void
 cckAddFd(CckFdSet *set, CckFd *fd)
 {
@@ -74,7 +73,7 @@ void
 cckRemoveFd(CckFdSet *set, CckFd *fd)
 {
     if(fd == NULL) {
-	/* DBG("Cannot remove null fd to set\n"); */
+	/* DBG("Cannot remove null fd from set\n"); */
 	return;
     }
 

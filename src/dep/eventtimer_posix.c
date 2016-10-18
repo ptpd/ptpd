@@ -68,7 +68,6 @@ setupEventTimer(EventTimer *timer)
 	}
 
 	memset(&sev, 0, sizeof(sev));
-	memset(timer, 0, sizeof(EventTimer));
 
 	timer->start = eventTimerStart_posix;
 	timer->stop = eventTimerStop_posix;
@@ -82,9 +81,9 @@ setupEventTimer(EventTimer *timer)
 	sev.sigev_value.sival_ptr = timer;
 
 	if(timer_create(CLK_TYPE, &sev, &timer->timerId) == -1) {
-	    PERROR("Could not create posix timer %s", timer->id);
+	    PERROR("Could not create posix timer %s\n", timer->id);
 	} else {
-	    DBGV("Created posix timer %s ",timer->id);
+	    DBGV("Created posix timer %s\n",timer->id);
 	}
 }
 
@@ -174,11 +173,9 @@ eventTimerIsExpired_posix(EventTimer *timer)
 
 	ret = timer->expired;
 
-	DBG2("timerIsExpired:   Timer %s %s expired\n", timer->id,
-		timer->expired ? "is" : "is not");
-
 	/* the five monkeys experiment */
 	if(ret) {
+	    DBG2("timerIsExpired:   Timer %s expired\n", timer->id);
 	    timer->expired = FALSE;
 	}
 

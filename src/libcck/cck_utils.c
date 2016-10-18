@@ -25,16 +25,32 @@
  */
 
 /**
- * @file   libcck.h
- * @date   Sat Jan 9 16:14:10 2016
+ * @file   cck_utils.c
+ * @date   Wed Jun 8 16:14:10 2016
  *
- * @brief  libCCK global header
+ * @brief  General helper functions used by libCCK
  *
  */
 
-#ifndef CCK_CCK_H_
-#define CCK_CCK_H_
+#include <libcck/cck_utils.h>
 
-#include <libcck/fd_set.h>
+CckU32
+getFnvHash(void *input, size_t len, int modulo)
+{
 
-#endif /* CCK_CCK_H_ */
+    int i = 0;
+
+    static uint32_t prime = 16777619;
+    static uint32_t basis = 2166136261;
+
+    uint32_t hash = basis;
+    uint8_t *buf = (uint8_t*)input;
+
+    for(i = 0; i < len; i++)  {
+        hash *= prime;
+        hash ^= *(buf + i);
+    }
+
+    return (modulo > 0 ? hash % modulo : hash);
+
+}

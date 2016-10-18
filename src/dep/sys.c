@@ -1712,7 +1712,7 @@ setKernelUtcOffset(int utc_offset) {
 	tmx.constant = utc_offset;
 
 	DBG2("Kernel NTP API supports TAI offset. "
-	     "Setting TAI offset to %d", utc_offset);
+	     "Setting TAI offset to %d\n", utc_offset);
 
 	ret = adjtimex(&tmx);
 

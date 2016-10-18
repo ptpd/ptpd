@@ -51,10 +51,8 @@ EventTimer
             return NULL;
         }
 
-
-	setupEventTimer(timer);
-
         strncpy(timer->id, id, EVENTTIMER_MAX_DESC);
+	setupEventTimer(timer);
 
 	/* maintain the linked list */
 
@@ -71,7 +69,7 @@ EventTimer
 
 	timer->_first = _first;
 
-	DBGV("created itimer eventtimer %s\n", timer->id);
+	DBGV("created event timer %s\n", timer->id);
 
         return timer;
 }

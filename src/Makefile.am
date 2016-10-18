@@ -75,6 +75,8 @@ ptpd_SOURCES =				\
 	dep/alarms.c			\
 	libcck/libcck.h			\
 	libcck/cck_types.h		\
+	libcck/cck_utils.h		\
+	libcck/cck_utils.c		\
 	libcck/fd_set.h			\
 	libcck/fd_set.c			\
 	libcck/transport_address.h	\

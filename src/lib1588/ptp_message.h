@@ -97,7 +97,7 @@ enum {
     PTP_MSGTYPE_MANAGEMENT =		0x0d
 };
 
-/* PTP controlField values (deprecated */
+/* PTP controlField values (deprecated) */
 enum {
     PTP_CONTROL_SYNC =			0x00,
     PTP_CONTROL_DELAY_REQ =		0x01,
