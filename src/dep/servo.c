@@ -213,6 +213,10 @@ updateDelay(one_way_delay_filter * mpdIirFilter, const RunTimeOpts * rtOpts, Ptp
 	subTime(&ptpClock->rawDelaySM, &ptpClock->delay_req_receive_time,
 		&ptpClock->delay_req_send_time);
 
+	/* subtract CorrectionField *before* filtering */
+	subTime(&ptpClock->rawDelaySM, &ptpClock->rawDelaySM,
+		correctionField);
+
 
 /* testing only: step detection */
 #if 0
@@ -258,10 +262,6 @@ updateDelay(one_way_delay_filter * mpdIirFilter, const RunTimeOpts * rtOpts, Ptp
 		/* update MeanPathDelay */
 		addTime(&ptpClock->currentDS.meanPathDelay, &ptpClock->delaySM,
 			&ptpClock->delayMS);
-
-		/* Subtract correctionField */
-		subTime(&ptpClock->currentDS.meanPathDelay, &ptpClock->currentDS.meanPathDelay,
-			correctionField);
 
 		/* Compute one-way delay */
 		div2Time(&ptpClock->currentDS.meanPathDelay);
@@ -528,6 +528,11 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	/* raw value before filtering */
 	subTime(&ptpClock->rawDelayMS, recv_time, send_time);
 
+	/* subtract CorrectionField *before* filtering */
+	subTime(&ptpClock->rawDelayMS, &ptpClock->rawDelayMS,
+		correctionField);
+
+
 	DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 
 	/* run the delayMS stats filter */
@@ -556,10 +561,6 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	} else {
 		ptpClock->delayMS = ptpClock->rawDelayMS;
 	}
-
-	/* Take care of correctionField */
-	subTime(&ptpClock->delayMS,
-		&ptpClock->delayMS, correctionField);
 
 	/* update 'offsetFromMaster' */
 	if (ptpClock->portDS.delayMechanism == P2P) {
