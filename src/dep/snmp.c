@@ -395,7 +395,7 @@ snmpHeaderIndexBest(struct snmpHeaderIndex *idx)
 	Integer32 i32_ret;			\
 	Integer64 bigint;			\
 	struct snmpHeaderIndex idx;		\
-	char tmpStr[64];			\
+	static char tmpStr[64];			\
 	(void)long_ret;				\
 	(void)counter64_ret;			\
 	(void)ipaddr;				\
