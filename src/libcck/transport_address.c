@@ -109,3 +109,4 @@ transportAddressHash_ethernet(CckTransportAddress *address, const int modulo)
 {
     return getFnvHash(&address->addr.ether.ether_addr_octet, ETHER_ADDR_LEN, modulo);
 }
+
