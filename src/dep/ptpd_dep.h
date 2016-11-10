@@ -228,8 +228,8 @@ Boolean msgUnpackManagement(Octet * buf,MsgManagement*, MsgHeader*, PtpClock *pt
 Boolean msgUnpackSignaling(Octet * buf,MsgSignaling*, MsgHeader*, PtpClock *ptpClock, const int tlvOffset);
 void msgPackHeader(Octet * buf,PtpClock*);
 #ifndef PTPD_SLAVE_ONLY
-void msgPackAnnounce(Octet * buf, UInteger16, PtpClock*);
-void msgPackSync(Octet * buf, UInteger16, Timestamp*,PtpClock*);
+void msgPackAnnounce(Octet * buf, UInteger16, Timestamp*, PtpClock*);
+void msgPackSync(Octet * buf, UInteger16, Timestamp*, PtpClock*);
 #endif /* PTPD_SLAVE_ONLY */
 void msgPackFollowUp(Octet * buf,Timestamp*,PtpClock*, const UInteger16);
 void msgPackDelayReq(Octet * buf,Timestamp *,PtpClock *);

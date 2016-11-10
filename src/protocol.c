@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Wojciech Owczarek,
+ * Copyright (c) 2012-2016 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer,
  *                         Martin Burnicki,
@@ -2901,7 +2901,13 @@ static void
 issueAnnounceSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 
-	msgPackAnnounce(ptpClock->msgObuf, *sequenceId,ptpClock);
+	Timestamp originTimestamp;
+	TimeInternal internalTime;
+
+	getTime(&internalTime);
+	fromInternalTime(&internalTime,&originTimestamp);
+
+	msgPackAnnounce(ptpClock->msgObuf, *sequenceId, &originTimestamp, ptpClock);
 
 	if (!netSendGeneral(ptpClock->msgObuf,ANNOUNCE_LENGTH,
 			    &ptpClock->netPath, rtOpts, dst)) {
