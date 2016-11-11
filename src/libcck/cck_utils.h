@@ -38,7 +38,10 @@
 #include <stdio.h>		/* stddef.h -> size_t */
 #include <libcck/cck_types.h>
 
-CckU32 getFnvHash(void *input, size_t len, int modulo);
+#define min(a,b) ((a < b) ? a : b)
+#define max(a,b) ((a > b) ? a : b)
+
+CckU32 getFnvHash(const void *input, const size_t len, const int modulo);
 
 
 #endif /* CCK_UTILS_H_ */

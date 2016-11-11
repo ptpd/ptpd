@@ -35,13 +35,13 @@
 #include <libcck/cck_utils.h>
 
 CckU32
-getFnvHash(void *input, size_t len, int modulo)
+getFnvHash(const void *input, const size_t len, const int modulo)
 {
 
-    int i = 0;
+    static const uint32_t prime = 16777619;
+    static const uint32_t basis = 2166136261;
 
-    static uint32_t prime = 16777619;
-    static uint32_t basis = 2166136261;
+    int i = 0;
 
     uint32_t hash = basis;
     uint8_t *buf = (uint8_t*)input;

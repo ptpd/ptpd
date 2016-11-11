@@ -1633,7 +1633,7 @@ netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 {
 	ssize_t ret = 0;
 	struct msghdr msg;
-	struct iovec vec[1];
+	struct iovec vec; //[1];
 	struct sockaddr_in from_addr;
 
 #ifdef PTPD_PCAP
@@ -1669,8 +1669,8 @@ netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 #ifdef PTPD_PCAP
 	if (netPath->pcapEvent == NULL) { /* Using sockets */
 #endif
-		vec[0].iov_base = buf;
-		vec[0].iov_len = PACKET_SIZE;
+		vec.iov_base = buf;
+		vec.iov_len = PACKET_SIZE;
 
 		memset(&msg, 0, sizeof(msg));
 		memset(&from_addr, 0, sizeof(from_addr));
@@ -1679,7 +1679,7 @@ netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 
 		msg.msg_name = (caddr_t)&from_addr;
 		msg.msg_namelen = sizeof(from_addr);
-		msg.msg_iov = vec;
+		msg.msg_iov = &vec;
 		msg.msg_iovlen = 1;
 		msg.msg_control = cmsg_un.control;
 		msg.msg_controllen = sizeof(cmsg_un.control);

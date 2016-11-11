@@ -236,12 +236,12 @@ void internalTime_to_integer64(TimeInternal, Integer64*);
 /**
  * \brief Convert TimeInternal into Timestamp structure (defined by the spec)
  */
-void fromInternalTime(const TimeInternal*,Timestamp*);
+void toOriginTimestamp(Timestamp*, const TimeInternal*);
 
 /**
  * \brief Convert Timestamp to TimeInternal structure (defined by the spec)
  */
-void toInternalTime(TimeInternal*, const Timestamp*);
+void fromOriginTimestamp(TimeInternal*, const Timestamp*);
 
 void ts_to_InternalTime(const struct timespec *, TimeInternal *);
 void tv_to_InternalTime(const struct timeval  *, TimeInternal *);

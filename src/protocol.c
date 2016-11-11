@@ -75,7 +75,7 @@ static void handlePdelayRespFollowUp(const MsgHeader*, ssize_t, Boolean, const R
 
 #ifndef PTPD_SLAVE_ONLY /* does not get compiled when building slave only */
 static void issueAnnounce(const RunTimeOpts*,PtpClock*);
-static void issueAnnounceSingle(Integer32, UInteger16*, const RunTimeOpts*,PtpClock*);
+static void issueAnnounceSingle(Integer32, UInteger16*, Timestamp*, const RunTimeOpts*,PtpClock*);
 static void issueSync(const RunTimeOpts*,PtpClock*);
 #endif /* PTPD_SLAVE_ONLY */
 
@@ -2137,7 +2137,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 					&correctionField);
 				timeInternal_display(&correctionField);
 				ptpClock->waitingForFollow = FALSE;
-				toInternalTime(&OriginTimestamp,
+				fromOriginTimestamp(&OriginTimestamp,
 					       &ptpClock->msgTmp.sync.originTimestamp);
 				ptpClock->lastOriginTimestamp = OriginTimestamp;
 				updateOffset(&OriginTimestamp,
@@ -2176,7 +2176,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 			if((rtOpts->ipMode == IPMODE_UNICAST) && !dst) {
 				msgUnpackSync(ptpClock->msgIbuf,
 					      &ptpClock->msgTmp.sync);
-				toInternalTime(&OriginTimestamp, &ptpClock->msgTmp.sync.originTimestamp);
+				fromOriginTimestamp(&OriginTimestamp, &ptpClock->msgTmp.sync.originTimestamp);
 			    dst = lookupSyncIndex(&OriginTimestamp, header->sequenceId, ptpClock->syncDestIndex);
 
 #ifdef RUNTIME_DEBUG
@@ -2270,7 +2270,7 @@ handleFollowUp(const MsgHeader *header, ssize_t length,
 					msgUnpackFollowUp(ptpClock->msgIbuf,
 							  &ptpClock->msgTmp.follow);
 					ptpClock->waitingForFollow = FALSE;
-					toInternalTime(&preciseOriginTimestamp,
+					fromOriginTimestamp(&preciseOriginTimestamp,
 						       &ptpClock->msgTmp.follow.preciseOriginTimestamp);
 					ptpClock->lastOriginTimestamp = preciseOriginTimestamp;
 					integer64_to_internalTime(ptpClock->msgTmpHeader.correctionField,
@@ -2550,7 +2550,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 				ptpClock->counters.delayRespMessagesReceived++;
 				ptpClock->waitingForDelayResp = FALSE;
 
-				toInternalTime(&requestReceiptTimestamp,
+				fromOriginTimestamp(&requestReceiptTimestamp,
 					       &ptpClock->msgTmp.resp.receiveTimestamp);
 				ptpClock->delay_req_receive_time.seconds =
 					requestReceiptTimestamp.seconds;
@@ -2796,7 +2796,7 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 					ptpClock->pdelay_resp_receive_time.seconds = tint->seconds;
 					ptpClock->pdelay_resp_receive_time.nanoseconds = tint->nanoseconds;
 					/*store t2 (Fig 35)*/
-					toInternalTime(&requestReceiptTimestamp,
+					fromOriginTimestamp(&requestReceiptTimestamp,
 						       &ptpClock->msgTmp.presp.requestReceiptTimestamp);
 					ptpClock->pdelay_req_receive_time.seconds = requestReceiptTimestamp.seconds;
 					ptpClock->pdelay_req_receive_time.nanoseconds = requestReceiptTimestamp.nanoseconds;
@@ -2937,7 +2937,7 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 					ptpClock->msgIbuf,
 					&ptpClock->msgTmp.prespfollow);
 				ptpClock->counters.pdelayRespFollowUpMessagesReceived++;
-				toInternalTime(
+				fromOriginTimestamp(
 					&responseOriginTimestamp,
 					&ptpClock->msgTmp.prespfollow.responseOriginTimestamp);
 				ptpClock->pdelay_resp_send_time.seconds =
@@ -3077,9 +3077,16 @@ issueAnnounce(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	UnicastGrantData *grant = NULL;
 	Boolean okToSend = TRUE;
 
+	Timestamp originTimestamp;
+	TimeInternal internalTime;
+
+	/* grab a single timestamp once for all Announce - doing it for each individual message can be costly */
+	ptpClock->clockDriver->getTime(ptpClock->clockDriver, &internalTime);
+	toOriginTimestamp(&originTimestamp, &internalTime);
+
 	/* send Announce to Ethernet or multicast */
 	if(rtOpts->transport == IEEE_802_3 || (rtOpts->ipMode != IPMODE_UNICAST)) {
-		issueAnnounceSingle(dst, &ptpClock->sentAnnounceSequenceId, rtOpts, ptpClock);
+		issueAnnounceSingle(dst, &ptpClock->sentAnnounceSequenceId, &originTimestamp, rtOpts, ptpClock);
 	/* send Announce to unicast destination(s) */
 	} else {
 	    /* send to granted only */
@@ -3097,7 +3104,7 @@ issueAnnounce(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		    if(grant->granted) {
 			if(okToSend) {
 			    issueAnnounceSingle(ptpClock->unicastGrants[i].transportAddress,
-			    &grant->sentSeqId,rtOpts, ptpClock);
+			    &grant->sentSeqId, &originTimestamp, rtOpts, ptpClock);
 			}
 		    }
 		}
@@ -3105,7 +3112,7 @@ issueAnnounce(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	    } else {
 		for(i = 0; i < ptpClock->unicastDestinationCount; i++) {
 			issueAnnounceSingle(ptpClock->unicastDestinations[i].transportAddress,
-			&(ptpClock->unicastGrants[i].grantData[ANNOUNCE_INDEXED].sentSeqId),
+			&(ptpClock->unicastGrants[i].grantData[ANNOUNCE_INDEXED].sentSeqId), &originTimestamp,
 						rtOpts, ptpClock);
 		    }
 		}
@@ -3115,10 +3122,10 @@ issueAnnounce(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 /* send single announce to a single destination */
 static void
-issueAnnounceSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts,PtpClock *ptpClock)
+issueAnnounceSingle(Integer32 dst, UInteger16 *sequenceId, Timestamp *originTimestamp, const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
 
-	msgPackAnnounce(ptpClock->msgObuf, *sequenceId,ptpClock);
+	msgPackAnnounce(ptpClock->msgObuf, *sequenceId, originTimestamp, ptpClock);
 
 	if (!netSendGeneral(ptpClock->msgObuf,ANNOUNCE_LENGTH,
 			    &ptpClock->netPath, rtOpts, dst)) {
@@ -3197,7 +3204,7 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 	Timestamp originTimestamp;
 	TimeInternal internalTime, now;
 
-	getSystemClock()->getTime(getSystemClock(), &internalTime);
+	ptpClock->clockDriver->getTime(ptpClock->clockDriver, &internalTime);
 
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
@@ -3222,7 +3229,7 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 		return internalTime;
 	}
 
-	fromInternalTime(&internalTime,&originTimestamp);
+	toOriginTimestamp(&originTimestamp, &internalTime);
 
 	now = internalTime;
 
@@ -3277,7 +3284,7 @@ static void
 issueFollowup(const TimeInternal *tint,const RunTimeOpts *rtOpts,PtpClock *ptpClock, Integer32 dst, UInteger16 sequenceId)
 {
 	Timestamp preciseOriginTimestamp;
-	fromInternalTime(tint,&preciseOriginTimestamp);
+	toOriginTimestamp(&preciseOriginTimestamp, tint);
 	
 	msgPackFollowUp(ptpClock->msgObuf,&preciseOriginTimestamp,ptpClock,sequenceId);	
 
@@ -3318,7 +3325,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
-	fromInternalTime(&internalTime,&originTimestamp);
+	toOriginTimestamp(&originTimestamp, &internalTime);
 
 	// uses current sentDelayReqSequenceId
 	msgPackDelayReq(ptpClock->msgObuf,&originTimestamp,ptpClock);
@@ -3392,11 +3399,11 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	    return;
 	}
 
-	getSystemClock()->getTime(getSystemClock(), &internalTime);
+	ptpClock->clockDriver->getTime(ptpClock->clockDriver, &internalTime);
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 	}
-	fromInternalTime(&internalTime,&originTimestamp);
+	toOriginTimestamp(&originTimestamp, &internalTime);
 
 	if(rtOpts->ipMode == IPMODE_UNICAST && ptpClock->unicastPeerDestination.transportAddress) {
 	    dst = ptpClock->unicastPeerDestination.transportAddress;
@@ -3447,7 +3454,7 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddr
 		dst = sourceAddress;
 	}
 	
-	fromInternalTime(tint,&requestReceiptTimestamp);
+	toOriginTimestamp(&requestReceiptTimestamp, tint);
 	msgPackPdelayResp(ptpClock->msgObuf,header,
 			  &requestReceiptTimestamp,ptpClock);
 
@@ -3483,7 +3490,7 @@ issueDelayResp(const TimeInternal *tint,MsgHeader *header,Integer32 sourceAddres
 	Timestamp requestReceiptTimestamp;
 	Integer32 dst = 0;
 
-	fromInternalTime(tint,&requestReceiptTimestamp);
+	toOriginTimestamp(&requestReceiptTimestamp, tint);
 	/* rewrite domain number with our own */
 	header->domainNumber = ptpClock->defaultDS.domainNumber;
 	msgPackDelayResp(ptpClock->msgObuf,header,&requestReceiptTimestamp,
@@ -3525,7 +3532,7 @@ issuePdelayRespFollowUp(const TimeInternal *tint, MsgHeader *header, Integer32 d
 			     const RunTimeOpts *rtOpts, PtpClock *ptpClock, const UInteger16 sequenceId)
 {
 	Timestamp responseOriginTimestamp;
-	fromInternalTime(tint,&responseOriginTimestamp);
+	toOriginTimestamp(&responseOriginTimestamp, tint);
 
 	msgPackPdelayRespFollowUp(ptpClock->msgObuf,header,
 				  &responseOriginTimestamp,ptpClock, sequenceId);

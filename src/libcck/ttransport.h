@@ -42,17 +42,19 @@
 #include <libcck/cck_types.h>
 
 #define TTRANSPORT_NAME_MAX 20
-#define TTRANSPORT_UPDATE_INTERVAL 1
-#define TTRANSPORT_WARNING_TIMEOUT 60
 
 /* timestamping transport capabilities */
-#define TT_CAPS_NONE		0
-#define TT_CAPS_MCAST		1 << 0
-#define	TT_CAPS_SW_TIMESTAMP	1 << 1
-#define TT_CAPS_HW_TIMESTAMP	1 << 2
+#define TT_CAPS_NONE			0x00	/* no capabilities... */
+#define TT_CAPS_UCAST			0x01	/* unicast capable */
+#define TT_CAPS_MCAST			0x02	/* multicast capable */
+#define TT_CAPS_LOCAL			0x04	/* local path - unix domain socket etc. */
+#define TT_CAPS_SW_TIMESTAMP		0x08	/* software timestamps */
+#define TT_CAPS_HW_TIMESTAMP		0x10	/* hardware timestamps */
+#define TT_CAPS_HW_TIMESTAMP_ALL	0x20	/* hardware timestamps for all packets */
+#define TT_CAPS_HW_PTP_ONE_STEP		0x40	/* PTP one-step transmission support */
+
 
 /* timestamping transport driver types */
-
 enum {
 
     TT_TYPE_NONE = 0,
@@ -65,19 +67,31 @@ enum {
     TT_TYPE_MAX
 };
 
+/* bag to hold any possible transport config type, so we don't have to dynamically allocate in some cases */
+typedef union {
+
+#define REGISTER_TTRANSPORT(fulltype, shorttype, textname, family, capabilities, extends) \
+    TTransportConfig_##fulltype shorttype;
+
+#include "ttransport.def"
+
+} TTransportConfigHolder;
+
+
 /* commands that can be sent to all transports */
 enum {
     TT_NOTINUSE,	/* mark all not in use */
     TT_SHUTDOWN,	/* shutdown all */
     TT_CLEANUP,		/* clean up transports not in use */
-    TT_DUMP,		/* dump transport information for all */
+    TT_DUMP,		/* dump transport information  */
     TT_MONITOR,		/* monitor for changes */
-    TT_MCAST_REFRESH	/* any periodic multicast refresh actions */
+    TT_REFRESH		/* any periodic actions such as multicast join */
 };
 
 /* clock driver configuration */
 typedef struct {
     CckBool disabled;			/* transport is disabled */
+    CckBool discarding;			/* transport is discarding data */
 } TTransportConfig;
 
 /* transport specification container, useful when creating transports specified as string */
@@ -120,8 +134,13 @@ struct TTransport {
     CckFd fd;				/* file descriptor wrapper */
     CckFdSet *fdSet;			/* file descriptor set watching this transport */
 
+    CckTransportAddress ownAddress;
+
     CckOctet	*inputBuffer;		/* data read buffer, supplied by user */
-    int		bufferSize;
+    int		inputBufferSize;
+
+    CckOctet	*outputBuffer;		/* data transmit buffer, supplied by user */
+    int		outputBufferSize;
 
     /* flags */
 
@@ -140,27 +159,21 @@ struct TTransport {
 
     CckBool (*pushConfig) (TTransport *, RunTimeOpts *);
     CckBool (*healthCheck) (TTransport *);
+    CckBool (*probe)	(TTransport*, const char *path, const int capabilities); /* check if given transport provides all required capabilities */
+    CckBool (*isAddressMulticast) (const CckTransportAddress *address);
+    CckBool (*isAddressEmpty) (const CckTransportAddress *address);
+    CckBool (*addressEqual) (const CckTransportAddress *address);
+    int (*cmpAddress) (const void *a, const void *b);
+    CckU32  (*getAddressHash) (const CckTransportAddress *address); /* useful for managing hash tables / indexes based on addresses */
 
     /* inherited methods end */
 
     /* public interface - implementations must implement all of those */
 
     int (*shutdown) 	(TTransport*);
-    int (*init)		(TTransport*, const void *);
+    int (*init)		(TTransport*, void * config);
 
-    CckBool (*getTime) (TTransport*, TimeInternal *);
-    CckBool (*getTimeMonotonic) (TTransport*, TimeInternal *);
-    CckBool (*getUtcTime) (TTransport*, TimeInternal *);
-    CckBool (*setTime) (TTransport*, TimeInternal *, CckBool);
-    CckBool (*stepTime) (TTransport*, TimeInternal *, CckBool);
-
-    CckBool (*setFrequency) (TTransport *, double, double);
-
-    double (*getFrequency) (TTransport *);
-    CckBool (*getStatus) (TTransport *, ClockStatus *);
-    CckBool (*setStatus) (TTransport *, ClockStatus *);
-    CckBool (*getOffsetFrom) (TTransport *, TTransport *, TimeInternal*);
-    CckBool (*getSystemClockOffset) (TTransport *, TimeInternal*);
+    CckBool (*testConfig) (TTransport*, void *config); /* test configuration */
 
     CckBool (*privateHealthCheck) (TTransport *); /* NEW! Now with private healthcare! */
     CckBool (*pushPrivateConfig) (TTransport *, RunTimeOpts *);
@@ -181,11 +194,12 @@ struct TTransport {
 
 };
 
-int		probeTTransport
+int		probeTTransport(int transportType, const char *path, int capabilities);
 TTransport*  	createTTransport(int driverType, const char* name);
 CckBool 	setupTTransport(TTransport* clockDriver, int type, const char* name);
 void 		freeTTransport(TTransport** clockDriver);
 int		tTransportDummyCallback(TTransport*);
+int		tTransportDummyDataCallback (TTransport*, void *data, const int len);
 
 void 		shutdownTTransports();
 void		controlTTransports(int);
@@ -201,6 +215,7 @@ CckBool createTTransportsFromString(const char*, RunTimeOpts *, CckBool);
 const char*	getTTransportName(int);
 int		getTTransportType(const char*);
 CckBool		parseTTransportSpec(const char*, TTransportSpec *);
+int		parseAddressList(const char *list, CckTransportAddress *array, int arraySize);
 
 #include "ttransport.def"
 

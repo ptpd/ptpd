@@ -94,11 +94,11 @@ integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)
 
 
 void
-fromInternalTime(const TimeInternal * internal, Timestamp * external)
+toOriginTimestamp(Timestamp * external, const TimeInternal * internal)
 {
 
 	/*
-	 * fromInternalTime is only used to convert time given by the system
+	 * toOriginTimestamp is only used to convert time given by the system
 	 * to a timestamp.  As a consequence, no negative value can normally
 	 * be found in (internal)
 	 *
@@ -119,7 +119,7 @@ fromInternalTime(const TimeInternal * internal, Timestamp * external)
 }
 
 void
-toInternalTime(TimeInternal * internal, const Timestamp * external)
+fromOriginTimestamp(TimeInternal * internal, const Timestamp * external)
 {
 
 	/* Program will not run after 2038... */

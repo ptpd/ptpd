@@ -33,80 +33,137 @@
  */
 
 #include <stdio.h>	/* stddef.h -> size_t */
+#include <string.h>	/* strlen() */
 
 #include <libcck/cck_types.h>
 #include <libcck/cck_utils.h>
 #include <libcck/transport_address.h>
 
 CckBool
-isAddressMulticast_ipv4(CckTransportAddress *address)
+isAddressMulticast_ipv4(const CckTransportAddress *address)
 {
     /* first byte is 0x0E - multicast */
     return ((ntohl(address->addr.inet4.sin_addr.s_addr) >> 28) == 0x0E);
 }
 
 CckBool
-isAddressMulticast_ipv6(CckTransportAddress *address)
+isAddressMulticast_ipv6(const CckTransportAddress *address)
 {
     /* first byte is 0xFF - multicast */
     return ((address->addr.inet6.sin6_addr.s6_addr[0]) == 0xFF);
 }
 
 CckBool
-isAddressMulticast_ethernet(CckTransportAddress *address)
+isAddressMulticast_ethernet(const CckTransportAddress *address)
 {
     /* last bit of first byte is lit - multicast */
-    return((address->addr.ether.ether_addr_octet[0] & 1) == 1);
+    return((address->addr.ether.ether_addr_octet[0] & 0x01) == 0x01);
+}
 
+CckBool
+isAddressMulticast_local(const CckTransportAddress *address)
+{
+    return CCK_FALSE;
 }
 
 
 CckBool
-isAddressEmpty_ipv4(CckTransportAddress *address)
+isAddressEmpty_ipv4(const CckTransportAddress *address)
 {
-    return CCK_TRUE;
+    return (address->addr.inet4.sin_addr.s_addr == 0);
 }
 
 CckBool
-isAddressEmpty_ipv6(CckTransportAddress *address)
+isAddressEmpty_ipv6(const CckTransportAddress *address)
 {
-    return CCK_TRUE;
+    struct in6_addr zero;
+    memset(&zero, 0, sizeof(zero));
+    return (!memcmp(&address->addr.inet6.sin6_addr, &zero, sizeof(zero)));
 }
 
 CckBool
-isAddressEmpty_ethernet(CckTransportAddress *address)
+isAddressEmpty_ethernet(const CckTransportAddress *address)
 {
-    return CCK_TRUE;
+    struct ether_addr zero;
+    memset(&zero, 0, sizeof(zero));
+    return (!memcmp(&address->addr.ether, &zero, sizeof(zero)));
 }
 
+CckBool
+isAddressEmpty_local(const CckTransportAddress *address)
+{
+    return(!strlen(address->addr.local.sun_path));
+}
 
 int
-transportAddressToString(CckTransportAddress *address, char *string, const size_t len)
+cmpTransportAddress_ipv4(const void *va, const void *vb)
+{
+    const CckTransportAddress *a = va;
+    const CckTransportAddress *b = vb;
+    uint32_t ia = ntohl(a->addr.inet4.sin_addr.s_addr);
+    uint32_t ib = ntohl(b->addr.inet4.sin_addr.s_addr);
+    return ((ia == ib) ? 0 : (ia > ib) ? 1 : -1);
+}
+
+int
+cmpTransportAddress_ipv6(const void *va, const void *vb)
+{
+    const CckTransportAddress *a = va;
+    const CckTransportAddress *b = vb;
+    return (memcmp(&a->addr.inet6.sin6_addr, &b->addr.inet6.sin6_addr, sizeof(struct in6_addr)));
+}
+
+int
+cmpTransportAddress_ethernet(const void *va, const void *vb)
+{
+    const CckTransportAddress *a = va;
+    const CckTransportAddress *b = vb;
+    return (memcmp(&a->addr.ether, &b->addr.ether, sizeof(struct ether_addr)));
+}
+
+int
+cmpTransportAddress_local(const void *va, const void *vb)
+{
+    const CckTransportAddress *a = va;
+    const CckTransportAddress *b = vb;
+    return(strncmp(a->addr.local.sun_path, b->addr.local.sun_path, SUN_PATH_MAX));
+}
+
+int
+transportAddressToString(char *string, const size_t len, const CckTransportAddress *address)
 {
     return 1;
 }
 
 int
-transportAddressFromString(const char *string, const int family, CckTransportAddress *address)
+transportAddressFromString(CckTransportAddress *address, const char *string, const int family)
 {
     return 1;
 }
 
 CckU32
-transportAddressHash_ipv4(CckTransportAddress *address, const int modulo)
+transportAddressHash_ipv4(const CckTransportAddress *address, const int modulo)
 {
     return getFnvHash(&address->addr.inet4.sin_addr.s_addr, 4, modulo);
 }
 
 CckU32
-transportAddressHash_ipv6(CckTransportAddress *address, const int modulo)
+transportAddressHash_ipv6(const CckTransportAddress *address, const int modulo)
 {
     return getFnvHash(&address->addr.inet6.sin6_addr.s6_addr, 16, modulo);
 }
 
 CckU32
-transportAddressHash_ethernet(CckTransportAddress *address, const int modulo)
+transportAddressHash_ethernet(const CckTransportAddress *address, const int modulo)
 {
     return getFnvHash(&address->addr.ether.ether_addr_octet, ETHER_ADDR_LEN, modulo);
+}
+
+CckU32
+transportAddressHash_local(const CckTransportAddress *address, const int modulo)
+{
+    /* use a max of 108 bytes (size of sun_path) in case of an unterminated string */
+    return getFnvHash(&address->addr.local.sun_path,
+			min(SUN_PATH_MAX, strlen(address->addr.local.sun_path)), modulo);
 }
 

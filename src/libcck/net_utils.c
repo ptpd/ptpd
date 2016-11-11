@@ -142,3 +142,117 @@ end:
 #endif /* AF_LINK */
 
 }
+
+/* pre-populate control message header */
+void
+prepareMsgHdr(struct msghdr *msg, struct iovec *vec, CckOctet *dataBuf, size_t dataBufSize, char *controlBuf, size_t controlLen, struct sockaddr *fromAddr, int fromAddrLen)
+{
+
+    memset(vec, 0, sizeof(struct iovec));
+    memset(msg, 0, sizeof(struct msghdr));
+    memset(dataBuf, 0, dataBufSize);
+    memset(controlBuf, 0, controlLen);
+
+    vec->iov_base = dataBuf;
+    vec->iov_len = dataBufSize;
+
+    msg->msg_name = (caddr_t)fromAddr;
+    msg->msg_namelen = fromAddrLen;
+    msg->msg_iov = vec;
+    msg->msg_iovlen = 1;
+    msg->msg_control = controlBuf;
+    msg->msg_controllen = controlLen;
+    msg->msg_flags = 0;
+
+}
+
+/* get control message data of minimum size len from control message header */
+int
+getCmsgData(void *data, struct cmsghdr *cmsg, const int level, const int type, const size_t len)
+{
+
+    /* initial checks */
+    if(cmsg->cmsg_level != level) {
+	return 0;
+    }
+    if(cmsg->cmsg_type != type) {
+	return 0;
+    }
+    if(cmsg->cmsg_len < len) {
+	return -1;
+    }
+
+    data = CMSG_DATA(cmsg);
+    return 1;
+}
+
+/* get control message data of n-th array member of size elemSize from control message header */
+int
+getCmsgItem(void *data, struct cmsghdr *cmsg, const int level, const int type, const size_t elemSize, const int arrayIndex)
+{
+
+    int ret = getCmsgData(data, cmsg, level, type, elemSize * (arrayIndex + 1));
+
+    if(ret > 0) {
+	data += elemSize * arrayIndex;
+    }
+
+    return ret;
+
+}
+
+/* get timestamp from control message header based on timestamp type described by tstampConfig. Return 1 if found and non-zero, 0 if not found or zero, -1 if data too short */
+int
+getCmsgTimestamp(CckTimestamp *timestamp, struct cmsghdr *cmsg, const TTSocketTstampConfig *config)
+{
+
+    void *data = NULL;
+
+    int ret = getCmsgItem(data, cmsg, config->cmsgLevel, config->cmsgType, config->elemSize, config->arrayIndex);
+
+    if (ret <= 0) {
+	return ret;
+    }
+
+    config->convertTimestamp(timestamp, data);
+
+    if((timestamp->seconds) == 0 && (timestamp->nanoseconds == 0)) {
+	return 0;
+    }
+
+    return 1;
+
+}
+
+/* get timestamp from a timestamp struct of the given type */
+
+void
+convertTimestamp_timespec(CckTimestamp *timestamp, const void *data)
+{
+    const struct timespec *ts = data;
+    timestamp->seconds = ts->tv_sec;
+    timestamp->nanoseconds = ts->tv_nsec;
+}
+
+void
+convertTimestamp_timeval(CckTimestamp *timestamp, const void *data)
+{
+    const struct timeval *tv = data;
+    timestamp->seconds = tv->tv_sec;
+    timestamp->nanoseconds = tv->tv_usec * 1000;
+}
+
+
+#ifdef SO_BINTIME
+void
+convertTimestamp_bintime(CckTimestamp *timestamp, const void *data)
+{
+    const struct bintime *bt = data;
+    struct timespec ts;
+
+    bintime2timespec(bt, &ts);
+    timestamp->seconds = ts.tv_sec;
+    timestamp->nanoseconds = ts.tv_nsec;
+}
+
+#endif

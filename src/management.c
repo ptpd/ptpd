@@ -1449,11 +1449,11 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 		data = (MMTime*)outgoing->tlv->dataField;
 		/* GET actions */
 		TimeInternal internalTime;
-		getSystemClock()->getTime(getSystemClock(), &internalTime);
+		ptpClock->clockDriver->getTime(ptpClock->clockDriver, &internalTime);
 		if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 			internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 		}
-		fromInternalTime(&internalTime, &data->currentTime);
+		toOriginTimestamp(&data->currentTime,&internalTime);
 		timestamp_display(&data->currentTime);
 		break;
 	case RESPONSE:

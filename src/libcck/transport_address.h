@@ -35,6 +35,8 @@
 #ifndef CCK_TTRANSPORT_ADDRESS_H_
 #define CCK_TTRANSPORT_ADDRESS_H_
 
+#define SUN_PATH_MAX 108
+
 #include <config.h>
 
 #include <stdio.h>		/* stddef.h -> size_t */
@@ -76,12 +78,13 @@
 enum {
 	TT_FAMILY_UDP_IPV4,		/* UDPv4 */
 	TT_FAMILY_UDP_IPV6,		/* UDPv6 */
-	TT_FAMILY_ETHERNET,		/* Ethernet */
+	TT_FAMILY_ETHERNET,		/* Ethernet L2 */
 	TT_FAMILY_LOCAL			/* local transport, implementation-specific (UDS / named pipes) */
 };
 
 typedef struct {
 	int family;
+	CckBool empty;
 	union {
 		struct sockaddr		inet;
 		struct sockaddr_in	inet4;
@@ -91,20 +94,38 @@ typedef struct {
 	} addr;
 } CckTransportAddress;
 
-CckBool isAddressMulticast_ipv4(CckTransportAddress *address);
-CckBool isAddressMulticast_ipv6(CckTransportAddress *address);
-CckBool isAddressMulticast_ethernet(CckTransportAddress *address);
+typedef struct {
+	CckOctet *buf;
+	int	len;
+	CckBool fromSelf;
+	CckBool toSelf;
+	CckTransportAddress destination;
+	CckTransportAddress source;
+} CckMessage;
 
-CckBool isAddressEmpty_ipv4(CckTransportAddress *address);
-CckBool isAddressEmpty_ipv6(CckTransportAddress *address);
-CckBool isAddressEmpty_ethernet(CckTransportAddress *address);
+CckBool isAddressMulticast_ipv4(const CckTransportAddress *address);
+CckBool isAddressMulticast_ipv6(const CckTransportAddress *address);
+CckBool isAddressMulticast_ethernet(const CckTransportAddress *address);
+CckBool isAddressMulticast_local(const CckTransportAddress *address);
 
-int transportAddressToString(CckTransportAddress *address, char *string, const size_t len);
-int transportAddressFromString(const char *string, const int family, CckTransportAddress *address);
+CckBool isAddressEmpty_ipv4(const CckTransportAddress *address);
+CckBool isAddressEmpty_ipv6(const CckTransportAddress *address);
+CckBool isAddressEmpty_ethernet(const CckTransportAddress *address);
+CckBool isAddressEmpty_local(const CckTransportAddress *address);
 
-CckU32 transportAddressHash_ipv4(CckTransportAddress *address, const int modulo);
-CckU32 transportAddressHash_ipv6(CckTransportAddress *address, const int modulo);
-CckU32 transportAddressHash_ethernet(CckTransportAddress *address, const int modulo);
+/* compare functions suitable for sort callbacks */
+int cmpTransportAddress_ipv4(const void *va, const void *vb);
+int cmpTransportAddress_ipv6(const void *va, const void *vb);
+int cmpTransportAddress_ethernet(const void *va, const void *vb);
+int cmpTransportAddress_local(const void *va, const void *vb);
+
+int transportAddressToString(char *string, const size_t len, const CckTransportAddress *address);
+int transportAddressFromString(CckTransportAddress *address, const char *string, const int family);
+
+CckU32 transportAddressHash_ipv4(const CckTransportAddress *address, const int modulo);
+CckU32 transportAddressHash_ipv6(const CckTransportAddress *address, const int modulo);
+CckU32 transportAddressHash_ethernet(const CckTransportAddress *address, const int modulo);
+CckU32 transportAddressHash_local(const CckTransportAddress *address, const int modulo);
 
 
 #endif /* CCK_TTRANSPORT_ADDRESS_H_ */
