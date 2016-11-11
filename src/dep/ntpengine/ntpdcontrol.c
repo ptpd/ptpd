@@ -688,7 +688,7 @@ again:
 	 * Try to be compatible with older implementations of ntpd.
 	 */
 	if (res == INFO_ERR_FMT && req_pkt_size != 48) {
-#ifdef RUNTIME_DEBUG
+#if defined(RUNTIME_DEBUG) || defined (PTPD_DBGV)
 		int oldsize  = req_pkt_size;
 #endif /* RUNTIME_DEBUG */
 

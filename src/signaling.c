@@ -312,7 +312,7 @@ handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* outgoin
 	SMRequestUnicastTransmission* requestData = (SMRequestUnicastTransmission*)incoming->tlv->valueField;
 	SMGrantUnicastTransmission* grantData = NULL;
 	Enumeration8 messageType = requestData->messageType;
-#ifdef RUNTIME_DEBUG
+#if defined(RUNTIME_DEBUG) || defined (PTPD_DBGV)
 	struct in_addr tmpAddr;
 	tmpAddr.s_addr = sourceAddress;
 #endif /* RUNTIME_DEBUG */
@@ -453,7 +453,7 @@ handleSMGrantUnicastTransmission(MsgSignaling* incoming, Integer32 sourceAddress
 	UnicastGrantData *myGrant;
 	Enumeration8 messageType = incomingGrant->messageType;
 	UnicastGrantTable *nodeTable;
-#ifdef RUNTIME_DEBUG
+#if defined(RUNTIME_DEBUG) || defined (PTPD_DBGV)
 	struct in_addr tmpAddr;
 	tmpAddr.s_addr = sourceAddress;
 #endif /* RUNTIME_DEBUG */
@@ -539,7 +539,7 @@ handleSMCancelUnicastTransmission(MsgSignaling* incoming, MsgSignaling* outgoing
 	UnicastGrantData *myGrant;
 	Enumeration8 messageType = requestData->messageType;
 	UnicastGrantTable *nodeTable;
-#ifdef RUNTIME_DEBUG
+#if defined(RUNTIME_DEBUG) || defined (PTPD_DBGV)
 	struct in_addr tmpAddr;
 	tmpAddr.s_addr = sourceAddress;
 #endif /* RUNTIME_DEBUG */
@@ -622,8 +622,7 @@ handleSMAcknowledgeCancelUnicastTransmission(MsgSignaling* incoming, Integer32 s
 	UnicastGrantData *myGrant;
 	Enumeration8 messageType = requestData->messageType;
 	UnicastGrantTable *nodeTable;
-
-#ifdef RUNTIME_DEBUG
+#if defined(RUNTIME_DEBUG) || defined (PTPD_DBGV)
 	struct in_addr tmpAddr;
 	tmpAddr.s_addr = sourceAddress;
 #endif /* RUNTIME_DEBUG */
