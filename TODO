@@ -53,10 +53,10 @@
 - clockdriver_linuxphc: implement PTP device locking
 - clockdriver: implement health checks for linuxphc and unix
 - clockdriver: rework kernel flags / leap seconds, remove TimeService
-- protocol: PTPMon implementation
-- msg: extract TLVs from any message
+- protocol: PTPMon implementation x
+- msg: extract TLVs from any message x -> libcck
 - clockdriver: allow system clock to be the preferred source. PTP -> sys -> rest
-- clockdriver: MAD filter autotune and /  or unlock condition?
+- clockdriver: MAD filter autotune and /  or unlock condition? +/- unlock
 - PTP offsets: remove Peirce's outlier filter, replace with MAD
 - MAD: use bucket median rather than qsort to speed up
 - clockdriver: third kP/kI pair: for inter-clock sync

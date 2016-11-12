@@ -755,8 +755,7 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 	struct timeval timeOut = {0,1500};
 	int i = 0;
 	int backoff = 10;
-
-
+				clearTime(timeStamp);
 	FD_ZERO(&tmpSet);
 	FD_SET(netPath->eventSock, &tmpSet);
 
@@ -773,23 +772,24 @@ getTxTimestamp(NetPath* netPath,TimeInternal* timeStamp) {
 				    ERROR("getTxTimestamp: Failed to poll error queue for SO_TIMESTAMPING transmit time: %s\n", strerror(errno));
 				return FALSE;
 			} else if (length == 0) {
-				DBG("getTxTimestamp: Received no data from TX error queue\n");
+				DBG("getTxTimestamp: Received no data from TX error queue, retrying\n");
 			}
 		}
 	}
 
 	/* we're desperate here, aren't we... */
+
 	for(i = 0; i <= LATE_TXTIMESTAMP_RETRIES; i++) {
-	    usleep(backoff);
-	    backoff *= 2;
 	    DBG("getTxTimestamp backoff: %d\n", backoff);
 	    length = netr(G_ptpClock->msgIbuf, timeStamp, netPath, MSG_ERRQUEUE);
 	    if(length > 0) {
 		DBG("getTxTimestamp: SO_TIMESTAMPING - delayed TX timestamp caught after %d retries\n", i+1);
 		return TRUE;
 	    }
+	    usleep(backoff);
+	    backoff *= 2;
 	}
-	netPath->txDelayed = TRUE;
+
 	DBG("getTxTimestamp: NIC failed to deliver TX timestamp in time\n");
 	clearTime(timeStamp);
 	G_ptpClock->counters.txTimestampFailures++;
@@ -1687,19 +1687,16 @@ netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 
 		ret = recvmsg(netPath->eventSock, &msg, flags | MSG_DONTWAIT);
 
-		/* we may have a TX timestamp stuck in error queue, flush it */
-		if(netPath->txTimestamping && !netPath->txLoop && ((netPath->txDelayed) || (ret <=0 && errno == ENOMSG))) {
-		    DBG("netRecvEvent: Flushed errqueue\n");
-		    ret = recvmsg(netPath->eventSock, &msg, flags | MSG_ERRQUEUE);
-		    /* drop the next regular message as well - it can be severely delayed... */
-		    ret = recvmsg(netPath->eventSock, &msg, flags);
-		    netPath->txDelayed = FALSE;
-		    return 0;
-		}
-
-		netPath->txDelayed = FALSE;
-
 		if (ret <= 0) {
+			/* we may have a TX timestamp stuck in error queue, flush it */
+			if((errno == ENOMSG) && netPath->txTimestamping && !netPath->txLoop) {
+			    DBG("netRecvEvent: Flushed errqueue\n");
+			    ret = recvmsg(netPath->eventSock, &msg, flags | MSG_ERRQUEUE | MSG_DONTWAIT);
+			    /* drop the next regular message as well - it can be severely delayed... */
+			    ret = recvmsg(netPath->eventSock, &msg, flags | MSG_DONTWAIT);
+			    return 0;
+			}
+
 			if (errno == EAGAIN || errno == EINTR) {
 				return 0;
 			} else {
@@ -1784,6 +1781,11 @@ netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 						memcpy(tmpB, buf, PACKET_SIZE);
 						memset(buf,0,PACKET_SIZE);
 						memcpy(buf, tmpB + 42, PACKET_SIZE - 42);
+						uint8_t msgtype = *(uint8_t*)(buf);
+						msgtype &= 0x0F;
+						uint16_t seqno = ntohs(*((uint16_t*)(buf + 30)));
+						DBG("tx timestamp for msg type %d seq %d\n", msgtype, seqno);
+
 					}
 
 					DBG("rcvevent: SO_TIMESTAMPING %s time stamp: %us %dns\n", 
@@ -2118,11 +2120,12 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 			if(netPath->txTimestamping && !netPath->txLoop) {
 #endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
-//					netPath->txTimestampFailure = TRUE;
 					if (tim) {
 						clearTime(tim);
 					}
 				}
+
+
 			}
 
 #endif /* SO_TIMESTAMPING */		

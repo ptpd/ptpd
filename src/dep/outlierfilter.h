@@ -103,6 +103,7 @@ struct OutlierFilter {
     int delay;
     int totalDelay;
     int delayCredit;
+    int stepSamples;
     Boolean blocking;
 
     /* 'methods' */

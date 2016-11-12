@@ -111,7 +111,7 @@ outlierFilterReset(OutlierFilter *filter) {
 	filter->totalDelay = 0;
 	filter->delayCredit = filter->config.delayCredit;
 	filter->blocking = FALSE;
-
+	filter->stepSamples = 0;
 	return 1;
 
 }
@@ -245,6 +245,11 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 				    if((filter->blocking && ((filter->config.maxDelay > filter->totalDelay) && (filter->delayCredit >= filter->consecutiveOutliers))) ||
 					    (!filter->blocking && (filter->delayCredit >= filter->consecutiveOutliers * 2 ))) {
 					    if(!filter->blocking) {
+						filter->stepSamples = 0;
+
+					    } 
+					    /* prevent from informing about a single step. */
+					    if(filter->stepSamples == 1) {
 						INFO_LOCAL_ID(filter,"%.03f us step detected, filter will now block\n", step * 1E6);
 					    }
 					    DBG_LOCAL_ID(filter,"step: %.09f, credit left %d, requesting %d\n",step,
@@ -253,6 +258,7 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 					    filter->totalDelay += filter->consecutiveOutliers;
 					    filter->delayCredit -= filter->consecutiveOutliers;
 					    filter->blocking = TRUE;
+					    filter->stepSamples++;
 					    resetDoublePermanentMean(&filter->outlierStats);
 					    filter->lastOutlier = TRUE;
 					    DBG_LOCAL_ID(filter,"maxdelay: %d, totaldelay: %d\n",filter->config.maxDelay, filter->totalDelay);
@@ -272,10 +278,11 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 				/* NO STEP */
 				} else {
 
-					if (filter->blocking) {
-					    INFO_LOCAL_ID(filter,"step event over, filter will stop blocking\n");
+					if (filter->blocking && (filter->stepSamples > 1)) {
+					    INFO_LOCAL_ID(filter,"step event over (%d samples), filter will stop blocking\n", filter->stepSamples);
 					}
 					filter->blocking = FALSE;
+					filter->stepSamples = 0;
 				}
 
 				if(filter->totalDelay != 0) {

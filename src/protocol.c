@@ -3346,7 +3346,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 		DBGV("delayReq message can't be sent -> FAULTY state \n");
 	} else {
 		DBGV("DelayReq MSG sent ! \n");
-		
+
 
 		if(ptpClock->netPath.txTimestamping && !ptpClock->netPath.txLoop && !isTimeZero(&internalTime)) {
 			if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
