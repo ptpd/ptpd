@@ -35,7 +35,6 @@
 #ifndef CCK_TTRANSPORT_H_
 #define CCK_TTRANSPORT_H_
 
-#include
 #include "../ptpd.h"
 #include "../globalconfig.h"
 #include <libcck/linkedlist.h>
@@ -163,6 +162,8 @@ struct TTransport {
     CckBool (*isAddressMulticast) (const CckTransportAddress *address);
     CckBool (*isAddressEmpty) (const CckTransportAddress *address);
     CckBool (*addressEqual) (const CckTransportAddress *address);
+    CckBool (*addressToString) (char *buf, const size_t len, const CckTransportAddress *address);
+    CckBool (*addressFromString) (CckTransportAddress *out, const char *address);
     int (*cmpAddress) (const void *a, const void *b);
     CckU32  (*getAddressHash) (const CckTransportAddress *address); /* useful for managing hash tables / indexes based on addresses */
 

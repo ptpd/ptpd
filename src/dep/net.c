@@ -857,7 +857,7 @@ netInitHwTimestamping(NetPath *netPath, const RunTimeOpts *rtOpts) {
 	INFO("Hardware timestamping successfully enabled on %s\n", primaryName);
     }
 
-    netPath->txLoop = FALSE;
+//    netPath->txLoop = TRUE;
 
     return ret;
 
@@ -1775,7 +1775,7 @@ netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 						    time->nanoseconds = ts[0].tv_nsec;
 					}
 					timestampValid = TRUE;
-					if((flags & MSG_ERRQUEUE) && netPath->txLoop) {
+					if(flags & MSG_ERRQUEUE) {
 						char tmpB[PACKET_SIZE];
 						memset(tmpB,0,PACKET_SIZE);
 						memcpy(tmpB, buf, PACKET_SIZE);
@@ -1783,7 +1783,8 @@ netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 						memcpy(buf, tmpB + 42, PACKET_SIZE - 42);
 						uint8_t msgtype = *(uint8_t*)(buf);
 						msgtype &= 0x0F;
-						uint16_t seqno = ntohs(*((uint16_t*)(buf + 30)));
+						uint16_t seqno = *(uint16_t*)(buf + 30);
+						seqno = ntohs(seqno);
 						DBG("tx timestamp for msg type %d seq %d\n", msgtype, seqno);
 
 					}
@@ -2046,6 +2047,7 @@ ssize_t
 netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 	     const RunTimeOpts *rtOpts, Integer32 destinationAddress, TimeInternal * tim)
 {
+	extern PtpClock *G_ptpClock;
 	ssize_t ret;
 	struct sockaddr_in addr;
 
@@ -2119,10 +2121,23 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #else
 			if(netPath->txTimestamping && !netPath->txLoop) {
 #endif /* PTPD_PCAP */
+
 				if(!getTxTimestamp(netPath, tim)) {
 					if (tim) {
 						clearTime(tim);
 					}
+				} else {
+					    uint8_t msgtypea= (*(uint8_t*)(buf)) & 0x0F;
+					    uint16_t seqnoa = ntohs(*(uint16_t*)(buf + 30));
+					    uint8_t msgtypeb= (*(uint8_t*)(G_ptpClock->msgIbuf)) & 0x0F;
+					    uint16_t seqnob = ntohs(*(uint16_t*)(G_ptpClock->msgIbuf + 30));
+					    if((seqnoa != seqnob) || (msgtypea != msgtypeb)) {
+						if(tim) {
+						    clearTime(tim);
+						}
+						DBG("netSendEvent: Sent type %d seq %d, got timestamp for type %d seq %d - discarding TX timestamp\n",
+						    msgtypea, seqnoa, msgtypeb, seqnob);
+					    }
 				}
 
 

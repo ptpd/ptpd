@@ -43,5 +43,6 @@
 
 CckU32 getFnvHash(const void *input, const size_t len, const int modulo);
 
+int	hexDigitToInt(const unsigned char digit);
 
 #endif /* CCK_UTILS_H_ */

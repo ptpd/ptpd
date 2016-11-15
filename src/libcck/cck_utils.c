@@ -32,6 +32,7 @@
  *
  */
 
+#include <ctype.h>
 #include <libcck/cck_utils.h>
 
 CckU32
@@ -52,5 +53,23 @@ getFnvHash(const void *input, const size_t len, const int modulo)
     }
 
     return (modulo > 0 ? hash % modulo : hash);
+
+}
+
+int
+hexDigitToInt(const unsigned char digit)
+{
+
+    int c = tolower(digit);
+
+    if((c >= 'a') && (c <= 'f')) {
+	return (c - 'a' + 10);
+    }
+
+    if((c >= '0') && (c <= '9')) {
+	return c - '0';
+    }
+
+    return -1;
 
 }

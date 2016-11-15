@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2016 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -25,40 +25,45 @@
  */
 
 /**
- * @file   cck_types.h
- * @date   Sat Jan 9 16:14:10 2016
+ * @file   log_handler.h
+ * @date   Tue Aug 2 34:44 2016
  *
- * @brief  LibCCK-specific data types
+ * @brief  log handler definitions
  *
  */
 
-#ifndef CCK_TYPES_H_
-#define CCK_TYPES_H_
+#ifndef CCK_LOG_HANDLER_H_
+#define CCK_LOG_HANDLER_H_
 
-#include <stdint.h>
+#include <syslog.h>
 
-#include <libcck/log_handler.h>
+#define CCK_DEBUG
 
-/* LibCCK bool type */
-typedef enum {CCK_FALSE=0, CCK_TRUE=1} CckBool;
+#define CCK_EMERGENCY(x, ...) printf("LibCCK EMERG   : "x, ##__VA_ARGS__)
+#define CCK_ALERT(x, ...)     printf("LibCCK ALERT   : "x, ##__VA_ARGS__)
+#define CCK_CRITICAL(x, ...)  printf("LibCCK CRIT    : "x, ##__VA_ARGS__)
+#define CCK_ERROR(x, ...)     printf("LibCCK ERR     : "x, ##__VA_ARGS__)
+#define CCK_PERROR(x, ...)    printf("LibCCK ERR     : "x "      (strerror: %m)\n", ##__VA_ARGS__)
+#define CCK_WARNING(x, ...)   printf("LibCCK WARNING : "x, ##__VA_ARGS__)
+#define CCK_NOTIFY(x, ...)    printf("LibCCK NOTICE  : "x, ##__VA_ARGS__)
+#define CCK_NOTICE(x, ...)    printf("LibCCK NOTICE  : "x, ##__VA_ARGS__)
+#define CCK_INFO(x, ...)      printf("LibCCK INFO    : "x, ##__VA_ARGS__)
+
+#ifdef CCK_DEBUG
+
+#define CCK_DBG(x, ...)       printf("LibCCK DBG     : "x, ##__VA_ARGS__)
+#define CCK_DBG2(x, ...)      printf("LibCCK DBG2    : "x, ##__VA_ARGS__)
+#define CCK_DBGV(x, ...)      printf("LibCCK DBGV    : "x, ##__VA_ARGS__)
+
+#else
+
+#define CCK_DBG(x, ...)
+#define CCK_DBG2(x, ...)
+#define CCK_DBGV(x, ...)
+
+#endif
 
 
-/* Generic integer types */
 
-typedef uint8_t 		CckUShort;
-typedef unsigned char 		CckUChar;
-typedef unsigned char 		CckOctet;
 
-typedef uint8_t 		CckU8;
-typedef int8_t 			CckI8;
-typedef uint16_t 		CckU16;
-typedef int16_t 		CckI16;
-typedef uint32_t 		CckU32;
-typedef int32_t 		CckI32;
-
-typedef struct {
-	int32_t		seconds;
-	int32_t		nanoseconds;
-} CckTimestamp;
-
-#endif /* CCK_TYPES_H_ */
+#endif /* CCK_LOG_HANDLER_H_ */
