@@ -105,7 +105,7 @@ createClockDriver(int driverType, const char *name)
 	LINKED_LIST_APPEND(clockDriver);
     }
 
-    clockDriver->refClass = -1;
+    clockDriver->refClass = RC_NONE;
     clockDriver->distance = 255;
 
     clockDriver->_filter = NULL;
@@ -352,7 +352,14 @@ setState(ClockDriver *driver, ClockState newState) {
 
 	    /* entering or leaving locked state */
 	    if((newState == CS_LOCKED) || (driver->state == CS_LOCKED)) {
-		findBestClock();
+
+		/*
+		 * removed to eliminate churn / transient states - clocks are explicitly
+		 * prevented from sync with anything worse than CS_HOLDOVER anyway,
+		 * so they are protected.
+		 */
+		/* findBestClock(); */
+
 		INFO(THIS_COMPONENT"Clock %s adev %.03f minAdev %.03f maxAdev %.03f minAdevTotal %.03f maxAdevTotal %.03f totalAdev %.03f\n",
 		driver->name, driver->adev, driver->minAdev, driver->maxAdev, driver->minAdevTotal, driver->maxAdevTotal, driver->totalAdev);
 	    }
@@ -679,6 +686,7 @@ setReference(ClockDriver *a, ClockDriver *b) {
 
     if(b == NULL && a->refClock != NULL) {
 	NOTICE(THIS_COMPONENT"Clock %s lost reference %s\n", a->name, a->refClock->name);
+	a->lastRefClass = a->refClass;
 	a->refClock = NULL;
 	memset(a->refName, 0, CLOCKDRIVER_NAME_MAX);
 	if(a->state == CS_LOCKED) {
@@ -686,7 +694,7 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	} else {
 	    a->distance = 255;
 	}
-	a->refClass = -1;
+	a->refClass = RC_NONE;
 	return;
 	
     }
@@ -695,16 +703,20 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	NOTICE(THIS_COMPONENT"Clock %s lost external reference %s\n", a->name, a->refName);
 	a->externalReference = FALSE;
 	memset(a->refName, 0, CLOCKDRIVER_NAME_MAX);
+	a->lastRefClass = a->refClass;
 	a->refClock = NULL;
 	if(a->state == CS_LOCKED) {
 	    a->setState(a, CS_HOLDOVER);
 	} else {
 	    a->distance = 255;
 	}
-	a->refClass = -1;
+	a->refClass = RC_NONE;
 	return;
     } else if (b != NULL) {
 	NOTICE(THIS_COMPONENT"Clock %s changing reference to %s\n", a->name, b->name);
+	if(a->refClock == NULL) {
+	    a->lastRefClass = RC_NONE;
+	}
 	a->externalReference = FALSE;
 	a->refClock = b;
 	a->distance = b->distance + 1;
@@ -748,6 +760,11 @@ static void setExternalReference(ClockDriver *a, const char* refName, int refCla
 	}
 
 	strncpy(a->refName, refName, CLOCKDRIVER_NAME_MAX);
+	if(a->refClock == NULL) {
+	    a->lastRefClass = RC_NONE;
+	} else {
+	    a->lastRefClass = a->refClass;
+	}
 	a->externalReference = TRUE;
 	a->refClass = refClass;
 	a->refClock = NULL;
@@ -1022,6 +1039,13 @@ syncClock(ClockDriver* driver, double tau) {
 	TimeInternal delta;
 
 	if(driver->externalReference || (driver->refClock == NULL)) {
+	    return FALSE;
+	}
+
+	/* explicitly prevent sync from "bad" clocks during transient events */
+	if(driver->refClock->state < CS_HOLDOVER) {
+	    DBG(THIS_COMPONENT"Will not sync clock %s with reference (%s) in %s state\n",
+		driver->name, driver->refClock->name, getClockStateName(driver->refClock->state));
 	    return FALSE;
 	}
 
@@ -1495,10 +1519,10 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 
 		    /* lower reference class is better */
 		    if(a->externalReference && b->externalReference) {
-			if(a->refClass < b-> refClass) {
+			if(a->refClass > b-> refClass) {
 			    return a;
 			}
-			if(b->refClass < a-> refClass) {
+			if(b->refClass > a-> refClass) {
 			    return b;
 			}
 		    }
@@ -1524,6 +1548,16 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 			}
 		    }
 
+		    /* ref class of last used reference if both in holdover */
+		    if(a->state == CS_HOLDOVER) {
+			if(a->lastRefClass > b->lastRefClass) {
+			    return a;
+			}
+			if(b->lastRefClass > a->lastRefClass) {
+			    return b;
+			}
+		    }
+
 		    /* tiebreaker 1: lower reference chain hop count wins */
 		    if(a->distance < b->distance) {
 			return a;
@@ -1532,6 +1566,7 @@ compareClockDriver(ClockDriver *a, ClockDriver *b) {
 		    if(a->distance > b->distance) {
 			return b;
 		    }
+
 
 		    /* tiebreaker 2: system clock loses */
 		    if(!a->systemClock && b->systemClock) {

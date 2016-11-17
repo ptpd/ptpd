@@ -84,9 +84,10 @@ enum {
 
 /* reference class */
 enum {
-    RC_PTP = 0,
-    RC_EXTERNAL = 1,
-    RC_INTERNAL = 2
+    RC_NONE	= 0, /* because on init it is zero */
+    RC_INTERNAL = 1,
+    RC_EXTERNAL = 2,
+    RC_PTP	= 3
 };
 
 /* clock states */
@@ -193,6 +194,7 @@ struct ClockDriver {
 
     char refName[CLOCKDRIVER_NAME_MAX]; /* instance name of the clock's reference */
     int refClass;			/* reference class - internal, external, PTP, etc. */
+    int lastRefClass;			/* previous reference class (when we lost reference) */
     ClockDriver *refClock;		/* reference clock object */
 
     TimeInternal refOffset;		/* clock's last known (filtered, accepted) offset from reference */
