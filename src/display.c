@@ -939,7 +939,7 @@ displayCounters(const PtpClock * ptpClock)
 	INFO("Protocol engine counters:\n");
 	INFO("                  stateTransitions : %lu\n",
 		(unsigned long)ptpClock->counters.stateTransitions);
-	INFO("                     bestMasterChanges : %lu\n",
+	INFO("                 bestMasterChanges : %lu\n",
 		(unsigned long)ptpClock->counters.bestMasterChanges);
 	INFO("                  announceTimeouts : %lu\n",
 		(unsigned long)ptpClock->counters.announceTimeouts);
@@ -973,11 +973,11 @@ displayCounters(const PtpClock * ptpClock)
 		(unsigned long)ptpClock->counters.sequenceMismatchErrors);
 	INFO("         consecutiveSequenceErrors : %lu\n",
 		(unsigned long)ptpClock->counters.consecutiveSequenceErrors);
-	INFO("           delayMechanismMismatchErrors : %lu\n",
+	INFO("      delayMechanismMismatchErrors : %lu\n",
 		(unsigned long)ptpClock->counters.delayMechanismMismatchErrors);
-	INFO("           maxDelayDrops : %lu\n",
+	INFO("                     maxDelayDrops : %lu\n",
 		(unsigned long)ptpClock->counters.maxDelayDrops);
-	INFO("     txTimestampFailures : %lu\n",
+	INFO("               txTimestampFailures : %lu\n",
 		(unsigned long)ptpClock->counters.txTimestampFailures);
 
 	INFO("Outlier filter hits:\n");

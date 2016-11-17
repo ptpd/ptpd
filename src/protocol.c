@@ -1390,8 +1390,9 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
     }
 
     ptpClock->message_activity = TRUE;
+
     if (length < HEADER_LENGTH) {
-	DBG("Error: message shorter than header length\n");
+	DBG("Error: message shorter than header length (%d < %d)\n", length, HEADER_LENGTH);
 	ptpClock->counters.messageFormatErrors++;
 	return;
     }
@@ -1716,6 +1717,10 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	if (FD_ISSET(ptpClock->netPath.eventSock, &readfds)) {
 	    length = netRecvEvent(ptpClock->msgIbuf, &timeStamp,
 		          &ptpClock->netPath, 0);
+	    if(length == 0) {
+		DBG("Received an empty event message (this should not happen) - ignoring\n");
+		return;
+	    }
 	    if (length < 0) {
 		PERROR("failed to receive on the event socket");
 		toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -1731,6 +1736,10 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	if (FD_ISSET(ptpClock->netPath.generalSock, &readfds)) {
 	    length = netRecvGeneral(ptpClock->msgIbuf, &ptpClock->netPath);
+	    if(length == 0) {
+		DBG("Received an empty general message (this should not happen) - ignoring\n");
+		return;
+	    }
 	    if (length < 0) {
 		PERROR("failed to receive on the general socket");
 		toState(PTP_FAULTY, rtOpts, ptpClock);

@@ -250,6 +250,8 @@ getAddressData(CckTransportAddress *addr)
 
 }
 
+/* string conversion */
+
 char*
 transportAddressToString(char *string, const size_t len, const CckTransportAddress *address)
 {
@@ -291,7 +293,7 @@ transportAddressFromString(CckTransportAddress *address, const int family, const
 
 }
 
-/* string conversion */
+
 
 static char*
 inetAddressToString(char *buf, const size_t len, const CckTransportAddress *address)

@@ -495,10 +495,6 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			INFO("** Management message ACL:\n");
 			dumpIpv4AccessList(ptpClock->netPath.managementAcl);
 		}
-		if(rtOpts->clearCounters) {
-			clearCounters(ptpClock);
-			NOTIFY("PTP engine counters cleared\n");
-		}
 		if(rtOpts->oFilterSMConfig.enabled) {
 			ptpClock->oFilterSM.display(&ptpClock->oFilterSM);
 		}
@@ -509,6 +505,11 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 		INFO("Inter-clock offset table:\n");
 		compareAllClocks();
+
+		if(rtOpts->clearCounters) {
+			clearCounters(ptpClock);
+			NOTIFY("* PTP engine counters cleared*\n");
+		}
 
 	}
 

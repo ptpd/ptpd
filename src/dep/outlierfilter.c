@@ -246,8 +246,7 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 					    (!filter->blocking && (filter->delayCredit >= filter->consecutiveOutliers * 2 ))) {
 					    if(!filter->blocking) {
 						filter->stepSamples = 0;
-
-					    } 
+					    }
 					    /* prevent from informing about a single step. */
 					    if(filter->stepSamples == 1) {
 						INFO_LOCAL_ID(filter,"%.03f us step detected, filter will now block\n", step * 1E6);
@@ -366,7 +365,7 @@ static int outlierFilterDisplay(OutlierFilter *filter) {
 	    id, filter->config.minThreshold);
 	INFO("         %s.maxThreshold : %.02f\n",
 	    id, filter->config.maxThreshold);
-	INFO("         %s.thresholdStep : %.02f\n",
+	INFO("        %s.thresholdStep : %.02f\n",
 	    id, filter->config.thresholdStep);
 
 

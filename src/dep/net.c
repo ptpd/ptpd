@@ -1907,19 +1907,25 @@ netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 ssize_t
 netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags) {
 
-    int ret;
+	int ret;
 
-    if(netPath->txTimestamping && netPath->txLoop) {
-	ret = netr(buf, time, netPath, MSG_ERRQUEUE);
-	if(ret > 0) {
-	    return ret;
+	if(netPath->txTimestamping && netPath->txLoop) {
+	/* if we are pushing TX timestamps for message processing, read error queue first */
+	    ret = netr(buf, time, netPath, MSG_ERRQUEUE);
+	    if(ret > 0) {
+		return ret;
+	    }
 	}
-    }
 
-    ret = netr(buf, time, netPath, 0);
+	ret = netr(buf, time, netPath, 0);
 
-    return ret;
+	/* no data received - possibly a stuck TX timestamp - drain the error queue */
+	if(!ret &&netPath->txTimestamping) {
+	    netr(buf, time, netPath, MSG_ERRQUEUE);
+		
+	}
 
+	return ret;
 
 }
 
