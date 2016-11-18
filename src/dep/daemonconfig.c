@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015 Wojciech Owczarek,
+ * Copyright (c) 2013-2016 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -167,7 +167,6 @@ static void findUnknownSettings(int opCode, dictionary* source, dictionary* dict
 	    parseResult = FALSE;\
 	 }
 
-
 #define CONFIG_KEY_TRIGGER(key,variable,value, otherwise) \
 	if (CONFIG_ISSET(key) ) \
 	 { \
@@ -288,6 +287,7 @@ configMapBoolean(int opCode, void *opArg,  dictionary* dict, dictionary *target,
 			return 1;
 		    } else {
 			/* this way we tell the caller that we have already found the setting we were looking for */
+			/* ...it is a pretty shit method, I solemnly admit. */
 			helpKey[0] = '\0';
 		    }
 		}
@@ -398,7 +398,6 @@ checkRangeInt(dictionary *dict, const char *key, int rangeFlags, int minBound, i
 	return ret;
 }
 
-
 static int
 configMapInt(int opCode, void *opArg,  dictionary *dict, dictionary *target, const char *key, int restartFlags, int intType,
 		void *var, int def, const char *helptext, int rangeFlags,
@@ -456,7 +455,7 @@ configMapInt(int opCode, void *opArg,  dictionary *dict, dictionary *target, con
 		return 1;
 	    case RANGECHECK_MAX:
 		printf("setting: %s (--%s)\n", key, key);
-		printf("   type: FLOAT (max: %d)\n", maxBound);
+		printf("   type: INT (max: %d)\n", maxBound);
 		printf("  usage: %s\n", helptext);
 		printf("default: %d\n", def);
 		printf("\n");
@@ -501,6 +500,7 @@ configMapInt(int opCode, void *opArg,  dictionary *dict, dictionary *target, con
 		    printComment(helptext);
 		    printf("%s = %s\n", key,buf);
 		}
+
 		ret = checkRangeInt(dict, key, rangeFlags, minBound, maxBound);
 
 		if(!ret && !(opCode & CFGOP_PARSE_QUIET)) {
@@ -822,8 +822,6 @@ findUnknownSettings(int opCode, dictionary* source, dictionary* dict)
  * Map all options from @dict dictionary to corresponding @rtopts fields,
  * using existing @rtopts fields as defaults. Return a dictionary free
  * of unknown options, with explicitly set defaults.
- * NOTE: when adding options, also map them in checkSubsystemRestart to
- * ensure correct config reload behaviour.
  */
 dictionary*
 parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
@@ -1939,6 +1937,15 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, &rtOpts->clockStrictSync, rtOpts->clockStrictSync,
 	"Explicitly prevent clocks from sync with reference in state worse than HOLDOVER");
 
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:min_step",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->clockMinStep,
+		rtOpts->clockMinStep,
+		"Minimum delta (nanoseconds) that a clock can be stepped by.\n"
+		"        Zero - no limit. Stepping clock by a very small delta\n"
+		"        may be imprecise for some clock drivers and cause\n"
+		"        a larger offset than the delta requested.\n",
+		RANGECHECK_RANGE,0,NANOSECONDS_MAX);
+
 #ifdef HAVE_LINUX_RTC_H
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:set_rtc_on_step",
 		PTPD_RESTART_NONE, &rtOpts->setRtc, rtOpts->setRtc,
@@ -1969,7 +1976,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->leapSecondNoticePeriod,
 		rtOpts->leapSecondNoticePeriod,
 		"Time (seconds) before midnight that PTPd starts announcing the leap second\n"
-	"	 if it's running as master",RANGECHECK_RANGE,3600,86400);
+	"	 if it's running as master",RANGECHECK_RANGE,3600,86399);
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "clock:leap_seconds_file",
 		PTPD_RESTART_NONE, rtOpts->leapFile, sizeof(rtOpts->leapFile), rtOpts->leapFile,

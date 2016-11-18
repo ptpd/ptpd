@@ -71,7 +71,6 @@ static char* inetAddressToString(char *buf, const size_t len, const CckTransport
 static CckBool inetAddressFromString (CckTransportAddress *out, const int af, const char *address);
 static void * getAddressData(CckTransportAddress *addr);
 
-
 CckAddressToolset* getAddressToolset(int family)
 {
 	if(family < 0 || family >= TT_FAMILY_MAX) {

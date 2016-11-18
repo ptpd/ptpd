@@ -40,6 +40,9 @@
 
 #define min(a,b) ((a < b) ? a : b)
 #define max(a,b) ((a > b) ? a : b)
+#define tmpstr(name, len) char name[len + 1]; \
+int name ## _len = len + 1; \
+memset(name, 0, name ## _len);
 
 CckU32 getFnvHash(const void *input, const size_t len, const int modulo);
 

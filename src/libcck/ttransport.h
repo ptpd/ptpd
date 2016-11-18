@@ -91,6 +91,7 @@ enum {
 typedef struct {
     CckBool disabled;			/* transport is disabled */
     CckBool discarding;			/* transport is discarding data */
+    CckBool timestamping;		/* transport needs to deliver timestamps */
 } TTransportConfig;
 
 /* transport specification container, useful when creating transports specified as string */
@@ -99,6 +100,18 @@ typedef struct {
     char path[PATH_MAX];
     char name[TTRANSPORT_NAME_MAX+1];
 } TTransportSpec;
+
+/* Network message: data with basic information about the data */
+typedef struct {
+	CckOctet *data;
+	int	length;
+	CckBool fromSelf;
+	CckBool toSelf;
+	CckBool hasTimestamp;
+	CckTransportAddress destination;
+	CckTransportAddress source;
+	CckTimestamp timestamp;
+} TTransportMessage;
 
 typedef struct TTransport TTransport;
 
@@ -109,6 +122,9 @@ struct TTransport {
     char name[TTRANSPORT_NAME_MAX +1];	/* name of the driver's instance */
 
     TTransportConfig config;		/* config container */
+    CckAddressToolset *addrTools;	/* address management function holder */
+
+    void *owner;			/* pointer to user structure owning or controlling this clock */
 
     struct {
 	int 		 rateInterval;		/* rate computation interval, seconds */
@@ -141,7 +157,24 @@ struct TTransport {
     CckOctet	*outputBuffer;		/* data transmit buffer, supplied by user */
     int		outputBufferSize;
 
+    CckMessage incomingMessage;
+    CckMessage outgoingMessage;
+
+    /* user-supplied callbacks */
+    struct {
+	int (*txMulticast) (void *owner, CckOctet *data, size_t len);
+	int (*txUnicast) (void *owner, CckOctet *data, size_t len);
+	int (*preTx) (TTransport*, void *owner, CckMessage *message);
+	int (*postTx) (TTransport*, void *owner, void *a, const size_t alen, void *b, const size_t blen);
+    } callbacks;
+
+int		ttDummyDataCallback (TTransport*, void *owner, CckOctet *data, const int len);
+/* dummy callback with two data buffers - say to match on something */
+int		ttDummyMatchCallback ;
+
+
     /* flags */
+    CckBool hasData;			/* transport has some data to read */
 
     /* BEGIN "private" fields */
 
@@ -158,14 +191,15 @@ struct TTransport {
 
     CckBool (*pushConfig) (TTransport *, RunTimeOpts *);
     CckBool (*healthCheck) (TTransport *);
-    CckBool (*probe)	(TTransport*, const char *path, const int capabilities); /* check if given transport provides all required capabilities */
-    CckBool (*isAddressMulticast) (const CckTransportAddress *address);
-    CckBool (*isAddressEmpty) (const CckTransportAddress *address);
-    CckBool (*addressEqual) (const CckTransportAddress *address);
-    CckBool (*addressToString) (char *buf, const size_t len, const CckTransportAddress *address);
-    CckBool (*addressFromString) (CckTransportAddress *out, const char *address);
-    int (*cmpAddress) (const void *a, const void *b);
-    CckU32  (*getAddressHash) (const CckTransportAddress *address); /* useful for managing hash tables / indexes based on addresses */
+
+    /* send n bytes from outputBuffer / outgoingMessage to destination,  */
+    int (*send) (TTransport*, size_t len, CckTransportAddress *to);
+    /* send n bytes from buf to destination */
+    int (*sendData) (TTransport*, CckOctet *buf, size_t len, CckTransportAddress *to);
+    /* receive data into inputBuffer and incomingMessage */
+    int(*receive) (TTransport*);
+    /* receive data into provided buffer of size len */
+    int(*receiveData) (TTransport*, CckOctet* buf, size_t size);
 
     /* inherited methods end */
 
@@ -175,10 +209,14 @@ struct TTransport {
     int (*init)		(TTransport*, void * config);
 
     CckBool (*testConfig) (TTransport*, void *config); /* test configuration */
-
     CckBool (*privateHealthCheck) (TTransport *); /* NEW! Now with private healthcare! */
     CckBool (*pushPrivateConfig) (TTransport *, RunTimeOpts *);
     CckBool (*isThisMe) (TTransport *, const char* search);
+
+    /* send message: buffer and destination information; populate TX timestamp if we have one */
+    int (*sendMessage) (TTransport * , TTransportMessage *message);
+    /* receive message: buffer and source + destination information; populate RX timestamp if we have one */
+    int (*receiveMessage) (TTransport * , TTransportMessage *message);
 
     void (*loadVendorExt) (TTransport *, const char *);
 
@@ -199,13 +237,17 @@ int		probeTTransport(int transportType, const char *path, int capabilities);
 TTransport*  	createTTransport(int driverType, const char* name);
 CckBool 	setupTTransport(TTransport* clockDriver, int type, const char* name);
 void 		freeTTransport(TTransport** clockDriver);
-int		tTransportDummyCallback(TTransport*);
-int		tTransportDummyDataCallback (TTransport*, void *data, const int len);
+/* dummy general-purpose callback for the owner*/
+int		ttDummyCallback(void *owner);
+/* dummy callback with a data buffer */
+int		ttDummyDataCallback (void *owner, CckOctet *data, const int len);
+/* dummy callback with two data buffers - say to match on something */
+int		ttDummyMatchCallback (void *owner, unsigned char *a, const int alen, unsigned char *b, const int blen);
 
 void 		shutdownTTransports();
 void		controlTTransports(int);
-
-//void		monitorTTransports();
+void		monitorTTransports();
+void		refreshTTransports();
 
 TTransport*	findTTransport(const char *);
 TTransport*	getTTransportByName(const char *);

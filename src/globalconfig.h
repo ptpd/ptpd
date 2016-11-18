@@ -283,6 +283,7 @@ typedef struct {
 	int clockOutlierFilterBlockTimeout;
 
 	Boolean clockStrictSync;
+	int clockMinStep;
 
 	/**
 	 *  When enabled, ptpd ensures that Sync message sequence numbers

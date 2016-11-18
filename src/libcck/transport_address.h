@@ -90,6 +90,7 @@ enum {
 typedef struct {
 	int family;
 	CckBool populated;
+	/* address container */
 	union {
 		struct sockaddr		inet;
 		struct sockaddr_in	inet4;
@@ -97,16 +98,8 @@ typedef struct {
 		struct ether_addr	ether;
 		struct sockaddr_un	local;
 	} addr;
+	int port;	/* for those address families which use port numbers */
 } CckTransportAddress;
-
-typedef struct {
-	CckOctet *buf;
-	int	len;
-	CckBool fromSelf;
-	CckBool toSelf;
-	CckTransportAddress destination;
-	CckTransportAddress source;
-} CckMessage;
 
 /* address function toolset container */
 typedef struct {

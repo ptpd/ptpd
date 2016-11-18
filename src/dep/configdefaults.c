@@ -308,6 +308,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->clockSyncRate = CLOCK_SYNC_RATE;
 	rtOpts->clockFailureDelay = 10;
 	rtOpts->clockStrictSync = TRUE;
+	rtOpts->clockMinStep = 500;
 
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
 	rtOpts->servoMaxdT = 5.0;

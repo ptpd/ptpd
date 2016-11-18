@@ -11,7 +11,7 @@
       - overload any other clock driver's methods to your liking
 
    3. include the header file here
-   3. call: LOAD_VENDOR_EXT(0xOOUUII, name, "description")
+   4. call: LOAD_VENDOR_EXT(0xOOUUII, name, "description")
 
 */
 

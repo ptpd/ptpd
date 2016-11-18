@@ -307,10 +307,11 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 static Boolean
 stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
+	struct timespec nts;
+	TimeInternal newTime;
+
 	GET_CONFIG_CLOCKDRIVER(self, myConfig, linuxphc);
 	GET_DATA_CLOCKDRIVER(self, myData, linuxphc);
-
-	struct timespec nts;
 
 	if((!self->_init) || (self->state == CS_HWFAULT)) {
 	    return FALSE;
@@ -320,7 +321,10 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 	    return TRUE;
 	}
 
-	TimeInternal newTime;
+	/* do not step the clock by less than config.minStep nanoseconds (if minStep set) */
+	if(!delta->seconds && self->config.minStep && (abs(delta->nanoseconds) <= self->config.minStep)) {
+	    return TRUE;
+	}
 
 	if((self->config.readOnly) || (self->config.disabled)) {
 		return TRUE;

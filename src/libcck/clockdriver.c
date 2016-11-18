@@ -1324,6 +1324,7 @@ pushConfig(ClockDriver *driver, RunTimeOpts *global)
     config->stepTimeout = (global->enablePanicMode) ? global-> panicModeDuration : 0;
     config->stepExitThreshold = global->panicModeExitThreshold;
     config->strictSync = global->clockStrictSync;
+    config->minStep = global->clockMinStep;
 
     config->statFilter = global->clockStatFilterEnable;
     config->filterWindowSize = global->clockStatFilterWindowSize;

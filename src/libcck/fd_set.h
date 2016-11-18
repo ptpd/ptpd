@@ -53,6 +53,7 @@ struct CckFd {
 
 };
 
+/* LibCCK wrapper for a set of file descriptors */
 typedef struct {
 	LINKED_LIST_HOOK_LOCAL(CckFd);
 	CckBool hasData;

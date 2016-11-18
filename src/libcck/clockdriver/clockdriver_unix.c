@@ -311,15 +311,20 @@ setTime (ClockDriver *self, TimeInternal *time, Boolean force) {
 static Boolean
 stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
+	struct timespec nts;
+	TimeInternal oldTime,newTime;
+
 	GET_CONFIG_CLOCKDRIVER(self, myConfig, unix);
 
 	if(isTimeZero(delta)) {
 	    return TRUE;
 	}
 
-	struct timespec nts;
+	/* do not step the clock by less than config.minStep nanoseconds (if minStep set) */
+	if(!delta->seconds && self->config.minStep && (abs(delta->nanoseconds) <= self->config.minStep)) {
+	    return TRUE;
+	}
 
-	TimeInternal oldTime,newTime;
 	getTime(self, &oldTime);
 	addTime(&newTime, &oldTime, delta);
 

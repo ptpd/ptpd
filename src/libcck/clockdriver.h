@@ -151,6 +151,7 @@ typedef struct {
     int stepType;			/* Clock reaction to a 1 second+ step */
     int stepTimeout;			/* Panic mode / suspend period when step detected */
     int failureDelay;			/* Clock fault recovery countdown timer */
+    int minStep;			/* Minimum delta a clock can be stepped by */
     int32_t offsetCorrection;		/* Offset correction / calibration value */
     uint32_t stepExitThreshold;		/* Offset from reference when we can exit panic mode early */
 } ClockDriverConfig;
@@ -192,6 +193,8 @@ struct ClockDriver {
     int utcOffset;			/* for future use: clock timescale's offset to UTC */
 
     int distance;			/* number of "hops" from topmost reference */
+
+    void *owner;			/* pointer to user structure owning or controlling this clock */
 
     ClockDriverConfig config;		/* config container */
 
@@ -347,6 +350,7 @@ int		getClockDriverType(const char*);
 Boolean		parseClockDriverSpec(const char*, ClockDriverSpec *);
 void		compareAllClocks();
 
+/* invoking this without REGISTER_CLOCKDRIVER defined, includes the headers */
 #include "clockdriver.def"
 
 #define INIT_DATA_CLOCKDRIVER(var, type) \
