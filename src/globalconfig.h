@@ -282,6 +282,8 @@ typedef struct {
 	double clockOutlierFilterCutoff;
 	int clockOutlierFilterBlockTimeout;
 
+	Boolean clockStrictSync;
+
 	/**
 	 *  When enabled, ptpd ensures that Sync message sequence numbers
 	 *  are increasing (consecutive sync is not lower than last).

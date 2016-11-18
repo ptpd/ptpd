@@ -6,7 +6,7 @@
 # build both versions: normal and slave-only
 SPEC=ptpd.spec
 rm *.rpm
-for slaveonly in 0 1; do
+
 
 PWD=`pwd`
 BUILDDIR=`mktemp -d /tmp/tmpbuild.XXXXXXXXX`
@@ -46,10 +46,11 @@ ARCHIVE=`cat $SPEC | egrep "Name|Version|Release" | awk 'BEGIN {ORS="-";} NR<3 {
 RPMFILE=$BUILDDIR/RPMS/`uname -m`/$ARCHIVE.`uname -m`.rpm
 SRPMFILE=$BUILDDIR/SRPMS/$ARCHIVE.src.rpm
 
-
-rpmbuild  --define "$GITTAG" --define "build_slaveonly $slaveonly" --define "_topdir $BUILDDIR" -ba $BUILDDIR/SPECS/$SPEC && { 
+for slaveonly in 0 1; do
+    rpmbuild  --define "$GITTAG" --define "build_slaveonly $slaveonly" --define "_topdir $BUILDDIR" -ba $BUILDDIR/SPECS/$SPEC && {
     find $BUILDDIR -name "*.rpm" -exec mv {} $PWD \;
-}
+    }
+done
 
 rm -rf $BUILDDIR
 rm $TARBALL

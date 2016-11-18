@@ -97,7 +97,8 @@ typedef enum {
     CS_STEP,		/* clock is suspended because of offset > 1 s, counting down to step */
     CS_HWFAULT,		/* hardware fault */
     CS_INIT,		/* initial state, proceeds to FREERUN */
-    CS_FREERUN,		/* clock is not being disciplined - or has a reference but has not been updated*/
+    CS_FREERUN,		/* clock is not being disciplined - or has a reference but has not been updated */
+    CS_CALIBRATING,	/* clock has re-gained reference and is preparing for sync */
     CS_TRACKING,	/* clock is tracking a reference but is not (yet) locked, or was locked and adev is outside threshold. */
     CS_HOLDOVER,	/* clock is in holdover: was LOCKED but has been idle (no updates) or lost its reference */
     CS_LOCKED		/* clock is locked to reference (adev below threshold) */
@@ -106,10 +107,21 @@ typedef enum {
 
 } ClockState;
 
+/* state change reason codes */
+enum {
+    CSR_INTERNAL,	/* internal FSM work: init, shutdown, etc */
+    CSR_OFFSET,		/* state change because of reference offset value */
+    CSR_IDLE,		/* clock was idle */
+    CSR_AGE,		/* state age: holdover->freerun, etc. */
+    CSR_REFCHANGE,	/* reference */
+    CSR_FAULT		/* fault */
+};
+
 /* clock driver configuration */
 typedef struct {
     Boolean disabled;			/* clock is disabled - it's skipped from sync and all other operation.
 					 * if it is being used by PTP, it is set read-only instead */
+
     Boolean required;			/* clock cannot be disabled */
     Boolean excluded;			/* clock is excluded from best clock selection */
     Boolean readOnly;			/* clock is read-only */
@@ -120,6 +132,8 @@ typedef struct {
     Boolean storeToFile;		/* clock stores good frequency in a file */
     Boolean outlierFilter;		/* enable MAD-based outlier filter */
     Boolean statFilter;			/* enable statistical filter */
+    Boolean strictSync;			/* enforce sync to LOCKED and HOLDOVER only */
+
     char frequencyFile[PATH_MAX +1];	/* frequency file - filled by the driver itself */
     char frequencyDir[PATH_MAX + 1];	/* frequency file directory */
     int adevPeriod;			/* Allan deviation measurement period */
@@ -204,8 +218,8 @@ struct ClockDriver {
     double adev;			/* running Allan deviation, periodically updated */
     double minAdev;			/* minimum Allan deviation in locked state */
     double maxAdev;			/* maximum Allan deviation in locked state */
-    double minAdevTotal;		/* minimum Allan deviation */
-    double maxAdevTotal;		/* maximum Allan deviation */
+    double minAdevTotal;		/* minimum Allan deviation from start of measurement */
+    double maxAdevTotal;		/* maximum Allan deviation from start of measurement */
 
     PIservo servo;			/* PI servo used to sync the clock */
 
@@ -224,6 +238,7 @@ struct ClockDriver {
     Boolean _stepped;			/* clock has been stepped at least once */
     Boolean _locked;			/* clock has locked at least once */
     Boolean _canResume;			/* we are OK to resume sync after step */
+    Boolean _waitForElection;		/* do not sync to- or from- until best clock election runs next */
     IntPermanentAdev _adev;		/* running Allan deviation container */
     IntPermanentAdev _totalAdev;	/* totalAllan deviation container */
     TimeInternal _initTime;		/* time (monotonic) when the driver was initialised */

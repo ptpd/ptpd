@@ -1926,7 +1926,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, &rtOpts->negativeStep_hw, rtOpts->negativeStep_hw,
 	"Allow a hardware clock to be stepped backwards");
 
-
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:step_startup_force",
 		PTPD_RESTART_NONE, &rtOpts->stepForce, rtOpts->stepForce,
 	"Force clock step on first sync after startup regardless of offset and clock:no_reset");
@@ -1935,6 +1934,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, &rtOpts->stepOnce, rtOpts->stepOnce,
 		"Step clock on startup if offset >= 1 second, ignoring\n"
 	"        panic mode and clock:no_reset");
+
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:strict_sync",
+		PTPD_RESTART_NONE, &rtOpts->clockStrictSync, rtOpts->clockStrictSync,
+	"Explicitly prevent clocks from sync with reference in state worse than HOLDOVER");
 
 #ifdef HAVE_LINUX_RTC_H
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:set_rtc_on_step",

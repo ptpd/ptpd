@@ -289,11 +289,11 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->unstableAdev = 2000;
 	rtOpts->unstableAdev_hw = 500;
 
-	rtOpts->lockedAge = 10;
-	rtOpts->lockedAge_hw = 20;
+	rtOpts->lockedAge = 60;
+	rtOpts->lockedAge_hw = 180;
 
-	rtOpts->holdoverAge = 120;
-	rtOpts->holdoverAge_hw = 600;
+	rtOpts->holdoverAge = 600;
+	rtOpts->holdoverAge_hw = 1800;
 
 	rtOpts->adevPeriod = 10;
 
@@ -307,6 +307,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->clockUpdateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
 	rtOpts->clockSyncRate = CLOCK_SYNC_RATE;
 	rtOpts->clockFailureDelay = 10;
+	rtOpts->clockStrictSync = TRUE;
 
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
 	rtOpts->servoMaxdT = 5.0;

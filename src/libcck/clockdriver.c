@@ -353,12 +353,8 @@ setState(ClockDriver *driver, ClockState newState) {
 	    /* entering or leaving locked state */
 	    if((newState == CS_LOCKED) || (driver->state == CS_LOCKED)) {
 
-		/*
-		 * removed to eliminate churn / transient states - clocks are explicitly
-		 * prevented from sync with anything worse than CS_HOLDOVER anyway,
-		 * so they are protected.
-		 */
-		/* findBestClock(); */
+		/* do not sync this clock until next findBestClock() */
+		driver->_waitForElection = TRUE;
 
 		INFO(THIS_COMPONENT"Clock %s adev %.03f minAdev %.03f maxAdev %.03f minAdevTotal %.03f maxAdevTotal %.03f totalAdev %.03f\n",
 		driver->name, driver->adev, driver->minAdev, driver->maxAdev, driver->minAdevTotal, driver->maxAdevTotal, driver->totalAdev);
@@ -1038,12 +1034,20 @@ syncClock(ClockDriver* driver, double tau) {
 
 	TimeInternal delta;
 
+	/* nothing to sync with */
 	if(driver->externalReference || (driver->refClock == NULL)) {
 	    return FALSE;
 	}
 
-	/* explicitly prevent sync from "bad" clocks during transient events */
-	if(driver->refClock->state < CS_HOLDOVER) {
+	/* do not sync if we are awaiting best clock change */
+	if(driver->_waitForElection || driver->refClock->_waitForElection) {
+	    DBG(THIS_COMPONENT"Will not sync clock %s until next best clock election\n",
+		driver->name);
+	    return FALSE;
+	}
+
+	/* explicitly prevent sync from "bad" clocks if strict sync enabled */
+	if(driver->config.strictSync && (driver->refClock->state < CS_HOLDOVER)) {
 	    DBG(THIS_COMPONENT"Will not sync clock %s with reference (%s) in %s state\n",
 		driver->name, driver->refClock->name, getClockStateName(driver->refClock->state));
 	    return FALSE;
@@ -1319,12 +1323,15 @@ pushConfig(ClockDriver *driver, RunTimeOpts *global)
     config->holdoverAge = global->holdoverAge;
     config->stepTimeout = (global->enablePanicMode) ? global-> panicModeDuration : 0;
     config->stepExitThreshold = global->panicModeExitThreshold;
+    config->strictSync = global->clockStrictSync;
 
     config->statFilter = global->clockStatFilterEnable;
     config->filterWindowSize = global->clockStatFilterWindowSize;
+
     if(config->filterWindowSize == 0) {
 	config->filterWindowSize = global->clockSyncRate;
     }
+
     config->filterType = global->clockStatFilterType;
     config->filterWindowType = global->clockStatFilterWindowType;
 
@@ -1696,6 +1703,11 @@ findBestClock() {
 		cd->setReference(cd, _bestClock);
 	    }
 	}
+    }
+
+    /* mark ready for sync */
+    LINKED_LIST_FOREACH(cd) {
+	    cd->_waitForElection = FALSE;
     }
 
 }
