@@ -98,7 +98,7 @@ typedef enum {
     CS_HWFAULT,		/* hardware fault */
     CS_INIT,		/* initial state, proceeds to FREERUN */
     CS_FREERUN,		/* clock is not being disciplined - or has a reference but has not been updated */
-    CS_CALIBRATING,	/* clock has re-gained reference and is preparing for sync */
+    CS_CALIBRATING,	/* clock has (re)gained a reference and is preparing for sync */
     CS_TRACKING,	/* clock is tracking a reference but is not (yet) locked, or was locked and adev is outside threshold. */
     CS_HOLDOVER,	/* clock is in holdover: was LOCKED but has been idle (no updates) or lost its reference */
     CS_LOCKED		/* clock is locked to reference (adev below threshold) */
@@ -150,6 +150,7 @@ typedef struct {
     int holdoverAge;			/* Maximum age in HOLDOVER (going into FREERUN) */
     int stepType;			/* Clock reaction to a 1 second+ step */
     int stepTimeout;			/* Panic mode / suspend period when step detected */
+    int calibrationTime;		/* Frequency estimation time */
     int failureDelay;			/* Clock fault recovery countdown timer */
     int minStep;			/* Minimum delta a clock can be stepped by */
     int32_t offsetCorrection;		/* Offset correction / calibration value */
@@ -226,9 +227,15 @@ struct ClockDriver {
 
     PIservo servo;			/* PI servo used to sync the clock */
 
+    double estimatedFrequency;		/* frequency estimated during calibration stage */
     double lastFrequency;		/* last known frequency offset */
     double storedFrequency;		/* stored (good) frequency offset */
     double maxFrequency;		/* maximum frequency offset that can be set */
+
+    /* callbacks */
+    struct {
+	void (*onStep) (void *owner); /* user callback to be called after clock was stepped */
+    } callbacks;
 
 
     /* BEGIN "private" fields */
@@ -251,6 +258,8 @@ struct ClockDriver {
     double _tau;			/* time constant (servo run interval) */
     DoubleMovingStatFilter *_filter;	/* offset filter */
     DoubleMovingStatFilter *_madFilter;	/* MAD container */
+    double _lastDelta;			/* last offset used during frequency estimation */
+    DoublePermanentMean _calMean;	/* mean contained used during frequency estimation */
     Boolean _skipSync;			/* skip next sync */
     int *_instanceCount;		/* instance counter for the whole clock driver */
     void *_privateData;			/* implementation-specific data */
@@ -327,6 +336,7 @@ ClockDriver*  	createClockDriver(int driverType, const char* name);
 Boolean 	setupClockDriver(ClockDriver* clockDriver, int type, const char* name);
 void 		freeClockDriver(ClockDriver** clockDriver);
 int		clockDriverDummyCallback(ClockDriver*);
+void		cdDummyOwnerCallback(void *owner);
 
 ClockDriver* 	getSystemClock();
 

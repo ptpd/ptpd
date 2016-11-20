@@ -114,12 +114,6 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define INADDR_LOOPBACK 0x7f000001UL
 #endif
 
-#define SUBDOMAIN_ADDRESS_LENGTH  4
-#define PORT_ADDRESS_LENGTH       2
-#define PTP_UUID_LENGTH           6
-#define CLOCK_IDENTITY_LENGTH	  8
-#define FLAG_FIELD_LENGTH         2
-
 #define PACKET_SIZE  300
 #define PACKET_BEGIN_UDP (ETHER_HDR_LEN + sizeof(struct ip) + \
 	    sizeof(struct udphdr))
@@ -140,7 +134,7 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #ifdef PTPD_UNICAST_MAX
 #define UNICAST_MAX_DESTINATIONS PTPD_UNICAST_MAX
 #else
-#define UNICAST_MAX_DESTINATIONS 16
+#define UNICAST_MAX_DESTINATIONS 128
 #endif /* PTPD_UNICAST_MAX */
 
 /* dummy clock driver designation in preparation for generic clock driver API */

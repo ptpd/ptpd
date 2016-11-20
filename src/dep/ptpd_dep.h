@@ -428,6 +428,7 @@ void alarmHandler_snmp(AlarmEntry *alarm);
  * -Clock servo*/
  /**\{*/
 
+void clockStepNotify(void *owner);
 void initClock(const RunTimeOpts*,PtpClock*);
 void updatePeerDelay (one_way_delay_filter*, const RunTimeOpts*,PtpClock*,TimeInternal*,Boolean);
 void updateDelay (one_way_delay_filter*, const RunTimeOpts*, PtpClock*,TimeInternal*);

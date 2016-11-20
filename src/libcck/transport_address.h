@@ -36,9 +36,19 @@
 #define CCK_TTRANSPORT_ADDRESS_H_
 
 /* transport address related constants */
+#define TT_ADDRLEN_IPV4 4
+#define TT_STRADDRLEN_IPV4 INET_ADDRSTRLEN
+
+#define TT_ADDRLEN_IPV6 16
+#define TT_STRADDRLEN_IPV6 INET6_ADDRSTRLEN
+
 #define TT_ADDRLEN_ETHERNET ETHER_ADDR_LEN
-#define TT_STRADDRLEN_ETHERNET 17
-#define TT_ADDRLEN_LOCAL 108
+			
+#define TT_STRADDRLEN_ETHERNET (3 * TT_ADDRLEN_ETHERNET)
+
+#define TT_ADDRLEN_LOCAL sizeof(((struct sockaddr_un*)0)->sun_path)
+#define TT_STRADDRLEN_LOCAL TT_ADDRLEN_LOCAL
+
 
 #include <config.h>
 
@@ -103,12 +113,13 @@ typedef struct {
 
 /* address function toolset container */
 typedef struct {
-    CckBool (*isMulticast) (const CckTransportAddress *);
-    CckBool (*isEmpty) (const CckTransportAddress *);
-    int (*compare) (const void*, const void*);
-    CckU32 (*hash) (const CckTransportAddress *, int);
-    char* (*toString) (char *, const size_t, const CckTransportAddress *);
-    CckBool (*fromString) (CckTransportAddress *, const char *);
+    int strLen;
+    CckBool	(*isMulticast)	(const CckTransportAddress *);
+    CckBool	(*isEmpty)	(const CckTransportAddress *);
+    int		(*compare)	(const void*, const void*);
+    CckU32	(*hash)		(const CckTransportAddress *, int);
+    char*	(*toString)	(char *, const size_t, const CckTransportAddress *);
+    CckBool (*fromString)	(CckTransportAddress *, const char *);
 } CckAddressToolset;
 
 CckAddressToolset* getAddressToolset(int family);

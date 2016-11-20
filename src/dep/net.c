@@ -96,7 +96,6 @@ static Boolean getHwTs(const char *ifaceName, const RunTimeOpts *rtOpts, HwTsInf
 static Boolean initHwTs(char *ifaceName, HwTsInfo *info);
 static ssize_t netr(Octet * buf, TimeInternal * time, NetPath * netPath, int flags);
 
-
 /**
  * shutdown the IPv4 multicast for specific address
  *
@@ -190,11 +189,7 @@ netShutdown(NetPath * netPath, PtpClock *ptpClock)
 
 	freeIpv4AccessList(&netPath->timingAcl);
 	freeIpv4AccessList(&netPath->managementAcl);
-/*
-	freeClockDriver(&ptpClock->clockDriver);
-	freeClockDriver(&ptpClock->clockDriver2);
-	freeClockDriver(&ptpClock->clockDriver3);
-*/
+
 	return TRUE;
 }
 
@@ -2943,6 +2938,8 @@ prepareClockDrivers(NetPath *netPath, PtpClock *ptpClock, RunTimeOpts *rtOpts) {
 	ptpClock->clockDriver->pushConfig(ptpClock->clockDriver, rtOpts);
 	ptpClock->clockDriver->inUse = TRUE;
 	ptpClock->clockDriver->config.required = TRUE;
+	ptpClock->clockDriver->owner = ptpClock;
+	ptpClock->clockDriver->callbacks.onStep = clockStepNotify;
 
 	if(ptpClock->portDS.portState == PTP_SLAVE) {
 	    ptpClock->clockDriver->setExternalReference(ptpClock->clockDriver, "PTP", RC_PTP);

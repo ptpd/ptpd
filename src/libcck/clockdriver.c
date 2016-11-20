@@ -81,6 +81,9 @@ static void putStatsLine(ClockDriver*, char*, int);
 static ClockDriver* compareClockDriver(ClockDriver *, ClockDriver *);
 static void findBestClock();
 static Boolean disciplineClock(ClockDriver *, TimeInternal, double);
+static Boolean estimateFrequency(ClockDriver *, Integer32 delta, double tau);
+static void setFrequencyEstimate(ClockDriver *);
+
 
 ClockDriver *
 createClockDriver(int driverType, const char *name)
@@ -124,6 +127,11 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
 
     clockDriver->type = driverType;
     strncpy(clockDriver->name, name, CLOCKDRIVER_NAME_MAX);
+
+    /* callbacks */
+    clockDriver->callbacks.onStep = cdDummyOwnerCallback;
+
+    /* callbacks end */
 
     /* inherited methods - implementation may wish to override them,
      * or even preserve these pointers in its private data and call both
@@ -364,6 +372,10 @@ setState(ClockDriver *driver, ClockState newState) {
 		driver->setReference(driver, NULL);
 	    }
 
+	    if((driver->state == CS_CALIBRATING) && newState == CS_TRACKING) {
+		setFrequencyEstimate(driver);
+	    }
+
 	    driver->lastState = driver->state;
 	    driver->state = newState;
 
@@ -420,6 +432,14 @@ updateClockDrivers() {
 			if(_bestClock != NULL) {
 			    cd->setReference(cd, _bestClock);
 			}
+		    }
+		    break;
+		case CS_CALIBRATING:
+		    if(cd->age.seconds >= cd->config.calibrationTime) {
+			INFO(THIS_COMPONENT"Clock %s calibration complete. Estimated frequency error %.03f ppb\n",
+				cd->name, cd->estimatedFrequency);
+			cd->_lastDelta = 0;
+			cd->setState(cd, CS_TRACKING);
 		    }
 		    break;
 		case CS_LOCKED:
@@ -606,7 +626,11 @@ processUpdate(ClockDriver *driver) {
 	}
 
 	if(driver->state == CS_FREERUN) {
-	    driver->setState(driver, CS_TRACKING);
+	    if(driver->config.calibrationTime) {
+		driver->setState(driver, CS_CALIBRATING);
+	    } else {
+		driver->setState(driver, CS_TRACKING);
+	    }
 	    update = TRUE;
 	}
 
@@ -697,6 +721,9 @@ setReference(ClockDriver *a, ClockDriver *b) {
 
     if(b == NULL && a->externalReference) {
 	NOTICE(THIS_COMPONENT"Clock %s lost external reference %s\n", a->name, a->refName);
+	/* reset owner and owner callbacks */
+	a->owner = NULL;
+	a->callbacks.onStep = cdDummyOwnerCallback;
 	a->externalReference = FALSE;
 	memset(a->refName, 0, CLOCKDRIVER_NAME_MAX);
 	a->lastRefClass = a->refClass;
@@ -717,7 +744,12 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	a->refClock = b;
 	a->distance = b->distance + 1;
 	strncpy(a->refName, b->name, CLOCKDRIVER_NAME_MAX);
-	a->setState(a, CS_FREERUN);
+
+//	if(a->config.calibrationTime) {
+//	    a->setState(a, CS_CALIBRATING);
+//	} else {
+	    a->setState(a, CS_FREERUN);
+//	}
     }
 
 
@@ -752,7 +784,11 @@ static void setExternalReference(ClockDriver *a, const char* refName, int refCla
 
 	if(!a->externalReference || strncmp(a->refName, refName, CLOCKDRIVER_NAME_MAX)) {
 	    NOTICE(THIS_COMPONENT"Clock %s changing to external reference %s\n", a->name, refName);
-	    a->setState(a, CS_FREERUN);
+//	    if(a->config.calibrationTime) {
+//		a->setState(a, CS_CALIBRATING);
+//	    } else {
+		a->setState(a, CS_FREERUN);
+//	    }
 	}
 
 	strncpy(a->refName, refName, CLOCKDRIVER_NAME_MAX);
@@ -767,6 +803,7 @@ static void setExternalReference(ClockDriver *a, const char* refName, int refCla
 	a->distance = 1;
 
 }
+
 
 static void
 restoreFrequency (ClockDriver *driver) {
@@ -824,7 +861,7 @@ adjustFrequency (ClockDriver *driver, double adj, double tau) {
 	    return FALSE;
 	}
 
-	Boolean ret = driver->setFrequency(driver, adj, tau);
+	Boolean ret = driver->setFrequency(driver, adj , tau);
 	driver->processUpdate(driver);
 	return ret;
 
@@ -846,7 +883,48 @@ touchClock(ClockDriver *driver) {
 
 }
 
-static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double tau) {
+static void
+setFrequencyEstimate (ClockDriver *driver) {
+
+    double frequency = driver->getFrequency(driver) + driver->estimatedFrequency;
+
+    frequency = clampDouble(frequency, driver->maxFrequency);
+
+    if(fabs(frequency) <= ZEROF) {
+	return;
+    }
+
+    driver->servo.prime(&driver->servo, frequency);
+    driver->storedFrequency = driver->servo.output;
+    driver->setFrequency(driver, driver->storedFrequency, 1.0);
+
+}
+
+
+static Boolean
+estimateFrequency(ClockDriver *driver, Integer32 iDelta, double tau) {
+
+	double delta = iDelta + 0.0;
+
+	if(driver->config.disabled) {
+	    return FALSE;
+	}
+
+	if(fabs(driver->_lastDelta) <= ZEROF) {
+	    resetDoublePermanentMean(&driver->_calMean);
+	    driver->_lastDelta = delta;
+	    return FALSE;
+	}
+
+	feedDoublePermanentMean(&driver->_calMean, (driver->_lastDelta - delta) * tau);
+	driver->estimatedFrequency = driver->_calMean.mean;
+	driver->_lastDelta = delta;
+	return TRUE;
+
+}
+
+static Boolean
+disciplineClock(ClockDriver *driver, TimeInternal offset, double tau) {
 
     double dOffset = timeInternalToDouble(&offset);
     char buf[100];
@@ -862,8 +940,6 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 
     subTime(&driver->refOffset, &driver->refOffset, &offsetCorrection);
 
-    memset(buf, 0, sizeof(buf));
-    snprint_TimeInternal(buf, sizeof(buf), &driver->refOffset);
 
     /* do nothing if offset is zero - prevents from linked clocks being dragged around,
      * and it's not obvious that two clocks can be linked, as we can see with Intel,
@@ -885,6 +961,9 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 	}
 
 	if(offset.seconds) {
+
+		memset(buf, 0, sizeof(buf));
+		snprint_TimeInternal(buf, sizeof(buf), &driver->refOffset);
 
 		int sign = (offset.seconds < 0) ? -1 : 1;
 
@@ -955,6 +1034,9 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		}
 
 		if(driver->externalReference) {
+		    if(driver->state == CS_CALIBRATING) {
+			return estimateFrequency(driver, offset.nanoseconds, tau);
+		    }
 		    driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
 		    return driver->adjustFrequency(driver, driver->servo.output, tau);
 		}
@@ -972,10 +1054,12 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 						    driver->name, dOffset, madd, driver->_madFilter->output, driver->_madFilter->blockingTime);
 #endif
 			    driver->refOffset = lastOffset;
+
 			    if(driver->_madFilter->lastBlocked) {
 				driver->_madFilter->consecutiveBlocked++;
 				driver->_madFilter->blockingTime += tau;
 			    }
+
 			    driver->_madFilter->lastBlocked = TRUE;
 
 			    if(driver->_madFilter->blockingTime > driver->config.outlierFilterBlockTimeout) {
@@ -1014,6 +1098,11 @@ static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double 
 		}
 
 		driver->refOffset = offset;
+
+		if(driver->state == CS_CALIBRATING) {
+			return estimateFrequency(driver, offset.nanoseconds, tau);
+		}
+
 		driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
 		return driver->adjustFrequency(driver, driver->servo.output, tau);
 
@@ -1069,6 +1158,13 @@ syncClockExternal(ClockDriver* driver, TimeInternal offset, double tau) {
     }
 
     if(!driver->externalReference) {
+	return FALSE;
+    }
+
+    /* do not sync if we are awaiting best clock change */
+    if(driver->_waitForElection) {
+	DBG(THIS_COMPONENT"Will not sync clock %s until next best clock election\n",
+	    driver->name);
 	return FALSE;
     }
 
@@ -1156,6 +1252,8 @@ getClockStateName(ClockState state) {
 	    return "INIT";
 	case CS_FREERUN:
 	    return "FREERUN";
+	case CS_CALIBRATING:
+	    return "CALIBRATING";
 	case CS_LOCKED:
 	    return "LOCKED";
 	case CS_TRACKING:
@@ -1182,6 +1280,8 @@ getClockStateShortName(ClockState state) {
 	    return "STEP";
 	case CS_INIT:
 	    return "INIT";
+	case CS_CALIBRATING:
+	    return "CLBR";
 	case CS_FREERUN:
 	    return "FREE";
 	case CS_LOCKED:
@@ -1322,6 +1422,7 @@ pushConfig(ClockDriver *driver, RunTimeOpts *global)
     config->lockedAge = global->lockedAge;
     config->holdoverAge = global->holdoverAge;
     config->stepTimeout = (global->enablePanicMode) ? global-> panicModeDuration : 0;
+    config->calibrationTime = global->clockCalibrationTime;
     config->stepExitThreshold = global->panicModeExitThreshold;
     config->strictSync = global->clockStrictSync;
     config->minStep = global->clockMinStep;
@@ -1406,6 +1507,9 @@ controlClockDrivers(int command) {
 		if(!cd->systemClock) {
 		    cd->inUse = FALSE;
 		    cd->config.required = FALSE;
+		    /* clean up the owner and reset callbacks */
+		    cd->owner = NULL;
+		    cd->callbacks.onStep = cdDummyOwnerCallback;
 		}
 	    }
 	break;
@@ -1618,6 +1722,11 @@ clockDriverDummyCallback(ClockDriver* self) {
     return 1;
 }
 
+void
+cdDummyOwnerCallback(void *owner) {
+}
+
+
 static void
 findBestClock() {
 
@@ -1740,7 +1849,9 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
     memset(buf, 0, len);
     snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
 
-    if((driver->state == CS_STEP) && driver->config.stepTimeout) {
+    if((driver->state == CS_CALIBRATING) && driver->config.calibrationTime) {
+	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.calibrationTime - driver->age.seconds);
+    } else if((driver->state == CS_STEP) && driver->config.stepTimeout) {
 	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.stepTimeout - driver->age.seconds);
     } else if((driver->state == CS_HWFAULT) && driver->config.failureDelay) {
 	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.failureDelay - driver->age.seconds);

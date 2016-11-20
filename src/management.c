@@ -583,11 +583,11 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
                         &PROTOCOL,
                         data->physicalLayerProtocol.lengthField);
 		/* physical address */
-                data->physicalAddress.addressLength = PTP_UUID_LENGTH;
-                XMALLOC(data->physicalAddress.addressField, PTP_UUID_LENGTH);
+                data->physicalAddress.addressLength = ETHER_ADDR_LEN;
+                XMALLOC(data->physicalAddress.addressField, data->physicalAddress.addressLength);
                 memcpy(data->physicalAddress.addressField,
                         ptpClock->netPath.interfaceID,
-                        PTP_UUID_LENGTH);
+                        data->physicalAddress.addressLength);
 		/* protocol address */
                 data->protocolAddress.addressLength = 4;
                 data->protocolAddress.networkProtocol = 1;

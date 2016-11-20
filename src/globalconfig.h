@@ -284,6 +284,7 @@ typedef struct {
 
 	Boolean clockStrictSync;
 	int clockMinStep;
+	int clockCalibrationTime;
 
 	/**
 	 *  When enabled, ptpd ensures that Sync message sequence numbers

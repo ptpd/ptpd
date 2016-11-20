@@ -1916,6 +1916,13 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, &rtOpts->noResetClock, rtOpts->noResetClock,
 	"Do not step the clock - only slew");
 
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:calibration_time",
+		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->clockCalibrationTime,
+		rtOpts->clockCalibrationTime,
+		"Frequency estimation time (seconds) after a clock has gained a reference.\n"
+		"        Zero - no estimation.",
+		RANGECHECK_RANGE,0,3600);
+
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:allow_step_backwards",
 		PTPD_RESTART_NONE, &rtOpts->negativeStep,rtOpts->negativeStep,
 	"Allow a software clock (system clock) to be stepped backwards");

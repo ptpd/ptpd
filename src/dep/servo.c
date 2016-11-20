@@ -596,6 +596,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	}
 
 	/* filter 'offsetFromMaster' */
+
 	ofm_filt->y = ptpClock->currentDS.offsetFromMaster.nanoseconds / 2 +
 		ofm_filt->nsec_prev / 2;
 	ofm_filt->nsec_prev = ptpClock->currentDS.offsetFromMaster.nanoseconds;
@@ -836,5 +837,17 @@ updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 
 	ptpClock->offsetUpdates = 0;
 	ptpClock->acceptedUpdates = 0;
+
+}
+
+void
+clockStepNotify(void *owner) {
+
+    PtpClock *c = (PtpClock*)owner;
+
+    INFO("PTP clock was notified of clock step - resetting outlier filters\n");
+
+    c->oFilterMS.reset(&c->oFilterMS);
+    c->oFilterSM.reset(&c->oFilterSM);
 
 }

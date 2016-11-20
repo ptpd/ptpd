@@ -323,6 +323,9 @@ stepTime (ClockDriver *self, TimeInternal *delta, Boolean force) {
 
 	/* do not step the clock by less than config.minStep nanoseconds (if minStep set) */
 	if(!delta->seconds && self->config.minStep && (abs(delta->nanoseconds) <= self->config.minStep)) {
+	    /* act as if the step was successful */
+	    self->_stepped = TRUE;
+	    self->setState(self, CS_FREERUN);
 	    return TRUE;
 	}
 

@@ -61,10 +61,10 @@ static const int addressFamilyMappings[] = {
 };
 
 static CckAddressToolset addressFamilyToolsets[] = {
-	[TT_FAMILY_IPV4]	= { isAddressMulticast_ipv4, isAddressEmpty_ipv4, cmpTransportAddress_ipv4, transportAddressHash_ipv4, transportAddressToString_ipv4, transportAddressFromString_ipv4 },
-	[TT_FAMILY_IPV6]	= { isAddressMulticast_ipv6, isAddressEmpty_ipv6, cmpTransportAddress_ipv6, transportAddressHash_ipv6, transportAddressToString_ipv6, transportAddressFromString_ipv6 },
-	[TT_FAMILY_ETHERNET]	= { isAddressMulticast_ethernet, isAddressEmpty_ethernet, cmpTransportAddress_ethernet, transportAddressHash_ethernet, transportAddressToString_ethernet, transportAddressFromString_ethernet },
-	[TT_FAMILY_LOCAL]	= { isAddressMulticast_local, isAddressEmpty_local, cmpTransportAddress_local, transportAddressHash_local, transportAddressToString_ethernet, transportAddressFromString_local },
+	[TT_FAMILY_IPV4]	= { TT_STRADDRLEN_IPV4, isAddressMulticast_ipv4, isAddressEmpty_ipv4, cmpTransportAddress_ipv4, transportAddressHash_ipv4, transportAddressToString_ipv4, transportAddressFromString_ipv4 },
+	[TT_FAMILY_IPV6]	= { TT_STRADDRLEN_IPV6, isAddressMulticast_ipv6, isAddressEmpty_ipv6, cmpTransportAddress_ipv6, transportAddressHash_ipv6, transportAddressToString_ipv6, transportAddressFromString_ipv6 },
+	[TT_FAMILY_ETHERNET]	= { TT_STRADDRLEN_ETHERNET, isAddressMulticast_ethernet, isAddressEmpty_ethernet, cmpTransportAddress_ethernet, transportAddressHash_ethernet, transportAddressToString_ethernet, transportAddressFromString_ethernet },
+	[TT_FAMILY_LOCAL]	= { TT_STRADDRLEN_LOCAL, isAddressMulticast_local, isAddressEmpty_local, cmpTransportAddress_local, transportAddressHash_local, transportAddressToString_ethernet, transportAddressFromString_local },
 };
 
 static char* inetAddressToString(char *buf, const size_t len, const CckTransportAddress *address);
@@ -369,16 +369,16 @@ char*
 transportAddressToString_ethernet (char *buf, const size_t len, const CckTransportAddress *address)
 {
 
-    memset(buf, 0, len);
-
     uint8_t *addr = (uint8_t*)&address->addr.ether;
 
-    if(len < (3 * TT_ADDRLEN_ETHERNET)) {
+    if(len < TT_STRADDRLEN_ETHERNET) {
 	return NULL;
     }
 
+    memset(buf, 0, len);
+
     snprintf(buf, len, "%02x:%02x:%02x:%02x:%02x:%02x",
-    *(addr), *(addr+1), *(addr+2), *(addr+3), *(addr+4), *(addr+5));
+    addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
 
     return buf;
 
