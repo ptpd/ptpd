@@ -90,15 +90,15 @@ static void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement 
 #if 0
 static void issueManagement(MsgHeader*,MsgManagement*,const RunTimeOpts*,PtpClock*);
 #endif
-static void issueManagementRespOrAck(MsgManagement*, Integer32, const RunTimeOpts*,PtpClock*);
-static void issueManagementErrorStatus(MsgManagement*, Integer32, const RunTimeOpts*,PtpClock*);
+static void issueManagementRespOrAck(MsgManagement*, void*, const RunTimeOpts*,PtpClock*);
+static void issueManagementErrorStatus(MsgManagement*, void*, const RunTimeOpts*,PtpClock*);
 
 void
 handleManagement(MsgHeader *header,
-		 Boolean isFromSelf, Integer32 sourceAddress, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+		 Boolean isFromSelf, void* sourceAddress, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	DBGV("Management message received : \n");
-	Integer32 dst;
+	void *dst = NULL;
 
 	int tlvOffset = 0;
 	int tlvFound = 0;
@@ -114,7 +114,7 @@ handleManagement(MsgHeader *header,
 	if ( (header->flagField0 & PTP_UNICAST) == PTP_UNICAST) {
 		dst = sourceAddress;
 	} else {
-		dst = 0;
+		dst = NULL;
 	}
 
 	if (isFromSelf) {
@@ -583,18 +583,18 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
                         &PROTOCOL,
                         data->physicalLayerProtocol.lengthField);
 		/* physical address */
-                data->physicalAddress.addressLength = ETHER_ADDR_LEN;
+                data->physicalAddress.addressLength = ptpClock->portDS.physicalAddressLength;
                 XMALLOC(data->physicalAddress.addressField, data->physicalAddress.addressLength);
                 memcpy(data->physicalAddress.addressField,
-                        ptpClock->netPath.interfaceID,
+                        ptpClock->portDS.physicalAddressField,
                         data->physicalAddress.addressLength);
 		/* protocol address */
-                data->protocolAddress.addressLength = 4;
-                data->protocolAddress.networkProtocol = 1;
+                data->protocolAddress.addressLength = ptpClock->portDS.addressLength;
+                data->protocolAddress.networkProtocol = ptpClock->portDS.networkProtocol;
                 XMALLOC(data->protocolAddress.addressField,
                         data->protocolAddress.addressLength);
                 memcpy(data->protocolAddress.addressField,
-                        &ptpClock->netPath.interfaceAddr.s_addr,
+                        ptpClock->portDS.addressField,
                         data->protocolAddress.addressLength);
 		/* manufacturerIdentity OUI */
 		data->manufacturerIdentity0 = MANUFACTURER_ID_OUI0;
@@ -1449,7 +1449,7 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 		data = (MMTime*)outgoing->tlv->dataField;
 		/* GET actions */
 		TimeInternal internalTime;
-		ptpClock->clockDriver->getTime(ptpClock->clockDriver, &internalTime);
+		getPtpClockTime(&internalTime, ptpClock);
 		if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 			internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 		}
@@ -1843,7 +1843,7 @@ issueManagement(MsgHeader *header,MsgManagement *manage,const RunTimeOpts *rtOpt
 #endif
 
 static void
-issueManagementRespOrAck(MsgManagement *outgoing, Integer32 dst, const RunTimeOpts *rtOpts,
+issueManagementRespOrAck(MsgManagement *outgoing, void *dst, const RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
 
@@ -1907,7 +1907,7 @@ issueManagementRespOrAck(MsgManagement *outgoing, Integer32 dst, const RunTimeOp
 #endif
 
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-			   &ptpClock->netPath, rtOpts, dst)) {
+			   ptpClock, dst)) {
 		DBGV("Management response/acknowledge can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);
@@ -1918,7 +1918,7 @@ issueManagementRespOrAck(MsgManagement *outgoing, Integer32 dst, const RunTimeOp
 }
 
 static void
-issueManagementErrorStatus(MsgManagement *outgoing, Integer32 dst, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+issueManagementErrorStatus(MsgManagement *outgoing, void *dst, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
 	/* pack ManagementErrorStatusTLV */
@@ -1932,7 +1932,7 @@ issueManagementErrorStatus(MsgManagement *outgoing, Integer32 dst, const RunTime
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
 
 	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-			   &ptpClock->netPath, rtOpts, dst)) {
+			   ptpClock, dst)) {
 		DBGV("Management error status can't be sent -> FAULTY state \n");
 		ptpClock->counters.messageSendErrors++;
 		toState(PTP_FAULTY, rtOpts, ptpClock);

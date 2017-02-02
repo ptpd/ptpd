@@ -1,5 +1,5 @@
 This directory contains component macro .def files that are referenced by X-Macros in
-the ptpd source code.
+the lib1588 source code.
 
 The component macros are used to define message, derived data
 types, and management TLV fields.
@@ -9,7 +9,7 @@ the code used to pack, unpack, display and free ptp data fields.
 
 Most of the mundane message packing, unpacking and case code is
 automatically generated. When any field changes have been made
-to TLV definitions, code needs re-generated with ./codegen.h.
+to TLV definitions, code needs re-generated with ./codegen.sh.
 
 Documentation on how to use X-Macros can be found at:
 http://en.wikibooks.org/wiki/C_Programming/Preprocessor#X-Macros

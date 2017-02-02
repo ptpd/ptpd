@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2016 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -36,29 +36,20 @@
 #define CCK_TYPES_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
-#include <libcck/log_handler.h>
+#define ZEROF 10E-12
 
-/* LibCCK bool type */
-typedef enum {CCK_FALSE=0, CCK_TRUE=1} CckBool;
-
-
-/* Generic integer types */
-
-typedef uint8_t 		CckUShort;
-typedef unsigned char 		CckUChar;
-typedef unsigned char 		CckOctet;
-
-typedef uint8_t 		CckU8;
-typedef int8_t 			CckI8;
-typedef uint16_t 		CckU16;
-typedef int16_t 		CckI16;
-typedef uint32_t 		CckU32;
-typedef int32_t 		CckI32;
+#define CCK_TIMESTAMP_STRLEN 30
 
 typedef struct {
 	int32_t		seconds;
 	int32_t		nanoseconds;
 } CckTimestamp;
+
+typedef struct {
+	int value;
+	char name[40];
+} OptionName;
 
 #endif /* CCK_TYPES_H_ */

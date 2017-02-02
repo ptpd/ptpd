@@ -1,52 +1,117 @@
+/* Copyright (c) 2016-2017 Wojciech Owczarek,
+ *
+ * All Rights Reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/**
+ * @file   ttransport.def
+ * @date   Sat Jan 9 16:14:10 2016
+ *
+ * @brief  Component implementation list / x-macro for the TTransport type
+ *
+ */
+
+
 /*
  * Register available timestamping transport types here (we are so modular...)
- * If not included in the REGISTER_TTRANSPORT context,
- * just include the headers. The REGISTER_TTRANSPORT x-macro
+ * If not included in the REGISTER_COMPONENT context,
+ * this just includes the headers. The REGISTER_COMPONENT x-macro
  * arguments are: ENUM_NAME, type_suffix, "text_name", family, capabilities, extends
- *  	family:	one of TT_FAMILY_...	transport types as per ttransport.h
- *  	capabilities:	one of TT_CAPS_...	transport capabilities as per ttransport.h
+ *	type_sufix:	suffix used in function names for this transport
+ *  	family:		one of TT_FAMILY_... address families as per ttransport.h
+ *  	capabilities:	one of TT_CAPS_... transport capabilities as per ttransport.h
  *  	extends:	transport type this transport inherits from
+ *			(fictional for now)
  * Function and type suffixes in your implementation must match type_suffix.
  */
 
-#ifndef REGISTER_TTRANSPORT
-    #include "ttransport_socket_udpv4.h"
-    #include "ttransport_socket_udpv6.h"
-    #include "ttranaport_pcap_udpv4.h"
-    #include "ttransport_pcap_udpv6.h"
-    #include "ttransport_linuxsw_udpv4.h"
-    #include "ttransport_linuxsw_udpv6.h"
-    #include "ttransport_linuxhw_udpv4.h"
-    #include "ttransport_linuxhw_udpv6.h"
+#ifndef REGISTER_COMPONENT
+
+    #include "ttransport/udp_common.h" /* currently used by all UDP transports */
+
+    #include "ttransport/linuxts_common.h"
+    #include "ttransport/linuxts_udpv4.h"
+    #include "ttransport/linuxts_udpv6.h"
+    #include "ttransport/linuxts_raweth.h"
+
+    #include "ttransport/pcap_common.h"
+    #include "ttransport/pcap_ethernet.h"
+    #include "ttransport/pcap_udpv4.h"
+    #include "ttransport/pcap_udpv6.h"
+
+    #include "ttransport/socket_udpv4.h"
+    #include "ttransport/socket_udpv6.h"
+    #include "ttransport/socket_raweth.h"
+
+
 #else
+
+    /*
+     * Register implemented / available transport types. Order from "best" to "worst",
+     * because when we probe for a suitable transport, we move from first to last.
+     */
 
     /* 			enum name,		type suffix,	text name,		address family,
 			capabilities,	base type	*/
 
-    /* standard unix sockets with software timestamp support */
-    REGISTER_TTRANSPORT(TT_TYPE_SOCKET_UDPV4,	socket_ipv4,	"sock_udp_ipv4",	TT_FAMILY_IPV4,
-			TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP,	TT_TYPE_NONE)
-    REGISTER_TTRANSPORT(TT_TYPE_SOCKET_UDPV6,	socket_ipv6,	"sock_udp_ipv6",	TT_FAMILY_IPV6,
-			TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP,	TT_TYPE_NONE)
 
-    /* libpcap-based transports */
-    REGISTER_TTRANSPORT(TT_TYPE_PCAP_UDPV4,	pcap_ipv4,	"pcap_udp_ipv4",	TT_FAMILY_IPV4,
-			TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP,	TT_TYPE_SOCKET_UDPV4)
-    REGISTER_TTRANSPORT(TT_TYPE_PCAP_UDPV6,	pcap_ipv6,	"pcap_udp_ipv6",	TT_FAMILY_IPV6,
-			TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP,	TT_TYPE_SOCKET_UDPV6)
+    /* Linux software / hardware timestamps (SO_TIMESTAMPING) */
 
-    /* Linux software timestamps (SO_TIMESTAMPING) */
-    REGISTER_TTRANSPORT(TT_TYPE_LINUXSW_UDPV4,	linuxsw_ipv4,	"linuxsw_udp_ipv4",	TT_FAMILY_IPV4,
-			TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP,	TT_TYPE_SOCKET_UDPV4)
-    REGISTER_TTRANSPORT(TT_TYPE_LINUXSW_UDPV6,	linuxsw_ipv6,	"linuxsw_udp_ipv6",	TT_FAMILY_IPV6,
-			TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP,	TT_TYPE_SOCKET_UDPV6)
+    REGISTER_COMPONENT(TT_TYPE_LINUXTS_UDPV4,	linuxts_udpv4,	"linuxts_udpv4",	TT_FAMILY_IPV4,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_HW_TIMESTAMP_PTP |
+			    TT_CAPS_HW_TIMESTAMP_ANY | TT_CAPS_HW_PTP_ONE_STEP | TT_CAPS_PREFER_SW), TT_TYPE_SOCKET_UDPV4)
 
-    /* Linux hardware timestamps (SO_TIMESTAMPING) */
-    REGISTER_TTRANSPORT(TT_TYPE_LINUXHW_UDPV4,	linuxhw_ipv4,	"linuxhw_udp_ipv4",	TT_FAMILY_IPV4,
-			TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_HW_TIMESTAMP | TT_CAPS_HW_TIMESTAMP_ALL | TT_CAPS_HW_PTP_ONE_STEP, TT_TYPE_SOCKET_UDPV4)
-    REGISTER_TTRANSPORT(TT_TYPE_LINUXHW_UDPV6,	linuxhw_ipv6,	"linuxhw_udp_ipv6",	TT_FAMILY_IPV6,
-			TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_HW_TIMESTAMP | TT_CAPS_HW_TIMESTAMP_ALL | TT_CAPS_HW_PTP_ONE_STEP, TT_TYPE_SOCKET_UDPV6)
+    REGISTER_COMPONENT(TT_TYPE_LINUXTS_UDPV6,	linuxts_udpv6,	"linuxts_udpv6",	TT_FAMILY_IPV6,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_HW_TIMESTAMP_PTP |
+			    TT_CAPS_HW_TIMESTAMP_ANY | TT_CAPS_HW_PTP_ONE_STEP | TT_CAPS_PREFER_SW), TT_TYPE_SOCKET_UDPV6)
 
-    #undef REGISTER_TTRANSPORT
+    REGISTER_COMPONENT(TT_TYPE_LINUXTS_RAWETH,	linuxts_raweth,	"linuxts_raweth",	TT_FAMILY_ETHERNET,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_HW_TIMESTAMP_PTP |
+			    TT_CAPS_HW_TIMESTAMP_ANY | TT_CAPS_HW_PTP_ONE_STEP | TT_CAPS_PREFER_SW), TT_TYPE_SOCKET_RAWETH)
 
-#endif /* REGISTER_TTRANSPORT */
+    /* libpcap-based transports - better TX timestamp approximation */
+
+    REGISTER_COMPONENT(TT_TYPE_PCAP_UDPV4,	pcap_udpv4,	"pcap_udpv4",	TT_FAMILY_IPV4,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_SOCKET_UDPV4)
+
+    REGISTER_COMPONENT(TT_TYPE_PCAP_UDPV6,	pcap_udpv6,	"pcap_udpv6",	TT_FAMILY_IPV6,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_SOCKET_UDPV6)
+
+    REGISTER_COMPONENT(TT_TYPE_PCAP_ETHERNET,	pcap_ethernet,	"pcap_ethernet",TT_FAMILY_ETHERNET,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_NONE)
+
+    /* standard Unix sockets with software timestamp support - no TX timestamps for unicast: manual loop only */
+
+    REGISTER_COMPONENT(TT_TYPE_SOCKET_UDPV4,	socket_udpv4,	"socket_udpv4",	TT_FAMILY_IPV4,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_NONE)
+
+    REGISTER_COMPONENT(TT_TYPE_SOCKET_UDPV6,	socket_udpv6,	"socket_udpv6",	TT_FAMILY_IPV6,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_NONE)
+
+    REGISTER_COMPONENT(TT_TYPE_SOCKET_RAWETH,	socket_raweth,	"socket_raweth", TT_FAMILY_ETHERNET,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP  | TT_CAPS_PREFER_SW | TT_CAPS_BROKEN),	TT_TYPE_NONE)
+
+    #undef REGISTER_COMPONENT
+
+#endif /* REGISTER_COMPONENT */

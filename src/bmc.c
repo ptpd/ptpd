@@ -56,10 +56,8 @@
 
 
 /* Init ptpClock with run time values (initialization constants are in constants.h)*/
-void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+void initData(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-	int i,j;
-	j=0;
 	DBG("initData\n");
 	
 	/* Default data set */
@@ -69,23 +67,9 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 * init clockIdentity with MAC address and 0xFF and 0xFE. see
 	 * spec 7.5.2.2.2
 	 */
-	for (i=0;i<CLOCK_IDENTITY_LENGTH;i++)
-	{
-		if (i==3) ptpClock->defaultDS.clockIdentity[i]=0xFF;
-		else if (i==4) ptpClock->defaultDS.clockIdentity[i]=0xFE;
-		else
-		{
-		  ptpClock->defaultDS.clockIdentity[i]=ptpClock->netPath.interfaceID[j];
-		  j++;
-		}
-	}
+	myPtpClockSetClockIdentity(ptpClock);
 
 	ptpClock->portDS.lastMismatchedDomain = -1;
-
-	if(rtOpts->pidAsClockId) {
-	    uint16_t pid = htons(getpid());
-	    memcpy(ptpClock->defaultDS.clockIdentity + 3, &pid, 2);
-	}
 
 	ptpClock->bestMaster = NULL;
 	ptpClock->defaultDS.numberPorts = NUMBER_PORTS;
@@ -97,15 +81,15 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	memset(&ptpClock->profileIdentity,0,6);
 
-	if(rtOpts->ipMode == IPMODE_UNICAST && rtOpts->unicastNegotiation) {
+	if(rtOpts->transportMode == TMODE_UC && rtOpts->unicastNegotiation) {
 		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_TELECOM,6);
 	}
 
-	if(rtOpts->ipMode == IPMODE_MULTICAST &&rtOpts->delayMechanism == E2E) {
+	if(rtOpts->transportMode == TMODE_MC &&rtOpts->delayMechanism == E2E) {
 		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_DEFAULT_E2E,6);
 	}
 
-	if(rtOpts->ipMode == IPMODE_MULTICAST &&rtOpts->delayMechanism == P2P) {
+	if(rtOpts->transportMode == TMODE_MC &&rtOpts->delayMechanism == P2P) {
 		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_DEFAULT_P2P,6);
 	}
 
@@ -126,7 +110,6 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	if(rtOpts->slaveOnly) {
 		ptpClock->defaultDS.slaveOnly = TRUE;
-		rtOpts->clockQuality.clockClass = SLAVE_ONLY_CLOCK_CLASS;
 		ptpClock->defaultDS.clockQuality.clockClass = SLAVE_ONLY_CLOCK_CLASS;
 	}
 
@@ -163,8 +146,8 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 *  Initialize random number generator using same method as ptpv1:
 	 *  seed is now initialized from the last bytes of our mac addres (collected in net.c:findIface())
 	 */
-	srand((ptpClock->netPath.interfaceID[5] << 8) +
-	    ptpClock->netPath.interfaceID[4]);
+	srand((ptpClock->defaultDS.clockIdentity[CLOCK_IDENTITY_LENGTH - 1] << 8) +
+	    ptpClock->defaultDS.clockIdentity[CLOCK_IDENTITY_LENGTH - 2]);
 
 	/*Init other stuff*/
 	ptpClock->number_foreign_records = 0;
@@ -410,7 +393,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 		WARNING("Leap second event aborted by GM!\n");
 		ptpClock->leapSecondPending = FALSE;
 		ptpClock->leapSecondInProgress = FALSE;
-		timerStop(&ptpClock->timers[LEAP_SECOND_PAUSE_TIMER]);
+		ptpTimerStop(&ptpClock->timers[LEAP_SECOND_PAUSE_TIMER]);
 		ptpClock->clockStatus.leapInsert = FALSE;
 		ptpClock->clockStatus.leapDelete = FALSE;
 		ptpClock->clockStatus.update = TRUE;
@@ -655,8 +638,6 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 	newBM = ((memcmp(foreign->header.sourcePortIdentity.clockIdentity,
 			    ptpClock->parentDS.parentPortIdentity.clockIdentity,CLOCK_IDENTITY_LENGTH)) ||
 		(foreign->header.sourcePortIdentity.portNumber != ptpClock->parentDS.parentPortIdentity.portNumber));
-
-
 	
 	if (ptpClock->defaultDS.slaveOnly) {
 		/* master has changed: mark old grants for cancellation - refreshUnicastGrants will pick this up */
@@ -679,7 +660,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 				displayStatus(ptpClock, "State: ");
 				if(rtOpts->calibrationDelay) {
 					ptpClock->isCalibrated = FALSE;
-					timerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], rtOpts->calibrationDelay);
+					ptpTimerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], rtOpts->calibrationDelay);
 				}
 		}
                 if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL) {
@@ -735,7 +716,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 					displayStatus(ptpClock, "State: ");
 				if(rtOpts->calibrationDelay) {
 					ptpClock->isCalibrated = FALSE;
-					timerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], rtOpts->calibrationDelay);
+					ptpTimerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], rtOpts->calibrationDelay);
 				}
 			}
 			return PTP_SLAVE;

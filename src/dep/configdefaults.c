@@ -54,7 +54,7 @@ static const ConfigTemplate configTemplates[] = {
 
     { "g8265-e2e-master", "ITU-T G.8265.1 (Telecom profile) unicast master", {
 	{"ptpengine:preset", "masteronly"},
-	{"ptpengine:ip_mode", "unicast"},
+	{"ptpengine:transport_mode", "unicast"},
 	{"ptpengine:unicast_negotiation", "y"},
 	{"ptpengine:domain", "4"},
 	{"ptpengine:disable_bmca", "y"},
@@ -69,7 +69,7 @@ static const ConfigTemplate configTemplates[] = {
 
     { "g8265-e2e-slave", "ITU-T G.8265.1 (Telecom profile) unicast slave", {
 	{"ptpengine:preset", "slaveonly"},
-	{"ptpengine:ip_mode", "unicast"},
+	{"ptpengine:transport_mode", "unicast"},
 	{"ptpengine:unicast_negotiation", "y"},
 	{"ptpengine:domain", "4"},
 	{"ptpengine:delay_mechanism", "E2E"},
@@ -175,7 +175,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->anyDomain = FALSE;
 
-	rtOpts->transport = UDP_IPV4;
+	rtOpts->networkProtocol = TT_FAMILY_IPV4;
 
 	/* timePropertiesDS */
 	rtOpts->timeProperties.currentUtcOffsetValid = DEFAULT_UTC_VALID;
@@ -185,7 +185,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->timeProperties.frequencyTraceable = FALSE;
 	rtOpts->timeProperties.ptpTimescale = TRUE;
 
-	rtOpts->ipMode = IPMODE_MULTICAST;
+	rtOpts->transportMode = TMODE_MC;
 	rtOpts->dot1AS = FALSE;
 	rtOpts->bindToInterface = FALSE;
 
@@ -217,13 +217,15 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	 * defaults for new options
 	 */
 	rtOpts->ignore_delayreq_interval_master = FALSE;
-	rtOpts->refreshIgmp = TRUE;
+	rtOpts->refreshMulticast = TRUE;
 	rtOpts->useSysLog       = FALSE;
 	rtOpts->announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
 #ifdef RUNTIME_DEBUG
 	rtOpts->debug_level = LOG_INFO;			/* by default debug messages as disabled, but INFO messages and below are printed */
 #endif
 	rtOpts->ttl = 64;
+	rtOpts->ipv6Scope = IPV6_SCOPE_GLOBAL;
+
 	rtOpts->delayMechanism   = DEFAULT_DELAY_MECHANISM;
 	rtOpts->noResetClock     = DEFAULT_NO_RESET_CLOCK;
 	rtOpts->portDisabled	 = FALSE;
@@ -247,7 +249,6 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->logMaxSyncInterval = 5;
 	rtOpts->logMaxAnnounceInterval = 5;
 
-	rtOpts->drift_recovery_method = DRIFT_KERNEL;
 	strncpy(rtOpts->lockDirectory, DEFAULT_LOCKDIR, PATH_MAX);
 	strncpy(rtOpts->driftFile, DEFAULT_DRIFTFILE, PATH_MAX);
 	strncpy(rtOpts->frequencyDir, "/etc", PATH_MAX);
@@ -325,7 +326,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->clockOutlierFilterWindowSize = 200;
 	rtOpts->clockOutlierFilterDelay = 100;
 	rtOpts->clockOutlierFilterCutoff = 5.0;
-	rtOpts->clockOutlierFilterBlockTimeout = 30; /* filter block timeout */
+	rtOpts->clockOutlierFilterBlockTimeout = 15; /* maximum filter blocking time before it is reset */
 
 	/* disabled by default */
 	rtOpts->announceTimeoutGracePeriod = 0;
@@ -416,14 +417,17 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->maxListen = 5;
 
 	rtOpts->panicModeReleaseClock = FALSE;
+
 	rtOpts->ntpOptions.enableEngine = FALSE;
 	rtOpts->ntpOptions.enableControl = FALSE;
 	rtOpts->ntpOptions.enableFailover = FALSE;
 	rtOpts->ntpOptions.failoverTimeout = 120;
 	rtOpts->ntpOptions.checkInterval = 15;
 	rtOpts->ntpOptions.keyId = 0;
-	strncpy(rtOpts->ntpOptions.hostAddress,"localhost",MAXHOSTNAMELEN); 	/* not configurable, but could be */
+	strncpy(rtOpts->ntpOptions.hostAddress,"localhost",MAXHOSTNAMELEN);
+
 	rtOpts->preferNTP = FALSE;
+
 
 	rtOpts->leapSecondPausePeriod = 5;
 	/* by default, announce the leap second 12 hours before the event:
@@ -474,14 +478,14 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->timingAclEnabled = FALSE;
 	rtOpts->managementAclEnabled = FALSE;
-	rtOpts->timingAclOrder = ACL_DENY_PERMIT;
-	rtOpts->managementAclOrder = ACL_DENY_PERMIT;
+	rtOpts->timingAclOrder = CCK_ACL_DENY_PERMIT;
+	rtOpts->managementAclOrder = CCK_ACL_DENY_PERMIT;
 
 	// by default we don't check Sync message sequence continuity
 	rtOpts->syncSequenceChecking = FALSE;
 	rtOpts->clockUpdateTimeout = 0;
 
-	rtOpts->hwTimestamping = FALSE;
+	rtOpts->hwTimestamping = TRUE;
 
 	rtOpts->ptpMonEnabled = FALSE;
 	rtOpts->ptpMonDomainNumber = rtOpts->domainNumber;

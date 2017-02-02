@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Wojciech Owczarek,
+/* Copyright (c) 2016-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -34,48 +34,45 @@
  */
 
 
-static int clockdriver_init(ClockDriver*, const void *);
-static int clockdriver_shutdown(ClockDriver *);
+/* public interface - implementations must implement all of those */
 
-static Boolean getTime (ClockDriver*, TimeInternal *);
-static Boolean getTimeMonotonic (ClockDriver*, TimeInternal *);
-static Boolean getUtcTime (ClockDriver*, TimeInternal *);
-static Boolean setTime (ClockDriver*, TimeInternal *, Boolean);
-static Boolean stepTime (ClockDriver*, TimeInternal *, Boolean);
+/* init, shutdown */
 
-static Boolean setFrequency (ClockDriver *, double, double);
-static double getFrequency (ClockDriver *);
+static int tTransport_init (TTransport *self, const TTransportConfig *config, CckFdSet *fdSet);
+static int tTransport_shutdown (TTransport *self);
 
-static Boolean getStatus (ClockDriver *, ClockStatus *);
-static Boolean setStatus (ClockDriver *, ClockStatus *);
-static Boolean getSystemClockOffset (ClockDriver *, TimeInternal *);
-static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
+/* check if this transport recognises itself as matching the search string (interface, port, etc.) */
+static bool isThisMe(TTransport *self, const char* search);
+/* test the required configuration */
+static bool testConfig(TTransport *self, const TTransportConfig *config);
+/* NEW! Now with private healthcare! */
+static bool privateHealthCheck(TTransport *self);
+/* send message: buffer and destination information; populate TX timestamp if we have one */
+static ssize_t sendMessage(TTransport *self, TTransportMessage *message);
+/* receive message: buffer and source + destination information; populate RX timestamp if we have one */
+static ssize_t receiveMessage(TTransport *self, TTransportMessage *message);
+/* get an instnce of the clock driver generating this clock's timestamps, create if not existing */
+static ClockDriver *getClockDriver(TTransport *self);
+/* perform any periodic checks */
+static int monitor(TTransport *self, const int interval);
+/* perform any refresh actions - mcast joins, etc. */
+static int refresh(TTransport *self);
+/* load any vendor extensions */
+static void loadVendorExt(TTransport *self);
 
-static Boolean pushPrivateConfig (ClockDriver *, RunTimeOpts *rtOpts);
-static Boolean privateHealthCheck(ClockDriver *driver);
-static Boolean isThisMe(ClockDriver *, const char* search);
+/* public interface end */
 
-static void loadVendorExt(ClockDriver *, const char *ifname);
 
-#define INIT_INTERFACE(var) \
-    var->init = clockdriver_init; \
-    var->shutdown = clockdriver_shutdown; \
-    var->getTime = getTime; \
-    var->getTimeMonotonic = getTimeMonotonic; \
-    var->getUtcTime = getUtcTime; \
-    var->setTime = setTime; \
-    var->stepTime = stepTime; \
-    var->setFrequency = setFrequency; \
-    var->getFrequency = getFrequency; \
-    var->getStatus = getStatus; \
-    var->setStatus = setStatus; \
-    var->getSystemClockOffset = getSystemClockOffset; \
-    var->getOffsetFrom = getOffsetFrom; \
-    var->pushPrivateConfig = pushPrivateConfig;\
-    var->privateHealthCheck = privateHealthCheck; \
-    var->isThisMe = isThisMe; \
-    var->loadVendorExt = loadVendorExt; \
-    var->_vendorInit = clockDriverDummyCallback; \
-    var->_vendorShutdown = clockDriverDummyCallback; \
-    var->_vendorHealthCheck = clockDriverDummyCallback;
+#define INIT_INTERFACE(var)\
+    var->init = tTransport_init;\
+    var->shutdown = tTransport_shutdown;\
+    var->isThisMe = isThisMe;\
+    var->testConfig = testConfig;\
+    var->privateHealthCheck = privateHealthCheck;\
+    var->sendMessage = sendMessage;\
+    var->receiveMessage = receiveMessage;\
+    var->getClockDriver = getClockDriver;\
+    var->monitor = monitor;\
+    var->refresh = refresh;\
+    var->loadVendorExt = loadVendorExt;
 

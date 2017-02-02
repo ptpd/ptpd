@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Wojciech Owczarek,
+/* Copyright (c) 2016-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -38,6 +38,8 @@
 #include <sys/select.h>		/* select() */
 
 #include <libcck/cck_types.h>
+#include <libcck/cck_logger.h>
+#include <libcck/cck_utils.h>
 #include <libcck/fd_set.h>
 
 static int getMaxFd(CckFdSet *set);
@@ -47,23 +49,23 @@ cckAddFd(CckFdSet *set, CckFd *fd)
 {
 
     if(fd == NULL) {
-	/* DBG("Cannot add null fd to set\n"); */
+	/* CCK_DBG("Cannot add null fd to set\n"); */
 	return;
     }
 
     if(set == NULL) {
-	/* DBG("Cannot add fd to null set */
+	/* CCK_DBG("Cannot add fd to null set */
 	return;
     }
 
     if(FD_ISSET(fd->fd, &set->fdSet)) {
-	/* DBG("fd %d already in set\n", fd->fd); */
+	/* CCK_DBG("fd %d already in set\n", fd->fd); */
 	return;
     }
 
     FD_SET(fd->fd, &set->fdSet);
 
-    LINKED_LIST_APPEND_LOCAL(set, fd);
+    LINKED_LIST_APPEND_DYNAMIC(set, fd);
 
     set->maxFd = getMaxFd(set);
 
@@ -73,65 +75,82 @@ void
 cckRemoveFd(CckFdSet *set, CckFd *fd)
 {
     if(fd == NULL) {
-	/* DBG("Cannot remove null fd from set\n"); */
+	/* CCK_DBG("Cannot remove null fd from set\n"); */
 	return;
     }
 
     if(set == NULL) {
-	/* DBG("Cannot remove fd to null set */
+	/* CCK_DBG("Cannot remove fd to null set */
 	return;
     }
 
     if(!FD_ISSET(fd->fd, &set->fdSet)) {
-	/* DBG("fd %d not in set, not removing\n", fd->fd); */
+	/* CCK_DBG("fd %d not in set, not removing\n", fd->fd); */
 	return;
     }
 
     FD_CLR(fd->fd, &set->fdSet);
 
-    LINKED_LIST_REMOVE_LOCAL(set, fd);
+    LINKED_LIST_REMOVE_DYNAMIC(set, fd);
 
     set->maxFd = getMaxFd(set);
 
 }
 
 int
-cckSelect(CckFdSet *set, struct timeval *timeout)
+cckPollData(CckFdSet *set, struct timeval *timeout_in)
 {
 
     int ret;
+    int maxFd = set->maxFd;
     CckFd *fd;
     CckFd *lastFd = NULL;
 
+    /* external callback may have a different notion of blocking and timeout, not just NULL */
+    struct timeval timeout = {0, 0};
+    int block = 1;
 
     if(set == NULL) {
-	/* DBG("cckSelect: empty fd set given\n"); */
+	 CCK_DBG("cckPollData: empty fd set given\n");
 	return -1;
     }
 
-    set->hasData = CCK_FALSE;
+    if(timeout_in != NULL) {
+	block = 0;
+	timeout = *timeout_in;
+    }
+
+    set->hasData = false;
     set->firstData = NULL;
 
     /* copy the clean fd set to work fd set */
     memcpy(&set->_workSet, &set->fdSet, sizeof(fd_set));
 
-    /* run select () */
-    ret = select(set->maxFd + 1, &set->_workSet, NULL, NULL, timeout);
+    /* nfds = max + 1 */
+    maxFd++;
+
+    /* run our pre-select() callback which may add more FDs or modify block or timeout */
+    SAFE_CALLBACK(set->callbacks.prePoll, set, &maxFd, &set->_workSet, &timeout, &block);
+
+    /* run select () - block could have been modified by the callback */
+    ret = select(maxFd, &set->_workSet, NULL, NULL, block ? NULL : &timeout);
 
     /* these are expected - signals, etc. */
     if(ret < 0 && (errno == EAGAIN || errno == EINTR)) {
-	return 0;
+	ret = 0;
+	goto finalise;
     }
 
     /* walk through all fds used, mark them if they have data to read */
     if(ret > 0) {
-	LINKED_LIST_FOREACH_LOCAL(set, fd) {
-	    fd->hasData = CCK_FALSE;
+
+	LINKED_LIST_FOREACH_DYNAMIC(set, fd) {
+	    fd->hasData = false;
 	    fd->nextData = NULL;
 	    if(FD_ISSET(fd->fd, &set->_workSet)) {
 
-		set->hasData = CCK_TRUE;
-		fd->hasData = CCK_TRUE;
+		set->hasData = true;
+		fd->hasData = true;
 
 		/* build a linked list of fds which have data to read */
 		if(lastFd == NULL) {
@@ -140,14 +159,8 @@ cckSelect(CckFdSet *set, struct timeval *timeout)
 		    lastFd->nextData = fd;
 		}
 
-		/*
-		 * todo: callbacks - they will be optional. The user may want control over the order of FDs read,
-		 * as is the case with PTP(d), where we always check the event transport first -
-		 * naturally, if we start the transports in the right order, we achieve the same,
-		 * however not explicitly so. The callback could also automatically read the data.
-		 */
-
-		/* fd->callback(fd->owner, ...); */
+		/* run the on-data callback for the given fd */
+		SAFE_CALLBACK(fd->callbacks.onData, fd, fd->owner);
 
 		lastFd = fd;
 
@@ -155,7 +168,20 @@ cckSelect(CckFdSet *set, struct timeval *timeout)
 
 	}
 
+	/* run our on-data callback (if the SET has some data) */
+	SAFE_CALLBACK(set->callbacks.onData, set, &maxFd, &set->_workSet, block ? NULL : &timeout);
+
     }
+
+    /* run our on-timeout callback */
+    if(ret == 0){
+	SAFE_CALLBACK(set->callbacks.onTimeout, set, &maxFd, &set->_workSet, block ? NULL : &timeout);
+    }
+
+finalise:
+
+    /* run the always-run post-select callback */
+    SAFE_CALLBACK(set->callbacks.postPoll, set, &maxFd, &set->_workSet, block ? NULL : &timeout);
 
     return ret;
 
@@ -176,7 +202,7 @@ getMaxFd(CckFdSet *set)
 	return -1;
     }
 
-    LINKED_LIST_FOREACH_LOCAL(set, fd) {
+    LINKED_LIST_FOREACH_DYNAMIC(set, fd) {
 	if(fd->fd > maxFd) {
 	    maxFd = fd->fd;
 	}
@@ -186,3 +212,9 @@ getMaxFd(CckFdSet *set)
 
 }
 
+void
+clearCckFdSet(CckFdSet *set)
+{
+    memset(set, 0, sizeof(CckFdSet));
+
+}

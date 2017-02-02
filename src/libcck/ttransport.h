@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Wojciech Owczarek,
+/* Copyright (c) 2016-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -35,47 +35,65 @@
 #ifndef CCK_TTRANSPORT_H_
 #define CCK_TTRANSPORT_H_
 
-#include "../ptpd.h"
-#include "../globalconfig.h"
-#include <libcck/linkedlist.h>
+#include <libcck/cck.h>
+#include <libcck/linked_list.h>
 #include <libcck/cck_types.h>
+#include <libcck/transport_address.h>
+#include <libcck/fd_set.h>
+#include <libcck/clockdriver.h>
+#include <libcck/acl.h>
 
-#define TTRANSPORT_NAME_MAX 20
+/*
+ * timestamping transport capabilities / flags. This works both ways:
+ * transport type registration presents all supported flags, and user requests
+ * mandatory support of some of them, (config.flags), finally (_probeTTransport),
+ * the transport reports which flags it can support for the given path,
+ * path being an interface name or filename - the general transport API
+ * has no notion of an interface - only implementations do.
+ */
 
-/* timestamping transport capabilities */
-#define TT_CAPS_NONE			0x00	/* no capabilities... */
-#define TT_CAPS_UCAST			0x01	/* unicast capable */
-#define TT_CAPS_MCAST			0x02	/* multicast capable */
-#define TT_CAPS_LOCAL			0x04	/* local path - unix domain socket etc. */
-#define TT_CAPS_SW_TIMESTAMP		0x08	/* software timestamps */
-#define TT_CAPS_HW_TIMESTAMP		0x10	/* hardware timestamps */
-#define TT_CAPS_HW_TIMESTAMP_ALL	0x20	/* hardware timestamps for all packets */
-#define TT_CAPS_HW_PTP_ONE_STEP		0x40	/* PTP one-step transmission support */
+#define TT_CAPS_NONE			0x000	/* no capabilities... */
+#define TT_CAPS_UCAST			0x001	/* unicast capable */
+#define TT_CAPS_MCAST			0x002	/* multicast capable */
+#define TT_CAPS_LOCAL			0x004	/* local path - unix domain socket etc. */
+#define TT_CAPS_SW_TIMESTAMP		0x008	/* software timestamps */
+#define TT_CAPS_HW_TIMESTAMP_PTP	0x010	/* hardware timestamps for PTP packets */
+#define TT_CAPS_HW_TIMESTAMP_ANY	0x020	/* hardware timestamps for all packets */
+#define TT_CAPS_HW_PTP_ONE_STEP		0x040	/* PTP one-step transmission support */
+#define TT_CAPS_PREFER_SW		0x080	/* prefer software timestamps over hardware */
+#define TT_CAPS_BROKEN			0x100	/* transport marked as broken */
 
+/* capability helper macros */
+#define TT_UC(var) (var & TT_CAPS_UCAST)
+#define TT_MC(var) (var & TT_CAPS_MCAST)
+#define TT_UC_MC(var) ( TT_MC(var) && TT_UC(var) )
+#define TT_UC_ONLY(var) ( (var & TT_CAPS_UCAST) && !(var & TT_CAPS_MCAST) )
+#define TT_MC_ONLY(var) ( (var & TT_CAPS_MCAST) && !(var & TT_CAPS_UCAST) )
 
-/* timestamping transport driver types */
+/* transport header lengths: magic numbers, but it's not that they are planning to change... */
+#define TT_HDRLEN_ETHERNET	14			/* 6 src + 6d st + 2 ethertype */
+#define TT_HDRLEN_UDPV4		42			/* 14 eth + 20 IP + 8 UDP */
+#define TT_HDRLEN_UDPV6		62			/* 14 eth + 20 IP6 + 8 UDP */
+
+/* timestamping transport driver types - automagic */
 enum {
 
     TT_TYPE_NONE = 0,
 
-#define REGISTER_TTRANSPORT(fulltype, shorttype, textname, family, capabilities, extends) \
-    fulltype,
-
+#define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+    typeenum,
 #include "ttransport.def"
 
     TT_TYPE_MAX
 };
 
-/* bag to hold any possible transport config type, so we don't have to dynamically allocate in some cases */
-typedef union {
-
-#define REGISTER_TTRANSPORT(fulltype, shorttype, textname, family, capabilities, extends) \
-    TTransportConfig_##fulltype shorttype;
-
-#include "ttransport.def"
-
-} TTransportConfigHolder;
-
+/* address family types - only the ones we have implemented transports for */
+static const int transportTypeFamilies[] = {
+    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+	[typeenum] = addressfamily,
+    #include "ttransport.def"
+	[TT_FAMILY_MAX] = AF_UNSPEC
+};
 
 /* commands that can be sent to all transports */
 enum {
@@ -84,141 +102,206 @@ enum {
     TT_CLEANUP,		/* clean up transports not in use */
     TT_DUMP,		/* dump transport information  */
     TT_MONITOR,		/* monitor for changes */
-    TT_REFRESH		/* any periodic actions such as multicast join */
+    TT_REFRESH,		/* any periodic actions such as multicast join */
+    TT_CLEARCOUNTERS,	/* clear counters */
+    TT_DUMPCOUNTERS,	/* dump counters */
+    TT_UPDATECOUNTERS	/* update rate counters */
 };
 
-/* clock driver configuration */
+/* common transport configuration */
 typedef struct {
-    CckBool disabled;			/* transport is disabled */
-    CckBool discarding;			/* transport is discarding data */
-    CckBool timestamping;		/* transport needs to deliver timestamps */
+    int _type;				/* transport type this config describes */
+    int _privateSize;			/* size of private config structure */
+    void *_privateConfig;		/* private configuration handle */
+    uint32_t flags;			/* capability flags */
+    bool disabled;			/* transport is disabled */
+    bool discarding;			/* transport is discarding data */
+    bool timestamping;			/* transport needs to deliver timestamps */
+    bool uidPid;			/* use process ID in transport UID */
+    char customUid[8];			/* use custom UID */
+    int rxLatency;			/* ingress latency / timestamp correction */
+    int txLatency;			/* egress latency / timestamp correction */
 } TTransportConfig;
 
 /* transport specification container, useful when creating transports specified as string */
 typedef struct {
     int type;
+    char name[CCK_COMPONENT_NAME_MAX+1];
     char path[PATH_MAX];
-    char name[TTRANSPORT_NAME_MAX+1];
 } TTransportSpec;
 
-/* Network message: data with basic information about the data */
+/* Network message: data plus basic information about the data */
 typedef struct {
-	CckOctet *data;
-	int	length;
-	CckBool fromSelf;
-	CckBool toSelf;
-	CckBool hasTimestamp;
-	CckTransportAddress destination;
-	CckTransportAddress source;
-	CckTimestamp timestamp;
+	char *data;				/* data buffer */
+	CckTransportAddress *destination;	/* destination to send the message to */
+	size_t length;				/* data size */
+	int capacity;				/* buffer size */
+	bool fromSelf;				/* message is from own address */
+	bool toSelf;				/* message is to own address */
+	bool isMulticast;			/* message is multicast */
+	bool hasTimestamp;			/* message timestamp is valid */
+	CckTransportAddress from;		/* source of received message */
+	CckTransportAddress to;			/* destination of received message */
+	CckTimestamp timestamp;			/* RX timestamp on receipt, TX timestamp after transmission */
+	int _family;				/* address family this message was received with */
+	int _flags;				/* any internal flags a transport implementation may want to use */
 } TTransportMessage;
+
+/* transport counters */
+typedef struct {
+	int 		 rateInterval;		/* rate computation interval, seconds */
+	bool		 updated;		/* rate snapshots ready */
+	uint32_t 	 rxMsg;			/* total messages received */
+	uint32_t 	_snapRxMsg;		/* snapshot for rate computation */
+	uint32_t 	 txMsg;			/* total messages transmitted */
+	uint32_t 	_snapTxMsg;		/* snapshot for rate computation */
+	uint32_t 	 rxBytes;		/* total bytes received */
+	uint32_t 	_snapRxBytes;		/* snapshot for rate computation */
+	uint32_t 	 txBytes;		/* total bytes transmitted */
+	uint32_t 	_snapTxBytes;		/* total bytes transmitted */
+	uint32_t 	 rxRateMsg;		/* receive rate, messages/s */
+	uint32_t 	 txRateMsg;		/* transmit rate, messages/s */
+	uint32_t 	 rxRateBytes;		/* receive rate, bytes/s */
+	uint32_t 	 txRateBytes;		/* transmit rate, bytes/s */
+	uint32_t 	 rxErrors;		/* receive errors */
+	uint32_t 	 txErrors;		/* transmit errors */
+	uint32_t	 rxTimestampErrors;	/* receive timestamp errors */
+	uint32_t	 txTimestampErrors;	/* transmit timestamp errors */
+	uint32_t	 rxDiscards;		/* discarded messages: blocked by callbacks, etc. */
+	uint32_t	 txDiscards;		/* discarded messages: blocked by callbacks, etc. */
+} TTransportCounters;
+
 
 typedef struct TTransport TTransport;
 
+/* the transport */
 struct TTransport {
 
-    int type;				/* transport type */
-    int family				/* address family type */
-    char name[TTRANSPORT_NAME_MAX +1];	/* name of the driver's instance */
+    int type;				/* transport implementation type */
+    int family;				/* address family type */
+    int headerLen;			/* protocol header length before payload */
 
-    TTransportConfig config;		/* config container */
-    CckAddressToolset *addrTools;	/* address management function holder */
+    char name[CCK_COMPONENT_NAME_MAX +1];	/* instance name */
 
-    void *owner;			/* pointer to user structure owning or controlling this clock */
+    void *owner;			/* pointer to user structure owning or controlling this component */
 
-    struct {
-	int 		 rateInterval;		/* rate computation interval, seconds */
-	CckU32 	 rxMsg;			/* total messages received */
-	CckU32 	_lastRxMsg;		/* snapshot for rate computation */
-	CckU32 	 txMsg;			/* total messages transmitted */
-	CckU32 	_lastTxMsg;		/* snapshot for rate computation */
-	CckU32 	 rxBytes;		/* total bytes received	*/
-	CckU32 	_lastRxBytes;		/* snapshot for rate computation */
-	CckU32 	 txBytes;		/* total bytes transmitted */
-	CckU32 	_lastTxBytes;		/* total bytes transmitted */
-	CckU32 	 rxRateMsg;		/* receive rate, messages/s */
-	CckU32 	 txRateMsg;		/* transmit rate, messages/s */
-	CckU32 	 rxRateBytes;		/* receive rate, bytes/s */
-	CckU32 	 txRateBytes;		/* transmit rate, bytes/s */
-	CckU32 	 rxErrors;		/* receive errors */
-	CckU32 	 txErrors;		/* transmit errors */
-	CckU32	 rxTimestampErrors;	/* receive timestamp errors */
-	CckU32	 txTimestampErrors;	/* transmit timestamp errors */
-    } counters;
+    CckAddressToolset *tools;		/* address management function and constant holder */
 
-    CckFd fd;				/* file descriptor wrapper */
     CckFdSet *fdSet;			/* file descriptor set watching this transport */
 
-    CckTransportAddress ownAddress;
+    CckFd myFd;				/* file descriptor wrapper */
 
-    CckOctet	*inputBuffer;		/* data read buffer, supplied by user */
+    CckAcl *dataAcl;			/* data ACL */
+    CckAcl *controlAcl;			/* control / management ACL */
+
+    unsigned char uid[8];		/* 64-bit EUID (mm aa cc ff fe mm aa cc) - IP address used when no MAC */
+
+    CckTransportAddress ownAddress;	/* my own protocol address */
+    CckTransportAddress hwAddress;	/* hardware address, if available */
+
+    TTransportConfig config;		/* config container */
+
+    TTransportCounters counters;	/* counter container */
+
+    char	*inputBuffer;		/* data receive buffer, supplied by user via setBuffers()*/
     int		inputBufferSize;
 
-    CckOctet	*outputBuffer;		/* data transmit buffer, supplied by user */
+    char	*outputBuffer;		/* data transmit buffer, supplied by user via setBuffers() */
     int		outputBufferSize;
 
-    CckMessage incomingMessage;
-    CckMessage outgoingMessage;
+    TTransportMessage incomingMessage;	/* incoming message with associated info */
+    TTransportMessage outgoingMessage;	/* outgoing message with associated destination etc. */
 
     /* user-supplied callbacks */
     struct {
-	int (*txMulticast) (void *owner, CckOctet *data, size_t len);
-	int (*txUnicast) (void *owner, CckOctet *data, size_t len);
-	int (*preTx) (TTransport*, void *owner, CckMessage *message);
-	int (*postTx) (TTransport*, void *owner, void *a, const size_t alen, void *b, const size_t blen);
+	/* informs the owner if we are sending a multicast or unicast message, allows it to modify data accordingly */
+	int (*preTx) (void *transport, void *owner, char *data, const size_t len, bool isMulticast);
+	/* allows the owner to verify if data transmitted matches data attached to TX timestamp */
+	int (*matchData) (void *transport, void *owner, char *a, const size_t alen, char *b, const size_t blen);
+	/* informs the owner that we have had a network interface / topology change */
+	int (*onNetworkChange) (void *transport, void *owner);
+	/* checks if the data received is regular data or control / management data - used to select ACL being matched */
+	int(*isRegularData) (void *transport, void *owner, char *data, const size_t len, bool isMulticast);
     } callbacks;
 
-int		ttDummyDataCallback (TTransport*, void *owner, CckOctet *data, const int len);
-/* dummy callback with two data buffers - say to match on something */
-int		ttDummyMatchCallback ;
-
-
     /* flags */
-    CckBool hasData;			/* transport has some data to read */
+    bool inUse;				/* transport is in active use, if not, can be removed */
+    bool hasData;			/* transport has some data to read */
 
     /* BEGIN "private" fields */
 
     int _serial;			/* object serial no */
-    unsigned char _uid[8];		/* 64-bit uid (like MAC) */
-    int	_init;			/* the driver was successfully initialised */
+    int	_init;				/* the driver was successfully initialised */
+    int *_instanceCount;		/* instance counter for the whole component */
+
+    /* libCCK common fields - to be included in a general object header struct */
     void *_privateData;			/* implementation-specific data */
     void *_privateConfig;		/* implementation-specific config */
     void *_extData;			/* implementation-specific external / extension / extra data */
+
+    int _faultTimeout;			/* network fault timeout countdown */
 
     /* END "private" fields */
 
     /* inherited methods */
 
-    CckBool (*pushConfig) (TTransport *, RunTimeOpts *);
-    CckBool (*healthCheck) (TTransport *);
-
+    /* restart: shutdown + init */
+    int (*restart)(TTransport *);
+    /* clear counters */
+    void (*clearCounters)(TTransport *);
+    /* dumpCounters */
+    void (*dumpCounters)(TTransport *);
+    /* update rates */
+    void (*updateCounterRates)(TTransport *, const int interval);
+    /* set up data buffers */
+    void (*setBuffers) (TTransport *, char *iBuf, const int iBufSize, char *oBuf, const int oBufSize);
+    /* magic cure for hypohondria: imaginary health-check */
+    bool (*healthCheck) (TTransport *);
     /* send n bytes from outputBuffer / outgoingMessage to destination,  */
-    int (*send) (TTransport*, size_t len, CckTransportAddress *to);
+    ssize_t (*sendTo) (TTransport*, const size_t len, CckTransportAddress *to);
     /* send n bytes from buf to destination */
-    int (*sendData) (TTransport*, CckOctet *buf, size_t len, CckTransportAddress *to);
+    ssize_t (*sendDataTo) (TTransport*, char *buf, const size_t len, CckTransportAddress *to);
     /* receive data into inputBuffer and incomingMessage */
-    int(*receive) (TTransport*);
+    ssize_t (*receive) (TTransport*);
     /* receive data into provided buffer of size len */
-    int(*receiveData) (TTransport*, CckOctet* buf, size_t size);
+    ssize_t (*receiveData) (TTransport*, char* buf, const size_t size);
+    /* check address against ACLs */
+    bool (*addressPermitted) (TTransport *, CckTransportAddress *address, bool isRegular);
+    /* check message against ACLs */
+    bool (*messagePermitted) (TTransport *, TTransportMessage *message);
 
     /* inherited methods end */
 
     /* public interface - implementations must implement all of those */
 
+    /* init, shutdown */
+    int (*init)		(TTransport*, const TTransportConfig *config, CckFdSet *fdSet);
     int (*shutdown) 	(TTransport*);
-    int (*init)		(TTransport*, void * config);
 
-    CckBool (*testConfig) (TTransport*, void *config); /* test configuration */
-    CckBool (*privateHealthCheck) (TTransport *); /* NEW! Now with private healthcare! */
-    CckBool (*pushPrivateConfig) (TTransport *, RunTimeOpts *);
-    CckBool (*isThisMe) (TTransport *, const char* search);
-
+    /* check if this transport recognises itself as matching the search string (interface, port, etc.) */
+    bool (*isThisMe) (TTransport *, const char* search);
+    /* store and apply any configuration that can be applied in runtime, inform if restart needed */
+//    bool (*applyConfig) (TTransport*, const TTransportConfig *config);
+    /* test the required configuration */
+    bool (*testConfig) (TTransport*, const TTransportConfig *config);
+    /* NEW! Now with private healthcare! */
+    bool (*privateHealthCheck) (TTransport *);
     /* send message: buffer and destination information; populate TX timestamp if we have one */
-    int (*sendMessage) (TTransport * , TTransportMessage *message);
+    ssize_t (*sendMessage) (TTransport * , TTransportMessage *message);
     /* receive message: buffer and source + destination information; populate RX timestamp if we have one */
-    int (*receiveMessage) (TTransport * , TTransportMessage *message);
-
-    void (*loadVendorExt) (TTransport *, const char *);
+    ssize_t (*receiveMessage) (TTransport * , TTransportMessage *message);
+    /* get an instnce of the clock driver generating this clock's timestamps, create if not existing */
+    ClockDriver* (*getClockDriver) (TTransport *);
+    /* perform any periodic checks - may result in onNetworkChange callback */
+    int (*monitor) (TTransport *, const int);
+    /* perform any refresh actions - mcast joins, etc. */
+    int (*refresh) (TTransport *);
+    /* load any vendor extensions */
+    void (*loadVendorExt) (TTransport *);
+    /* short transport information line */
+    char* (*getInfoLine) (TTransport *, char *buf, size_t len);
+    /* short transport operational status */
+    char* (*getStatusLine) (TTransport *, char *buf, size_t len);
 
     /* public interface end */
 
@@ -233,55 +316,60 @@ int		ttDummyMatchCallback ;
 
 };
 
-int		probeTTransport(int transportType, const char *path, int capabilities);
-TTransport*  	createTTransport(int driverType, const char* name);
-CckBool 	setupTTransport(TTransport* clockDriver, int type, const char* name);
-void 		freeTTransport(TTransport** clockDriver);
-/* dummy general-purpose callback for the owner*/
-int		ttDummyCallback(void *owner);
-/* dummy callback with a data buffer */
-int		ttDummyDataCallback (void *owner, CckOctet *data, const int len);
-/* dummy callback with two data buffers - say to match on something */
-int		ttDummyMatchCallback (void *owner, unsigned char *a, const int alen, unsigned char *b, const int blen);
+TTransport*	createTTransport(int type, const char* name);
+bool 		setupTTransport(TTransport* transportr, int type, const char* name);
+void 		freeTTransport(TTransport** transport);
 
+/*
+ * find the "best" working transport implementation for a given path and probe if it is operational.
+ * if @specific is non-zero (not TT_TYPE_NONE), only probe this implementation.
+ */
+int		detectTTransport(const int family, const char *path, const int caps, const int specific);
+
+TTransportConfig*	createTTransportConfig(const int type);
+void			freeTTransportConfig(TTransportConfig **config);
+
+/* dummy general-purpose callback */
+int		ttDummyCallback(TTransport *transport);
+/* dummy general-purpose callback for use by the owner - no libCCK-specific datatypes */
+int		ttDummyOwnerCallback(void *owner, void *transport);
+/* dummy callback with a data buffer */
+int		ttDummyDataCallback (void *owner, void *transport, char *data, const size_t len, bool isMulticast);
+/* dummy callback with two data buffers - say to match on something */
+int		ttDummyMatchCallback (void *owner, void *transport, char *a, const size_t alen, char *b, const size_t blen);
+
+void		controlTTransports(const int, const void*);
 void 		shutdownTTransports();
-void		controlTTransports(int);
 void		monitorTTransports();
 void		refreshTTransports();
 
 TTransport*	findTTransport(const char *);
 TTransport*	getTTransportByName(const char *);
 
-void		reconfigureTTransports(RunTimeOpts *);
-CckBool createTTransportsFromString(const char*, RunTimeOpts *, CckBool);
-
-const char*	getTTransportName(int);
+const char*	getTTransportTypeName(int);
 int		getTTransportType(const char*);
-CckBool		parseTTransportSpec(const char*, TTransportSpec *);
-int		parseAddressList(const char *list, CckTransportAddress *array, int arraySize);
+int		getTTransportTypeFamily(const int);
+bool		parseTTransportSpec(const char*, TTransportSpec *);
+
+bool		copyTTransportConfig(TTransportConfig *to, const TTransportConfig *from);
+TTransportConfig *duplicateTTransportConfig(const TTransportConfig *from);
+
+void setTTransportUid(TTransport *transport);
+
+void		clearTTransportMessage(TTransportMessage *message);
+void		dumpTTransportMessage(const TTransportMessage *message);
+
+/* invoking this without REGISTER_COMPONENT defined, includes the implementation headers - like here*/
+#include "ttransport.def"
+
+/* bag to hold any possible transport config type, so we don't have to dynamically allocate in some cases */
+typedef union {
+
+#define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+    TTransportConfig_##typesuffix typesuffix;
 
 #include "ttransport.def"
 
-#define INIT_DATA_TTRANSPORT(var, type) \
-    if(var->_privateData == NULL) { \
-	XCALLOC(var->_privateData, sizeof(TTransportData_##type)); \
-    }
-#define INIT_CONFIG_TTRANSPORT(var, type) \
-    if(var->_privateConfig == NULL) { \
-	XCALLOC(var->_privateConfig, sizeof(TTransportConfig_##type)); \
-    }
-#define INIT_EXTDATA_TTRANSPORT(var, type) \
-    if(var->_extData == NULL) { \
-	XCALLOC(var->_extData, sizeof(TTransportExtData_##type)); \
-    }
-
-#define GET_CONFIG_TTRANSPORT(from, to, type) \
-    TTransportConfig_##type *to = (TTransportConfig_##type*)from->_privateConfig;
-
-#define GET_DATA_TTRANSPORT(from, to, type) \
-    TTransportData_##type *to = (TTransportData_##type*)from->_privateData;
-
-#define GET_EXTDATA_TTRANSPORT(from, to, type) \
-    TTransportExtData_##type *to = (TTransportExtData_##type*)from->_extData;
+} TTransportPrivateConfig;
 
 #endif /* CCK_TTRANSPORT_H_ */

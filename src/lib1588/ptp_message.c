@@ -40,7 +40,7 @@
 #include "ptp_tlv.h"
 #include "tmp.h"
 
-#include <string.h> /* memset and friends */
+#include <string.h>
 
 static int unpackPtpTlvs(PtpMessage *data, char *buf, char *boundary);
 static int packPtpTlvs(char *buf, PtpMessage *message, char *boundary);
@@ -768,6 +768,9 @@ int unpackPtpMessage(PtpMessage *data, char *buf, char *boundary) {
     }
 
     offset += ret;
+
+    /* checks we can perform while unpacking */
+    data->checks.isEvent = (header->messageType < PTP_MSGCLASS_GENERAL);
 
     return offset;
 }

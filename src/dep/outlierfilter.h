@@ -1,7 +1,7 @@
 #ifndef OUTLIERFILTER_H_
 #define OUTLIERFILTER_H_
 
-#include <dep/statistics.h>
+#include <libcck/statistics.h>
 
 #define OUTLIERFILTER_MAX_DESC 20
 

@@ -55,6 +55,8 @@
  */
 
 #include "../ptpd.h"
+#include "cck_glue.h"
+#include <libcck/cck_logger.h>
 
 /*
  * valgrind 3.5.0 currently reports no errors (last check: 20110512)
@@ -131,7 +133,7 @@ void
 do_signal_close(PtpClock * ptpClock)
 {
 
-	timingDomain.shutdown(&timingDomain);
+	ptpdShutdown(ptpClock);
 
 	NOTIFY("Shutdown on close signal\n");
 	exit(0);
@@ -178,11 +180,12 @@ applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	/* If the network configuration has changed, check if the interface is OK */
 	if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
 		INFO("Network configuration changed - checking interface(s)\n");
-		if(!testInterface(tmpOpts.primaryIfaceName, &tmpOpts)) {
+		int family = getConfiguredFamily(&tmpOpts);
+		if(!testInterface(tmpOpts.primaryIfaceName, family, tmpOpts.sourceAddress)) {
 		    reloadSuccessful = FALSE;
 		    ERROR("Error: Cannot use %s interface\n",tmpOpts.primaryIfaceName);
 		}
-		if(rtOpts->backupIfaceEnabled && !testInterface(tmpOpts.backupIfaceName, &tmpOpts)) {
+		if(rtOpts->backupIfaceEnabled && !testInterface(tmpOpts.backupIfaceName, family, tmpOpts.sourceAddress)) {
 		    rtOpts->restartSubsystems = -1;
 		    ERROR("Error: Cannot use %s interface as backup\n",tmpOpts.backupIfaceName);
 		}
@@ -259,13 +262,10 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	NOTIFY("SIGHUP received\n");
 
-#ifdef RUNTIME_DEBUG
-	if(rtOpts->transport == UDP_IPV4 && rtOpts->ipMode != IPMODE_UNICAST) {
-		DBG("SIGHUP - running an ipv4 multicast based mode, re-sending IGMP joins\n");
-		netRefreshIGMP(&ptpClock->netPath, rtOpts, ptpClock);
+	if(rtOpts->transportMode != TMODE_UC) {
+		DBG("SIGHUP - running multicast, re-joining multicast on all transports\n");
+		ptpNetworkRefresh(ptpClock);
 	}
-#endif /* RUNTIME_DEBUG */
-
 
 	/* if we don't have a config file specified, we're done - just reopen log files*/
 	if(strlen(rtOpts->configFile) !=  0) {
@@ -288,9 +288,6 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	}
 
-	/* tell the service it can perform any HUP-triggered actions */
-	ptpClock->timingService.reloadRequested = TRUE;
-
 	if(rtOpts->recordLog.logEnabled ||
 	    rtOpts->eventLog.logEnabled ||
 	    (rtOpts->statisticsLog.logEnabled))
@@ -308,127 +305,73 @@ void
 restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 
-			DBG("RestartSubsystems: %d\n",rtOpts->restartSubsystems);
-		    /* So far, PTP_INITIALIZING is required for both network and protocol restart */
-		    if((rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) ||
-			(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK)) {
-
+		DBG("RestartSubsystems: %d\n",rtOpts->restartSubsystems);
+	    /* So far, PTP_INITIALIZING is required for both network and protocol restart */
+	    if((rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) ||
+		(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK)) {
 			    if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
-				NOTIFY("Applying network configuration: going into PTP_INITIALIZING\n");
-			    }
-
-			    /* These parameters have to be passed to ptpClock before re-init */
-			    ptpClock->defaultDS.clockQuality.clockClass = rtOpts->clockQuality.clockClass;
-			    ptpClock->defaultDS.slaveOnly = rtOpts->slaveOnly;
-			    ptpClock->disabled = rtOpts->portDisabled;
-
+			NOTIFY("Applying network configuration: going into PTP_INITIALIZING\n");
+		    }
+		    /* These parameters have to be passed to ptpClock before re-init */
+		    ptpClock->defaultDS.clockQuality.clockClass = rtOpts->clockQuality.clockClass;
+		    ptpClock->defaultDS.slaveOnly = rtOpts->slaveOnly;
+		    ptpClock->disabled = rtOpts->portDisabled;
 			    if(rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) {
-				INFO("Applying protocol configuration: going into %s\n",
-				ptpClock->disabled ? "PTP_DISABLED" : "PTP_INITIALIZING");
-			    }
-
+			INFO("Applying protocol configuration: going into %s\n",
+			ptpClock->disabled ? "PTP_DISABLED" : "PTP_INITIALIZING");
+		    }
 			    /* Move back to primary interface only during configuration changes. */
-			    ptpClock->runningBackupInterface = FALSE;
-			    toState(ptpClock->disabled ? PTP_DISABLED : PTP_INITIALIZING, rtOpts, ptpClock);
+		    ptpClock->runningBackupInterface = FALSE;
+		    toState(ptpClock->disabled ? PTP_DISABLED : PTP_INITIALIZING, rtOpts, ptpClock);
+	    } else {
 
-		    } else {
-		    /* Nothing happens here for now - SIGHUP handler does this anyway */
-		    if(rtOpts->restartSubsystems & PTPD_UPDATE_DATASETS) {
-				NOTIFY("Applying PTP engine configuration: updating datasets\n");
-				updateDatasets(ptpClock, rtOpts);
-		    }}
-		    /* Nothing happens here for now - SIGHUP handler does this anyway */
-		    if(rtOpts->restartSubsystems & PTPD_RESTART_LOGGING) {
-				NOTIFY("Applying logging configuration: restarting logging\n");
-		    }
-
-
-    		if(rtOpts->restartSubsystems & PTPD_RESTART_ACLS) {
-            		NOTIFY("Applying access control list configuration\n");
-            		/* re-compile ACLs */
-            		freeIpv4AccessList(&ptpClock->netPath.timingAcl);
-            		freeIpv4AccessList(&ptpClock->netPath.managementAcl);
-            		if(rtOpts->timingAclEnabled) {
-                    	    ptpClock->netPath.timingAcl=createIpv4AccessList(rtOpts->timingAclPermitText,
-                                rtOpts->timingAclDenyText, rtOpts->timingAclOrder);
-            		}
-            		if(rtOpts->managementAclEnabled) {
-                    	    ptpClock->netPath.managementAcl=createIpv4AccessList(rtOpts->managementAclPermitText,
-                                rtOpts->managementAclDenyText, rtOpts->managementAclOrder);
-            		}
-    		}
-
-    		if(rtOpts->restartSubsystems & PTPD_RESTART_ALARMS) {
-		    NOTIFY("Applying alarm configuration\n");
-		    configureAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
-		}
-
-                    /* Reinitialising the outlier filter containers */
-                    if(rtOpts->restartSubsystems & PTPD_RESTART_FILTERS) {
-
-                                NOTIFY("Applying filter configuration: re-initialising filters\n");
-
-				freeDoubleMovingStatFilter(&ptpClock->filterMS);
-				freeDoubleMovingStatFilter(&ptpClock->filterSM);
-
-				ptpClock->oFilterMS.shutdown(&ptpClock->oFilterMS);
-				ptpClock->oFilterSM.shutdown(&ptpClock->oFilterSM);
-
-				outlierFilterSetup(&ptpClock->oFilterMS);
-				outlierFilterSetup(&ptpClock->oFilterSM);
-
-				ptpClock->oFilterMS.init(&ptpClock->oFilterMS,&rtOpts->oFilterMSConfig, "delayMS");
-				ptpClock->oFilterSM.init(&ptpClock->oFilterSM,&rtOpts->oFilterSMConfig, "delaySM");
-
-
-				if(rtOpts->filterMSOpts.enabled) {
-					ptpClock->filterMS = createDoubleMovingStatFilter(&rtOpts->filterMSOpts,"delayMS");
-				}
-
-				if(rtOpts->filterSMOpts.enabled) {
-					ptpClock->filterSM = createDoubleMovingStatFilter(&rtOpts->filterSMOpts, "delaySM");
-				}
-
-		    }
-
-	    ptpClock->timingService.reloadRequested = TRUE;
-
-            if(rtOpts->restartSubsystems & PTPD_RESTART_NTPENGINE && timingDomain.serviceCount > 1) {
-		ptpClock->ntpControl.timingService.shutdown(&ptpClock->ntpControl.timingService);
+	    if(rtOpts->restartSubsystems & PTPD_UPDATE_DATASETS) {
+			NOTIFY("Applying PTP engine configuration: updating datasets\n");
+			updateDatasets(ptpClock, rtOpts);
+	    }}
+	    /* Nothing happens here for now - SIGHUP handler does this anyway */
+	    if(rtOpts->restartSubsystems & PTPD_RESTART_LOGGING) {
+			NOTIFY("Applying logging configuration: restarting logging\n");
 	    }
-
-	    if((rtOpts->restartSubsystems & PTPD_RESTART_NTPENGINE) ||
-        	(rtOpts->restartSubsystems & PTPD_RESTART_NTPCONFIG)) {
-        	ntpSetup(rtOpts, ptpClock);
-    	    }
-		if((rtOpts->restartSubsystems & PTPD_RESTART_NTPENGINE) && rtOpts->ntpOptions.enableEngine) {
-		    timingServiceSetup(&ptpClock->ntpControl.timingService);
-		    ptpClock->ntpControl.timingService.init(&ptpClock->ntpControl.timingService);
+		if(rtOpts->restartSubsystems & PTPD_RESTART_ACLS) {
+        		NOTIFY("Applying access control list configuration\n");
+		configureAcls(ptpClock);
 		}
+    		if(rtOpts->restartSubsystems & PTPD_RESTART_ALARMS) {
+	    NOTIFY("Applying alarm configuration\n");
+	    configureAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
+	}
+                    /* Reinitialising the outlier filter containers */
+                if(rtOpts->restartSubsystems & PTPD_RESTART_FILTERS) {
+                        NOTIFY("Applying filter configuration: re-initialising filters\n");
+			freeDoubleMovingStatFilter(&ptpClock->filterMS);
+			freeDoubleMovingStatFilter(&ptpClock->filterSM);
+    			ptpClock->oFilterMS.shutdown(&ptpClock->oFilterMS);
+			ptpClock->oFilterSM.shutdown(&ptpClock->oFilterSM);
 
-		ptpClock->timingService.dataSet.priority1 = rtOpts->preferNTP;
+			outlierFilterSetup(&ptpClock->oFilterMS);
+			outlierFilterSetup(&ptpClock->oFilterSM);
 
-		timingDomain.electionDelay = rtOpts->electionDelay;
-		if(timingDomain.electionLeft > timingDomain.electionDelay) {
-			timingDomain.electionLeft = timingDomain.electionDelay;
+			ptpClock->oFilterMS.init(&ptpClock->oFilterMS,&rtOpts->oFilterMSConfig, "delayMS");
+			ptpClock->oFilterSM.init(&ptpClock->oFilterSM,&rtOpts->oFilterSMConfig, "delaySM");
+
+
+			if(rtOpts->filterMSOpts.enabled) {
+				ptpClock->filterMS = createDoubleMovingStatFilter(&rtOpts->filterMSOpts,"delayMS");
+			}
+
+			if(rtOpts->filterSMOpts.enabled) {
+				ptpClock->filterSM = createDoubleMovingStatFilter(&rtOpts->filterSMOpts, "delaySM");
+			}
+
 		}
-
-		timingDomain.services[0]->holdTime = rtOpts->ntpOptions.failoverTimeout;
-
-		if(timingDomain.services[0]->holdTimeLeft >
-			timingDomain.services[0]->holdTime) {
-			timingDomain.services[0]->holdTimeLeft =
-			rtOpts->ntpOptions.failoverTimeout;
-		}
-
-		ptpClock->timingService.timeout = rtOpts->idleTimeout;
 
 		controlClockDrivers(CD_NOTINUSE);
-		prepareClockDrivers(&ptpClock->netPath, ptpClock, rtOpts);
-		createClockDriversFromString(rtOpts->extraClocks, rtOpts, TRUE);
+		prepareClockDrivers(ptpClock);
+		createClockDriversFromString(rtOpts->extraClocks, configureClockDriver, rtOpts, TRUE);
 		/* clean up unused clock drivers */
 		controlClockDrivers(CD_CLEANUP);
-		reconfigureClockDrivers(rtOpts);
+		reconfigureClockDrivers(configureClockDriver, rtOpts);
 
 		    /* Config changes don't require subsystem restarts - acknowledge it */
 		    if(rtOpts->restartSubsystems == PTPD_RESTART_NONE) {
@@ -448,6 +391,10 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 void
 checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
+
+	TTransport *event = ptpClock->eventTransport;
+	TTransport *general = ptpClock->generalTransport;
+
 	/*
 	 * note:
 	 * alarm signals are handled in a similar way in dep/timer.c
@@ -485,16 +432,23 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif
 		displayCounters(ptpClock);
 		displayAlarms(ptpClock->alarms, ALRM_MAX);
-		if(rtOpts->timingAclEnabled) {
-			INFO("\n\n");
-			INFO("** Timing message ACL:\n");
-			dumpIpv4AccessList(ptpClock->netPath.timingAcl);
+
+    		if(event) {
+		    event->dataAcl->dump(event->dataAcl);
+		    event->controlAcl->dump(event->controlAcl);
+		    if(rtOpts->clearCounters) {
+			event->clearCounters(event);
+		    }
 		}
-		if(rtOpts->managementAclEnabled) {
-			INFO("\n\n");
-			INFO("** Management message ACL:\n");
-			dumpIpv4AccessList(ptpClock->netPath.managementAcl);
+
+		if(general && (general != event)) {
+		    general->dataAcl->dump(general->dataAcl);
+		    general->controlAcl->dump(general->controlAcl);
+		    if(rtOpts->clearCounters) {
+			general->clearCounters(general);
+		    }
 		}
+
 		if(rtOpts->oFilterSMConfig.enabled) {
 			ptpClock->oFilterSM.display(&ptpClock->oFilterSM);
 		}
@@ -586,8 +540,13 @@ ptpdShutdown(PtpClock * ptpClock)
 	toState(PTP_DISABLED, &rtOpts, ptpClock);
 	/* process any outstanding events before exit */
 	updateAlarms(ptpClock->alarms, ALRM_MAX);
-	netShutdown(&ptpClock->netPath, ptpClock);
+	netShutdown(ptpClock);
 	shutdownClockDrivers();
+	shutdownPtpTimers(ptpClock);
+	shutdownCckTimers();
+
+	myPtpClockPostShutdown(ptpClock);
+
 	free(ptpClock->foreign);
 
 	/* free management and signaling messages, they can have dynamic memory allocated */
@@ -611,8 +570,6 @@ ptpdShutdown(PtpClock * ptpClock)
 		dictionary_del(&rtOpts.currentConfig);
 	if(rtOpts.cliConfig != NULL)
 		dictionary_del(&rtOpts.cliConfig);
-
-	timerShutdown(ptpClock->timers);
 
 	free(ptpClock);
 	ptpClock = NULL;
@@ -659,14 +616,15 @@ void dump_command_line_parameters(int argc, char **argv)
 	INFO("Starting %s daemon with parameters:      %s\n", PTPD_PROGNAME, sbuf);
 }
 
-
-
 PtpClock *
 ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 {
 	PtpClock * ptpClock;
 	TimeInternal tmpTime;
 	int i = 0;
+
+	/* pass our log message writer function to libCCK */
+	cckSetLoggerFun(logMessageWrapper);
 
 	/*
 	 * Set the default mode for all newly created files - previously
@@ -676,7 +634,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	umask(~DEFAULT_FILE_PERMS);
 
 	/* get some entropy in... */
-	getSystemClock()->getTime(getSystemClock(), &tmpTime);
+	getSystemTime(&tmpTime);
 	srand(tmpTime.seconds ^ tmpTime.nanoseconds);
 
 	/**
@@ -763,17 +721,29 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	dictionary_del(&rtOpts->candidateConfig);
 
 	/* Check network before going into background */
-	if(!testInterface(rtOpts->primaryIfaceName, rtOpts)) {
-	    ERROR("Error: Cannot use %s interface\n",rtOpts->primaryIfaceName);
-	    *ret = 1;
-	    goto configcheck;
-	}
-	if(rtOpts->backupIfaceEnabled && !testInterface(rtOpts->backupIfaceName, rtOpts)) {
-	    ERROR("Error: Cannot use %s interface as backup\n",rtOpts->backupIfaceName);
+	INFO("Checking if network interface(s) are usable\n");
+
+	int family = getConfiguredFamily(rtOpts);
+
+	if(!testInterface(rtOpts->primaryIfaceName, family, rtOpts->sourceAddress) ||
+		(detectTTransport(family, rtOpts->primaryIfaceName,
+		    getEventTransportFlags(rtOpts), rtOpts->transportType) == TT_TYPE_NONE)) {
+	    ERROR("Error: Cannot use interface '%s'\n",rtOpts->primaryIfaceName);
 	    *ret = 1;
 	    goto configcheck;
 	}
 
+	if(rtOpts->backupIfaceEnabled) {
+	    if(!testInterface(rtOpts->backupIfaceName, family, rtOpts->sourceAddress) ||
+		(detectTTransport(family, rtOpts->backupIfaceName,
+		    getEventTransportFlags(rtOpts), rtOpts->transportType) == TT_TYPE_NONE)) {
+		ERROR("Error: Cannot use interface '%s' as backup\n",rtOpts->backupIfaceName);
+		*ret = 1;
+		goto configcheck;
+	    }
+	}
+
+	INFO("Interfaces OK\n");
 
 configcheck:
 	/*
@@ -821,7 +791,6 @@ configcheck:
 		DBG("allocated %d bytes for protocol engine data\n",
 		    (int)sizeof(PtpClock));
 
-
 		ptpClock->foreign = (ForeignMasterRecord *)
 			calloc(rtOpts->max_foreign_records,
 			       sizeof(ForeignMasterRecord));
@@ -837,6 +806,10 @@ configcheck:
 				  sizeof(ForeignMasterRecord)));
 		}
 	}
+
+	ptpClock->rtOpts = rtOpts;
+
+	myPtpClockPreInit(ptpClock);
 
 	if(rtOpts->statisticsLog.logEnabled)
 		ptpClock->resetStatisticsLog = TRUE;
@@ -902,16 +875,6 @@ configcheck:
 	}
 #endif
 
-	/* set up timers */
-	if(!timerSetup(ptpClock->timers)) {
-		PERROR("failed to set up event timers");
-		*ret = 2;
-		free(ptpClock);
-		goto fail;
-	}
-
-	ptpClock->rtOpts = rtOpts;
-
 	/* init alarms */
 	initAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
 	configureAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
@@ -956,14 +919,6 @@ configcheck:
 		ptpClock->filterSM = createDoubleMovingStatFilter(&rtOpts->filterSMOpts, "delaySM");
 	}
 
-#ifdef PTPD_PCAP
-		ptpClock->netPath.pcapEventSock = -1;
-		ptpClock->netPath.pcapGeneralSock = -1;
-#endif /* PTPD_PCAP */
-
-		ptpClock->netPath.generalSock = -1;
-		ptpClock->netPath.eventSock = -1;
-
 	*ret = 0;
 	return ptpClock;
 	
@@ -973,34 +928,6 @@ fail:
 	dictionary_del(&rtOpts->currentConfig);
 	return 0;
 }
-
-void
-ntpSetup (RunTimeOpts *rtOpts, PtpClock *ptpClock)
-{
-	TimingService *ts = &ptpClock->ntpControl.timingService;
-
-
-
-	if (rtOpts->ntpOptions.enableEngine) {
-	    timingDomain.services[1] = ts;
-	    strncpy(ts->id, "NTP0", TIMINGSERVICE_MAX_DESC);
-	    ts->dataSet.priority1 = 0;
-	    ts->dataSet.type = TIMINGSERVICE_NTP;
-	    ts->config = &rtOpts->ntpOptions;
-	    ts->controller = &ptpClock->ntpControl;
-	    /* for now, NTP is considered always active, so will never go idle */
-	    ts->timeout = 60;
-	    ts->updateInterval = rtOpts->ntpOptions.checkInterval;
-	    timingDomain.serviceCount = 2;
-	} else {
-	    timingDomain.serviceCount = 1;
-	    timingDomain.services[1] = NULL;
-	    if(timingDomain.best == ts || timingDomain.current == ts || timingDomain.preferred == ts) {
-		timingDomain.best = timingDomain.current = timingDomain.preferred = NULL;
-	    }
-	}
-}
-
 
 
 

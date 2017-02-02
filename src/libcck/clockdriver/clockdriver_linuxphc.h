@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2016-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -32,12 +32,21 @@
  *
  */
 
-#ifndef PTPD_CLOCKDRIVER_LINUXPHC_H_
-#define PTPD_CLOCKDRIVER_LINUXPHC_H_
+#ifndef CCK_CLOCKDRIVER_LINUXPHC_H_
+#define CCK_CLOCKDRIVER_LINUXPHC_H_
+
+#include <config.h>
+
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#ifdef HAVE_LINUX_IF_H
+#include <linux/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
+#elif defined(HAVE_NET_IF_H)
+#include <net/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
+#endif /* HAVE_LINUX_IF_H*/
 
 #include <libcck/clockdriver.h>
-
-#define OSCLOCK_OFFSET_SAMPLES 9
 
 typedef struct {
     int clockFd;
@@ -47,12 +56,12 @@ typedef struct {
 } ClockDriverData_linuxphc;
 
 typedef struct {
-    char networkDevice[IFACE_NAME_LENGTH];
+    char networkDevice[IFNAMSIZ];
     char characterDevice[PATH_MAX];
-    Boolean lockDevice;
+    bool lockDevice;
 } ClockDriverConfig_linuxphc;
 
-Boolean _setupClockDriver_linuxphc(ClockDriver* clockDriver);
+bool _setupClockDriver_linuxphc(ClockDriver* clockDriver);
 
 
-#endif /* PTPD_CLOCKDRIVER_LINUXPHC_H_ */
+#endif /* CCK_CLOCKDRIVER_LINUXPHC_H_ */

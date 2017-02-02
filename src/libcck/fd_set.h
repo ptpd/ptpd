@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Wojciech Owczarek,
+/* Copyright (c) 2016-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -35,37 +35,46 @@
 #ifndef CCK_FD_SET_H_
 #define CCK_FD_SET_H_
 
-#include <sys/select.h>		/* fd_set */
-#include <sys/time.h>		/* struct timeval */
+#include <sys/select.h>
+#include <sys/time.h>
 #include <libcck/cck_types.h>
-#include <libcck/linkedlist.h>
+#include <libcck/linked_list.h>
 
 typedef struct CckFd CckFd;
 
 /* LibCCK file descriptor wrapper */
 struct CckFd {
 	LINKED_LIST_TAG(CckFd);
-	int 		fd;			/* the actual FD */
-	void 		*owner;			/* component owning this fd */
-	void (*callback) (void *, void *);	/* callback when data available */
-	CckBool hasData;			/* flag marking that this fd has data available */
+	int 		fd;				/* the actual FD */
+	void 		*owner;				/* component owning this fd */
+	struct {
+	    void (*onData) (void *me, void *owner);	/* callback when data available */
+	} callbacks;
+	bool hasData;			/* flag marking that this fd has data available */
 	CckFd *nextData;			/* linked list for fds with data available */
 
 };
 
 /* LibCCK wrapper for a set of file descriptors */
 typedef struct {
-	LINKED_LIST_HOOK_LOCAL(CckFd);
-	CckBool hasData;
+	LINKED_LIST_ROOT_DYNAMIC(CckFd);
+	bool hasData;
 	CckFd *firstData;
 	fd_set fdSet;
 	fd_set _workSet;
 	int maxFd;
+	/* callbacks */
+	struct {
+	    void (*prePoll) (void *me, int *nfd, fd_set *fds, struct timeval *timeout, int *block);		/* before calling select() */
+	    void (*postPoll) (void *me, int *nfd, fd_set *fds, struct timeval *timeout);	/* always called after select() */
+	    void (*onData) (void *me, int *nfd, fd_set *fds, struct timeval *timeout);		/* when select has got something */
+	    void (*onTimeout) (void *me, int *nfd, fd_set *fds, struct timeval *timeout);	/* on timeout */
+	} callbacks;
 } CckFdSet;
 
 void	cckAddFd(CckFdSet *set, CckFd *fd);
 void	cckRemoveFd(CckFdSet *set, CckFd *fd);
-int	cckSelect(CckFdSet *set, struct timeval *timeout);
-
+int	cckPollData(CckFdSet *set, struct timeval *timeout);
+void	clearCckFdSet(CckFdSet *set);
 
 #endif /* CCK_FD_SET_H_ */

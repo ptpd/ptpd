@@ -32,8 +32,12 @@
  *
  */
 
-#ifndef PTPD_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_
-#define PTPD_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_
+#ifndef CCK_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_
+#define CCK_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_
+
+//#include <sys/types.h>
+#include <sys/socket.h>
+#include <linux/if.h>
 
 #include <libcck/clockdriver.h>
 #include "efx_ioctl_timesync.h"
@@ -42,10 +46,10 @@ typedef struct {
 	struct ifreq ifr;
 	struct efx_sock_ioctl sfioctl;
 	int fd;
-	char ifName[IFACE_NAME_LENGTH + 1];
+	char ifName[IFNAMSIZ + 1];
 } ClockDriverExtData_solarflare;
 
 int loadCdVendorExt_solarflare(ClockDriver *driver, const char *ifname);
 
 
-#endif /* PTPD_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_ */
+#endif /* CCK_CLOCKDRIVER_LINUXPHC_VEXT_SOLARFLARE_H_ */

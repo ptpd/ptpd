@@ -2,6 +2,7 @@
 #define PTP_TIMERS_H_
 
 #include "ptpd.h"
+#include <stdbool.h>
 
 /*-
  * Copyright (c) 2015 Wojciech Owczarek,
@@ -30,59 +31,70 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-#ifdef PTPD_PTIMERS
-#define LOG_MIN_INTERVAL -7
-#else
-/* 62.5ms tick for interval timers = 16/sec max */
-#define LOG_MIN_INTERVAL -4
-#endif /* PTPD_PTIMERS */
-
 /* safeguard: a week */
 #define PTPTIMER_MAX_INTERVAL 604800
+
+/* max name length */
+#define PTP_TIMER_NAME_MAX 20
 
 /**
 * \brief Structure used as a timer
  */
 typedef struct {
 	double interval;
-	Boolean expired;
-	Boolean running;
+	bool expired;
+	bool running;
 	/* hook for a generic timer object that can be assigned */
 	void *data;
 } IntervalTimer;
 
-/* WARNING: when updating these timers,
- * you MUST update timerSetup() in ptp_timers.c accordingly!
- * otherwise expect a segfault if there are more timers here
- * than descriptions in ptp_timers.c
- */
+typedef struct {
+	void *data;	/* timer implementation data */
+	char name[PTP_TIMER_NAME_MAX];
+	double interval;
+	bool expired;
+	bool running;
+} PtpTimer;
 
 enum {
-  PDELAYREQ_INTERVAL_TIMER=0,/**<\brief Timer handling the PdelayReq Interval*/
-  DELAYREQ_INTERVAL_TIMER,/**<\brief Timer handling the delayReq Interva*/
-  SYNC_INTERVAL_TIMER,/**<\brief Timer handling Interval between master sends two Syncs messages */
-  ANNOUNCE_RECEIPT_TIMER,/**<\brief Timer handling announce receipt timeout*/
-  ANNOUNCE_INTERVAL_TIMER, /**<\brief Timer handling interval before master sends two announce messages*/
-  /* non-spec timers */
-  SYNC_RECEIPT_TIMER,
-  DELAY_RECEIPT_TIMER,
-  UNICAST_GRANT_TIMER, /* used to age out unicast grants (sent, received) */
-  OPERATOR_MESSAGES_TIMER,  /* used to limit the operator messages */
-  LEAP_SECOND_PAUSE_TIMER, /* timer used for pausing updates when leap second is imminent */
-  STATUSFILE_UPDATE_TIMER, /* timer used for refreshing the status file */
-  PERIODIC_INFO_TIMER,	   /* timer used for dumping periodic status updates */
-  STATISTICS_UPDATE_TIMER, /* online mean / std dev updare interval (non-moving statistics) */
-  ALARM_UPDATE_TIMER,
-  MASTER_NETREFRESH_TIMER,
-  CALIBRATION_DELAY_TIMER,
+  /* fundamental PTP timers */
+  ANNOUNCE_RECEIPT_TIMER,	/* Announce receipt timeout timer */
+  DELAYREQ_INTERVAL_TIMER,	/* Delay Request transmission interval */
+  PDELAYREQ_INTERVAL_TIMER,	/* Peer Delay Request transmission interval */
+  SYNC_INTERVAL_TIMER,		/* Sync transmission interval */
+  ANNOUNCE_INTERVAL_TIMER,	/* Announce transmission interval */
+
+  /* non-spec PTP-related timers */
+  SYNC_RECEIPT_TIMER,		/* Sync receipt timeout (alarm) timer */
+  DELAY_RECEIPT_TIMER,		/* Delay response receipt timeout (alarm) timer */
+  UNICAST_GRANT_TIMER,		/* Unicast grant ageing timer */
+  CALIBRATION_DELAY_TIMER,	/* Offset calibration delay timer */
+  PERIODIC_INFO_TIMER,		/* Periodic PTP status updates */
+  STATISTICS_UPDATE_TIMER,	/* Online PTP statistics update interval (non-moving mean and dev) */
+
+  /* PTPd daemon timers - to be moved away */
+  OPERATOR_MESSAGES_TIMER, 	/* Limit repeated warning messages */
+  LEAP_SECOND_PAUSE_TIMER,	/* Event message processing pause around leap second event */
+  STATUSFILE_UPDATE_TIMER,	/* Status file update */
+  ALARM_UPDATE_TIMER,		/* Alarm ageing */
+  MASTER_NETREFRESH_TIMER,	/* Master state periodic mcast joins */
+  TIMINGDOMAIN_UPDATE_TIMER,	/* Timing domain framework - to be removed */
+
+  /* LibCCK housekeeping tasks - to be moved away */
   CLOCK_UPDATE_TIMER,
-  TIMINGDOMAIN_UPDATE_TIMER,
-  INTERFACE_CHECK_TIMER,
+  NETWORK_MONITOR_TIMER,
   CLOCK_SYNC_TIMER,
   CLOCKDRIVER_UPDATE_TIMER,
+
+  /* marker */
   PTP_MAX_TIMER
 };
+
+/* user-supplied interface */
+extern void ptpTimerStop(PtpTimer *timer);
+extern void ptpTimerStart(PtpTimer *timer, const double interval);
+extern void ptpTimerLogStart(PtpTimer *timer, const int power2);
+extern bool ptpTimerExpired(PtpTimer *timer);
 
 /* functions used by 1588 only */
 void timerStop(IntervalTimer *itimer);
@@ -91,5 +103,7 @@ Boolean timerExpired(IntervalTimer * itimer);
 Boolean timerRunning(IntervalTimer * itimer);
 Boolean timerSetup(IntervalTimer *itimers);
 void timerShutdown(IntervalTimer *itimers);
+
+const char * getPtpTimerName(int id);
 
 #endif /* PTP_TIMERS_H_ */

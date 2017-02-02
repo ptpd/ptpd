@@ -1,7 +1,14 @@
 #ifndef PTP_DATATYPES_H_
 #define PTP_DATATYPES_H_
 
+#ifndef CLOCK_IDENTITY_LENGTH
+#define CLOCK_IDENTITY_LENGTH 8
+#endif
+
 #include "ptp_primitives.h"
+#include <libcck/cck_types.h>
+
+#define TimeInternal CckTimestamp
 
 /*Struct defined in spec*/
 
@@ -17,10 +24,12 @@
 /**
 * \brief Time structure to handle timestamps
  */
+/*
 typedef struct {
 	Integer32 seconds;
 	Integer32 nanoseconds;
 } TimeInternal;
+*/
 
 /**
 * \brief The TimeInterval type represents time intervals
@@ -510,7 +519,7 @@ typedef struct
 	MsgAnnounce  announce;	/* announce message -> all datasets */
 	MsgHeader    header;	/* header -> some datasets */
 	UInteger8    localPreference; /* local preference - only used by telecom profile */
-	UInteger32   sourceAddr; /* source address */
+	void*		protocolAddress; /* source address */
 	Boolean	     disqualified; /* if true, this one always loses */
 } ForeignMasterRecord;
 
@@ -577,6 +586,13 @@ typedef struct {
 	Enumeration8 lastPortState; 	/* previous state */
 	Nibble transportSpecific; 	/* TransportSpecific for 802.1AS */
 	Integer16 lastMismatchedDomain; 	/* domain mismatch detection */
+	/* should be PortAddress */
+	Enumeration16 networkProtocol;
+	UInteger16 addressLength;
+	Octet addressField[16];
+
+	Octet physicalAddressField[16];
+	UInteger16 physicalAddressLength;
 
 } PortDS;
 
@@ -590,5 +606,7 @@ typedef struct {
     ForeignMasterRecord bestMaster;
     Integer32		ofmAlarmThreshold;
 } PtpEventData;
+
+#define PTP_GENERAL_MSGCLASS 0x08
 
 #endif /*PTP_DATATYPES_H_*/

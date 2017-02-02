@@ -41,7 +41,9 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
-//static void sendNotif(int event);
+
+
+
 static void sendNotif(int eventType, PtpEventData *eventData);
 
 /* Hard to get header... */
@@ -265,7 +267,8 @@ enum {
 #define SNMP_PTP_CLOCK_INSTANCE 1	/* Only one instance */
 #define SNMP_PTP_PORT_MASTER 1
 #define SNMP_PTP_PORT_SLAVE  2
-#define SNMP_IPv4 1
+#define SNMP_IPV4 1
+#define SNMP_IPV6 1
 #define SNMP_PTP_TX_UNICAST 1
 #define SNMP_PTP_TX_MULTICAST 2
 #define SNMP_PTP_TX_MULTICAST_MIX 3
@@ -575,14 +578,20 @@ snmpClockDSTable(SNMP_SIGNATURE) {
 		return SNMP_INTEGER(snmpPtpClock->parentDS.grandmasterClockQuality.offsetScaledLogVariance);
 	/* PTPd addition */
 	case PTPBASE_CLOCK_PARENT_DS_PARENT_PORT_ADDRESS_TYPE:
-		/* Only supports IPv4 */
-		return SNMP_INTEGER(SNMP_IPv4);
+		if(snmpPtpClock->portDS.networkProtocol == UDP_IPV4) {
+		    return SNMP_INTEGER(SNMP_IPV4);
+		}
+		if(snmpPtpClock->portDS.networkProtocol == UDP_IPV6) {
+		    return SNMP_INTEGER(SNMP_IPV6);
+		}
+		return SNMP_INTEGER(0);
 	case PTPBASE_CLOCK_PARENT_DS_PARENT_PORT_ADDRESS:
-		if(snmpRtOpts->transport != UDP_IPV4)
-		    return SNMP_IPADDR(0);
-		if(!snmpPtpClock->bestMaster)
-		    return SNMP_IPADDR(0);
-		return SNMP_IPADDR(snmpPtpClock->bestMaster->sourceAddr);
+		if(!snmpPtpClock->bestMaster) {
+		    return SNMP_INTEGER(0);
+		}
+		return SNMP_OCTETSTR(
+			(u_char *) myAddrGetData(snmpPtpClock->bestMaster->protocolAddress),
+			myAddrDataSize(snmpPtpClock->bestMaster->protocolAddress));
 	/* ptpbaseClockDefaultDSTable */
 	case PTPBASE_CLOCK_DEFAULT_DS_TWO_STEP_FLAG:
 		return SNMP_BOOLEAN(snmpPtpClock->defaultDS.twoStepFlag);
@@ -635,6 +644,10 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
 
+	TTransport *ev = snmpPtpClock->eventTransport;
+	TTransport *gen = snmpPtpClock->generalTransport;
+	uint64_t total = 0;
+
 	/* We only have one valid index */
 	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
@@ -657,12 +670,12 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 	case PTPBASE_CLOCK_PORT_SYNC_ONE_STEP:
 		return (snmpPtpClock->defaultDS.twoStepFlag == TRUE)?SNMP_FALSE:SNMP_TRUE;
 	case PTPBASE_CLOCK_PORT_CURRENT_PEER_ADDRESS_TYPE:
-		/* Only supports IPv4 */
-		return SNMP_INTEGER(SNMP_IPv4);
+		/* Only supports IPV4 */
+		return SNMP_INTEGER(SNMP_IPV4);
 	case PTPBASE_CLOCK_PORT_CURRENT_PEER_ADDRESS:
-		if(snmpRtOpts->transport != UDP_IPV4)
+		if(snmpRtOpts->networkProtocol != TT_FAMILY_IPV4)
 		    return SNMP_IPADDR(0);
-		return(SNMP_IPADDR(snmpPtpClock->netPath.interfaceAddr.s_addr));
+		return(SNMP_IPADDR(ev->ownAddress.addr.inet4.sin_addr.s_addr));
 	case PTPBASE_CLOCK_PORT_NUM_ASSOCIATED_PORTS:
 		if(snmpPtpClock->portDS.portState == PTP_MASTER && snmpRtOpts->unicastNegotiation) {
 			return SNMP_INTEGER(snmpPtpClock->slaveCount);
@@ -716,25 +729,32 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		return SNMP_INTEGER((snmpPtpClock->portDS.portState == PTP_MASTER)?
 				    SNMP_PTP_PORT_MASTER:SNMP_PTP_PORT_SLAVE);
 	case PTPBASE_CLOCK_PORT_RUNNING_INTERFACE_INDEX:
-		return SNMP_INTEGER(snmpPtpClock->netPath.interfaceInfo.ifIndex);
+		return SNMP_INTEGER(getInterfaceIndex(snmpRtOpts->ifaceName));
 	case PTPBASE_CLOCK_PORT_RUNNING_IPVERSION:
-		/* IPv4 only */
+		/* IPV4 only */
 		return SNMP_INTEGER(4);
 	case PTPBASE_CLOCK_PORT_RUNNING_ENCAPSULATION_TYPE:
 		/* None. Moreover, the format is not really described in the MIB... */
 		return SNMP_INTEGER(0);
 	case PTPBASE_CLOCK_PORT_RUNNING_TX_MODE:
 	case PTPBASE_CLOCK_PORT_RUNNING_RX_MODE:	
-		if (snmpRtOpts->ipMode == IPMODE_UNICAST)
+		if (snmpRtOpts->transportMode == TMODE_UC)
 			return SNMP_INTEGER(SNMP_PTP_TX_UNICAST);
-		if (snmpRtOpts->ipMode == IPMODE_HYBRID)
+		if (snmpRtOpts->transportMode == TMODE_MIXED)
 			return SNMP_INTEGER(SNMP_PTP_TX_MULTICAST_MIX);
 		return SNMP_INTEGER(SNMP_PTP_TX_MULTICAST);
 	case PTPBASE_CLOCK_PORT_RUNNING_PACKETS_RECEIVED:
-
-		return SNMP_COUNTER64(snmpPtpClock->netPath.receivedPacketsTotal);
+		total = ev->counters.rxMsg;
+		if(ev != gen) {
+		    total += gen->counters.rxMsg;
+		}
+		return SNMP_COUNTER64(total);
 	case PTPBASE_CLOCK_PORT_RUNNING_PACKETS_SENT:
-		return SNMP_COUNTER64(snmpPtpClock->netPath.sentPacketsTotal);
+		total = ev->counters.txMsg;
+		if(ev != gen) {
+		    total += gen->counters.txMsg;
+		}
+		return SNMP_COUNTER64(total);
 	}
 
 
@@ -745,6 +765,9 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 static int
 snmpWriteClearCounters (int action, u_char *var_val, u_char var_val_type, size_t var_val_len,
 			    u_char *statP, oid *name, size_t name_len) {
+
+	TTransport *ev = snmpPtpClock->eventTransport;
+	TTransport *gen = snmpPtpClock->generalTransport;
 
 	/* table: 6 oids from end (index fields, entry, field) */
 	oid myOid1 = name[name_len - 1 - 6];
@@ -771,6 +794,10 @@ snmpWriteClearCounters (int action, u_char *var_val, u_char var_val_type, size_t
 				/* all counters */
 				if(myOid2 == 5) {
 					memset(&snmpPtpClock->counters, 0, sizeof(PtpdCounters));
+					TTransport *tr = snmpPtpClock->eventTransport;
+					tr->clearCounters(tr);
+					tr = snmpPtpClock->generalTransport;
+					tr->clearCounters(tr);
 					return SNMP_ERR_NOERROR;
 				}
 				/* message counters */
@@ -843,8 +870,14 @@ snmpWriteClearCounters (int action, u_char *var_val, u_char var_val_type, size_t
 		    case 17: /* security counters */
 				/* clear counters */
 				if(myOid2 == 5) {
-					snmpPtpClock->counters.aclTimingMessagesDiscarded = 0;
-					snmpPtpClock->counters.aclManagementMessagesDiscarded = 0;
+					if(ev) {
+					    ev->dataAcl->clearCounters(ev->dataAcl);
+					    ev->controlAcl->clearCounters(ev->controlAcl);
+					    if(ev != gen) {
+						gen->dataAcl->clearCounters(gen->dataAcl);
+						gen->controlAcl->clearCounters(gen->controlAcl);
+					    }
+					}
 					return SNMP_ERR_NOERROR;
 				}
 			break;
@@ -853,8 +886,8 @@ snmpWriteClearCounters (int action, u_char *var_val, u_char var_val_type, size_t
 				if(myOid2 == 5) {
 					snmpPtpClock->counters.consecutiveSequenceErrors = 0;
 					snmpPtpClock->counters.ignoredAnnounce = 0;
-					snmpPtpClock->counters.delayMSOutliersFound = 0;
-					snmpPtpClock->counters.delaySMOutliersFound = 0;
+					snmpPtpClock->counters.delayMSOutliers = 0;
+					snmpPtpClock->counters.delaySMOutliers = 0;
 					snmpPtpClock->counters.maxDelayDrops = 0;
 					return SNMP_ERR_NOERROR;
 				}
@@ -882,6 +915,10 @@ snmpPtpPortMessageCountersTable(SNMP_SIGNATURE) {
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
 
+	TTransport *ev = snmpPtpClock->eventTransport;
+	TTransport *gen = snmpPtpClock->generalTransport;
+	uint32_t total = 0;
+
 	/* We only have one valid index */
 	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
@@ -899,9 +936,17 @@ snmpPtpPortMessageCountersTable(SNMP_SIGNATURE) {
 	    *write_method = snmpWriteClearCounters;
 	    return SNMP_FALSE;
 	case PTPBASE_PORT_MESSAGE_COUNTERS_TOTAL_SENT:
-	    return SNMP_INTEGER(snmpPtpClock->netPath.sentPacketsTotal);
+	    total = ev->counters.txMsg;
+	    if(ev != gen) {
+		total += gen->counters.txMsg;
+	    }
+	    return SNMP_INTEGER(total);
 	case PTPBASE_PORT_MESSAGE_COUNTERS_TOTAL_RECEIVED:
-	    return SNMP_INTEGER(snmpPtpClock->netPath.receivedPacketsTotal);
+	    total = ev->counters.rxMsg;
+	    if(ev != gen) {
+		total += gen->counters.rxMsg;
+	    }
+	    return SNMP_INTEGER(total);
 	case PTPBASE_PORT_MESSAGE_COUNTERS_ANNOUNCE_SENT:
 	    return SNMP_INTEGER(snmpPtpClock->counters.announceMessagesSent);
 	case PTPBASE_PORT_MESSAGE_COUNTERS_ANNOUNCE_RECEIVED:
@@ -1116,6 +1161,29 @@ snmpPtpPortSecurityCountersTable(SNMP_SIGNATURE) {
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
 
+	TTransport *ev = snmpPtpClock->eventTransport;
+	TTransport *gen = snmpPtpClock->generalTransport;
+
+	uint32_t tDropped= 0;
+	uint32_t cDropped = 0;
+
+	if(ev->dataAcl) {
+	    tDropped = ev->dataAcl->counters.dropped;
+
+	}
+	if(ev->controlAcl) {
+	    cDropped = ev->controlAcl->counters.dropped;
+	}
+
+	if(ev != gen) {
+	    if(gen->dataAcl) {
+		tDropped += gen->dataAcl->counters.dropped;
+	    }
+	    if(gen->controlAcl) {
+		cDropped += gen->controlAcl->counters.dropped;
+	    }
+	}
+
 	/* We only have one valid index */
 	index[0] = snmpPtpClock->defaultDS.domainNumber;
 	index[1] = SNMP_PTP_ORDINARY_CLOCK;
@@ -1130,9 +1198,9 @@ snmpPtpPortSecurityCountersTable(SNMP_SIGNATURE) {
 	    *write_method = snmpWriteClearCounters;
 	    return SNMP_FALSE;
     case PTPBASE_PORT_SECURITY_COUNTERS_TIMING_ACL_DISCARDED:
-	return SNMP_INTEGER(snmpPtpClock->counters.aclTimingMessagesDiscarded);
+	return SNMP_INTEGER(tDropped);
     case PTPBASE_PORT_SECURITY_COUNTERS_MANAGEMENT_ACL_DISCARDED:
-	return SNMP_INTEGER(snmpPtpClock->counters.aclManagementMessagesDiscarded);
+	return SNMP_INTEGER(cDropped);
 	}
 
 	return NULL;
@@ -1277,7 +1345,7 @@ snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
 
 	switch (vp->magic) {
 	    case PTPBASE_SLAVE_FREQADJ_STATS_CURRENT_VALUE:
-		return SNMP_INTEGER(snmpPtpClock->clockDriver->lastFrequency);
+		return SNMP_INTEGER(((ClockDriver*)snmpPtpClock->clockDriver)->lastFrequency);
 	    case PTPBASE_SLAVE_FREQADJ_STATS_PERIOD_SECONDS:
 		return SNMP_INTEGER(snmpRtOpts->statsUpdateInterval);
 /*
@@ -1328,9 +1396,9 @@ snmpPtpdSpecificCountersTable(SNMP_SIGNATURE) {
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_CONSECUTIVE_SEQUENCE_ERRORS:
 	return SNMP_INTEGER(snmpPtpClock->counters.consecutiveSequenceErrors);
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_DELAYMS_OUTLIERS_FOUND:
-	return SNMP_INTEGER(snmpPtpClock->counters.delayMSOutliersFound);
+	return SNMP_INTEGER(snmpPtpClock->counters.delayMSOutliers);
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_DELAYSM_OUTLIERS_FOUND:
-	return SNMP_INTEGER(snmpPtpClock->counters.delaySMOutliersFound);
+	return SNMP_INTEGER(snmpPtpClock->counters.delaySMOutliers);
     case PTPBASE_PTPD_SPECIFIC_COUNTERS_MAX_DELAY_DROPS:
 	return SNMP_INTEGER(snmpPtpClock->counters.maxDelayDrops);
 	}
@@ -1875,7 +1943,16 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *ev
 			oid utcOffsetValidOid[] = { PTPBASE_MIB_OID, 1, 2, 5, 1, 4, PTPBASE_MIB_INDEX3 };
 			oid portStateOid[] = { PTPBASE_MIB_OID, 1, 2, 9, 1, 6, PTPBASE_MIB_INDEX4 };
 
-			unsigned long addrType = SNMP_IPv4;
+			unsigned long addrType = 0;
+
+			if(snmpPtpClock->portDS.networkProtocol == UDP_IPV4) {
+			    addrType = SNMP_IPV4;
+			}
+
+			if(snmpPtpClock->portDS.networkProtocol == UDP_IPV6) {
+			    addrType = SNMP_IPV6;
+			}
+
 			unsigned long priority1 = eventData->parentDS.grandmasterPriority1;
 			unsigned long priority2 = eventData->parentDS.grandmasterPriority2;
 			unsigned long clockClass = eventData->parentDS.grandmasterClockQuality.clockClass;
@@ -1889,7 +1966,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *ev
 			    ASN_INTEGER, (u_char *) &addrType, sizeof(addrType));
 
 			snmp_varlist_add_variable(varBinds, portAddrOid, OID_LENGTH(portAddrOid),
-			    ASN_OCTET_STR, (u_char *) &eventData->bestMaster.sourceAddr, sizeof(eventData->bestMaster.sourceAddr));
+			    ASN_OCTET_STR, (u_char *) myAddrGetData(eventData->bestMaster.protocolAddress), myAddrDataSize(eventData->bestMaster.protocolAddress));
 
 			snmp_varlist_add_variable(varBinds, gmClockIdOid, OID_LENGTH(gmClockIdOid),
 			    ASN_OCTET_STR, (u_char *) &eventData->parentDS.grandmasterIdentity, sizeof(ClockIdentity));
@@ -2082,6 +2159,32 @@ snmpShutdown() {
 	SOCK_CLEANUP;
 
 }
+
+/* CckFdSet callbacks */
+void
+snmpPrePoll(void *cfds, int *nfd, fd_set *fds, struct timeval *timeout, int *block)
+{
+    snmp_select_info(nfd, fds, timeout, block);
+}
+
+void snmpOnData(void *cfds, int *nfd, fd_set *fds, struct timeval *timeout)
+{
+    snmp_read(fds);
+}
+
+void snmpOnTimeout(void *cfds, int *nfd, fd_set *fds, struct timeval *timeout)
+{
+    snmp_timeout();
+    run_alarms();
+
+}
+
+void snmpPostPoll(void *cfds, int *nfd, fd_set *fds, struct timeval *timeout)
+{
+    netsnmp_check_outstanding_agent_requests();
+}
+
+
 
 void
 alarmHandler_snmp(AlarmEntry *alarm)

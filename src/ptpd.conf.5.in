@@ -162,7 +162,7 @@ To see all preset settings, run ptpd2 \fI-H\fR (\fI--long-help\fR)
 .RS 8
 .TP 8
 \fBoptions\fR
-\fIipv4 ethernet\fR
+\fIipv4 ipv6 ethernet\fR
 .TP 8
 \fBusage\fR
 Transport type for PTP packets. \fBNOTE:\fR Ethernet transport requires building with \fIlibpcap\fR and is not supported on Solaris as of 2.3.1,

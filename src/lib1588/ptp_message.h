@@ -97,6 +97,8 @@ enum {
     PTP_MSGTYPE_MANAGEMENT =		0x0d
 };
 
+#define PTP_MSGCLASS_GENERAL 0x08
+
 /* PTP controlField values (deprecated) */
 enum {
     PTP_CONTROL_SYNC =			0x00,
@@ -202,13 +204,19 @@ typedef union {
 
 typedef struct {
 
+    struct PtpTlv *firstTlv;
+    struct PtpTlv *lastTlv;
+
     PtpMessageHeader	header;
     PtpMessageBody	body;
 
     unsigned int tlvCount;
 
-    struct PtpTlv *firstTlv;
-    struct PtpTlv *lastTlv;
+    struct {
+	PtpBoolean fromSelf;
+	PtpBoolean isEvent;
+	PtpBoolean isPeer;
+    } checks;
 
 } PtpMessage;
 
@@ -225,8 +233,6 @@ void freePtpMessage(PtpMessage *message);
 void attachPtpTlv(PtpMessage *message, struct PtpTlv *tlv);
 void displayPtpTlvs(PtpMessage *message);
 void freePtpTlvs(PtpMessage *message);
-
-
 
 #undef PTP_TYPE_FUNCDEFS
 

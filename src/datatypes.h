@@ -9,7 +9,6 @@
 #include <dep/statistics.h>
 #include "dep/alarms.h"
 
-
 #include "libcck/clockdriver.h"
 #include "globalconfig.h"
 
@@ -26,6 +25,11 @@ typedef struct
 	 * - received only incremented when message valid and accepted,
 	 * - looped messages to self don't increment received,
 	 */
+
+	/* todo: replace the below */
+	uint32_t rxMessages[PTP_MAX_MESSAGE_INDEXED];
+	uint32_t txMessages[PTP_MAX_MESSAGE_INDEXED];
+
 	uint32_t announceMessagesSent;
 	uint32_t announceMessagesReceived;
 	uint32_t syncMessagesSent;
@@ -69,8 +73,6 @@ typedef struct
 	uint32_t discardedMessages;	  /* only messages we shouldn't be receiving - ignored from self don't count */
 	uint32_t unknownMessages;	  /* unknown type - also increments discarded */
 	uint32_t ignoredAnnounce;	  /* ignored Announce messages: acl / security / preference */
-	uint32_t aclTimingMessagesDiscarded;	  /* Timing messages discarded by access lists */
-	uint32_t aclManagementMessagesDiscarded;	  /* Timing messages discarded by access lists */
 
 	/* error counters */
 	uint32_t messageRecvErrors;	  /* message receive errors */
@@ -95,13 +97,14 @@ typedef struct
 	uint32_t unicastGrantsCancelAckSent; /* how many cancel ack we sent */
 	uint32_t unicastGrantsCancelAckReceived; /* how many cancel ack we received */
 
+	uint32_t delayMSOutliers;	  /* Number of outliers found by the delayMS filter */
+	uint32_t delaySMOutliers;	  /* Number of outliers found by the delaySM filter */
+	uint32_t maxDelayDrops;		  /* number of samples dropped due to maxDelay threshold */
 
-	uint32_t delayMSOutliersFound;	  /* Number of outliers found by the delayMS filter */
-	uint32_t delaySMOutliersFound;	  /* Number of outliers found by the delaySM filter */
-	uint32_t maxDelayDrops; /* number of samples dropped due to maxDelay threshold */
-
-	uint32_t messageSendRate;	/* RX message rate per sec */
-	uint32_t messageReceiveRate;	/* TX message rate per sec */
+	uint32_t messageSendRate;	/* TX message rate per sec */
+	uint32_t messageReceiveRate;	/* RX message rate per sec */
+	uint32_t bytesSendRate;		/* TX Bps */
+	uint32_t bytesReceiveRate;	/* RX Bps */
 
 } PtpdCounters;
 
@@ -151,7 +154,7 @@ typedef struct {
 } UnicastGrantData;
 
 struct UnicastGrantTable {
-	Integer32		transportAddress;	/* IP address of slave (or master) */
+	void*			protocolAddress;	/* user-supplied address object - we are agnostic to this - address  of slave / or master*/
 	UInteger8		domainNumber;		/* domain of the master - as used by Telecom Profile */
 	UInteger8		localPreference;		/* local preference - as used by Telecom profile */
 	PortIdentity    	portIdentity;		/* master: port ID of grantee, slave: portID of grantor */
@@ -169,22 +172,36 @@ typedef struct {
 
 /* Unicast destination configuration: Address, domain, preference, last Sync timestamp sent */
 typedef struct {
-    Integer32 		transportAddress;		/* destination address */
+    void*		protocolAddress;		/* user-supplied address object - we are agnostic to this - destination address */
     UInteger8 		domainNumber;			/* domain number - for slaves with masters in multiple domains */
     UInteger8 		localPreference;		/* local preference to influence BMC */
     TimeInternal 	lastSyncTimestamp;			/* last Sync timestamp sent */
 } UnicastDestination;
 
 typedef struct {
-    Integer32 transportAddress;
+    void	*protocolAddress;
 } SyncDestEntry;
+
+/* PTP data for transmission / received PTP data */
+typedef struct {
+    void *src;			/* source address */
+    void *dst;			/* destination address */
+    char *data;			/* data buffer */
+    bool hasTimestamp;		/* message contains an RX / TX timestamp */
+    TimeInternal timestamp;	/* RX / TX timestamp */
+} PtpData;
 
 /**
  * \struct PtpClock
  * \brief Main program data structure
  */
 /* main program data structure */
-typedef struct {
+
+typedef struct PtpClock PtpClock;
+
+struct PtpClock {
+
+	RunTimeOpts *rtOpts;
 
 	/* PTP datsets */
 	DefaultDS defaultDS; 			/* Default data set */
@@ -275,6 +292,9 @@ typedef struct {
 	TimeInternal  lastPdelayRespCorrectionField;
 	TimeInternal	lastOriginTimestamp;
 
+	/* todo: replace the below */
+	UInteger16 txSequenceId[PTP_MAX_MESSAGE_INDEXED];
+
 	Boolean  sentPdelayReq;
 	UInteger16  sentPdelayReqSequenceId;
 	UInteger16  sentDelayReqSequenceId;
@@ -288,15 +308,36 @@ typedef struct {
 	Boolean  waitingForDelayResp;
 	
 	offset_from_master_filter  ofm_filt;
-	one_way_delay_filter  mpdIirFilter;
+	IIRfilter  mpdIirFilter;
 
 	Boolean message_activity;
 
-	IntervalTimer   timers[PTP_MAX_TIMER];
+	PtpTimer	timers[PTP_MAX_TIMER];
 	AlarmEntry	alarms[ALRM_MAX];
 	int alarmDelay;
 
-	NetPath netPath;
+	/* user-supplied objects go here */
+
+	void *eventTransport;
+	void *generalTransport;
+
+	void *eventDestination;
+	void *generalDestination;
+
+	void *peerEventDestination;
+	void *peerGeneralDestination;
+
+	void *userData;
+
+	struct {
+	    void (*preInit) (PtpClock *ptpClock);
+	    void (*postInit) (PtpClock *ptpClock);
+//	    void (*preShutdown) (PtpClock *ptpClock);
+//	    void (*postShutdown) (PtpClock *ptpClock);
+//	    int (*addrStrLen)	(void *addr);
+//	    char (*addrToString) (char *buf, const int len, void *addr);
+	    void (*onStateChange) (PtpClock *ptpClock, const uint8_t from, const uint8_t to);
+	} callbacks;
 
 	/*Stats header will be re-printed when set to true*/
 	Boolean resetStatisticsLog;
@@ -304,13 +345,10 @@ typedef struct {
 	int listenCount; // number of consecutive resets to listening
 	int resetCount;
 	int announceTimeouts;
-	int warned_operator_slow_slewing;
-	int warned_operator_fast_slewing;
 	Boolean warnedUnicastCapacity;
 	int maxDelayRejected;
 
 	Boolean runningBackupInterface;
-
 
 	char char_last_msg;                             /* representation of last message processed by servo */
 
@@ -326,8 +364,8 @@ typedef struct {
 	Octet userDescription[USER_DESCRIPTION_MAX + 1];
 	Octet profileIdentity[6];
 
-	Integer32	lastSyncDst;		/* destination address for last sync, so we know where to send the followUp - last resort: we should capture the dst address ourselves */
-	Integer32	lastPdelayRespDst;	/* captures the destination address of last pdelayResp so we know where to send the pdelayRespfollowUp */
+	void *lastSyncDst;		/* destination address for last sync, so we know where to send the followUp - last resort: we should capture the dst address ourselves */
+	void *lastPdelayRespDst;	/* captures the destination address of last pdelayResp so we know where to send the pdelayRespfollowUp */
 
 	/*
 	 * counters - useful for debugging and monitoring,
@@ -374,9 +412,6 @@ typedef struct {
 
 	NTPcontrol ntpControl;
 
-	/* the interface to TimingDomain */
-	TimingService timingService;
-
 	/* accumulating offset correction added when smearing leap second */
 	double leapSmearFudge;
 
@@ -388,16 +423,16 @@ typedef struct {
 	Boolean addOffset;
 #endif
 
-	RunTimeOpts *rtOpts;
+	bool clockLocked;
 
-	struct ClockDriver *clockDriver;
-	struct ClockDriver *masterClock;
+	void *clockDriver;
+	void *masterClock;
 
 	/* tell the protocol engine to silently ignore the next n offset/delay updates */
 	int ignoreDelayUpdates;
 	int ignoreOffsetUpdates;
 
-} PtpClock;
+};
 
 
 #endif /*DATATYPES_H_*/

@@ -43,119 +43,47 @@
 
 #include "ptpd.h"
 
-void
-timerStop(IntervalTimer * itimer)
-{
-	if (itimer == NULL)
-		return;
-	EventTimer *timer = (EventTimer *)(itimer->data);
+static const char* timerDesc[PTP_MAX_TIMER] = {
 
-	timer->stop(timer);
-}
+/* fundamental PTP timers */
+	[ANNOUNCE_RECEIPT_TIMER]	= "ANNOUNCE_RECEIPT",
+	[DELAYREQ_INTERVAL_TIMER]	= "DELAYREQ_INTERVAL",
+	[PDELAYREQ_INTERVAL_TIMER]	= "PDELAYREQ_INTERVAL",
+	[SYNC_INTERVAL_TIMER]		= "SYNC_INTERVAL",
+	[ANNOUNCE_INTERVAL_TIMER]	= "ANNOUNCE_INTERVAL",
 
-void
-timerStart(IntervalTimer * itimer, double interval)
-{
-	if (itimer == NULL)
-		return;
+/* non-spec PTP-related timers */
+	[SYNC_RECEIPT_TIMER]		= "SYNC_RECEIPT",
+	[DELAY_RECEIPT_TIMER]		= "DELAY_RECEIPT",
+	[UNICAST_GRANT_TIMER]		= "UNICAST_GRANT",
+	[CALIBRATION_DELAY_TIMER]	= "CALIBRATION_DELAY",
+	[PERIODIC_INFO_TIMER]		= "PERIODIC_INFO",
+	[STATISTICS_UPDATE_TIMER]	= "STATISTICS_UPDATE",
 
-        if(interval > PTPTIMER_MAX_INTERVAL) {
-            interval = PTPTIMER_MAX_INTERVAL;
-        }
+/* PTPd daemon timers - to be moved away */
+	[OPERATOR_MESSAGES_TIMER]	= "OPERATOR_MESSAGES",
+	[LEAP_SECOND_PAUSE_TIMER]	= "LEAP_SECOND_PAUSE",
+	[STATUSFILE_UPDATE_TIMER]	= "STATUSFILE_UPDATE",
+	[ALARM_UPDATE_TIMER]		= "ALARM_UPDATE",
+	[MASTER_NETREFRESH_TIMER]	= "MASTER_NETREFRESH",
+	[TIMINGDOMAIN_UPDATE_TIMER]	= "TIMINGDOMAIN_UPDATE",
 
-	itimer->interval = interval;
+/* LibCCK housekeeping tasks - to be moved away */
+	[CLOCK_UPDATE_TIMER]		= "CLOCK_UPDATE",
+	[NETWORK_MONITOR_TIMER]		= "NETWORK_MONITOR",
+	[CLOCK_SYNC_TIMER]		= "CLOCK_SYNC",
+	[CLOCKDRIVER_UPDATE_TIMER]	= "CLOCKDRIVER_UPDATE",
 
-	EventTimer* timer = (EventTimer *)(itimer->data);
+};
 
-	timer->start(timer, interval);
-}
-
-Boolean
-timerExpired(IntervalTimer * itimer)
-{
-
-	if (itimer == NULL)
-		return FALSE;
-
-	EventTimer *timer = (EventTimer *)(itimer->data);
-
-	return timer->isExpired(timer);
-}
-
-Boolean
-timerRunning(IntervalTimer * itimer)
+const char *
+getPtpTimerName(int id)
 {
 
-	if (itimer==NULL)
-		return FALSE;
-
-	EventTimer *timer = (EventTimer *)(itimer->data);
-
-	return timer->isRunning(timer);
-}
-
-Boolean timerSetup(IntervalTimer *itimers)
-{
-
-    Boolean ret = TRUE;
-
-/* WARNING: these descriptions MUST be in the same order,
- * and in the same number as the enum in ptp_timers.h
- */
-
-    static const char* timerDesc[PTP_MAX_TIMER] = {
-  "PDELAYREQ_INTERVAL",
-  "DELAYREQ_INTERVAL",
-  "SYNC_INTERVAL",
-  "ANNOUNCE_RECEIPT",
-  "ANNOUNCE_INTERVAL",
-  "SYNC_RECEIPT",
-  "DELAY_RECEIPT",
-  "UNICAST_GRANT",
-  "OPERATOR_MESSAGES",
-  "LEAP_SECOND_PAUSE",
-  "STATUSFILE_UPDATE",
-  "PERIODIC_INFO",
-  "STATISTICS_UPDATE",
-  "ALARM_UPDATE",
-  "MASTER_NETREFRESH",
-  "CALIBRATION_DELAY",
-  "CLOCK_UPDATE",
-  "TIMINGDOMAIN_UPDATE",
-  "INTERFACE_CHECK",
-  "CLOCK_SYNC",
-  "CLOCK_DRIVER_UPDATE"
-    };
-
-    int i = 0;
-
-    startEventTimers();
-
-    for(i=0; i<PTP_MAX_TIMER; i++) {
-
-	itimers[i].data = NULL;
-	itimers[i].data = (void *)(createEventTimer(timerDesc[i]));
-	if(itimers[i].data == NULL) {
-	    ret = FALSE;
-	}
+    if(id >= 0 && id < PTP_MAX_TIMER) {
+	return timerDesc[id];
     }
 
-    return ret;
-
-}
-
-void timerShutdown(IntervalTimer *itimers)
-{
-
-    int i = 0;
-    EventTimer *timer = NULL;
-
-
-    for(i=0; i<PTP_MAX_TIMER; i++) {
-	    timer = (EventTimer*)(itimers[i].data);
-	    freeEventTimer(&timer);
-    }
-
-    shutdownEventTimers();
+    return "UNKNOWN_TIMER";
 
 }

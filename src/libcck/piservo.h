@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2015-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -33,17 +33,17 @@
  */
 
 
-#ifndef PTPD_PISERVO_H_
-#define PTPD_PISERVO_H_
+#ifndef CCK_PISERVO_H_
+#define CCK_PISERVO_H_
 
-#define ZEROF 10E-12
+#include <libcck/cck_types.h>
 
-#include "../ptp_primitives.h"
-#include "../ptp_datatypes.h"
-#include "clockdriver.h"
-
-#include <stdint.h>
-
+/* servo dT calculation mode */
+enum {
+	DT_NONE,
+	DT_CONSTANT,
+	DT_MEASURED
+};
 
 /**
  * \struct PIservo
@@ -57,23 +57,23 @@ struct PIservo {
     struct ClockDriver *controller;
 
     double maxOutput;
-    Integer32 input;
+    int32_t input;
     double output;
     double integral;
     double kP, kI;
-    Boolean runningMaxOutput;
-    TimeInternal lastUpdate;
+    bool runningMaxOutput;
+    CckTimestamp lastUpdate;
     int tauMethod;
     double tau;
     int maxTau;
     double delayFactor;
 
-    Integer32 diff;
+    int32_t diff;
     double _lastOutput;
-    Integer32 _lastInput;
-    Boolean _updated;
+    int32_t _lastInput;
+    bool _updated;
 
-    double (*feed) (PIservo*, Integer32, double);
+    double (*feed) (PIservo*, int32_t, double);
     void (*prime) (PIservo *, double);
     void (*reset) (PIservo*);
 
@@ -82,4 +82,4 @@ struct PIservo {
 void setupPIservo(PIservo*);
 
 
-#endif /*PTPD_PISERVO_H*/
+#endif /*CCK_PISERVO_H*/

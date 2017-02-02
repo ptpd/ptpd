@@ -62,9 +62,9 @@
 #endif
 
 #ifdef HAVE_LINUX_IF_H
-#include <linux/if.h>
+#include <linux/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
 #elif defined(HAVE_NET_IF_H)
-#include <net/if.h>
+#include <net/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
 #endif /* HAVE_LINUX_IF_H*/
 
 #ifdef HAVE_NET_IF_ETHER_H
@@ -94,53 +94,6 @@ static Boolean tDataUpdated = FALSE;
 
 #endif /* __QNXNTO__ */
 
-/*
- returns a static char * for the representation of time, for debug purposes
- DO NOT call this twice in the same printf!
-*/
-char *dump_TimeInternal(const TimeInternal * p)
-{
-	static char buf[100];
-
-	snprint_TimeInternal(buf, 100, p);
-	return buf;
-}
-
-
-/*
- displays 2 timestamps and their strings in sequence, and the difference between then
- DO NOT call this twice in the same printf!
-*/
-char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *st2, const TimeInternal * p2)
-{
-	static char buf[BUF_SIZE];
-	int n = 0;
-
-	/* display Timestamps */
-	if (st1) {
-		n += snprintf(buf + n, BUF_SIZE - n, "%s ", st1);
-	}
-	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, p1);
-	n += snprintf(buf + n, BUF_SIZE - n, "    ");
-
-	if (st2) {
-		n += snprintf(buf + n, BUF_SIZE - n, "%s ", st2);
-	}
-	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, p2);
-	n += snprintf(buf + n, BUF_SIZE - n, " ");
-
-	/* display difference */
-	TimeInternal r;
-	subTime(&r, p1, p2);
-	n += snprintf(buf + n, BUF_SIZE - n, "   (diff: ");
-	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, &r);
-	n += snprintf(buf + n, BUF_SIZE - n, ") ");
-
-	return buf;
-}
-
-
-
 int
 snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
 {
@@ -155,25 +108,6 @@ snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
 
 	return len;
 }
-
-
-/* debug aid: convert a time variable into a static char */
-char *time2st(const TimeInternal * p)
-{
-	static char buf[1000];
-
-	snprint_TimeInternal(buf, sizeof(buf), p);
-	return buf;
-}
-
-
-
-void DBG_time(const char *name, const TimeInternal  p)
-{
-	DBG("             %s:   %s\n", name, time2st(&p));
-
-}
-
 
 char *
 translatePortState(PtpClock *ptpClock)
@@ -196,11 +130,10 @@ translatePortState(PtpClock *ptpClock)
 	    case PTP_PRE_MASTER:    s = "pmst";  break;
 	    case PTP_MASTER:        s = "mst";   break;
 	    case PTP_DISABLED:      s = "dsbl";  break;
-	    default:                s = "?";     break;
+	    default:                s = "strt";     break;
 	}
 	return s;
 }
-
 
 int
 snprint_ClockIdentity(char *s, int max_len, const ClockIdentity id)
@@ -217,7 +150,6 @@ snprint_ClockIdentity(char *s, int max_len, const ClockIdentity id)
 
 	return len;
 }
-
 
 /* show the mac address in an easy way */
 int
@@ -335,21 +267,21 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 	return len;
 }
 
-/* Write a formatted string to file pointer */
+/* Write a formatted string to file pointer, with optional deduplication and filtering */
 int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char * format, va_list ap) {
 
 
 	extern RunTimeOpts rtOpts;
 	extern Boolean startupInProgress;
 
-	int written;
 	char time_str[MAXTIMESTR];
 	struct timeval now;
-#ifndef RUNTIME_DEBUG
 	char buf[PATH_MAX +1];
 	uint32_t hash;
-	va_list ap1;
-#endif /* RUNTIME_DEBUG */
+
+	bool debug = (priority >= LOG_DEBUG);
+
+	char *filter =  debug ? rtOpts.debugFilter : rtOpts.logFilter;
 
 	extern char *translatePortState(PtpClock *ptpClock);
 	extern PtpClock *G_ptpClock;
@@ -364,22 +296,28 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 		    return 1;
 		}
 
-#ifndef RUNTIME_DEBUG
-	/* check if this message produces the same hash as last */
 	memset(buf, 0, sizeof(buf));
-	va_copy(ap1, ap);
-	vsnprintf(buf, PATH_MAX, format, ap1);
-	hash = fnvHash(buf, sizeof(buf), 0);
-	if(lastHash != NULL) {
-	    if(format[0] != '\n' && lastHash != NULL) {
+	vsnprintf(buf, PATH_MAX, format, ap);
+
+	/* deduplication */
+	if(!debug) {
+	    /* check if this message produces the same hash as last */
+	    hash = fnvHash(buf, sizeof(buf), 0);
+	    if(lastHash != NULL) {
+		if(format[0] != '\n' && lastHash != NULL) {
 		    /* last message was the same - don't print the next one */
 		    if( (lastHash != 0) && (hash == *lastHash)) {
-		    return 0;
+			return 0;
+		    }
 		}
+		*lastHash = hash;
 	    }
-	    *lastHash = hash;
 	}
-#endif /* RUNTIME_DEBUG */
+
+	/* filter the log output */
+	if(strlen(filter) && !strstr(buf, filter)) {
+	    return 0;
+	}
 
 	/* Print timestamps and prefixes only if we're running in foreground or logging to file*/
 	if( rtOpts.nonDaemon || destination != stderr) {
@@ -410,8 +348,8 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 		fprintf(destination, " (%s) ", G_ptpClock ?
 		       translatePortState(G_ptpClock) : "___");
 	}
-	written = vfprintf(destination, format, ap);
-	return written;
+
+	return fprintf(destination, "%s", buf);
 
 }
 
@@ -433,21 +371,18 @@ updateLogSize(LogFileHandler* handler)
 
 }
 
-
 /*
- * Prints a message, randing from critical to debug.
+ * Prints a message, ranging from critical to debug.
  * This either prints the message to syslog, or with timestamp+state to stderr
  */
 void
-logMessage(int priority, const char * format, ...)
+logMessageWrapper(int priority, const char * format, va_list ap)
 {
 	extern RunTimeOpts rtOpts;
 	extern Boolean startupInProgress;
-	va_list ap , ap1;
 
+	va_list ap1;
 	va_copy(ap1, ap);
-	va_start(ap1, format);
-	va_start(ap, format);
 
 #ifdef RUNTIME_DEBUG
 	if ((priority >= LOG_DEBUG) && (priority > rtOpts.debug_level)) {
@@ -514,6 +449,17 @@ end:
 	return;
 }
 
+void logMessage(int priority, const char * format, ...) {
+
+    va_list ap;
+
+    va_start (ap, format);
+
+    logMessageWrapper(priority, format, ap);
+
+    va_end(ap);
+
+}
 
 /* Restart a file log target based on its settings  */
 int
@@ -672,6 +618,8 @@ stopLogging(RunTimeOpts* rtOpts)
 void
 logStatistics(PtpClock * ptpClock)
 {
+
+	ClockDriver *cd = ptpClock->clockDriver;
 	extern RunTimeOpts rtOpts;
 	static int errorMsg = 0;
 	static char sbuf[SCREEN_BUFSZ * 2];
@@ -702,7 +650,7 @@ logStatistics(PtpClock * ptpClock)
 
 	memset(sbuf, 0, sizeof(sbuf));
 
-	getSystemClock()->getTime(getSystemClock(), &now);
+	getSystemTime(&now);
 
 	/*
 	 * print one log entry per X seconds for Sync and DelayResp messages, to reduce disk usage.
@@ -797,7 +745,7 @@ logStatistics(PtpClock * ptpClock)
 				&(ptpClock->delayMS));
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %c, %05d",
-			       ptpClock->clockDriver->servo.integral,
+			       cd->servo.integral,
 			       ptpClock->char_last_msg,
 			       ptpClock->msgTmpHeader.sequenceId);
 
@@ -872,12 +820,10 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
     len += snprint_PortIdentity(masterIdBuf + len, sizeof(masterIdBuf) - len,
 	    &ptpClock->parentDS.parentPortIdentity);
-    if(ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
-	char strAddr[MAXHOSTNAMELEN];
-	struct in_addr tmpAddr;
-	tmpAddr.s_addr = ptpClock->bestMaster->sourceAddr;
-	inet_ntop(AF_INET, (struct sockaddr_in *)(&tmpAddr), strAddr, MAXHOSTNAMELEN);
-	len += snprintf(masterIdBuf + len, sizeof(masterIdBuf) - len, " (IPv4:%s)",strAddr);
+    if(ptpClock->bestMaster && ptpClock->bestMaster->protocolAddress) {
+	tmpstr(tmpAddr, myAddrStrLen(ptpClock->bestMaster->protocolAddress));
+	myAddrToString(tmpAddr, tmpAddr_len, ptpClock->bestMaster->protocolAddress);
+	len += snprintf(masterIdBuf + len, sizeof(masterIdBuf) - len, " (%s)", tmpAddr);
     }
 
     if(ptpClock->portDS.delayMechanism == P2P) {
@@ -943,11 +889,10 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", Best master: ");
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 			&ptpClock->parentDS.parentPortIdentity);
-		if(ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
-		    struct in_addr tmpAddr;
-		    tmpAddr.s_addr = ptpClock->bestMaster->sourceAddr;
-		    inet_ntop(AF_INET, (struct sockaddr_in *)(&tmpAddr), strAddr, MAXHOSTNAMELEN);
-		    len += snprintf(sbuf + len, sizeof(sbuf) - len, " (IPv4:%s)",strAddr);
+		if(ptpClock->bestMaster && ptpClock->bestMaster->protocolAddress) {
+		    tmpstr(tmpAddr, myAddrStrLen(ptpClock->bestMaster->protocolAddress));
+		    myAddrToString(tmpAddr, tmpAddr_len, ptpClock->bestMaster->protocolAddress);
+		    len += snprintf(sbuf + len, sizeof(sbuf) - len, " (%s)", tmpAddr);
 		}
         }
 	if(ptpClock->portDS.portState == PTP_MASTER)
@@ -960,14 +905,13 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 void
 writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 {
+	ClockDriver *cd = ptpClock->clockDriver;
 
 	char outBuf[3072];
 	char tmpBuf[200];
 
 	int n = getAlarmSummary(NULL, 0, ptpClock->alarms, ALRM_MAX);
 	char alarmBuf[n];
-
-	InterfaceInfo *ifInfo = &ptpClock->netPath.interfaceInfo;
 
 	getAlarmSummary(alarmBuf, n, ptpClock->alarms, ALRM_MAX);
 
@@ -979,6 +923,8 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 
 	struct timeval now;
 	memset(hostName, 0, MAXHOSTNAMELEN);
+
+	TTransport *transport = ptpClock->eventTransport;
 
 	gethostname(hostName, MAXHOSTNAMELEN);
 	gettimeofday(&now, 0);
@@ -1000,7 +946,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, 		STATUSPREFIX"  %s%s","Interface", rtOpts->ifaceName,
 		(rtOpts->backupIfaceEnabled && ptpClock->runningBackupInterface) ? " (backup)" : (rtOpts->backupIfaceEnabled)?
 		    " (primary)" : "");
-
+/*
 	if(ifInfo->vlanInfo.vlan) {
 	    fprintf(out, "%s", ", VLAN");
 	}
@@ -1017,20 +963,16 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	} else if(ifInfo->vlanInfo.vlan) {
 		    fprintf(out, ", physical %s", ifInfo->physicalDevice);
 	}
-
+*/
 	fprintf(out, "\n");
 
+
 	fprintf(out, 		STATUSPREFIX"  %s\n","Preset", dictionary_get(rtOpts->currentConfig, "ptpengine:preset", ""));
-	fprintf(out, 		STATUSPREFIX"  %s%s","Transport", dictionary_get(rtOpts->currentConfig, "ptpengine:transport", ""),
-		(rtOpts->transport==UDP_IPV4 && rtOpts->pcap == TRUE)?" + libpcap":"");
 
-	if(rtOpts->transport != IEEE_802_3) {
-	    fprintf(out,", %s", dictionary_get(rtOpts->currentConfig, "ptpengine:ip_mode", ""));
+	if(transport) {
+	    tmpstr(trStatus, 100);
+	    fprintf(out, 		STATUSPREFIX"  %s","Transport", transport->getInfoLine(transport, trStatus, trStatus_len));
 	    fprintf(out,"%s", rtOpts->unicastNegotiation ? " negotiation":"");
-	}
-
-	if(ptpClock->netPath.hwTimestamping) {
-	    fprintf(out,", HW PTP");
 	}
 
 	fprintf(out,"\n");
@@ -1066,15 +1008,14 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	    fprintf(out," (self)");
 	    fprintf(out,"\n");
 	}
-	if(rtOpts->transport == UDP_IPV4 &&
-	    ptpClock->portDS.portState > PTP_MASTER &&
-	    ptpClock->bestMaster && ptpClock->bestMaster->sourceAddr) {
-	    {
-	    struct in_addr tmpAddr;
-	    tmpAddr.s_addr = ptpClock->bestMaster->sourceAddr;
-	    fprintf(out, 		STATUSPREFIX"  %s\n","Best master IP", inet_ntoa(tmpAddr));
-	    }
+
+	if(ptpClock->portDS.portState > PTP_MASTER &&
+	ptpClock->bestMaster && !myAddrIsEmpty(ptpClock->bestMaster->protocolAddress)) {
+		tmpstr(tmpAddr, myAddrStrLen(ptpClock->bestMaster->protocolAddress));
+		fprintf(out, 		STATUSPREFIX"  %s\n","Best master addr",
+		myAddrToString(tmpAddr, tmpAddr_len, ptpClock->bestMaster->protocolAddress));
 	}
+
 	if(ptpClock->portDS.portState == PTP_SLAVE) {
 	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d","GM priority",
 	ptpClock->parentDS.grandmasterPriority1, ptpClock->parentDS.grandmasterPriority2, ptpClock->parentDS.grandmasterClockQuality.clockClass);
@@ -1139,26 +1080,23 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	}
 
 	fprintf(out, 		STATUSPREFIX"  ","PTP Clock status");
-	    if(ptpClock->clockDriver->state == CS_STEP) {
+	    if(cd->state == CS_STEP) {
 		fprintf(out,"panic mode,");
 	    }
-	    if(ptpClock->clockDriver->state == CS_NEGSTEP) {
+	    if(cd->state == CS_NEGSTEP) {
 		fprintf(out,"negative step,");
 	    }
 
 	if(rtOpts->calibrationDelay) {
-	    fprintf(out, "%s, ",
+	    fprintf(out, "%s",
 		ptpClock->isCalibrated ? "calibrated" : "not calibrated");
 	}
-	fprintf(out, "%s",
-		ptpClock->clockControl.granted ? "in control" : "no control");
-	fprintf(out, "%s%s", ptpClock->clockControl.stepRequired ? ", STEP" : "",
-		ptpClock->clockControl.stepFailed ? " FAILED!" : "");
+
 	if(rtOpts->noAdjust) {
 	    fprintf(out, ", read-only");
 	} else {
 		fprintf(out, ", %s",
-		    (ptpClock->clockDriver->state == CS_LOCKED) ? "stabilised" : "not stabilised");
+		    (cd->state == CS_LOCKED) ? "stabilised" : "not stabilised");
 	}
 	fprintf(out,"\n");
 
@@ -1235,38 +1173,16 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 
 	}
 
-	fprintf(out, 		STATUSPREFIX"  ","TimingService");
-
-	fprintf(out, "current %s, best %s, pref %s", (timingDomain.current != NULL) ? timingDomain.current->id : "none",
-						(timingDomain.best != NULL) ? timingDomain.best->id : "none",
-		    				(timingDomain.preferred != NULL) ? timingDomain.preferred->id : "none");
-
-	if((timingDomain.current != NULL) &&
-	    (timingDomain.current->holdTimeLeft > 0)) {
-		fprintf(out, ", hold %d sec", timingDomain.current->holdTimeLeft);
-	} else	if(timingDomain.electionLeft) {
-		fprintf(out, ", elec %d sec", timingDomain.electionLeft);
-	}
-
-	fprintf(out, "\n");
-
-	fprintf(out, 		STATUSPREFIX"  ","TimingServices");
-
-	fprintf(out, "total %d, avail %d, oper %d, idle %d, in_ctrl %d%s\n",
-				    timingDomain.serviceCount,
-				    timingDomain.availableCount,
-				    timingDomain.operationalCount,
-				    timingDomain.idleCount,
-				    timingDomain.controlCount,
-				    timingDomain.controlCount > 1 ? " (!)":"");
-
 	fprintf(out, 		STATUSPREFIX"  ","Performance");
-	fprintf(out,"Message RX %d/s, TX %d/s", ptpClock->counters.messageReceiveRate,
-						  ptpClock->counters.messageSendRate);
+	fprintf(out,"Message RX %d/s %d Bps, TX %d/s %d Bps",
+		ptpClock->counters.messageReceiveRate,
+		ptpClock->counters.bytesReceiveRate,
+		ptpClock->counters.messageSendRate,
+		ptpClock->counters.bytesSendRate);
 	if(ptpClock->portDS.portState == PTP_MASTER) {
 		if(rtOpts->unicastNegotiation) {
 		    fprintf(out,", slaves %d", ptpClock->slaveCount);
-		} else if (rtOpts->ipMode == IPMODE_UNICAST) {
+		} else if (rtOpts->transportMode == TMODE_UC) {
 		    fprintf(out,", slaves %d", ptpClock->unicastDestinationCount);
 		}
 	}
@@ -1342,17 +1258,17 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, 		STATUSPREFIX"  %lu\n","PTP Engine resets",
 		    (unsigned long)ptpClock->resetCount);
 	fprintf(out,"                                   \n");
-	if(ptpClock->clockDriver != NULL) {
+	if(cd) {
 	    char buf[100];
 	    int i = 1;
-	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
-		    cd->putInfoLine(cd, buf, 100);
-		    fprintf(out, "Clock %d: %-9s : %s\n", i++, cd->name, buf);
+	    for(ClockDriver *ccd = *cd->_first; ccd != NULL; ccd=ccd->_next) {
+		    ccd->putInfoLine(ccd, buf, 100);
+		    fprintf(out, "Clock %d: %-9s : %s\n", i++, ccd->name, buf);
 	    }
 	    i = 1;
-	    for(ClockDriver *cd = ptpClock->clockDriver->_first; cd != NULL; cd=cd->_next) {
-		    cd->putStatsLine(cd, buf, 100);
-		    fprintf(out, "Clock %d: %-9s : %s\n",i++, cd->name, buf);
+	    for(ClockDriver *ccd = *cd->_first; ccd != NULL; ccd=ccd->_next) {
+		    ccd->putStatsLine(ccd, buf, 100);
+		    fprintf(out, "Clock %d: %-9s : %s\n",i++, ccd->name, buf);
 	    }
 
 	}
@@ -1386,22 +1302,6 @@ recordSync(UInteger16 sequenceId, TimeInternal * time)
 		);
 		maintainLogSize(&rtOpts.recordLog);
 	}
-}
-
-Boolean
-nanoSleep(TimeInternal * t)
-{
-	struct timespec ts, tr;
-
-	ts.tv_sec = t->seconds;
-	ts.tv_nsec = t->nanoseconds;
-
-	if (nanosleep(&ts, &tr) < 0) {
-		t->seconds = tr.tv_sec;
-		t->nanoseconds = tr.tv_nsec;
-		return FALSE;
-	}
-	return TRUE;
 }
 
 /* returns a double beween 0.0 and 1.0 */
@@ -1816,7 +1716,7 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
     int ntpOffset = 0;
     int res;
 
-    getSystemClock()->getTime(getSystemClock(), &now);
+    getSystemTime(&now);
 
     info->valid = FALSE;
 
@@ -1976,74 +1876,3 @@ return -1;
 
 }
 
-Boolean
-doubleToFile(const char *filename, double input)
-{
-
-	int ret;
-
-	FILE *fp = fopen(filename,"w");
-
-	if(fp == NULL) {
-	    DBG("doubleToFile: could not open %s for writing: %s\n", filename, strerror(errno));
-	    return FALSE;
-	}
-
-	ret = fprintf(fp, "%f\n", input);
-	fclose(fp);
-
-	return(ret > 0);
-
-}
-
-Boolean
-doubleFromFile(const char *filename, double *output)
-{
-	int ret;
-	FILE *fp = fopen(filename,"r");
-
-	if(fp == NULL) {
-	    DBG("doubleFromFile: could not open %s: %s\n", filename, strerror(errno));
-	    return FALSE;
-	}
-
-	ret = fscanf(fp, "%lf", output);
-	fclose(fp);
-
-	return(ret == 1);
-}
-
-
-Boolean
-token_in_list(const char *list, const char * search, const char * delim)
-{
-
-    Boolean ret = FALSE;
-
-    if((list == NULL) || (search == NULL) || (delim == NULL) )  {
-	return FALSE;
-    }
-
-    if(strlen(search) < 1) {
-	return FALSE;
-    }
-
-    if(strlen(list) < 1) {
-	return FALSE;
-    }
-
-    if(strlen(delim) < 1) {
-	return FALSE;
-    }
-
-    foreach_token_begin(tmp, list, token, delim);
-
-	if(!strcmp(token, search)) {
-	    ret = TRUE;
-	}
-
-    foreach_token_end(tmp);
-
-    return ret;
-
-}

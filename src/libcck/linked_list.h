@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2015-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -25,31 +25,31 @@
  */
 
 /**
- * @file   linkedlist.h
+ * @file   linked_list.h
  * @date   Sat Jan 9 16:14:10 2015
  *
  * @brief  linked list management macros
  *
  */
 
-#ifndef PTPD_LINKEDLIST_H_
-#define PTPD_LINKEDLIST_H_
+#ifndef CCK_LINKEDLIST_H_
+#define CCK_LINKEDLIST_H_
 
-#define LINKED_LIST_HOOK(vartype) \
+#define LINKED_LIST_ROOT_STATIC(vartype) \
 	static vartype *_first = NULL; \
 	static vartype *_last = NULL; \
 	static uint32_t _serial = 0;
 
-#define LINKED_LIST_HOOK_LOCAL(vartype) \
+#define LINKED_LIST_ROOT_DYNAMIC(vartype) \
 	vartype *_first;\
 	vartype *_last;
 
 #define LINKED_LIST_TAG(vartype) \
-	vartype *_first; \
+	vartype **_first; \
 	vartype *_next; \
 	vartype *_prev;
 
-#define LINKED_LIST_APPEND(var) \
+#define LINKED_LIST_APPEND_STATIC(var) \
 	if(_first == NULL) { \
 		_first = var; \
 	} \
@@ -58,11 +58,11 @@
 	    var->_prev->_next = var; \
 	} \
 	_last = var; \
-	var->_first = _first; \
+	var->_first = &_first; \
 	var->_serial = _serial; \
 	_serial++;
 
-#define LINKED_LIST_APPEND_LOCAL(holder, var) \
+#define LINKED_LIST_APPEND_DYNAMIC(holder, var) \
 	if(holder->_first == NULL) { \
 		holder->_first = var; \
 	} \
@@ -71,9 +71,9 @@
 	    var->_prev->_next = var; \
 	} \
 	holder->_last = var; \
-	var->_first = holder->_first;
+	var->_first = &holder->_first;
 
-#define LINKED_LIST_REMOVE(var) \
+#define LINKED_LIST_REMOVE_STATIC(var) \
 	if(var == _last) { \
 	    _serial = var->_serial; \
 	} \
@@ -101,7 +101,7 @@
 		} \
 	}
 
-#define LINKED_LIST_REMOVE_LOCAL(holder, var) \
+#define LINKED_LIST_REMOVE_DYNAMIC(holder, var) \
 	if(var->_prev != NULL) { \
 		if(var == holder->_last) { \
 			holder->_last = var->_prev; \
@@ -126,16 +126,25 @@
 		} \
 	}
 
-#define LINKED_LIST_FOREACH(var) \
+#define LINKED_LIST_FOREACH_STATIC(var) \
 	for(var = _first; var != NULL; var = var->_next)
 
-#define LINKED_LIST_FOREACH_LOCAL(holder, var) \
-	for(var = holder->_first; var != NULL; var = var->_next)
+#define LINKED_LIST_FOREACH_STATIC_REVERSE(var) \
+	for(var = _last; var != NULL; var = var->_prev)
+
+#define LINKED_LIST_FOREACH_DYNAMIC(holder, var) \
+	for(var = (holder)->_first; var != NULL; var = var->_next)
+
+#define LINKED_LIST_FOREACH_DYNAMIC_REVERSE(holder, var) \
+	for(var = (holder)->_last; var != NULL; var = var->_prev)
+
+#define LINKED_LIST_FOREACH_INNER(holder, var) \
+	for(var = (*(holder))->_first; var != NULL; var = var->_next)
 
 #define LINKED_LIST_DESTROYALL(helper, fun) \
 	while(_first != NULL) { \
-	    cd = _last; \
-	    fun(&cd); \
+	    helper = _last; \
+	    fun(&helper); \
 	}
 
-#endif /* PTPD_LINKEDLIST_H_ */
+#endif /* CCK_LINKEDLIST_H_ */

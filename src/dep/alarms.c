@@ -143,7 +143,7 @@ alarmHandler_log(AlarmEntry *alarm)
 	getAlarmMessage(message, ALARM_MESSAGE_LENGTH, alarm);
 
 	if(alarm->state == ALARM_SET) {
-	    NOTICE("Alarm %s set%s\n", alarm->name, message);
+	    NOTICE("Alarm %s triggered%s\n", alarm->name, message);
 	}
 
 	if(alarm->state == ALARM_UNSET) {
@@ -269,9 +269,9 @@ setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock)
 	capturePtpEventData(&alarm->eventData, ptpClock, ptpClock->rtOpts);
 
 	if(condition) {
-	    getSystemClock()->getTime(getSystemClock(), &alarm->timeSet);
+	    getSystemTime(&alarm->timeSet);
 	} else {
-	    getSystemClock()->getTime(getSystemClock(), &alarm->timeCleared);
+	    getSystemTime(&alarm->timeCleared);
 	}
 
 	DBG("Alarm %s condition set to %s\n", alarm->name, condition ? "TRUE" : "FALSE");

@@ -1,10 +1,4 @@
-#ifndef EVENTTIMER_H_
-#define EVENTTIMER_H_
-
-#include "../ptpd.h"
-
-/*-
- * Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2016 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -30,48 +24,43 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define EVENTTIMER_MAX_DESC		20
-#define EVENTTIMER_MIN_INTERVAL_US	250 /* 4000/sec */
+/**
+ * @file   pcap_udpv4.h
+ * @date   Sat Jan 9 16:14:10 2016
+ *
+ * @brief  structure definitions for libpcap-based IPv4 timestamping transport
+ *
+ */
 
-typedef struct EventTimer EventTimer;
+#ifndef CCK_TTRANSPORT_PCAP_UDPV4_H_
+#define CCK_TTRANSPORT_PCAP_UDPV4_H_
 
-struct EventTimer {
+#include <libcck/ttransport.h>
+#include <libcck/net_utils.h>
+#include <libcck/transport_address.h>
 
-	/* data */
-	char id[EVENTTIMER_MAX_DESC + 1];
-	Boolean expired;
-	Boolean running;
+typedef struct {
+	pcap_t *readerHandle;	/* libpcap handle for reading data */
+	bool nanoPrecision;
+	int sockFd;		/* dummy socket */
+	CckInterfaceInfo intInfo;
+} TTransportData_pcap_udpv4;
 
-	/* "methods" */
-	void (*start) (EventTimer* timer, double interval);
-	void (*stop) (EventTimer* timer);
-	void (*reset) (EventTimer* timer);
-	void (*shutdown) (EventTimer* timer);
-	Boolean (*isExpired) (EventTimer* timer);
-	Boolean (*isRunning) (EventTimer* timer);	
+/* shared config across all UDP transports */
+typedef TTransportConfig_udp_common TTransportConfig_pcap_udpv4;
 
-	/* implementation data */
-#ifdef PTPD_PTIMERS
-	timer_t timerId;
-#else
-	int32_t itimerInterval;
-	int32_t itimerLeft;
-#endif /* PTPD_PTIMERS */
+/* private initialisation, method assignment etc. */
+bool _setupTTransport_pcap_udpv4(TTransport *self);
 
-	/* linked list */
-	EventTimer *_first;
-	EventTimer *_next;
-	EventTimer *_prev;
+/*
+ * initialisation / destruction of any extra data in our private config object
+ * when we create a global config object outside of the transport - this is a shared one
+ */
 
-};
+#define _initTTransportConfig_pcap_udpv4 _initTTransportConfig_udp_common
+#define _freeTTransportConfig_pcap_udpv4 _freeTTransportConfig_udp_common
 
-EventTimer *createEventTimer(const char *id);
-void freeEventTimer(EventTimer **timer);
-void setupEventTimer(EventTimer *timer);
+/* probe if interface @path supports @flags */
+bool _probeTTransport_pcap_udpv4(const char *path, const int flags);
 
-void startEventTimers();
-void shutdownEventTimers();
-
-
-#endif /* EVENTTIMER_H_ */
-
+#endif /* CCK_TTRANSPORT_PCAP_UDPV4_H_ */

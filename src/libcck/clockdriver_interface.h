@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2016-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -34,48 +34,43 @@
  */
 
 
-static int clockdriver_init(ClockDriver*, const void *);
-static int clockdriver_shutdown(ClockDriver *);
+static int clockDriver_init(ClockDriver*, const void *);
+static int clockDriver_shutdown(ClockDriver *);
 
-static Boolean getTime (ClockDriver*, TimeInternal *);
-static Boolean getTimeMonotonic (ClockDriver*, TimeInternal *);
-static Boolean getUtcTime (ClockDriver*, TimeInternal *);
-static Boolean setTime (ClockDriver*, TimeInternal *, Boolean);
-static Boolean stepTime (ClockDriver*, TimeInternal *, Boolean);
+static bool getTime (ClockDriver*, CckTimestamp *);
+static bool getTimeMonotonic (ClockDriver*, CckTimestamp *);
+static bool getUtcTime (ClockDriver*, CckTimestamp *);
+static bool setTime (ClockDriver*, CckTimestamp *);
+static bool setOffset (ClockDriver*, CckTimestamp *);
 
-static Boolean setFrequency (ClockDriver *, double, double);
+static bool setFrequency (ClockDriver *, double, double);
 static double getFrequency (ClockDriver *);
 
-static Boolean getStatus (ClockDriver *, ClockStatus *);
-static Boolean setStatus (ClockDriver *, ClockStatus *);
-static Boolean getSystemClockOffset (ClockDriver *, TimeInternal *);
-static Boolean getOffsetFrom (ClockDriver *, ClockDriver *, TimeInternal *);
+static bool getStatus (ClockDriver *, ClockStatus *);
+static bool setStatus (ClockDriver *, ClockStatus *);
+static bool getSystemClockOffset (ClockDriver *, CckTimestamp *);
+static bool getOffsetFrom (ClockDriver *, ClockDriver *, CckTimestamp *);
 
-static Boolean pushPrivateConfig (ClockDriver *, RunTimeOpts *rtOpts);
-static Boolean privateHealthCheck(ClockDriver *driver);
-static Boolean isThisMe(ClockDriver *, const char* search);
+static bool privateHealthCheck(ClockDriver *driver);
+static bool isThisMe(ClockDriver *, const char* search);
 
-static void loadVendorExt(ClockDriver *, const char *ifname);
+static void loadVendorExt(ClockDriver *);
 
 #define INIT_INTERFACE(var) \
-    var->init = clockdriver_init; \
-    var->shutdown = clockdriver_shutdown; \
+    var->init = clockDriver_init; \
+    var->shutdown = clockDriver_shutdown; \
     var->getTime = getTime; \
     var->getTimeMonotonic = getTimeMonotonic; \
     var->getUtcTime = getUtcTime; \
     var->setTime = setTime; \
-    var->stepTime = stepTime; \
+    var->setOffset = setOffset; \
     var->setFrequency = setFrequency; \
     var->getFrequency = getFrequency; \
     var->getStatus = getStatus; \
     var->setStatus = setStatus; \
     var->getSystemClockOffset = getSystemClockOffset; \
     var->getOffsetFrom = getOffsetFrom; \
-    var->pushPrivateConfig = pushPrivateConfig;\
     var->privateHealthCheck = privateHealthCheck; \
     var->isThisMe = isThisMe; \
-    var->loadVendorExt = loadVendorExt; \
-    var->_vendorInit = clockDriverDummyCallback; \
-    var->_vendorShutdown = clockDriverDummyCallback; \
-    var->_vendorHealthCheck = clockDriverDummyCallback;
+    var->loadVendorExt = loadVendorExt;
 

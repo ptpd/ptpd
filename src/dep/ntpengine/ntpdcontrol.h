@@ -7,34 +7,7 @@
 
 #include "../../ptpd.h"
 
-#include "../../timingdomain.h"
-
-typedef struct {
-
-	Boolean enableEngine;
-	Boolean enableControl;
-	Boolean enableFailover;
-	int failoverTimeout;
-	int checkInterval;
-	int keyId;
-	char key[20];
-	Octet hostAddress[MAXHOSTNAMELEN];
-} NTPoptions;
-
-typedef struct {
-	Boolean operational;
-	Boolean enabled;
-	Boolean isRequired;
-	Boolean inControl;
-	Boolean isFailOver;
-	Boolean checkFailed;
-	Boolean requestFailed;
-	Boolean flagsCaptured;
-	int originalFlags;
-	Integer32 serverAddress;
-	Integer32 sockFD;
-	struct TimingService timingService;
-} NTPcontrol;
+#include "ntpoptions.h"
 
 Boolean ntpInit(NTPoptions* options, NTPcontrol* control);
 Boolean ntpShutdown(NTPoptions* options, NTPcontrol* control);

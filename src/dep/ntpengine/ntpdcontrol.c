@@ -72,20 +72,22 @@ ntpInit(NTPoptions* options, NTPcontrol* control)
 {
 
 	int res = TRUE;
-	TimingService service = control->timingService;
 
 	control->sockFD = -1;
 	if(!options->enableEngine)
 	    return FALSE;
 
 	memset(control, 0, sizeof(*control));
-	/* preserve TimingService... temporary */
-	control->timingService = service;
 
+//toremove
+/*
 	if(!hostLookup(options->hostAddress, &control->serverAddress)) {
                 control->serverAddress = 0;
 		return FALSE;
 	}
+*/
+
+return FALSE;
 
         if ((control->sockFD = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 ) {
                 PERROR("failed to initalize NTP control socket");

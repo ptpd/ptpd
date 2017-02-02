@@ -37,12 +37,30 @@
 #ifndef PTPD_GLOBALCONFIG_H_
 #define PTPD_GLOBALCONFIG_H_
 
+#include <config.h>
+
+#include "ptp_primitives.h"
+#include "ptp_datatypes.h"
+#include "dep/constants_dep.h"
+#include "dep/datatypes_dep.h"
+#include "dep/iniparser/dictionary.h"
+#include "dep/outlierfilter.h"
+#include "dep/ntpengine/ntpoptions.h"
+
+#include <sys/param.h>
+
+#ifdef HAVE_LINUX_IF_H
+#include <linux/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
+#elif defined(HAVE_NET_IF_H)
+#include <net/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
+#endif /* HAVE_LINUX_IF_H*/
 
 /**
  * \struct RunTimeOpts
  * \brief Program options set at run-time
  */
 /* program options set at run-time */
+
 typedef struct {
 	Integer8 logAnnounceInterval;
 	Integer8 announceReceiptTimeout;
@@ -81,9 +99,9 @@ typedef struct {
 	int announceTimeoutGracePeriod;
 //	Integer16 currentUtcOffset;
 
-	char ifaceName[IFACE_NAME_LENGTH + 1];
-	char primaryIfaceName[IFACE_NAME_LENGTH+1];
-	char backupIfaceName[IFACE_NAME_LENGTH+1];
+	char ifaceName[IFNAMSIZ + 1];
+	char primaryIfaceName[IFNAMSIZ+1];
+	char backupIfaceName[IFNAMSIZ+1];
 	Boolean backupIfaceEnabled;
 
 	Boolean	noResetClock; // don't step the clock if offset > 1s
@@ -111,6 +129,7 @@ typedef struct {
 	Boolean portDisabled;
 
 	int ttl;
+	uint8_t ipv6Scope;
 	int dscpValue;
 #if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined (__QNXNTO__)
 	int cpuNumber;
@@ -145,7 +164,7 @@ typedef struct {
 	int statusFileUpdateInterval;
 
 	Boolean ignoreLock;
-	Boolean refreshIgmp;
+	Boolean refreshMulticast;
 	Boolean  nonDaemon;
 
 	int initial_delayreq;
@@ -161,8 +180,7 @@ typedef struct {
 	char driftFile[PATH_MAX+1]; /* drift file location */
 	char leapFile[PATH_MAX+1]; /* leap seconds file location */
 	char frequencyDir[PATH_MAX + 1]; /* frequency file directory */
-	Enumeration8 drift_recovery_method; /* how the observed drift is managed
-				      between restarts */
+	char logFilter[101];		/* simple strstr() check */
 
 	Boolean storeToFile;
 
@@ -175,10 +193,10 @@ typedef struct {
 	int	alarmInitialDelay;	/* initial delay before we start processing alarms; example:  */
 					/* we don't need a port state alarm just before the port starts to sync */
 
-	Boolean pcap; /* Receive and send packets using libpcap, bypassing the
-			 network stack. */
-	Enumeration8 transport; /* transport type */
-	Enumeration8 ipMode; /* IP transmission mode */
+	uint8_t networkProtocol; /* transport type */
+	Enumeration8 transportMode; /* IP transmission mode */
+	uint8_t transportType; /* force transport implementation */
+
 	Boolean dot1AS; /* 801.2AS support -> transportSpecific field */
 	Boolean bindToInterface; /* always bind to interface */
 
@@ -188,6 +206,8 @@ typedef struct {
 	char unicastDestinations[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
 	char unicastDomains[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
 	char unicastLocalPreference[MAXHOSTNAMELEN * UNICAST_MAX_DESTINATIONS];
+
+	char sourceAddress[MAXHOSTNAMELEN];
 
 	/* list of extra clocks to sync */
 	char extraClocks[PATH_MAX];
@@ -219,9 +239,8 @@ typedef struct {
 	 */
 	UInteger16  unicastPortMask; /* port mask to apply to portNumber when using negotiation */
 
-#ifdef RUNTIME_DEBUG
 	int debug_level;
-#endif
+	char debugFilter[101];		/* simple strstr() check */
 	Boolean pidAsClockId;
 
 	/**
@@ -269,6 +288,10 @@ typedef struct {
 	Enumeration8 servoDtMethod;
 	double servoMaxdT;
 
+	Boolean clockStrictSync;
+	int clockMinStep;
+	int clockCalibrationTime;
+
 	/* inter-clock sync filter options */
 
 	Boolean clockStatFilterEnable;
@@ -282,9 +305,6 @@ typedef struct {
 	double clockOutlierFilterCutoff;
 	int clockOutlierFilterBlockTimeout;
 
-	Boolean clockStrictSync;
-	int clockMinStep;
-	int clockCalibrationTime;
 
 	/**
 	 *  When enabled, ptpd ensures that Sync message sequence numbers

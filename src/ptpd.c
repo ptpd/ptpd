@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Wojciech Owczarek,
+ * Copyright (c) 2012-2017 Wojciech Owczarek,
  * Copyright (c) 2011-2012 George V. Neville-Neil,
  *                         Steven Kreuzer,
  *                         Martin Burnicki,
@@ -58,6 +58,11 @@
 
 #include "ptpd.h"
 
+#include <libcck/net_utils.h>
+#include <libcck/transport_address.h>
+#include <libcck/cck_utils.h>
+#include <libcck/timer.h>
+
 RunTimeOpts rtOpts;			/* statically allocated run-time
 					 * configuration data */
 
@@ -72,21 +77,16 @@ Boolean startupInProgress;
  */
 PtpClock *G_ptpClock = NULL;
 
-TimingDomain timingDomain;
-
 int
 main(int argc, char **argv)
 {
 	PtpClock *ptpClock;
 	Integer16 ret;
-	TimingService *ts;
+
+	CckFdSet set;
+	clearCckFdSet(&set);
 
 	startupInProgress = TRUE;
-
-	memset(&timingDomain, 0, sizeof(timingDomain));
-	timingDomainSetup(&timingDomain);
-
-	timingDomain.electionLeft = 10;
 
 	/* Initialize run time options with command line arguments */
 	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts))) {
@@ -95,43 +95,45 @@ main(int argc, char **argv)
 		return ret;
 	}
 
-	timingDomain.electionDelay = rtOpts.electionDelay;
-
-	/* configure PTP TimeService */
-
-	timingDomain.services[0] = &ptpClock->timingService;
-	ts = timingDomain.services[0];
-	strncpy(ts->id, "PTP0", TIMINGSERVICE_MAX_DESC);
-	ts->dataSet.priority1 = rtOpts.preferNTP;
-	ts->dataSet.type = TIMINGSERVICE_PTP;
-	ts->config = &rtOpts;
-	ts->controller = ptpClock;
-	ts->timeout = rtOpts.idleTimeout;
-	ts->updateInterval = 1;
-	ts->holdTime = rtOpts.ntpOptions.failoverTimeout;
-	timingDomain.serviceCount = 1;
-
-	if (rtOpts.ntpOptions.enableEngine) {
-		ntpSetup(&rtOpts, ptpClock);
-	} else {
-	    timingDomain.serviceCount = 1;
-	    timingDomain.services[1] = NULL;
-	}
-
-	timingDomain.init(&timingDomain);
-	timingDomain.updateInterval = 1;
-
 	startupInProgress = FALSE;
 
 	/* global variable for message(), please see comment on top of this file */
 	G_ptpClock = ptpClock;
 
-	/* do the protocol engine */
-	protocol(&rtOpts, ptpClock);
-	/* forever loop.. */
+	DBG("event POWERUP\n");
 
-	/* this also calls ptpd shutdown */
-	timingDomain.shutdown(&timingDomain);
+	if(!setupPtpTimers(ptpClock, &set)) {
+	    CRITICAL("Failed to initialise event timers. PTPd is inoperable.\n");
+	    return 1;
+	}
+
+	ptpTimerStart(&ptpClock->timers[ALARM_UPDATE_TIMER],ALARM_UPDATE_INTERVAL);
+	ptpTimerStart(&ptpClock->timers[NETWORK_MONITOR_TIMER],1);
+	ptpTimerStart(&ptpClock->timers[CLOCK_SYNC_TIMER], 1.0 / (rtOpts.clockSyncRate + 0.0));
+	ptpTimerStart(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER], rtOpts.clockUpdateInterval);
+	/* run the status file update every 1 .. 1.2 seconds */
+	ptpTimerStart(&ptpClock->timers[STATUSFILE_UPDATE_TIMER],rtOpts.statusFileUpdateInterval * (1.0 + 0.2 * getRand()));
+	ptpTimerStart(&ptpClock->timers[PERIODIC_INFO_TIMER],rtOpts.statsUpdateInterval);
+
+	if (!netInit(ptpClock, &set)) {
+	    CRITICAL("Failed to start network transports!\n");
+	    return 1;
+	}
+
+	toState(PTP_INITIALIZING, &rtOpts, ptpClock);
+	if(rtOpts.statusLog.logEnabled)
+		writeStatusFile(ptpClock, &rtOpts, TRUE);
+
+	DBG("Debug Initializing...\n");
+
+	while(true) {
+	    cckPollData(&set, NULL);
+	    cckDispatchTimers();
+	    ptpRun(&rtOpts, ptpClock);
+	    checkSignals(&rtOpts, ptpClock);
+	}
+
+        ptpdShutdown(ptpClock);
 
 	NOTIFY("Self shutdown\n");
 

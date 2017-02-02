@@ -103,7 +103,7 @@ enum {
 enum hwtstamp_tx_types {
 	HWTSTAMP_TX_OFF,
 	HWTSTAMP_TX_ON,
-	HWTSTAMP_TX_ONESTEP_SYNC,
+	HWTSTAMP_TX_ONESTEP_SYNC
 };
 
 enum hwtstamp_rx_filters {

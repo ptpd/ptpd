@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2016 Wojciech Owczarek,
+ * Copyright (c) 2013-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -37,6 +37,7 @@
  *
  */
 
+#include <libcck/cck_utils.h>
 #include "../ptpd.h"
 
 /*-
@@ -681,7 +682,7 @@ const char* key, int restartFlags, uint8_t *var, int def, const char *helptext, 
 
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s ", name);
 
-	if(value == def) {
+	if(!defValue && value == def) {
 	    defValue = strdup(name);
 	}
 
@@ -704,14 +705,16 @@ const char* key, int restartFlags, uint8_t *var, int def, const char *helptext, 
 		    warnRestart(key, restartFlags);
 		}
 	    }
-	    return 1;
+	    ret = 1;
+	    goto result;
 	} else if(opCode & CFGOP_HELP_FULL || opCode & CFGOP_HELP_SINGLE) {
 
 		char *helpKey = (char*)opArg;
 
 		if((opCode & CFGOP_HELP_SINGLE)){
 		    if (strcmp(key, helpKey)) {
-			return 1;
+			ret = 1;
+			goto result;
 		    } else {
 			/* this way we tell the caller that we have already found the setting we were looking for */
 			helpKey[0] = '\0';
@@ -792,6 +795,19 @@ parseUserVariables(dictionary *dict, dictionary *target)
 	}
 
     }
+
+}
+
+int
+getConfiguredFamily(const RunTimeOpts *rtOpts)
+{
+
+	int family = rtOpts->networkProtocol;
+	if(rtOpts->transportType > TT_TYPE_NONE) {
+	    family = getTTransportTypeFamily(rtOpts->transportType);
+	}
+
+	return family;
 
 }
 
@@ -940,13 +956,23 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	ptpPreset = getPtpPreset(rtOpts->selectedPreset, rtOpts);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:transport",
-		PTPD_RESTART_NETWORK, &rtOpts->transport, rtOpts->transport,
-		"Transport type for PTP packets. Ethernet transport requires libpcap support.",
-				"ipv4",		UDP_IPV4,
-#if 0
-				"ipv6",		UDP_IPV6,
-#endif
-				"ethernet", 	IEEE_802_3, NULL
+		PTPD_RESTART_NETWORK, &rtOpts->networkProtocol, rtOpts->networkProtocol,
+		"Transport type (protocol) used for PTP transmission. Unless ptpengine:transport_implementation\n"
+	"        is used, the best available transport implementation will be selected\n",
+				"ipv4",		TT_FAMILY_IPV4,
+				"ipv6",		TT_FAMILY_IPV6,
+				"ethernet", 	TT_FAMILY_ETHERNET, NULL
+				);
+
+#define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+    textname, typeenum,
+
+	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:transport_implementation",
+		PTPD_RESTART_NETWORK, &rtOpts->transportType, rtOpts->transportType,
+		"Use a specific transport implementation (overrides ptpengine:transport)",
+				"auto",		TT_TYPE_NONE,
+				#include <libcck/ttransport.def>
+				NULL
 				);
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:dot1as", PTPD_UPDATE_DATASETS, &rtOpts->dot1AS, rtOpts->dot1AS,
@@ -956,24 +982,29 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Disable PTP port. Causes the PTP state machine to stay in PTP_DISABLED state indefinitely,\n"
 	"        until it is re-enabled via configuration change or ENABLE_PORT management message.");
 
-
-	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transport != IEEE_802_3) && rtOpts->dot1AS,
+	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->networkProtocol != TT_FAMILY_ETHERNET) && rtOpts->dot1AS,
 	 			    "ptpengine:dot1as",
 				"802.1AS compatibility can only be used with the Ethernet transport\n");
 
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport != IEEE_802_3, rtOpts->dot1AS,FALSE, rtOpts->dot1AS);
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->networkProtocol != TT_FAMILY_ETHERNET, rtOpts->dot1AS,FALSE, rtOpts->dot1AS);
 
-	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:ip_mode",
-		PTPD_RESTART_NETWORK, &rtOpts->ipMode, rtOpts->ipMode,
+	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:transport_mode",
+		PTPD_RESTART_NETWORK, &rtOpts->transportMode, rtOpts->transportMode,
 		"IP transmission mode (requires IP transport) - hybrid mode uses\n"
 	"	 multicast for sync and announce, and unicast for delay request and\n"
 	"	 response; unicast mode uses unicast for all transmission.\n"
 	"	 When unicast mode is selected, destination IP(s) may need to be configured\n"
 	"	(ptpengine:unicast_destinations).",
-				"multicast", 	IPMODE_MULTICAST,
-				"unicast", 	IPMODE_UNICAST,
-				"hybrid", 	IPMODE_HYBRID, NULL
+				"multicast", 	TMODE_MC,
+				"unicast", 	TMODE_UC,
+				"hybrid", 	TMODE_MIXED, NULL
 				);
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:source_address",
+		PTPD_RESTART_NETWORK, rtOpts->sourceAddress, sizeof(rtOpts->sourceAddress), rtOpts->sourceAddress,
+	"Source address to use (IPv4 or IPv6) - used when an interface has multiple addresses.\n"
+	"        Using secondary addresses, similar to the ptpengine:bind_to_interface option,\n"
+	"        may cause issues with multicast operation when using software timestamps.");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:bind_to_interface",
 		PTPD_RESTART_NETWORK, &rtOpts->bindToInterface, rtOpts->bindToInterface,
@@ -988,7 +1019,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Enable unicast negotiation support using signaling messages\n");
 
 	CONFIG_KEY_CONDITIONAL_CONFLICT("ptpengine:preset",
-	 			    (rtOpts->selectedPreset == PTP_PRESET_MASTERSLAVE) && (rtOpts->ipMode == IPMODE_UNICAST) && (rtOpts->unicastNegotiation),
+	 			    (rtOpts->selectedPreset == PTP_PRESET_MASTERSLAVE) && (rtOpts->transportMode == TMODE_UC) && (rtOpts->unicastNegotiation),
 	 			    "masterslave",
 	 			    "ptpengine:unicast_negotiation");
 
@@ -1005,17 +1036,16 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"	 This option can be used as a workaround where a node sends signaling messages and\n"
 	"	 timing messages with different port identities", RANGECHECK_RANGE, 0,65535);
 
-	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transport == IEEE_802_3) && rtOpts->unicastNegotiation,
+	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->networkProtocol == TT_FAMILY_ETHERNET) && rtOpts->unicastNegotiation,
 	 			    "ptpengine:unicast_negotiation",
-				"Unicast negotiation cannot be used with Ethernet transport\n");
+				"Unicast negotiation for Ethernet transport is a non-standard mode of PTP operation\n");
 
-	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->ipMode != IPMODE_UNICAST) && rtOpts->unicastNegotiation,
+	CONFIG_KEY_CONDITIONAL_WARNING_ISSET((rtOpts->transportMode != TMODE_UC) && rtOpts->unicastNegotiation,
 	 			    "ptpengine:unicast_negotiation",
 				"Unicast negotiation can only be used with unicast transmission\n");
 
 	/* disable unicast negotiation unless running unicast */
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3, rtOpts->unicastNegotiation,FALSE, rtOpts->unicastNegotiation);
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->ipMode != IPMODE_UNICAST, rtOpts->unicastNegotiation,FALSE, rtOpts->unicastNegotiation);
+	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transportMode != TMODE_UC, rtOpts->unicastNegotiation,FALSE, rtOpts->unicastNegotiation);
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:disable_bmca",
 		PTPD_RESTART_PROTOCOL, &rtOpts->disableBMCA, rtOpts->disableBMCA,
@@ -1028,50 +1058,12 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"When unicast negotiation enabled on a master clock, \n"
 	"	 reply to transmission requests also in LISTENING state.");
 
-#if defined(PTPD_PCAP) && defined(__sun) && !defined(PTPD_EXPERIMENTAL)
-	if(CONFIG_ISTRUE("ptpengine:use_libpcap"))
-	INFO("Libpcap support is currently marked broken/experimental on Solaris platforms.\n"
-	     "To test it, please build with --enable-experimental-options\n");
-
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:use_libpcap",
-		PTPD_RESTART_NETWORK, &rtOpts->pcap,FALSE,
-		"Use libpcap for sending and receiving traffic (automatically enabled\n"
-	"	 in Ethernet mode).");
-
-	/* cannot set ethernet transport without libpcap */
-	CONFIG_KEY_VALUE_FORBIDDEN("ptpengine:transport",
-				    rtOpts->transport == IEEE_802_3,
-				    "ethernet",
-	    "Libpcap support is currently marked broken/experimental on Solaris platforms.\n"
-	    "To test it and use the Ethernet transport, please build with --enable-experimental-options\n");
-#elif defined(PTPD_PCAP)
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:use_libpcap",
-		PTPD_RESTART_NETWORK, &rtOpts->pcap, rtOpts->pcap,
-		"Use libpcap for sending and receiving traffic (automatically enabled\n"
-	"	 in Ethernet mode).");
-
-	/* in ethernet mode, activate pcap and overwrite previous setting */
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport==IEEE_802_3, rtOpts->pcap,TRUE, rtOpts->pcap);
-#else
-	if(CONFIG_ISTRUE("ptpengine:use_libpcap"))
-	INFO("Libpcap support disabled or not available. Please install libpcap,\n"
-	     "build without --disable-pcap, or try building with ---with-pcap-config\n"
-	     " to use ptpengine:use_libpcap.\n");
-
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:use_libpcap",
-		PTPD_RESTART_NETWORK, &rtOpts->pcap,FALSE,
-		"Use libpcap for sending and receiving traffic (automatically enabled\n"
-	"	 in Ethernet mode).");
-
-	/* cannot set ethernet transport without libpcap */
-	CONFIG_KEY_VALUE_FORBIDDEN("ptpengine:transport",
-				    rtOpts->transport == IEEE_802_3,
-				    "ethernet",
-	    "Libpcap support disabled or not available. Please install libpcap,\n"
-	     "build without --disable-pcap, or try building with ---with-pcap-config\n"
-	     "to use Ethernet transport. "PTPD_PROGNAME" was built with no libpcap support.\n");
-
-#endif /* PTPD_PCAP */
+	/* libpcap is now only one of available transport implementation technologies */
+	CONFIG_KEY_VALUE_FORBIDDEN("ptpengine:use_libpcap",
+				    CONFIG_ISTRUE("ptpengine:use_libpcap"),
+				    "y",
+	    "The use of ptpengine:use_libpcap is deprecated. Please use one of the "
+	    "libpcap-based transports instead if available (ptpengine:transport_implementation).\n");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:disable_udp_checksums",
 		PTPD_RESTART_NETWORK, &rtOpts->disableUdpChecksums, rtOpts->disableUdpChecksums,
@@ -1401,24 +1393,25 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	 */
 
 	/* hybrid mode -> should specify delayreq interval: override set in the bottom of this function */
-	CONFIG_KEY_CONDITIONAL_WARNING_NOTSET(rtOpts->ipMode == IPMODE_HYBRID,
+	CONFIG_KEY_CONDITIONAL_WARNING_NOTSET(rtOpts->transportMode == TMODE_MIXED,
     		    "ptpengine:log_delayreq_interval",
 		    "It is recommended to manually set the delay request interval (ptpengine:log_delayreq_interval) to required value in hybrid mode"
 	);
 
 	/* unicast mode -> should specify delayreq interval if we can become a slave */
-	CONFIG_KEY_CONDITIONAL_WARNING_NOTSET(rtOpts->ipMode == IPMODE_UNICAST &&
+	CONFIG_KEY_CONDITIONAL_WARNING_NOTSET(rtOpts->transportMode == TMODE_UC &&
 		    rtOpts->clockQuality.clockClass > 127,
 		    "ptpengine:log_delayreq_interval",
 		    "It is recommended to manually set the delay request interval (ptpengine:log_delayreq_interval) to required value in unicast mode"
 	);
 
 	CONFIG_KEY_ALIAS("ptpengine:unicast_address","ptpengine:unicast_destinations");
+	CONFIG_KEY_ALIAS("ptpengine:ip_mode","ptpengine:transport_mode");
 
 	/* unicast signaling slave -> must specify unicast destination(s) */
-	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
+	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:transport_mode",
 				     rtOpts->clockQuality.clockClass > 127 &&
-				    rtOpts->ipMode == IPMODE_UNICAST &&
+				    rtOpts->transportMode == TMODE_UC &&
 				    rtOpts->unicastNegotiation,
 				    "unicast",
 				    "ptpengine:unicast_destinations");
@@ -1426,9 +1419,9 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 
 	/* unicast master without signaling - must specify unicast destinations */
-	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:ip_mode",
+	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:transport_mode",
 				     rtOpts->clockQuality.clockClass <= 127 &&
-				    rtOpts->ipMode == IPMODE_UNICAST &&
+				    rtOpts->transportMode == TMODE_UC &&
 				    !rtOpts->unicastNegotiation,
 				    "unicast",
 				    "ptpengine:unicast_destinations");
@@ -1461,7 +1454,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	/* unicast P2P - must specify unicast peer destination */
 	CONFIG_KEY_CONDITIONAL_DEPENDENCY("ptpengine:delay_mechanism",
 					rtOpts->delayMechanism == P2P &&
-				    rtOpts->ipMode == IPMODE_UNICAST,
+				    rtOpts->transportMode == TMODE_UC,
 				    "P2P",
 				    "ptpengine:unicast_peer_destination");
 
@@ -1474,7 +1467,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:hardware_timestamping",
 		PTPD_RESTART_NETWORK, &rtOpts->hwTimestamping, rtOpts->hwTimestamping,
-	"Enable hardware timestamping and hardware clock support (if available)");
+	"Prefer hardware timestamping (if available)");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:management_enable",
 		PTPD_RESTART_NONE, &rtOpts->managementEnabled, rtOpts->managementEnabled,
@@ -1499,15 +1492,17 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Allowed PTP domain number to accept PTPMON Delay Requests from.\n"
 	"	 The default is to use the PTPd domain number (ptpengine:domain).", RANGECHECK_RANGE,0,255);
 
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:igmp_refresh",
-		PTPD_RESTART_NONE, &rtOpts->refreshIgmp, rtOpts->refreshIgmp,
-	"Send explicit IGMP joins between engine resets and periodically\n"
+	CONFIG_KEY_ALIAS("ptpengine:igmp_refresh","ptpengine:multicast_rejoin");
+
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:multicast_rejoin",
+		PTPD_RESTART_NONE, &rtOpts->refreshMulticast, rtOpts->refreshMulticast,
+	"Refresh multicast group membership between engine resets and periodically\n"
 	"	 in master state.");
 
-	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:master_igmp_refresh_interval",
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:master_multicast_rejoin_interval",
 		PTPD_RESTART_PROTOCOL, INTTYPE_I8, &rtOpts->masterRefreshInterval, rtOpts->masterRefreshInterval,
 		"Periodic IGMP join interval (seconds) in master state when running\n"
-		"	 IPv4 multicast: when set below 10 or when ptpengine:igmp_refresh\n"
+		"	 IPv4 multicast: when set below 10 or when ptpengine:multicast_rejoin\n"
 		"	 is disabled, this setting has no effect.",RANGECHECK_RANGE,0,255);
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:multicast_ttl",
@@ -1515,13 +1510,36 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Multicast time to live for multicast PTP packets (ignored and set to 1\n"
 	"	 for peer to peer messages).",RANGECHECK_RANGE,1,64);
 
+	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:ipv6_multicast_scope",
+		PTPD_RESTART_NETWORK, &rtOpts->ipv6Scope, rtOpts->ipv6Scope,
+		"IPv6 multicast scope for PTP multicast transmission.\n",
+
+				"interface-local", IPV6_SCOPE_INT_LOCAL,
+				"link-local", 	IPV6_SCOPE_LINK_LOCAL,
+				"ream-local", 	IPV6_SCOPE_REALM_LOCAL,
+				"admin-local", 	IPV6_SCOPE_ADMIN_LOCAL,
+				"site-local", 	IPV6_SCOPE_SITE_LOCAL,
+				"org-local", 	IPV6_SCOPE_ORG_LOCAL,
+				"global", 	IPV6_SCOPE_GLOBAL,
+
+				"0x01",		IPV6_SCOPE_INT_LOCAL,
+				"0x02", 	IPV6_SCOPE_LINK_LOCAL,
+				"0x03", 	IPV6_SCOPE_REALM_LOCAL,
+				"0x04", 	IPV6_SCOPE_ADMIN_LOCAL,
+				"0x05", 	IPV6_SCOPE_SITE_LOCAL,
+				"0x08", 	IPV6_SCOPE_ORG_LOCAL,
+				"0x0E", 	IPV6_SCOPE_GLOBAL,
+
+				NULL
+				);
+
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:ip_dscp",
 		PTPD_RESTART_NETWORK, INTTYPE_INT, &rtOpts->dscpValue, rtOpts->dscpValue,
 		"DiffServ CodepPoint for packet prioritisation (decimal). When set to zero, \n"
 	"	 this option is not used. Use 46 for Expedited Forwarding (0x2e).",RANGECHECK_RANGE,0,63);
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_enable",
-		PTPD_RESTART_FILTERS, &rtOpts->filterMSOpts.enabled, rtOpts->filterMSOpts.enabled,
+		PTPD_RESTART_FILTERS, (Boolean*)&rtOpts->filterMSOpts.enabled, rtOpts->filterMSOpts.enabled,
 		 "Enable statistical filter for Sync messages.");
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_type",
@@ -1553,7 +1571,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	"interval", WINDOW_INTERVAL, NULL);
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_enable",
-		PTPD_RESTART_FILTERS, &rtOpts->filterSMOpts.enabled, rtOpts->filterSMOpts.enabled,
+		PTPD_RESTART_FILTERS, (Boolean*)&rtOpts->filterSMOpts.enabled, rtOpts->filterSMOpts.enabled,
 		 "Enable statistical filter for Delay messages.");
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_type",
@@ -1817,6 +1835,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_PROTOCOL, &rtOpts->pidAsClockId, rtOpts->pidAsClockId,
 	"Use PTPd's process ID as the middle part of the PTP clock ID - useful for running multiple instances.");
 
+/*
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:ntp_failover",
 		PTPD_RESTART_NONE, &rtOpts->ntpOptions.enableFailover, rtOpts->ntpOptions.enableFailover,
 		"Fail over to NTP when PTP time sync not available - requires\n"
@@ -1841,6 +1860,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Legacy option from 2.3.0: same as ptpengine:panic_mode_release_clock");
 
 	CONFIG_KEY_DEPENDENCY("ptpengine:panic_mode_ntp", "ntpengine:enabled");
+*/
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:sigusr2_clears_counters",
 		PTPD_RESTART_NONE, &rtOpts->clearCounters, rtOpts->clearCounters,
@@ -1854,57 +1874,55 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:timing_acl_permit",
 		PTPD_RESTART_ACLS, rtOpts->timingAclPermitText, sizeof(rtOpts->timingAclPermitText), rtOpts->timingAclPermitText,
-		"Permit access control list for timing packets. Format is a series of \n"
-        "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
-        "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
-        "        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
-        "        incoming messages. IP access lists are only supported when using the IP transport.");
+		"Permit access control list for timing packets.\n"
+        "        Format is a series of comma, space or tab separated  network prefixes:\n"
+	"	- IPv4 address or full CIDR notation a.b.c.d/m.m.m.m or a.b.c.d/n\n"
+	"	- IPv6 address or subnet aaaa:bbbb:cccc:dddd::fff/n\n"
+	"	- Ethernet address subnet 00:aa:bb:cc:dd:ee/n\n"
+        "        The match is performed on the source address of the incoming messages.\n");
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:timing_acl_deny",
 		PTPD_RESTART_ACLS, rtOpts->timingAclDenyText, sizeof(rtOpts->timingAclDenyText), rtOpts->timingAclDenyText,
-		"Deny access control list for timing packets. Format is a series of \n"
-        "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
-        "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
-        "        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
-        "        incoming messages. IP access lists are only supported when using the IP transport.");
+		"Deny access control list for timing packets.\n"
+        "        Format is a series of comma, space or tab separated  network prefixes:\n"
+	"	- IPv4 address or full CIDR notation a.b.c.d/m.m.m.m or a.b.c.d/n\n"
+	"	- IPv6 address or subnet aaaa:bbbb:cccc:dddd::fff/n\n"
+	"	- Ethernet address subnet 00:aa:bb:cc:dd:ee/n\n"
+        "        The match is performed on the source address of the incoming messages.\n");
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:management_acl_permit",
 		PTPD_RESTART_ACLS, rtOpts->managementAclPermitText, sizeof(rtOpts->managementAclPermitText), rtOpts->managementAclPermitText,
-		"Permit access control list for management messages and monitoring extensions. Format is a series of \n"
-	"	 comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
-	"	 where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
-	"        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
-	"        incoming messages. IP access lists are only supported when using the IP transport.");
+		"Permit access control list for management messages and monitoring extensions.\n"
+        "        Format is a series of comma, space or tab separated  network prefixes:\n"
+	"	- IPv4 address or full CIDR notation a.b.c.d/m.m.m.m or a.b.c.d/n\n"
+	"	- IPv6 address or subnet aaaa:bbbb:cccc:dddd::fff/n\n"
+	"	- Ethernet address subnet 00:aa:bb:cc:dd:ee/n\n"
+        "        The match is performed on the source address of the incoming messages.\n");
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:management_acl_deny",
 		PTPD_RESTART_ACLS, rtOpts->managementAclDenyText, sizeof(rtOpts->managementAclDenyText), rtOpts->managementAclDenyText,
-		"Deny access control list for management messages and monitoring extensions. Format is a series of \n"
-        "        comma, space or tab separated  network prefixes: IPv4 addresses or full CIDR notation a.b.c.d/x,\n"
-        "        where a.b.c.d is the subnet and x is the decimal mask, or a.b.c.d/v.x.y.z where a.b.c.d is the\n"
-        "        subnet and v.x.y.z is the 4-octet mask. The match is performed on the source IP address of the\n"
-        "        incoming messages. IP access lists are only supported when using the IP transport.");
-
+		"Deny access control list for management messages and monitoring extensions.\n"
+        "        Format is a series of comma, space or tab separated  network prefixes:\n"
+	"	- IPv4 address or full CIDR notation a.b.c.d/m.m.m.m or a.b.c.d/n\n"
+	"	- IPv6 address or subnet aaaa:bbbb:cccc:dddd::fff/n\n"
+	"	- Ethernet address subnet 00:aa:bb:cc:dd:ee/n\n"
+        "        The match is performed on the source address of the incoming messages.\n");
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:timing_acl_order",
 		PTPD_RESTART_ACLS, &rtOpts->timingAclOrder, rtOpts->timingAclOrder,
 		"Order in which permit and deny access lists are evaluated for timing\n"
 	"	 packets, the evaluation process is the same as for Apache httpd.",
-				"permit-deny", 	ACL_PERMIT_DENY,
-				"deny-permit", 	ACL_DENY_PERMIT, NULL
+				"permit-deny", 	CCK_ACL_PERMIT_DENY,
+				"deny-permit", 	CCK_ACL_DENY_PERMIT, NULL
 				);
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:management_acl_order",
 		PTPD_RESTART_ACLS, &rtOpts->managementAclOrder, rtOpts->managementAclOrder,
 		"Order in which permit and deny access lists are evaluated for management\n"
 	"	 messages, the evaluation process is the same as for Apache httpd.",
-				"permit-deny", 	ACL_PERMIT_DENY,
-				"deny-permit", 	ACL_DENY_PERMIT, NULL
+				"permit-deny", 	CCK_ACL_PERMIT_DENY,
+				"deny-permit", 	CCK_ACL_DENY_PERMIT, NULL
 				);
-
-
-	/* Ethernet mode disables ACL processing*/
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3, rtOpts->timingAclEnabled,FALSE, rtOpts->timingAclEnabled);
-	CONFIG_KEY_CONDITIONAL_TRIGGER(rtOpts->transport == IEEE_802_3, rtOpts->managementAclEnabled,FALSE, rtOpts->managementAclEnabled);
 
 /* ===== clock section ===== */
 
@@ -1937,7 +1955,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:step_startup",
 		PTPD_RESTART_NONE, &rtOpts->stepOnce, rtOpts->stepOnce,
-		"Step clock on startup if offset >= 1 second, ignoring\n"
+		"Step clock on startup if offset >= +/-1 second, ignoring\n"
 	"        panic mode and clock:no_reset");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:strict_sync",
@@ -2295,8 +2313,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	    INFO("SNMP support not enabled. Please compile with PTPD_SNMP to use global:enable_snmp_traps\n");
 #endif /* PTPD_SNMP */
 
-
-
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "global:use_syslog",
 		PTPD_RESTART_LOGGING, &rtOpts->useSysLog, rtOpts->useSysLog,
 		"Send log messages to syslog. Disabling this\n"
@@ -2368,6 +2384,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 				"LOG_DEBUG3", 	LOG_DEBUG3,
 				"LOG_DEBUGV", 	LOG_DEBUGV, NULL
 				);
+	parseResult &= configMapString(opCode, opArg, dict, target, "global:debugfilter",
+		PTPD_RESTART_NONE, rtOpts->debugFilter, sizeof(rtOpts->debugFilter), rtOpts->debugFilter,
+	"Only display debug messages containing this text (case sensitive, max. 100 characters)");
+
 #else
 	if (!(opCode & CFGOP_PARSE_QUIET) && CONFIG_ISSET("global:debug_level"))
 	    INFO("Runtime debug not enabled. Please compile with RUNTIME_DEBUG to use global:debug_level.\n");
@@ -2382,6 +2402,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	parseResult &= configMapString(opCode, opArg, dict, target, "global:log_file",
 		PTPD_RESTART_LOGGING, rtOpts->eventLog.logPath, sizeof(rtOpts->eventLog.logPath), rtOpts->eventLog.logPath,
 		"Specify log file path (event log). Setting this enables logging to file.");
+
+	parseResult &= configMapString(opCode, opArg, dict, target, "global:log_filter",
+		PTPD_RESTART_NONE, rtOpts->logFilter, sizeof(rtOpts->logFilter), rtOpts->logFilter,
+	"Only display log messages containing this text (case sensitive, max. 100 characters)");
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "global:log_file_max_size",
 		PTPD_RESTART_LOGGING, INTTYPE_U32, &rtOpts->eventLog.maxSize, rtOpts->eventLog.maxSize,
@@ -2544,71 +2568,46 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	CONFIG_KEY_DEPENDENCY("ntpengine:control:enabled", "ntpengine:key");
 
 
+
 /* ============== END CONFIG MAPPINGS, TRIGGERS AND DEPENDENCIES =========== */
 
 /* ==== Any additional logic should go here ===== */
 
-	strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFACE_NAME_LENGTH);
+	strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFNAMSIZ);
 
-	/* Check timing packet ACLs */
+	/* test ACLs */
+
+	int family = getConfiguredFamily(rtOpts);
+
 	if(rtOpts->timingAclEnabled) {
-
-		int pResult, dResult;
-
-		if((pResult = maskParser(rtOpts->timingAclPermitText, NULL)) == -1)
-			ERROR("Error while parsing timing permit access list: \"%s\"\n",
-				rtOpts->timingAclPermitText);
-		if((dResult = maskParser(rtOpts->timingAclDenyText, NULL)) == -1)
-			ERROR("Error while parsing timing deny access list: \"%s\"\n",
-				rtOpts->timingAclDenyText);
-
-		/* -1 = ACL format error*/
-		if(pResult == -1 || dResult == -1) {
-			parseResult = FALSE;
-			rtOpts->timingAclEnabled = FALSE;
-		}
-		/* 0 = no entries - we simply don't match */
-		if(pResult == 0 && dResult == 0) {
-			rtOpts->timingAclEnabled = FALSE;
-		}
+	    if(!testCckAcl(family, rtOpts->timingAclPermitText,
+				    rtOpts->timingAclDenyText,
+				    rtOpts->timingAclOrder, false)) {
+		parseResult = FALSE;
+		rtOpts->timingAclEnabled = FALSE;
+		ERROR("Error while parsing timing ACL\n");
+	    }
 	}
 
-
-	/* Check management message ACLs */
 	if(rtOpts->managementAclEnabled) {
-
-		int pResult, dResult;
-
-		if((pResult = maskParser(rtOpts->managementAclPermitText, NULL)) == -1)
-			ERROR("Error while parsing management permit access list: \"%s\"\n",
-				rtOpts->managementAclPermitText);
-		if((dResult = maskParser(rtOpts->managementAclDenyText, NULL)) == -1)
-			ERROR("Error while parsing management deny access list: \"%s\"\n",
-				rtOpts->managementAclDenyText);
-
-		/* -1 = ACL format error*/
-		if(pResult == -1 || dResult == -1) {
-			parseResult = FALSE;
-			rtOpts->managementAclEnabled = FALSE;
-		}
-		/* 0 = no entries - we simply don't match */
-		if(pResult == 0 && dResult == 0) {
-			rtOpts->managementAclEnabled = FALSE;
-		}
+	    if(!testCckAcl(family, rtOpts->managementAclPermitText,
+				    rtOpts->managementAclDenyText,
+				    rtOpts->managementAclOrder, false)) {
+		parseResult = FALSE;
+		rtOpts->managementAclEnabled = FALSE;
+		ERROR("Error while parsing management ACL\n");
+	    }
 	}
 
 	/* Scale the maxPPM to PPB */
 	rtOpts->servoMaxPpb *= 1000;
 	rtOpts->servoMaxPpb_hw *= 1000;
 
-	/* Shift DSCP to accept the 6-bit value */
-	rtOpts->dscpValue = rtOpts->dscpValue << 2;
-
 	/*
 	 * We're in hybrid mode and we haven't specified the delay request interval:
 	 * use override with a default value
 	 */
-	if((rtOpts->ipMode == IPMODE_HYBRID) &&
+	if((rtOpts->transportMode == TMODE_MIXED) &&
 	 !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
 		rtOpts->ignore_delayreq_interval_master=TRUE;
 
@@ -2616,7 +2615,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	 * We're in unicast slave-capable mode and we haven't specified the delay request interval:
 	 * use override with a default value
 	 */
-	if((rtOpts->ipMode == IPMODE_UNICAST &&
+	if((rtOpts->transportMode == TMODE_UC &&
 	    rtOpts->clockQuality.clockClass > 127) &&
 	    !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
 		rtOpts->ignore_delayreq_interval_master=TRUE;
@@ -2783,12 +2782,9 @@ printDefaultConfig()
 
 }
 
-
-
 /**
- * Create a dummy rtOpts  with defaults, create a dummy dictionary,
- * Set the "secret" key in the dictionary, causing parseConfig
- * to switch from parse mode to help mode.
+ * Create a dummy rtOpts with defaults, create a dummy dictionary,
+ * run parseConfig in help mode.
  */
 void
 printConfigHelp()
@@ -2979,17 +2975,17 @@ short_help:
 			dictionary_set(dict,"ptpengine:preset", "masteronly");
 			break;
 		case 'y':
-			dictionary_set(dict,"ptpengine:ip_mode", "hybrid");
+			dictionary_set(dict,"ptpengine:transport_mode", "hybrid");
 			break;
 		/* unicast */
 		case 'U':
-			dictionary_set(dict,"ptpengine:ip_mode", "unicast");
+			dictionary_set(dict,"ptpengine:transport_mode", "unicast");
 			break;
 		case 'g':
 			dictionary_set(dict,"ptpengine:unicast_negotiation", "y");
 			break;
 		case 'u':
-			dictionary_set(dict,"ptpengine:ip_mode", "unicast");
+			dictionary_set(dict,"ptpengine:transport_mode", "unicast");
 			dictionary_set(dict,"ptpengine:unicast_destinations", optarg);
 			break;
 		case 'n':
@@ -3033,7 +3029,7 @@ short_help:
 			" built on "BUILD_DATE
 #endif
 			"\n");
-
+			cckVersion();
 			return FALSE;
 		/* run in foreground */
 		case 'C':
@@ -3165,12 +3161,12 @@ printShortHelp()
 			"-s --slaveonly	 	 	ptpengine:preset=slaveonly	Slave only mode\n"
 			"-m --masterslave 		ptpengine:preset=masterslave	Master, slave when not best GM\n"
 			"-M --masteronly 		ptpengine:preset=masteronly	Master, passive when not best GM\n"
-			"-y --hybrid			ptpengine:ip_mode=hybrid	Hybrid mode (multicast for sync\n"
+			"-y --hybrid			ptpengine:transport_mode=hybrid	Hybrid mode (multicast for sync\n"
 			"								and announce, unicast for delay\n"
 			"								request and response)\n"
-			"-U --unicast			ptpengine:ip_mode=unicast	Unicast mode\n"
+			"-U --unicast			ptpengine:transport_mode=unicast	Unicast mode\n"
 			"-g --unicast-negotiation	ptpengine:unicast_negotiation=y Enable unicast negotiation (signaling)\n"
-			"-u --unicast-destinations 	ptpengine:ip_mode=unicast	Unicast destination list\n"
+			"-u --unicast-destinations 	ptpengine:transport_mode=unicast	Unicast destination list\n"
 			"     [ip/host, ...]		ptpengine:unicast_destinations=<ip/host, ...>\n\n"
 			"-E --e2e			ptpengine:delay_mechanism=E2E	End to end delay detection\n"
 			"-P --p2p			ptpengine:delay_mechanism=P2P	Peer to peer delay detection\n"

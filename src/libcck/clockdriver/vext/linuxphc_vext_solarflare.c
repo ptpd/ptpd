@@ -32,23 +32,26 @@
  *
  */
 
+#include <string.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 #include "linuxphc_vext_solarflare.h"
+#include <libcck/cck.h>
 
-static Boolean getSystemClockOffset(ClockDriver *driver, TimeInternal *output);
+static bool getSystemClockOffset(ClockDriver *driver, CckTimestamp *output);
 static int vendorInit(ClockDriver *driver);
 static int vendorShutdown(ClockDriver *driver);
-
 
 int
 loadCdVendorExt_solarflare(ClockDriver *driver, const char *ifname) {
 
     int ret = 0;
-    TimeInternal delta = {0,0};
+    CckTimestamp delta = {0,0};
 
-    INIT_EXTDATA_CLOCKDRIVER(driver, solarflare);
-    GET_EXTDATA_CLOCKDRIVER(driver, sfData, solarflare);
+    CCK_INIT_EXTDATA(ClockDriver, solarflare, driver);
+    CCK_GET_EXTDATA(ClockDriver, solarflare, driver, sfData);
 
-    strncpy(sfData->ifName, ifname, IFACE_NAME_LENGTH);
+    strncpy(sfData->ifName, ifname, IFNAMSIZ);
 
     ret = vendorInit(driver);
 
@@ -75,13 +78,13 @@ loadCdVendorExt_solarflare(ClockDriver *driver, const char *ifname) {
 
 }
 
-static Boolean
-getSystemClockOffset(ClockDriver *driver, TimeInternal *output)
+static bool
+getSystemClockOffset(ClockDriver *driver, CckTimestamp *output)
 {
 
     int ret;
 
-    GET_EXTDATA_CLOCKDRIVER(driver, sfData, solarflare);
+    CCK_GET_EXTDATA(ClockDriver, solarflare, driver, sfData);
 
     memset(&sfData->sfioctl, 0, sizeof(struct efx_sock_ioctl));
 
@@ -90,7 +93,7 @@ getSystemClockOffset(ClockDriver *driver, TimeInternal *output)
     ret = ioctl(sfData->fd, SIOCEFX, &sfData->ifr);
 
     if(ret < 0) {
-	return FALSE;
+	return false;
     }
 
     output->seconds = sfData->sfioctl.u.ts_sync.ts.tv_sec;
@@ -104,13 +107,13 @@ getSystemClockOffset(ClockDriver *driver, TimeInternal *output)
     output->seconds = -output->seconds;
     output->nanoseconds = -output->nanoseconds;
 
-    return TRUE;
+    return true;
 }
 
 static int
 vendorInit(ClockDriver *driver) {
 
-    GET_EXTDATA_CLOCKDRIVER(driver, sfData, solarflare);
+    CCK_GET_EXTDATA(ClockDriver, solarflare, driver, sfData);
 
     sfData->fd = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -118,7 +121,7 @@ vendorInit(ClockDriver *driver) {
 	return -1;
     }
 
-    strncpy(sfData->ifr.ifr_name, sfData->ifName, IFACE_NAME_LENGTH);
+    strncpy(sfData->ifr.ifr_name, sfData->ifName, IFNAMSIZ);
     sfData->ifr.ifr_data = (caddr_t) & sfData->sfioctl;
 
     return 1;
@@ -128,7 +131,7 @@ vendorInit(ClockDriver *driver) {
 static int
 vendorShutdown(ClockDriver *driver) {
 
-    GET_EXTDATA_CLOCKDRIVER(driver, sfData, solarflare);
+    CCK_GET_EXTDATA(ClockDriver, solarflare, driver, sfData);
 
     close(sfData->fd);
     free(driver->_extData);

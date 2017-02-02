@@ -119,6 +119,4 @@ PtpText createPtpText(const char *text);
 
 void displayPtpTimeInternal(PtpTimeInternal data, const char *name);
 
-
-
 #endif /* PTP_DERIVED_TYPES_H_ */

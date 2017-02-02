@@ -107,11 +107,18 @@ outlierFilterReset(OutlierFilter *filter) {
 	filter->threshold = filter->config.threshold;
 	resetDoublePermanentMean(&filter->outlierStats);
 	resetDoublePermanentMean(&filter->acceptedStats);
+	filter->acceptedStats.bufferedMean = 0.0;
+	filter->outlierStats.bufferedMean = 0.0;
 	filter->delay = 0;
 	filter->totalDelay = 0;
 	filter->delayCredit = filter->config.delayCredit;
 	filter->blocking = FALSE;
 	filter->stepSamples = 0;
+	filter->autoTuneSamples  = 0;
+	filter->autoTuneOutliers  = 0;
+	filter->consecutiveOutliers = 0;
+
+
 	return 1;
 
 }
@@ -232,9 +239,8 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 
 		/* filter is about to accept after a blocking period */
 		if(filter->consecutiveOutliers) {
-			DBG_LOCAL_ID(filter,"consecutive: %d, mean: %.09fm accepted bmean: %.09f\n", filter->consecutiveOutliers,
+			DBG_LOCAL_ID(filter,"consecutive: %d, mean: %.09f accepted bmean: %.09f\n", filter->consecutiveOutliers,
 				filter->outlierStats.mean,filter->acceptedStats.bufferedMean);
-
 				/* we are about to open up but the offset has risen above step level, we will block again, but not forever */
 				if(filter->config.stepDelay &&
 				    (fabs(filter->acceptedStats.bufferedMean) < ((filter->config.stepThreshold + 0.0) / 1E9)) &&
@@ -248,9 +254,9 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 						filter->stepSamples = 0;
 					    }
 					    /* prevent from informing about a single step. */
-					    if(filter->stepSamples == 1) {
+//					    if(filter->stepSamples == 1) {
 						INFO_LOCAL_ID(filter,"%.03f us step detected, filter will now block\n", step * 1E6);
-					    }
+//					    }
 					    DBG_LOCAL_ID(filter,"step: %.09f, credit left %d, requesting %d\n",step,
 						    filter->delayCredit, filter->consecutiveOutliers);
 					    filter->delay = filter->consecutiveOutliers;
@@ -262,7 +268,6 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 					    filter->lastOutlier = TRUE;
 					    DBG_LOCAL_ID(filter,"maxdelay: %d, totaldelay: %d\n",filter->config.maxDelay, filter->totalDelay);
 					    return FALSE;
-
 
 				    /* much love for the ultra magnetic, cause everybody knows you never got enough credit */
 				    /* we either ran out of credit while blocking, or we did not have enough to start with */
@@ -277,7 +282,7 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 				/* NO STEP */
 				} else {
 
-					if (filter->blocking && (filter->stepSamples > 1)) {
+					if (filter->blocking && (filter->stepSamples > 0)) {
 					    INFO_LOCAL_ID(filter,"step event over (%d samples), filter will stop blocking\n", filter->stepSamples);
 					}
 					filter->blocking = FALSE;

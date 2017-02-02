@@ -82,5 +82,7 @@ void printShortHelp();
 void printLongHelp();
 void printSettingHelp(char*);
 void setConfig(dictionary *dict, const char* key, const char *value);
+int getConfiguredFamily(const RunTimeOpts *rtOpts);
+
 
 #endif /*PTPD_DAEMONCONFIG_H_*/

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2016-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -32,20 +32,20 @@
  *
  */
 
-#ifndef PTPD_CLOCKDRIVER_UNIX_H_
-#define PTPD_CLOCKDRIVER_UNIX_H_
+#ifndef CCK_CLOCKDRIVER_UNIX_H_
+#define CCK_CLOCKDRIVER_UNIX_H_
 
 #include <libcck/clockdriver.h>
 
-Boolean _setupClockDriver_unix(ClockDriver* clockDriver);
+bool _setupClockDriver_unix(ClockDriver* clockDriver);
 
 typedef struct {
 
 } ClockDriverData_unix;
 
 typedef struct {
-    Boolean setRtc;
+    bool setRtc;
 } ClockDriverConfig_unix;
 
 
-#endif /* PTPD_CLOCKDRIVER_UNIX_H_ */
+#endif /* CCK_CLOCKDRIVER_UNIX_H_ */

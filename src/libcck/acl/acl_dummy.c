@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Wojciech Owczarek,
+/* Copyright (c) 2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -25,16 +25,72 @@
  */
 
 /**
- * @file   libcck.h
- * @date   Sat Jan 9 16:14:10 2016
+ * @file   acl_dummy.c
+ * @date   Sat Jan 9 16:14:10 2015
  *
- * @brief  libCCK global header
+ * @brief  dummy ACL implementation
  *
  */
 
-#ifndef CCK_CCK_H_
-#define CCK_CCK_H_
+#include <config.h>
 
-#include <libcck/fd_set.h>
+#include <errno.h>
 
-#endif /* CCK_CCK_H_ */
+#include <libcck/cck.h>
+#include <libcck/cck_types.h>
+#include <libcck/cck_utils.h>
+#include <libcck/cck_logger.h>
+#include <libcck/transport_address.h>
+#include <libcck/net_utils.h>
+#include <libcck/acl.h>
+#include <libcck/acl_interface.h>
+
+#define THIS_COMPONENT "acl.dummy: "
+
+static int cckAcl_init(CckAcl* self);
+
+/* tracking the number of instances */
+static int _instanceCount = 0;
+
+bool
+_setupCckAcl_dummy(CckAcl *self)
+{
+
+    INIT_INTERFACE(self);
+
+    self->_instanceCount = &_instanceCount;
+
+    _instanceCount++;
+
+    return true;
+
+}
+
+static int
+cckAcl_init(CckAcl* self) {
+
+    self->_init = true;
+    return 1;
+
+}
+
+static bool
+_parseEntry (CckAcl *self, CckAclEntry* entry, const char *line, const bool quiet) {
+
+    return true;
+
+}
+
+static bool
+_matchEntry (CckAcl *self, CckAclEntry* entry, CckTransportAddress *address) {
+
+    return true;
+
+}
+
+static char*
+_dumpEntry (CckAclEntry* entry, char *buf, const int len) {
+
+    return NULL;
+
+}

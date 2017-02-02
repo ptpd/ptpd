@@ -55,15 +55,11 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <limits.h>
-#include <netdb.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/timex.h>
-#include <sys/socket.h>
-#include <sys/select.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
-#include <arpa/inet.h>
 #include <stdarg.h>
 #include <syslog.h>
 #include <limits.h>
@@ -74,58 +70,17 @@
 #include <glob.h>
 #include <stddef.h>
 #include <stdint.h>
-#ifdef HAVE_UTMPX_H
-#include <utmpx.h>
-#else
-#ifdef HAVE_UTMP_H
-#include <utmp.h>
-#endif /* HAVE_UTMP_H */
-#endif /* HAVE_UTMPX_H */
-
-#ifdef HAVE_NET_ETHERNET_H
-#include <net/ethernet.h>
-#endif /* HAVE_NET_ETHERNET_H */
 
 #ifdef HAVE_UNIX_H /* setlinebuf() on QNX */
 #include <unix.h>
 #endif /* HAVE_UNIX_H */
 
-#include <netinet/in.h>
 #ifdef HAVE_NETINET_IN_SYSTM_H
 #include <netinet/in_systm.h>
 #endif
 #include <netinet/ip.h>
 #include <netinet/udp.h>
-#ifdef HAVE_NETINET_ETHER_H
-#include <netinet/ether.h>
-#endif /* HAVE_NETINET_ETHER_H */
 
-#ifdef HAVE_NET_IF_ARP_H
-#include <net/if_arp.h>
-#endif /* HAVE_NET_IF_ARP_H*/
-
-#ifdef HAVE_LINUX_IF_H
-#include <linux/if.h>
-#define IF_NAMESIZE IFNAMSIZ
-#elif defined(HAVE_NET_IF_H)
-#include <net/if.h>
-#endif /* HAVE_LINUX_IF_H*/
-
-#ifdef HAVE_NETINET_IF_ETHER_H
-#include <netinet/if_ether.h>
-#endif /* HAVE_NETINET_IF_ETHER_H */
-
-
-#ifdef PTPD_PCAP
-#ifdef HAVE_PCAP_PCAP_H
-#include <pcap/pcap.h>
-#else
-/* Cases like RHEL5 and others where only pcap.h exists */
-#ifdef HAVE_PCAP_H
-#include <pcap.h>
-#endif /* HAVE_PCAP_H */
-#endif
-#endif
 #if defined(linux) && defined(HAVE_SCHED_H)
 #include <sched.h>
 #endif /* linux && HAVE_SCHED_H */
@@ -148,18 +103,13 @@
 
 #endif /* PTPD_DISABLE_SOTIMESTAMPING */
 
-#include "dep/ipv4_acl.h"
-
 #include "dep/constants_dep.h"
 #include "dep/datatypes_dep.h"
 
 #include "ptp_timers.h"
-#include "dep/eventtimer.h"
 
 #include "dep/ntpengine/ntpdcontrol.h"
 #include "dep/ntpengine/ntp_isc_md5.h"
-
-#include "timingdomain.h"
 
 #include "dep/outlierfilter.h"
 
@@ -175,7 +125,7 @@
 #include "dep/alarms.h"
 
 #include "libcck/clockdriver.h"
-
+#include "dep/cck_glue.h"
 
 /* NOTE: this macro can be refactored into a function */
 #define XMALLOC(ptr,size) \
@@ -212,10 +162,6 @@
 #ifndef max
 #define max(a,b)     (((a)>(b))?(a):(b))
 #endif /* max */
-
-#ifdef HAVE_LINUX_RTC_H
-#include <linux/rtc.h>
-#endif /* HAVE_LINUX_RTC_H */
 
 #define SET_ALARM(alarm, val) \
 	setAlarmCondition(&ptpClock->alarms[alarm], val, ptpClock)
@@ -273,8 +219,6 @@ void subTime(TimeInternal*,const TimeInternal*,const TimeInternal*);
  */
 void div2Time(TimeInternal *);
 
-void timeDelta(TimeInternal *before, TimeInternal *meas, TimeInternal *after, TimeInternal *delta);
-
 TimeInternal negativeTime(TimeInternal *time);
 
 Boolean isTimeZero(const TimeInternal *time);
@@ -313,7 +257,7 @@ void p1(PtpClock *ptpClock, const RunTimeOpts *rtOpts);
 /**
  * \brief Initialize datas
  */
-void initData(RunTimeOpts*,PtpClock*);
+void initData(const RunTimeOpts*,PtpClock*);
 /** \}*/
 
 
@@ -324,9 +268,10 @@ void initData(RunTimeOpts*,PtpClock*);
  * \brief Protocol engine
  */
 /* protocol.c */
-void protocol(RunTimeOpts*,PtpClock*);
+void ptpRun(RunTimeOpts*,PtpClock*);
 void updateDatasets(PtpClock* ptpClock, const RunTimeOpts* rtOpts);
 void setPortState(PtpClock *ptpClock, Enumeration8 state);
+void processPtpData(PtpClock *ptpClock, TimeInternal* timeStamp, ssize_t length, void *src, void *dst);
 
 Boolean acceptPortIdentity(PortIdentity thisPort, PortIdentity targetPort);
 
@@ -340,7 +285,7 @@ Boolean acceptPortIdentity(PortIdentity thisPort, PortIdentity targetPort);
  * \brief Management message support
  */
 void handleManagement(MsgHeader *header,
-		 Boolean isFromSelf, Integer32 sourceAddress, RunTimeOpts *rtOpts, PtpClock *ptpClock);
+		 Boolean isFromSelf, void *sourceAddress, RunTimeOpts *rtOpts, PtpClock *ptpClock);
 
 /** \}*/
 
@@ -351,13 +296,13 @@ void handleManagement(MsgHeader *header,
 /**
  * \brief Signaling message support
  */
-UnicastGrantTable* findUnicastGrants(const PortIdentity* portIdentity, Integer32 TransportAddress, UnicastGrantTable *grantTable, UnicastGrantIndex *index, int nodeCount, Boolean update);
+UnicastGrantTable* findUnicastGrants(const PortIdentity* portIdentity, void *TransportAddress, UnicastGrantTable *grantTable, UnicastGrantIndex *index, int nodeCount, Boolean update);
 void 	initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism, int nodeCount, UnicastDestination *destinations, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 
 void 	cancelUnicastTransmission(UnicastGrantData*, const RunTimeOpts*, PtpClock*);
 void 	cancelAllGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 
-void 	handleSignaling(MsgHeader*, Boolean, Integer32, const RunTimeOpts*,PtpClock*);
+void 	handleSignaling(MsgHeader*, Boolean, void*, const RunTimeOpts*,PtpClock*);
 
 void 	refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 void 	updateUnicastGrantTable(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts);
@@ -407,15 +352,13 @@ void displayBuffer (const PtpClock*);
 void displayPtpClock (const PtpClock*);
 void timeInternal_display(const TimeInternal*);
 void clockIdentity_display(const ClockIdentity);
-void netPath_display(const NetPath*);
 void intervalTimer_display(const IntervalTimer*);
 void integer64_display (const Integer64*);
 void timeInterval_display(const TimeInterval*);
 void portIdentity_display(const PortIdentity*);
 void clockQuality_display (const ClockQuality*);
 void PTPText_display(const PTPText*, const PtpClock*);
-void iFaceName_display(const Octet*);
-void unicast_display(const Octet*);
+
 const char *portState_getName(Enumeration8 portState);
 const char *getMessageTypeName(Enumeration8 messageType);
 const char* accToString(uint8_t acc);

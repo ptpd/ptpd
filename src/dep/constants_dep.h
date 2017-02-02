@@ -15,78 +15,7 @@
 
 /* platform dependent */
 
-#if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) && \
-  !defined(__APPLE__) && !defined(__OpenBSD__) && !defined(__sun) && !defined(__QNXNTO__)
-#error PTPD hasn't been ported to this OS - should be possible \
-if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.net
-#endif
 
-#ifdef HAVE_LINUX_IF_H
-#include <linux/if.h>
-#elif defined(HAVE_NET_IF_H)
-#include <net/if.h>
-#endif /* HAVE_LINUX_IF_H*/
-
-#ifdef	linux
-#include<netinet/in.h>
-#include<net/if_arp.h>
-#include <ifaddrs.h>
-#define IFACE_NAME_LENGTH         IF_NAMESIZE
-#define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
-
-#define IFCONF_LENGTH 10
-
-#define octet ether_addr_octet
-#endif /* linux */
-
-#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__OpenBSD__) || defined(__sun) || defined(__QNXNTO__)
-# include <sys/types.h>
-# include <sys/socket.h>
-#ifdef HAVE_SYS_SOCKIO_H
-#include <sys/sockio.h>
-#endif /* HAVE_SYS_SOCKIO_H */
-# include <netinet/in.h>
-# include <net/if_dl.h>
-# include <net/if_types.h>
-#ifdef HAVE_NET_IF_ETHER_H
-#  include <net/if_ether.h>
-#endif
-#ifdef HAVE_SYS_UIO_H
-#  include <sys/uio.h>
-#endif
-#ifdef HAVE_NET_ETHERNET_H
-#  include <net/ethernet.h>
-#endif
-#include <ifaddrs.h>
-# define IFACE_NAME_LENGTH         IF_NAMESIZE
-# define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
-
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif /* HAVE_SYS_PARAM_H */
-
-#ifdef __QNXNTO__
-#include <sys/neutrino.h>
-#include <sys/syspage.h>
-#define BSD_INTERFACE_FUNCTIONS
-#endif /* __QNXNTO __ */
-
-
-#if !defined(ETHER_ADDR_LEN) && defined(ETHERADDRL)
-#	define ETHER_ADDR_LEN ETHERADDRL
-#endif /* ETHER_ADDR_LEN && ETHERADDRL */
-
-#ifndef ETHER_HDR_LEN
-#	define ETHER_HDR_LEN sizeof (struct ether_header)
-#endif /* ETHER_ADDR_LEN && ETHERADDRL */
-
-
-# define IFCONF_LENGTH 10
-
-# define adjtimex ntp_adjtime
-
-
-#endif
 
 #ifdef HAVE_MACHINE_ENDIAN_H
 #	include <machine/endian.h>
@@ -109,11 +38,6 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define CLOCK_IDENTITY_LENGTH 8
 #define ADJ_FREQ_MAX 500000
 
-/* UDP/IPv4 dependent */
-#ifndef INADDR_LOOPBACK
-#define INADDR_LOOPBACK 0x7f000001UL
-#endif
-
 #define PACKET_SIZE  300
 #define PACKET_BEGIN_UDP (ETHER_HDR_LEN + sizeof(struct ip) + \
 	    sizeof(struct udphdr))
@@ -122,8 +46,11 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define PTP_EVENT_PORT    319
 #define PTP_GENERAL_PORT  320
 
-#define DEFAULT_PTP_DOMAIN_ADDRESS     "224.0.1.129"
-#define PEER_PTP_DOMAIN_ADDRESS        "224.0.0.107"
+#define PTP_MCAST_GROUP_IPV4     	"224.0.1.129"
+#define PTP_MCAST_PEER_GROUP_IPV4        "224.0.0.107"
+
+#define PTP_MCAST_GROUP_IPV6     	"FF03:0:0:0:0:0:0:181"
+#define PTP_MCAST_PEER_GROUP_IPV6       "FF02:0:0:0:0:0:0:6B"
 
 /* 802.3 Support */
 
@@ -164,6 +91,31 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 /* wait a maximum of 2 ms for a late TX timestamp after all retries*/
 #define LATE_TXTIMESTAMP_FINAL_US 2000
 
+#define DEFAULT_TOKEN_DELIM ", ;\t"
+
+/*
+ * foreach loop across substrings from var, delimited by delim, placing
+ * each token in targetvar on iteration, using id variable name prefix
+ * to allow nesting (each loop uses an individual set of variables)
+ */
+#define foreach_token_begin(id, var, targetvar, delim) \
+    int counter_##id = -1; \
+    char* stash_##id = NULL; \
+    char* text_##id; \
+    char* text__##id; \
+    char* targetvar; \
+    text_##id=strdup(var); \
+    for(text__##id = text_##id;; text__##id=NULL) { \
+	targetvar = strtok_r(text__##id, delim, &stash_##id); \
+	if(targetvar==NULL) break; \
+	counter_##id++;
+
+#define foreach_token_end(id) } \
+    if(text_##id != NULL) { \
+	free(text_##id); \
+    } \
+    counter_##id++;
+
 /* drift recovery metod for use with -F */
 enum {
 	DRIFT_RESET = 0,
@@ -172,11 +124,11 @@ enum {
 };
 /* IP transmission mode */
 enum {
-	IPMODE_MULTICAST = 0,
-	IPMODE_UNICAST,
-	IPMODE_HYBRID,
+	TMODE_MC = 0,
+	TMODE_UC,
+	TMODE_MIXED,
 #if 0
-	IPMODE_UNICAST_SIGNALING
+	TMODE_UC_SIGNALING
 #endif
 };
 
@@ -185,33 +137,6 @@ enum {
 	TIMESTAMP_DATETIME,
 	TIMESTAMP_UNIX,
 	TIMESTAMP_BOTH
-};
-
-/* servo dT calculation mode */
-enum {
-	DT_NONE,
-	DT_CONSTANT,
-	DT_MEASURED
-};
-
-/* StatFilter op type */
-enum {
-	FILTER_NONE,
-	FILTER_MEAN,
-	FILTER_MIN,
-	FILTER_MAX,
-	FILTER_ABSMIN,
-	FILTER_ABSMAX,
-	FILTER_MEDIAN,
-	FILTER_MAD,
-	FILTER_MAXVALUE
-};
-
-/* StatFilter window type */
-enum {
-	WINDOW_INTERVAL,
-	WINDOW_SLIDING,
-//	WINDOW_OVERLAPPING
 };
 
 /* Leap second handling */

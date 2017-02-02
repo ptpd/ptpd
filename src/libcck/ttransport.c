@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Wojciech Owczarek,
+/* Copyright (c) 2016-2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -25,1046 +25,496 @@
  */
 
 /**
- * @file   clockdriver.c
+ * @file   ttransport.c
  * @date   Sat Jan 9 16:14:10 2015
  *
- * @brief  Initialisation code for the clock driver
+ * @brief  Initialisation and control of the Timestamping Transport
  *
  */
 
-#include "clockdriver.h"
+#include <config.h>
 
-#define THIS_COMPONENT "clock: "
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <libcck/cck_utils.h>
+#include <libcck/ttransport.h>
+#include <libcck/cck_logger.h>
+
+#define THIS_COMPONENT "transport: "
 
 
 /* linked list - so that we can control all registered objects centrally */
-LINKED_LIST_HOOK(ClockDriver);
+LINKED_LIST_ROOT_STATIC(TTransport);
 
-static ClockDriver* _systemClock = NULL;
-static ClockDriver* _bestClock = NULL;
-static int _updateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
-static int _syncInterval = 1.0 / (CLOCK_SYNC_RATE + 0.0);
+static const char *ttransportNames[] = {
 
+    [TT_TYPE_NONE] = "none",
 
-static const char *clockDriverNames[] = {
+#define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+    [typeenum] = textname,
 
-    #define REGISTER_CLOCKDRIVER(fulltype, shorttype, textname) \
-	[fulltype] = textname,
+#include "ttransport.def"
 
-    #include "clockdriver.def"
-
-    [CLOCKDRIVER_MAX] = "nosuchtype"
+    [TT_TYPE_MAX] = "nosuchtype"
 
 };
 
-/* inherited methods */
+/* inherited method declarations */
 
-static void setState(ClockDriver *, ClockState);
-static void processUpdate(ClockDriver *);
-static void touchClock(ClockDriver *driver);
-static Boolean pushConfig(ClockDriver *, RunTimeOpts *);
-static void configureFilters(ClockDriver *);
-static Boolean healthCheck(ClockDriver *);
-static void setReference(ClockDriver *, ClockDriver *);
-static void setExternalReference(ClockDriver *, const char*, int);
-static void restoreFrequency (ClockDriver *);
-static void storeFrequency (ClockDriver *);
-static Boolean adjustFrequency (ClockDriver *, double, double);
-static Boolean syncClock (ClockDriver*, double);
-static Boolean syncClockExternal (ClockDriver*, TimeInternal, double);
-static void putInfoLine(ClockDriver*, char*, int);
-static void putStatsLine(ClockDriver*, char*, int);
+/* restart: shutdown + init */
+static int restartTransport(TTransport *);
+/* clear counters */
+static void clearCounters (TTransport *);
+/* dumpCounters */
+static void dumpCounters (TTransport *);
+/* update rates */
+static void updateCounterRates (TTransport *, const int interval);
+/* set up data buffers */
+static void setBuffers (TTransport *, char *iBuf, const int iBufSize, char *oBuf, const int oBufSize);
+/* magic cure for hypohondria: imaginary health-check */
+static bool healthCheck (TTransport *);
+/* send n bytes from outputBuffer / outgoingMessage to destination,  */
+static ssize_t sendTo (TTransport*, const size_t len, CckTransportAddress *to);
+/* send n bytes from buf to destination */
+static ssize_t sendDataTo (TTransport*, char *buf, const size_t len, CckTransportAddress *to);
+/* receive data into inputBuffer and incomingMessage */
+static ssize_t receive (TTransport*);
+/* receive data into provided buffer of size len */
+static ssize_t receiveData (TTransport*, char* buf, const size_t size);
+/* short status line - default implementation */
+static char* getStatusLine(TTransport *self, char *buf, size_t len);
+/* short info line - default implementation */
+static char* getInfoLine(TTransport *self, char *buf, size_t len);
+/* check address against ACLs */
+static bool addressPermitted (TTransport *self, CckTransportAddress *address, bool isRegular);
+/* check message against ACLs */
+static bool messagePermitted (TTransport *self, TTransportMessage *message);
+/* free private config data */
+static void freeTTransportPrivateConfig(TTransportConfig *config);
 
+/* inherited method declarations end */
 
-/* inherited methods end */
+/* transport management code */
 
-static ClockDriver* compareClockDriver(ClockDriver *, ClockDriver *);
-static void findBestClock();
-static Boolean disciplineClock(ClockDriver *, TimeInternal, double);
+TTransport*
+createTTransport(const int type, const char* name) {
 
-ClockDriver *
-createClockDriver(int driverType, const char *name)
-{
+    tmpstr(aclName, CCK_COMPONENT_NAME_MAX);
 
-    ClockDriver *clockDriver = NULL;
+    TTransport *transport = NULL;
 
-    if(getClockDriverByName(name) != NULL) {
-	ERROR(THIS_COMPONENT"Cannot create clock driver %s: clock driver with this name already exists\n", name);
+    if(getTTransportByName(name) != NULL) {
+	CCK_ERROR(THIS_COMPONENT"Cannot create transport %s: transport with this name already exists\n", name);
 	return NULL;
     }
 
-    XCALLOC(clockDriver, sizeof(ClockDriver));
+    CCKCALLOC(transport, sizeof(TTransport));
 
-    if(!setupClockDriver(clockDriver, driverType, name)) {
-	if(clockDriver != NULL) {
-	    free(clockDriver);
+    if(!setupTTransport(transport, type, name)) {
+	if(transport != NULL) {
+	    free(transport);
 	}
 	return NULL;
     } else {
 	/* maintain the linked list */
-	LINKED_LIST_APPEND(clockDriver);
+	LINKED_LIST_APPEND_STATIC(transport);
     }
 
-    clockDriver->refClass = -1;
-    clockDriver->distance = 255;
+/* init ACLs */
+    snprintf(aclName, CCK_COMPONENT_NAME_MAX, "data_%s", name);
+    transport->dataAcl = createCckAcl(transport->family, aclName);
+    transport->dataAcl->init(transport->dataAcl);
 
-    clockDriver->_filter = NULL;
-    clockDriver->_madFilter = NULL;
+    clearstr(aclName);
+    snprintf(aclName, CCK_COMPONENT_NAME_MAX, "control_%s", name);
+    transport->controlAcl = createCckAcl(transport->family, aclName);
+    transport->controlAcl->init(transport->controlAcl);
 
-    return clockDriver;
+    return transport;
 
 }
 
-Boolean
-setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
-{
+bool
+setupTTransport(TTransport* transport, const int type, const char* name) {
 
-    Boolean found = FALSE;
-    Boolean setup = FALSE;
+    bool found = false;
+    bool setup = false;
+    int privateSize = 0;
 
-    clockDriver->type = driverType;
-    strncpy(clockDriver->name, name, CLOCKDRIVER_NAME_MAX);
+    transport->type = type;
+    strncpy(transport->name, name, CCK_COMPONENT_NAME_MAX);
 
     /* inherited methods - implementation may wish to override them,
      * or even preserve these pointers in its private data and call both
      */
 
-    clockDriver->setState = setState;
-    clockDriver->processUpdate = processUpdate;
-    clockDriver->pushConfig = pushConfig;
-    clockDriver->healthCheck = healthCheck;
+    transport->restart		= restartTransport;
+    transport->clearCounters	= clearCounters;
+    transport->dumpCounters	= dumpCounters;
+    transport->updateCounterRates	= updateCounterRates;
+    transport->setBuffers	= setBuffers;
+    transport->healthCheck	= healthCheck;
+    transport->sendTo		= sendTo;
+    transport->sendDataTo	= sendDataTo;
+    transport->receive		= receive;
+    transport->receiveData	= receiveData;
+    transport->getStatusLine	= getStatusLine;
+    transport->getInfoLine	= getInfoLine;
+    transport->addressPermitted = addressPermitted;
+    transport->messagePermitted = messagePermitted;
 
-    clockDriver->setReference = setReference;
-    clockDriver->setExternalReference = setExternalReference;
-
-    clockDriver->storeFrequency = storeFrequency;
-    clockDriver->restoreFrequency = restoreFrequency;
-    clockDriver->adjustFrequency = adjustFrequency;
-
-    clockDriver->syncClock = syncClock;
-    clockDriver->syncClockExternal = syncClockExternal;
-
-    clockDriver->touchClock = touchClock;
-
-    clockDriver->putStatsLine = putStatsLine;
-    clockDriver->putInfoLine = putInfoLine;
+    /* vendor extension placeholders */
+    transport->_vendorInit = ttDummyCallback;
+    transport->_vendorShutdown = ttDummyCallback;
+    transport->_vendorHealthCheck = ttDummyCallback;
 
     /* inherited methods end */
 
-    /* these macros call the setup functions for existing clock drivers */
+    /* callbacks */
+    transport->callbacks.preTx = ttDummyDataCallback;
+    transport->callbacks.isRegularData = ttDummyDataCallback;
+    transport->callbacks.matchData = ttDummyMatchCallback;
+    transport->callbacks.onNetworkChange = ttDummyOwnerCallback;
 
-    #define REGISTER_CLOCKDRIVER(fulltype, shorttype, textname) \
-	if(driverType==fulltype) { \
-	    setup = _setupClockDriver_##shorttype(clockDriver);\
-	    found = TRUE;\
+    /* these macros call the setup functions for existing transport implementations */
+
+    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+	if(type==typeenum) {\
+	    found = true;\
+	    transport->family = addressfamily;\
+	    setup = _setupTTransport_##typesuffix(transport);\
+	    privateSize = sizeof(TTransportConfig_##typesuffix);\
 	}
-    #include "clockdriver.def"
+    #include "ttransport.def"
 
     if(!found) {
-	ERROR(THIS_COMPONENT"Setup requested for unknown clock driver type: %d\n", driverType);
-    } else if(!setup) {
-	return FALSE;
-    } else {
-	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_initTime);
-	clockDriver->getTimeMonotonic(clockDriver, &clockDriver->_lastUpdate);
-	DBG(THIS_COMPONENT"Created new clock driver type %d name %s serial %d\n", driverType, name, clockDriver->_serial);
-    }
 
-    clockDriver->state = CS_INIT;
-    setupPIservo(&clockDriver->servo);
-    clockDriver->servo.controller = clockDriver;
+	CCK_ERROR(THIS_COMPONENT"Setup requested for unknown clock transport type: %d\n", type);
+
+    } else if(!setup) {
+	return false;
+    } else {
+
+	transport->config._privateSize = privateSize;
+	transport->config._type = transport->type;
+	transport->config._privateConfig = transport->_privateConfig;
+	transport->tools = getAddressToolset(transport->family);
+
+	CCK_DBG(THIS_COMPONENT"Created new transport type %d name %s serial %d\n", type, name, transport->_serial);
+
+    }
 
     return found;
 
 }
 
 void
-freeClockDriver(ClockDriver** clockDriver)
-{
+freeTTransport(TTransport** transport) {
 
-    ClockDriver *pdriver = *clockDriver;
-    ClockDriver *cd;
+    TTransport *ptransport = *transport;
 
-    if(*clockDriver == NULL) {
+    if(*transport == NULL) {
 	return;
     }
 
-    LINKED_LIST_FOREACH(cd) {
-	if(cd->refClock == pdriver) {
-	    pdriver->setReference(pdriver, NULL);
-	}
-    }
+    freeCckAcl(&ptransport->dataAcl);
+    freeCckAcl(&ptransport->controlAcl);
 
-    if(pdriver->_init) {
-	pdriver->shutdown(pdriver);
+    if(ptransport->_init) {
+	ptransport->shutdown(ptransport);
     }
 
     /* maintain the linked list */
-    LINKED_LIST_REMOVE(pdriver);
+    LINKED_LIST_REMOVE_STATIC(ptransport);
 
-
-    if(pdriver->_privateData != NULL) {
-	free(pdriver->_privateData);
+    if(ptransport->_privateData != NULL) {
+	free(ptransport->_privateData);
     }
 
-    if(pdriver->_privateConfig != NULL) {
-	free(pdriver->_privateConfig);
+    if(ptransport->_privateConfig != NULL) {
+	freeTTransportPrivateConfig(&ptransport->config);
     }
 
-    DBG(THIS_COMPONENT"Deleted clock driver type %d name %s serial %d\n", pdriver->type, pdriver->name, pdriver->_serial);
+    CCK_DBG(THIS_COMPONENT"Deleted transport type %d name %s serial %d\n", ptransport->type, ptransport->name, ptransport->_serial);
 
-    if(pdriver == _systemClock) {
-	_systemClock = NULL;
-    }
+    free(*transport);
 
-    freeDoubleMovingStatFilter(&pdriver->_filter);
-    freeDoubleMovingStatFilter(&pdriver->_madFilter);
-
-    free(*clockDriver);
-
-    *clockDriver = NULL;
-
-};
-
-ClockDriver*
-getSystemClock() {
-
-    if(_systemClock != NULL) {
-	return _systemClock;
-    }
-
-    _systemClock = createClockDriver(CLOCKDRIVER_UNIX, SYSTEM_CLOCK_NAME);
-
-    if(_systemClock == NULL) {
-	CRITICAL(THIS_COMPONENT"Could not start system clock driver, cannot continue\n");
-	exit(1);
-    }
-
-    _systemClock->init(_systemClock, NULL);
-
-    return _systemClock;
-
-}
-
-void
-shutdownClockDrivers() {
-
-	ClockDriver *cd;
-	LINKED_LIST_DESTROYALL(cd, freeClockDriver);
-	_systemClock = NULL;
-
-}
-
-Boolean
-createClockDriversFromString(const char* list, RunTimeOpts *rtOpts, Boolean quiet) {
-
-	ClockDriverSpec spec;
-	ClockDriver *cd = NULL;
-	int namelen = 0;
-	int pathlen = 0;
-	memset(&spec, 0, sizeof(spec));
-
-	foreach_token_begin(clockspecs, list, specLine, DEFAULT_TOKEN_DELIM);
-
-	    if(!parseClockDriverSpec(specLine, &spec)) {
-		counter_clockspecs--;
-		continue;
-	    }
-
-	    pathlen = strlen(spec.path);
-	    namelen = strlen(spec.name);
-
-	    if( (namelen <= 0) && (pathlen > 0) ) {
-		strncpy(spec.name, spec.path + ( pathlen <= 5 ? 0 : pathlen - 5), CLOCKDRIVER_NAME_MAX);
-	    }
-
-	    namelen = strlen(spec.name);
-
-	    if( (pathlen <= 0) && (namelen > 0) ) {
-		strncpy(spec.path, spec.name, CLOCKDRIVER_NAME_MAX);
-	    }
-
-	    if(!strlen(spec.name) && !strlen(spec.path)) {
-		ERROR(THIS_COMPONENT"Clock driver string: \"%s\": no name or path given\n", specLine);
-		counter_clockspecs--;
-		continue;
-	    }
-
-	    if((cd = getClockDriverByName(spec.name))) {
-		if(!quiet) {
-		    WARNING(THIS_COMPONENT"Clock driver string: \"%s\" : clock driver %s already exists\n", specLine, spec.name);
-		}
-	    } else if((cd = findClockDriver(spec.path))) {
-		if(!quiet) {
-		    WARNING(THIS_COMPONENT"Clock driver string: \"%s\" : cannot create another clock driver of this type\n", specLine, spec.name);
-		}
-	    } else {
-		cd = createClockDriver(spec.type, spec.name);
-	    }
-
-	    if(cd != NULL) {
-		if(!cd->_init) {
-		    INFO(THIS_COMPONENT"Extra clock starting: name %s type %s path %s\n", spec.name, getClockDriverName(spec.type), spec.path);
-		    cd->init(cd, spec.path);
-		}
-		cd->inUse = TRUE;
-		cd->pushConfig(cd, rtOpts);
-	    }
-
-	foreach_token_end(clockspecs);
-
-	return TRUE;
-
-}
-
-
-static void
-setState(ClockDriver *driver, ClockState newState) {
-
-	if(driver == NULL) {
-	    return;
-	}
-
-	if((newState > CS_FREERUN) && driver->config.disabled) {
-	    return;
-	}
-
-	/* todo: switch/case FSM leaving+entering as we get more conditions */
-
-	if(driver->state != newState) {
-	    NOTICE(THIS_COMPONENT"Clock %s changed state from %s to %s\n",
-		    driver->name, getClockStateName(driver->state),
-		    getClockStateName(newState));
-
-	    getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastUpdate);
-	    clearTime(&driver->age);
-
-	    /* if we're going into FREERUN, but not from a "good" state, restore last good frequency */
-	    if( (newState == CS_FREERUN) && !(driver->state == CS_LOCKED || driver->state == CS_HOLDOVER)) {
-		driver->restoreFrequency(driver);
-	    }
-
-	    if( (newState == CS_LOCKED) && !driver->_locked) {
-		driver->_locked = TRUE;
-		driver->minAdev = driver->adev;
-		driver->maxAdev = driver->adev;
-	    }
-
-	    /* entering or leaving locked state */
-	    if((newState == CS_LOCKED) || (driver->state == CS_LOCKED)) {
-		findBestClock();
-		INFO(THIS_COMPONENT"Clock %s adev %.03f minAdev %.03f maxAdev %.03f minAdevTotal %.03f maxAdevTotal %.03f totalAdev %.03f\n",
-		driver->name, driver->adev, driver->minAdev, driver->maxAdev, driver->minAdevTotal, driver->maxAdevTotal, driver->totalAdev);
-	    }
-
-	    if(newState == CS_HWFAULT) {
-		driver->setReference(driver, NULL);
-	    }
-
-	    driver->lastState = driver->state;
-	    driver->state = newState;
-
-	}
-
-}
-
-void
-updateClockDrivers() {
-
-	ClockDriver *cd;
-
-	TimeInternal now;
-
-	LINKED_LIST_FOREACH(cd) {
-
-	    if(cd->config.disabled) {
-		continue;
-	    }
-
-	    if(cd->_warningTimeout > 0) {
-		cd->_warningTimeout -= _updateInterval;
-	    }
-
-	    getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
-	    subTime(&cd->age, &now, &cd->_lastUpdate);
-
-	    DBGV(THIS_COMPONENT"Clock %s age %d.%d\n", cd->name, cd->age.seconds, cd->age.nanoseconds);
-
-	    switch(cd->state) {
-
-		case CS_HWFAULT:
-		    if(cd->age.seconds >= cd->config.failureDelay) {
-			if(cd->healthCheck(cd)) {
-			    cd->setState(cd, CS_FREERUN);
-			} else {
-			    cd->touchClock(cd);
-			}
-		    }
-		    break;
-		case CS_INIT:
-		    break;
-		case CS_STEP:
-		    if(cd->age.seconds >= cd->config.stepTimeout) {
-			WARNING(THIS_COMPONENT"Clock %s suspension delay timeout, resuming clock updates\n", cd->name);
-			cd->setState(cd, CS_FREERUN);
-			cd->_canResume = TRUE;
-		    }
-		    break;
-		case CS_NEGSTEP:
-		    break;
-		case CS_FREERUN:
-		    if((cd->refClock == NULL) && (!cd->externalReference)) {
-			if(_bestClock != NULL) {
-			    cd->setReference(cd, _bestClock);
-			}
-		    }
-		    break;
-		case CS_LOCKED:
-			if((cd->refClock == NULL) && (!cd->externalReference)) {
-			    cd->setState(cd, CS_HOLDOVER);
-			    resetIntPermanentAdev(&cd->_adev);
-			    break;
-			} else if(cd->refClock != NULL) {
-			    if((cd->refClock->state != CS_LOCKED) && (cd->refClock->state != CS_HOLDOVER)) {
-				cd->setState(cd, CS_HOLDOVER);
-				resetIntPermanentAdev(&cd->_adev);
-				cd->setReference(cd, NULL);
-				break;
-			    }
-			}
-			if(cd->age.seconds > cd->config.lockedAge) {
-			    resetIntPermanentAdev(&cd->_adev);
-			    cd->setState(cd, CS_HOLDOVER);
-			}
-		    break;
-		case CS_TRACKING:
-			if((cd->refClock == NULL) && (!cd->externalReference)) {
-			    resetIntPermanentAdev(&cd->_adev);
-			    cd->setState(cd, CS_FREERUN);
-			    break;
-			}
-		    break;
-		case CS_HOLDOVER:
-			if(cd->age.seconds > cd->config.holdoverAge) {
-			    cd->setState(cd, CS_FREERUN);
-			}
-		    break;
-		default:
-		    DBG(THIS_COMPONENT"Clock driver %s in unknown state %02d\n", cd->name, cd->state);
-
-	    }
-
-	}
-
-	findBestClock();
-
-}
-
-void
-syncClocks(double tau) {
-
-    _syncInterval = tau;
-
-    ClockDriver *cd;
-
-    /* sync locked clocks first, in case if they are to unlock */
-    LINKED_LIST_FOREACH(cd) {
-
-	    if(cd->config.disabled) {
-		continue;
-	    }
-
-	    if(cd->state == CS_LOCKED) {
-		cd->syncClock(cd, tau);
-		cd->_skipSync = TRUE;
-	    }
-    }
-    /* sync the whole rest */
-    LINKED_LIST_FOREACH(cd) {
-
-	    if((cd->config.disabled) || (cd->state == CS_HWFAULT)) {
-		continue;
-	    }
-
-	    if(!cd->_skipSync) {
-		cd->syncClock(cd, tau);
-	    }
-	    cd->_skipSync = FALSE;
-    }
-
-
-}
-
-void
-stepClocks(Boolean force) {
-
-    ClockDriver *cd;
-    LINKED_LIST_FOREACH(cd) {
-
-	if((cd->config.disabled) || (cd->state == CS_HWFAULT)) {
-	    continue;
-	}
-
-	if((cd != _bestClock) && ((cd->refClock != NULL) || cd->externalReference)) {
-	DBG("%s STEP ref %d.%d\n", cd->name, cd->refOffset.seconds, cd->refOffset.nanoseconds);
-	    cd->stepTime(cd, &cd->refOffset, force);
-	}
-    }
-
-    /* step the best clock last so that other clocks don't lose its reference beforehand */
-    if(_bestClock != NULL) {
-	    _bestClock->stepTime(_bestClock, &_bestClock->refOffset, force);
-    }
-
-}
-
-void
-reconfigureClockDrivers(RunTimeOpts *rtOpts) {
-
-    ClockDriver *cd;
-
-    LINKED_LIST_FOREACH(cd) {
-	cd->pushConfig(cd, rtOpts);
-    }
-
-	/* system clock cannot be disabled */
-	getSystemClock()->config.disabled = FALSE;
-
-    findBestClock();
-
-}
-
-static void
-processUpdate(ClockDriver *driver) {
-
-	Boolean update = FALSE;
-
-	if(driver->config.disabled) {
-	    return;
-	}
-
-	if(driver->state == CS_HWFAULT) {
-	    return;
-	}
-
-	feedIntPermanentAdev(&driver->_adev, driver->lastFrequency);
-	driver->totalAdev = feedIntPermanentAdev(&driver->_totalAdev, driver->lastFrequency);
-
-	if(driver->servo.runningMaxOutput) {
-	    /*resetIntPermanentAdev(&driver->_adev);*/
-	}
-	/* we have enough allan dev samples to represent adev period */
-	if( (driver->_tau > ZEROF) && ((driver->_adev.count * driver->_tau) > driver->config.adevPeriod) ) {
-
-	    driver->adev = driver->_adev.adev;
-
-	    if(driver->adev > ZEROF) {
-		if(!driver->adevValid) {
-		    driver->minAdevTotal = driver->adev;
-		    driver->maxAdevTotal = driver->adev;
-		    }
-
-		if(driver->adev > driver->maxAdevTotal) {
-		    driver->maxAdevTotal = driver->adev;
-		}
-
-		if(driver->adev < driver->minAdevTotal) {
-		    driver->minAdevTotal = driver->adev;
-		}
-	    }
-
-	    DBG(THIS_COMPONENT"clock %s  ADEV %.09f\n", driver->name, driver->adev);
-
-	    if(driver->state == CS_LOCKED) {
-		if(driver->adev > driver->maxAdev) {
-		    driver->maxAdev = driver->adev;
-		}
-		if(driver->adev < driver->minAdev) {
-		    driver->minAdev = driver->adev;
-		}
-	    }
-
-	    if((driver->state == CS_STEP) || (driver->state == CS_NEGSTEP)) {
-		update = FALSE;
-	    } else {
-		if(driver->servo.runningMaxOutput) {
-		    driver->setState(driver, CS_TRACKING);
-		} else if(driver->adev <= driver->config.stableAdev) {
-		    driver->storeFrequency(driver);
-		    driver->setState(driver, CS_LOCKED);
-		} else if((driver->adev >= driver->config.unstableAdev) && (driver->state == CS_LOCKED)) {
-		    driver->setState(driver, CS_TRACKING);
-		}
-		update = TRUE;
-	    }
-	    driver->adevValid = TRUE;
-
-	    resetIntPermanentAdev(&driver->_adev);
-	}
-
-	if(driver->state == CS_FREERUN) {
-	    driver->setState(driver, CS_TRACKING);
-	    update = TRUE;
-	}
-
-	if((driver->state == CS_HOLDOVER) && (driver->age.seconds <= driver->config.holdoverAge)) {
-	    driver->setState(driver, CS_TRACKING);
-	    update = TRUE;
-	}
-
-	if((driver->state == CS_LOCKED) && driver->servo.runningMaxOutput) {
-	    driver->setState(driver, CS_TRACKING);
-	    update = TRUE;
-	}
-
-	if((driver->state == CS_NEGSTEP) && !isTimeNegative(&driver->refOffset)) {
-	    driver->lockedUp = FALSE;
-	    driver->setState(driver, CS_FREERUN);
-	    update = TRUE;
-	}
-
-	DBG(THIS_COMPONENT"clock %s  total ADEV %.09f\n", driver->name, driver->totalAdev);
-
-	getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastSync);
-
-	driver->touchClock(driver);
-
-	if(update) {
-	    updateClockDrivers();
-	}
-
-}
-
-static void
-setReference(ClockDriver *a, ClockDriver *b) {
-
-    if(a == NULL) {
-	return;
-    }
-
-    if(a->config.disabled) {
-	return;
-    }
-
-    if( (b != NULL) && a->config.externalOnly) {
-	DBG("Clock %s only accepts external reference clocks\n", a->name);
-	return;
-    }
-
-    if(a == b) {
-	ERROR(THIS_COMPONENT"Cannot set reference of clock %s to self\n", a->name);
-	return;
-    }
-
-    /* loop detection - do not allow a reference to use
-     * a reference which uses itself, directly or indirectly
-     */
-    if(b != NULL) {
-	ClockDriver *cd;
-	int hops = 0;
-	for( cd = b->refClock; cd != NULL; cd = cd->refClock) {
-	    hops++;
-	    if(cd == a) {
-		NOTICE(THIS_COMPONENT"Cannot set reference of clock %s to %s: %s already references %s (%d hops)\n",
-		    a->name, b->name, a->name, b->name, hops);
-		return;
-	    }
-	}
-    }
-
-    /* no change */
-    if((a->refClock != NULL) && (a->refClock == b)) {
-	return;
-    }
-
-    if(b == NULL && a->refClock != NULL) {
-	NOTICE(THIS_COMPONENT"Clock %s lost reference %s\n", a->name, a->refClock->name);
-	a->refClock = NULL;
-	memset(a->refName, 0, CLOCKDRIVER_NAME_MAX);
-	if(a->state == CS_LOCKED) {
-	    a->setState(a, CS_HOLDOVER);
-	} else {
-	    a->distance = 255;
-	}
-	a->refClass = -1;
-	return;
-	
-    }
-
-    if(b == NULL && a->externalReference) {
-	NOTICE(THIS_COMPONENT"Clock %s lost external reference %s\n", a->name, a->refName);
-	a->externalReference = FALSE;
-	memset(a->refName, 0, CLOCKDRIVER_NAME_MAX);
-	a->refClock = NULL;
-	if(a->state == CS_LOCKED) {
-	    a->setState(a, CS_HOLDOVER);
-	} else {
-	    a->distance = 255;
-	}
-	a->refClass = -1;
-	return;
-    } else if (b != NULL) {
-	NOTICE(THIS_COMPONENT"Clock %s changing reference to %s\n", a->name, b->name);
-	a->externalReference = FALSE;
-	a->refClock = b;
-	a->distance = b->distance + 1;
-	strncpy(a->refName, b->name, CLOCKDRIVER_NAME_MAX);
-	a->setState(a, CS_FREERUN);
-    }
-
-
-// WOJ:CHECK
-
-/*
-
-
-
-    if(a->systemClock && (b!= NULL) && !b->systemClock) {
-	a->servo.kI = b->servo.kI;
-	a->servo.kP = b->servo.kP;
-    }
-*/
-
-}
-
-static void setExternalReference(ClockDriver *a, const char* refName, int refClass) {
-
-	if(a == NULL) {
-	    return;
-	}
-
-	if(a->config.disabled) {
-	    return;
-	}
-
-	if( a->config.internalOnly) {
-	    DBG("Clock %s only accepts internal reference clocks\n", a->name);
-	    return;
-	}
-
-	if(!a->externalReference || strncmp(a->refName, refName, CLOCKDRIVER_NAME_MAX)) {
-	    NOTICE(THIS_COMPONENT"Clock %s changing to external reference %s\n", a->name, refName);
-	    a->setState(a, CS_FREERUN);
-	}
-
-	strncpy(a->refName, refName, CLOCKDRIVER_NAME_MAX);
-	a->externalReference = TRUE;
-	a->refClass = refClass;
-	a->refClock = NULL;
-	a->distance = 1;
-
-}
-
-static void
-restoreFrequency (ClockDriver *driver) {
-
-    double frequency = 0;
-    char frequencyPath [PATH_MAX + 1];
-    memset(frequencyPath, 0, PATH_MAX + 1);
-
-    if(driver->config.disabled) {
-	return;
-    }
-
-    if(driver->config.storeToFile) {
-	snprintf(frequencyPath, PATH_MAX, "%s/%s", driver->config.frequencyDir, driver->config.frequencyFile);
-	if(!doubleFromFile(frequencyPath, &frequency)) {
-	    frequency = driver->getFrequency(driver);
-	}
-    }
-
-    /* goddamn floats! */
-    if(fabs(frequency) <= ZEROF) {
-	frequency = driver->getFrequency(driver);
-    }
-
-    frequency = clampDouble(frequency, driver->maxFrequency);
-    driver->servo.prime(&driver->servo, frequency);
-    driver->storedFrequency = driver->servo.output;
-    driver->setFrequency(driver, driver->storedFrequency, 1.0);
-
-}
-
-static void
-storeFrequency (ClockDriver *driver) {
-
-    char frequencyPath [PATH_MAX + 1];
-    memset(frequencyPath, 0, PATH_MAX + 1);
-
-    if(driver->config.disabled) {
-	return;
-    }
-
-    if(driver->config.storeToFile) {
-	snprintf(frequencyPath, PATH_MAX, "%s/%s", driver->config.frequencyDir, driver->config.frequencyFile);
-	doubleToFile(frequencyPath, driver->lastFrequency);
-    }
-
-    driver->storedFrequency = driver->lastFrequency;
-
-}
-
-static Boolean
-adjustFrequency (ClockDriver *driver, double adj, double tau) {
-
-	if(driver->config.disabled) {
-	    return FALSE;
-	}
-
-	Boolean ret = driver->setFrequency(driver, adj, tau);
-	driver->processUpdate(driver);
-	return ret;
-
-}
-
-/* mark an update */
-static void
-touchClock(ClockDriver *driver) {
-
-	if(driver->config.disabled) {
-	    return;
-	}
-
-	TimeInternal now;
-	getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
-	subTime(&driver->age, &now, &driver->_lastUpdate);
-	getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastUpdate);
-	driver->_updated = TRUE;
-
-}
-
-static Boolean disciplineClock(ClockDriver *driver, TimeInternal offset, double tau) {
-
-    double dOffset = timeInternalToDouble(&offset);
-    char buf[100];
-    TimeInternal lastOffset = driver->refOffset;
-    TimeInternal offsetCorrection = { 0, driver->config.offsetCorrection };
-
-    if(driver->config.disabled) {
-	return FALSE;
-    }
-
-    driver->rawOffset = offset;
-    driver->refOffset = offset;
-
-    subTime(&driver->refOffset, &driver->refOffset, &offsetCorrection);
-
-    memset(buf, 0, sizeof(buf));
-    snprint_TimeInternal(buf, sizeof(buf), &driver->refOffset);
-
-    /* do nothing if offset is zero - prevents from linked clocks being dragged around,
-     * and it's not obvious that two clocks can be linked, as we can see with Intel,
-     * where multiple NIC ports can present themselves as different clock IDs, but
-     * in fact all show the same frequency (or so it seems...)
-     */
-
-    if(isTimeZero(&driver->refOffset)) {
-	driver->lastFrequency = driver->getFrequency(driver);
-	driver->processUpdate(driver);
-	return TRUE;
-    }
-
-    if(!driver->config.readOnly) {
-
-	/* forced step on first update */
-	if((driver->config.stepType == CSTEP_STARTUP_FORCE) && !driver->_updated && !driver->_stepped && !driver->lockedUp) {
-	    return driver->stepTime(driver, &offset, FALSE);
-	}
-
-	if(offset.seconds) {
-
-		int sign = (offset.seconds < 0) ? -1 : 1;
-
-		/* step on first update */
-		if((driver->config.stepType == CSTEP_STARTUP) && !driver->_updated && !driver->_stepped && !driver->lockedUp) {
-		    return driver->stepTime(driver, &offset, TRUE);
-		}
-
-		/* panic mode */
-		if(driver->state == CS_STEP) {
-			return FALSE;
-		}
-
-		/* we refused to step backwards and offset is still negative */
-		if((sign == -1) && driver->state == CS_NEGSTEP) {
-			return FALSE;
-		}
-
-		/* going into panic mode */
-		if(driver->config.stepTimeout) {
-			/* ...or in fact exiting it... */
-			if(driver->_canResume) {
-/* WOJ:CHECK */
-/* we're assuming that we can actually step! */
-
-			} else {
-			    WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), suspending clock control for %d seconds (panic mode)\n",
-				    driver->name, buf, driver->config.stepTimeout);
-			    driver->setState(driver, CS_STEP);
-			    return FALSE;
-			}
-		}
-
-		/* we're not allowed to step the clock */
-		if(driver->config.noStep) {
-			if(!driver->_warningTimeout) {
-			    driver->_warningTimeout = CLOCKDRIVER_WARNING_TIMEOUT;
-			    WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s) and cannot step clock, slewing clock at maximum rate (%d us/s)",
-				driver->name, buf, (sign * driver->servo.maxOutput) / 1000);
-			}
-			driver->servo.prime(&driver->servo, sign * driver->servo.maxOutput);
-			driver->_canResume = FALSE;
-			return driver->adjustFrequency(driver, sign * driver->servo.maxOutput, tau);
-		}
-
-		WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), attempting to step the clock\n", driver->name, buf);
-		if( driver->stepTime(driver, &offset, FALSE) ) {
-		    driver->_canResume = FALSE;
-		    clearTime(&driver->refOffset);
-		    return TRUE;
-		} else {
-		    return FALSE;
-		}
-
-	} else {
-		if(driver->state == CS_STEP) {
-		    /* we are outside the exit threshold, clock is still suspended */
-		    if(driver->config.stepExitThreshold && (labs(offset.nanoseconds) > driver->config.stepExitThreshold)) {
-			return FALSE;
-		    }
-		    NOTICE(THIS_COMPONENT"Clock %s offset below 1 second, resuming clock control\n", driver->name);
-		    driver->setState(driver, CS_FREERUN);
-		}
-
-		if(driver->state == CS_NEGSTEP) {
-		    driver->lockedUp = FALSE;
-		    driver->setState(driver, CS_FREERUN);
-		}
-
-		if(driver->externalReference) {
-		    driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
-		    return driver->adjustFrequency(driver, driver->servo.output, tau);
-		}
-
-		if(driver->config.outlierFilter && feedDoubleMovingStatFilter(driver->_madFilter, dOffset)
-		    && (driver->_madFilter->meanContainer->count >= driver->config.madDelay)) {
-			double dev = fabs(dOffset - driver->_madFilter->output);
-			double madd = dev / driver->_madFilter->output;
-			if(madd > driver->config.madMax) {
-#ifdef PTPD_CLOCK_SYNC_PROFILING
-			    INFO(THIS_COMPONENT"prof Clock %s +outlier Offset %.09f mads %.09f MAD %.09f blocking for %.02f\n",
-						    driver->name, dOffset, madd, driver->_madFilter->output, driver->_madFilter->blockingTime);
-#else
-			    DBG(THIS_COMPONENT"prof Clock %s +outlier Offset %.09f mads %.09f MAD %.09f blocking for %.02f\n",
-						    driver->name, dOffset, madd, driver->_madFilter->output, driver->_madFilter->blockingTime);
-#endif
-			    driver->refOffset = lastOffset;
-			    if(driver->_madFilter->lastBlocked) {
-				driver->_madFilter->consecutiveBlocked++;
-				driver->_madFilter->blockingTime += tau;
-			    }
-			    driver->_madFilter->lastBlocked = TRUE;
-
-			    if(driver->_madFilter->blockingTime > driver->config.outlierFilterBlockTimeout) {
-				WARNING(THIS_COMPONENT"Clock %s outlier filter blocking for more than %d seconds - resetting filter\n",
-				driver->name, driver->config.outlierFilterBlockTimeout);
-				resetDoubleMovingStatFilter(driver->_madFilter);
-			    }
-
-			    return FALSE;
-			} else {
-#ifdef PTPD_CLOCK_SYNC_PROFILING
-			    INFO(THIS_COMPONENT"prof Clock %s -outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
-#else
-			    DBG(THIS_COMPONENT"prof Clock %s -outlier Offset %.09f mads %.09f MAD %.09f\n", driver->name, dOffset, madd, driver->_madFilter->output);
-#endif
-			    driver->_madFilter->lastBlocked = FALSE;
-			    driver->_madFilter->consecutiveBlocked = 0;
-			    driver->_madFilter->blockingTime = 0;
-			}
-
-		}
-
-		if(driver->config.statFilter) {
-		    if(!feedDoubleMovingStatFilter(driver->_filter, dOffset)) {
-			driver->refOffset = lastOffset;
-			if(driver->_filter->lastBlocked) {
-			    driver->_filter->consecutiveBlocked++;
-			}
-			driver->_filter->lastBlocked = TRUE;
-			return FALSE;
-		    } else {
-			    driver->_filter->lastBlocked = FALSE;
-			    driver->_filter->consecutiveBlocked = 0;
-		    }
-		    offset = doubleToTimeInternal(driver->_filter->output);
-		}
-
-		driver->refOffset = offset;
-		driver->servo.feed(&driver->servo, offset.nanoseconds, tau);
-		return driver->adjustFrequency(driver, driver->servo.output, tau);
-
-	}
-
-    }
-
-    return FALSE;
-
-}
-
-static Boolean
-syncClock(ClockDriver* driver, double tau) {
-
-	if(driver->config.disabled) {
-	    return FALSE;
-	}
-
-	TimeInternal delta;
-
-	if(driver->externalReference || (driver->refClock == NULL)) {
-	    return FALSE;
-	}
-
-	if(!driver->getOffsetFrom(driver, driver->refClock, &delta)) {
-	    return FALSE;
-	}
-
-	return disciplineClock(driver, delta, tau);
-
-}
-
-static Boolean
-syncClockExternal(ClockDriver* driver, TimeInternal offset, double tau) {
-
-    if(driver->config.disabled) {
-	return FALSE;
-    }
-
-    if(!driver->externalReference) {
-	return FALSE;
-    }
-
-    return disciplineClock(driver, offset, tau);
-
-}
-
-const char*
-getClockDriverName(int type) {
-
-    if ((type < 0) || (type >= CLOCKDRIVER_MAX)) {
-	return NULL;
-    }
-
-    return clockDriverNames[type];
+    *transport = NULL;
 
 }
 
 int
-getClockDriverType(const char* name) {
+detectTTransport(const int family, const char *path, const int caps, const int specific) {
 
-    for(int i = 0; i < CLOCKDRIVER_MAX; i++) {
+    if(specific == TT_TYPE_NONE) {
+	CCK_INFO(THIS_COMPONENT"detectTTransport(%s): probing for usable %s transports\n", path,
+		getAddressFamilyName(family));
+    }
 
-	if(!strcmp(name, clockDriverNames[i])) {
+    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+	if(addressfamily == family) {\
+	    if((specific == TT_TYPE_NONE) || (typeenum == specific))\
+		if ((capabilities & caps)  == caps) {\
+		    if(capabilities & TT_CAPS_BROKEN) { \
+			CCK_WARNING(THIS_COMPONENT"detectTTransport(path: %s, af: %s): transport "textname" matches flags 0x%02x"\
+						    "but is marked as broken in this LibCCK build, skipping\n",\
+				path, getAddressFamilyName(family), caps);\
+		    } else { \
+			CCK_DBG(THIS_COMPONENT"detectTTransport(path: %s, af: %s): transport "textname" matches flags 0x%02x\n",\
+				path, getAddressFamilyName(family), caps);\
+			CCK_DBG(THIS_COMPONENT"detectTTransport(%s): probing "textname"...\n", path);\
+			if(_probeTTransport_##typesuffix(path, caps)) {\
+			    CCK_INFO(THIS_COMPONENT"detectTTransport(%s): using "textname"\n", path);\
+			    return typeenum; \
+			}\
+		    } \
+		}\
+	}
+
+    #include "ttransport.def"
+
+    if (specific != TT_TYPE_NONE) {
+	CCK_ERROR("detectTTransport(%s): Selected transport implementation %s not usable!\n",
+		path, getTTransportTypeName(specific));
+    } else {
+	CCK_ERROR("detectTTransport(%s): no usable transport implementation found!\n");
+    }
+
+    return TT_TYPE_NONE;
+}
+
+TTransportConfig*
+createTTransportConfig(const int type) {
+
+	TTransportConfig *ret = NULL;
+
+    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+	    case (typeenum):\
+		CCKCALLOC(ret, sizeof(TTransportConfig));\
+		ret->_type = type;\
+		CCK_INIT_PCONFIG(TTransport, typesuffix, ret);\
+		ret->_privateSize = sizeof(TTransportConfig_##typesuffix);\
+		_initTTransportConfig_##typesuffix((TTransportConfig_##typesuffix *)(ret->_privateConfig), addressfamily); \
+		break;
+
+	switch(type) {
+
+	    #include "ttransport.def"
+
+	    default:
+		break;
+
+	}
+
+    return ret;
+
+}
+
+static void
+freeTTransportPrivateConfig(TTransportConfig *config) {
+
+	if(config->_privateConfig != NULL) {
+
+	    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+		case (typeenum):\
+		    _freeTTransportConfig_##typesuffix((TTransportConfig_##typesuffix *)(config->_privateConfig)); \
+		break;
+
+	    switch(config->_type) {
+
+		#include "ttransport.def"
+
+		default:
+		    break;
+
+	    }
+
+	    free(config->_privateConfig);
+	    config->_privateConfig = NULL;
+
+	}
+
+}
+
+void
+freeTTransportConfig(TTransportConfig **config) {
+
+	if(*config == NULL) {
+	    return;
+	}
+
+	freeTTransportPrivateConfig(*config);
+
+	free (*config);
+
+	*config = NULL;
+
+}
+
+void
+controlTTransports(const int command, const void *arg) {
+
+    TTransport *tt;
+    bool found;
+
+    switch(command) {
+
+	case TT_NOTINUSE:
+	    LINKED_LIST_FOREACH_STATIC(tt) {
+		tt->inUse = false;
+//		tt->config.required = false;
+	    }
+	break;
+
+	case TT_SHUTDOWN:
+	    LINKED_LIST_DESTROYALL(tt, freeTTransport);
+	break;
+
+	case TT_CLEANUP:
+	    do {
+		found = false;
+		LINKED_LIST_FOREACH_STATIC(tt) {
+		    if(!tt->inUse) {
+			freeTTransport(&tt);
+			found = true;
+			break;
+		    }
+		}
+	    } while(found);
+	break;
+
+	case TT_DUMP:
+	    LINKED_LIST_FOREACH_STATIC(tt) {
+		if(!tt->config.disabled) {
+		/* TODO: dump transport information */
+		tt->dumpCounters(tt);
+		}
+
+	    }
+	break;
+
+	case TT_MONITOR:
+	    LINKED_LIST_FOREACH_STATIC(tt) {
+		if(!tt->config.disabled) {
+		    tt->monitor(tt, *(const int*)arg);
+		}
+	    }
+	break;
+
+	case TT_REFRESH:
+	    LINKED_LIST_FOREACH_STATIC(tt) {
+		if(!tt->config.disabled) {
+		    tt->refresh(tt);
+		}
+	    }
+	break;
+
+	case TT_CLEARCOUNTERS:
+	    LINKED_LIST_FOREACH_STATIC(tt) {
+		    tt->clearCounters(tt);
+	    }
+	break;
+
+	case TT_DUMPCOUNTERS:
+	    LINKED_LIST_FOREACH_STATIC(tt) {
+		    tt->dumpCounters(tt);
+	    }
+	break;
+
+	case TT_UPDATECOUNTERS:
+	    LINKED_LIST_FOREACH_STATIC(tt) {
+		    tt->updateCounterRates(tt, *(const int *)arg);
+	    }
+	break;
+
+	default:
+	    CCK_ERROR(THIS_COMPONENT"controlTTransports(): Unnown transport command %02d\n", command);
+
+    }
+
+}
+
+void
+shutdownTTransports() {
+
+	TTransport *tt;
+	LINKED_LIST_DESTROYALL(tt, freeTTransport);
+
+}
+
+void
+monitorTTransports(const int interval) {
+
+    TTransport *tt;
+
+    LINKED_LIST_FOREACH_STATIC(tt) {
+	if(!tt->config.disabled) {
+	    tt->monitor(tt, interval);
+	}
+    }
+
+}
+
+void
+refreshTTransports() {
+
+    TTransport *tt;
+
+    LINKED_LIST_FOREACH_STATIC(tt) {
+	if(!tt->config.disabled) {
+	    tt->refresh(tt);
+	}
+    }
+
+}
+
+TTransport*
+findTTransport(const char *search) {
+
+	TTransport *tt;
+	LINKED_LIST_FOREACH_STATIC(tt) {
+	    if(tt->isThisMe(tt, search)) {
+		return tt;
+	    }
+	}
+
+	return NULL;
+
+}
+
+TTransport*
+getTTransportByName(const char *name) {
+
+	TTransport *tt;
+
+	LINKED_LIST_FOREACH_STATIC(tt) {
+	    if(!strncmp(tt->name, name, CCK_COMPONENT_NAME_MAX)) {
+		return tt;
+	    }
+	}
+
+	return NULL;
+
+}
+
+const char*
+getTTransportTypeName(const int type) {
+
+    if ((type < 0) || (type >= TT_TYPE_MAX)) {
+	return NULL;
+    }
+
+    return ttransportNames[type];
+
+}
+
+int
+getTTransportType(const char* name) {
+
+    for(int i = 0; i < TT_TYPE_MAX; i++) {
+
+	if(!strcmp(name, ttransportNames[i])) {
 	    return i;
 	}
 
@@ -1074,655 +524,450 @@ getClockDriverType(const char* name) {
 
 }
 
-Boolean
-parseClockDriverSpec(const char* line, ClockDriverSpec *spec) {
+int getTTransportTypeFamily(const int type) {
 
-	memset(spec, 0, sizeof(ClockDriverSpec));
-	spec->type = -1;
+    if ((type < 0) || (type >= TT_TYPE_MAX)) {
+	return -1;
+    }
 
-	foreach_token_begin(params, line, param, ":");
-		switch(counter_params) {
-		    case 0:
-			spec->type = getClockDriverType(param);
-			if(spec->type == -1) {
-			    ERROR(THIS_COMPONENT"Clock driver string \"%s\" : unknown clock driver type: %s\n", line, param);
-			}
-			break;
-		    case 1:
-			strncpy(spec->path, param, PATH_MAX);
-			break;
-		    case 2:
-			strncpy(spec->name, param, CLOCKDRIVER_NAME_MAX);
-			break;
-		    default:
-			break;
-		}
-	foreach_token_end(params);
-
-	if(counter_params < 1) {
-	    ERROR(THIS_COMPONENT"Clock driver string: \"%s\": no parameters given\n", line);
-	    return FALSE;
-	}
-
-	if(spec->type == -1) {
-	    return FALSE;
-	}
-
-	return TRUE;
+    return transportTypeFamilies[type];
 
 }
 
-const char*
-getClockStateName(ClockState state) {
+/* placeholder callbacks */
 
-    switch(state) {
-	case CS_SUSPENDED:
-	    return "SUSPENDED";
-	case CS_HWFAULT:
-	    return "HWFAULT";
-	case CS_NEGSTEP:
-	    return "NEGSTEP";
-	case CS_STEP:
-	    return "STEP";
-	case CS_INIT:
-	    return "INIT";
-	case CS_FREERUN:
-	    return "FREERUN";
-	case CS_LOCKED:
-	    return "LOCKED";
-	case CS_TRACKING:
-	    return "TRACKING";
-	case CS_HOLDOVER:
-	    return "HOLDOVER";
-	default:
-	    return "UNKNOWN";
-    }
-
-}
-
-const char*
-getClockStateShortName(ClockState state) {
-
-    switch(state) {
-	case CS_SUSPENDED:
-	    return "SUSP";
-	case CS_HWFAULT:
-	    return "HWFL";
-	case CS_NEGSTEP:
-	    return "NSTP";
-	case CS_STEP:
-	    return "STEP";
-	case CS_INIT:
-	    return "INIT";
-	case CS_FREERUN:
-	    return "FREE";
-	case CS_LOCKED:
-	    return "LOCK";
-	case CS_TRACKING:
-	    return "TRCK";
-	case CS_HOLDOVER:
-	    return "HOLD";
-	default:
-	    return "UNKN";
-    }
-
-}
-
-ClockDriver*
-findClockDriver(const char * search) {
-
-	ClockDriver *cd;
-	LINKED_LIST_FOREACH(cd) {
-	    if(cd->isThisMe(cd, search)) {
-		return cd;
-	    }
-	}
-
-	return NULL;
-
-}
-
-ClockDriver*
-getClockDriverByName(const char * search) {
-
-	ClockDriver *cd;
-
-	LINKED_LIST_FOREACH(cd) {
-	    if(!strncmp(cd->name, search, CLOCKDRIVER_NAME_MAX)) {
-		return cd;
-	    }
-	}
-
-	return NULL;
-
-}
-
-void
-compareAllClocks() {
-
-    int count = 0;
-    int lineLen = 20 * 50 + 1;
-
-    char lineBuf[lineLen];
-    char timeBuf[100];
-    TimeInternal delta;
-
-    ClockDriver *outer;
-    ClockDriver *inner;
-    ClockDriver *cd;
-
-    memset(lineBuf, 0, lineLen);
-    memset(timeBuf, 0, sizeof(timeBuf));
-
-    LINKED_LIST_FOREACH(cd) {
-	count += snprintf(lineBuf + count, lineLen - count, "\t\t%s", cd->name);
-    }
-
-    INFO("%s\n", lineBuf);
-
-    memset(lineBuf, 0, lineLen);
-    count = 0;
-
-    LINKED_LIST_FOREACH(outer) {
-
-	memset(lineBuf, 0, lineLen);
-	count = 0;
-	count += snprintf(lineBuf + count, lineLen - count, "%s\t", outer->name);
-
-	LINKED_LIST_FOREACH(inner) {
-	    memset(timeBuf, 0, sizeof(timeBuf));
-	    outer->getOffsetFrom(outer, inner, &delta);
-	    snprint_TimeInternal(timeBuf, sizeof(timeBuf), &delta);
-	    count += snprintf(lineBuf + count, lineLen - count, "%s\t", timeBuf);
-	}
-
-	INFO("%s\n", lineBuf);
-
-    }
-
-}
-
-
-static Boolean
-pushConfig(ClockDriver *driver, RunTimeOpts *global)
-{
-
-    Boolean ret = TRUE;
-
-    _updateInterval = global->clockUpdateInterval;
-
-    ClockDriverConfig *config = &driver->config;
-
-    config->stepType = CSTEP_ALWAYS;
-
-    if(global->noResetClock) {
-	config->stepType = CSTEP_NEVER;
-    }
-
-    if(global->stepOnce) {
-	config->stepType = CSTEP_STARTUP;
-    }
-
-    if(global->stepForce) {
-	config->stepType = CSTEP_STARTUP_FORCE;
-    }
-
-    config->disabled = (token_in_list(global->disabledClocks, driver->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
-    config->excluded = (token_in_list(global->excludedClocks, driver->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
-
-    if(global->noAdjust) {
-	config->readOnly = TRUE;
-    } else {
-	config->readOnly = (token_in_list(global->readOnlyClocks, driver->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
-    }
-
-    if(config->required && config->disabled) {
-	if(!config->readOnly) {
-	    WARNING(THIS_COMPONENT"clock %s cannot be disabled - set to read-only to exclude from sync\n", driver->name);
-	} else {
-	    WARNING(THIS_COMPONENT"clock %s cannot be disabled - already set to read-only\n", driver->name);
-	}
-	config->disabled = FALSE;
-    }
-
-    config->noStep = global->noResetClock;
-    config->negativeStep = global->negativeStep;
-    config->storeToFile = global->storeToFile;
-    config->adevPeriod = global->adevPeriod;
-    config->stableAdev = global->stableAdev;
-    config->unstableAdev = global->unstableAdev;
-    config->lockedAge = global->lockedAge;
-    config->holdoverAge = global->holdoverAge;
-    config->stepTimeout = (global->enablePanicMode) ? global-> panicModeDuration : 0;
-    config->stepExitThreshold = global->panicModeExitThreshold;
-
-    config->statFilter = global->clockStatFilterEnable;
-    config->filterWindowSize = global->clockStatFilterWindowSize;
-    if(config->filterWindowSize == 0) {
-	config->filterWindowSize = global->clockSyncRate;
-    }
-    config->filterType = global->clockStatFilterType;
-    config->filterWindowType = global->clockStatFilterWindowType;
-
-    config->outlierFilter = global->clockOutlierFilterEnable;
-    config->madWindowSize = global->clockOutlierFilterWindowSize;
-    config->madDelay = global->clockOutlierFilterDelay;
-    config->madMax = global->clockOutlierFilterCutoff;
-    config->outlierFilterBlockTimeout = global->clockOutlierFilterBlockTimeout;
-
-    driver->servo.kP = global->servoKP;
-    driver->servo.kI = global->servoKI;
-
-    driver->servo.maxOutput = global->servoMaxPpb;
-    driver->servo.tauMethod = global->servoDtMethod;
-    driver->servo.maxTau = global->servoMaxdT;
-
-    strncpy(config->frequencyDir, global->frequencyDir, PATH_MAX);
-
-    configureFilters(driver);
-
-    ret = ret && (driver->pushPrivateConfig(driver, global));
-
-    DBG(THIS_COMPONENT"Clock driver %s configured\n", driver->name);
-
-    return ret;
-
-}
-
-static void
- configureFilters(ClockDriver *driver) {
-
-    StatFilterOptions opts, madOpts;
-    ClockDriverConfig *config = &driver->config;
-
-    memset(&opts, 0, sizeof(StatFilterOptions));
-    memset(&madOpts, 0, sizeof(StatFilterOptions));
-
-    /* filters are reset on reconfig... */
-    freeDoubleMovingStatFilter(&driver->_filter);
-    freeDoubleMovingStatFilter(&driver->_madFilter);
-
-    opts.enabled = config->statFilter;
-    opts.filterType = config->filterType;
-    opts.windowSize = config->filterWindowSize;
-    opts.windowType = config->filterWindowType;
-
-    madOpts.enabled = config->outlierFilter;
-    madOpts.filterType = FILTER_MAD;
-    madOpts.windowSize = config->madWindowSize;
-    madOpts.windowType = WINDOW_SLIDING;
-
-    if(config->madDelay > config->madWindowSize) {
-	config->madDelay = config->madWindowSize;
-    }
-
-    driver->_filter = createDoubleMovingStatFilter(&opts, driver->name);
-    driver->_madFilter = createDoubleMovingStatFilter(&madOpts, driver->name);
-
-}
-
-void
-controlClockDrivers(int command) {
-
-    ClockDriver *cd;
-    Boolean found;
-
-    switch(command) {
-
-	case CD_NOTINUSE:
-	    LINKED_LIST_FOREACH(cd) {
-		if(!cd->systemClock) {
-		    cd->inUse = FALSE;
-		    cd->config.required = FALSE;
-		}
-	    }
-	break;
-
-	case CD_SHUTDOWN:
-	    LINKED_LIST_DESTROYALL(cd, freeClockDriver);
-	    _systemClock = NULL;
-	break;
-
-	case CD_CLEANUP:
-	    do {
-		found = FALSE;
-		LINKED_LIST_FOREACH(cd) {
-		    /* the system clock should always be kept */
-		    if(!cd->inUse && !cd->systemClock) {
-			freeClockDriver(&cd);
-			found = TRUE;
-			break;
-		    }
-		}
-	    } while(found);
-	break;
-
-	case CD_DUMP:
-	    LINKED_LIST_FOREACH(cd) {
-		if(cd->config.disabled) {
-		    continue;
-		}
-		INFO(THIS_COMPONENT"Clock driver %s state %s\n", cd->name, getClockStateName(cd->state));
-	    }
-	break;
-
-	default:
-	    ERROR(THIS_COMPONENT"Unnown clock driver command %02d\n", command);
-
-    }
-
-}
-
-ClockDriver*
-compareClockDriver(ClockDriver *a, ClockDriver *b) {
-
-	/* if one is null, the other wins, if both are null, no winner */
-	if((a != NULL) && (b == NULL) ) {
-	    return a;
-	}
-
-	if((a == NULL) && (b != NULL) ) {
-	    return b;
-	}
-
-	if((a == NULL) && (b == NULL)) {
-	    return NULL;
-	}
-
-	/* if one is disabled, the other wins, if both are, no winner */
-	if((!a->config.disabled) && (b->config.disabled) ) {
-	    return a;
-	}
-
-	if((!b->config.disabled) && (a->config.disabled) ) {
-	    return b;
-	}
-
-	if((a->config.disabled) && (b->config.disabled) ) {
-	    return NULL;
-	}
-
-	/* if one is excluded, the other wins, if both are, no winner */
-	if((!a->config.excluded) && (b->config.excluded) ) {
-	    return a;
-	}
-
-	if((!b->config.excluded) && (a->config.excluded) ) {
-	    return b;
-	}
-
-	if((a->config.excluded) && (b->config.excluded) ) {
-	    return NULL;
-	}
-
-	/* better state than us - wins */
-	if( (a->state < b->state) && (b->state > CS_FREERUN)) {
-		/* however, do not prefer a locked with higher distance
-		 * to a holdover with lower distance */
-		if((a->state == CS_HOLDOVER) && (b->state == CS_LOCKED)) {
-		    if(a->distance < b->distance) {
-			return a;
-		    }
-		}
-		    return b;
-	}
-
-	/* our state is better - we win */
-	if(b->state < a->state && (a->state > CS_FREERUN) ) {
-		/* however, do not prefer a locked with higher distance
-		 * to a holdover with lower distance */
-		if((b->state == CS_HOLDOVER) && (a->state == CS_LOCKED)) {
-		    if(b->distance < a->distance) {
-			return b;
-		    }
-		}
-		return a;
-	}
-
-	/* same state */
-	if(a->state == b->state) {
-
-		if(a->state == CS_LOCKED || a->state == CS_HOLDOVER) {
-
-		    /* external reference is better */
-		    if(a->externalReference && !b->externalReference) {
-			return a;
-		    }
-
-		    if(!a->externalReference && b->externalReference) {
-			return b;
-		    }
-
-		    /* lower reference class is better */
-		    if(a->externalReference && b->externalReference) {
-			if(a->refClass < b-> refClass) {
-			    return a;
-			}
-			if(b->refClass < a-> refClass) {
-			    return b;
-			}
-		    }
-
-		    /* clock referencing best clock is better than one with no reference or referencing non-best */
-		    if((a->refClock && (a->refClock==_bestClock)) &&
-			(!b->refClock || (b->refClock != _bestClock))) {
-			return a;
-		    }
-
-		    if((b->refClock && (b->refClock==_bestClock)) &&
-			(!a->refClock || (a->refClock != _bestClock))) {
-			return b;
-		    }
-
-		    /* clock referencing the system clock is worse */
-		    if(a->refClock && b->refClock) {
-			if(!a->refClock->systemClock && b->refClock->systemClock) {
-			    return a;
-			}
-			if(a->refClock->systemClock && !b->refClock->systemClock) {
-			    return b;
-			}
-		    }
-
-		    /* tiebreaker 1: lower reference chain hop count wins */
-		    if(a->distance < b->distance) {
-			return a;
-		    }
-
-		    if(a->distance > b->distance) {
-			return b;
-		    }
-
-		    /* tiebreaker 2: system clock loses */
-		    if(!a->systemClock && b->systemClock) {
-			return a;
-		    }
-		    if(a->systemClock && !b->systemClock) {
-			return b;
-		    }
-
-		    /* tiebreaker 3: lower allan dev wins */
-		    if((a->adev > ZEROF) && (b->adev > ZEROF)) {
-
-			if(a->adev < b->adev) {
-			    return a;
-			}
-
-			if(a->adev > b->adev) {
-			    return b;
-			}
-		    }
-
-		    /* final tiebreaker - clock longer in state wins */
-		    if(a->age.seconds > b->age.seconds) {
-			return a;
-		    }
-
-		    if(a->age.seconds < b->age.seconds) {
-			return b;
-		    }
-
-		}
-
-	}
-	/* erm... what would John Eidson do? */
-	return a;
-}
-
-/* dummy placeholder callback */
 int
-clockDriverDummyCallback(ClockDriver* self) {
+ttDummyCallback (TTransport *transport) {
     return 1;
 }
 
-static void
-findBestClock() {
+int
+ttDummyOwnerCallback (void *owner, void *transport) {
+    return 1;
+}
 
-    ClockDriver *newBest = NULL;
-    ClockDriver *cd;
+int
+ttDummyDataCallback (void *owner, void *transport, char *data, const size_t len, bool isMulticast) {
+    return 1;
+}
 
-    LINKED_LIST_FOREACH(cd) {
-	if((cd->config.disabled) || (cd->config.excluded)) {
-	    continue;
-	}
-	if(cd->state == CS_LOCKED) {
-	    newBest = cd;
-	    break;
-	}
-    }
+int
+ttDummyMatchCallback (void *owner, void *transport, char *a, const size_t alen, char *b, const size_t blen) {
+    return 1;
+}
 
-    if(newBest == NULL) {
-	LINKED_LIST_FOREACH(cd) {
-	    if((cd->config.disabled) || (cd->config.excluded)) {
-		continue;
-	    }
-	    if(cd->state == CS_HOLDOVER) {
-		newBest = cd;
-		break;
-	    }
-	}
-    }
+/* restart: shutdown + init */
+static int
+restartTransport(TTransport *transport) {
 
-    if(newBest != NULL) {
-	LINKED_LIST_FOREACH(cd) {
-	    if((cd->config.disabled) || (cd->state == CS_HWFAULT) || (cd->config.excluded)) {
-		continue;
-	    }
-	    if(newBest != cd) {
-		    newBest = compareClockDriver(newBest, cd);
-	    }
-    }
-
-	if(newBest != _bestClock ) {
-	    NOTICE(THIS_COMPONENT"New best clock selected: %s\n", newBest->name);
-	}
-
-    } else {
-
-	if(newBest != _bestClock ) {
-	    NOTICE(THIS_COMPONENT"No best clock available\n");
-	}
-
-    }
-
-    if(newBest != _bestClock) {
-	if(_bestClock != NULL) {
-	    _bestClock->bestClock = FALSE;
-	    /* we are changing best reference - drop the old one */
-	    LINKED_LIST_FOREACH(cd) {
-		if(cd->config.disabled) {
-		    continue;
-		}
-		if(!cd->externalReference && (cd->refClock == _bestClock)
-		    && (cd->state != CS_LOCKED) && (cd->state != CS_HOLDOVER)) {
-		    cd->setReference(cd, NULL);
-		}
-	    }
-	}
-	_bestClock = newBest;
-	if(_bestClock != NULL) {
-	    _bestClock->bestClock = TRUE;
-	}
-
-	LINKED_LIST_FOREACH(cd) {
-	    if(cd->config.disabled) {
-		continue;
-	    }
-	    if(!cd->externalReference && (cd != _bestClock)) {
-		cd->setReference(cd, NULL);
-	    }
-	}
-
-	LINKED_LIST_FOREACH(cd) {
-	    if(cd->config.disabled) {
-		continue;
-	    }
-	    if(!cd->externalReference && (cd != _bestClock)) {
-		cd->setReference(cd, _bestClock);
-	    }
-	}
-    }
+    CCK_INFO(THIS_COMPONENT"Transport %s restarting\n", transport->name);
+    transport->shutdown(transport);
+    return transport->init(transport, &transport->config, transport->fdSet);
 
 }
 
+/* clear counters */
 static void
-putStatsLine(ClockDriver* driver, char* buf, int len) {
+clearCounters (TTransport *transport) {
 
-    char tmpBuf[100];
-    memset(tmpBuf, 0, sizeof(tmpBuf));
-    memset(buf, 0, len);
-    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
+	memset(&transport->counters, 0, sizeof(TTransportCounters));
+	if(transport->controlAcl) {
+	    transport->controlAcl->clearCounters(transport->controlAcl);
+	}
+	if(transport->dataAcl) {
+	    transport->dataAcl->clearCounters(transport->dataAcl);
+	}
 
-    if(driver->config.disabled) {
-	snprintf(buf, len - 1, "disabled");
-    } else {
-	snprintf(buf, len - 1, "%s%soffs: %-13s  adev: %-8.3f freq: %.03f", driver->config.readOnly ? "r" : " ",
-	    driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : driver->config.excluded ? "-" : " ",
-	    tmpBuf, driver->adev, driver->lastFrequency);
-    }
 }
 
+/* dumpCounters */
 static void
-putInfoLine(ClockDriver* driver, char* buf, int len) {
+dumpCounters (TTransport *transport) {
 
-    char tmpBuf[100];
-    char tmpBuf2[30];
-    memset(tmpBuf, 0, sizeof(tmpBuf2));
-    memset(tmpBuf, 0, sizeof(tmpBuf));
-    memset(buf, 0, len);
-    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf), &driver->refOffset);
+	TTransportCounters *c = &transport->counters;
 
-    if((driver->state == CS_STEP) && driver->config.stepTimeout) {
-	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.stepTimeout - driver->age.seconds);
-    } else if((driver->state == CS_HWFAULT) && driver->config.failureDelay) {
-	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.failureDelay - driver->age.seconds);
-    } else {
-	strncpy(tmpBuf2, getClockStateName(driver->state), CLOCKDRIVER_NAME_MAX);
-    }
-
-    if(driver->config.disabled) {
-	snprintf(buf, len - 1, "disabled");
-    } else {
-	snprintf(buf, len - 1, "%s%sname:  %-12s state: %-9s ref: %-7s", driver->config.readOnly ? "r" : " ",
-		driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : driver->config.excluded ? "-" : " ",
-	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none");
-    }
+	CCK_INFO(THIS_COMPONENT" ======= transport %s counters =============\n", transport->name);
+	CCK_INFO(THIS_COMPONENT"       rxMsg: %lu\n", c->rxMsg);
+	CCK_INFO(THIS_COMPONENT"       txMsg: %lu\n", c->txMsg);
+	CCK_INFO(THIS_COMPONENT"     rxBytes: %lu\n", c->rxBytes);
+	CCK_INFO(THIS_COMPONENT"     txBytes: %lu\n", c->txBytes);
+	CCK_INFO(THIS_COMPONENT" ======= transport %s rates ================\n", transport->name);
+	CCK_INFO(THIS_COMPONENT"         rxRateMsg: %lu / s\n", c->rxRateMsg);
+	CCK_INFO(THIS_COMPONENT"         txRateMsg: %lu / s\n", c->txRateMsg);
+	CCK_INFO(THIS_COMPONENT"       rxRateBytes: %lu / s\n", c->rxRateBytes);
+	CCK_INFO(THIS_COMPONENT"       txRateBytes: %lu / s\n", c->txRateBytes);
+	CCK_INFO(THIS_COMPONENT" ======= transport %s error counters =======\n", transport->name);
+	CCK_INFO(THIS_COMPONENT"          rxErrors: %lu\n", c->rxErrors);
+	CCK_INFO(THIS_COMPONENT"          txErrors: %lu\n", c->txErrors);
+	CCK_INFO(THIS_COMPONENT" rxTimestampErrors: %lu\n", c->rxTimestampErrors);
+	CCK_INFO(THIS_COMPONENT" txTimestampErrors: %lu\n", c->txTimestampErrors);
+	CCK_INFO(THIS_COMPONENT"        rxDiscards: %lu\n", c->rxDiscards);
+	CCK_INFO(THIS_COMPONENT"        txDiscards: %lu\n", c->txDiscards);
+	CCK_INFO(THIS_COMPONENT" ===========================================\n");
 }
 
-static Boolean healthCheck(ClockDriver *driver) {
+/* update rates */
+static void
+updateCounterRates (TTransport *transport, const int interval) {
 
-    Boolean ret = TRUE;
+	TTransportCounters *c = &transport->counters;
 
-    if(driver == NULL) {
-	return FALSE;
+	c->rateInterval = interval;
+
+	/* only update when ready and do not update on rollovers */
+	if(c->updated) {
+	    if(c->rxMsg > c->_snapRxMsg) {
+		c->rxRateMsg = (c->rxMsg - c->_snapRxMsg) / interval;
+	    }
+	    if(c->txMsg > c->_snapTxMsg) {
+		c->txRateMsg = (c->txMsg - c->_snapTxMsg) / interval;
+	    }
+	    if(c->rxBytes > c->_snapRxBytes) {
+		c->rxRateBytes = (c->rxBytes - c->_snapRxBytes) / interval;
+	     }
+	    if(c->txBytes > c->_snapTxBytes) {
+		c->txRateBytes = (c->txBytes - c->_snapTxBytes) / interval;
+	    }
+	}
+
+	c->_snapRxMsg = c->rxMsg;
+	c->_snapTxMsg = c->txMsg;
+	c->_snapRxBytes = c->rxBytes;
+	c->_snapTxBytes = c->txBytes;
+
+	c->updated = true;
+
+}
+
+/* set up data buffers */
+static void
+setBuffers (TTransport *transport, char *iBuf, const int iBufSize, char *oBuf, const int oBufSize) {
+
+	transport->inputBuffer = iBuf;
+	transport->inputBufferSize = iBufSize;
+	transport->incomingMessage.data = iBuf;
+	transport->incomingMessage.capacity = iBufSize;
+
+	transport->outputBuffer = oBuf;
+	transport->outputBufferSize = oBufSize;
+	transport->outgoingMessage.data = oBuf;
+	transport->outgoingMessage.capacity = oBufSize;
+
+}
+
+
+/* magic cure for hypohondria: imaginary health check */
+static bool
+healthCheck (TTransport *transport) {
+
+    bool ret = true;
+
+    if(transport == NULL) {
+	return false;
     }
 
-    DBG(THIS_COMPONENT"clock %s health check...\n", driver->name);
+    CCK_DBG(THIS_COMPONENT"transport %s health check...\n", transport->name);
 
-    ret &= driver->privateHealthCheck(driver);
-    ret &= driver->_vendorHealthCheck(driver);
+    ret &= transport->privateHealthCheck(transport);
+    ret &= transport->_vendorHealthCheck(transport);
 
     return ret;
+
+}
+
+/* send n bytes from outputBuffer / outgoingMessage to destination,  */
+static ssize_t
+sendTo (TTransport *transport, const size_t len, CckTransportAddress *to) {
+
+	transport->outgoingMessage.destination = to;
+	transport->outgoingMessage.length = max(transport->outgoingMessage.capacity, len);
+	return transport->sendMessage(transport, &transport->outgoingMessage);
+
+}
+
+/* send n bytes from external buf to destination */
+static ssize_t
+sendDataTo (TTransport *transport, char *buf, const size_t len, CckTransportAddress *to) {
+
+
+	TTransportMessage msg;
+	clearTTransportMessage(&msg);
+
+	msg.data = buf;
+	msg.capacity = len;
+	msg.length = len;
+	msg.destination = to;
+
+	return transport->sendMessage(transport, &msg);
+
+}
+
+/* receive data into inputBuffer and incomingMessage */
+static ssize_t
+receive (TTransport *transport) {
+
+	return transport->receiveMessage(transport, &transport->incomingMessage);
+
+}
+
+/* receive data into provided buffer of size len */
+static ssize_t
+receiveData(TTransport *transport, char* buf, const size_t size) {
+
+	TTransportMessage msg;
+	clearTTransportMessage(&msg);
+
+	msg.data = buf;
+	msg.capacity = size;
+
+	return transport->receiveMessage(transport, &msg);
+
+}
+
+/* short information line */
+static char*
+getInfoLine(TTransport *self, char *buf, size_t len) {
+
+	snprintf(buf, len, "%s, %s", getTTransportTypeName(self->type),
+		    TT_UC_MC(self->config.flags) ? "hybrid UC/MC" :
+		    TT_MC(self->config.flags) ? "multicast" : "unicast");
+
+	return buf;
+
+}
+
+/* short information line */
+static char*
+getStatusLine(TTransport *self, char *buf, size_t len) {
+
+	return buf;
+
 }
 
 
+
+bool
+copyTTransportConfig(TTransportConfig *to, const TTransportConfig *from) {
+
+    if(to == NULL || from == NULL) {
+	return false;
+    }
+
+    void *backup = to->_privateConfig;
+    memcpy(to, from, sizeof(TTransportConfig));
+    to->_privateConfig = backup;
+    memcpy(to->_privateConfig, from->_privateConfig, to->_privateSize);
+
+    CCK_DBG(THIS_COMPONENT"copyTTransportConfig(): success\n");
+
+    return true;
+
+}
+
+TTransportConfig
+*duplicateTTransportConfig(const TTransportConfig *from) {
+
+    TTransportConfig *ret = NULL;
+
+    if(from == NULL) {
+	return NULL;
+    }
+
+    ret = createTTransportConfig(from->_type);
+
+    if(ret == NULL) {
+	return NULL;
+    }
+
+    copyTTransportConfig(ret, from);
+
+    return ret;
+
+}
+
+/* set transport UID based on h/w and/or protocol address */
+void
+setTTransportUid(TTransport *transport) {
+
+    unsigned char *hwData = getAddressData(&transport->hwAddress);
+    unsigned char *addrData = getAddressData(&transport->ownAddress);
+
+    uint16_t filler = tobe16(transport->config.uidPid ? getpid() : 0xfffe);
+
+    uint16_t *middle = (uint16_t*)(transport->uid + 3);
+    uint16_t *right = (uint16_t*)(transport->uid + 6);
+
+    uint64_t *customUid = (uint64_t*)transport->config.customUid;
+
+    /* custom UID, just copy it */
+    if(*customUid) {
+
+	memcpy(transport->uid, transport->config.customUid, 8);
+
+    } else if (transport->hwAddress.populated) {
+
+	/* copy MAC address to the outer 48 bits */
+	memcpy(transport->uid, hwData, 3);
+	memcpy(transport->uid + 5, hwData + 3, 3);
+	*middle = filler;
+
+    } else {
+
+	/* copy whole IPv6 address, fill midle with pid if configured to do so */
+	if(transport->family == TT_FAMILY_IPV6) {
+	    memcpy(transport->uid, addrData, 8);
+	    if(transport->config.uidPid) {
+		*middle = filler;
+	    }
+	}
+
+	if(transport->family == TT_FAMILY_IPV4) {
+	    uint32_t addr = *(uint32_t*)addrData;
+	    /* if uidPid, copy pid to the right and address just before it */
+	    if(transport->config.uidPid) {
+		*right = tobe16(getpid());
+		memcpy(transport->uid + 2, &addr, 4);
+	    } else {
+	    /* if not, just copy address to right */
+		memcpy(transport->uid + 4, &addr, 4);
+	    }
+	}
+
+	/* no protocol address - fill middle with rfc2373, right with pid */
+	if(!transport->ownAddress.populated) {
+	    *right = tobe16(getpid());
+	    *middle = tobe16(0xfffe);
+	}
+
+    }
+
+#ifdef CCK_DEBUG
+    uint8_t *uid8 = (uint8_t*)transport->uid;
+#endif /* CCK_DEBUG */
+    CCK_DBG(THIS_COMPONENT"setTransportUid(%s): UID set to %02x%02x%02x%02x%02x%02x%02x%02x\n",
+	    transport->name, uid8[0], uid8[1], uid8[2], uid8[3], uid8[4], uid8[5], uid8[6], uid8[7]);
+
+}
+
+/* clear message without losing the buffer pointer */
+void
+clearTTransportMessage(TTransportMessage *message) {
+
+    if (message->data) {
+	memset(message->data, 0, message->capacity);
+    }
+    message->length = 0;
+    message->fromSelf = false;
+    message->toSelf = false;
+    message->isMulticast = false;
+    message->hasTimestamp = false;
+    message->destination = NULL;
+
+    memset(&message->from, 0, sizeof(CckTransportAddress));
+    memset(&message->to, 0, sizeof(CckTransportAddress));
+
+    tsOps()->clear(&message->timestamp);
+
+}
+
+void	dumpTTransportMessage(const TTransportMessage *message) {
+
+	CckAddressToolset* ts = getAddressToolset(message->_family);
+
+	CCK_INFO("\n");
+	CCK_INFO("+-------------------------------------------+\n");
+	CCK_INFO("|         TTransport message dump           |\n");
+	CCK_INFO("+-------------------------------------------+\n");
+	if(!message) {
+
+	    CCK_INFO(THIS_COMPONENT"  dumpTTransportMessage: null message\n");
+
+	} else {
+
+	    CCK_INFO("\n");
+	    CCK_INFO("              length: %d\n", message->length);
+	    CCK_INFO("            fromSelf: %s\n", boolstr(message->fromSelf));
+	    CCK_INFO("              toSelf: %s\n", boolstr(message->toSelf));
+	    CCK_INFO("         isMulticast: %s\n", boolstr(message->isMulticast));
+	    CCK_INFO("        hasTimestamp: %s\n", boolstr(message->hasTimestamp));
+
+	    if(message->hasTimestamp) {
+		tmpstr(tst, CCK_TIMESTAMP_STRLEN);
+		snprint_CckTimestamp(tst, tst_len, &message->timestamp);
+
+	    CCK_INFO("           timestamp:%s\n", tst);
+
+	    }
+
+	    if(!ts) {
+
+	    CCK_INFO("      address family: [unknown / unsupported]\n");
+
+	    } else {
+
+		    tmpstr(a1, ts->strLen);
+		    tmpstr(a2, ts->strLen);
+		    ts->toString(a1, a1_len, &message->from);
+		    ts->toString(a2, a2_len, &message->to);
+
+	    CCK_INFO("      address family: %s\n", getAddressFamilyName(message->_family));
+	    CCK_INFO("              source: %s\n", message->from.populated ? a1 : " - ");
+	    CCK_INFO("         destination: %s\n", message->to.populated ? a2 : " - ");
+
+		    if(message->destination) {
+			tmpstr(a3, ts->strLen);
+			ts->toString(a3, a3_len, message->destination);
+
+	    CCK_INFO("  for transmission to: %s\n", message->destination->populated ? a3 : " - ");
+
+		    }
+
+	    }
+
+	    CCK_INFO("\n");
+
+	    if(!message->data) {
+		CCK_INFO(THIS_COMPONENT"  dumpTTransportMessage: null data buffer\n");
+	    } else {
+		dumpBuffer(message->data, message->length, 8, "Message contents:");
+	    }
+	
+	}
+
+}
+
+/* check message source against data or control ACL */
+static bool
+messagePermitted (TTransport *self, TTransportMessage *message) {
+
+    if(!message->from.populated || message->fromSelf) {
+	return true;
+    }
+
+    int regular = self->callbacks.isRegularData(self, self->owner, message->data, message->length, message->isMulticast);
+
+    return self->addressPermitted(self, &message->from, regular);
+
+}
+
+/* check address against ACLs */
+static bool
+addressPermitted (TTransport *self, CckTransportAddress *address, bool isRegular) {
+
+    CckAcl *acl;
+    bool ret = true;
+
+    acl  = isRegular ? self->dataAcl : self->controlAcl;
+
+    ret = acl->match(acl, address);
+#ifdef CCK_DEBUG
+    if(!ret) {
+	tmpstr(strAddrf, self->tools->strLen);
+	CCK_DBG(THIS_COMPONENT"addressPermitted(%s): ACL %s blocked message from %s\n",
+	    self->name, acl->name, self->tools->toString(strAddrf, strAddrf_len, address));
+    }
+#endif /* CCK_DEBUG */
+
+    return ret;
+
+}
