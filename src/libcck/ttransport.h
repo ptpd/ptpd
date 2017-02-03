@@ -75,6 +75,9 @@
 #define TT_HDRLEN_UDPV4		42			/* 14 eth + 20 IP + 8 UDP */
 #define TT_HDRLEN_UDPV6		62			/* 14 eth + 20 IP6 + 8 UDP */
 
+/* default monitor + rate update interval */
+#define TT_MONITOR_INTERVAL 1
+
 /* timestamping transport driver types - automagic */
 enum {
 
@@ -118,6 +121,7 @@ typedef struct {
     bool discarding;			/* transport is discarding data */
     bool timestamping;			/* transport needs to deliver timestamps */
     bool uidPid;			/* use process ID in transport UID */
+    bool unmonitored;			/* transport is not monitored for network changes */
     char customUid[8];			/* use custom UID */
     int rxLatency;			/* ingress latency / timestamp correction */
     int txLatency;			/* egress latency / timestamp correction */
@@ -218,10 +222,14 @@ struct TTransport {
 	int (*preTx) (void *transport, void *owner, char *data, const size_t len, bool isMulticast);
 	/* allows the owner to verify if data transmitted matches data attached to TX timestamp */
 	int (*matchData) (void *transport, void *owner, char *a, const size_t alen, char *b, const size_t blen);
-	/* informs the owner that we have had a network interface / topology change */
-	int (*onNetworkChange) (void *transport, void *owner);
 	/* checks if the data received is regular data or control / management data - used to select ACL being matched */
 	int(*isRegularData) (void *transport, void *owner, char *data, const size_t len, bool isMulticast);
+	/* informs the owner that we have had a network interface / topology change. "major" may require a full restart / reconfig */
+	int (*onNetworkChange) (void *transport, void *owner, bool major);
+	/* informs the owner that we have had a network fault - called on fault and on recovery */
+	void (*onNetworkFault) (void *transport, void *owner, bool fault);
+	/* allows the owner to react to message rate update */
+	void (*onRateUpdate) (void *transport, void *owner);
     } callbacks;
 
     /* flags */

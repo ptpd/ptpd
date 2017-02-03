@@ -54,7 +54,7 @@ static ClockDriver* _systemClock = NULL;
 static ClockDriver* _bestClock = NULL;
 // TODO: take care of this
 //static int _updateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
-static int _syncInterval = 1.0 / (CLOCK_SYNC_RATE + 0.0);
+static int _syncInterval = 1.0 / (CLOCKDRIVER_SYNC_RATE + 0.0);
 
 
 static const char *clockDriverNames[] = {

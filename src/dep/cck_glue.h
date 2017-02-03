@@ -45,6 +45,8 @@
 #include <libcck/timer.h>
 #include <libcck/clockdriver.h>
 #include <libcck/ttransport.h>
+#include <libcck/libcck.h>
+
 #include "../globalconfig.h"
 
 typedef struct {
@@ -92,6 +94,7 @@ int		myAddrSize();
 void ptpTimerStop(PtpTimer *timer);
 void ptpTimerStart(PtpTimer *timer, const double interval);
 void ptpTimerLogStart(PtpTimer *timer, const int power2);
+bool ptpTimerExpired(PtpTimer *timer);
 bool setupPtpTimers(PtpClock *ptpClock, CckFdSet *fdSet);
 void shutdownPtpTimers(struct PtpClock *ptpClock);
 

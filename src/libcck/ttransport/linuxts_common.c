@@ -534,7 +534,7 @@ getLinuxTxTimestamp(TTransport *transport, TTransportMessage *txMessage) {
 
 gameover:
 
-	if(tsMessage.hasTimestamp) {
+	if(tsMessage.hasTimestamp && transport->callbacks.matchData) {
 	    if(transport->callbacks.matchData(transport->owner, transport,
 						txMessage->data, txMessage->length,
 						tsMessage.data, tsMessage.length)) {

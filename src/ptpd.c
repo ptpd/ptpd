@@ -80,11 +80,15 @@ PtpClock *G_ptpClock = NULL;
 int
 main(int argc, char **argv)
 {
+
 	PtpClock *ptpClock;
 	Integer16 ret;
 
-	CckFdSet set;
-	clearCckFdSet(&set);
+	PtpClockUserData userData;
+
+	memset(&userData, 0, sizeof(userData));
+
+	userData.fdSet = getCckFdSet();
 
 	startupInProgress = TRUE;
 
@@ -97,25 +101,27 @@ main(int argc, char **argv)
 
 	startupInProgress = FALSE;
 
+	cckInit(getCckFdSet());
+
 	/* global variable for message(), please see comment on top of this file */
 	G_ptpClock = ptpClock;
 
 	DBG("event POWERUP\n");
 
-	if(!setupPtpTimers(ptpClock, &set)) {
+	if(!setupPtpTimers(ptpClock, getCckFdSet())) {
 	    CRITICAL("Failed to initialise event timers. PTPd is inoperable.\n");
 	    return 1;
 	}
 
 	ptpTimerStart(&ptpClock->timers[ALARM_UPDATE_TIMER],ALARM_UPDATE_INTERVAL);
-	ptpTimerStart(&ptpClock->timers[NETWORK_MONITOR_TIMER],1);
+	ptpTimerStart(&ptpClock->timers[NETWORK_MONITOR_TIMER], TT_MONITOR_INTERVAL);
 	ptpTimerStart(&ptpClock->timers[CLOCK_SYNC_TIMER], 1.0 / (rtOpts.clockSyncRate + 0.0));
-	ptpTimerStart(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER], rtOpts.clockUpdateInterval);
+	ptpTimerStart(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER], CLOCKDRIVER_UPDATE_INTERVAL);
 	/* run the status file update every 1 .. 1.2 seconds */
 	ptpTimerStart(&ptpClock->timers[STATUSFILE_UPDATE_TIMER],rtOpts.statusFileUpdateInterval * (1.0 + 0.2 * getRand()));
 	ptpTimerStart(&ptpClock->timers[PERIODIC_INFO_TIMER],rtOpts.statsUpdateInterval);
 
-	if (!netInit(ptpClock, &set)) {
+	if (!netInit(ptpClock, getCckFdSet())) {
 	    CRITICAL("Failed to start network transports!\n");
 	    return 1;
 	}
@@ -127,7 +133,7 @@ main(int argc, char **argv)
 	DBG("Debug Initializing...\n");
 
 	while(true) {
-	    cckPollData(&set, NULL);
+	    cckPollData(getCckFdSet(), NULL);
 	    cckDispatchTimers();
 	    ptpRun(&rtOpts, ptpClock);
 	    checkSignals(&rtOpts, ptpClock);

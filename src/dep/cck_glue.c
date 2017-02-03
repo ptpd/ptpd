@@ -61,6 +61,7 @@ static int parseUnicastDestinations(PtpClock *ptpClock);
 
 static void ptpTimerExpiry(void *self, void *owner);
 static int ptpTimerSetup(PtpTimer *timer, CckFdSet *fdSet, const char *name);
+static void ptpRateUpdate (void *transport, void *owner);
 
 bool
 configureClockDriver(ClockDriver *driver, const void *rtOpts)
@@ -489,7 +490,8 @@ TTransportConfig
 	    return NULL;
 	}
 
-	config->timestamping = FALSE;
+	config->timestamping = false;
+	config->unmonitored = true;
 
 	switch(type) {
 
@@ -538,33 +540,6 @@ ptpNetworkRefresh(PtpClock *ptpClock)
     if(event != general) {
 	general->refresh(general);
     }
-
-}
-
-void
-myNetworkMonitor(PtpClock *ptpClock, const int interval)
-{
-
-    TTransport *event = ptpClock->eventTransport;
-    TTransport *general = ptpClock->generalTransport;
-
-    controlTTransports(TT_UPDATECOUNTERS, &interval);
-
-    ptpClock->counters.messageSendRate = event->counters.txRateMsg;
-    ptpClock->counters.messageReceiveRate = event->counters.rxRateMsg;
-    ptpClock->counters.bytesSendRate = event->counters.txRateBytes;
-    ptpClock->counters.bytesReceiveRate = event->counters.rxRateBytes;
-
-    if(event != general) {
-	ptpClock->counters.messageSendRate += general->counters.txRateMsg;
-	ptpClock->counters.messageReceiveRate += general->counters.rxRateMsg;
-	ptpClock->counters.bytesSendRate += general->counters.txRateBytes;
-	ptpClock->counters.bytesReceiveRate += general->counters.rxRateBytes;
-    }
-
-    controlTTransports(TT_MONITOR, &interval);
-
-    DBG("myNetworkMonitor() called\n");
 
 }
 
@@ -697,9 +672,6 @@ myPtpClockPostShutdown(PtpClock *ptpClock)
     FREE_ADDR(ptpClock->unicastPeerDestination.protocolAddress);
     FREE_ADDR(ptpClock->lastSyncDst);
     FREE_ADDR(ptpClock->lastPdelayRespDst);
-
-    freeTTransport((TTransport**)&ptpClock->generalTransport);
-    freeTTransport((TTransport**)&ptpClock->eventTransport);
 
 }
 
@@ -1441,6 +1413,32 @@ shutdownPtpTimers(PtpClock *ptpClock)
 
 }
 
+static void
+ptpRateUpdate (void *transport, void *owner)
+{
+
+    PtpClock *ptpClock = owner;
+
+    TTransport *event = ptpClock->eventTransport;
+    TTransport *general = ptpClock->generalTransport;
+
+    if (owner && event) {
+
+	ptpClock->counters.messageSendRate = event->counters.txRateMsg;
+	ptpClock->counters.messageReceiveRate = event->counters.rxRateMsg;
+	ptpClock->counters.bytesSendRate = event->counters.txRateBytes;
+	ptpClock->counters.bytesReceiveRate = event->counters.rxRateBytes;
+
+	if(event != general) {
+	    ptpClock->counters.messageSendRate += general->counters.txRateMsg;
+	    ptpClock->counters.messageReceiveRate += general->counters.rxRateMsg;
+	    ptpClock->counters.bytesSendRate += general->counters.txRateBytes;
+	    ptpClock->counters.bytesReceiveRate += general->counters.rxRateBytes;
+	}
+
+    }
+}
+
 bool
 netInit(PtpClock *ptpClock, CckFdSet *fdSet)
 {
@@ -1520,6 +1518,7 @@ netInit(PtpClock *ptpClock, CckFdSet *fdSet)
     event->callbacks.isRegularData = ptpIsRegularData;
     event->callbacks.matchData = ptpMatchData;
     event->myFd.callbacks.onData = ptpDataCallback;
+    event->callbacks.onRateUpdate = ptpRateUpdate;
     event->owner = ptpClock;
     if(event->init(event, eventConfig, fdSet) < 1) {
 	CRITICAL("Coult not start event transport\n");

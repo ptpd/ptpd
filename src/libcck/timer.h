@@ -47,14 +47,14 @@
 /* timer implementation types - automagic */
 enum {
 
-    CCK_TIMER_NONE = 0,
+    CCKTIMER_NONE = 0,
     /* "any" uses first ("best") timer implementaion available */
     CCKTIMER_ANY = 1,
 #define REGISTER_COMPONENT(typeenum, typesuffix, textname, textdesc) \
     typeenum,
 #include "timer.def"
 
-    CCK_TIMER_MAX
+    CCKTIMER_MAX
 };
 
 /* commands that can be sent to all transports */
@@ -88,6 +88,7 @@ struct CckTimer {
 
     CckTimerConfig config;		/* config container */
 
+    int numId;				/* numeric ID */
     double interval;			/* interval the timer is running at */
 
     /* user-supplied callbacks */
@@ -146,6 +147,7 @@ void		cckDispatchTimers();
 
 CckTimer*	findCckTimer(const char *);
 CckTimer*	getCckTimerByName(const char *);
+CckTimer*	getCckTimerById(const int);
 
 const char*	getCckTimerTypeName(int);
 int		getCckTimerType(const char*);

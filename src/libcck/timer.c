@@ -43,29 +43,19 @@
 
 #define THIS_COMPONENT "timer: "
 
-void 		shutdownCckTimers();
-void		checkCckTimers();
-
-CckTimer*	findCckTimer(const char *);
-CckTimer*	getCckTimerByName(const char *);
-
-const char*	getCckTimerTypeName(int);
-int		getCckTimerType(const char*);
-
-
 /* linked list - so that we can control all registered objects centrally */
 LINKED_LIST_ROOT_STATIC(CckTimer);
 
 static const char *timerTypeNames[] = {
 
-    [CCK_TIMER_NONE] = "none",
+    [CCKTIMER_NONE] = "none",
     [CCKTIMER_ANY] = "any",
 #define REGISTER_COMPONENT(typeenum, typesuffix, textname, textdesc) \
     [typeenum] = textname,
 
 #include "timer.def"
 
-    [CCK_TIMER_MAX] = "nosuchtype"
+    [CCKTIMER_MAX] = "nosuchtype"
 
 };
 
@@ -266,10 +256,26 @@ getCckTimerByName(const char *name) {
 
 }
 
+CckTimer*
+getCckTimerById(const int numId) {
+
+	CckTimer *timer;
+
+	LINKED_LIST_FOREACH_STATIC(timer) {
+	    if(timer->numId == numId) {
+		return timer;
+	    }
+	}
+
+	return NULL;
+
+
+}
+
 const char*
 getCckTimerTypeName(const int type) {
 
-    if ((type < 0) || (type >= CCK_TIMER_MAX)) {
+    if ((type < 0) || (type >= CCKTIMER_MAX)) {
 	return NULL;
     }
 
@@ -280,7 +286,7 @@ getCckTimerTypeName(const int type) {
 int
 getCckTimerType(const char* name) {
 
-    for(int i = 0; i < CCK_TIMER_MAX; i++) {
+    for(int i = 0; i < CCKTIMER_MAX; i++) {
 
 	if(!strcmp(name, timerTypeNames[i])) {
 	    return i;

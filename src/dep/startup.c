@@ -59,26 +59,6 @@
 #include <libcck/cck_logger.h>
 
 /*
- * valgrind 3.5.0 currently reports no errors (last check: 20110512)
- * valgrind 3.4.1 lacks an adjtimex handler
- *
- * to run:   sudo valgrind --show-reachable=yes --leak-check=full --track-origins=yes -- ./ptpd -c ...
- */
-
-/*
-  to test daemon locking and startup sequence itself, try:
-
-  function s()  { set -o pipefail ;  eval "$@" |  sed 's/^/\t/' ; echo $?;  }
-  sudo killall ptpd
-  s ./ptpd
-  s sudo ./ptpd
-  s sudo ./ptpd -t -g
-  s sudo ./ptpd -t -g -b eth0
-  s sudo ./ptpd -t -g -b eth0
-  ps -ef | grep ptpd
-*/
-
-/*
  * Synchronous signal processing:
  * original idea: http://www.openbsd.org/cgi-bin/cvsweb/src/usr.sbin/ntpd/ntpd.c?rev=1.68;content-type=text%2Fplain
  */
@@ -540,10 +520,11 @@ ptpdShutdown(PtpClock * ptpClock)
 	toState(PTP_DISABLED, &rtOpts, ptpClock);
 	/* process any outstanding events before exit */
 	updateAlarms(ptpClock->alarms, ALRM_MAX);
+
 	netShutdown(ptpClock);
-	shutdownClockDrivers();
 	shutdownPtpTimers(ptpClock);
-	shutdownCckTimers();
+
+	cckShutdown();
 
 	myPtpClockPostShutdown(ptpClock);
 

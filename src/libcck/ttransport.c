@@ -175,7 +175,6 @@ setupTTransport(TTransport* transport, const int type, const char* name) {
     transport->callbacks.preTx = ttDummyDataCallback;
     transport->callbacks.isRegularData = ttDummyDataCallback;
     transport->callbacks.matchData = ttDummyMatchCallback;
-    transport->callbacks.onNetworkChange = ttDummyOwnerCallback;
 
     /* these macros call the setup functions for existing transport implementations */
 
@@ -636,6 +635,10 @@ updateCounterRates (TTransport *transport, const int interval) {
 	c->_snapTxBytes = c->txBytes;
 
 	c->updated = true;
+
+	if(!transport->config.unmonitored) {
+	    SAFE_CALLBACK(transport->callbacks.onRateUpdate, transport, transport->owner);
+	}
 
 }
 

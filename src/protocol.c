@@ -141,11 +141,13 @@ ptpRun(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	}
 
 	if (ptpTimerExpired(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER])) {
-		updateClockDrivers(rtOpts->clockUpdateInterval);
+		updateClockDrivers(ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER].interval);
 	}
 
 	if (ptpTimerExpired(&ptpClock->timers[NETWORK_MONITOR_TIMER])) {
-	    myNetworkMonitor(ptpClock, 1);
+		int nint = ptpClock->timers[NETWORK_MONITOR_TIMER].interval;
+		controlTTransports(TT_UPDATECOUNTERS, &nint);
+		controlTTransports(TT_MONITOR, &nint);
 	}
 
 	if (ptpTimerExpired(&ptpClock->timers[UNICAST_GRANT_TIMER])) {
@@ -882,7 +884,6 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					pow(2,ptpClock->portDS.logAnnounceInterval));
 			}
 			issueAnnounce(rtOpts, ptpClock);
-
 		}
 
 		if (ptpClock->portDS.delayMechanism == P2P) {
@@ -911,9 +912,9 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 				ptpTimerStart(&ptpClock->timers[SYNC_INTERVAL_TIMER],
 					pow(2,ptpClock->portDS.logSyncInterval));
 			}
-
 			issueSync(rtOpts, ptpClock);
 		}
+
 		if(!ptpClock->warnedUnicastCapacity) {
 		    if(ptpClock->slaveCount >= UNICAST_MAX_DESTINATIONS ||
 			ptpClock->unicastDestinationCount >= UNICAST_MAX_DESTINATIONS) {
@@ -982,7 +983,6 @@ timestampCorrection(const RunTimeOpts * rtOpts, PtpClock *ptpClock, TimeInternal
 	}
 
 }
-
 
 void
 processPtpData(PtpClock *ptpClock, TimeInternal* timeStamp, ssize_t length, void *src, void *dst)
@@ -1458,7 +1458,6 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			       header,sizeof(MsgHeader));
 			memcpy(&ptpClock->bestMaster->announce,
 			       &ptpClock->msgTmp.announce,sizeof(MsgAnnounce));
-
 
 			DBG("___ Announce: received Announce from current Master, so reset the Announce timer\n\n");
 

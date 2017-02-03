@@ -686,10 +686,7 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force)
 	    cd->restoreFrequency(cd);
 	}
 
-        if(rtOpts->calibrationDelay) {
-		ptpClock->isCalibrated = FALSE;
-		ptpTimerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], rtOpts->calibrationDelay);
-        }
+	recalibrateClock(ptpClock);
 
 }
 
@@ -835,7 +832,7 @@ void
 recalibrateClock(PtpClock *ptpClock) {
 
 
-    DBG("Re-calibrating PTP offsets\n");
+    NOTIFY("Re-calibrating PTP offsets\n");
 
     ptpClock->oFilterMS.reset(&ptpClock->oFilterMS);
     ptpClock->oFilterSM.reset(&ptpClock->oFilterSM);

@@ -110,9 +110,9 @@ memset(name, 0, name ## _len);
 #define DBGV_LOCAL_ID(x, ...)
 #endif
 
-#ifndef SAFE_CALLBACK
-#define SAFE_CALLBACK(fun, ...) { if(fun) { fun( __VA_ARGS__ ); } }
-#endif /* SAFE_CALLBACK */
+//#ifndef SAFE_CALLBACK
+//#define SAFE_CALLBACK(fun, ...) { if(fun) { fun( __VA_ARGS__ ); } }
+//#endif /* SAFE_CALLBACK */
 
 /*
  * new debug level DBG2:

@@ -306,7 +306,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->storeToFile = TRUE;
 
 	rtOpts->clockUpdateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
-	rtOpts->clockSyncRate = CLOCK_SYNC_RATE;
+	rtOpts->clockSyncRate = CLOCKDRIVER_SYNC_RATE;
 	rtOpts->clockFailureDelay = 10;
 	rtOpts->clockStrictSync = TRUE;
 	rtOpts->clockMinStep = 500;
@@ -469,6 +469,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->statusLog.logFP = NULL;
 	rtOpts->statusLog.truncateOnReopen = FALSE;
 	rtOpts->statusLog.unlinkOnClose = TRUE;
+
+	rtOpts->deduplicateLog = TRUE;
 
 /* Management message support settings */
 	rtOpts->managementEnabled = TRUE;

@@ -37,6 +37,8 @@
 /* max name length */
 #define PTP_TIMER_NAME_MAX 20
 
+struct PtpClock;
+
 /**
 * \brief Structure used as a timer
  */
@@ -95,14 +97,8 @@ extern void ptpTimerStop(PtpTimer *timer);
 extern void ptpTimerStart(PtpTimer *timer, const double interval);
 extern void ptpTimerLogStart(PtpTimer *timer, const int power2);
 extern bool ptpTimerExpired(PtpTimer *timer);
-
-/* functions used by 1588 only */
-void timerStop(IntervalTimer *itimer);
-void timerStart(IntervalTimer * itimer, double interval);
-Boolean timerExpired(IntervalTimer * itimer);
-Boolean timerRunning(IntervalTimer * itimer);
-Boolean timerSetup(IntervalTimer *itimers);
-void timerShutdown(IntervalTimer *itimers);
+extern bool ptpTimerInit(struct PtpClock *ptpClock);
+extern void ptpTimerShutdown(struct PtpClock *ptpClock);
 
 const char * getPtpTimerName(int id);
 

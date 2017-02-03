@@ -300,7 +300,7 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 	vsnprintf(buf, PATH_MAX, format, ap);
 
 	/* deduplication */
-	if(!debug) {
+	if(!debug && rtOpts.deduplicateLog) {
 	    /* check if this message produces the same hash as last */
 	    hash = fnvHash(buf, sizeof(buf), 0);
 	    if(lastHash != NULL) {
@@ -1272,8 +1272,6 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	    }
 
 	}
-
-
 
 	fflush(out);
 }

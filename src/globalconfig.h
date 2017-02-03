@@ -181,6 +181,7 @@ typedef struct {
 	char leapFile[PATH_MAX+1]; /* leap seconds file location */
 	char frequencyDir[PATH_MAX + 1]; /* frequency file directory */
 	char logFilter[101];		/* simple strstr() check */
+	Boolean deduplicateLog;		/* do not print the same log message twice */
 
 	Boolean storeToFile;
 

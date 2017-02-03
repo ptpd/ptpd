@@ -2407,6 +2407,12 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		PTPD_RESTART_NONE, rtOpts->logFilter, sizeof(rtOpts->logFilter), rtOpts->logFilter,
 	"Only display log messages containing this text (case sensitive, max. 100 characters)");
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "global:deduplicate_log",
+		PTPD_RESTART_NONE, &rtOpts->deduplicateLog, rtOpts->deduplicateLog,
+		"Do not log repeated log messages");
+
+	printf("******** ded: %s\n", boolstr(rtOpts->deduplicateLog));
+
 	parseResult &= configMapInt(opCode, opArg, dict, target, "global:log_file_max_size",
 		PTPD_RESTART_LOGGING, INTTYPE_U32, &rtOpts->eventLog.maxSize, rtOpts->eventLog.maxSize,
 		"Maximum log file size (in kB) - log file will be truncated if size exceeds\n"
