@@ -110,7 +110,7 @@ void catchSignals(int sig)
  * exit the program cleanly
  */
 void
-do_signal_close(PtpClock * ptpClock)
+exitHandler(PtpClock * ptpClock)
 {
 
 	ptpdShutdown(ptpClock);
@@ -235,7 +235,7 @@ applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
  * @param sig
  */
 void
-do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+sighupHandler(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
 
 
@@ -381,12 +381,12 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	 */
 
 	if(sigint_received || sigterm_received){
-		do_signal_close(ptpClock);
+		exitHandler(ptpClock);
 	}
 
 	if(sighup_received){
-		do_signal_sighup(rtOpts, ptpClock);
-	sighup_received=0;
+		sighupHandler(rtOpts, ptpClock);
+		sighup_received=0;
 	}
 
 	if(sigusr1_received){
@@ -578,7 +578,7 @@ ptpdShutdown(PtpClock * ptpClock)
 
 }
 
-void dump_command_line_parameters(int argc, char **argv)
+void argvDump(int argc, char **argv)
 {
 
 	int i = 0;
@@ -652,7 +652,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 
 	/* Display startup info and argv if not called with -? or -H */
 		NOTIFY("%s version %s starting\n",USER_DESCRIPTION, USER_VERSION);
-		dump_command_line_parameters(argc, argv);
+		argvDump(argc, argv);
 	/*
 	 * we try to catch as many error conditions as possible, but before we call daemon().
 	 * the exception is the lock file, as we get a new pid when we call daemon(),
@@ -773,7 +773,7 @@ configcheck:
 		    (int)sizeof(PtpClock));
 
 		ptpClock->foreign = (ForeignMasterRecord *)
-			calloc(rtOpts->max_foreign_records,
+			calloc(rtOpts->fmrCapacity,
 			       sizeof(ForeignMasterRecord));
 		if (!ptpClock->foreign) {
 			PERROR("failed to allocate memory for foreign "
@@ -783,7 +783,7 @@ configcheck:
 			goto fail;
 		} else {
 			DBG("allocated %d bytes for foreign master data\n",
-			    (int)(rtOpts->max_foreign_records *
+			    (int)(rtOpts->fmrCapacity *
 				  sizeof(ForeignMasterRecord)));
 		}
 	}

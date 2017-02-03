@@ -686,7 +686,7 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force)
 	    cd->restoreFrequency(cd);
 	}
 
-	recalibrateClock(ptpClock);
+	recalibrateClock(ptpClock, true);
 
 }
 
@@ -780,7 +780,7 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* Clock has been updated - or was eligible for an update - restart the timeout timer*/
 	if(rtOpts->clockUpdateTimeout > 0) {
 		DBG("Restarted clock update timeout timer\n");
-		ptpTimerStart(&ptpClock->timers[CLOCK_UPDATE_TIMER],rtOpts->clockUpdateTimeout);
+		tStart(ptpClock, CLOCK_UPDATE, rtOpts->clockUpdateTimeout);
 	}
 
 	ptpClock->pastStartup = TRUE;
@@ -829,27 +829,32 @@ updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 }
 
 void
-recalibrateClock(PtpClock *ptpClock) {
+recalibrateClock(PtpClock *ptpClock, bool resetFilters) {
 
+    if(resetFilters) {
 
-    NOTIFY("Re-calibrating PTP offsets\n");
+	NOTIFY("Re-calibrating PTP: Resetting PTP offsets and filters\n");
 
-    ptpClock->oFilterMS.reset(&ptpClock->oFilterMS);
-    ptpClock->oFilterSM.reset(&ptpClock->oFilterSM);
+	ptpClock->oFilterMS.reset(&ptpClock->oFilterMS);
+	ptpClock->oFilterSM.reset(&ptpClock->oFilterSM);
 
-    clearTime(&ptpClock->currentDS.offsetFromMaster);
-    clearTime(&ptpClock->currentDS.meanPathDelay);
-    clearTime(&ptpClock->delaySM);
-    clearTime(&ptpClock->delayMS);
+	clearTime(&ptpClock->currentDS.offsetFromMaster);
+	clearTime(&ptpClock->currentDS.meanPathDelay);
+	clearTime(&ptpClock->delaySM);
+	clearTime(&ptpClock->delayMS);
 
-    ptpClock->ofm_filt.y           = 0;
-    ptpClock->ofm_filt.nsec_prev   = 0;
-    ptpClock->mpdIirFilter.s_exp       = 0;
-    ptpClock->maxDelayRejected = 0;
+	ptpClock->ofm_filt.y           = 0;
+	ptpClock->ofm_filt.nsec_prev   = 0;
+	ptpClock->mpdIirFilter.s_exp       = 0;
+	ptpClock->maxDelayRejected = 0;
+
+    }
 
     if(ptpClock->rtOpts->calibrationDelay) {
+	NOTIFY("Re-calibrating PTP: Waiting for %d seconds to pre-compute offsets\n",
+	    ptpClock->rtOpts->calibrationDelay);
 	ptpClock->isCalibrated = FALSE;
-	ptpTimerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], ptpClock->rtOpts->calibrationDelay);
+	tStart(ptpClock, CALIBRATION_DELAY, ptpClock->rtOpts->calibrationDelay);
     }
 
 }

@@ -123,7 +123,7 @@ typedef struct {
 	Boolean displayPackets;
 	Integer16 s;
 	TimeInternal inboundLatency, outboundLatency, ofmCorrection;
-	Integer16 max_foreign_records;
+	Integer16 fmrCapacity;
 	Enumeration8 delayMechanism;
 
 	Boolean portDisabled;

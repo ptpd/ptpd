@@ -154,7 +154,6 @@
 #define SET_FIELD(data, bitpos) \
 	data << bitpos
 
-
 #ifndef min
 #define min(a,b)     (((a)<(b))?(a):(b))
 #endif /* min */

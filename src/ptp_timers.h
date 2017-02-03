@@ -94,6 +94,13 @@ extern bool ptpTimerExpired(PtpTimer *timer);
 extern bool ptpTimerInit(struct PtpClock *ptpClock);
 extern void ptpTimerShutdown(struct PtpClock *ptpClock);
 
+/* quickhand macros assuming that the @var variable contains a timers array indexed by @id */
+#define tExpired(var, id)	ptpTimerExpired(&var->timers[id##_TIMER])
+#define tStart(var, id, val)	ptpTimerStart(&var->timers[id##_TIMER], val)
+#define tStop(var, id)		ptpTimerStop(&var->timers[id##_TIMER])
+#define tRunning(var, id)	var->timers[id##_TIMER].running
+#define tInterval(var, id)	var->timers[id##_TIMER].interval
+
 const char * getPtpTimerName(int id);
 
 #endif /* PTP_TIMERS_H_ */

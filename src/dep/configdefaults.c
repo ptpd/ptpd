@@ -210,7 +210,7 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->s = DEFAULT_DELAY_S;
 	rtOpts->inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
 	rtOpts->outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
-	rtOpts->max_foreign_records = DEFAULT_MAX_FOREIGN_RECORDS;
+	rtOpts->fmrCapacity = DEFAULT_MAX_FOREIGN_RECORDS;
 	rtOpts->nonDaemon = FALSE;
 
 	/*

@@ -221,7 +221,7 @@ struct PtpClock {
 
 	/* Other things we need for the protocol */
 	UInteger16 number_foreign_records;
-	Integer16  max_foreign_records;
+	Integer16  fmrCapacity;
 	Integer16  foreign_record_i;
 	Integer16  foreign_record_best;
 	Boolean  record_update;    /* should we run bmc() after receiving an announce message? */
@@ -293,7 +293,7 @@ struct PtpClock {
 	TimeInternal	lastOriginTimestamp;
 
 	/* todo: replace the below */
-	UInteger16 txSequenceId[PTP_MAX_MESSAGE_INDEXED];
+	UInteger16 txId[PTP_MAX_MESSAGE_INDEXED];
 
 	Boolean  sentPdelayReq;
 	UInteger16  sentPdelayReqSequenceId;
@@ -318,16 +318,16 @@ struct PtpClock {
 
 	/* user-supplied objects go here */
 
-	void *eventTransport;
-	void *generalTransport;
-
-	void *eventDestination;
-	void *generalDestination;
-
-	void *peerEventDestination;
-	void *peerGeneralDestination;
-
-	void *userData;
+	void *clockDriver;		/* some clock driver interface */
+	void *masterClock;		/* some "master" clock used when no other reference available */
+	void *eventTransport;		/* some transport to send/receive event messages */
+	void *generalTransport;		/* some transport to send/receive general messages */
+	void *eventDestination;		/* some default address object to send event messages to */
+	void *generalDestination;	/* some default address object to send general messages to */
+	void *peerEventDestination;	/* some default address object to send P2P event messages to */
+	void *peerGeneralDestination;   /* some default address object to send P2P general messages to */
+	void *userData;			/* any other data we want attached to the PTP clock */
+	void *owner;			/* some arbitrary object owning or controlling this PTP clock */
 
 	struct {
 	    void (*preInit) (PtpClock *ptpClock);
@@ -424,9 +424,6 @@ struct PtpClock {
 #endif
 
 	bool clockLocked;
-
-	void *clockDriver;
-	void *masterClock;
 
 	/* tell the protocol engine to silently ignore the next n offset/delay updates */
 	int ignoreDelayUpdates;

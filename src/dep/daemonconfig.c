@@ -1280,7 +1280,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 					"ptpengine:log_peer_delayreq_interval value must be lower than ptpengine:log_peer_delayreq_interval_max\n");
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:foreignrecord_capacity",
-		PTPD_RESTART_DAEMON, INTTYPE_I16, &rtOpts->max_foreign_records, rtOpts->max_foreign_records,
+		PTPD_RESTART_DAEMON, INTTYPE_I16, &rtOpts->fmrCapacity, rtOpts->fmrCapacity,
 	"Foreign master record size (Maximum number of foreign masters).",RANGECHECK_RANGE,5,10);
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:ptp_allan_variance", PTPD_UPDATE_DATASETS, INTTYPE_U16, &rtOpts->clockQuality.offsetScaledLogVariance, rtOpts->clockQuality.offsetScaledLogVariance,
@@ -2410,8 +2410,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "global:deduplicate_log",
 		PTPD_RESTART_NONE, &rtOpts->deduplicateLog, rtOpts->deduplicateLog,
 		"Do not log repeated log messages");
-
-	printf("******** ded: %s\n", boolstr(rtOpts->deduplicateLog));
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "global:log_file_max_size",
 		PTPD_RESTART_LOGGING, INTTYPE_U32, &rtOpts->eventLog.maxSize, rtOpts->eventLog.maxSize,

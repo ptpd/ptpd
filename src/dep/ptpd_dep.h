@@ -352,7 +352,7 @@ void alarmHandler_snmp(AlarmEntry *alarm);
  * -Clock servo*/
  /**\{*/
 
-void recalibrateClock(PtpClock *ptpClock);
+void recalibrateClock(PtpClock *ptpClock, bool resetFilters);
 void initClock(const RunTimeOpts*,PtpClock*);
 void updatePeerDelay (IIRfilter*, const RunTimeOpts*,PtpClock*,TimeInternal*,Boolean);
 void updateDelay (IIRfilter*, const RunTimeOpts*, PtpClock*,TimeInternal*);

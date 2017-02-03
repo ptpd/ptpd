@@ -628,7 +628,7 @@ myPtpClockPreInit(PtpClock *ptpClock)
 	CREATE_ADDR(ptpClock->unicastGrants[i].protocolAddress);
     }
 
-    for(int j = 0; j < ptpClock->rtOpts->max_foreign_records; j++) {
+    for(int j = 0; j < ptpClock->rtOpts->fmrCapacity; j++) {
 	CREATE_ADDR(ptpClock->foreign[j].protocolAddress);
     }
 
@@ -659,7 +659,7 @@ myPtpClockPostShutdown(PtpClock *ptpClock)
 	FREE_ADDR(ptpClock->unicastGrants[i].protocolAddress);
     }
 
-    for(int j = 0; j < ptpClock->max_foreign_records; j++) {
+    for(int j = 0; j < ptpClock->fmrCapacity; j++) {
 	FREE_ADDR(ptpClock->foreign[j].protocolAddress);
     }
 
@@ -683,7 +683,7 @@ myPtpClockStepNotify(void *owner)
 
     DBG("PTP clock was notified of clock step - resetting outlier filters and re-calibrating offsets\n");
 
-    recalibrateClock(ptpClock);
+    recalibrateClock(ptpClock, true);
 }
 
 void

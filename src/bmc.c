@@ -151,7 +151,7 @@ void initData(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	/*Init other stuff*/
 	ptpClock->number_foreign_records = 0;
-  	ptpClock->max_foreign_records = rtOpts->max_foreign_records;
+  	ptpClock->fmrCapacity = rtOpts->fmrCapacity;
 }
 
 /* memcmp behaviour: -1: a<b, 1: a>b, 0: a=b */
@@ -393,7 +393,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 		WARNING("Leap second event aborted by GM!\n");
 		ptpClock->leapSecondPending = FALSE;
 		ptpClock->leapSecondInProgress = FALSE;
-		ptpTimerStop(&ptpClock->timers[LEAP_SECOND_PAUSE_TIMER]);
+		tStop(ptpClock, LEAP_SECOND_PAUSE);
 		ptpClock->clockStatus.leapInsert = FALSE;
 		ptpClock->clockStatus.leapDelete = FALSE;
 		ptpClock->clockStatus.update = TRUE;
@@ -656,12 +656,10 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 			displayPortIdentity(&foreign->header.sourcePortIdentity,
 					    "New best master selected:");
 			ptpClock->counters.bestMasterChanges++;
-			if (ptpClock->portDS.portState == PTP_SLAVE)
+			if (ptpClock->portDS.portState == PTP_SLAVE) {
 				displayStatus(ptpClock, "State: ");
-				if(rtOpts->calibrationDelay) {
-					ptpClock->isCalibrated = FALSE;
-					ptpTimerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], rtOpts->calibrationDelay);
-				}
+			}
+			recalibrateClock(ptpClock, false);
 		}
                 if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL) {
                         ptpClock->portDS.logAnnounceInterval = ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].logInterval;
@@ -712,12 +710,10 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 				displayPortIdentity(&foreign->header.sourcePortIdentity,
 						    "New best master selected:");
 				ptpClock->counters.bestMasterChanges++;
-				if(ptpClock->portDS.portState == PTP_SLAVE)
+				if(ptpClock->portDS.portState == PTP_SLAVE) {
 					displayStatus(ptpClock, "State: ");
-				if(rtOpts->calibrationDelay) {
-					ptpClock->isCalibrated = FALSE;
-					ptpTimerStart(&ptpClock->timers[CALIBRATION_DELAY_TIMER], rtOpts->calibrationDelay);
 				}
+				recalibrateClock(ptpClock, false);
 			}
 			return PTP_SLAVE;
 		} else {
