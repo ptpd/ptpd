@@ -118,11 +118,6 @@ ptpRun(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	if (ptpClock->message_activity)
 			DBGV("activity\n");
 
-	/* Configuration has changed */
-	if(rtOpts->restartSubsystems > 0) {
-		restartSubsystems(rtOpts, ptpClock);
-	}
-
 	if (ptpTimerExpired(&ptpClock->timers[ALARM_UPDATE_TIMER])) {
 		if(rtOpts->alarmInitialDelay && (ptpClock->alarmDelay > 0)) {
 		    ptpClock->alarmDelay -= ALARM_UPDATE_INTERVAL;
@@ -134,20 +129,6 @@ ptpRun(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		updateAlarms(ptpClock->alarms, ALRM_MAX);
 
-	}
-
-	if (ptpTimerExpired(&ptpClock->timers[CLOCK_SYNC_TIMER])) {
-		syncClocks(ptpClock->timers[CLOCK_SYNC_TIMER].interval);
-	}
-
-	if (ptpTimerExpired(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER])) {
-		updateClockDrivers(ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER].interval);
-	}
-
-	if (ptpTimerExpired(&ptpClock->timers[NETWORK_MONITOR_TIMER])) {
-		int nint = ptpClock->timers[NETWORK_MONITOR_TIMER].interval;
-		controlTTransports(TT_UPDATECOUNTERS, &nint);
-		controlTTransports(TT_MONITOR, &nint);
 	}
 
 	if (ptpTimerExpired(&ptpClock->timers[UNICAST_GRANT_TIMER])) {

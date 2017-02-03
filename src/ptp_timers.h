@@ -59,37 +59,31 @@ typedef struct {
 } PtpTimer;
 
 enum {
-  /* fundamental PTP timers */
-  ANNOUNCE_RECEIPT_TIMER,	/* Announce receipt timeout timer */
-  DELAYREQ_INTERVAL_TIMER,	/* Delay Request transmission interval */
-  PDELAYREQ_INTERVAL_TIMER,	/* Peer Delay Request transmission interval */
-  SYNC_INTERVAL_TIMER,		/* Sync transmission interval */
-  ANNOUNCE_INTERVAL_TIMER,	/* Announce transmission interval */
+	/* fundamental PTP timers */
+	ANNOUNCE_RECEIPT_TIMER,	/* Announce receipt timeout timer */
+	DELAYREQ_INTERVAL_TIMER,	/* Delay Request transmission interval */
+	PDELAYREQ_INTERVAL_TIMER,	/* Peer Delay Request transmission interval */
+	SYNC_INTERVAL_TIMER,		/* Sync transmission interval */
+	ANNOUNCE_INTERVAL_TIMER,	/* Announce transmission interval */
 
-  /* non-spec PTP-related timers */
-  SYNC_RECEIPT_TIMER,		/* Sync receipt timeout (alarm) timer */
-  DELAY_RECEIPT_TIMER,		/* Delay response receipt timeout (alarm) timer */
-  UNICAST_GRANT_TIMER,		/* Unicast grant ageing timer */
-  CALIBRATION_DELAY_TIMER,	/* Offset calibration delay timer */
-  PERIODIC_INFO_TIMER,		/* Periodic PTP status updates */
-  STATISTICS_UPDATE_TIMER,	/* Online PTP statistics update interval (non-moving mean and dev) */
+	/* non-spec PTP-related timers */
+	SYNC_RECEIPT_TIMER,		/* Sync receipt timeout (alarm) timer */
+	DELAY_RECEIPT_TIMER,		/* Delay response receipt timeout (alarm) timer */
+	UNICAST_GRANT_TIMER,		/* Unicast grant ageing timer */
+	CALIBRATION_DELAY_TIMER,	/* Offset calibration delay timer */
+	PERIODIC_INFO_TIMER,		/* Periodic PTP status updates */
+	STATISTICS_UPDATE_TIMER,	/* Online PTP statistics update interval (non-moving mean and dev) */
+	CLOCK_UPDATE_TIMER,		/* Clock update failsafe timer (stuck slave) */
 
-  /* PTPd daemon timers - to be moved away */
-  OPERATOR_MESSAGES_TIMER, 	/* Limit repeated warning messages */
-  LEAP_SECOND_PAUSE_TIMER,	/* Event message processing pause around leap second event */
-  STATUSFILE_UPDATE_TIMER,	/* Status file update */
-  ALARM_UPDATE_TIMER,		/* Alarm ageing */
-  MASTER_NETREFRESH_TIMER,	/* Master state periodic mcast joins */
-  TIMINGDOMAIN_UPDATE_TIMER,	/* Timing domain framework - to be removed */
+	/* PTPd daemon timers - to be moved away */
+	OPERATOR_MESSAGES_TIMER, 	/* Limit repeated warning messages */
+	LEAP_SECOND_PAUSE_TIMER,	/* Event message processing pause around leap second event */
+	STATUSFILE_UPDATE_TIMER,	/* Status file update */
+	ALARM_UPDATE_TIMER,		/* Alarm ageing */
+	MASTER_NETREFRESH_TIMER,	/* Master state periodic mcast joins */
 
-  /* LibCCK housekeeping tasks - to be moved away */
-  CLOCK_UPDATE_TIMER,
-  NETWORK_MONITOR_TIMER,
-  CLOCK_SYNC_TIMER,
-  CLOCKDRIVER_UPDATE_TIMER,
-
-  /* marker */
-  PTP_MAX_TIMER
+	/* marker */
+	PTP_MAX_TIMER
 };
 
 /* user-supplied interface */

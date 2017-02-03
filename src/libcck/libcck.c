@@ -42,6 +42,8 @@
 #include <libcck/timer.h>
 #include <libcck/acl.h>
 
+#define THIS_COMPONENT "libCCK: "
+
 #define tmrctl(id, command, ... ) timers[id]->command(timers[id], __VA_ARGS__)
 
 enum {
@@ -57,14 +59,21 @@ static const char * timerDesc[] = {
     [TMR_NETMONITOR]	= "__CCK_NET_MONITOR"
 };
 
+static const CckConfig defaults = {
+
+    .clockSyncRate		= CLOCKDRIVER_SYNC_RATE,
+    .netMonitorInterval		= TT_MONITOR_INTERVAL,
+    .clockUpdateInterval	= CLOCKDRIVER_UPDATE_INTERVAL,
+
+};
+
 static CckTimer* timers[TMR_MAX];
-static CckConfig cckConfig;
+static CckConfig config;
 static CckFdSet fdSet;
 
-static void cckDefaults(CckConfig *config);
 static bool initCckTimers(CckFdSet *set);
 static void cckTimerHandler(void *timer, void *owner);
-
+static void cckApplyConfig();
 
 bool
 cckInit(CckFdSet *set)
@@ -72,21 +81,22 @@ cckInit(CckFdSet *set)
 
     bool ret = true;
 
-    cckDefaults(&cckConfig);
     clearCckFdSet(set);
+
+    /* set defaults */
+    memcpy(&config, &defaults, sizeof(config));
 
     ret &= initCckTimers(set);
 
     if(!ret) {
-	CCK_CRITICAL("LibCCK startup error\n");
+	CCK_CRITICAL(THIS_COMPONENT"LibCCK startup error\n");
 	cckShutdown();
     }
 
-    tmrctl(TMR_CLOCKUPDATE, start, cckConfig.clockUpdateInterval);
-    tmrctl(TMR_NETMONITOR, start, cckConfig.netMonitorInterval);
-    tmrctl(TMR_CLOCKSYNC, start, 1 / ( 0.0 + cckConfig.clockSyncRate));
+    cckApplyConfig();
 
-    CCK_NOTICE("LibCCK version "CCK_API_VER_STR" initialised\n");
+
+    CCK_NOTICE(THIS_COMPONENT"LibCCK version "CCK_API_VER_STR" initialised\n");
 
     return ret;
 
@@ -105,7 +115,7 @@ void cckShutdown()
 CckConfig*
 getCckConfig()
 {
-    return &cckConfig;
+    return &config;
 }
 
 CckFdSet*
@@ -114,15 +124,20 @@ getCckFdSet()
     return &fdSet;
 }
 
+const CckConfig*
+cckDefaults()
+{
+    return &defaults;
+}
+
+
 
 static void
-cckDefaults(CckConfig *config)
+cckApplyConfig()
 {
-
-    config->clockSyncRate	= CLOCKDRIVER_SYNC_RATE;
-    config->netMonitorInterval	= TT_MONITOR_INTERVAL;
-    config->clockUpdateInterval	= CLOCKDRIVER_UPDATE_INTERVAL;
-
+    tmrctl(TMR_CLOCKUPDATE, start, config.clockUpdateInterval);
+    tmrctl(TMR_NETMONITOR, start, config.netMonitorInterval);
+    tmrctl(TMR_CLOCKSYNC, start, 1 / ( 0.0 + config.clockSyncRate));
 }
 
 static void
@@ -130,8 +145,25 @@ cckTimerHandler (void *timer, void *owner)
 {
 
     CckTimer *myTimer = timer;
+    int iinterval = myTimer->interval;
 
-    CCK_INFO("internal timer %s action!\n", myTimer->name);
+
+    switch(myTimer->numId) {
+
+	case TMR_CLOCKSYNC:
+		syncClocks(myTimer->interval);
+	    break;
+	case TMR_CLOCKUPDATE:
+		updateClockDrivers(myTimer->interval);
+	    break;
+	case TMR_NETMONITOR:
+		controlTTransports(TT_UPDATECOUNTERS, &iinterval);
+		controlTTransports(TT_MONITOR, &iinterval);
+	    break;
+
+    }
+
+    CCK_DBG(THIS_COMPONENT"internal timer %s handled\n", myTimer->name);
 
 }
 

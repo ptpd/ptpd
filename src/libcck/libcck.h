@@ -50,5 +50,6 @@ bool		cckInit(CckFdSet *set); /* initialise libCCK and housekeeping events */
 void		cckShutdown();		/* shutdown all libCCK components */
 CckConfig*	getCckConfig();		/* get global libCCK configuration handle */
 CckFdSet*	getCckFdSet();		/* get global FD set */
+const CckConfig *cckDefaults();		/* get libcck default configuration */
 
 #endif /* LIBCCK_H_ */

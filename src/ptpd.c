@@ -114,9 +114,6 @@ main(int argc, char **argv)
 	}
 
 	ptpTimerStart(&ptpClock->timers[ALARM_UPDATE_TIMER],ALARM_UPDATE_INTERVAL);
-	ptpTimerStart(&ptpClock->timers[NETWORK_MONITOR_TIMER], TT_MONITOR_INTERVAL);
-	ptpTimerStart(&ptpClock->timers[CLOCK_SYNC_TIMER], 1.0 / (rtOpts.clockSyncRate + 0.0));
-	ptpTimerStart(&ptpClock->timers[CLOCKDRIVER_UPDATE_TIMER], CLOCKDRIVER_UPDATE_INTERVAL);
 	/* run the status file update every 1 .. 1.2 seconds */
 	ptpTimerStart(&ptpClock->timers[STATUSFILE_UPDATE_TIMER],rtOpts.statusFileUpdateInterval * (1.0 + 0.2 * getRand()));
 	ptpTimerStart(&ptpClock->timers[PERIODIC_INFO_TIMER],rtOpts.statsUpdateInterval);
@@ -130,13 +127,17 @@ main(int argc, char **argv)
 	if(rtOpts.statusLog.logEnabled)
 		writeStatusFile(ptpClock, &rtOpts, TRUE);
 
-	DBG("Debug Initializing...\n");
 
+	/* look, we have an event loop now... */
 	while(true) {
 	    cckPollData(getCckFdSet(), NULL);
 	    cckDispatchTimers();
 	    ptpRun(&rtOpts, ptpClock);
 	    checkSignals(&rtOpts, ptpClock);
+	    /* Configuration has changed */
+	    if(rtOpts.restartSubsystems > 0) {
+		restartSubsystems(&rtOpts, ptpClock);
+	    }
 	}
 
         ptpdShutdown(ptpClock);
