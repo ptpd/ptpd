@@ -1383,10 +1383,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		"Priority 2 announced in master state, used for Best Master\n"
 	"	 Clock selection.",RANGECHECK_RANGE,0,248);
 
-	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:max_listen",
-		PTPD_RESTART_NONE, INTTYPE_INT, &rtOpts->maxListen, rtOpts->maxListen,
-		 "Number of consecutive resets to LISTENING before full network reset\n",RANGECHECK_MIN,1,0);
-
 	/*
 	 * TODO: in unicast and hybrid mode, automativally override master delayreq interval with a default,
 	 * rather than require setting it manually.

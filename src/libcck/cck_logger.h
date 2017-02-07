@@ -44,16 +44,20 @@ void cckSetLoggerFun(void (*) (int, const char*, va_list));
 
 //#define CCK_DEBUG
 
-#define CCK_EMERGENCY(x, ...)		cckLogMessage(LOG_EMERG, x, ##__VA_ARGS__)
-#define CCK_ALERT(x, ...)		cckLogMessage(LOG_ALERT, x, ##__VA_ARGS__)
-#define CCK_CRITICAL(x, ...)		cckLogMessage(LOG_CRIT, x, ##__VA_ARGS__)
-#define CCK_ERROR(x, ...)		cckLogMessage(LOG_ERR, x, ##__VA_ARGS__)
-#define CCK_PERROR(x, ...)    		cckLogMessage(LOG_ERR, x "      (strerror: %m)\n", ##__VA_ARGS__)
-#define CCK_WARNING(x, ...)		cckLogMessage(LOG_WARNING, x, ##__VA_ARGS__)
-#define CCK_NOTICE(x, ...)		cckLogMessage(LOG_NOTICE, x, ##__VA_ARGS__)
-#define CCK_NOTICE(x, ...)		cckLogMessage(LOG_NOTICE, x, ##__VA_ARGS__)
-#define CCK_INFO(x, ...) 		cckLogMessage(LOG_INFO, x, ##__VA_ARGS__)
+#define CCK_EMERGENCY(x, ...)		cckLogMessage(LOG_EMERG, x, ##__VA_ARGS__);
+#define CCK_ALERT(x, ...)		cckLogMessage(LOG_ALERT, x, ##__VA_ARGS__);
+#define CCK_CRITICAL(x, ...)		cckLogMessage(LOG_CRIT, x, ##__VA_ARGS__);
+#define CCK_ERROR(x, ...)		cckLogMessage(LOG_ERR, x, ##__VA_ARGS__);
+#define CCK_PERROR(x, ...)    		cckLogMessage(LOG_ERR, x "      (strerror: %m)\n", ##__VA_ARGS__);
+#define CCK_WARNING(x, ...)		cckLogMessage(LOG_WARNING, x, ##__VA_ARGS__);
+#define CCK_NOTICE(x, ...)		cckLogMessage(LOG_NOTICE, x, ##__VA_ARGS__);
+#define CCK_INFO(x, ...) 		cckLogMessage(LOG_INFO, x, ##__VA_ARGS__);
 
+#define CCK_QERROR(x, ...)		if(!quiet) { cckLogMessage(LOG_ERR, x, ##__VA_ARGS__); };
+#define CCK_QPERROR(x, ...)    		if(!quiet) { cckLogMessage(LOG_ERR, x "      (strerror: %m)\n", ##__VA_ARGS__); };
+#define CCK_QWARNING(x, ...)		if(!quiet) { cckLogMessage(LOG_WARNING, x, ##__VA_ARGS__); };
+#define CCK_QNOTICE(x, ...)		if(!quiet) { cckLogMessage(LOG_NOTICE, x, ##__VA_ARGS__); };
+#define CCK_QINFO(x, ...) 		if(!quiet) { cckLogMessage(LOG_INFO, x, ##__VA_ARGS__); };
 
 #ifdef CCK_DEBUG
 
@@ -68,8 +72,5 @@ void cckSetLoggerFun(void (*) (int, const char*, va_list));
 #define CCK_DBGV(x, ...)
 
 #endif
-
-
-
 
 #endif /* CCK_LOGGER_H_ */

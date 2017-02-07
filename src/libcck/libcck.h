@@ -43,6 +43,7 @@ typedef struct {
     int clockSyncRate;
     int netMonitorInterval;
     int clockUpdateInterval;
+    int transportFaultTimeout;
 
 } CckConfig;
 

@@ -96,7 +96,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     CCK_GET_PCONFIG(TTransport, socket_udpv6, self, myConfig);
     CCK_GET_PCONFIG(TTransport, socket_udpv6, config, yourConfig);
 
-    if(!getInterfaceInfo(&myData->intInfo, yourConfig->interface, self->family, &yourConfig->sourceAddress)) {
+    if(!getInterfaceInfo(&myData->intInfo, yourConfig->interface, self->family, &yourConfig->sourceAddress, false)) {
 	CCK_ERROR(THIS_COMPONENT"tTransportInit(%s): Interface %s not usable, cannot continue\n",
 		self->name, yourConfig->interface);
 	return -1;
@@ -734,7 +734,7 @@ getClockDriver(TTransport *self) {
 }
 
 static int
-monitor(TTransport *self, const int interval) {
+monitor(TTransport *self, const int interval, const bool quiet) {
 
     return 0;
 

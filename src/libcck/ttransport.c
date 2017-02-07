@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <libcck/libcck.h>
 #include <libcck/cck_utils.h>
 #include <libcck/ttransport.h>
 #include <libcck/cck_logger.h>
@@ -59,6 +60,20 @@ static const char *ttransportNames[] = {
     [TT_TYPE_MAX] = "nosuchtype"
 
 };
+
+
+/*
+ * fault management (incident management, problem management, change management?)
+ * ITIL FAULT #0xf4kk: CMDB forgotten to implementen, reporten not senden
+ */
+
+/* mark transport as faulty */
+static void markTransportFault(TTransport *);
+/* clear transport fault state */
+static void clearTransportFault(TTransport *transport);
+/* age fault timeout */
+static void ageTransportFault(TTransport *, const int interval);
+
 
 /* inherited method declarations */
 
@@ -394,11 +409,7 @@ controlTTransports(const int command, const void *arg) {
 	break;
 
 	case TT_MONITOR:
-	    LINKED_LIST_FOREACH_STATIC(tt) {
-		if(!tt->config.disabled) {
-		    tt->monitor(tt, *(const int*)arg);
-		}
-	    }
+	    monitorTTransports(*(const int*)arg);
 	break;
 
 	case TT_REFRESH:
@@ -448,9 +459,61 @@ monitorTTransports(const int interval) {
     TTransport *tt;
 
     LINKED_LIST_FOREACH_STATIC(tt) {
-	if(!tt->config.disabled) {
-	    tt->monitor(tt, interval);
+	if(!tt->config.disabled && !tt->config.unmonitored) {
+	    monitorTTransport(tt, interval);
 	}
+    }
+
+}
+
+void monitorTTransport(TTransport *transport, const int interval) {
+
+    bool previousFault = transport->fault;
+    bool restartNeeded = false;
+
+    ageTransportFault(transport, interval);
+
+    if(!transport->fault) {
+
+	/* if fault has not gone away, previousFault is true (quiet) */
+	int res = transport->monitor(transport, interval, previousFault);
+
+	if (res & CCK_INTINFO_FAULT) {
+	    if(!(res & CCK_INTINFO_NOCHANGE)) {
+		CCK_ERROR(THIS_COMPONENT"monitorTTransport(%s): Transport fault detected\n", transport->name);
+	    }
+	    markTransportFault(transport);
+	    SAFE_CALLBACK(transport->callbacks.onNetworkFault, transport, transport->owner, true);
+	    return;
+
+	}
+
+	if (res & CCK_INTINFO_CLEAR) {
+	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport(%s): Fault cleared\n", transport->name);
+	    restartNeeded = true;
+	} else if (res & CCK_INTINFO_CHANGE) {
+	    CCK_WARNING(THIS_COMPONENT"monitorTTransport(%s): Address / topology change detected\n", transport->name);
+	    restartNeeded = true;
+	} else if (res & CCK_INTINFO_UP) {
+	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport(%s): Transport back up\n", transport->name);
+	    SAFE_CALLBACK(transport->callbacks.onNetworkChange, transport, transport->owner, false);
+	} else if (res & CCK_INTINFO_DOWN) {
+	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport(%s): Transport has gone down\n", transport->name);
+	}
+
+	if(restartNeeded) {
+	    int result = transport->restart(transport);
+	    if(result != 1) {
+		CCK_ERROR(THIS_COMPONENT"monitorTTransport(%s): Could not restart transport\n", transport->name);
+		markTransportFault(transport);
+		SAFE_CALLBACK(transport->callbacks.onNetworkFault, transport, transport->owner, true);
+	    } else {
+		clearTransportFault(transport);
+		SAFE_CALLBACK(transport->callbacks.onNetworkChange, transport, transport->owner, true);
+	    }
+	}
+
+
     }
 
 }
@@ -559,9 +622,23 @@ ttDummyMatchCallback (void *owner, void *transport, char *a, const size_t alen, 
 static int
 restartTransport(TTransport *transport) {
 
+    TTransport *child = transport->slaveTransport;
+    int ret;
+
     CCK_INFO(THIS_COMPONENT"Transport %s restarting\n", transport->name);
     transport->shutdown(transport);
-    return transport->init(transport, &transport->config, transport->fdSet);
+    ret = transport->init(transport, &transport->config, transport->fdSet);
+
+    if((ret > 0) && child) {
+
+	CCK_INFO(THIS_COMPONENT"Transport %s restarting associated transport %s\n", transport->name,
+		    child->name);
+	child->shutdown(child);
+	return child->init(child, &child->config, child->fdSet);
+
+    }
+
+    return ret;
 
 }
 
@@ -972,5 +1049,47 @@ addressPermitted (TTransport *self, CckTransportAddress *address, bool isRegular
 #endif /* CCK_DEBUG */
 
     return ret;
+
+}
+
+/* mark transport as faulty, start countdown */
+static void
+markTransportFault(TTransport *transport)
+{
+
+    transport->fault = true;
+    transport->_faultTimeout = getCckConfig()->transportFaultTimeout;
+
+    CCK_DBG(THIS_COMPONENT": marked transport %s as faulty, next check in %d seconds\n",
+		transport->name, transport->_faultTimeout);
+
+}
+
+/* clear transport fault state */
+static void
+clearTransportFault(TTransport *transport)
+{
+
+    transport->fault = false;
+    transport->_faultTimeout = 0;
+
+    CCK_DBG(THIS_COMPONENT": cleared transport %s fault status\n",
+		transport->name);
+
+}
+
+/* age fault timeout */
+static void
+ageTransportFault(TTransport * transport, const int interval)
+{
+
+    transport->_faultTimeout -= interval;
+
+    if(transport->_faultTimeout <= 0) {
+	transport->_faultTimeout = 0;
+	transport->fault = false;
+	CCK_DBG(THIS_COMPONENT": transport %s fault timeout, check at next monitor interval\n",
+			transport->name);
+    }
 
 }

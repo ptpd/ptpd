@@ -326,6 +326,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		
 	case PTP_FAULTY:
 		setPortState(ptpClock, PTP_FAULTY);
+		displayStatus(ptpClock, "Now in state: ");
 		break;
 		
 	case PTP_DISABLED:
@@ -379,13 +380,6 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			ptpClock->resetCount++;
 		} else {
                         ptpClock->listenCount++;
-                        if( ptpClock->listenCount >= rtOpts->maxListen ) {
-                            WARNING("Still in LISTENING after %d restarts - internal fault\n",
-				    rtOpts->maxListen);
-			    internalFault(ptpClock);
-                            ptpClock->listenCount = 0;
-                            break;
-                        }
                 }
 
 		/* Revert to the original DelayReq interval, and ignore the one for the last master */

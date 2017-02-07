@@ -238,12 +238,14 @@ struct TTransport {
     /* flags */
     bool inUse;				/* transport is in active use, if not, can be removed */
     bool hasData;			/* transport has some data to read */
+    bool fault;				/* transport is in faulty state */
 
     /* BEGIN "private" fields */
 
     int _serial;			/* object serial no */
     int	_init;				/* the driver was successfully initialised */
     int *_instanceCount;		/* instance counter for the whole component */
+    TTransport *slaveTransport;		/* an associated transport, restarted along with this one */
 
     /* libCCK common fields - to be included in a general object header struct */
     void *_privateData;			/* implementation-specific data */
@@ -304,7 +306,7 @@ struct TTransport {
     /* get an instnce of the clock driver generating this clock's timestamps, create if not existing */
     ClockDriver* (*getClockDriver) (TTransport *);
     /* perform any periodic checks - may result in onNetworkChange callback */
-    int (*monitor) (TTransport *, const int);
+    int (*monitor) (TTransport *, const int interval, const bool quiet);
     /* perform any refresh actions - mcast joins, etc. */
     int (*refresh) (TTransport *);
     /* load any vendor extensions */
@@ -351,7 +353,8 @@ int		ttDummyMatchCallback (void *owner, void *transport, char *a, const size_t a
 
 void		controlTTransports(const int, const void*);
 void 		shutdownTTransports();
-void		monitorTTransports();
+void		monitorTTransports(const int interval);
+void		monitorTTransport(TTransport *transport, const int interval);
 void		refreshTTransports();
 
 TTransport*	findTTransport(const char *);

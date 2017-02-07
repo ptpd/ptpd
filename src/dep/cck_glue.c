@@ -1576,8 +1576,9 @@ netInit(PtpClock *ptpClock, CckFdSet *fdSet)
 	general->callbacks.isRegularData = ptpIsRegularData;
 	general->myFd.callbacks.onData = ptpDataCallback;
 	general->owner = ptpClock;
+	event->slaveTransport = general;
 	if(general->init(general, generalConfig, fdSet) < 1) {
-	    CRITICAL("Coult not start event transport\n");
+	    CRITICAL("Coult not start general transport\n");
 	    ret = FALSE;
 	    goto gameover;
 	}

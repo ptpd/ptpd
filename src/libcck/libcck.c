@@ -64,6 +64,7 @@ static const CckConfig defaults = {
     .clockSyncRate		= CLOCKDRIVER_SYNC_RATE,
     .netMonitorInterval		= TT_MONITOR_INTERVAL,
     .clockUpdateInterval	= CLOCKDRIVER_UPDATE_INTERVAL,
+    .transportFaultTimeout	= TT_FAULT_TIMEOUT,
 
 };
 

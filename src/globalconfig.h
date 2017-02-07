@@ -350,9 +350,6 @@ typedef struct {
 
 	int maxDelayMaxRejected;
 
-	/* max reset cycles in LISTENING before full network restart */
-	int maxListen;
-
 	Boolean managementEnabled;
 	Boolean managementSetEnable;
 

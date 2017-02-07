@@ -54,7 +54,7 @@ static ssize_t receiveMessage(TTransport *self, TTransportMessage *message);
 /* get an instnce of the clock driver generating this clock's timestamps, create if not existing */
 static ClockDriver *getClockDriver(TTransport *self);
 /* perform any periodic checks */
-static int monitor(TTransport *self, const int interval);
+static int monitor(TTransport *self, const int interval, const bool quiet);
 /* perform any refresh actions - mcast joins, etc. */
 static int refresh(TTransport *self);
 /* load any vendor extensions */

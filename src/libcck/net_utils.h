@@ -88,18 +88,17 @@ typedef struct {
 
 } TTsocketTimestampConfig;
 
-enum {
-    /* actual status */
-    CCK_INTINFO_OK,		/* A-OK */
-    CCK_INTINFO_DOWN,		/* Down (was up) */
-    CCK_INTINFO_FAULT,		/* Fault (was OK) */
+/* interface monitor / status flags */
 
-    /* monitor result / events */
-    CCK_INTINFO_NOCHANGE,	/* Same status as previously, no action needed */
-    CCK_INTINFO_CHANGE,		/* Change occurred (mostly address change) */
-    CCK_INTINFO_UP,		/* Up (was down) */
-    CCK_INTINFO_CLEAR		/* Fault cleared (was fault) */
-};
+/* actual status */
+#define CCK_INTINFO_OK		1 << 0		/* A-OK */
+#define CCK_INTINFO_DOWN	1 << 1		/* Down (was up) */
+#define CCK_INTINFO_FAULT	1 << 2		/* Fault (was OK) */
+/* monitor result / events */
+#define CCK_INTINFO_NOCHANGE	1 << 3		/* Same status as previously */
+#define CCK_INTINFO_CHANGE	1 << 4		/* Change occurred (mostly address change) */
+#define CCK_INTINFO_UP		1 << 5		/* Up (was down) */
+#define CCK_INTINFO_CLEAR	1 << 6		/* Fault cleared (was fault) */
 
 typedef struct {
     CckTransportAddress afAddress;	/* address of required family */
@@ -112,6 +111,7 @@ typedef struct {
     int flags;				/* getInterfaceFlags() */
     int index;				/* getInterfaceIndex() */
     int status;				/* last monitorInterfaceInfo() status */
+    bool valid;				/* has been updated */
 } CckInterfaceInfo;
 
 #ifdef HAVE_LINUX_IF_H
@@ -141,11 +141,11 @@ int getInterfaceFlags(const char *ifName);
 int setInterfaceFlags(const char *ifName, const int flags);
 int clearInterfaceFlags(const char *ifName, const int flags);
 /* get interface information + test if operational */
-bool getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, const CckTransportAddress *sourceHint);
+bool getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, const CckTransportAddress *sourceHint, const bool quiet);
 bool testInterface(const char* ifName, const int family, const char* sourceHint);
 
 /* compare current info with @last info for @interface, optional required source address @sourceHint, @return one of CCK_INTINFO */
-int monitorInterfaceInfo(const char *ifName, CckInterfaceInfo *last, const CckTransportAddress *sourceHint);
+int monitorInterfaceInfo(const char *ifName, CckInterfaceInfo *last, const CckTransportAddress *sourceHint, const bool quiet);
 
 /* join or leave a multicast address */
 bool joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifName, const CckTransportAddress *ownAddr, const bool join);

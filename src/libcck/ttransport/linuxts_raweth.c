@@ -112,7 +112,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     CCK_GET_PCONFIG(TTransport, linuxts_raweth, self, myConfig);
     CCK_GET_PCONFIG(TTransport, linuxts_raweth, config, yourConfig);
 
-    if(!getInterfaceInfo(&myData->intInfo, yourConfig->interface, self->family, NULL)) {
+    if(!getInterfaceInfo(&myData->intInfo, yourConfig->interface, self->family, NULL, false)) {
 	CCK_ERROR(THIS_COMPONENT"tTransportInit(%s): Interface %s not usable, cannot continue\n",
 		self->name, yourConfig->interface);
 	return -1;
@@ -622,7 +622,7 @@ getClockDriver(TTransport *self) {
 }
 
 static int
-monitor(TTransport *self, const int interval) {
+monitor(TTransport *self, const int interval, const bool quiet) {
 
     return 0;
 

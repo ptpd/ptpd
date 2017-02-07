@@ -61,7 +61,21 @@ enum {
     CLOCKDRIVER_MAX
 };
 
+
 #define SYSTEM_CLOCK_TYPE CLOCKDRIVER_UNIX
+
+/* clock group flag definitions */
+#define CD_GROUP1	1 << 0
+#define CD_GROUP2	1 << 1
+#define CD_GROUP3	1 << 2
+#define CD_GROUP4	1 << 3
+#define CD_GROUP5	1 << 4
+#define CD_GROUP6	1 << 5
+#define CD_GROUP7	1 << 6
+#define CD_GROUP8	1 << 7
+
+#define CD_DEFAULTGROUP CD_GROUP1
+
 
 /* clock commands that can be sent to all clock drivers */
 enum {
@@ -123,14 +137,25 @@ typedef struct {
     bool required;			/* clock cannot be disabled */
     bool excluded;			/* clock is excluded from best clock selection */
     bool readOnly;			/* clock is read-only */
-    bool externalOnly;		/* this clock will only accept an external reference */
-    bool internalOnly;		/* this clock will only accept an internal reference */
+    bool externalOnly;			/* this clock will only accept an external reference */
+    bool internalOnly;			/* this clock will only accept an internal reference */
     bool noStep;			/* clock cannot be stepped */
-    bool negativeStep;		/* clock can be stepped backwards */
-    bool storeToFile;		/* clock stores good frequency in a file */
-    bool outlierFilter;		/* enable MAD-based outlier filter */
+    bool negativeStep;			/* clock can be stepped backwards */
+    bool storeToFile;			/* clock stores good frequency in a file */
+    bool outlierFilter;			/* enable MAD-based outlier filter */
     bool statFilter;			/* enable statistical filter */
     bool strictSync;			/* enforce sync to LOCKED and HOLDOVER only */
+
+    uint8_t groupFlags;			/*
+					 * todo: sync groups:
+					 * Clock may be in up to 8 groups,
+					 * but best clock selection runs only within the same group,
+					 * so we can partition clock sync: say, all externally-disciplined
+					 * clocks and system clock are in group 1 (default),
+					 * all other clocks are in group 2. Effect: system clock syncs
+					 * with one of the externally-disciplined clocks, all other clocks
+					 * sync with the system clock.
+					 */
 
     char frequencyFile[PATH_MAX +1];	/* frequency file - filled by the driver itself */
     char frequencyDir[PATH_MAX + 1];	/* frequency file directory */

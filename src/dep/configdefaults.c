@@ -415,9 +415,6 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 
 	rtOpts->faultTimeout = DEFAULT_FAULT_TIMEOUT;
 
-	/* full network reset after 5 times in listening */
-	rtOpts->maxListen = 5;
-
 	rtOpts->panicModeReleaseClock = FALSE;
 
 	rtOpts->ntpOptions.enableEngine = FALSE;

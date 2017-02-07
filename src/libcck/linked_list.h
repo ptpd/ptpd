@@ -59,6 +59,7 @@
 	} \
 	_last = var; \
 	var->_first = &_first; \
+	var->_next = NULL; \
 	var->_serial = _serial; \
 	_serial++;
 
@@ -71,6 +72,7 @@
 	    var->_prev->_next = var; \
 	} \
 	holder->_last = var; \
+	var->_next = NULL; \
 	var->_first = &holder->_first;
 
 #define LINKED_LIST_REMOVE_STATIC(var) \
@@ -99,7 +101,10 @@
 		} else { \
 			var->_next->_prev = NULL; \
 		} \
-	}
+	} \
+	var->_next = NULL; \
+	var->_prev = NULL; \
+	var->_first = NULL;
 
 #define LINKED_LIST_REMOVE_DYNAMIC(holder, var) \
 	if(var->_prev != NULL) { \
@@ -124,7 +129,10 @@
 		} else { \
 			var->_next->_prev = NULL; \
 		} \
-	}
+	} \
+	var->_next = NULL; \
+	var->_prev = NULL; \
+	var->_first = NULL;
 
 #define LINKED_LIST_FOREACH_STATIC(var) \
 	for(var = _first; var != NULL; var = var->_next)

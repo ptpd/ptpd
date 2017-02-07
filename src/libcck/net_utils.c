@@ -247,7 +247,7 @@ joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifName, 
 	    /* set multicast outbound interface */
 	    if(setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF,
 		&imr.imr_interface, sizeof(struct in_addr)) < 0) {
-		CCK_PERROR(THIS_COMPONENT"failed to set multicast outbound interface on %s: ", ifName);
+		CCK_DBG(THIS_COMPONENT"failed to set multicast outbound interface on %s: (%s)\n", ifName, strerror(errno));
 		return false;
 		}
 	/* drop multicast group on specified interface first, to actually re-send a join */
@@ -258,8 +258,10 @@ joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifName, 
     /* join or leave multicast group on specified interface */
     if (setsockopt(fd, IPPROTO_IP, op,
            &imr, sizeof(struct ip_mreq)) < 0 ) {
-	    CCK_PERROR(THIS_COMPONENT"failed to %s multicast group %s on %s: ", join ? "join" : "leave", addrStr, ifName);
+	    if(join) {
+		CCK_PERROR(THIS_COMPONENT"failed to %s multicast group %s on %s: ", join ? "join" : "leave", addrStr, ifName);
 		    return false;
+	    }
     }
 
     CCK_DBGV("%s multicast group %s on %s\n", join ? "Joined" : "Left", addrStr,
@@ -291,7 +293,7 @@ joinMulticast_ipv6(int fd, const CckTransportAddress *addr, const char *ifName, 
 	/* set multicast outbound interface */
 	if(setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
 		&imr.ipv6mr_interface, sizeof(int)) < 0) {
-		CCK_PERROR(THIS_COMPONENT"failed to set multicast outbound interface on %s: ", ifName);
+		CCK_DBG(THIS_COMPONENT"failed to set multicast outbound interface on %s: (%s)\n", ifName, strerror(errno));
 		return false;
 		}
 	/* drop multicast group on specified interface first, to actually re-send a join */
@@ -302,8 +304,10 @@ joinMulticast_ipv6(int fd, const CckTransportAddress *addr, const char *ifName, 
     /* join or leave multicast group on specified interface */
     if (setsockopt(fd, IPPROTO_IPV6, op,
            &imr, sizeof(struct ipv6_mreq)) < 0) {
-	    CCK_PERROR(THIS_COMPONENT"failed to %s multicast group %s on %s: ", join ? "join" : "leave", addrStr, ifName);
+	    if (join) {
+		CCK_PERROR(THIS_COMPONENT"failed to %s multicast group %s on %s: ", join ? "join" : "leave", addrStr, ifName);
 		    return false;
+	    }
     }
 
     CCK_DBGV(THIS_COMPONENT"%s multicast group %s on %s\n", join ? "Joined" : "Left", addrStr,
@@ -343,8 +347,10 @@ joinMulticast_ethernet(const CckTransportAddress *addr, const char *ifName, cons
 
     /* join multicast group on specified interface */
     if ((ioctl(fd, op, &ifr)) < 0 ) {
-	CCK_ERROR(THIS_COMPONENT"Failed to %s ethernet multicast membership %s on %s: %s\n",
+	if(join) {
+	    CCK_ERROR(THIS_COMPONENT"Failed to %s ethernet multicast membership %s on %s: %s\n",
 		join ? "add" : "delete", addrStr, ifName, strerror(errno));
+	}
 	close(fd);
         return false;
     }
@@ -751,7 +757,7 @@ clearInterfaceFlags(const char *ifName, const int flags)
 
 /* get interface information */
 bool
-getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, const CckTransportAddress *sourceHint)
+getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, const CckTransportAddress *sourceHint, const bool quiet)
 {
 
     CckAddressToolset *ts = getAddressToolset(family);
@@ -762,17 +768,19 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, c
 
     memset(info, 0, sizeof(CckInterfaceInfo));
 
+    info->valid = true;
+
     info->family = family;
 
     if(!strlen(ifName)) {
-	CCK_ERROR(THIS_COMPONENT"getInferfaceInfo(): no interface name given\n");
+	CCK_QERROR(THIS_COMPONENT"getInferfaceInfo(): no interface name given\n");
 	return false;
     }
 
     info->found = interfaceExists(ifName);
 
     if(!info->found) {
-	CCK_ERROR(THIS_COMPONENT"getInferfaceInfo(%s): interface not found\n", ifName);
+	CCK_QERROR(THIS_COMPONENT"getInferfaceInfo(%s): interface not found\n", ifName);
 	return false;
     }
 
@@ -780,7 +788,7 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, c
     info->hwStatus = getIfAddr(&info->hwAddress, ifName, TT_FAMILY_ETHERNET, NULL);
 
     if(info->hwStatus == -1) {
-	CCK_ERROR(THIS_COMPONENT"getInterfaceInfo(%s): could not get hardware address\n",
+	CCK_QERROR(THIS_COMPONENT"getInterfaceInfo(%s): could not get hardware address\n",
 	ifName);
     }
 
@@ -793,7 +801,7 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, c
 
     /* failure */
     if(info->afStatus == -1) {
-	CCK_ERROR(THIS_COMPONENT"getInferfaceInfo(%s): could not get %s address\n",
+	CCK_QERROR(THIS_COMPONENT"getInferfaceInfo(%s): could not get %s address\n",
 	ifName, getAddressFamilyName(family));
 	return false;
     }
@@ -804,13 +812,13 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, c
 	/* no requested address found */
 	if(sourceHint && sourceHint->populated) {
 	    tmpstr(strAddr, ts->strLen);
-	    CCK_ERROR(THIS_COMPONENT"getInterfaceInfo(%s): requested %s address \"%s\" not found\n",
+	    CCK_QERROR(THIS_COMPONENT"getInterfaceInfo(%s): requested %s address \"%s\" not found\n",
 		ifName, getAddressFamilyName(family),
 		ts->toString(strAddr, strAddr_len, sourceHint));
 	    info->sourceFound = false;
 	/* no address found */
 	} else {
-	    CCK_ERROR(THIS_COMPONENT"getInferfaceInfo(%s): interface has no %s address\n",
+	    CCK_QERROR(THIS_COMPONENT"getInferfaceInfo(%s): interface has no %s address\n",
 	    ifName, getAddressFamilyName(family), ifName);
 
 	}
@@ -819,7 +827,7 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, c
 
     info->flags = getInterfaceFlags(ifName);
     if(info->flags < 0) {
-	CCK_WARNING(THIS_COMPONENT"getInferfaceInfo(%s): could not query interface flags\n",
+	CCK_QWARNING(THIS_COMPONENT"getInferfaceInfo(%s): could not query interface flags\n",
 	ifName);
     }
 
@@ -851,7 +859,7 @@ testInterface(const char* ifName, const int family, const char* sourceHint)
 
     }
 
-    ret &= getInterfaceInfo(&info, ifName, family, src);
+    ret &= getInterfaceInfo(&info, ifName, family, src, false);
 
     if(src) {
 	freeCckTransportAddress(&src);
@@ -862,50 +870,80 @@ testInterface(const char* ifName, const int family, const char* sourceHint)
 }
 
 /*
-    status in the @last structure is only one of OK, DOWN, FAULT, but returned value
-    de
-
-*/
+ *  status in the @last structure is only one of OK, DOWN, FAULT, but returned value
+ *  provides event status (went up, went down, fault, fault cleared, major change, or no change)
+ */
 
 int
-monitorInterfaceInfo(const char *ifName, CckInterfaceInfo *last, const CckTransportAddress *sourceHint)
+monitorInterfaceInfo(const char *ifName, CckInterfaceInfo *last, const CckTransportAddress *sourceHint, const bool quiet)
 {
 
     CckInterfaceInfo current;
-    int ret = CCK_INTINFO_OK;
+
+
+    int ret = 0;
 
     if(!last) {
 	return -1;
     }
 
-    /* interface seems OK - check for changes and previous faults */
-    if(getInterfaceInfo(&current, ifName, last->family, sourceHint)) {
+    /* no point monitoring without previous data */
+    if(!last->valid) {
+	return 0;
+    }
 
+    CckAddressToolset *ts = getAddressToolset(last->family);
+
+    /* interface seems OK - check for changes and previous faults */
+    if(getInterfaceInfo(&current, ifName, last->family, sourceHint, quiet)) {
+
+	/* if not else, or else */
 	current.status = CCK_INTINFO_OK;
 
-
-	switch (last->status) {
-	    case CCK_INTINFO_DOWN:
-		ret = CCK_INTINFO_UP;
-		break;
-	    case CCK_INTINFO_FAULT:
-		ret = CCK_INTINFO_CLEAR;
-		break;
+	/* interface down */
+	if(!(current.flags & IFF_RUNNING)) {
+	    current.status = CCK_INTINFO_DOWN;
+	    if((last->status != CCK_INTINFO_DOWN)) {
+		ret |= CCK_INTINFO_DOWN;
+	    }
+	    goto gameover;
 	}
 
+	/* interface returns to good state */
+	switch (last->status) {
+	    case CCK_INTINFO_FAULT: /* check for fault clear before down/up */
+		ret |= CCK_INTINFO_CLEAR;
+		goto gameover;
+	    case CCK_INTINFO_DOWN:
+		ret |= CCK_INTINFO_UP;
+		goto gameover;
+	}
+
+	/* check for address changes */
+	if(ts->compare(&last->hwAddress, &current.hwAddress)) {
+	    ret |= CCK_INTINFO_CHANGE;
+	    goto gameover;
+	}
+	if(ts->compare(&last->afAddress, &current.afAddress)) {
+	    ret |= CCK_INTINFO_CHANGE;
+	    goto gameover;
+	}
+
+	ret |= CCK_INTINFO_OK;
 
     /* interface not OK */
     } else {
 	current.status = CCK_INTINFO_FAULT;
-	ret = CCK_INTINFO_FAULT;
+	ret |= CCK_INTINFO_FAULT;
     }
 
 gameover:
 
-    if(current.status == last->status) {
-	ret = CCK_INTINFO_NOCHANGE;
-    }
+	if(current.status == last->status) {
+	    ret |= CCK_INTINFO_NOCHANGE;
+	}
 
+    /* update current info */
     memcpy(last, &current, sizeof(current));
 
     return ret;

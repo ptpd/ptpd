@@ -49,17 +49,17 @@ cckAddFd(CckFdSet *set, CckFd *fd)
 {
 
     if(fd == NULL) {
-	/* CCK_DBG("Cannot add null fd to set\n"); */
+	CCK_DBG("Cannot add null fd to set\n");
 	return;
     }
 
     if(set == NULL) {
-	/* CCK_DBG("Cannot add fd to null set */
+	CCK_DBG("Cannot add fd %d to null set\n", fd->fd);
 	return;
     }
 
     if(FD_ISSET(fd->fd, &set->fdSet)) {
-	/* CCK_DBG("fd %d already in set\n", fd->fd); */
+	CCK_DBG("fd %d already in set, not adding\n", fd->fd);
 	return;
     }
 
@@ -74,18 +74,20 @@ cckAddFd(CckFdSet *set, CckFd *fd)
 void
 cckRemoveFd(CckFdSet *set, CckFd *fd)
 {
+
+
     if(fd == NULL) {
-	/* CCK_DBG("Cannot remove null fd from set\n"); */
+	CCK_DBG("Cannot remove null fd from set\n");
 	return;
     }
 
     if(set == NULL) {
-	/* CCK_DBG("Cannot remove fd to null set */
+	CCK_DBG("Cannot remove fd %d from null set\n", fd->fd);
 	return;
     }
 
     if(!FD_ISSET(fd->fd, &set->fdSet)) {
-	/* CCK_DBG("fd %d not in set, not removing\n", fd->fd); */
+	CCK_DBG("fd %d not in set, not removing\n", fd->fd);
 	return;
     }
 
