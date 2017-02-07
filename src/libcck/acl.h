@@ -134,7 +134,7 @@ void	shutdownCckAcls();
 CckAcl*	getCckAclByName(const char *);
 bool	testCckAcl(int type, const char* permitList, const char* denyList, const uint8_t order, const bool quiet);
 
-/* invoking this without REGISTER_COMPONENT defined, includes the implementation headers */
+/* invoking this without CCK_REGISTER_IMPL defined, includes the implementation headers */
 #include "acl.def"
 
 #endif /* CCK_ACL_H_ */

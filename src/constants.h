@@ -79,6 +79,8 @@
 /* g.8265.1 local preference, lowest value */
 #define LOWEST_LOCALPREFERENCE 255
 
+#define DEFAULT_FAULT_TIMEOUT 5
+
 /*
 section 7.6.2.4, page 55:
 248     Default. This clockClass shall be used if none of the other clockClass definitions apply.
@@ -440,6 +442,9 @@ enum {
 	TSP_DEFAULT = 0x00,
 	TSP_ETHERNET_AVB = 0x01
 };
+
+#define PTPMSG_EVENT true
+#define PTPMSG_GENERAL false
 
 #define FILTER_MASK "\x58\x58\x58\x58\x59\x59\x59\x59"\
 		    "\x18\x11\x1c\x08\x1f\x58\x50\x10"\

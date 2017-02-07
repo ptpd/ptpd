@@ -78,12 +78,15 @@
 /* default monitor + rate update interval */
 #define TT_MONITOR_INTERVAL 1
 
+/* default network fault clear timeout */
+#define TT_FAULT_TIMEOUT 10
+
 /* timestamping transport driver types - automagic */
 enum {
 
     TT_TYPE_NONE = 0,
 
-#define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+#define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
     typeenum,
 #include "ttransport.def"
 
@@ -92,7 +95,7 @@ enum {
 
 /* address family types - only the ones we have implemented transports for */
 static const int transportTypeFamilies[] = {
-    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+    #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
 	[typeenum] = addressfamily,
     #include "ttransport.def"
 	[TT_FAMILY_MAX] = AF_UNSPEC
@@ -367,13 +370,13 @@ void setTTransportUid(TTransport *transport);
 void		clearTTransportMessage(TTransportMessage *message);
 void		dumpTTransportMessage(const TTransportMessage *message);
 
-/* invoking this without REGISTER_COMPONENT defined, includes the implementation headers - like here*/
+/* invoking this without CCK_REGISTER_IMPL defined, includes the implementation headers - like here*/
 #include "ttransport.def"
 
 /* bag to hold any possible transport config type, so we don't have to dynamically allocate in some cases */
 typedef union {
 
-#define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+#define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
     TTransportConfig_##typesuffix typesuffix;
 
 #include "ttransport.def"

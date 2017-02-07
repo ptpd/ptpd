@@ -66,50 +66,6 @@
 #include <libcck/net_utils.h>
 #include <libcck/net_utils_linux.h>
 
-ssize_t
-netSendEvent(Octet * buf, UInteger16 length, PtpClock *ptpClock, void *dst, TimeInternal *timestamp)
-{
-
-	ssize_t ret = 0;
-
-	TTransport *tr = ptpClock->eventTransport;
-	CckTransportAddress *addr = ptpClock->eventDestination;
-
-	if(dst) {
-	    addr = dst;
-	    setTransportAddressPort(addr, PTP_EVENT_PORT);
-	}
-
-	tr->outgoingMessage.destination = addr;
-	tr->outgoingMessage.length = length;
-
-	ret =  tr->sendMessage(tr, &tr->outgoingMessage);
-
-	if(tr->outgoingMessage.hasTimestamp) {
-	    timestamp->seconds = tr->outgoingMessage.timestamp.seconds;
-	    timestamp->nanoseconds = tr->outgoingMessage.timestamp.nanoseconds;
-	} else {
-	    clearTime(timestamp);
-	}
-
-	return ret;
-}
-
-ssize_t
-netSendGeneral(Octet * buf, UInteger16 length, PtpClock *ptpClock, void *dst)
-{
-
-	TTransport *tr = (TTransport*) ptpClock->generalTransport;
-
-	CckTransportAddress *addr = ptpClock->generalDestination;
-
-	tr->outgoingMessage.destination = dst ? dst : addr;
-	tr->outgoingMessage.length = length;
-
-	return tr->sendMessage(tr, &tr->outgoingMessage);
-
-}
-
 Boolean
 prepareClockDrivers(PtpClock *ptpClock) {
 

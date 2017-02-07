@@ -77,8 +77,6 @@
 #include <libcck/cck_types.h>
 #include <libcck/transport_address.h>
 
-void cckVersion();
-
 typedef struct {
 
     bool naive;
@@ -90,15 +88,30 @@ typedef struct {
 
 } TTsocketTimestampConfig;
 
+enum {
+    /* actual status */
+    CCK_INTINFO_OK,		/* A-OK */
+    CCK_INTINFO_DOWN,		/* Down (was up) */
+    CCK_INTINFO_FAULT,		/* Fault (was OK) */
+
+    /* monitor result / events */
+    CCK_INTINFO_NOCHANGE,	/* Same status as previously, no action needed */
+    CCK_INTINFO_CHANGE,		/* Change occurred (mostly address change) */
+    CCK_INTINFO_UP,		/* Up (was down) */
+    CCK_INTINFO_CLEAR		/* Fault cleared (was fault) */
+};
+
 typedef struct {
-    CckTransportAddress afAddress;
-    CckTransportAddress hwAddress;
-    int hwStatus;
-    int afStatus;
-    bool found;
-    bool sourceFound;
-    int flags;
-    int index;
+    CckTransportAddress afAddress;	/* address of required family */
+    CckTransportAddress hwAddress;	/* hardware address */
+    int family;				/* address family we are interested in */
+    int hwStatus;			/* getIfAddr() status for hardware address */
+    int afStatus;			/* getIfAddr() status for address family address */
+    bool found;				/* interface exists */
+    bool sourceFound;			/* requested address found */
+    int flags;				/* getInterfaceFlags() */
+    int index;				/* getInterfaceIndex() */
+    int status;				/* last monitorInterfaceInfo() status */
 } CckInterfaceInfo;
 
 #ifdef HAVE_LINUX_IF_H
@@ -107,34 +120,37 @@ extern unsigned int if_nametoindex (const char *__ifname);
 #endif /* HAVE_LINUX_IF_H*/
 
 /*
- * Try getting hwAddrSize bytes of ifaceName hardware address,
+ * Try getting hwAddrSize bytes of ifName hardware address,
  * and place them in hwAddr. Return 1 on success, 0 when no suitable
  * hw address available, -1 on failure.
  */
-int getHwAddrData(unsigned char* hwAddr, const char* ifaceName, const int hwAddrSize);
+int getHwAddrData(unsigned char* hwAddr, const char* ifName, const int hwAddrSize);
 
 /* get interface address of the given family, or check if interface has the desired @wanted address */
-int getIfAddr(CckTransportAddress *addr, const char *ifaceName, const int family, const CckTransportAddress *wanted);
+int getIfAddr(CckTransportAddress *addr, const char *ifName, const int family, const CckTransportAddress *wanted);
 
 /* wrapper for ioctl() to run on an interface */
-bool ioctlHelper(struct ifreq *ifr, const char* ifaceName, unsigned long request);
+bool ioctlHelper(struct ifreq *ifr, const char* ifName, unsigned long request);
 
 /* check if interface exists */
-int interfaceExists(const char* ifaceName);
+int interfaceExists(const char* ifName);
 /* return interface index */
-int getInterfaceIndex(const char *ifaceName);
+int getInterfaceIndex(const char *ifName);
 /* set / get interface flags */
-int getInterfaceFlags(const char *ifaceName);
-int setInterfaceFlags(const char *ifaceName, const int flags);
-int clearInterfaceFlags(const char *ifaceName, const int flags);
+int getInterfaceFlags(const char *ifName);
+int setInterfaceFlags(const char *ifName, const int flags);
+int clearInterfaceFlags(const char *ifName, const int flags);
 /* get interface information + test if operational */
-bool getInterfaceInfo(CckInterfaceInfo *info, const char* ifaceName, const int family, const CckTransportAddress *sourceHint);
-bool testInterface(const char* ifaceName, const int family, const char* sourceHint);
+bool getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, const CckTransportAddress *sourceHint);
+bool testInterface(const char* ifName, const int family, const char* sourceHint);
+
+/* compare current info with @last info for @interface, optional required source address @sourceHint, @return one of CCK_INTINFO */
+int monitorInterfaceInfo(const char *ifName, CckInterfaceInfo *last, const CckTransportAddress *sourceHint);
 
 /* join or leave a multicast address */
-bool joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifaceName, const CckTransportAddress *ownAddr, const bool join);
-bool joinMulticast_ipv6(int fd, const CckTransportAddress *addr, const char *ifaceName, const CckTransportAddress *ownAddr, const bool join);
-bool joinMulticast_ethernet(const CckTransportAddress *addr, const char *ifaceName, const bool join);
+bool joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifName, const CckTransportAddress *ownAddr, const bool join);
+bool joinMulticast_ipv6(int fd, const CckTransportAddress *addr, const char *ifName, const CckTransportAddress *ownAddr, const bool join);
+bool joinMulticast_ethernet(const CckTransportAddress *addr, const char *ifName, const bool join);
 
 /* various multicast operations - inet and inet6 */
 bool setMulticastLoopback(int fd,  const int family, const bool _value);

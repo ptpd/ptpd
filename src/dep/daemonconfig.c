@@ -964,7 +964,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 				"ethernet", 	TT_FAMILY_ETHERNET, NULL
 				);
 
-#define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+#define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
     textname, typeenum,
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:transport_implementation",
@@ -2577,7 +2577,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 /* ==== Any additional logic should go here ===== */
 
-	strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFNAMSIZ);
+	strncpy(rtOpts->ifName, rtOpts->primaryIfaceName, IFNAMSIZ);
 
 	/* test ACLs */
 
@@ -2636,7 +2636,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 		    "%s/"PTPD_PROGNAME"_%s_%s.lock",
 		    rtOpts->lockDirectory,
 		    (rtOpts->clockQuality.clockClass<128 && !rtOpts->slaveOnly) ? "master" : DEFAULT_CLOCKDRIVER,
-		    rtOpts->ifaceName);
+		    rtOpts->ifName);
 	    DBG("Automatic lock file name is: %s\n", rtOpts->lockFile);
 	/*
 	 * Otherwise use default lock file name, with the specified lock directory

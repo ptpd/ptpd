@@ -46,16 +46,16 @@
 
 #define THIS_COMPONENT "netUtils."
 
-/* Try getting hwAddrSize bytes of ifaceName hardware address,
+/* Try getting hwAddrSize bytes of ifName hardware address,
    and place them in hwAddr. Return 1 on success, 0 when no suitable
    hw address available, -1 on failure.
  */
 int
-getHwAddrData (unsigned char* hwAddr, const char* ifaceName, const int hwAddrSize)
+getHwAddrData (unsigned char* hwAddr, const char* ifName, const int hwAddrSize)
 {
 
     int ret;
-    if(!strlen(ifaceName))
+    if(!strlen(ifName))
 	return 0;
 
 /* BSD* - AF_LINK gives us access to the hw address via struct sockaddr_dl */
@@ -73,7 +73,7 @@ getHwAddrData (unsigned char* hwAddr, const char* ifaceName, const int hwAddrSiz
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
 	if(ifa->ifa_name == NULL) continue;
 	if(ifa->ifa_addr == NULL) continue;
-	if(!strcmp(ifaceName, ifa->ifa_name) && ifa->ifa_addr->sa_family == AF_LINK) {
+	if(!strcmp(ifName, ifa->ifa_name) && ifa->ifa_addr->sa_family == AF_LINK) {
 
 		struct sockaddr_dl* sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 		if(sdl->sdl_type == IFT_ETHER || sdl->sdl_type == IFT_L2VLAN) {
@@ -84,7 +84,7 @@ getHwAddrData (unsigned char* hwAddr, const char* ifaceName, const int hwAddrSiz
 			ret = 1;
 			goto end;
 		} else {
-			CCK_DBGV("Unsupported hardware address family on %s\n", ifaceName);
+			CCK_DBGV("Unsupported hardware address family on %s\n", ifName);
 			ret = 0;
 			goto end;
 		}
@@ -93,7 +93,7 @@ getHwAddrData (unsigned char* hwAddr, const char* ifaceName, const int hwAddrSiz
     }
 
     ret = 0;
-    CCK_DBG("Interface not found: %s\n", ifaceName);
+    CCK_DBG("Interface not found: %s\n", ifName);
 
 end:
 
@@ -115,10 +115,10 @@ end:
 
     memset(&ifr, 0, sizeof(ifr));
 
-    strncpy(ifr.ifr_name, ifaceName, IF_NAMESIZE);
+    strncpy(ifr.ifr_name, ifName, IF_NAMESIZE);
 
     if (ioctl(sockfd, SIOCGIFHWADDR, &ifr) < 0) {
-            CCK_DBGV("failed to request hardware address for %s", ifaceName);
+            CCK_DBGV("failed to request hardware address for %s", ifName);
 	    ret = -1;
 	    goto end;
     }
@@ -143,7 +143,7 @@ end:
 
 	    ret = 1;
 	} else {
-	    CCK_DBGV("Unsupported hardware address family on %s\n", ifaceName);
+	    CCK_DBGV("Unsupported hardware address family on %s\n", ifName);
 	    ret = 0;
 	}
 end:
@@ -156,13 +156,13 @@ end:
 
 /* get interface address of given family, return -1 on failure, 0 if not found or 1 if found. Wanted is used when we want a specific address */
 int
-getIfAddr(CckTransportAddress *addr, const char *ifaceName, const int family, const CckTransportAddress *wanted)
+getIfAddr(CckTransportAddress *addr, const char *ifName, const int family, const CckTransportAddress *wanted)
 {
 
 	int ret = 0;
 
 	if(family == TT_FAMILY_ETHERNET) {
-		ret = getHwAddrData(addr->addr.ether.ether_addr_octet, ifaceName, TT_ADDRLEN_ETHERNET);
+		ret = getHwAddrData(addr->addr.ether.ether_addr_octet, ifName, TT_ADDRLEN_ETHERNET);
 		if (ret != 1) {
 		    return ret;
 		}
@@ -184,7 +184,7 @@ getIfAddr(CckTransportAddress *addr, const char *ifaceName, const int family, co
 			/* ifa_addr not always present - link layer may come first */
 			if(ifa->ifa_addr == NULL) continue;
 				/* interface found */
-				if(!strcmp(ifaceName, ifa->ifa_name) && ifa->ifa_addr->sa_family == ts->afType) {
+				if(!strcmp(ifName, ifa->ifa_name) && ifa->ifa_addr->sa_family == ts->afType) {
 				    if(wanted && wanted->populated) {
 					CckTransportAddress src;
 					memset(&src, 0, sizeof(CckTransportAddress));
@@ -209,7 +209,7 @@ getIfAddr(CckTransportAddress *addr, const char *ifaceName, const int family, co
 		}
 
 		if(!ret) {
-		    CCK_DBG(THIS_COMPONENT"getIfAddr(): Interface not found: %s\n", ifaceName);
+		    CCK_DBG(THIS_COMPONENT"getIfAddr(): Interface not found: %s\n", ifName);
 		}
 		freeifaddrs(ifaddr);
 	}
@@ -218,7 +218,7 @@ getIfAddr(CckTransportAddress *addr, const char *ifaceName, const int family, co
 	CckAddressToolset *ts = getAddressToolset(addr->family);
 	tmpstr(strAddr, ts->strLen);
 	CCK_DBG(THIS_COMPONENT"getIfAddr: got %s address %s of interface %s\n",
-		getAddressFamilyName(addr->family), ts->toString(strAddr, strAddr_len, addr), ifaceName);
+		getAddressFamilyName(addr->family), ts->toString(strAddr, strAddr_len, addr), ifName);
     }
 #endif
     return ret;
@@ -226,7 +226,7 @@ getIfAddr(CckTransportAddress *addr, const char *ifaceName, const int family, co
 
 /* join or leave a multicast address */
 bool
-joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifaceName, const CckTransportAddress *ownAddr, const bool join)
+joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifName, const CckTransportAddress *ownAddr, const bool join)
 {
 
     int op = join ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP;
@@ -247,7 +247,7 @@ joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifaceNam
 	    /* set multicast outbound interface */
 	    if(setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF,
 		&imr.imr_interface, sizeof(struct in_addr)) < 0) {
-		CCK_PERROR(THIS_COMPONENT"failed to set multicast outbound interface on %s: ", ifaceName);
+		CCK_PERROR(THIS_COMPONENT"failed to set multicast outbound interface on %s: ", ifName);
 		return false;
 		}
 	/* drop multicast group on specified interface first, to actually re-send a join */
@@ -258,19 +258,19 @@ joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifaceNam
     /* join or leave multicast group on specified interface */
     if (setsockopt(fd, IPPROTO_IP, op,
            &imr, sizeof(struct ip_mreq)) < 0 ) {
-	    CCK_PERROR(THIS_COMPONENT"failed to %s multicast group %s on %s: ", join ? "join" : "leave", addrStr, ifaceName);
+	    CCK_PERROR(THIS_COMPONENT"failed to %s multicast group %s on %s: ", join ? "join" : "leave", addrStr, ifName);
 		    return false;
     }
 
     CCK_DBGV("%s multicast group %s on %s\n", join ? "Joined" : "Left", addrStr,
-						    ifaceName);
+						    ifName);
 
     return true;
 
 }
 
 bool
-joinMulticast_ipv6(int fd, const CckTransportAddress *addr, const char *ifaceName, const CckTransportAddress *ownAddr, const bool join)
+joinMulticast_ipv6(int fd, const CckTransportAddress *addr, const char *ifName, const CckTransportAddress *ownAddr, const bool join)
 {
 
     int op = join ? IPV6_JOIN_GROUP : IPV6_LEAVE_GROUP;
@@ -285,13 +285,13 @@ joinMulticast_ipv6(int fd, const CckTransportAddress *addr, const char *ifaceNam
     }
 
     memcpy(imr.ipv6mr_multiaddr.s6_addr, addr->addr.inet6.sin6_addr.s6_addr, TT_ADDRLEN_IPV6);
-    imr.ipv6mr_interface = getInterfaceIndex(ifaceName);
+    imr.ipv6mr_interface = getInterfaceIndex(ifName);
 
     if (join) {
 	/* set multicast outbound interface */
 	if(setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
 		&imr.ipv6mr_interface, sizeof(int)) < 0) {
-		CCK_PERROR(THIS_COMPONENT"failed to set multicast outbound interface on %s: ", ifaceName);
+		CCK_PERROR(THIS_COMPONENT"failed to set multicast outbound interface on %s: ", ifName);
 		return false;
 		}
 	/* drop multicast group on specified interface first, to actually re-send a join */
@@ -302,19 +302,19 @@ joinMulticast_ipv6(int fd, const CckTransportAddress *addr, const char *ifaceNam
     /* join or leave multicast group on specified interface */
     if (setsockopt(fd, IPPROTO_IPV6, op,
            &imr, sizeof(struct ipv6_mreq)) < 0) {
-	    CCK_PERROR(THIS_COMPONENT"failed to %s multicast group %s on %s: ", join ? "join" : "leave", addrStr, ifaceName);
+	    CCK_PERROR(THIS_COMPONENT"failed to %s multicast group %s on %s: ", join ? "join" : "leave", addrStr, ifName);
 		    return false;
     }
 
     CCK_DBGV(THIS_COMPONENT"%s multicast group %s on %s\n", join ? "Joined" : "Left", addrStr,
-						    ifaceName);
+						    ifName);
 
     return true;
 
 }
 
 bool
-joinMulticast_ethernet(const CckTransportAddress *addr, const char *ifaceName, const bool join)
+joinMulticast_ethernet(const CckTransportAddress *addr, const char *ifName, const bool join)
 {
     struct ifreq ifr;
 
@@ -331,26 +331,26 @@ joinMulticast_ethernet(const CckTransportAddress *addr, const char *ifaceName, c
 
     if( fd == -1) {
 	CCK_DBG("failed to open helper socket when adding ethernet multicast membership %s on %s: %s\n",
-		addrStr, ifaceName, strerror(errno));
+		addrStr, ifName, strerror(errno));
         return false;
     }
 
     memset(&ifr, 0, sizeof(ifr));
 
-    strncpy(ifr.ifr_name, ifaceName, strlen(ifaceName));
+    strncpy(ifr.ifr_name, ifName, strlen(ifName));
     ifr.ifr_hwaddr.sa_family = AF_UNSPEC;
     memcpy(&ifr.ifr_hwaddr.sa_data, addr->addr.ether.ether_addr_octet, TT_ADDRLEN_ETHERNET);
 
     /* join multicast group on specified interface */
     if ((ioctl(fd, op, &ifr)) < 0 ) {
 	CCK_ERROR(THIS_COMPONENT"Failed to %s ethernet multicast membership %s on %s: %s\n",
-		join ? "add" : "delete", addrStr, ifaceName, strerror(errno));
+		join ? "add" : "delete", addrStr, ifName, strerror(errno));
 	close(fd);
         return false;
     }
 
     CCK_DBGV("%s ethernet membership %s on %s\n", join ? "Added" : "Deleted",
-						addrStr, ifaceName);
+						addrStr, ifName);
     close(fd);
 
     return true;
@@ -571,19 +571,19 @@ convertTimestamp_bintime(CckTimestamp *timestamp, const void *data)
 }
 #endif
 
-bool ioctlHelper(struct ifreq *ifr, const char* ifaceName, unsigned long request) {
+bool ioctlHelper(struct ifreq *ifr, const char* ifName, unsigned long request) {
 
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     if(sockfd < 0) {
-	CCK_PERROR("ioctlHelper(%s): could not create helper socket", ifaceName);
+	CCK_PERROR("ioctlHelper(%s): could not create helper socket", ifName);
 	return false;
     }
 
-    strncpy(ifr->ifr_name, ifaceName, IFNAMSIZ);
+    strncpy(ifr->ifr_name, ifName, IFNAMSIZ);
 
     if (ioctl(sockfd, request, ifr) < 0) {
-            CCK_DBG("ioctlHelper: failed to call ioctl 0x%x on %s: %s\n", request, ifaceName, strerror(errno));
+            CCK_DBG("ioctlHelper: failed to call ioctl 0x%x on %s: %s\n", request, ifName, strerror(errno));
 	    close(sockfd);
 	    return false;
     }
@@ -592,17 +592,17 @@ bool ioctlHelper(struct ifreq *ifr, const char* ifaceName, unsigned long request
 
 }
 
-/* Check if interface ifaceName exists. Return 1 on success, 0 when interface doesn't exists, -1 on failure.
+/* Check if interface ifName exists. Return 1 on success, 0 when interface doesn't exists, -1 on failure.
  */
 
 int
-interfaceExists(const char* ifaceName)
+interfaceExists(const char* ifName)
 {
 
     int ret;
     struct ifaddrs *ifaddr, *ifa;
 
-    if(!strlen(ifaceName)) {
+    if(!strlen(ifName)) {
 	CCK_DBG(THIS_COMPONENT"interfaceExists(): Called for an empty interface name\n");
 	return 0;
     }
@@ -616,7 +616,7 @@ interfaceExists(const char* ifaceName)
 
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
 	if(ifa->ifa_name == NULL) continue;
-	if(!strcmp(ifaceName, ifa->ifa_name)) {
+	if(!strcmp(ifName, ifa->ifa_name)) {
 	    ret = 1;
 	    goto end;
 	}
@@ -624,19 +624,19 @@ interfaceExists(const char* ifaceName)
     }
 
     ret = 0;
-    CCK_DBG("Interface not found: %s\n", ifaceName);
+    CCK_DBG("Interface not found: %s\n", ifName);
 
 end:
    freeifaddrs(ifaddr);
     return ret;
 }
 
-int getInterfaceIndex(const char *ifaceName)
+int getInterfaceIndex(const char *ifName)
 {
 
 #ifdef HAVE_IF_NAMETOINDEX
 
-return if_nametoindex(ifaceName);
+return if_nametoindex(ifName);
 
 #else /* no if_nametoindex() */
 
@@ -651,16 +651,16 @@ return if_nametoindex(ifaceName);
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     if(sockfd < 0) {
-	PERROR("Could not retrieve interface index for %s",ifaceName);
+	PERROR("Could not retrieve interface index for %s",ifName);
 	return -1;
     }
 
     memset(&ifr, 0, sizeof(ifr));
 
-    strncpy(ifr.ifr_name, ifaceName, IFACE_NAME_LENGTH);
+    strncpy(ifr.ifr_name, ifName, IFACE_NAME_LENGTH);
 
     if (ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0) {
-            DBGV("failed to request hardware address for %s", ifaceName);
+            DBGV("failed to request hardware address for %s", ifName);
 	    close(sockfd);
 	    return -1;
 
@@ -683,30 +683,30 @@ return if_nametoindex(ifaceName);
 }
 
 int
-getInterfaceFlags(const char *ifaceName)
+getInterfaceFlags(const char *ifName)
 {
 
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
 
-    if (ioctlHelper(&ifr, ifaceName, SIOCGIFFLAGS)) {
-	CCK_DBG(THIS_COMPONENT"getInterfaceFlags(%s): success: %d\n", ifaceName, ifr.ifr_flags);
+    if (ioctlHelper(&ifr, ifName, SIOCGIFFLAGS)) {
+	CCK_DBG(THIS_COMPONENT"getInterfaceFlags(%s): success: %d\n", ifName, ifr.ifr_flags);
 	return ifr.ifr_flags;
     }
 
-    CCK_DBG(THIS_COMPONENT"getInterfaceFlags(%s): could not get interface flags\n", ifaceName);
+    CCK_DBG(THIS_COMPONENT"getInterfaceFlags(%s): could not get interface flags\n", ifName);
     return -1;
 
 }
 
 int
-setInterfaceFlags(const char *ifaceName, const int flags)
+setInterfaceFlags(const char *ifName, const int flags)
 {
 
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
 
-    int intFlags = getInterfaceFlags(ifaceName);
+    int intFlags = getInterfaceFlags(ifName);
 
     if(intFlags < 0) {
 	return intFlags;
@@ -714,24 +714,24 @@ setInterfaceFlags(const char *ifaceName, const int flags)
 
     ifr.ifr_flags = flags | intFlags;
 
-    if(ioctlHelper(&ifr, ifaceName, SIOCGIFFLAGS)) {
-	CCK_DBG(THIS_COMPONENT"setInterfaceFlags(%s:%04x): success\n", ifaceName, ifr.ifr_flags);
+    if(ioctlHelper(&ifr, ifName, SIOCGIFFLAGS)) {
+	CCK_DBG(THIS_COMPONENT"setInterfaceFlags(%s:%04x): success\n", ifName, ifr.ifr_flags);
 	return 1;
     }
 
-    CCK_DBG(THIS_COMPONENT"setInterfaceFlags(%s:%04x): could not set interface flags\n", ifaceName, flags);
+    CCK_DBG(THIS_COMPONENT"setInterfaceFlags(%s:%04x): could not set interface flags\n", ifName, flags);
 
     return -1;
 }
 
 int
-clearInterfaceFlags(const char *ifaceName, const int flags)
+clearInterfaceFlags(const char *ifName, const int flags)
 {
 
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
 
-    int intFlags = getInterfaceFlags(ifaceName);
+    int intFlags = getInterfaceFlags(ifName);
 
     if(intFlags < 0) {
 	return intFlags;
@@ -739,19 +739,19 @@ clearInterfaceFlags(const char *ifaceName, const int flags)
 
     ifr.ifr_flags = ~flags & intFlags;
 
-    if(ioctlHelper(&ifr, ifaceName, SIOCGIFFLAGS)) {
-	CCK_DBG(THIS_COMPONENT"clearInterfaceFlags(%s:%04x): success\n", ifaceName, ifr.ifr_flags);
+    if(ioctlHelper(&ifr, ifName, SIOCGIFFLAGS)) {
+	CCK_DBG(THIS_COMPONENT"clearInterfaceFlags(%s:%04x): success\n", ifName, ifr.ifr_flags);
 	return 1;
     }
 
-    CCK_DBG(THIS_COMPONENT"clearInterfaceFlags(%s:%04x): could not clear interface flags\n", ifaceName, flags);
+    CCK_DBG(THIS_COMPONENT"clearInterfaceFlags(%s:%04x): could not clear interface flags\n", ifName, flags);
 
     return -1;
 }
 
 /* get interface information */
 bool
-getInterfaceInfo(CckInterfaceInfo *info, const char* ifaceName, const int family, const CckTransportAddress *sourceHint)
+getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, const CckTransportAddress *sourceHint)
 {
 
     CckAddressToolset *ts = getAddressToolset(family);
@@ -762,24 +762,26 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifaceName, const int family
 
     memset(info, 0, sizeof(CckInterfaceInfo));
 
-    if(!strlen(ifaceName)) {
+    info->family = family;
+
+    if(!strlen(ifName)) {
 	CCK_ERROR(THIS_COMPONENT"getInferfaceInfo(): no interface name given\n");
 	return false;
     }
 
-    info->found = interfaceExists(ifaceName);
+    info->found = interfaceExists(ifName);
 
     if(!info->found) {
-	CCK_ERROR(THIS_COMPONENT"getInferfaceInfo(%s): interface not found\n", ifaceName);
+	CCK_ERROR(THIS_COMPONENT"getInferfaceInfo(%s): interface not found\n", ifName);
 	return false;
     }
 
     /* get h/w address */
-    info->hwStatus = getIfAddr(&info->hwAddress, ifaceName, TT_FAMILY_ETHERNET, NULL);
+    info->hwStatus = getIfAddr(&info->hwAddress, ifName, TT_FAMILY_ETHERNET, NULL);
 
     if(info->hwStatus == -1) {
 	CCK_ERROR(THIS_COMPONENT"getInterfaceInfo(%s): could not get hardware address\n",
-	ifaceName);
+	ifName);
     }
 
     if(family == TT_FAMILY_ETHERNET && info->hwStatus != 1) {
@@ -787,12 +789,12 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifaceName, const int family
     }
 
     /* try getting protocol address */
-    info->afStatus = getIfAddr(&info->afAddress, ifaceName, family, sourceHint);
+    info->afStatus = getIfAddr(&info->afAddress, ifName, family, sourceHint);
 
     /* failure */
     if(info->afStatus == -1) {
 	CCK_ERROR(THIS_COMPONENT"getInferfaceInfo(%s): could not get %s address\n",
-	ifaceName, getAddressFamilyName(family));
+	ifName, getAddressFamilyName(family));
 	return false;
     }
 
@@ -803,28 +805,28 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifaceName, const int family
 	if(sourceHint && sourceHint->populated) {
 	    tmpstr(strAddr, ts->strLen);
 	    CCK_ERROR(THIS_COMPONENT"getInterfaceInfo(%s): requested %s address \"%s\" not found\n",
-		ifaceName, getAddressFamilyName(family),
+		ifName, getAddressFamilyName(family),
 		ts->toString(strAddr, strAddr_len, sourceHint));
 	    info->sourceFound = false;
 	/* no address found */
 	} else {
 	    CCK_ERROR(THIS_COMPONENT"getInferfaceInfo(%s): interface has no %s address\n",
-	    ifaceName, getAddressFamilyName(family), ifaceName);
+	    ifName, getAddressFamilyName(family), ifName);
 
 	}
 	return false;
     }
 
-    info->flags = getInterfaceFlags(ifaceName);
+    info->flags = getInterfaceFlags(ifName);
     if(info->flags < 0) {
 	CCK_WARNING(THIS_COMPONENT"getInferfaceInfo(%s): could not query interface flags\n",
-	ifaceName);
+	ifName);
     }
 
-    info->index = getInterfaceIndex(ifaceName);
+    info->index = getInterfaceIndex(ifName);
     if(info->index < 0) {
 	CCK_DBG(THIS_COMPONENT"getInferfaceInfo(%s): could not get interface index\n",
-	ifaceName);
+	ifName);
     }
 
     return true;
@@ -832,7 +834,7 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifaceName, const int family
 }
 
 bool
-testInterface(const char* ifaceName, const int family, const char* sourceHint)
+testInterface(const char* ifName, const int family, const char* sourceHint)
 {
     bool ret = true;
     CckInterfaceInfo info;
@@ -843,17 +845,68 @@ testInterface(const char* ifaceName, const int family, const char* sourceHint)
 	src = createAddressFromString(family, sourceHint);
 	if(src == NULL) {
 	    CCK_ERROR(THIS_COMPONENT"testInterface(%s): invalid source address specified: %s\n",
-			ifaceName, sourceHint);
+			ifName, sourceHint);
 	    ret = false;
 	}
 
     }
 
-    ret &= getInterfaceInfo(&info, ifaceName, family, src);
+    ret &= getInterfaceInfo(&info, ifName, family, src);
 
     if(src) {
 	freeCckTransportAddress(&src);
     }
+
+    return ret;
+
+}
+
+/*
+    status in the @last structure is only one of OK, DOWN, FAULT, but returned value
+    de
+
+*/
+
+int
+monitorInterfaceInfo(const char *ifName, CckInterfaceInfo *last, const CckTransportAddress *sourceHint)
+{
+
+    CckInterfaceInfo current;
+    int ret = CCK_INTINFO_OK;
+
+    if(!last) {
+	return -1;
+    }
+
+    /* interface seems OK - check for changes and previous faults */
+    if(getInterfaceInfo(&current, ifName, last->family, sourceHint)) {
+
+	current.status = CCK_INTINFO_OK;
+
+
+	switch (last->status) {
+	    case CCK_INTINFO_DOWN:
+		ret = CCK_INTINFO_UP;
+		break;
+	    case CCK_INTINFO_FAULT:
+		ret = CCK_INTINFO_CLEAR;
+		break;
+	}
+
+
+    /* interface not OK */
+    } else {
+	current.status = CCK_INTINFO_FAULT;
+	ret = CCK_INTINFO_FAULT;
+    }
+
+gameover:
+
+    if(current.status == last->status) {
+	ret = CCK_INTINFO_NOCHANGE;
+    }
+
+    memcpy(last, &current, sizeof(current));
 
     return ret;
 

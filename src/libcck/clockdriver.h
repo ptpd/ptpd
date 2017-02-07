@@ -53,7 +53,7 @@
 /* clock driver types */
 enum {
 
-#define REGISTER_COMPONENT(typeenum, typesuffix, textname) \
+#define CCK_REGISTER_IMPL(typeenum, typesuffix, textname) \
     typeenum,
 
 #include "clockdriver.def"
@@ -364,7 +364,7 @@ int		getClockDriverType(const char*);
 bool		parseClockDriverSpec(const char*, ClockDriverSpec *);
 void		compareAllClocks();
 
-/* invoking this without REGISTER_COMPONENT defined, includes the implementation headers */
+/* invoking this without CCK_REGISTER_IMPL defined, includes the implementation headers */
 #include "clockdriver.def"
 
 #endif /* CCK_CLOCKDRIVER_H_ */

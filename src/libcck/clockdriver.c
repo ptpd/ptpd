@@ -59,7 +59,7 @@ static int _syncInterval = 1.0 / (CLOCKDRIVER_SYNC_RATE + 0.0);
 
 static const char *clockDriverNames[] = {
 
-    #define REGISTER_COMPONENT(typeenum, typesuffix, textname) \
+    #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname) \
 	[typeenum] = textname,
 
     #include "clockdriver.def"
@@ -179,7 +179,7 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
 
     /* these macros call the setup functions for existing clock drivers */
 
-    #define REGISTER_COMPONENT(typeenum, typesuffix, textname) \
+    #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname) \
 	if(driverType==typeenum) { \
 	    setup = _setupClockDriver_##typesuffix(clockDriver);\
 	    found = true;\

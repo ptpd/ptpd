@@ -146,7 +146,7 @@ configureClockDriver(ClockDriver *driver, const void *rtOpts)
 
     configureClockDriverFilters(driver);
 
-    #define REGISTER_COMPONENT(drvtype, suffix, strname) \
+    #define CCK_REGISTER_IMPL(drvtype, suffix, strname) \
 	if(driver->type == drvtype) { \
 	    ret = ret && (pushClockDriverPrivateConfig_##suffix(driver, global)); \
 	}
@@ -233,7 +233,7 @@ getCommonTransportConfig(TTransportConfig *config, const RunTimeOpts *global) {
 		{
 		    CCK_GET_PCONFIG(TTransport, socket_udpv4, config, pConfig);
 
-		    strncpy(pConfig->interface, global->ifaceName, IFNAMSIZ);
+		    strncpy(pConfig->interface, global->ifName, IFNAMSIZ);
 
 		    pConfig->multicastTtl = global->ttl;
 		    pConfig->dscpValue = global->dscpValue;
@@ -271,7 +271,7 @@ getCommonTransportConfig(TTransportConfig *config, const RunTimeOpts *global) {
 		{
 		    CCK_GET_PCONFIG(TTransport, socket_udpv6, config, pConfig);
 
-		    strncpy(pConfig->interface, global->ifaceName, IFNAMSIZ);
+		    strncpy(pConfig->interface, global->ifName, IFNAMSIZ);
 
 		    pConfig->multicastTtl = global->ttl;
 		    pConfig->dscpValue = global->dscpValue;
@@ -313,7 +313,7 @@ getCommonTransportConfig(TTransportConfig *config, const RunTimeOpts *global) {
 		{
 		    CCK_GET_PCONFIG(TTransport, socket_raweth, config, pConfig);
 
-		    strncpy(pConfig->interface, global->ifaceName, IFNAMSIZ);
+		    strncpy(pConfig->interface, global->ifName, IFNAMSIZ);
 
 		    pConfig->etherType = PTP_ETHER_TYPE;
 
@@ -551,16 +551,58 @@ void ptpDataCallback(void *fd, void *transport) {
 
     int len = tr->receiveMessage(tr, &tr->incomingMessage);
 
-    if(len > 0) {
+    if(len < 0 ) {
+	clock->counters.messageRecvErrors++;
+	internalFault(clock);
+	return;
+    }
 
-	if(tr->incomingMessage.hasTimestamp) {
-	    timestamp.seconds = tr->incomingMessage.timestamp.seconds;
-	    timestamp.nanoseconds = tr->incomingMessage.timestamp.nanoseconds;
+    if(tr->incomingMessage.hasTimestamp) {
+	timestamp.seconds = tr->incomingMessage.timestamp.seconds;
+	timestamp.nanoseconds = tr->incomingMessage.timestamp.nanoseconds;
+    }
+
+    processPtpData(clock, &timestamp, len, &tr->incomingMessage.from, &tr->incomingMessage.to);
+
+}
+
+ssize_t
+sendPtpData(PtpClock *ptpClock, bool event, char *data, ssize_t len, void *dst, TimeInternal *timestamp)
+{
+
+	ssize_t ret = 0;
+
+	TTransport *tr = event ? ptpClock->eventTransport : ptpClock->generalTransport;
+	CckTransportAddress *addr = dst ? dst : ( event ? ptpClock->eventDestination : ptpClock->generalDestination);
+
+	if(event) {
+	    setTransportAddressPort(addr, PTP_EVENT_PORT);
 	}
 
-	processPtpData(clock, &timestamp, len, &tr->incomingMessage.from, &tr->incomingMessage.to);
+	tr->outgoingMessage.length = len;
+	tr->outgoingMessage.destination = addr;
 
-    }
+	ret =  tr->sendMessage(tr, &tr->outgoingMessage);
+
+	if(ret < 0 ) {
+	    ptpClock->counters.messageSendErrors++;
+	    DBG("Error while sending %s message!\n", event ? "event" : "general");
+	    internalFault(ptpClock);
+	    return 0;
+	}
+
+	if(timestamp) {
+
+	    if(tr->outgoingMessage.hasTimestamp) {
+		timestamp->seconds = tr->outgoingMessage.timestamp.seconds;
+		timestamp->nanoseconds = tr->outgoingMessage.timestamp.nanoseconds;
+	    } else {
+		clearTime(timestamp);
+	    }
+
+	}
+
+	return ret;
 
 }
 
@@ -1463,12 +1505,12 @@ netInit(PtpClock *ptpClock, CckFdSet *fdSet)
 
     if(rtOpts->backupIfaceEnabled &&
 	    ptpClock->runningBackupInterface) {
-		strncpy(rtOpts->ifaceName, rtOpts->backupIfaceName, IFNAMSIZ);
+		strncpy(rtOpts->ifName, rtOpts->backupIfaceName, IFNAMSIZ);
 	} else {
-		strncpy(rtOpts->ifaceName, rtOpts->primaryIfaceName, IFNAMSIZ);
+		strncpy(rtOpts->ifName, rtOpts->primaryIfaceName, IFNAMSIZ);
 	}
 
-    if(!testInterface(rtOpts->ifaceName, family, rtOpts->sourceAddress)) {
+    if(!testInterface(rtOpts->ifName, family, rtOpts->sourceAddress)) {
 	return false;
     }
 
@@ -1477,7 +1519,7 @@ netInit(PtpClock *ptpClock, CckFdSet *fdSet)
 	return false;
     }
 
-    transportType = detectTTransport(family, rtOpts->ifaceName, eFlags, rtOpts->transportType);
+    transportType = detectTTransport(family, rtOpts->ifName, eFlags, rtOpts->transportType);
 
     if(transportType == TT_TYPE_NONE) {
 	ERROR("NetInit(): No usable transport found\n");

@@ -990,12 +990,8 @@ issueSignaling(MsgSignaling *outgoing, void *destination, const const RunTimeOpt
 
 	msgPackSignaling( ptpClock->msgObuf, outgoing, ptpClock);
 
-	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-			   ptpClock, destination)) {
-		DBGV("Signaling message  can't be sent -> FAULTY state \n");
-		ptpClock->counters.messageSendErrors++;
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-	} else {
+	if (sendPtpData(ptpClock, PTPMSG_GENERAL, ptpClock->msgObuf,
+	    outgoing->header.messageLength, destination, NULL)) {
 		DBG("Signaling msg sent \n");
 		ptpClock->counters.signalingMessagesSent++;
 	}

@@ -99,7 +99,7 @@ typedef struct {
 	int announceTimeoutGracePeriod;
 //	Integer16 currentUtcOffset;
 
-	char ifaceName[IFNAMSIZ + 1];
+	char ifName[IFNAMSIZ + 1];
 	char primaryIfaceName[IFNAMSIZ+1];
 	char backupIfaceName[IFNAMSIZ+1];
 	Boolean backupIfaceEnabled;
@@ -127,6 +127,7 @@ typedef struct {
 	Enumeration8 delayMechanism;
 
 	Boolean portDisabled;
+	int faultTimeout;
 
 	int ttl;
 	uint8_t ipv6Scope;

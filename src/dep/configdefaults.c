@@ -413,6 +413,8 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	rtOpts->panicModeDuration = 30;
 	rtOpts->panicModeExitThreshold = 0;
 
+	rtOpts->faultTimeout = DEFAULT_FAULT_TIMEOUT;
+
 	/* full network reset after 5 times in listening */
 	rtOpts->maxListen = 5;
 

@@ -35,18 +35,18 @@
 
 /*
  * Register available clock drivers here (we are so modular...)
- * If not included in the REGISTER_COMPONENT context,
- * just include the headers. The REGISTER_COMPONENT x-macro
+ * If not included in the CCK_REGISTER_IMPL context,
+ * just include the headers. The CCK_REGISTER_IMPL x-macro
  * arguments are: ENUM_NAME, type_suffix, "text_name"
  * This means that the function and type suffixes in your
  * implementation must match type_suffix.
  */
 
-#ifndef REGISTER_COMPONENT
+#ifndef CCK_REGISTER_IMPL
     #include "clockdriver/clockdriver_unix.h"
     #include "clockdriver/clockdriver_linuxphc.h"
 #else
-    REGISTER_COMPONENT(CLOCKDRIVER_UNIX, unix, "unix")
-    REGISTER_COMPONENT(CLOCKDRIVER_LINUXPHC, linuxphc, "linuxphc")
-    #undef REGISTER_COMPONENT
-#endif /* REGISTER_COMPONENT */
+    CCK_REGISTER_IMPL(CLOCKDRIVER_UNIX, unix, "unix")
+    CCK_REGISTER_IMPL(CLOCKDRIVER_LINUXPHC, linuxphc, "linuxphc")
+    #undef CCK_REGISTER_IMPL
+#endif /* CCK_REGISTER_IMPL */

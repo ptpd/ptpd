@@ -331,7 +331,7 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 		strftime(time_str, MAXTIMESTR, "%F %X", localtime((time_t*)&now.tv_sec));
 		fprintf(destination, "%s.%06d ", time_str, (int)now.tv_usec  );
 		fprintf(destination,PTPD_PROGNAME"[%d].%s (%-9s ",
-		(int)getpid(), startupInProgress ? "startup" : rtOpts.ifaceName,
+		(int)getpid(), startupInProgress ? "startup" : rtOpts.ifName,
 		priority == LOG_EMERG   ? "emergency)" :
 		priority == LOG_ALERT   ? "alert)" :
 		priority == LOG_CRIT    ? "critical)" :
@@ -943,7 +943,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, 		STATUSPREFIX"  %s\n","Local time", timeStr);
 	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", gmtime((time_t*)&now.tv_sec));
 	fprintf(out, 		STATUSPREFIX"  %s\n","Kernel time", timeStr);
-	fprintf(out, 		STATUSPREFIX"  %s%s","Interface", rtOpts->ifaceName,
+	fprintf(out, 		STATUSPREFIX"  %s%s","Interface", rtOpts->ifName,
 		(rtOpts->backupIfaceEnabled && ptpClock->runningBackupInterface) ? " (backup)" : (rtOpts->backupIfaceEnabled)?
 		    " (primary)" : "");
 /*
@@ -1402,7 +1402,7 @@ int matches = 0, counter = 0;
 
 	/* Check for other ptpd running on the same interface - same for all modes */
 	snprintf(searchPattern, PATH_MAX,"%s/%s_*_%s.lock",
-	    rtOpts->lockDirectory, PTPD_PROGNAME,rtOpts->ifaceName);
+	    rtOpts->lockDirectory, PTPD_PROGNAME,rtOpts->ifName);
 
 	DBGV("SearchPattern: %s\n",searchPattern);
 	switch(glob(searchPattern, 0, NULL, &matchedFiles)) {
@@ -1426,7 +1426,7 @@ int matches = 0, counter = 0;
 		/* Could not check lock status */
 		case -1:
 		    ERROR("Looks like "USER_DESCRIPTION" may be already running on %s: %s found, but could not check lock\n",
-		    rtOpts->ifaceName, lockPath);
+		    rtOpts->ifName, lockPath);
 		    ret = FALSE;
 		    goto end;
 		/* It was possible to acquire lock - file looks abandoned */
@@ -1437,7 +1437,7 @@ int matches = 0, counter = 0;
 		/* file is locked */
 		case 0:
 		    ERROR("Looks like "USER_DESCRIPTION" is already running on %s: %s found and is locked by pid %d\n",
-		    rtOpts->ifaceName, lockPath, lockPid);
+		    rtOpts->ifName, lockPath, lockPid);
 		    ret = FALSE;
 		    goto end;
 	    }

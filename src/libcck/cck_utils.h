@@ -128,6 +128,9 @@ memset(name, 0, name ## _len);
     } \
     counter_##id++;
 
+/* dump LibCCK version information */
+void cckVersion();
+
 /* a collection of timestamp operations */
 typedef struct {
 	void (*add) (CckTimestamp *, const CckTimestamp *, const CckTimestamp *);

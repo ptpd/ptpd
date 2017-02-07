@@ -67,6 +67,7 @@ enum {
 	ANNOUNCE_INTERVAL_TIMER,	/* Announce transmission interval */
 
 	/* non-spec PTP-related timers */
+	PORT_FAULT_TIMER,		/* PTP port fault timer - only for internal faults (external do not start or stop it) */
 	SYNC_RECEIPT_TIMER,		/* Sync receipt timeout (alarm) timer */
 	DELAY_RECEIPT_TIMER,		/* Delay response receipt timeout (alarm) timer */
 	UNICAST_GRANT_TIMER,		/* Unicast grant ageing timer */
@@ -95,11 +96,11 @@ extern bool ptpTimerInit(struct PtpClock *ptpClock);
 extern void ptpTimerShutdown(struct PtpClock *ptpClock);
 
 /* quickhand macros assuming that the @var variable contains a timers array indexed by @id */
-#define tExpired(var, id)	ptpTimerExpired(&var->timers[id##_TIMER])
-#define tStart(var, id, val)	ptpTimerStart(&var->timers[id##_TIMER], val)
-#define tStop(var, id)		ptpTimerStop(&var->timers[id##_TIMER])
-#define tRunning(var, id)	var->timers[id##_TIMER].running
-#define tInterval(var, id)	var->timers[id##_TIMER].interval
+#define tmrExpired(var, id)	ptpTimerExpired(&var->timers[id##_TIMER])
+#define tmrStart(var, id, val)	ptpTimerStart(&var->timers[id##_TIMER], val)
+#define tmrStop(var, id)	ptpTimerStop(&var->timers[id##_TIMER])
+#define tmrRunning(var, id)	var->timers[id##_TIMER].running
+#define tmrInterval(var, id)	var->timers[id##_TIMER].interval
 
 const char * getPtpTimerName(int id);
 

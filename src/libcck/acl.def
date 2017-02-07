@@ -37,7 +37,7 @@
  * Register available ACL types here
  */
 
-#ifndef REGISTER_COMPONENT
+#ifndef CCK_REGISTER_IMPL
 
     #include "acl/acl_ipv4.h"
     #include "acl/acl_ipv6.h"
@@ -50,11 +50,11 @@
 
     /* 		address family,		type suffix */
 
-    REGISTER_COMPONENT(TT_FAMILY_IPV4,	ipv4)
-    REGISTER_COMPONENT(TT_FAMILY_IPV6,	ipv6)
-    REGISTER_COMPONENT(TT_FAMILY_ETHERNET,	ethernet)
-    REGISTER_COMPONENT(TT_FAMILY_LOCAL,	dummy)
+    CCK_REGISTER_IMPL(TT_FAMILY_IPV4,	ipv4)
+    CCK_REGISTER_IMPL(TT_FAMILY_IPV6,	ipv6)
+    CCK_REGISTER_IMPL(TT_FAMILY_ETHERNET,	ethernet)
+    CCK_REGISTER_IMPL(TT_FAMILY_LOCAL,	dummy)
 
-    #undef REGISTER_COMPONENT
+    #undef CCK_REGISTER_IMPL
 
-#endif /* REGISTER_COMPONENT */
+#endif /* CCK_REGISTER_IMPL */

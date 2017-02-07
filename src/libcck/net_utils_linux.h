@@ -94,9 +94,9 @@ typedef struct {
 	LinuxVlanInfo vlanInfo;
 } LinuxInterfaceInfo;
 
-bool getEthtoolTsInfo(struct ethtool_ts_info *info, const char *ifaceName);
-void getLinuxBondInfo(LinuxBondInfo *info, const char *ifaceName);
-void getLinuxVlanInfo(LinuxVlanInfo *info, const char* ifaceName);
-void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifaceName);
+bool getEthtoolTsInfo(struct ethtool_ts_info *info, const char *ifName);
+void getLinuxBondInfo(LinuxBondInfo *info, const char *ifName);
+void getLinuxVlanInfo(LinuxVlanInfo *info, const char* ifName);
+void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifName);
 
 #endif /* CCK_NET_UTILS_LINUX_H_ */

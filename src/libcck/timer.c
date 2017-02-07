@@ -50,7 +50,7 @@ static const char *timerTypeNames[] = {
 
     [CCKTIMER_NONE] = "none",
     [CCKTIMER_ANY] = "any",
-#define REGISTER_COMPONENT(typeenum, typesuffix, textname, textdesc) \
+#define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, textdesc) \
     [typeenum] = textname,
 
 #include "timer.def"
@@ -118,7 +118,7 @@ setupCckTimer(CckTimer* timer, const int type, const char* name) {
 
     /* these macros call the setup functions for existing timer implementations */
 
-    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, textdesc) \
+    #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, textdesc) \
 	if(!found && (type == CCKTIMER_ANY || mytype==typeenum)) {\
 	    mytype = type; \
 	    found = true;\

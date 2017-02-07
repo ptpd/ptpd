@@ -113,10 +113,10 @@ main(int argc, char **argv)
 	    return 1;
 	}
 
-	tStart(ptpClock, ALARM_UPDATE ,ALARM_UPDATE_INTERVAL);
+	tmrStart(ptpClock, ALARM_UPDATE ,ALARM_UPDATE_INTERVAL);
 	/* run the status file update every 1 .. 1.2 seconds */
-	tStart(ptpClock, STATUSFILE_UPDATE, rtOpts.statusFileUpdateInterval * (1.0 + 0.2 * getRand()));
-	tStart(ptpClock, PERIODIC_INFO, rtOpts.statsUpdateInterval);
+	tmrStart(ptpClock, STATUSFILE_UPDATE, rtOpts.statusFileUpdateInterval * (1.0 + 0.2 * getRand()));
+	tmrStart(ptpClock, PERIODIC_INFO, rtOpts.statsUpdateInterval);
 
 	if (!netInit(ptpClock, getCckFdSet())) {
 	    CRITICAL("Failed to start network transports!\n");

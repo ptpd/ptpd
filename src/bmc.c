@@ -393,7 +393,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 		WARNING("Leap second event aborted by GM!\n");
 		ptpClock->leapSecondPending = FALSE;
 		ptpClock->leapSecondInProgress = FALSE;
-		tStop(ptpClock, LEAP_SECOND_PAUSE);
+		tmrStop(ptpClock, LEAP_SECOND_PAUSE);
 		ptpClock->clockStatus.leapInsert = FALSE;
 		ptpClock->clockStatus.leapDelete = FALSE;
 		ptpClock->clockStatus.update = TRUE;

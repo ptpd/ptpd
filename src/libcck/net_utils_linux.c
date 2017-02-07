@@ -48,32 +48,32 @@
 #include <libcck/cck_utils.h>
 #include <libcck/cck_types.h>
 
-static bool bondQuery(ifbond *ifb, const char *ifaceName);
-static bool bondSlaveQuery(ifslave *ifs, const char *ifaceName, int member);
-static int getBondSlaves(LinuxBondInfo *info, const char *ifaceName);
+static bool bondQuery(ifbond *ifb, const char *ifName);
+static bool bondSlaveQuery(ifslave *ifs, const char *ifName, int member);
+static int getBondSlaves(LinuxBondInfo *info, const char *ifName);
 
-static bool bondQuery(ifbond *ifb, const char *ifaceName)
+static bool bondQuery(ifbond *ifb, const char *ifName)
 {
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(struct ifreq));
     memset(ifb, 0, sizeof(ifbond));
     ifr.ifr_data = (caddr_t)ifb;
-    return ioctlHelper(&ifr, ifaceName, SIOCBONDINFOQUERY);
+    return ioctlHelper(&ifr, ifName, SIOCBONDINFOQUERY);
 
 }
 
-static bool bondSlaveQuery(ifslave *ifs, const char *ifaceName, int member)
+static bool bondSlaveQuery(ifslave *ifs, const char *ifName, int member)
 {
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(struct ifreq));
     memset(ifs, 0, sizeof(ifslave));
     ifs->slave_id = member;
     ifr.ifr_data = (caddr_t)ifs;
-    return ioctlHelper(&ifr, ifaceName, SIOCBONDSLAVEINFOQUERY);
+    return ioctlHelper(&ifr, ifName, SIOCBONDSLAVEINFOQUERY);
 
 }
 
-static int getBondSlaves(LinuxBondInfo *info, const char *ifaceName)
+static int getBondSlaves(LinuxBondInfo *info, const char *ifName)
 {
 
     ifbond ifb;
@@ -92,12 +92,12 @@ static int getBondSlaves(LinuxBondInfo *info, const char *ifaceName)
 	info->slaves[i].id = -1;
     }
 
-    if(bondQuery(&ifb, ifaceName)) {
+    if(bondQuery(&ifb, ifName)) {
 
 	if(ifb.num_slaves == 0) return -1;
 
 	for(int i = 0; (i < ifb.num_slaves) && (i < BOND_SLAVES_MAX); i++) {
-	    if(bondSlaveQuery(&ifs, ifaceName, i)) {
+	    if(bondSlaveQuery(&ifs, ifName, i)) {
 		strncpy(info->slaves[i].name, ifs.slave_name, IFNAMSIZ);
 		info->slaves[i].id = i;
 		getEthtoolTsInfo(&info->slaves[i].tsInfo, ifs.slave_name);
@@ -114,15 +114,15 @@ static int getBondSlaves(LinuxBondInfo *info, const char *ifaceName)
 }
 
 #ifdef ETHTOOL_GET_TS_INFO
-bool getEthtoolTsInfo(struct ethtool_ts_info *info, const char *ifaceName) {
+bool getEthtoolTsInfo(struct ethtool_ts_info *info, const char *ifName) {
 
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
 	memset(info, 0, sizeof(struct ethtool_ts_info));
 	info->cmd = ETHTOOL_GET_TS_INFO;
 	ifr.ifr_data = (char*) info;
-	if(!ioctlHelper(&ifr, ifaceName, SIOCETHTOOL)) {
-	    CCK_PERROR("Could not get ethtool timestamping information from %s", ifaceName);
+	if(!ioctlHelper(&ifr, ifName, SIOCETHTOOL)) {
+	    CCK_PERROR("Could not get ethtool timestamping information from %s", ifName);
 	    return false;
 	}
 
@@ -131,13 +131,13 @@ bool getEthtoolTsInfo(struct ethtool_ts_info *info, const char *ifaceName) {
 }
 #endif /* ETHTOOL_GET_TS_INFO */
 
-void getLinuxBondInfo(LinuxBondInfo *info, const char *ifaceName)
+void getLinuxBondInfo(LinuxBondInfo *info, const char *ifName)
 {
 
     ifbond ifb;
     LinuxBondInfo lastInfo;
 
-    if(!bondQuery(&ifb, ifaceName)) {
+    if(!bondQuery(&ifb, ifName)) {
 	info->bonded = false;
 	return;
     }
@@ -150,7 +150,7 @@ void getLinuxBondInfo(LinuxBondInfo *info, const char *ifaceName)
 
     info->bonded = true;
     info->activeBackup = (ifb.bond_mode == BOND_MODE_ACTIVEBACKUP);
-    info->slaveCount = getBondSlaves(info, ifaceName);
+    info->slaveCount = getBondSlaves(info, ifName);
 
     if(info->activeSlave.id >= 0) {
 	info->activeCount = 1;
@@ -174,7 +174,7 @@ void getLinuxBondInfo(LinuxBondInfo *info, const char *ifaceName)
 
 }
 
-void getLinuxVlanInfo(LinuxVlanInfo *info, const char* ifaceName)
+void getLinuxVlanInfo(LinuxVlanInfo *info, const char* ifName)
 {
 
     struct vlan_ioctl_args args;
@@ -188,10 +188,10 @@ void getLinuxVlanInfo(LinuxVlanInfo *info, const char* ifaceName)
     }
 
     memset(&args, 0, sizeof(struct vlan_ioctl_args));
-    strncpy(args.device1, ifaceName, min(sizeof(args.device1), IFNAMSIZ));
+    strncpy(args.device1, ifName, min(sizeof(args.device1), IFNAMSIZ));
     args.cmd = GET_VLAN_REALDEV_NAME_CMD;
     if (ioctl(sockfd, SIOCGIFVLAN, &args) < 0) {
-            CCK_DBG("getLinuxVlanInfo(): failed to call SIOCGIFVLAN ioctl on %s: %s\n", ifaceName, strerror(errno));
+            CCK_DBG("getLinuxVlanInfo(): failed to call SIOCGIFVLAN ioctl on %s: %s\n", ifName, strerror(errno));
 	    close(sockfd);
 	    info->vlan = false;
 	    return;
@@ -201,10 +201,10 @@ void getLinuxVlanInfo(LinuxVlanInfo *info, const char* ifaceName)
 
     strncpy(info->realDevice, args.u.device2, min(sizeof(args.device1), IFNAMSIZ));
     memset(&args, 0, sizeof(struct vlan_ioctl_args));
-    strncpy(args.device1, ifaceName, min(sizeof(args.device1), IFNAMSIZ));
+    strncpy(args.device1, ifName, min(sizeof(args.device1), IFNAMSIZ));
     args.cmd = GET_VLAN_VID_CMD;
     if (ioctl(sockfd, SIOCGIFVLAN, &args) < 0) {
-            CCK_DBG("getLinuxVlanInfo(): failed to call SIOCGIFVLAN ioctl on %s: %s\n", ifaceName, strerror(errno));
+            CCK_DBG("getLinuxVlanInfo(): failed to call SIOCGIFVLAN ioctl on %s: %s\n", ifName, strerror(errno));
 	    close(sockfd);
 	    info->vlan = false;
 	    return;
@@ -220,19 +220,19 @@ void getLinuxVlanInfo(LinuxVlanInfo *info, const char* ifaceName)
 
 }
 
-void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifaceName)
+void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifName)
 {
 
-    strncpy(info->physicalDevice, ifaceName, IFNAMSIZ);
+    strncpy(info->physicalDevice, ifName, IFNAMSIZ);
 
     LinuxBondInfo *bondInfo = &info->bondInfo;
     LinuxVlanInfo *vlanInfo = &info->vlanInfo;
 
-    if(!interfaceExists(ifaceName)) {
+    if(!interfaceExists(ifName)) {
 	return;
     }
 
-    getLinuxVlanInfo(vlanInfo, ifaceName);
+    getLinuxVlanInfo(vlanInfo, ifName);
 
     if(vlanInfo->vlan) {
 	    strncpy(info->physicalDevice, vlanInfo->realDevice, IFNAMSIZ);
@@ -245,8 +245,8 @@ void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifaceName)
     }
 
     getEthtoolTsInfo(&info->tsInfo, info->physicalDevice);
-    getEthtoolTsInfo(&info->logicalTsInfo, ifaceName);
+    getEthtoolTsInfo(&info->logicalTsInfo, ifName);
 
-    CCK_DBG("getLinuxInterfaceInfo(%s): Underlying physical device: %s\n", ifaceName, info->physicalDevice);
+    CCK_DBG("getLinuxInterfaceInfo(%s): Underlying physical device: %s\n", ifName, info->physicalDevice);
 
 }

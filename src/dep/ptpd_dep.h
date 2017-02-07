@@ -110,10 +110,6 @@ memset(name, 0, name ## _len);
 #define DBGV_LOCAL_ID(x, ...)
 #endif
 
-//#ifndef SAFE_CALLBACK
-//#define SAFE_CALLBACK(fun, ...) { if(fun) { fun( __VA_ARGS__ ); } }
-//#endif /* SAFE_CALLBACK */
-
 /*
  * new debug level DBG2:
  * this is above DBG(), but below DBGV() (to avoid changing hundreds of lines)
@@ -323,10 +319,8 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
  * -Init network stuff, send and receive datas*/
  /**\{*/
 
-ssize_t netSendEvent(Octet * buf, UInteger16 length, PtpClock *ptpClock, void *dst, TimeInternal *timestamp);
-ssize_t netSendGeneral(Octet * buf, UInteger16 length, PtpClock *ptpClcock, void *dst);
+extern ssize_t sendPtpData(PtpClock *ptpClock, bool event, char *data, ssize_t len, void *dst, TimeInternal *timestamp);
 
-//Boolean netIoctlHelper(struct ifreq *ifr, const char* ifaceName, unsigned long request);
 Boolean prepareClockDrivers(PtpClock *ptpClock);
 
 /** \}*/
@@ -386,10 +380,6 @@ void disable_runtime_debug(void );
 /** \name sys.c (Unix API dependent)
  * -Manage timing system API*/
  /**\{*/
-
-/* new debug methods to debug time variables */
-//char *time2st(const TimeInternal * p);
-void DBG_time(const char *name, const TimeInternal  p);
 
 void logMessageWrapper(int priority, const char * format, va_list ap);
 void logMessage(int priority, const char *format, ...);

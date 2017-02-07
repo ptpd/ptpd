@@ -121,7 +121,7 @@ setupCckAcl(CckAcl* acl, const int type, const char* name) {
 
     /* these macros call the setup functions for existing acl implementations */
 
-    #define REGISTER_COMPONENT(typeenum, typesuffix) \
+    #define CCK_REGISTER_IMPL(typeenum, typesuffix) \
 	if(type==typeenum) {\
 	    found = true;\
 	    setup = _setupCckAcl_##typesuffix(acl);\

@@ -51,7 +51,7 @@ static const char *ttransportNames[] = {
 
     [TT_TYPE_NONE] = "none",
 
-#define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+#define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
     [typeenum] = textname,
 
 #include "ttransport.def"
@@ -178,7 +178,7 @@ setupTTransport(TTransport* transport, const int type, const char* name) {
 
     /* these macros call the setup functions for existing transport implementations */
 
-    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+    #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
 	if(type==typeenum) {\
 	    found = true;\
 	    transport->family = addressfamily;\
@@ -251,7 +251,7 @@ detectTTransport(const int family, const char *path, const int caps, const int s
 		getAddressFamilyName(family));
     }
 
-    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+    #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
 	if(addressfamily == family) {\
 	    if((specific == TT_TYPE_NONE) || (typeenum == specific))\
 		if ((capabilities & caps)  == caps) {\
@@ -288,7 +288,7 @@ createTTransportConfig(const int type) {
 
 	TTransportConfig *ret = NULL;
 
-    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+    #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
 	    case (typeenum):\
 		CCKCALLOC(ret, sizeof(TTransportConfig));\
 		ret->_type = type;\
@@ -315,7 +315,7 @@ freeTTransportPrivateConfig(TTransportConfig *config) {
 
 	if(config->_privateConfig != NULL) {
 
-	    #define REGISTER_COMPONENT(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
+	    #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
 		case (typeenum):\
 		    _freeTTransportConfig_##typesuffix((TTransportConfig_##typesuffix *)(config->_privateConfig)); \
 		break;

@@ -780,10 +780,10 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	/* Clock has been updated - or was eligible for an update - restart the timeout timer*/
 	if(rtOpts->clockUpdateTimeout > 0) {
 		DBG("Restarted clock update timeout timer\n");
-		tStart(ptpClock, CLOCK_UPDATE, rtOpts->clockUpdateTimeout);
+		tmrStart(ptpClock, CLOCK_UPDATE, rtOpts->clockUpdateTimeout);
 	}
 
-	ptpClock->pastStartup = TRUE;
+	ptpClock->pastmrStartup = TRUE;
 }
 
 void
@@ -854,7 +854,7 @@ recalibrateClock(PtpClock *ptpClock, bool resetFilters) {
 	NOTIFY("Re-calibrating PTP: Waiting for %d seconds to pre-compute offsets\n",
 	    ptpClock->rtOpts->calibrationDelay);
 	ptpClock->isCalibrated = FALSE;
-	tStart(ptpClock, CALIBRATION_DELAY, ptpClock->rtOpts->calibrationDelay);
+	tmrStart(ptpClock, CALIBRATION_DELAY, ptpClock->rtOpts->calibrationDelay);
     }
 
 }

@@ -881,7 +881,7 @@ configcheck:
 #endif
 
 	NOTICE(USER_DESCRIPTION" started successfully on %s using \"%s\" preset (PID %d)\n",
-			    rtOpts->ifaceName,
+			    rtOpts->ifName,
 			    (getPtpPreset(rtOpts->selectedPreset,rtOpts)).presetName,
 			    getpid());
 	ptpClock->resetStatisticsLog = TRUE;

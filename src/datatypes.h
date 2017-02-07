@@ -356,7 +356,7 @@ struct PtpClock {
 	int delayRespWaiting;                /* Just for information purposes */
 	Boolean startup_in_progress;
 
-	Boolean pastStartup;				/* we've set the clock already, at least once */
+	Boolean pastmrStartup;				/* we've set the clock already, at least once */
 
 	Boolean	offsetFirstUpdated;
 

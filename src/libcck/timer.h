@@ -50,7 +50,7 @@ enum {
     CCKTIMER_NONE = 0,
     /* "any" uses first ("best") timer implementaion available */
     CCKTIMER_ANY = 1,
-#define REGISTER_COMPONENT(typeenum, typesuffix, textname, textdesc) \
+#define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, textdesc) \
     typeenum,
 #include "timer.def"
 
@@ -152,7 +152,7 @@ CckTimer*	getCckTimerById(const int);
 const char*	getCckTimerTypeName(int);
 int		getCckTimerType(const char*);
 
-/* invoking this without REGISTER_COMPONENT defined, includes the implementation headers - like here*/
+/* invoking this without CCK_REGISTER_IMPL defined, includes the implementation headers - like here*/
 #include "timer.def"
 
 #endif /* CCK_TIMER_H_ */

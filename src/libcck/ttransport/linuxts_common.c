@@ -97,11 +97,11 @@ static const OptionName txTypes[] = {
 };
 
 static bool checkRxFilter(uint32_t filter, int family);
-static bool testLinuxTimestamping(LinuxTsInfo *info, const char *ifaceName, int family, const bool preferHw, const bool quiet);
-static bool initHwTimestamping(LinuxTsInfo *info, const char *ifaceName, const int family, const bool quiet);
+static bool testLinuxTimestamping(LinuxTsInfo *info, const char *ifName, int family, const bool preferHw, const bool quiet);
+static bool initHwTimestamping(LinuxTsInfo *info, const char *ifName, const int family, const bool quiet);
 
 void
-getLinuxTsInfo(LinuxTsInfo *output, const struct ethtool_ts_info *source, const char *ifaceName, const int family, const bool preferHw) {
+getLinuxTsInfo(LinuxTsInfo *output, const struct ethtool_ts_info *source, const char *ifName, const int family, const bool preferHw) {
 
 	const OptionName *mode = NULL;
 	memset(output, 0, sizeof(LinuxTsInfo));
@@ -110,10 +110,10 @@ getLinuxTsInfo(LinuxTsInfo *output, const struct ethtool_ts_info *source, const 
 	output->swTimestamping = true;
 	for(const OptionName *mode = swTsModes; mode->value != -1; mode++) {
 	    if((source->so_timestamping & mode->value) == mode->value) {
-		CCK_DBG("getLinuxTsInfo(%s): Interface supports s/w mode %s\n", ifaceName, mode->name);
+		CCK_DBG("getLinuxTsInfo(%s): Interface supports s/w mode %s\n", ifName, mode->name);
 		output->swTsModes |= mode->value;
 	    } else {
-		CCK_DBG("getLinuxTsInfo(%s): No support for mode %s, s/w timestamping not usable\n", ifaceName, mode->name);
+		CCK_DBG("getLinuxTsInfo(%s): No support for mode %s, s/w timestamping not usable\n", ifName, mode->name);
 		output->swTimestamping = false;
 	    }
 	}
@@ -126,10 +126,10 @@ getLinuxTsInfo(LinuxTsInfo *output, const struct ethtool_ts_info *source, const 
 	output->hwTimestamping = true;
 	for(const OptionName *mode = hwtsModes; mode->value != -1; mode++) {
 	    if((source->so_timestamping & mode->value) == mode->value) {
-		CCK_DBG("getLinuxTsInfo(%s): Interface supports h/w mode %s\n", ifaceName, mode->name);
+		CCK_DBG("getLinuxTsInfo(%s): Interface supports h/w mode %s\n", ifName, mode->name);
 		output->hwTsModes |= mode->value;
 	    } else {
-		CCK_DBG("getLinuxTsInfo(%s): No support for %s mode %s, h/w timestamping not usable\n", ifaceName, mode->name);
+		CCK_DBG("getLinuxTsInfo(%s): No support for %s mode %s, h/w timestamping not usable\n", ifName, mode->name);
 		output->hwTimestamping = false;
 	    }
 	}
@@ -154,7 +154,7 @@ getLinuxTsInfo(LinuxTsInfo *output, const struct ethtool_ts_info *source, const 
 		break;
 	    default:
 		CCK_DBG("getLinuxTsInfo(%s): No h/w timestamping support for address family %s\n",
-		    ifaceName, getAddressFamilyName(family));
+		    ifName, getAddressFamilyName(family));
 		output->hwTimestamping = false;
 		return;
 	}
@@ -163,32 +163,32 @@ getLinuxTsInfo(LinuxTsInfo *output, const struct ethtool_ts_info *source, const 
 	for( ; mode->value != -1; mode++) {
 	    bool found = false;
 	    if(source->rx_filters & (1 << mode->value) ) {
-		CCK_DBG("getLinuxTsInfo(%s): Interface supports RX filter %s\n", ifaceName, mode->name);
+		CCK_DBG("getLinuxTsInfo(%s): Interface supports RX filter %s\n", ifName, mode->name);
 		if(!found) {
 		    output->rxFilter = mode->value;
 		    found = true;
 		    output->hwTimestamping = true;
 		}
 	    } else {
-		CCK_DBG("getLinuxTsInfo(%s): No support for RX filter %s\n", ifaceName, mode->name);
+		CCK_DBG("getLinuxTsInfo(%s): No support for RX filter %s\n", ifName, mode->name);
 	    }
 	}
 
 	if(source->tx_types & (1 << HWTSTAMP_TX_ON)) {
-		CCK_DBG("getLinuxTsInfo(%s): Interface supports HWTSTAMP_TX_ON\n", ifaceName);
+		CCK_DBG("getLinuxTsInfo(%s): Interface supports HWTSTAMP_TX_ON\n", ifName);
 		output->txType = HWTSTAMP_TX_ON;
 		output->txTimestamping = true;
 	} else {
-		CCK_DBG("getLinuxTsInfo(%s): No support for HWTSTAMP_TX_ON\n", ifaceName);
+		CCK_DBG("getLinuxTsInfo(%s): No support for HWTSTAMP_TX_ON\n", ifName);
 		output->hwTimestamping = false;
 	}
 
 	if(source->tx_types & (1 << HWTSTAMP_TX_ONESTEP_SYNC)) {
-		CCK_DBG("getLinuxTsInfo(%s): Interface supports HWTSTAMP_TX_ONESTEP_SYNC\n", ifaceName);
+		CCK_DBG("getLinuxTsInfo(%s): Interface supports HWTSTAMP_TX_ONESTEP_SYNC\n", ifName);
 		output->oneStepTxType = HWTSTAMP_TX_ONESTEP_SYNC;
 		output->oneStep = true;
 	} else {
-		CCK_DBG("getLinuxTsInfo(%s): No support for HWTSTAMP_TX_ONESTEP_SYNC\n", ifaceName);
+		CCK_DBG("getLinuxTsInfo(%s): No support for HWTSTAMP_TX_ONESTEP_SYNC\n", ifName);
 	}
 
 	if(output->swTimestamping) {
@@ -230,32 +230,32 @@ checkRxFilter(uint32_t filter, int family) {
 
 }
 
-static bool testLinuxTimestamping(LinuxTsInfo *info, const char *ifaceName, int family, const bool preferHw, const bool quiet) {
+static bool testLinuxTimestamping(LinuxTsInfo *info, const char *ifName, int family, const bool preferHw, const bool quiet) {
 
     /* no adequate h/w timestamping support, let's see why */
     if(!info->hwTimestamping && preferHw) {
 	if(!quiet) {
 	    if(!info->rxFilter) {
-		CCK_INFO("testLinuxTimestamping(%s): No support for required h/w RX timestamp filters for %s timestamping\n", ifaceName,
+		CCK_INFO("testLinuxTimestamping(%s): No support for required h/w RX timestamp filters for %s timestamping\n", ifName,
 		getAddressFamilyName(family));
 	    }
 	    if(!info->txTimestamping) {
-		CCK_INFO("testLinuxTimestamping(%s): No support for required h/w TX timestamp mode\n", ifaceName);
+		CCK_INFO("testLinuxTimestamping(%s): No support for required h/w TX timestamp mode\n", ifName);
 	    }
 	}
 	if(info->swTimestamping) {
 	    if(!quiet) {
-		CCK_INFO("testLinuxTimestamping(%s): Interface supports software timestamping only\n", ifaceName);
+		CCK_INFO("testLinuxTimestamping(%s): Interface supports software timestamping only\n", ifName);
 	    }
 	    return true;
 	}
 	if(!quiet) {
-	    CCK_ERROR("testLinuxTimestamping(%s): No Linux SO_TIMESTAMPING support\n", ifaceName);
+	    CCK_ERROR("testLinuxTimestamping(%s): No Linux SO_TIMESTAMPING support\n", ifName);
 	}
 	return false;
     } else if (!preferHw && !info->swTimestamping) {
 	if(!quiet) {
-	    CCK_ERROR("testLinuxTimestamping(%s): No full SO_TIMESTAMPING software timestamp support\n", ifaceName);
+	    CCK_ERROR("testLinuxTimestamping(%s): No full SO_TIMESTAMPING software timestamp support\n", ifName);
 	}
 	return false;
     }
@@ -265,7 +265,7 @@ static bool testLinuxTimestamping(LinuxTsInfo *info, const char *ifaceName, int 
 }
 
 static bool
-initHwTimestamping(LinuxTsInfo *info, const char *ifaceName, const int family, const bool quiet) {
+initHwTimestamping(LinuxTsInfo *info, const char *ifName, const int family, const bool quiet) {
 
 	struct ifreq ifr;
 	struct hwtstamp_config config;
@@ -288,14 +288,14 @@ initHwTimestamping(LinuxTsInfo *info, const char *ifaceName, const int family, c
 
 	ifr.ifr_data = (void*) &config;
 
-	if(!ioctlHelper(&ifr, ifaceName, SIOCSHWTSTAMP)) {
-	    CCK_PERROR("initHwTimestamping(%s): Could not init hardware timestamping", ifaceName);
+	if(!ioctlHelper(&ifr, ifName, SIOCSHWTSTAMP)) {
+	    CCK_PERROR("initHwTimestamping(%s): Could not init hardware timestamping", ifName);
 	    return false;
 	}
 
 	if(config.tx_type != info->txType) {
 	    CCK_ERROR("initHwTimestamping(%s): Interface refused to set the required hardware transmit timestamping option\n",
-	    ifaceName);
+	    ifName);
 	    return false;
 	}
 
@@ -303,17 +303,17 @@ initHwTimestamping(LinuxTsInfo *info, const char *ifaceName, const int family, c
 	if(config.rx_filter != info->rxFilter) {
 	    if(checkRxFilter(config.rx_filter, family)) {
 		CCK_WARNING("initHwTimestamping(%s): Interface changed hardware receive filter type from %d to %d - still acceptable\n",
-		ifaceName, info->rxFilter, config.rx_filter);
+		ifName, info->rxFilter, config.rx_filter);
 	    /* nope. */
 	    } else {
 		CCK_ERROR("initHwTimestamping(%s): Interface changed hardware received filter type from %d to %d - cannot continue\n",
-		ifaceName, info->rxFilter, config.rx_filter);
+		ifName, info->rxFilter, config.rx_filter);
 		return false;
 	    }
 	}
 
 	if(!quiet) {
-	    CCK_INFO("initHwTimestamping(%s): Hardware timestamping enabled\n", ifaceName);
+	    CCK_INFO("initHwTimestamping(%s): Hardware timestamping enabled\n", ifName);
 	}
 
 	return true;
@@ -321,7 +321,7 @@ initHwTimestamping(LinuxTsInfo *info, const char *ifaceName, const int family, c
 }
 
 bool
-initTimestamping_linuxts_common(TTransport *transport, TTsocketTimestampConfig *tsConfig, LinuxInterfaceInfo *intInfo, const char *ifaceName, const bool quiet) {
+initTimestamping_linuxts_common(TTransport *transport, TTsocketTimestampConfig *tsConfig, LinuxInterfaceInfo *intInfo, const char *ifName, const bool quiet) {
 
 	const char *realDevice;
 	LinuxBondInfo *bi = &intInfo->bondInfo;
@@ -335,7 +335,7 @@ initTimestamping_linuxts_common(TTransport *transport, TTsocketTimestampConfig *
 	    realDevice = intInfo->physicalDevice;
 	    tsInfo = &intInfo->tsInfo;
 	} else {
-	    realDevice = ifaceName;
+	    realDevice = ifName;
 	    tsInfo = &intInfo->logicalTsInfo;
 	}
 
@@ -359,7 +359,7 @@ initTimestamping_linuxts_common(TTransport *transport, TTsocketTimestampConfig *
 	if(bi->bonded && !bi->activeBackup) {
 	    ret = false;
 	    CCK_WARNING("initTimestamping(%s): Bonded interface but not running active backup. Cannot enable hardware timestamping.\n",
-		    ifaceName);
+		    ifName);
 	} else if (bi->bonded) {
 
 	    for(int i = 0; i < bi->slaveCount; i++) {
@@ -397,7 +397,7 @@ finalise:
 	}
 
 	if(!quiet && ret) {
-	    CCK_INFO("initTimestamping(%s): Linux %s timestamping successfully enabled\n", ifaceName,
+	    CCK_INFO("initTimestamping(%s): Linux %s timestamping successfully enabled\n", ifName,
 			pti.hwTimestamping ? "hardware" : "software");
 	}
 

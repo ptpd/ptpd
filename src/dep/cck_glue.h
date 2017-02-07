@@ -68,7 +68,8 @@ void myPtpClockStepNotify(void *owner);
 void myPtpClockStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to);
 void myPtpClockLocked(void *owner, bool locked);
 
-void ptpDataCallback(void *fd, void *transport);
+
+
 void myPtpClockUpdate(void *owner);
 
 int ptpPreSend (void *transport, void *owner, char *data, const size_t len, bool isMulticast);
@@ -101,6 +102,11 @@ void shutdownPtpTimers(struct PtpClock *ptpClock);
 /* data extraction - required for management message and misconfigured domain alarm check */
 uint32_t myPtpClockGetRxPackets(PtpClock *ptpClock);
 uint32_t myPtpClockGetTxPackets(PtpClock *ptpClock);
+
+/* receive and process data when available */
+void ptpDataCallback(void *fd, void *transport);
+/* send data with optional transmit timestamp */
+ssize_t sendPtpData(PtpClock *ptpClock, bool event, char *data, ssize_t len, void *dst, TimeInternal *timestamp);
 
 /* component configuration */
 

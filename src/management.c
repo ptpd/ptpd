@@ -1857,64 +1857,12 @@ issueManagementRespOrAck(MsgManagement *outgoing, void *dst, const RunTimeOpts *
 
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
 
-
-#ifdef PTPD_EXPERIMENTAL
-
-#include "lib1588/ptp_message.h"
-
-/* lib1588 testing */
-
-
-    PtpMessage m;
-    PtpMessage n;
-    memset(&m, 0, sizeof(PtpMessage));
-    memset(&n, 0, sizeof(PtpMessage));
-
-    char buf[3000];
-    memset(buf, 0, 3000);
-
-    printf("**** BEGIN lib1588 re-create test\n");
-    printf("==== Unpacking data packed by old code (length: %d) using lib1588\n", outgoing->header.messageLength);
-
-    int bob = unpackPtpMessage(&m, ptpClock->msgObuf, ptpClock->msgObuf + outgoing->header.messageLength);
-
-    printf("==== RETURNED: %d\n", bob);
-    printf("==== Done unpacking. Message:\n");
-
-    displayPtpMessage(&m);
-
-    printf("==== Packing message using  lib1588 \n");
-
-    bob = packPtpMessage(buf, &m, buf + 3000);
-
-    printf("==== RETURNED: %d\n", bob);
-    printf("==== Done packing.\n");
-
-    printf("==== Unpacking message using lib1588 \n");
-
-    bob = unpackPtpMessage(&n, buf, buf + bob);
-
-    printf("==== RETURNED: %d\n", bob);
-    printf("==== Done unpacking. Message:\n");
-
-    displayPtpMessage(&n);
-
-    printf("**** END lib1588 re-create test\n");
-
-    freePtpMessage(&m);
-    freePtpMessage(&n);
-
-#endif
-
-	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-			   ptpClock, dst)) {
-		DBGV("Management response/acknowledge can't be sent -> FAULTY state \n");
-		ptpClock->counters.messageSendErrors++;
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-	} else {
+	if (sendPtpData(ptpClock, PTPMSG_GENERAL, ptpClock->msgObuf,
+	    outgoing->header.messageLength, dst, NULL)) {
 		DBGV("Management response/acknowledge msg sent \n");
 		ptpClock->counters.managementMessagesSent++;
 	}
+
 }
 
 static void
@@ -1931,12 +1879,8 @@ issueManagementErrorStatus(MsgManagement *outgoing, void *dst, const RunTimeOpts
 
 	msgPackManagement( ptpClock->msgObuf, outgoing, ptpClock);
 
-	if(!netSendGeneral(ptpClock->msgObuf, outgoing->header.messageLength,
-			   ptpClock, dst)) {
-		DBGV("Management error status can't be sent -> FAULTY state \n");
-		ptpClock->counters.messageSendErrors++;
-		toState(PTP_FAULTY, rtOpts, ptpClock);
-	} else {
+	if (sendPtpData(ptpClock, PTPMSG_GENERAL, ptpClock->msgObuf,
+	    outgoing->header.messageLength, dst, NULL)) {
 		DBGV("Management error status msg sent \n");
 		ptpClock->counters.managementMessagesSent++;
 	}

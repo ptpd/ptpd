@@ -729,7 +729,7 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		return SNMP_INTEGER((snmpPtpClock->portDS.portState == PTP_MASTER)?
 				    SNMP_PTP_PORT_MASTER:SNMP_PTP_PORT_SLAVE);
 	case PTPBASE_CLOCK_PORT_RUNNING_INTERFACE_INDEX:
-		return SNMP_INTEGER(getInterfaceIndex(snmpRtOpts->ifaceName));
+		return SNMP_INTEGER(getInterfaceIndex(snmpRtOpts->ifName));
 	case PTPBASE_CLOCK_PORT_RUNNING_IPVERSION:
 		/* IPV4 only */
 		return SNMP_INTEGER(4);

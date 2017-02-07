@@ -434,6 +434,7 @@ int check_timestamp_is_fresh(const TimeInternal * timeA);
 
 
 void toState(UInteger8,const RunTimeOpts*,PtpClock*);
+void internalFault(PtpClock *ptpClock);
 
 /* helper functions for leap second handling */
 double secondsToMidnight(void);
@@ -444,5 +445,8 @@ Boolean respectUtcOffset(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
 /* alarms.c - this will be moved */
 void capturePtpEventData(PtpEventData *data, PtpClock *ptpClock, RunTimeOpts *rtOpts); 	/* capture data from an alarm event */
 void setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock); /* set alarm condition and capture data */
+
+
+/* actual ptpd.h ... */
 
 #endif /*PTPD_H_*/

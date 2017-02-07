@@ -57,10 +57,10 @@ typedef struct {
 } LinuxTsInfo;
 
 bool probeLinuxTs(const char *path, const int family, const int caps);
-void getLinuxTsInfo(LinuxTsInfo *output, const struct ethtool_ts_info *source, const char *ifaceName, const int family, const bool preferHw);
+void getLinuxTsInfo(LinuxTsInfo *output, const struct ethtool_ts_info *source, const char *ifName, const int family, const bool preferHw);
 ClockDriver * getLinuxClockDriver(const TTransport *transport, const LinuxInterfaceInfo *intInfo);
 void getLinuxTxTimestamp(TTransport *transport, TTransportMessage *txMessage);
-bool initTimestamping_linuxts_common(TTransport *transport, TTsocketTimestampConfig *tsConfig, LinuxInterfaceInfo *intInfo, const char *ifaceName, const bool quiet);
+bool initTimestamping_linuxts_common(TTransport *transport, TTsocketTimestampConfig *tsConfig, LinuxInterfaceInfo *intInfo, const char *ifName, const bool quiet);
 
 #endif /* CCK_TTRANSPORT_LINUXTS_COMMON_H_ */
 
