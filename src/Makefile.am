@@ -82,6 +82,7 @@ ptpd_SOURCES =				\
 	libcck/timer.def		\
 	libcck/timer.h			\
 	libcck/timer.c			\
+	libcck/timer_interface.h	\
 	libcck/timer/timerfd.h		\
 	libcck/timer/timerfd.c		\
 	libcck/timer/itimer.h		\
@@ -93,6 +94,7 @@ ptpd_SOURCES =				\
 	libcck/acl.def			\
 	libcck/acl.h			\
 	libcck/acl.c			\
+	libcck/acl_interface.h		\
 	libcck/acl/acl_dummy.h		\
 	libcck/acl/acl_dummy.c		\
 	libcck/acl/acl_ipv4.h		\
