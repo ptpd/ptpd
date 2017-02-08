@@ -54,7 +54,7 @@
 
 #include "../ptpd.h"
 
-extern RunTimeOpts rtOpts;
+extern GlobalConfig global;
 
 #define PACK_SIMPLE( type ) \
 void pack##type( void* from, void* to ) \
@@ -1728,7 +1728,7 @@ msgPackSync(Octet * buf, UInteger16 sequenceId, Timestamp * originTimestamp, Ptp
 	*(UInteger8 *) (buf + 32) = 0x00;
 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
-	 if(rtOpts.transportMode != TMODE_UC )
+	 if(global.transportMode != TMODE_UC )
 		*(Integer8 *) (buf + 33) = ptpClock->portDS.logSyncInterval;
 	memset((buf + 8), 0, 8);
 
@@ -1855,7 +1855,7 @@ msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpC
 	*(UInteger8 *) (buf + 32) = 0x02;
 
 	 /* Table 24 - unless it's multicast, logMessageInterval remains    0x7F */
-	 if(rtOpts.transportMode != TMODE_UC)
+	 if(global.transportMode != TMODE_UC)
 		*(Integer8 *) (buf + 33) = ptpClock->portDS.logSyncInterval;
 
 	/* Follow_up message */

@@ -177,11 +177,11 @@ clockDriver_init(ClockDriver* self, const void *userData) {
     }
 
     if(caps.pps) {
-	CCK_INFO(THIS_COMPONENT"Linux PHC clock %s supports 1PPS output\n", self->name);
+	CCK_INFO(THIS_COMPONENT"Linux PHC clock '%s' supports 1PPS output\n", self->name);
 	if (ioctl(myData->clockFd, PTP_ENABLE_PPS, 1) < 0) {
-		CCK_ERROR(THIS_COMPONENT"Could not enable 1PPS output for Linux PHC clock %s\n", self->name);
+		CCK_ERROR(THIS_COMPONENT"Could not enable 1PPS output for Linux PHC clock '%s'\n", self->name);
 	} else {
-		CCK_INFO(THIS_COMPONENT"Successfully enabled 1PPS output for Linux PHC clock %s\n", self->name);
+		CCK_INFO(THIS_COMPONENT"Successfully enabled 1PPS output for Linux PHC clock '%s'\n", self->name);
 	}
     }
 
@@ -192,7 +192,7 @@ clockDriver_init(ClockDriver* self, const void *userData) {
 
     self->servo.maxOutput = self->maxFrequency;
 
-    CCK_INFO(THIS_COMPONENT"Successfully started Linux PHC clock driver %s (%s) clock ID %06x\n", self->name, myConfig->characterDevice, myData->clockId);
+    CCK_INFO(THIS_COMPONENT"Linux PHC clock driver '%s' (%s, ID 0x%06x) started successfully\n", self->name, myConfig->characterDevice, myData->clockId);
 
     self->_init = true;
 
@@ -211,7 +211,7 @@ clockDriver_shutdown(ClockDriver *self) {
     CCK_GET_PDATA(ClockDriver, linuxphc, self, myData);
     CCK_GET_PCONFIG(ClockDriver, linuxphc, self, myConfig);
 
-    CCK_INFO(THIS_COMPONENT"Linux PHC clock driver %s (%s) shutting down\n", self->name, myConfig->characterDevice);
+    CCK_INFO(THIS_COMPONENT"Linux PHC clock driver '%s' (%s) shutting down\n", self->name, myConfig->characterDevice);
 
     /* run any vendor-specific shutdown code */
     self->_vendorShutdown(self);

@@ -231,7 +231,7 @@ Boolean isTimeZero(const TimeInternal *time);
  * \return The recommended state for the port
  */
 
-UInteger8 bmc(ForeignMasterRecord*, const RunTimeOpts*,PtpClock*);
+UInteger8 bmc(ForeignMasterRecord*, const GlobalConfig*,PtpClock*);
 
 /* compare two portIdentTitties */
 int cmpPortIdentity(const PortIdentity *a, const PortIdentity *b);
@@ -243,20 +243,20 @@ Boolean portIdentityAllOnes(PortIdentity *portIdentity);
 /**
  * \brief When recommended state is Master, copy local data into parent and grandmaster dataset
  */
-void m1(const RunTimeOpts *, PtpClock*);
+void m1(const GlobalConfig *, PtpClock*);
 
 /**
  * \brief When recommended state is Slave, copy dataset of master into parent and grandmaster dataset
  */
-void s1(MsgHeader*,MsgAnnounce*,PtpClock*, const RunTimeOpts *);
+void s1(MsgHeader*,MsgAnnounce*,PtpClock*, const GlobalConfig *);
 
 
-void p1(PtpClock *ptpClock, const RunTimeOpts *rtOpts);
+void p1(PtpClock *ptpClock, const GlobalConfig *global);
 
 /**
  * \brief Initialize datas
  */
-void initData(const RunTimeOpts*,PtpClock*);
+void initData(const GlobalConfig*,PtpClock*);
 /** \}*/
 
 
@@ -267,8 +267,8 @@ void initData(const RunTimeOpts*,PtpClock*);
  * \brief Protocol engine
  */
 /* protocol.c */
-void ptpRun(RunTimeOpts*,PtpClock*);
-void updateDatasets(PtpClock* ptpClock, const RunTimeOpts* rtOpts);
+void ptpRun(GlobalConfig*,PtpClock*);
+void updateDatasets(PtpClock* ptpClock, const GlobalConfig* global);
 void setPortState(PtpClock *ptpClock, Enumeration8 state);
 void processPtpData(PtpClock *ptpClock, TimeInternal* timeStamp, ssize_t length, void *src, void *dst);
 
@@ -284,7 +284,7 @@ Boolean acceptPortIdentity(PortIdentity thisPort, PortIdentity targetPort);
  * \brief Management message support
  */
 void handleManagement(MsgHeader *header,
-		 Boolean isFromSelf, void *sourceAddress, RunTimeOpts *rtOpts, PtpClock *ptpClock);
+		 Boolean isFromSelf, void *sourceAddress, GlobalConfig *global, PtpClock *ptpClock);
 
 /** \}*/
 
@@ -296,15 +296,15 @@ void handleManagement(MsgHeader *header,
  * \brief Signaling message support
  */
 UnicastGrantTable* findUnicastGrants(const PortIdentity* portIdentity, void *TransportAddress, UnicastGrantTable *grantTable, UnicastGrantIndex *index, int nodeCount, Boolean update);
-void 	initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism, int nodeCount, UnicastDestination *destinations, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
+void 	initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism, int nodeCount, UnicastDestination *destinations, const GlobalConfig *global, PtpClock *ptpClock);
 
-void 	cancelUnicastTransmission(UnicastGrantData*, const RunTimeOpts*, PtpClock*);
-void 	cancelAllGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
+void 	cancelUnicastTransmission(UnicastGrantData*, const GlobalConfig*, PtpClock*);
+void 	cancelAllGrants(UnicastGrantTable *grantTable, int nodeCount, const GlobalConfig *global, PtpClock *ptpClock);
 
-void 	handleSignaling(MsgHeader*, Boolean, void*, const RunTimeOpts*,PtpClock*);
+void 	handleSignaling(MsgHeader*, Boolean, void*, const GlobalConfig*,PtpClock*);
 
-void 	refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
-void 	updateUnicastGrantTable(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts);
+void 	refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const GlobalConfig *global, PtpClock *ptpClock);
+void 	updateUnicastGrantTable(UnicastGrantTable *grantTable, int nodeCount, const GlobalConfig *global);
 
 
 /* quick shortcut to defining a temporary char array for the purpose of snprintf to it */
@@ -339,7 +339,7 @@ DECLARE_UNPACK( UInteger48 )
 DECLARE_UNPACK( Integer64 )
 
 /* display.c */
-void displayRunTimeOpts(const RunTimeOpts*);
+void displayGlobalConfig(const GlobalConfig*);
 void displayDefault (const PtpClock*);
 void displayCurrent (const PtpClock*);
 void displayParent (const PtpClock*);
@@ -433,17 +433,17 @@ int check_timestamp_is_fresh2(const TimeInternal * timeA, const TimeInternal * t
 int check_timestamp_is_fresh(const TimeInternal * timeA);
 
 
-void toState(UInteger8,const RunTimeOpts*,PtpClock*);
+void toState(UInteger8,const GlobalConfig*,PtpClock*);
 void internalFault(PtpClock *ptpClock);
 
 /* helper functions for leap second handling */
 double secondsToMidnight(void);
 double getPauseAfterMidnight(Integer8 announceInterval, int pausePeriod);
 
-Boolean respectUtcOffset(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
+Boolean respectUtcOffset(const GlobalConfig * global, PtpClock * ptpClock);
 
 /* alarms.c - this will be moved */
-void capturePtpEventData(PtpEventData *data, PtpClock *ptpClock, RunTimeOpts *rtOpts); 	/* capture data from an alarm event */
+void capturePtpEventData(PtpEventData *data, PtpClock *ptpClock, GlobalConfig *global); 	/* capture data from an alarm event */
 void setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock); /* set alarm condition and capture data */
 
 

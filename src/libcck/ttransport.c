@@ -471,6 +471,7 @@ void monitorTTransport(TTransport *transport, const int interval) {
     bool previousFault = transport->fault;
     bool restartNeeded = false;
 
+    /* run the countdown timer, cancel fault state if ran out */
     ageTransportFault(transport, interval);
 
     if(!transport->fault) {
@@ -480,7 +481,7 @@ void monitorTTransport(TTransport *transport, const int interval) {
 
 	if (res & CCK_INTINFO_FAULT) {
 	    if(!(res & CCK_INTINFO_NOCHANGE)) {
-		CCK_ERROR(THIS_COMPONENT"monitorTTransport(%s): Transport fault detected\n", transport->name);
+		CCK_ERROR(THIS_COMPONENT"monitorTTransport('%s'): Transport fault detected\n", transport->name);
 	    }
 	    markTransportFault(transport);
 	    SAFE_CALLBACK(transport->callbacks.onNetworkFault, transport, transport->owner, true);
@@ -489,30 +490,36 @@ void monitorTTransport(TTransport *transport, const int interval) {
 	}
 
 	if (res & CCK_INTINFO_CLEAR) {
-	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport(%s): Fault cleared\n", transport->name);
+	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport('%s'): Transport fault cleared\n", transport->name);
 	    restartNeeded = true;
 	} else if (res & CCK_INTINFO_CHANGE) {
-	    CCK_WARNING(THIS_COMPONENT"monitorTTransport(%s): Address / topology change detected\n", transport->name);
+	    CCK_WARNING(THIS_COMPONENT"monitorTTransport('%s'): Address / topology change detected\n", transport->name);
 	    restartNeeded = true;
 	} else if (res & CCK_INTINFO_UP) {
-	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport(%s): Transport back up\n", transport->name);
+	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport('%s'): Transport link up\n", transport->name);
+	    /* strange things can happen when interfaces go up */
+	    transport->_skipMessages = TT_CHANGE_SKIP_PACKETS;
 	    SAFE_CALLBACK(transport->callbacks.onNetworkChange, transport, transport->owner, false);
 	} else if (res & CCK_INTINFO_DOWN) {
-	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport(%s): Transport has gone down\n", transport->name);
+	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport('%s'): Transport link down\n", transport->name);
 	}
 
 	if(restartNeeded) {
 	    int result = transport->restart(transport);
 	    if(result != 1) {
-		CCK_ERROR(THIS_COMPONENT"monitorTTransport(%s): Could not restart transport\n", transport->name);
+		CCK_ERROR(THIS_COMPONENT"monitorTTransport('%s'): Could not restart transport\n", transport->name);
 		markTransportFault(transport);
 		SAFE_CALLBACK(transport->callbacks.onNetworkFault, transport, transport->owner, true);
 	    } else {
 		clearTransportFault(transport);
+		/* strange things can happen when interfaces go up */
+		transport->_skipMessages = TT_CHANGE_SKIP_PACKETS;
 		SAFE_CALLBACK(transport->callbacks.onNetworkChange, transport, transport->owner, true);
 	    }
+	} else if (res & CCK_INTINFO_CLOCKCHANGE) {
+	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport('%s'): Clock driver change detected\n", transport->name);
+	    SAFE_CALLBACK(transport->callbacks.onClockDriverChange, transport, transport->owner);
 	}
-
 
     }
 
@@ -625,17 +632,15 @@ restartTransport(TTransport *transport) {
     TTransport *child = transport->slaveTransport;
     int ret;
 
-    CCK_INFO(THIS_COMPONENT"Transport %s restarting\n", transport->name);
+    CCK_NOTICE(THIS_COMPONENT"Transport '%s' restarting\n", transport->name);
     transport->shutdown(transport);
     ret = transport->init(transport, &transport->config, transport->fdSet);
 
     if((ret > 0) && child) {
-
-	CCK_INFO(THIS_COMPONENT"Transport %s restarting associated transport %s\n", transport->name,
+	CCK_NOTICE(THIS_COMPONENT"Transport '%s' restarting associated transport '%s'\n", transport->name,
 		    child->name);
 	child->shutdown(child);
 	return child->init(child, &child->config, child->fdSet);
-
     }
 
     return ret;

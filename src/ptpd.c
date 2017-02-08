@@ -63,7 +63,7 @@
 #include <libcck/cck_utils.h>
 #include <libcck/timer.h>
 
-RunTimeOpts rtOpts;			/* statically allocated run-time
+GlobalConfig global;			/* statically allocated run-time
 					 * configuration data */
 
 Boolean startupInProgress;
@@ -93,8 +93,8 @@ main(int argc, char **argv)
 	startupInProgress = TRUE;
 
 	/* Initialize run time options with command line arguments */
-	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &rtOpts))) {
-		if (ret != 0 && !rtOpts.checkConfigOnly)
+	if (!(ptpClock = ptpdStartup(argc, argv, &ret, &global))) {
+		if (ret != 0 && !global.checkConfigOnly)
 			ERROR(USER_DESCRIPTION" startup failed\n");
 		return ret;
 	}
@@ -115,28 +115,28 @@ main(int argc, char **argv)
 
 	tmrStart(ptpClock, ALARM_UPDATE ,ALARM_UPDATE_INTERVAL);
 	/* run the status file update every 1 .. 1.2 seconds */
-	tmrStart(ptpClock, STATUSFILE_UPDATE, rtOpts.statusFileUpdateInterval * (1.0 + 0.2 * getRand()));
-	tmrStart(ptpClock, PERIODIC_INFO, rtOpts.statsUpdateInterval);
+	tmrStart(ptpClock, STATUSFILE_UPDATE, global.statusFileUpdateInterval * (1.0 + 0.2 * getRand()));
+	tmrStart(ptpClock, PERIODIC_INFO, global.statsUpdateInterval);
 
 	if (!netInit(ptpClock, getCckFdSet())) {
 	    CRITICAL("Failed to start network transports!\n");
 	    return 1;
 	}
 
-	toState(PTP_INITIALIZING, &rtOpts, ptpClock);
-	if(rtOpts.statusLog.logEnabled)
-		writeStatusFile(ptpClock, &rtOpts, TRUE);
+	toState(PTP_INITIALIZING, &global, ptpClock);
+	if(global.statusLog.logEnabled)
+		writeStatusFile(ptpClock, &global, TRUE);
 
 
 	/* look, we have an event loop now... */
 	while(true) {
 	    cckPollData(getCckFdSet(), NULL);
 	    cckDispatchTimers();
-	    ptpRun(&rtOpts, ptpClock);
-	    checkSignals(&rtOpts, ptpClock);
+	    ptpRun(&global, ptpClock);
+	    checkSignals(&global, ptpClock);
 	    /* Configuration has changed */
-	    if(rtOpts.restartSubsystems > 0) {
-		restartSubsystems(&rtOpts, ptpClock);
+	    if(global.restartSubsystems > 0) {
+		restartSubsystems(&global, ptpClock);
 	    }
 	}
 

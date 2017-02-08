@@ -201,7 +201,7 @@ typedef struct PtpClock PtpClock;
 
 struct PtpClock {
 
-	RunTimeOpts *rtOpts;
+	GlobalConfig *global;
 
 	/* PTP datsets */
 	DefaultDS defaultDS; 			/* Default data set */

@@ -471,6 +471,14 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 
     ret = pcap_next_ex(myData->readerHandle, &pkt_header, &buf);
 
+    /* skipping n-- next messages */
+    if(self->_skipMessages) {
+	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): _skipMessages = %d, dropping message\n",
+		    self->name, self->_skipMessages);
+	self->_skipMessages--;
+	return 0;
+    }
+
     /* drain the buffer, but ignore what we received */
     if(self->config.discarding) {
 	return 0;

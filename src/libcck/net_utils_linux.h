@@ -58,7 +58,7 @@ struct ethtool_ts_info {
 
 #endif /* HAVE_DECL_ETHTOOL_GET_TS_INFO */
 
-#define BOND_SLAVES_MAX 10
+#define BOND_SLAVES_MAX 20
 
 typedef struct {
     char name[IFNAMSIZ + 1];
@@ -90,6 +90,7 @@ typedef struct {
 	struct ethtool_ts_info tsInfo;	/* physical device */
 	struct ethtool_ts_info logicalTsInfo; /* logical device */
 	bool hwTimestamping;
+	bool valid;
 	LinuxBondInfo bondInfo;
 	LinuxVlanInfo vlanInfo;
 } LinuxInterfaceInfo;
@@ -98,5 +99,7 @@ bool getEthtoolTsInfo(struct ethtool_ts_info *info, const char *ifName);
 void getLinuxBondInfo(LinuxBondInfo *info, const char *ifName);
 void getLinuxVlanInfo(LinuxVlanInfo *info, const char* ifName);
 void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifName);
+
+int monitorLinuxInterface(const char *ifName, LinuxInterfaceInfo *info, const bool quiet);
 
 #endif /* CCK_NET_UTILS_LINUX_H_ */

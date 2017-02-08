@@ -1045,7 +1045,6 @@ estimateFrequency(ClockDriver *driver, double tau) {
 			driver->_lastDelta.nanoseconds = 0;
 			setFrequencyEstimate(driver);
 			driver->stepTime(driver, &driver->refOffset, false);
-			sleep(1);
 			driver->setState(driver, CS_TRACKING);
 	}
 

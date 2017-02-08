@@ -154,343 +154,343 @@ static const ConfigTemplate configTemplates[] = {
 
 */
 
-/* Load all rtOpts defaults */
+/* Load all global defaults */
 void
-loadDefaultSettings( RunTimeOpts* rtOpts )
+loadDefaultSettings( GlobalConfig* global )
 {
 
 	/* Wipe the memory first to avoid unconsistent behaviour - no need to set Boolean to FALSE, int to 0 etc. */
-	memset(rtOpts, 0, sizeof(RunTimeOpts));
+	memset(global, 0, sizeof(GlobalConfig));
 
-	rtOpts->logAnnounceInterval = DEFAULT_ANNOUNCE_INTERVAL;
-	rtOpts->logSyncInterval = DEFAULT_SYNC_INTERVAL;
-	rtOpts->logMinPdelayReqInterval = DEFAULT_PDELAYREQ_INTERVAL;
-	rtOpts->clockQuality.clockAccuracy = DEFAULT_CLOCK_ACCURACY;
-	rtOpts->clockQuality.clockClass = DEFAULT_CLOCK_CLASS;
-	rtOpts->clockQuality.offsetScaledLogVariance = DEFAULT_CLOCK_VARIANCE;
-	rtOpts->priority1 = DEFAULT_PRIORITY1;
-	rtOpts->priority2 = DEFAULT_PRIORITY2;
-	rtOpts->domainNumber = DEFAULT_DOMAIN_NUMBER;
-	rtOpts->portNumber = NUMBER_PORTS;
+	global->logAnnounceInterval = DEFAULT_ANNOUNCE_INTERVAL;
+	global->logSyncInterval = DEFAULT_SYNC_INTERVAL;
+	global->logMinPdelayReqInterval = DEFAULT_PDELAYREQ_INTERVAL;
+	global->clockQuality.clockAccuracy = DEFAULT_CLOCK_ACCURACY;
+	global->clockQuality.clockClass = DEFAULT_CLOCK_CLASS;
+	global->clockQuality.offsetScaledLogVariance = DEFAULT_CLOCK_VARIANCE;
+	global->priority1 = DEFAULT_PRIORITY1;
+	global->priority2 = DEFAULT_PRIORITY2;
+	global->domainNumber = DEFAULT_DOMAIN_NUMBER;
+	global->portNumber = NUMBER_PORTS;
 
-	rtOpts->anyDomain = FALSE;
+	global->anyDomain = FALSE;
 
-	rtOpts->networkProtocol = TT_FAMILY_IPV4;
+	global->networkProtocol = TT_FAMILY_IPV4;
 
 	/* timePropertiesDS */
-	rtOpts->timeProperties.currentUtcOffsetValid = DEFAULT_UTC_VALID;
-	rtOpts->timeProperties.currentUtcOffset = DEFAULT_UTC_OFFSET;
-	rtOpts->timeProperties.timeSource = INTERNAL_OSCILLATOR;
-	rtOpts->timeProperties.timeTraceable = FALSE;
-	rtOpts->timeProperties.frequencyTraceable = FALSE;
-	rtOpts->timeProperties.ptpTimescale = TRUE;
+	global->timeProperties.currentUtcOffsetValid = DEFAULT_UTC_VALID;
+	global->timeProperties.currentUtcOffset = DEFAULT_UTC_OFFSET;
+	global->timeProperties.timeSource = INTERNAL_OSCILLATOR;
+	global->timeProperties.timeTraceable = FALSE;
+	global->timeProperties.frequencyTraceable = FALSE;
+	global->timeProperties.ptpTimescale = TRUE;
 
-	rtOpts->transportMode = TMODE_MC;
-	rtOpts->dot1AS = FALSE;
-	rtOpts->bindToInterface = FALSE;
+	global->transportMode = TMODE_MC;
+	global->dot1AS = FALSE;
+	global->bindToInterface = FALSE;
 
-	rtOpts->disableUdpChecksums = TRUE;
+	global->disableUdpChecksums = TRUE;
 
-	rtOpts->unicastNegotiation = FALSE;
-	rtOpts->unicastNegotiationListening = FALSE;
-	rtOpts->disableBMCA = FALSE;
-	rtOpts->unicastGrantDuration = 300;
-	rtOpts->unicastAcceptAny = FALSE;
-	rtOpts->unicastPortMask = 0;
+	global->unicastNegotiation = FALSE;
+	global->unicastNegotiationListening = FALSE;
+	global->disableBMCA = FALSE;
+	global->unicastGrantDuration = 300;
+	global->unicastAcceptAny = FALSE;
+	global->unicastPortMask = 0;
 
-	rtOpts->noAdjust = NO_ADJUST;  // false
-	rtOpts->logStatistics = TRUE;
-	rtOpts->statisticsTimestamp = TIMESTAMP_DATETIME;
+	global->noAdjust = NO_ADJUST;  // false
+	global->logStatistics = TRUE;
+	global->statisticsTimestamp = TIMESTAMP_DATETIME;
 
-	rtOpts->periodicUpdates = FALSE; /* periodically log a status update */
+	global->periodicUpdates = FALSE; /* periodically log a status update */
 
 	/* Deep display of all packets seen by the daemon */
-	rtOpts->displayPackets = FALSE;
+	global->displayPackets = FALSE;
 
-	rtOpts->s = DEFAULT_DELAY_S;
-	rtOpts->inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
-	rtOpts->outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
-	rtOpts->fmrCapacity = DEFAULT_MAX_FOREIGN_RECORDS;
-	rtOpts->nonDaemon = FALSE;
+	global->s = DEFAULT_DELAY_S;
+	global->inboundLatency.nanoseconds = DEFAULT_INBOUND_LATENCY;
+	global->outboundLatency.nanoseconds = DEFAULT_OUTBOUND_LATENCY;
+	global->fmrCapacity = DEFAULT_MAX_FOREIGN_RECORDS;
+	global->nonDaemon = FALSE;
 
 	/*
 	 * defaults for new options
 	 */
-	rtOpts->ignore_delayreq_interval_master = FALSE;
-	rtOpts->refreshMulticast = TRUE;
-	rtOpts->useSysLog       = FALSE;
-	rtOpts->announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
+	global->ignore_delayreq_interval_master = FALSE;
+	global->refreshMulticast = TRUE;
+	global->useSysLog       = FALSE;
+	global->announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
 #ifdef RUNTIME_DEBUG
-	rtOpts->debug_level = LOG_INFO;			/* by default debug messages as disabled, but INFO messages and below are printed */
+	global->debug_level = LOG_INFO;			/* by default debug messages as disabled, but INFO messages and below are printed */
 #endif
-	rtOpts->ttl = 64;
-	rtOpts->ipv6Scope = IPV6_SCOPE_GLOBAL;
+	global->ttl = 64;
+	global->ipv6Scope = IPV6_SCOPE_GLOBAL;
 
-	rtOpts->delayMechanism   = DEFAULT_DELAY_MECHANISM;
-	rtOpts->noResetClock     = DEFAULT_NO_RESET_CLOCK;
-	rtOpts->portDisabled	 = FALSE;
-	rtOpts->stepOnce	 = FALSE;
-	rtOpts->stepForce	 = FALSE;
+	global->delayMechanism   = DEFAULT_DELAY_MECHANISM;
+	global->noResetClock     = DEFAULT_NO_RESET_CLOCK;
+	global->portDisabled	 = FALSE;
+	global->stepOnce	 = FALSE;
+	global->stepForce	 = FALSE;
 #ifdef HAVE_LINUX_RTC_H
-	rtOpts->setRtc		 = FALSE;
+	global->setRtc		 = FALSE;
 #endif /* HAVE_LINUX_RTC_H */
 
-	rtOpts->clearCounters = FALSE;
-	rtOpts->statisticsLogInterval = 0;
+	global->clearCounters = FALSE;
+	global->statisticsLogInterval = 0;
 
-	rtOpts->initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
-	rtOpts->logMinDelayReqInterval = DEFAULT_DELAYREQ_INTERVAL;
-	rtOpts->autoDelayReqInterval = TRUE;
-	rtOpts->masterRefreshInterval = 60;
+	global->initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
+	global->logMinDelayReqInterval = DEFAULT_DELAYREQ_INTERVAL;
+	global->autoDelayReqInterval = TRUE;
+	global->masterRefreshInterval = 60;
 
 	/* maximum values for unicast negotiation */
-    	rtOpts->logMaxPdelayReqInterval = 5;
-	rtOpts->logMaxDelayReqInterval = 5;
-	rtOpts->logMaxSyncInterval = 5;
-	rtOpts->logMaxAnnounceInterval = 5;
+    	global->logMaxPdelayReqInterval = 5;
+	global->logMaxDelayReqInterval = 5;
+	global->logMaxSyncInterval = 5;
+	global->logMaxAnnounceInterval = 5;
 
-	strncpy(rtOpts->lockDirectory, DEFAULT_LOCKDIR, PATH_MAX);
-	strncpy(rtOpts->driftFile, DEFAULT_DRIFTFILE, PATH_MAX);
-	strncpy(rtOpts->frequencyDir, "/etc", PATH_MAX);
-/*	strncpy(rtOpts->lockFile, DEFAULT_LOCKFILE, PATH_MAX); */
-	rtOpts->autoLockFile = FALSE;
-	rtOpts->snmpEnabled = FALSE;
-	rtOpts->snmpTrapsEnabled = FALSE;
-	rtOpts->alarmsEnabled = FALSE;
-	rtOpts->alarmInitialDelay = 0;
-	rtOpts->alarmMinAge = 30;
+	strncpy(global->lockDirectory, DEFAULT_LOCKDIR, PATH_MAX);
+	strncpy(global->driftFile, DEFAULT_DRIFTFILE, PATH_MAX);
+	strncpy(global->frequencyDir, "/etc", PATH_MAX);
+/*	strncpy(global->lockFile, DEFAULT_LOCKFILE, PATH_MAX); */
+	global->autoLockFile = FALSE;
+	global->snmpEnabled = FALSE;
+	global->snmpTrapsEnabled = FALSE;
+	global->alarmsEnabled = FALSE;
+	global->alarmInitialDelay = 0;
+	global->alarmMinAge = 30;
 	/* This will only be used if the "none" preset is configured */
 #ifndef PTPD_SLAVE_ONLY
-	rtOpts->slaveOnly = FALSE;
+	global->slaveOnly = FALSE;
 #else
-	rtOpts->slaveOnly = TRUE;
+	global->slaveOnly = TRUE;
 #endif /* PTPD_SLAVE_ONLY */
 	/* Otherwise default to slave only via the preset */
-	rtOpts->selectedPreset = PTP_PRESET_SLAVEONLY;
-	rtOpts->pidAsClockId = FALSE;
+	global->selectedPreset = PTP_PRESET_SLAVEONLY;
+	global->pidAsClockId = FALSE;
 
-	strncpy(rtOpts->portDescription,"ptpd", sizeof(rtOpts->portDescription));
+	strncpy(global->portDescription,"ptpd", sizeof(global->portDescription));
 
 	/* highest possible */
-	rtOpts->logLevel = LOG_ALL;
+	global->logLevel = LOG_ALL;
 
 	/* ADJ_FREQ_MAX by default */
-	rtOpts->servoMaxPpb = ADJ_FREQ_MAX / 1000;
-	rtOpts->servoMaxPpb_hw = 2000000 / 1000;
+	global->servoMaxPpb = ADJ_FREQ_MAX / 1000;
+	global->servoMaxPpb_hw = 2000000 / 1000;
 	/* kP and kI are scaled to 10000 and are gains now - values same as originally */
-	rtOpts->servoKP = 0.1;
-	rtOpts->servoKI = 0.001;
+	global->servoKP = 0.1;
+	global->servoKI = 0.001;
 
-	rtOpts->servoKI_hw = 0.3;
-	rtOpts->servoKP_hw = 0.7;
+	global->servoKI_hw = 0.3;
+	global->servoKP_hw = 0.7;
 
-	rtOpts->stableAdev = 200;
-	rtOpts->stableAdev_hw = 50;
+	global->stableAdev = 200;
+	global->stableAdev_hw = 50;
 
-	rtOpts->unstableAdev = 2000;
-	rtOpts->unstableAdev_hw = 500;
+	global->unstableAdev = 2000;
+	global->unstableAdev_hw = 500;
 
-	rtOpts->lockedAge = 60;
-	rtOpts->lockedAge_hw = 180;
+	global->lockedAge = 60;
+	global->lockedAge_hw = 180;
 
-	rtOpts->holdoverAge = 600;
-	rtOpts->holdoverAge_hw = 1800;
+	global->holdoverAge = 600;
+	global->holdoverAge_hw = 1800;
 
-	rtOpts->adevPeriod = 10;
+	global->adevPeriod = 10;
 
-	rtOpts->negativeStep = FALSE;
-	rtOpts->negativeStep_hw = FALSE;
+	global->negativeStep = FALSE;
+	global->negativeStep_hw = FALSE;
 
-	rtOpts->servoDtMethod = DT_CONSTANT;
+	global->servoDtMethod = DT_CONSTANT;
 
-	rtOpts->storeToFile = TRUE;
+	global->storeToFile = TRUE;
 
-	rtOpts->clockUpdateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
-	rtOpts->clockSyncRate = CLOCKDRIVER_SYNC_RATE;
-	rtOpts->clockFailureDelay = 10;
-	rtOpts->clockStrictSync = TRUE;
-	rtOpts->clockMinStep = 500;
-	rtOpts->clockCalibrationTime = 10;
+	global->clockUpdateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
+	global->clockSyncRate = CLOCKDRIVER_SYNC_RATE;
+	global->clockFailureDelay = 10;
+	global->clockStrictSync = TRUE;
+	global->clockMinStep = 500;
+	global->clockCalibrationTime = 10;
 
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
-	rtOpts->servoMaxdT = 5.0;
+	global->servoMaxdT = 5.0;
 
 	/* inter-clock sync filter options */
 
-	rtOpts->clockStatFilterEnable = TRUE;
-	rtOpts->clockStatFilterWindowSize = 0; /* this will revert to clock sync rate */
-	rtOpts->clockStatFilterWindowType = WINDOW_SLIDING;
-	rtOpts->clockStatFilterType = FILTER_MEDIAN;
+	global->clockStatFilterEnable = TRUE;
+	global->clockStatFilterWindowSize = 0; /* this will revert to clock sync rate */
+	global->clockStatFilterWindowType = WINDOW_SLIDING;
+	global->clockStatFilterType = FILTER_MEDIAN;
 
-	rtOpts->clockOutlierFilterEnable = FALSE;
-	rtOpts->clockOutlierFilterWindowSize = 200;
-	rtOpts->clockOutlierFilterDelay = 100;
-	rtOpts->clockOutlierFilterCutoff = 5.0;
-	rtOpts->clockOutlierFilterBlockTimeout = 15; /* maximum filter blocking time before it is reset */
+	global->clockOutlierFilterEnable = FALSE;
+	global->clockOutlierFilterWindowSize = 200;
+	global->clockOutlierFilterDelay = 100;
+	global->clockOutlierFilterCutoff = 5.0;
+	global->clockOutlierFilterBlockTimeout = 15; /* maximum filter blocking time before it is reset */
 
 	/* disabled by default */
-	rtOpts->announceTimeoutGracePeriod = 0;
+	global->announceTimeoutGracePeriod = 0;
 
 	/* currentUtcOffsetValid compatibility flags */
-	rtOpts->alwaysRespectUtcOffset = TRUE;
-	rtOpts->preferUtcValid = FALSE;
-	rtOpts->requireUtcValid = FALSE;
+	global->alwaysRespectUtcOffset = TRUE;
+	global->preferUtcValid = FALSE;
+	global->requireUtcValid = FALSE;
 
 	/* Try 46 for expedited forwarding */
-	rtOpts->dscpValue = 0;
+	global->dscpValue = 0;
 
 #if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined (__QNXNTO__)
-	rtOpts-> cpuNumber = -1;
+	global-> cpuNumber = -1;
 #endif /* (linux && HAVE_SCHED_H) || HAVE_SYS_CPUSET_H*/
 
-	rtOpts->oFilterMSConfig.enabled = FALSE;
-	rtOpts->oFilterMSConfig.discard = TRUE;
-	rtOpts->oFilterMSConfig.autoTune = TRUE;
-	rtOpts->oFilterMSConfig.stepDelay = FALSE;
-	rtOpts->oFilterMSConfig.alwaysFilter = FALSE;
-	rtOpts->oFilterMSConfig.stepThreshold = 1000000;
-	rtOpts->oFilterMSConfig.stepLevel = 500000;
-	rtOpts->oFilterMSConfig.capacity = 20;
-	rtOpts->oFilterMSConfig.threshold = 2.0;
-	rtOpts->oFilterMSConfig.weight = 1;
-	rtOpts->oFilterMSConfig.minPercent = 20;
-	rtOpts->oFilterMSConfig.maxPercent = 95;
-	rtOpts->oFilterMSConfig.thresholdStep = 0.1;
-	rtOpts->oFilterMSConfig.minThreshold = 1.5;
-	rtOpts->oFilterMSConfig.maxThreshold = 5.0;
-	rtOpts->oFilterMSConfig.delayCredit = 200;
-	rtOpts->oFilterMSConfig.creditIncrement = 10;
-	rtOpts->oFilterMSConfig.maxDelay = 1500;
+	global->oFilterMSConfig.enabled = FALSE;
+	global->oFilterMSConfig.discard = TRUE;
+	global->oFilterMSConfig.autoTune = TRUE;
+	global->oFilterMSConfig.stepDelay = FALSE;
+	global->oFilterMSConfig.alwaysFilter = FALSE;
+	global->oFilterMSConfig.stepThreshold = 1000000;
+	global->oFilterMSConfig.stepLevel = 500000;
+	global->oFilterMSConfig.capacity = 20;
+	global->oFilterMSConfig.threshold = 2.0;
+	global->oFilterMSConfig.weight = 1;
+	global->oFilterMSConfig.minPercent = 20;
+	global->oFilterMSConfig.maxPercent = 95;
+	global->oFilterMSConfig.thresholdStep = 0.1;
+	global->oFilterMSConfig.minThreshold = 1.5;
+	global->oFilterMSConfig.maxThreshold = 5.0;
+	global->oFilterMSConfig.delayCredit = 200;
+	global->oFilterMSConfig.creditIncrement = 10;
+	global->oFilterMSConfig.maxDelay = 1500;
 
-	rtOpts->oFilterSMConfig.enabled = FALSE;
-	rtOpts->oFilterSMConfig.discard = TRUE;
-	rtOpts->oFilterSMConfig.autoTune = TRUE;
-	rtOpts->oFilterSMConfig.stepDelay = FALSE;
-	rtOpts->oFilterSMConfig.alwaysFilter = FALSE;
-	rtOpts->oFilterSMConfig.stepThreshold = 1000000;
-	rtOpts->oFilterSMConfig.stepLevel = 500000;
-	rtOpts->oFilterSMConfig.capacity = 20;
-	rtOpts->oFilterSMConfig.threshold = 2.0;
-	rtOpts->oFilterSMConfig.weight = 1;
-	rtOpts->oFilterSMConfig.minPercent = 20;
-	rtOpts->oFilterSMConfig.maxPercent = 95;
-	rtOpts->oFilterSMConfig.thresholdStep = 0.1;
-	rtOpts->oFilterSMConfig.minThreshold = 1.5;
-	rtOpts->oFilterSMConfig.maxThreshold = 5.0;
-	rtOpts->oFilterSMConfig.delayCredit = 200;
-	rtOpts->oFilterSMConfig.creditIncrement = 10;
-	rtOpts->oFilterSMConfig.maxDelay = 1500;
+	global->oFilterSMConfig.enabled = FALSE;
+	global->oFilterSMConfig.discard = TRUE;
+	global->oFilterSMConfig.autoTune = TRUE;
+	global->oFilterSMConfig.stepDelay = FALSE;
+	global->oFilterSMConfig.alwaysFilter = FALSE;
+	global->oFilterSMConfig.stepThreshold = 1000000;
+	global->oFilterSMConfig.stepLevel = 500000;
+	global->oFilterSMConfig.capacity = 20;
+	global->oFilterSMConfig.threshold = 2.0;
+	global->oFilterSMConfig.weight = 1;
+	global->oFilterSMConfig.minPercent = 20;
+	global->oFilterSMConfig.maxPercent = 95;
+	global->oFilterSMConfig.thresholdStep = 0.1;
+	global->oFilterSMConfig.minThreshold = 1.5;
+	global->oFilterSMConfig.maxThreshold = 5.0;
+	global->oFilterSMConfig.delayCredit = 200;
+	global->oFilterSMConfig.creditIncrement = 10;
+	global->oFilterSMConfig.maxDelay = 1500;
 
-	rtOpts->filterMSOpts.enabled = FALSE;
-	rtOpts->filterMSOpts.filterType = FILTER_MEDIAN;
-	rtOpts->filterMSOpts.windowSize = 5;
-	rtOpts->filterMSOpts.windowType = WINDOW_SLIDING;
-	rtOpts->filterMSOpts.samplingInterval = 0;
+	global->filterMSOpts.enabled = FALSE;
+	global->filterMSOpts.filterType = FILTER_MEDIAN;
+	global->filterMSOpts.windowSize = 5;
+	global->filterMSOpts.windowType = WINDOW_SLIDING;
+	global->filterMSOpts.samplingInterval = 0;
 
-	rtOpts->filterSMOpts.enabled = FALSE;
-	rtOpts->filterSMOpts.filterType = FILTER_MEDIAN;
-	rtOpts->filterSMOpts.windowSize = 5;
-	rtOpts->filterSMOpts.windowType = WINDOW_SLIDING;
-	rtOpts->filterSMOpts.samplingInterval = 0;
+	global->filterSMOpts.enabled = FALSE;
+	global->filterSMOpts.filterType = FILTER_MEDIAN;
+	global->filterSMOpts.windowSize = 5;
+	global->filterSMOpts.windowType = WINDOW_SLIDING;
+	global->filterSMOpts.samplingInterval = 0;
 
 	/* How often refresh statistics (seconds) */
-	rtOpts->statsUpdateInterval = 30;
+	global->statsUpdateInterval = 30;
 
 	/* How long to wait for one-way delay prefiltering */
-	rtOpts->calibrationDelay = 0;
+	global->calibrationDelay = 0;
 	/* if set to TRUE and maxDelay is defined, only check against threshold if servo is stable */
-	rtOpts->maxDelayStableOnly = FALSE;
+	global->maxDelayStableOnly = FALSE;
 	/* if set to non-zero, reset slave if more than this amount of consecutive delay measurements was above maxDelay */
-	rtOpts->maxDelayMaxRejected = 0;
+	global->maxDelayMaxRejected = 0;
 
 	/* status file options */
-	rtOpts->statusFileUpdateInterval = 1;
+	global->statusFileUpdateInterval = 1;
 
-	rtOpts->ofmAlarmThreshold = 0;
+	global->ofmAlarmThreshold = 0;
 
 	/* panic mode options */
-	rtOpts->enablePanicMode = FALSE;
-	rtOpts->panicModeDuration = 30;
-	rtOpts->panicModeExitThreshold = 0;
+	global->enablePanicMode = FALSE;
+	global->panicModeDuration = 30;
+	global->panicModeExitThreshold = 0;
 
-	rtOpts->faultTimeout = DEFAULT_FAULT_TIMEOUT;
+	global->faultTimeout = DEFAULT_FAULT_TIMEOUT;
 
-	rtOpts->panicModeReleaseClock = FALSE;
+	global->panicModeReleaseClock = FALSE;
 
-	rtOpts->ntpOptions.enableEngine = FALSE;
-	rtOpts->ntpOptions.enableControl = FALSE;
-	rtOpts->ntpOptions.enableFailover = FALSE;
-	rtOpts->ntpOptions.failoverTimeout = 120;
-	rtOpts->ntpOptions.checkInterval = 15;
-	rtOpts->ntpOptions.keyId = 0;
-	strncpy(rtOpts->ntpOptions.hostAddress,"localhost",MAXHOSTNAMELEN);
+	global->ntpOptions.enableEngine = FALSE;
+	global->ntpOptions.enableControl = FALSE;
+	global->ntpOptions.enableFailover = FALSE;
+	global->ntpOptions.failoverTimeout = 120;
+	global->ntpOptions.checkInterval = 15;
+	global->ntpOptions.keyId = 0;
+	strncpy(global->ntpOptions.hostAddress,"localhost",MAXHOSTNAMELEN);
 
-	rtOpts->preferNTP = FALSE;
+	global->preferNTP = FALSE;
 
 
-	rtOpts->leapSecondPausePeriod = 5;
+	global->leapSecondPausePeriod = 5;
 	/* by default, announce the leap second 12 hours before the event:
 	 * Clause 9.4 paragraph 5 */
-	rtOpts->leapSecondNoticePeriod = 43200;
-	rtOpts->leapSecondHandling = LEAP_ACCEPT;
-	rtOpts->leapSecondSmearPeriod = 86400;
+	global->leapSecondNoticePeriod = 43200;
+	global->leapSecondHandling = LEAP_ACCEPT;
+	global->leapSecondSmearPeriod = 86400;
 
 /* timing domain */
-	rtOpts->idleTimeout = 120; /* idle timeout */
-	rtOpts->electionDelay = 15; /* anti-flapping delay */
+	global->idleTimeout = 120; /* idle timeout */
+	global->electionDelay = 15; /* anti-flapping delay */
 
 /* Log file settings */
 
-	rtOpts->statisticsLog.logID = "statistics";
-	rtOpts->statisticsLog.openMode = "a+";
-	rtOpts->statisticsLog.logFP = NULL;
-	rtOpts->statisticsLog.truncateOnReopen = FALSE;
-	rtOpts->statisticsLog.unlinkOnClose = FALSE;
-	rtOpts->statisticsLog.maxSize = 0;
+	global->statisticsLog.logID = "statistics";
+	global->statisticsLog.openMode = "a+";
+	global->statisticsLog.logFP = NULL;
+	global->statisticsLog.truncateOnReopen = FALSE;
+	global->statisticsLog.unlinkOnClose = FALSE;
+	global->statisticsLog.maxSize = 0;
 
-	rtOpts->recordLog.logID = "record";
-	rtOpts->recordLog.openMode = "a+";
-	rtOpts->recordLog.logFP = NULL;
-	rtOpts->recordLog.truncateOnReopen = FALSE;
-	rtOpts->recordLog.unlinkOnClose = FALSE;
-	rtOpts->recordLog.maxSize = 0;
+	global->recordLog.logID = "record";
+	global->recordLog.openMode = "a+";
+	global->recordLog.logFP = NULL;
+	global->recordLog.truncateOnReopen = FALSE;
+	global->recordLog.unlinkOnClose = FALSE;
+	global->recordLog.maxSize = 0;
 
-	rtOpts->eventLog.logID = "log";
-	rtOpts->eventLog.openMode = "a+";
-	rtOpts->eventLog.logFP = NULL;
-	rtOpts->eventLog.truncateOnReopen = FALSE;
-	rtOpts->eventLog.unlinkOnClose = FALSE;
-	rtOpts->eventLog.maxSize = 0;
+	global->eventLog.logID = "log";
+	global->eventLog.openMode = "a+";
+	global->eventLog.logFP = NULL;
+	global->eventLog.truncateOnReopen = FALSE;
+	global->eventLog.unlinkOnClose = FALSE;
+	global->eventLog.maxSize = 0;
 
-	rtOpts->statusLog.logID = "status";
-	rtOpts->statusLog.openMode = "w";
-	strncpy(rtOpts->statusLog.logPath, DEFAULT_STATUSFILE, PATH_MAX);
-	rtOpts->statusLog.logFP = NULL;
-	rtOpts->statusLog.truncateOnReopen = FALSE;
-	rtOpts->statusLog.unlinkOnClose = TRUE;
+	global->statusLog.logID = "status";
+	global->statusLog.openMode = "w";
+	strncpy(global->statusLog.logPath, DEFAULT_STATUSFILE, PATH_MAX);
+	global->statusLog.logFP = NULL;
+	global->statusLog.truncateOnReopen = FALSE;
+	global->statusLog.unlinkOnClose = TRUE;
 
-	rtOpts->deduplicateLog = TRUE;
+	global->deduplicateLog = TRUE;
 
 /* Management message support settings */
-	rtOpts->managementEnabled = TRUE;
-	rtOpts->managementSetEnable = FALSE;
+	global->managementEnabled = TRUE;
+	global->managementSetEnable = FALSE;
 
 /* IP ACL settings */
 
-	rtOpts->timingAclEnabled = FALSE;
-	rtOpts->managementAclEnabled = FALSE;
-	rtOpts->timingAclOrder = CCK_ACL_DENY_PERMIT;
-	rtOpts->managementAclOrder = CCK_ACL_DENY_PERMIT;
+	global->timingAclEnabled = FALSE;
+	global->managementAclEnabled = FALSE;
+	global->timingAclOrder = CCK_ACL_DENY_PERMIT;
+	global->managementAclOrder = CCK_ACL_DENY_PERMIT;
 
 	// by default we don't check Sync message sequence continuity
-	rtOpts->syncSequenceChecking = FALSE;
-	rtOpts->clockUpdateTimeout = 0;
+	global->syncSequenceChecking = FALSE;
+	global->clockUpdateTimeout = 0;
 
-	rtOpts->hwTimestamping = TRUE;
+	global->hwTimestamping = TRUE;
 
-	rtOpts->ptpMonEnabled = FALSE;
-	rtOpts->ptpMonDomainNumber = rtOpts->domainNumber;
-	rtOpts->ptpMonAnyDomain = FALSE;
+	global->ptpMonEnabled = FALSE;
+	global->ptpMonDomainNumber = global->domainNumber;
+	global->ptpMonAnyDomain = FALSE;
 
 }
 
@@ -507,7 +507,7 @@ typedef struct {
 */
 
 PtpEnginePreset
-getPtpPreset(int presetNumber, RunTimeOpts* rtOpts)
+getPtpPreset(int presetNumber, GlobalConfig* global)
 {
 
 	PtpEnginePreset ret;
@@ -542,11 +542,11 @@ getPtpPreset(int presetNumber, RunTimeOpts* rtOpts)
 		break;
 	default:
 		ret.presetName = "none";
-		ret.slaveOnly = rtOpts->slaveOnly;
-		ret.noAdjust = rtOpts->noAdjust;
+		ret.slaveOnly = global->slaveOnly;
+		ret.noAdjust = global->noAdjust;
 		ret.clockClass.minValue = 0;
 		ret.clockClass.maxValue = 255;
-		ret.clockClass.defaultValue = rtOpts->clockQuality.clockClass;
+		ret.clockClass.defaultValue = global->clockQuality.clockClass;
 	}
 
 	return ret;

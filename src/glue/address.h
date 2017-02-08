@@ -1,4 +1,5 @@
-/* Copyright (c) 2016-2017 Wojciech Owczarek,
+/*-
+ * Copyright (c) 2016      Wojciech Owczarek
  *
  * All Rights Reserved
  *
@@ -25,31 +26,33 @@
  */
 
 /**
- * @file   libcck.h
- * @date   Sat Jan 9 16:14:10 2016
+ * @file   address.h
+ * @date   Thu Nov 24 23:19:00 2016
  *
- * @brief  libCCK initialisation and housekeeping declarations
+ * @brief  Address management wrappers between PTPd / lib1588 and libCCK
+ *
  *
  */
 
-#ifndef LIBCCK_H_
-#define LIBCCK_H_
+#ifndef _PTPD_CCK_GLUE_ADDRESS_H
+#define _PTPD_CCK_GLUE_ADDRESS_H
 
-#include <libcck/fd_set.h>
+#include <stdint.h>
 
-typedef struct {
+/* address management */
+int		myAddrStrLen(void *input);
+int		myAddrDataSize(void *input);
+char*		myAddrToString(char *buf, const int len, void *input);
+uint32_t	myAddrHash(void *addr, const int modulo);
+int		myAddrCompare(void *a, void *b);
+bool		myAddrIsEmpty(void *input);
+bool		myAddrIsMulticast(void *input);
+void		myAddrClear(void *input);
+void		myAddrCopy(void *dst, void *src);
+void*		myAddrDup(void *src);
+void		myAddrFree(void **input);
+void*		myAddrGetData(void *input);
+int		myAddrSize();
 
-    int clockSyncRate;
-    int netMonitorInterval;
-    int clockUpdateInterval;
-    int transportFaultTimeout;
+#endif /* _PTPD_CCK_GLUE_ADDRESS_H */
 
-} CckConfig;
-
-bool		cckInit(CckFdSet *set); /* initialise libCCK and housekeeping events */
-void		cckShutdown();		/* shutdown all libCCK components */
-CckConfig*	getCckConfig();		/* get global libCCK configuration handle */
-CckFdSet*	getCckFdSet();		/* get global FD set */
-const CckConfig *cckDefaults();		/* get libcck default configuration */
-
-#endif /* LIBCCK_H_ */

@@ -553,7 +553,6 @@ gameover:
 
 }
 
-
 bool
 probeLinuxTs(const char *path, const int family, const int caps) {
 

@@ -291,7 +291,7 @@ enum {
 static oid  ptp_oid[] = { PTPBASE_MIB_OID };
 
 static PtpClock *snmpPtpClock;
-static RunTimeOpts *snmpRtOpts;
+static GlobalConfig *snmpRtOpts;
 
 /* Helper functions to build header_*indexed_table() functions.  Those
    functions keep an internal state. They are not reentrant!
@@ -2129,7 +2129,7 @@ sendNotif(int eventType, PtpEventData *eventData) {
  * Initialisation of SNMP subsystem.
  */
 void
-snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
+snmpInit(GlobalConfig *global, PtpClock *ptpClock) {
 	netsnmp_enable_subagent();
 	snmp_disable_log();
 	snmp_enable_calllog();
@@ -2144,7 +2144,7 @@ snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 	/* Currently, ptpd only handles one clock. We put it in a
 	 * global variable for the need of our subsystem. */
 	snmpPtpClock = ptpClock;
-	snmpRtOpts = rtOpts;
+	snmpRtOpts = global;
 
 }
 

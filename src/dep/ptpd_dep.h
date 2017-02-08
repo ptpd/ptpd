@@ -330,7 +330,7 @@ Boolean prepareClockDrivers(PtpClock *ptpClock);
  * -Handle SNMP subsystem*/
  /**\{*/
 
-void snmpInit(RunTimeOpts *, PtpClock *);
+void snmpInit(GlobalConfig *, PtpClock *);
 void snmpShutdown();
 void snmpPrePoll(void *cfds, int *nfd, fd_set *fds, struct timeval *timeout, int *block);
 void snmpOnData(void *cfds, int *nfd, fd_set *fds, struct timeval *timeout);
@@ -347,13 +347,13 @@ void alarmHandler_snmp(AlarmEntry *alarm);
  /**\{*/
 
 void recalibrateClock(PtpClock *ptpClock, bool resetFilters);
-void initClock(const RunTimeOpts*,PtpClock*);
-void updatePeerDelay (IIRfilter*, const RunTimeOpts*,PtpClock*,TimeInternal*,Boolean);
-void updateDelay (IIRfilter*, const RunTimeOpts*, PtpClock*,TimeInternal*);
-void updateOffset(TimeInternal*,TimeInternal*, offset_from_master_filter*,const RunTimeOpts*,PtpClock*,TimeInternal*);
-void checkOffset(const RunTimeOpts*, PtpClock*);
-void updateClock(const RunTimeOpts*,PtpClock*);
-void stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force);
+void initClock(const GlobalConfig*,PtpClock*);
+void updatePeerDelay (IIRfilter*, const GlobalConfig*,PtpClock*,TimeInternal*,Boolean);
+void updateDelay (IIRfilter*, const GlobalConfig*, PtpClock*,TimeInternal*);
+void updateOffset(TimeInternal*,TimeInternal*, offset_from_master_filter*,const GlobalConfig*,PtpClock*,TimeInternal*);
+void checkOffset(const GlobalConfig*, PtpClock*);
+void updateClock(const GlobalConfig*,PtpClock*);
+void stepClock(const GlobalConfig * global, PtpClock * ptpClock, Boolean force);
 
 /** \}*/
 
@@ -361,12 +361,12 @@ void stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force);
  * -Handle with runtime options*/
  /**\{*/
 int setCpuAffinity(int cpu);
-PtpClock * ptpdStartup(int,char**,Integer16*,RunTimeOpts*);
+PtpClock * ptpdStartup(int,char**,Integer16*,GlobalConfig*);
 
 void ptpdShutdown(PtpClock * ptpClock);
-void checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock);
-void restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock);
-void applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock);
+void checkSignals(GlobalConfig * global, PtpClock * ptpClock);
+void restartSubsystems(GlobalConfig *global, PtpClock *ptpClock);
+void applyConfig(dictionary *baseConfig, GlobalConfig *global, PtpClock *ptpClock);
 
 void enable_runtime_debug(void );
 void disable_runtime_debug(void );
@@ -386,10 +386,10 @@ void logMessage(int priority, const char *format, ...);
 void updateLogSize(LogFileHandler* handler);
 Boolean maintainLogSize(LogFileHandler* handler);
 int restartLog(LogFileHandler* handler, Boolean quiet);
-void restartLogging(RunTimeOpts* rtOpts);
-void stopLogging(RunTimeOpts* rtOpts);
+void restartLogging(GlobalConfig* global);
+void stopLogging(GlobalConfig* global);
 void logStatistics(PtpClock *ptpClock);
-void periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock);
+void periodicUpdate(const GlobalConfig *global, PtpClock *ptpClock);
 void displayStatus(PtpClock *ptpClock, const char *prefixMessage);
 void displayPortIdentity(PortIdentity *port, const char *prefixMessage);
 int snprint_PortIdentity(char *s, int max_len, const PortIdentity *id);
@@ -398,7 +398,7 @@ double getRand(void);
 int lockFile(int fd);
 int checkLockStatus(int fd, short lockType, int *lockPid);
 int checkFileLockable(const char *fileName, int *lockPid);
-Boolean checkOtherLocks(RunTimeOpts *rtOpts);
+Boolean checkOtherLocks(GlobalConfig *global);
 
 void recordSync(UInteger16 sequenceId, TimeInternal * time);
 
@@ -421,11 +421,11 @@ Boolean getKernelUtcOffset(int *utc_offset);
 int parseLeapFile(char * path, LeapSecondInfo *info);
 
 void
-resetWarnings(const RunTimeOpts * rtOpts, PtpClock * ptpClock);
+resetWarnings(const GlobalConfig * global, PtpClock * ptpClock);
 
-void updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts);
+void updatePtpEngineStats (PtpClock* ptpClock, const GlobalConfig* global);
 
-void writeStatusFile(PtpClock *ptpClock, const RunTimeOpts *rtOpts, Boolean quiet);
+void writeStatusFile(PtpClock *ptpClock, const GlobalConfig *global, Boolean quiet);
 
 
 #endif /*PTPD_DEP_H_*/

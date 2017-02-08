@@ -54,19 +54,19 @@
 #include "../ptpd.h"
 
 void
-resetWarnings(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
+resetWarnings(const GlobalConfig * global, PtpClock * ptpClock)
 {
 	ptpClock->warnedUnicastCapacity = FALSE;
 }
 
 void
-initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
+initClock(const GlobalConfig * global, PtpClock * ptpClock)
 {
 	DBG("initClock\n");
 
 	/* If we've been suppressing ntpdc error messages, show them once again */
 	ptpClock->ntpControl.requestFailed = FALSE;
-	ptpClock->disabled = rtOpts->portDisabled;
+	ptpClock->disabled = global->portDisabled;
 
 	/* clean more original filter variables */
 	clearTime(&ptpClock->currentDS.offsetFromMaster);
@@ -82,14 +82,14 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	ptpClock->char_last_msg='I';
 
-	resetWarnings(rtOpts, ptpClock);
+	resetWarnings(global, ptpClock);
 
 	ptpClock->maxDelayRejected = 0;
 
 }
 
 void
-updateDelay(IIRfilter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
+updateDelay(IIRfilter * mpdIirFilter, const GlobalConfig * global, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
 	ClockDriver *cd = ptpClock->clockDriver;
@@ -121,9 +121,9 @@ updateDelay(IIRfilter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock * ptp
 	{
 
 		/* if maxDelayStableOnly configured, only check once servo is stable */
-		Boolean checkThreshold = rtOpts->maxDelayStableOnly ?
-		    (ptpClock->clockLocked && rtOpts->maxDelay) :
-		    rtOpts->maxDelay;
+		Boolean checkThreshold = global->maxDelayStableOnly ?
+		    (ptpClock->clockLocked && global->maxDelay) :
+		    global->maxDelay;
 
 		//perform basic checks, using local variables only
 		TimeInternal slave_to_master_delay;
@@ -136,7 +136,7 @@ updateDelay(IIRfilter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock * ptp
 		    ptpClock->offsetFirstUpdated) {
 
 			if ((slave_to_master_delay.nanoseconds < 0) &&
-			    (abs(slave_to_master_delay.nanoseconds) > rtOpts->maxDelay)) {
+			    (abs(slave_to_master_delay.nanoseconds) > global->maxDelay)) {
 				INFO("updateDelay aborted, "
 				     "delay (sec: %d ns: %d) is negative\n",
 				     slave_to_master_delay.seconds,
@@ -154,28 +154,28 @@ updateDelay(IIRfilter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock * ptp
 				INFO("updateDelay aborted, slave to master delay %d.%d greater than 1 second\n",
 				     slave_to_master_delay.seconds,
 				     slave_to_master_delay.nanoseconds);
-				if (rtOpts->displayPackets)
+				if (global->displayPackets)
 					msgDump(ptpClock);
 				goto finish;
 			}
 
-			if (slave_to_master_delay.nanoseconds > rtOpts->maxDelay) {
+			if (slave_to_master_delay.nanoseconds > global->maxDelay) {
 				ptpClock->counters.maxDelayDrops++;
 				DBG("updateDelay aborted, slave to master delay %d greater than "
 				     "administratively set maximum %d\n",
 				     slave_to_master_delay.nanoseconds,
-				     rtOpts->maxDelay);
-				if(rtOpts->maxDelayMaxRejected) {
+				     global->maxDelay);
+				if(global->maxDelayMaxRejected) {
                                     maxDelayHit = TRUE;
 				    /* if we blocked maxDelayMaxRejected samples, reset the slave to unblock the filter */
-				    if(++ptpClock->maxDelayRejected > rtOpts->maxDelayMaxRejected) {
+				    if(++ptpClock->maxDelayRejected > global->maxDelayMaxRejected) {
 					    WARNING("%d consecutive measurements above %d threshold - resetting slave\n",
-							rtOpts->maxDelayMaxRejected, slave_to_master_delay.nanoseconds);
-					    toState(PTP_LISTENING, rtOpts, ptpClock);
+							global->maxDelayMaxRejected, slave_to_master_delay.nanoseconds);
+					    toState(PTP_LISTENING, global, ptpClock);
 				    }
 				}
 
-				if (rtOpts->displayPackets)
+				if (global->displayPackets)
 					msgDump(ptpClock);
 				goto finish;
 			} else {
@@ -221,7 +221,7 @@ updateDelay(IIRfilter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock * ptp
 #endif
 
 	/* run the delayMS stats filter */
-	if(rtOpts->filterSMOpts.enabled) {
+	if(global->filterSMOpts.enabled) {
 	    if(!feedDoubleMovingStatFilter(ptpClock->filterSM, timeInternalToDouble(&ptpClock->rawDelaySM))) {
 		    return;
 	    }
@@ -233,7 +233,7 @@ updateDelay(IIRfilter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock * ptp
 	    return;
 	}
 	/* run the delaySM outlier filter */
-	if(!rtOpts->noAdjust && ptpClock->oFilterSM.config.enabled && (ptpClock->oFilterSM.config.alwaysFilter || !cd->servo.runningMaxOutput) ) {
+	if(!global->noAdjust && ptpClock->oFilterSM.config.enabled && (ptpClock->oFilterSM.config.alwaysFilter || !cd->servo.runningMaxOutput) ) {
 		if(ptpClock->oFilterSM.filter(&ptpClock->oFilterSM, timeInternalToDouble(&ptpClock->rawDelaySM))) {
 			ptpClock->delaySM = doubleToTimeInternal(ptpClock->oFilterSM.output);
 //INFO("SM: NOUTL %.09f\n", timeInternalToDouble(&ptpClock->rawDelaySM));
@@ -279,7 +279,7 @@ updateDelay(IIRfilter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock * ptp
 		}
 
 		/* avoid overflowing filter */
-		s = rtOpts->s;
+		s = global->s;
 		while (abs(mpdIirFilter->y) >> (31 - s))
 			--s;
 
@@ -335,7 +335,7 @@ DBG("UpdateDelay: Max delay hit: %d\n", maxDelayHit);
 }
 
 void
-updatePeerDelay(IIRfilter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField, Boolean twoStep)
+updatePeerDelay(IIRfilter * mpdIirFilter, const GlobalConfig * global, PtpClock * ptpClock, TimeInternal * correctionField, Boolean twoStep)
 {
 	Integer16 s;
 
@@ -389,7 +389,7 @@ updatePeerDelay(IIRfilter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock *
 		return;
 	}
 	/* avoid overflowing filter */
-	s = rtOpts->s;
+	s = global->s;
 	while (abs(mpdIirFilter->y) >> (31 - s))
 		--s;
 
@@ -419,7 +419,7 @@ updatePeerDelay(IIRfilter * mpdIirFilter, const RunTimeOpts * rtOpts, PtpClock *
 
 void
 updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
-    offset_from_master_filter * ofm_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
+    offset_from_master_filter * ofm_filt, const GlobalConfig * global, PtpClock * ptpClock, TimeInternal * correctionField)
 {
 
 	ClockDriver *cd = ptpClock->clockDriver;
@@ -445,7 +445,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	/* prepare time constant for servo*/
 	if(ptpClock->portDS.logSyncInterval == UNICAST_MESSAGEINTERVAL) {
 		ptpClock->dT = 1;
-		if(rtOpts->unicastNegotiation && ptpClock->parentGrants && ptpClock->parentGrants->grantData[SYNC].granted) {
+		if(global->unicastNegotiation && ptpClock->parentGrants && ptpClock->parentGrants->grantData[SYNC].granted) {
 			ptpClock->dT = pow(2,ptpClock->parentGrants->grantData[SYNC].logInterval);
 		}
 
@@ -454,8 +454,8 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	}
 
 	/* Ensure that servo time constant is corrected to factor in filter delay */
-	if(rtOpts->filterMSOpts.enabled && rtOpts->filterMSOpts.windowType==WINDOW_INTERVAL) {
-	    cd->servo.delayFactor = rtOpts->filterMSOpts.windowSize;
+	if(global->filterMSOpts.enabled && global->filterMSOpts.windowType==WINDOW_INTERVAL) {
+	    cd->servo.delayFactor = global->filterMSOpts.windowSize;
 	} else {
 	    cd->servo.delayFactor = 1.0;
 	}
@@ -467,9 +467,9 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	DBGV("==> updateOffset\n");
 
 	/* if maxDelayStableOnly configured, only check once servo is stable */
-	Boolean checkThreshold = (rtOpts->maxDelayStableOnly ?
-	    (ptpClock->clockLocked && rtOpts->maxDelay) :
-	    (rtOpts->maxDelay));
+	Boolean checkThreshold = (global->maxDelayStableOnly ?
+	    (ptpClock->clockLocked && global->maxDelay) :
+	    (global->maxDelay));
 
 	//perform basic checks, using only local variables
 	TimeInternal master_to_slave_delay;
@@ -485,24 +485,24 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 			return;
 		}
 
-		if (abs(master_to_slave_delay.nanoseconds) > rtOpts->maxDelay) {
+		if (abs(master_to_slave_delay.nanoseconds) > global->maxDelay) {
 			ptpClock->counters.maxDelayDrops++;
 			DBG("updateOffset aborted, master to slave delay %d greater than "
 			     "administratively set maximum %d\n",
 			     master_to_slave_delay.nanoseconds,
-			     rtOpts->maxDelay);
-				if(rtOpts->maxDelayMaxRejected) {
+			     global->maxDelay);
+				if(global->maxDelayMaxRejected) {
 				    maxDelayHit = TRUE;
 				    /* if we blocked maxDelayMaxRejected samples, reset the slave to unblock the filter */
-				    if(++ptpClock->maxDelayRejected > rtOpts->maxDelayMaxRejected) {
+				    if(++ptpClock->maxDelayRejected > global->maxDelayMaxRejected) {
 					    WARNING("%d consecutive delay measurements above %d threshold - resetting slave\n",
-							rtOpts->maxDelayMaxRejected, master_to_slave_delay.nanoseconds);
-					    toState(PTP_LISTENING, rtOpts, ptpClock);
+							global->maxDelayMaxRejected, master_to_slave_delay.nanoseconds);
+					    toState(PTP_LISTENING, global, ptpClock);
 				    }
 			    } else {
 				ptpClock->maxDelayRejected=0;
 			    }
-				if (rtOpts->displayPackets)
+				if (global->displayPackets)
 					msgDump(ptpClock);
 			return;
 		}
@@ -528,7 +528,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 
 	/* run the delayMS stats filter */
-	if(rtOpts->filterMSOpts.enabled) {
+	if(global->filterMSOpts.enabled) {
 	    /* FALSE if filter wants to skip the update */
 	    if(!feedDoubleMovingStatFilter(ptpClock->filterMS, timeInternalToDouble(&ptpClock->rawDelayMS))) {
 		goto finish;
@@ -537,7 +537,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	}
 
 	/* run the delayMS outlier filter */
-	if(!rtOpts->noAdjust && ptpClock->oFilterMS.config.enabled && (ptpClock->oFilterMS.config.alwaysFilter || !cd->servo.runningMaxOutput)) {
+	if(!global->noAdjust && ptpClock->oFilterMS.config.enabled && (ptpClock->oFilterMS.config.alwaysFilter || !cd->servo.runningMaxOutput)) {
 		if(ptpClock->oFilterMS.filter(&ptpClock->oFilterMS, timeInternalToDouble(&ptpClock->rawDelayMS))) {
 			ptpClock->delayMS = doubleToTimeInternal(ptpClock->oFilterMS.output);
 //INFO("MS: NOUTL %.09f\n", timeInternalToDouble(&ptpClock->rawDelayMS));
@@ -577,9 +577,9 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 		goto finish;
 	} else {
 		SET_ALARM(ALRM_OFM_SECONDS, FALSE);
-		if(rtOpts->ofmAlarmThreshold) {
+		if(global->ofmAlarmThreshold) {
 		    if( abs(ptpClock->currentDS.offsetFromMaster.nanoseconds) 
-			> rtOpts->ofmAlarmThreshold) {
+			> global->ofmAlarmThreshold) {
 			SET_ALARM(ALRM_OFM_THRESHOLD, TRUE);
 		    } else {
 			SET_ALARM(ALRM_OFM_THRESHOLD, FALSE);
@@ -596,7 +596,7 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 
 	/* Apply the offset shift */
 	addTime(&ptpClock->currentDS.offsetFromMaster, &ptpClock->currentDS.offsetFromMaster,
-	&rtOpts->ofmCorrection);
+	&global->ofmCorrection);
 
 	DBGV("offset filter %d\n", ofm_filt->y);
 
@@ -651,12 +651,12 @@ finish:
 }
 
 void
-stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force)
+stepClock(const GlobalConfig * global, PtpClock * ptpClock, Boolean force)
 {
 
 	ClockDriver *cd = ptpClock->clockDriver;
 
-	if(rtOpts->noAdjust){
+	if(global->noAdjust){
 		WARNING("Could not step clock - clock adjustment disabled\n");
 		return;
 	}
@@ -680,7 +680,7 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force)
 
 	ptpClock->clockStatus.majorChange = TRUE;
 
-	initClock(rtOpts, ptpClock);
+	initClock(global, ptpClock);
 
 	if(ptpClock->defaultDS.clockQuality.clockClass > 127) {
 	    cd->restoreFrequency(cd);
@@ -691,7 +691,7 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock, Boolean force)
 }
 
 /* check if it's OK to update the clock, deal with panic mode, call for clock step */
-void checkOffset(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+void checkOffset(const GlobalConfig *global, PtpClock *ptpClock)
 {
 
 	/* unless offset OK */
@@ -703,7 +703,7 @@ void checkOffset(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		return;
 	}
 
-	if(rtOpts->noAdjust) {
+	if(global->noAdjust) {
 		DBGV("checkOffset: noAdjust\n");
 		/* in case if noAdjust has changed */
 		ptpClock->clockControl.available = FALSE;
@@ -719,12 +719,12 @@ void checkOffset(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	}
 
 	/* check if offset within allowed limit */
-	if (rtOpts->maxOffset && ((abs(ptpClock->currentDS.offsetFromMaster.nanoseconds) > abs(rtOpts->maxOffset)) ||
+	if (global->maxOffset && ((abs(ptpClock->currentDS.offsetFromMaster.nanoseconds) > abs(global->maxOffset)) ||
 		ptpClock->currentDS.offsetFromMaster.seconds)) {
 		INFO("Offset %d.%09d greater than "
 			 "administratively set maximum %d\n. Will not update clock",
 		ptpClock->currentDS.offsetFromMaster.seconds,
-		ptpClock->currentDS.offsetFromMaster.nanoseconds, rtOpts->maxOffset);
+		ptpClock->currentDS.offsetFromMaster.nanoseconds, global->maxOffset);
 		return;
 	}
 
@@ -740,12 +740,12 @@ void checkOffset(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 }
 
 void
-updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
+updateClock(const GlobalConfig * global, PtpClock * ptpClock)
 {
 
 	ClockDriver *cd = ptpClock->clockDriver;
 
-	if(rtOpts->noAdjust) {
+	if(global->noAdjust) {
 		ptpClock->clockControl.available = FALSE;
 		DBGV("updateClock: noAdjust - skipped clock update\n");
 		return;
@@ -760,7 +760,7 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	/* only run the servo if we are calibrted - if calibration delay configured */
 
-	if((!rtOpts->calibrationDelay) || ptpClock->isCalibrated) {
+	if((!global->calibrationDelay) || ptpClock->isCalibrated) {
 		/* SYNC ! */
 		/* NEGATIVE - ofm is offset from master, not offset to master. */
 		cd->syncClockExternal(cd, (CckTimestamp)negativeTime(&ptpClock->currentDS.offsetFromMaster), ptpClock->dT);
@@ -778,16 +778,16 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	ptpClock->clockControl.activity = TRUE;
 
 	/* Clock has been updated - or was eligible for an update - restart the timeout timer*/
-	if(rtOpts->clockUpdateTimeout > 0) {
+	if(global->clockUpdateTimeout > 0) {
 		DBG("Restarted clock update timeout timer\n");
-		tmrStart(ptpClock, CLOCK_UPDATE, rtOpts->clockUpdateTimeout);
+		tmrStart(ptpClock, CLOCK_UPDATE, global->clockUpdateTimeout);
 	}
 
 	ptpClock->pastmrStartup = TRUE;
 }
 
 void
-updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts)
+updatePtpEngineStats (PtpClock* ptpClock, const GlobalConfig* global)
 {
 
 	DBG("Refreshing slave engine stats counters\n");
@@ -850,11 +850,11 @@ recalibrateClock(PtpClock *ptpClock, bool resetFilters) {
 
     }
 
-    if(ptpClock->rtOpts->calibrationDelay) {
+    if(ptpClock->global->calibrationDelay) {
 	NOTIFY("Re-calibrating PTP: Waiting for %d seconds to pre-compute offsets\n",
-	    ptpClock->rtOpts->calibrationDelay);
+	    ptpClock->global->calibrationDelay);
 	ptpClock->isCalibrated = FALSE;
-	tmrStart(ptpClock, CALIBRATION_DELAY, ptpClock->rtOpts->calibrationDelay);
+	tmrStart(ptpClock, CALIBRATION_DELAY, ptpClock->global->calibrationDelay);
     }
 
 }

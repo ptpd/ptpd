@@ -272,7 +272,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     /* try enabling timestamping if we need it */
     if(self->config.timestamping) {
 	if(!initTimestamping_linuxts_common(self, &myData->tsConfig, &myData->lintInfo, myConfig->interface, false)) {
-	    CCK_ERROR(THIS_COMPONENT"tTransport_init(%s): Failed to initialise software timestamping!\n",
+	    CCK_ERROR(THIS_COMPONENT"tTransport_init(%s): Failed to initialise Linux timestamping!\n",
 		self->name);
 	    goto cleanup;
 	}
@@ -567,6 +567,14 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 		  self->tools->structSize);
 
     ret = recvmsg(self->myFd.fd, &msg, MSG_DONTWAIT | txFlags);
+
+    /* skipping n-- next messages */
+    if(self->_skipMessages) {
+	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): _skipMessages = %d, dropping message\n",
+		    self->name, self->_skipMessages);
+	self->_skipMessages--;
+	return 0;
+    }
 
     /* drain the socket, but ignore what we received */
     if(self->config.discarding) {

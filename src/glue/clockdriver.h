@@ -1,4 +1,5 @@
-/* Copyright (c) 2016-2017 Wojciech Owczarek,
+/*-
+ * Copyright (c) 2016      Wojciech Owczarek
  *
  * All Rights Reserved
  *
@@ -25,31 +26,31 @@
  */
 
 /**
- * @file   libcck.h
- * @date   Sat Jan 9 16:14:10 2016
+ * @file   clockdriver.h
+ * @date   Thu Nov 24 23:19:00 2016
  *
- * @brief  libCCK initialisation and housekeeping declarations
+ * @brief  Clock driver wrappers between PTPd / lib1588 and libCCK
+ *
  *
  */
 
-#ifndef LIBCCK_H_
-#define LIBCCK_H_
+#ifndef _PTPD_CCK_GLUE_CLOCKDRIVER_H
+#define _PTPD_CCK_GLUE_CLOCKDRIVER_H
 
-#include <libcck/fd_set.h>
+#include "../ptpd.h"
+#include "../globalconfig.h"
 
-typedef struct {
+#include <libcck/clockdriver.h>
 
-    int clockSyncRate;
-    int netMonitorInterval;
-    int clockUpdateInterval;
-    int transportFaultTimeout;
+void getSystemTime(TimeInternal *);
+void getPtpClockTime(TimeInternal *, PtpClock *);
+void myPtpClockUpdate(void *owner);
 
-} CckConfig;
+/* push clock driver configuration to a single clock driver */
+bool configureClockDriver(ClockDriver *driver, const void *configData);
+/* prepare all clock drivers */
+bool prepareClockDrivers(PtpClock *ptpClock);
 
-bool		cckInit(CckFdSet *set); /* initialise libCCK and housekeeping events */
-void		cckShutdown();		/* shutdown all libCCK components */
-CckConfig*	getCckConfig();		/* get global libCCK configuration handle */
-CckFdSet*	getCckFdSet();		/* get global FD set */
-const CckConfig *cckDefaults();		/* get libcck default configuration */
 
-#endif /* LIBCCK_H_ */
+#endif /* _PTPD_CCK_GLUE_CLOCKDRIVER_H */
+

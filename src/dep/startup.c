@@ -120,24 +120,24 @@ exitHandler(PtpClock * ptpClock)
 }
 
 void
-applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+applyConfig(dictionary *baseConfig, GlobalConfig *global, PtpClock *ptpClock)
 {
 
 	Boolean reloadSuccessful = TRUE;
 
 
 	/* Load default config to fill in the blanks in the config file */
-	RunTimeOpts tmpOpts;
+	GlobalConfig tmpOpts;
 	loadDefaultSettings(&tmpOpts);
 
 	/* Check the new configuration for errors, fill in the blanks from defaults */
-	if( ( rtOpts->candidateConfig = parseConfig(CFGOP_PARSE, NULL, baseConfig, &tmpOpts)) == NULL ) {
+	if( ( global->candidateConfig = parseConfig(CFGOP_PARSE, NULL, baseConfig, &tmpOpts)) == NULL ) {
 	    WARNING("Configuration has errors, reload aborted\n");
 	    return;
 	}
 
 	/* Check for changes between old and new configuration */
-	if(compareConfig(rtOpts->candidateConfig,rtOpts->currentConfig)) {
+	if(compareConfig(global->candidateConfig,global->currentConfig)) {
 	    INFO("Configuration unchanged\n");
 	    goto cleanup;
 	}
@@ -148,36 +148,36 @@ applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 * or lock file clashes if automatic lock files used - abort the mission
 	 */
 
-	rtOpts->restartSubsystems =
-	    checkSubsystemRestart(rtOpts->candidateConfig, rtOpts->currentConfig, rtOpts);
+	global->restartSubsystems =
+	    checkSubsystemRestart(global->candidateConfig, global->currentConfig, global);
 
-	/* If we're told to re-check lock files, do it: tmpOpts already has what rtOpts should */
-	if( (rtOpts->restartSubsystems & PTPD_CHECK_LOCKS) &&
+	/* If we're told to re-check lock files, do it: tmpOpts already has what global should */
+	if( (global->restartSubsystems & PTPD_CHECK_LOCKS) &&
 	    tmpOpts.autoLockFile && !checkOtherLocks(&tmpOpts)) {
 		reloadSuccessful = FALSE;
 	}
 
 	/* If the network configuration has changed, check if the interface is OK */
-	if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
+	if(global->restartSubsystems & PTPD_RESTART_NETWORK) {
 		INFO("Network configuration changed - checking interface(s)\n");
 		int family = getConfiguredFamily(&tmpOpts);
 		if(!testInterface(tmpOpts.primaryIfaceName, family, tmpOpts.sourceAddress)) {
 		    reloadSuccessful = FALSE;
 		    ERROR("Error: Cannot use %s interface\n",tmpOpts.primaryIfaceName);
 		}
-		if(rtOpts->backupIfaceEnabled && !testInterface(tmpOpts.backupIfaceName, family, tmpOpts.sourceAddress)) {
-		    rtOpts->restartSubsystems = -1;
+		if(global->backupIfaceEnabled && !testInterface(tmpOpts.backupIfaceName, family, tmpOpts.sourceAddress)) {
+		    global->restartSubsystems = -1;
 		    ERROR("Error: Cannot use %s interface as backup\n",tmpOpts.backupIfaceName);
 		}
 	}
 #if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined(__QNXNTO__)
         /* Changing the CPU affinity mask */
-        if(rtOpts->restartSubsystems & PTPD_CHANGE_CPUAFFINITY) {
+        if(global->restartSubsystems & PTPD_CHANGE_CPUAFFINITY) {
                 NOTIFY("Applying CPU binding configuration: changing selected CPU core\n");
 
                 if(setCpuAffinity(tmpOpts.cpuNumber) < 0) {
                         if(tmpOpts.cpuNumber == -1) {
-                                ERROR("Could not unbind from CPU core %d\n", rtOpts->cpuNumber);
+                                ERROR("Could not unbind from CPU core %d\n", global->cpuNumber);
                         } else {
                                 ERROR("Could bind to CPU core %d\n", tmpOpts.cpuNumber);
                         }
@@ -186,33 +186,33 @@ applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
                         if(tmpOpts.cpuNumber > -1)
                                 INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n", tmpOpts.cpuNumber);
                         else
-                                INFO("Successfully unbound "PTPD_PROGNAME" from cpu core CPU core %d\n", rtOpts->cpuNumber);
+                                INFO("Successfully unbound "PTPD_PROGNAME" from cpu core CPU core %d\n", global->cpuNumber);
                 }
          }
 #endif
 
 	if(!reloadSuccessful) {
 		ERROR("New configuration cannot be applied - aborting reload\n");
-		rtOpts->restartSubsystems = 0;
+		global->restartSubsystems = 0;
 		goto cleanup;
 	}
 
 
 		/**
-		 * Commit changes to rtOpts and currentConfig
+		 * Commit changes to global and currentConfig
 		 * (this should never fail as the config has already been checked if we're here)
 		 * However if this DOES fail, some default has been specified out of range -
 		 * this is the only situation where parse will succeed but commit not:
 		 * disable quiet mode to show what went wrong, then die.
 		 */
-		if (rtOpts->currentConfig) {
-			dictionary_del(&rtOpts->currentConfig);
+		if (global->currentConfig) {
+			dictionary_del(&global->currentConfig);
 		}
-		if ( (rtOpts->currentConfig = parseConfig(CFGOP_PARSE_QUIET, NULL, rtOpts->candidateConfig,rtOpts)) == NULL) {
+		if ( (global->currentConfig = parseConfig(CFGOP_PARSE_QUIET, NULL, global->candidateConfig,global)) == NULL) {
 			CRITICAL("************ "PTPD_PROGNAME": parseConfig returned NULL during config commit"
 				 "  - this is a BUG - report the following: \n");
 
-			if ((rtOpts->currentConfig = parseConfig(CFGOP_PARSE, NULL, rtOpts->candidateConfig,rtOpts)) == NULL)
+			if ((global->currentConfig = parseConfig(CFGOP_PARSE, NULL, global->candidateConfig,global)) == NULL)
 			    CRITICAL("*****************" PTPD_PROGNAME" shutting down **********************\n");
 			/*
 			 * Could be assert(), but this should be done any time this happens regardless of
@@ -224,7 +224,7 @@ applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	/* clean up */
 	cleanup:
 
-		dictionary_del(&rtOpts->candidateConfig);
+		dictionary_del(&global->candidateConfig);
 }
 
 
@@ -235,94 +235,94 @@ applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
  * @param sig
  */
 void
-sighupHandler(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+sighupHandler(GlobalConfig * global, PtpClock * ptpClock)
 {
 
 
 
 	NOTIFY("SIGHUP received\n");
 
-	if(rtOpts->transportMode != TMODE_UC) {
+	if(global->transportMode != TMODE_UC) {
 		DBG("SIGHUP - running multicast, re-joining multicast on all transports\n");
 		ptpNetworkRefresh(ptpClock);
 	}
 
 	/* if we don't have a config file specified, we're done - just reopen log files*/
-	if(strlen(rtOpts->configFile) !=  0) {
+	if(strlen(global->configFile) !=  0) {
 
 	    dictionary* tmpConfig = dictionary_new(0);
 
 	    /* Try reloading the config file */
-	    NOTIFY("Reloading configuration file: %s\n",rtOpts->configFile);
+	    NOTIFY("Reloading configuration file: %s\n",global->configFile);
 
-            if(!loadConfigFile(&tmpConfig, rtOpts)) {
+            if(!loadConfigFile(&tmpConfig, global)) {
 
 		    dictionary_del(&tmpConfig);
 
 	    } else {
-		    dictionary_merge(rtOpts->cliConfig, tmpConfig, 1, 1, "from command line");
-		    applyConfig(tmpConfig, rtOpts, ptpClock);
+		    dictionary_merge(global->cliConfig, tmpConfig, 1, 1, "from command line");
+		    applyConfig(tmpConfig, global, ptpClock);
 		    dictionary_del(&tmpConfig);
 
 	    }
 
 	}
 
-	if(rtOpts->recordLog.logEnabled ||
-	    rtOpts->eventLog.logEnabled ||
-	    (rtOpts->statisticsLog.logEnabled))
+	if(global->recordLog.logEnabled ||
+	    global->eventLog.logEnabled ||
+	    (global->statisticsLog.logEnabled))
 		INFO("Reopening log files\n");
 
-	restartLogging(rtOpts);
+	restartLogging(global);
 
-	if(rtOpts->statisticsLog.logEnabled)
+	if(global->statisticsLog.logEnabled)
 		ptpClock->resetStatisticsLog = TRUE;
 
 
 }
 
 void
-restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+restartSubsystems(GlobalConfig *global, PtpClock *ptpClock)
 {
 
-		DBG("RestartSubsystems: %d\n",rtOpts->restartSubsystems);
+		DBG("RestartSubsystems: %d\n",global->restartSubsystems);
 	    /* So far, PTP_INITIALIZING is required for both network and protocol restart */
-	    if((rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) ||
-		(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK)) {
-			    if(rtOpts->restartSubsystems & PTPD_RESTART_NETWORK) {
+	    if((global->restartSubsystems & PTPD_RESTART_PROTOCOL) ||
+		(global->restartSubsystems & PTPD_RESTART_NETWORK)) {
+			    if(global->restartSubsystems & PTPD_RESTART_NETWORK) {
 			NOTIFY("Applying network configuration: going into PTP_INITIALIZING\n");
 		    }
 		    /* These parameters have to be passed to ptpClock before re-init */
-		    ptpClock->defaultDS.clockQuality.clockClass = rtOpts->clockQuality.clockClass;
-		    ptpClock->defaultDS.slaveOnly = rtOpts->slaveOnly;
-		    ptpClock->disabled = rtOpts->portDisabled;
-			    if(rtOpts->restartSubsystems & PTPD_RESTART_PROTOCOL) {
+		    ptpClock->defaultDS.clockQuality.clockClass = global->clockQuality.clockClass;
+		    ptpClock->defaultDS.slaveOnly = global->slaveOnly;
+		    ptpClock->disabled = global->portDisabled;
+			    if(global->restartSubsystems & PTPD_RESTART_PROTOCOL) {
 			INFO("Applying protocol configuration: going into %s\n",
 			ptpClock->disabled ? "PTP_DISABLED" : "PTP_INITIALIZING");
 		    }
 			    /* Move back to primary interface only during configuration changes. */
 		    ptpClock->runningBackupInterface = FALSE;
-		    toState(ptpClock->disabled ? PTP_DISABLED : PTP_INITIALIZING, rtOpts, ptpClock);
+		    toState(ptpClock->disabled ? PTP_DISABLED : PTP_INITIALIZING, global, ptpClock);
 	    } else {
 
-	    if(rtOpts->restartSubsystems & PTPD_UPDATE_DATASETS) {
+	    if(global->restartSubsystems & PTPD_UPDATE_DATASETS) {
 			NOTIFY("Applying PTP engine configuration: updating datasets\n");
-			updateDatasets(ptpClock, rtOpts);
+			updateDatasets(ptpClock, global);
 	    }}
 	    /* Nothing happens here for now - SIGHUP handler does this anyway */
-	    if(rtOpts->restartSubsystems & PTPD_RESTART_LOGGING) {
+	    if(global->restartSubsystems & PTPD_RESTART_LOGGING) {
 			NOTIFY("Applying logging configuration: restarting logging\n");
 	    }
-		if(rtOpts->restartSubsystems & PTPD_RESTART_ACLS) {
+		if(global->restartSubsystems & PTPD_RESTART_ACLS) {
         		NOTIFY("Applying access control list configuration\n");
 		configureAcls(ptpClock);
 		}
-    		if(rtOpts->restartSubsystems & PTPD_RESTART_ALARMS) {
+    		if(global->restartSubsystems & PTPD_RESTART_ALARMS) {
 	    NOTIFY("Applying alarm configuration\n");
 	    configureAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
 	}
                     /* Reinitialising the outlier filter containers */
-                if(rtOpts->restartSubsystems & PTPD_RESTART_FILTERS) {
+                if(global->restartSubsystems & PTPD_RESTART_FILTERS) {
                         NOTIFY("Applying filter configuration: re-initialising filters\n");
 			freeDoubleMovingStatFilter(&ptpClock->filterMS);
 			freeDoubleMovingStatFilter(&ptpClock->filterSM);
@@ -332,34 +332,34 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 			outlierFilterSetup(&ptpClock->oFilterMS);
 			outlierFilterSetup(&ptpClock->oFilterSM);
 
-			ptpClock->oFilterMS.init(&ptpClock->oFilterMS,&rtOpts->oFilterMSConfig, "delayMS");
-			ptpClock->oFilterSM.init(&ptpClock->oFilterSM,&rtOpts->oFilterSMConfig, "delaySM");
+			ptpClock->oFilterMS.init(&ptpClock->oFilterMS,&global->oFilterMSConfig, "delayMS");
+			ptpClock->oFilterSM.init(&ptpClock->oFilterSM,&global->oFilterSMConfig, "delaySM");
 
 
-			if(rtOpts->filterMSOpts.enabled) {
-				ptpClock->filterMS = createDoubleMovingStatFilter(&rtOpts->filterMSOpts,"delayMS");
+			if(global->filterMSOpts.enabled) {
+				ptpClock->filterMS = createDoubleMovingStatFilter(&global->filterMSOpts,"delayMS");
 			}
 
-			if(rtOpts->filterSMOpts.enabled) {
-				ptpClock->filterSM = createDoubleMovingStatFilter(&rtOpts->filterSMOpts, "delaySM");
+			if(global->filterSMOpts.enabled) {
+				ptpClock->filterSM = createDoubleMovingStatFilter(&global->filterSMOpts, "delaySM");
 			}
 
 		}
 
 		controlClockDrivers(CD_NOTINUSE);
 		prepareClockDrivers(ptpClock);
-		createClockDriversFromString(rtOpts->extraClocks, configureClockDriver, rtOpts, TRUE);
+		createClockDriversFromString(global->extraClocks, configureClockDriver, global, TRUE);
 		/* clean up unused clock drivers */
 		controlClockDrivers(CD_CLEANUP);
-		reconfigureClockDrivers(configureClockDriver, rtOpts);
+		reconfigureClockDrivers(configureClockDriver, global);
 
 		    /* Config changes don't require subsystem restarts - acknowledge it */
-		    if(rtOpts->restartSubsystems == PTPD_RESTART_NONE) {
+		    if(global->restartSubsystems == PTPD_RESTART_NONE) {
 				NOTIFY("Applying configuration\n");
 		    }
 
-		    if(rtOpts->restartSubsystems != -1)
-			    rtOpts->restartSubsystems = 0;
+		    if(global->restartSubsystems != -1)
+			    global->restartSubsystems = 0;
 
 }
 
@@ -369,7 +369,7 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
  * This function should be called regularly from the main loop
  */
 void
-checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
+checkSignals(GlobalConfig * global, PtpClock * ptpClock)
 {
 
 	TTransport *event = ptpClock->eventTransport;
@@ -385,7 +385,7 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	}
 
 	if(sighup_received){
-		sighupHandler(rtOpts, ptpClock);
+		sighupHandler(global, ptpClock);
 		sighup_received=0;
 	}
 
@@ -416,7 +416,7 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
     		if(event) {
 		    event->dataAcl->dump(event->dataAcl);
 		    event->controlAcl->dump(event->controlAcl);
-		    if(rtOpts->clearCounters) {
+		    if(global->clearCounters) {
 			event->clearCounters(event);
 		    }
 		}
@@ -424,15 +424,15 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		if(general && (general != event)) {
 		    general->dataAcl->dump(general->dataAcl);
 		    general->controlAcl->dump(general->controlAcl);
-		    if(rtOpts->clearCounters) {
+		    if(global->clearCounters) {
 			general->clearCounters(general);
 		    }
 		}
 
-		if(rtOpts->oFilterSMConfig.enabled) {
+		if(global->oFilterSMConfig.enabled) {
 			ptpClock->oFilterSM.display(&ptpClock->oFilterSM);
 		}
-		if(rtOpts->oFilterMSConfig.enabled) {
+		if(global->oFilterMSConfig.enabled) {
 			ptpClock->oFilterMS.display(&ptpClock->oFilterMS);
 		}
 		sigusr2_received = 0;
@@ -440,7 +440,7 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		INFO("Inter-clock offset table:\n");
 		compareAllClocks();
 
-		if(rtOpts->clearCounters) {
+		if(global->clearCounters) {
 			clearCounters(ptpClock);
 			NOTIFY("* PTP engine counters cleared*\n");
 		}
@@ -453,52 +453,52 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 /* These functions are useful to temporarily enable Debug around parts of code, similar to bash's "set -x" */
 void enable_runtime_debug(void )
 {
-	extern RunTimeOpts rtOpts;
+	extern GlobalConfig global;
 	
-	rtOpts.debug_level = max(LOG_DEBUGV, rtOpts.debug_level);
+	global.debug_level = max(LOG_DEBUGV, global.debug_level);
 }
 
 void disable_runtime_debug(void )
 {
-	extern RunTimeOpts rtOpts;
+	extern GlobalConfig global;
 	
-	rtOpts.debug_level = LOG_INFO;
+	global.debug_level = LOG_INFO;
 }
 #endif
 
 int
-writeLockFile(RunTimeOpts * rtOpts)
+writeLockFile(GlobalConfig * global)
 {
 
 	int lockPid = 0;
 
-	DBGV("Checking lock file: %s\n", rtOpts->lockFile);
+	DBGV("Checking lock file: %s\n", global->lockFile);
 
-	if ( (G_lockFilePointer=fopen(rtOpts->lockFile, "w+")) == NULL) {
-		PERROR("Could not open lock file %s for writing", rtOpts->lockFile);
+	if ( (G_lockFilePointer=fopen(global->lockFile, "w+")) == NULL) {
+		PERROR("Could not open lock file %s for writing", global->lockFile);
 		return(0);
 	}
 	if (lockFile(fileno(G_lockFilePointer)) < 0) {
 		if ( checkLockStatus(fileno(G_lockFilePointer),
 			DEFAULT_LOCKMODE, &lockPid) == 0) {
 			     ERROR("Another "PTPD_PROGNAME" instance is running: %s locked by PID %d\n",
-				    rtOpts->lockFile, lockPid);
+				    global->lockFile, lockPid);
 		} else {
-			PERROR("Could not acquire lock on %s:", rtOpts->lockFile);
+			PERROR("Could not acquire lock on %s:", global->lockFile);
 		}
 		goto failure;
 	}
 	if(ftruncate(fileno(G_lockFilePointer), 0) == -1) {
 		PERROR("Could not truncate %s: %s",
-			rtOpts->lockFile, strerror(errno));
+			global->lockFile, strerror(errno));
 		goto failure;
 	}
 	if ( fprintf(G_lockFilePointer, "%ld\n", (long)getpid()) == -1) {
 		PERROR("Could not write to lock file %s: %s",
-			rtOpts->lockFile, strerror(errno));
+			global->lockFile, strerror(errno));
 		goto failure;
 	}
-	INFO("Successfully acquired lock on %s\n", rtOpts->lockFile);
+	INFO("Successfully acquired lock on %s\n", global->lockFile);
 	fflush(G_lockFilePointer);
 	return(1);
 	failure:
@@ -511,13 +511,13 @@ void
 ptpdShutdown(PtpClock * ptpClock)
 {
 
-	extern RunTimeOpts rtOpts;
+	extern GlobalConfig global;
 	
 	/*
          * go into DISABLED state so the FSM can call any PTP-specific shutdown actions,
 	 * such as canceling unicast transmission
          */
-	toState(PTP_DISABLED, &rtOpts, ptpClock);
+	toState(PTP_DISABLED, &global, ptpClock);
 	/* process any outstanding events before exit */
 	updateAlarms(ptpClock->alarms, ALRM_MAX);
 
@@ -547,10 +547,10 @@ ptpdShutdown(PtpClock * ptpClock)
         freeDoubleMovingStatFilter(&ptpClock->filterMS);
         freeDoubleMovingStatFilter(&ptpClock->filterSM);
 
-	if (rtOpts.currentConfig != NULL)
-		dictionary_del(&rtOpts.currentConfig);
-	if(rtOpts.cliConfig != NULL)
-		dictionary_del(&rtOpts.cliConfig);
+	if (global.currentConfig != NULL)
+		dictionary_del(&global.currentConfig);
+	if(global.cliConfig != NULL)
+		dictionary_del(&global.cliConfig);
 
 	free(ptpClock);
 	ptpClock = NULL;
@@ -559,22 +559,22 @@ ptpdShutdown(PtpClock * ptpClock)
 	G_ptpClock = NULL;
 
 	/* properly clean lockfile (eventough new deaemons can acquire the lock after we die) */
-	if(!rtOpts.ignoreLock && G_lockFilePointer != NULL) {
+	if(!global.ignoreLock && G_lockFilePointer != NULL) {
 	    fclose(G_lockFilePointer);
 	    G_lockFilePointer = NULL;
 	}
-	unlink(rtOpts.lockFile);
+	unlink(global.lockFile);
 
-	if(rtOpts.statusLog.logEnabled) {
+	if(global.statusLog.logEnabled) {
 		/* close and remove the status file */
-		if(rtOpts.statusLog.logFP != NULL) {
-			fclose(rtOpts.statusLog.logFP);
-			rtOpts.statusLog.logFP = NULL;
+		if(global.statusLog.logFP != NULL) {
+			fclose(global.statusLog.logFP);
+			global.statusLog.logFP = NULL;
 		}
-		unlink(rtOpts.statusLog.logPath);
+		unlink(global.statusLog.logPath);
 	}
 
-	stopLogging(&rtOpts);
+	stopLogging(&global);
 
 }
 
@@ -598,7 +598,7 @@ void argvDump(int argc, char **argv)
 }
 
 PtpClock *
-ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
+ptpdStartup(int argc, char **argv, Integer16 * ret, GlobalConfig * global)
 {
 	PtpClock * ptpClock;
 	TimeInternal tmpTime;
@@ -622,7 +622,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * If a required setting, such as interface name, or a setting
 	 * requiring a range check is to be set via getopts_long,
 	 * the respective currentConfig dictionary entry should be set,
-	 * instead of just setting the rtOpts field.
+	 * instead of just setting the global field.
 	 *
 	 * Config parameter evaluation priority order:
 	 * 	1. Any dictionary keys set in the getopt_long loop
@@ -630,23 +630,23 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * 	3. Any built-in config templates
 	 *	4. Any templates loaded from template file
 	 * 	5. Config file (parsed last), merged with 2. and 3 - will be overwritten by CLI options
-	 * 	6. Defaults and any rtOpts fields set in the getopt_long loop
+	 * 	6. Defaults and any global fields set in the getopt_long loop
 	**/
 
 	/**
 	 * Load defaults. Any options set here and further inside loadCommandLineOptions()
-	 * by setting rtOpts fields, will be considered the defaults
+	 * by setting global fields, will be considered the defaults
 	 * for config file and section:key long options.
 	 */
-	loadDefaultSettings(rtOpts);
+	loadDefaultSettings(global);
 	/* initialise the config dictionary */
-	rtOpts->candidateConfig = dictionary_new(0);
-	rtOpts->cliConfig = dictionary_new(0);
+	global->candidateConfig = dictionary_new(0);
+	global->cliConfig = dictionary_new(0);
 
 	/* parse all long section:key options and clean up argv for getopt */
-	loadCommandLineKeys(rtOpts->cliConfig,argc,argv);
+	loadCommandLineKeys(global->cliConfig,argc,argv);
 	/* parse the normal short and long options, exit on error */
-	if (!loadCommandLineOptions(rtOpts, rtOpts->cliConfig, argc, argv, ret)) {
+	if (!loadCommandLineOptions(global, global->cliConfig, argc, argv, ret)) {
 	    goto fail;
 	}
 
@@ -666,18 +666,18 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 		}
 
 	/* Have we got a config file? */
-	if(strlen(rtOpts->configFile) > 0) {
+	if(strlen(global->configFile) > 0) {
 		/* config file settings overwrite all others, except for empty strings */
-		INFO("Loading configuration file: %s\n",rtOpts->configFile);
-		if(loadConfigFile(&rtOpts->candidateConfig, rtOpts)) {
-			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, 1, "from command line");
+		INFO("Loading configuration file: %s\n",global->configFile);
+		if(loadConfigFile(&global->candidateConfig, global)) {
+			dictionary_merge(global->cliConfig, global->candidateConfig, 1, 1, "from command line");
 		} else {
 		    *ret = 1;
-			dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, 1, "from command line");
+			dictionary_merge(global->cliConfig, global->candidateConfig, 1, 1, "from command line");
 		    goto configcheck;
 		}
 	} else {
-		dictionary_merge(rtOpts->cliConfig, rtOpts->candidateConfig, 1, 1, "from command line");
+		dictionary_merge(global->cliConfig, global->candidateConfig, 1, 1, "from command line");
 	}
 	/**
 	 * This is where the final checking  of the candidate settings container happens.
@@ -685,40 +685,40 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * if not present. NULL is returned on any config error - parameters missing, out of range,
 	 * etc. The getopt loop in loadCommandLineOptions() only sets keys verified here.
 	 */
-	if( ( rtOpts->currentConfig = parseConfig(CFGOP_PARSE, NULL, rtOpts->candidateConfig,rtOpts)) == NULL ) {
+	if( ( global->currentConfig = parseConfig(CFGOP_PARSE, NULL, global->candidateConfig,global)) == NULL ) {
 	    *ret = 1;
-	    dictionary_del(&rtOpts->candidateConfig);
+	    dictionary_del(&global->candidateConfig);
 	    goto configcheck;
 	}
 
 	/* we've been told to print the lock file and exit cleanly */
-	if(rtOpts->printLockFile) {
-	    printf("%s\n", rtOpts->lockFile);
+	if(global->printLockFile) {
+	    printf("%s\n", global->lockFile);
 	    *ret = 0;
 	    goto fail;
 	}
 
 	/* we don't need the candidate config any more */
-	dictionary_del(&rtOpts->candidateConfig);
+	dictionary_del(&global->candidateConfig);
 
 	/* Check network before going into background */
 	INFO("Checking if network interface(s) are usable\n");
 
-	int family = getConfiguredFamily(rtOpts);
+	int family = getConfiguredFamily(global);
 
-	if(!testInterface(rtOpts->primaryIfaceName, family, rtOpts->sourceAddress) ||
-		(detectTTransport(family, rtOpts->primaryIfaceName,
-		    getEventTransportFlags(rtOpts), rtOpts->transportType) == TT_TYPE_NONE)) {
-	    ERROR("Error: Cannot use interface '%s'\n",rtOpts->primaryIfaceName);
+	if(!testInterface(global->primaryIfaceName, family, global->sourceAddress) ||
+		(detectTTransport(family, global->primaryIfaceName,
+		    getEventTransportFlags(global), global->transportType) == TT_TYPE_NONE)) {
+	    ERROR("Error: Cannot use interface '%s'\n",global->primaryIfaceName);
 	    *ret = 1;
 	    goto configcheck;
 	}
 
-	if(rtOpts->backupIfaceEnabled) {
-	    if(!testInterface(rtOpts->backupIfaceName, family, rtOpts->sourceAddress) ||
-		(detectTTransport(family, rtOpts->backupIfaceName,
-		    getEventTransportFlags(rtOpts), rtOpts->transportType) == TT_TYPE_NONE)) {
-		ERROR("Error: Cannot use interface '%s' as backup\n",rtOpts->backupIfaceName);
+	if(global->backupIfaceEnabled) {
+	    if(!testInterface(global->backupIfaceName, family, global->sourceAddress) ||
+		(detectTTransport(family, global->backupIfaceName,
+		    getEventTransportFlags(global), global->transportType) == TT_TYPE_NONE)) {
+		ERROR("Error: Cannot use interface '%s' as backup\n",global->backupIfaceName);
 		*ret = 1;
 		goto configcheck;
 	    }
@@ -730,7 +730,7 @@ configcheck:
 	/*
 	 * We've been told to check config only - clean exit before checking locks
 	 */
-	if(rtOpts->checkConfigOnly) {
+	if(global->checkConfigOnly) {
 	    if(*ret != 0) {
 		printf("Configuration has errors\n");
 		*ret = 1;
@@ -745,22 +745,22 @@ configcheck:
 		goto fail;
 
 	/* First lock check, just to be user-friendly to the operator */
-	if(!rtOpts->ignoreLock) {
-		if(!writeLockFile(rtOpts)){
+	if(!global->ignoreLock) {
+		if(!writeLockFile(global)){
 			/* check and create Lock */
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
 			*ret = 3;
 			goto fail;
 		}
 		/* check for potential conflicts when automatic lock files are used */
-		if(!checkOtherLocks(rtOpts)) {
+		if(!checkOtherLocks(global)) {
 			*ret = 3;
 			goto fail;
 		}
 	}
 
 	/* Manage log files: stats, log, status and quality file */
-	restartLogging(rtOpts);
+	restartLogging(global);
 
 	/* Allocate memory after we're done with other checks but before going into daemon */
 	ptpClock = (PtpClock *) calloc(1, sizeof(PtpClock));
@@ -773,7 +773,7 @@ configcheck:
 		    (int)sizeof(PtpClock));
 
 		ptpClock->foreign = (ForeignMasterRecord *)
-			calloc(rtOpts->fmrCapacity,
+			calloc(global->fmrCapacity,
 			       sizeof(ForeignMasterRecord));
 		if (!ptpClock->foreign) {
 			PERROR("failed to allocate memory for foreign "
@@ -783,16 +783,16 @@ configcheck:
 			goto fail;
 		} else {
 			DBG("allocated %d bytes for foreign master data\n",
-			    (int)(rtOpts->fmrCapacity *
+			    (int)(global->fmrCapacity *
 				  sizeof(ForeignMasterRecord)));
 		}
 	}
 
-	ptpClock->rtOpts = rtOpts;
+	ptpClock->global = global;
 
 	myPtpClockPreInit(ptpClock);
 
-	if(rtOpts->statisticsLog.logEnabled)
+	if(global->statisticsLog.logEnabled)
 		ptpClock->resetStatisticsLog = TRUE;
 
 	/* Init to 0 net buffer */
@@ -805,12 +805,12 @@ configcheck:
 
 	/*  DAEMON */
 #ifdef PTPD_NO_DAEMON
-	if(!rtOpts->nonDaemon){
-		rtOpts->nonDaemon=TRUE;
+	if(!global->nonDaemon){
+		global->nonDaemon=TRUE;
 	}
 #endif
 
-	if(!rtOpts->nonDaemon){
+	if(!global->nonDaemon){
 		/*
 		 * fork to daemon - nochdir non-zero to preserve the working directory:
 		 * allows relative paths to be used for log files, config files etc.
@@ -836,9 +836,9 @@ configcheck:
 	}
 
 	/* Second lock check, to replace the contents with our own new PID and re-acquire the advisory lock */
-	if(!rtOpts->nonDaemon && !rtOpts->ignoreLock){
+	if(!global->nonDaemon && !global->ignoreLock){
 		/* check and create Lock */
-		if(!writeLockFile(rtOpts)){
+		if(!writeLockFile(global)){
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
 			*ret = 3;
 			goto fail;
@@ -847,11 +847,11 @@ configcheck:
 
 #if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined(__QNXNTO__)
 	/* Try binding to a single CPU core if configured to do so */
-	if(rtOpts->cpuNumber > -1) {
-    		if(setCpuAffinity(rtOpts->cpuNumber) < 0) {
-		    ERROR("Could not bind to CPU core %d\n", rtOpts->cpuNumber);
+	if(global->cpuNumber > -1) {
+    		if(setCpuAffinity(global->cpuNumber) < 0) {
+		    ERROR("Could not bind to CPU core %d\n", global->cpuNumber);
 		} else {
-		    INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n", rtOpts->cpuNumber);
+		    INFO("Successfully bound "PTPD_PROGNAME" to CPU core %d\n", global->cpuNumber);
 		}
 	}
 #endif
@@ -859,7 +859,7 @@ configcheck:
 	/* init alarms */
 	initAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
 	configureAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
-	ptpClock->alarmDelay = rtOpts->alarmInitialDelay;
+	ptpClock->alarmDelay = global->alarmInitialDelay;
 	/* we're delaying alarm processing - disable alarms for now */
 	if(ptpClock->alarmDelay) {
 	    enableAlarms(ptpClock->alarms, ALRM_MAX, FALSE);
@@ -876,37 +876,37 @@ configcheck:
 
 #if defined PTPD_SNMP
 	/* Start SNMP subsystem */
-	if (rtOpts->snmpEnabled)
-		snmpInit(rtOpts, ptpClock);
+	if (global->snmpEnabled)
+		snmpInit(global, ptpClock);
 #endif
 
 	NOTICE(USER_DESCRIPTION" started successfully on %s using \"%s\" preset (PID %d)\n",
-			    rtOpts->ifName,
-			    (getPtpPreset(rtOpts->selectedPreset,rtOpts)).presetName,
+			    global->ifName,
+			    (getPtpPreset(global->selectedPreset,global)).presetName,
 			    getpid());
 	ptpClock->resetStatisticsLog = TRUE;
 
 	outlierFilterSetup(&ptpClock->oFilterMS);
 	outlierFilterSetup(&ptpClock->oFilterSM);
 
-	ptpClock->oFilterMS.init(&ptpClock->oFilterMS,&rtOpts->oFilterMSConfig, "delayMS");
-	ptpClock->oFilterSM.init(&ptpClock->oFilterSM,&rtOpts->oFilterSMConfig, "delaySM");
+	ptpClock->oFilterMS.init(&ptpClock->oFilterMS,&global->oFilterMSConfig, "delayMS");
+	ptpClock->oFilterSM.init(&ptpClock->oFilterSM,&global->oFilterSMConfig, "delaySM");
 
-	if(rtOpts->filterMSOpts.enabled) {
-		ptpClock->filterMS = createDoubleMovingStatFilter(&rtOpts->filterMSOpts,"delayMS");
+	if(global->filterMSOpts.enabled) {
+		ptpClock->filterMS = createDoubleMovingStatFilter(&global->filterMSOpts,"delayMS");
 	}
 
-	if(rtOpts->filterSMOpts.enabled) {
-		ptpClock->filterSM = createDoubleMovingStatFilter(&rtOpts->filterSMOpts, "delaySM");
+	if(global->filterSMOpts.enabled) {
+		ptpClock->filterSM = createDoubleMovingStatFilter(&global->filterSMOpts, "delaySM");
 	}
 
 	*ret = 0;
 	return ptpClock;
 	
 fail:
-	dictionary_del(&rtOpts->cliConfig);
-	dictionary_del(&rtOpts->candidateConfig);
-	dictionary_del(&rtOpts->currentConfig);
+	dictionary_del(&global->cliConfig);
+	dictionary_del(&global->candidateConfig);
+	dictionary_del(&global->currentConfig);
 	return 0;
 }
 

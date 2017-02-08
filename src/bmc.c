@@ -56,7 +56,7 @@
 
 
 /* Init ptpClock with run time values (initialization constants are in constants.h)*/
-void initData(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+void initData(const GlobalConfig *global, PtpClock *ptpClock)
 {
 	DBG("initData\n");
 	
@@ -74,41 +74,41 @@ void initData(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	ptpClock->bestMaster = NULL;
 	ptpClock->defaultDS.numberPorts = NUMBER_PORTS;
 
-	ptpClock->disabled = rtOpts->portDisabled;
+	ptpClock->disabled = global->portDisabled;
 
 	memset(ptpClock->userDescription, 0, sizeof(ptpClock->userDescription));
-	memcpy(ptpClock->userDescription, rtOpts->portDescription, strlen(rtOpts->portDescription));
+	memcpy(ptpClock->userDescription, global->portDescription, strlen(global->portDescription));
 
 	memset(&ptpClock->profileIdentity,0,6);
 
-	if(rtOpts->transportMode == TMODE_UC && rtOpts->unicastNegotiation) {
+	if(global->transportMode == TMODE_UC && global->unicastNegotiation) {
 		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_TELECOM,6);
 	}
 
-	if(rtOpts->transportMode == TMODE_MC &&rtOpts->delayMechanism == E2E) {
+	if(global->transportMode == TMODE_MC &&global->delayMechanism == E2E) {
 		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_DEFAULT_E2E,6);
 	}
 
-	if(rtOpts->transportMode == TMODE_MC &&rtOpts->delayMechanism == P2P) {
+	if(global->transportMode == TMODE_MC &&global->delayMechanism == P2P) {
 		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_DEFAULT_P2P,6);
 	}
 
-	if(rtOpts->dot1AS) {
+	if(global->dot1AS) {
 		memcpy(&ptpClock->profileIdentity, &PROFILE_ID_802_1AS,6);
 	}
 
 	ptpClock->defaultDS.clockQuality.clockAccuracy =
-		rtOpts->clockQuality.clockAccuracy;
-	ptpClock->defaultDS.clockQuality.clockClass = rtOpts->clockQuality.clockClass;
+		global->clockQuality.clockAccuracy;
+	ptpClock->defaultDS.clockQuality.clockClass = global->clockQuality.clockClass;
 	ptpClock->defaultDS.clockQuality.offsetScaledLogVariance =
-		rtOpts->clockQuality.offsetScaledLogVariance;
+		global->clockQuality.offsetScaledLogVariance;
 
-	ptpClock->defaultDS.priority1 = rtOpts->priority1;
-	ptpClock->defaultDS.priority2 = rtOpts->priority2;
+	ptpClock->defaultDS.priority1 = global->priority1;
+	ptpClock->defaultDS.priority2 = global->priority2;
 
-	ptpClock->defaultDS.domainNumber = rtOpts->domainNumber;
+	ptpClock->defaultDS.domainNumber = global->domainNumber;
 
-	if(rtOpts->slaveOnly) {
+	if(global->slaveOnly) {
 		ptpClock->defaultDS.slaveOnly = TRUE;
 		ptpClock->defaultDS.clockQuality.clockClass = SLAVE_ONLY_CLOCK_CLASS;
 	}
@@ -121,22 +121,22 @@ void initData(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	 */
 	copyClockIdentity(ptpClock->portDS.portIdentity.clockIdentity,
 			ptpClock->defaultDS.clockIdentity);
-	ptpClock->portDS.portIdentity.portNumber = rtOpts->portNumber;
+	ptpClock->portDS.portIdentity.portNumber = global->portNumber;
 
 	/* select the initial rate of delayreqs until we receive the first announce message */
 
-	ptpClock->portDS.logMinDelayReqInterval = rtOpts->initial_delayreq;
+	ptpClock->portDS.logMinDelayReqInterval = global->initial_delayreq;
 
 	clearTime(&ptpClock->portDS.peerMeanPathDelay);
 
-	ptpClock->portDS.logAnnounceInterval = rtOpts->logAnnounceInterval;
-	ptpClock->portDS.announceReceiptTimeout = rtOpts->announceReceiptTimeout;
-	ptpClock->portDS.logSyncInterval = rtOpts->logSyncInterval;
-	ptpClock->portDS.delayMechanism = rtOpts->delayMechanism;
-	ptpClock->portDS.logMinPdelayReqInterval = rtOpts->logMinPdelayReqInterval;
+	ptpClock->portDS.logAnnounceInterval = global->logAnnounceInterval;
+	ptpClock->portDS.announceReceiptTimeout = global->announceReceiptTimeout;
+	ptpClock->portDS.logSyncInterval = global->logSyncInterval;
+	ptpClock->portDS.delayMechanism = global->delayMechanism;
+	ptpClock->portDS.logMinPdelayReqInterval = global->logMinPdelayReqInterval;
 	ptpClock->portDS.versionNumber = VERSION_PTP;
 
-	if(rtOpts->dot1AS) {
+	if(global->dot1AS) {
 	    ptpClock->portDS.transportSpecific = TSP_ETHERNET_AVB;
 	} else {
 	    ptpClock->portDS.transportSpecific = TSP_DEFAULT;
@@ -151,7 +151,7 @@ void initData(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 	/*Init other stuff*/
 	ptpClock->number_foreign_records = 0;
-  	ptpClock->fmrCapacity = rtOpts->fmrCapacity;
+  	ptpClock->fmrCapacity = global->fmrCapacity;
 }
 
 /* memcmp behaviour: -1: a<b, 1: a>b, 0: a=b */
@@ -210,7 +210,7 @@ Boolean portIdentityAllOnes(PortIdentity *portIdentity) {
 }
 
 /*Local clock is becoming Master. Table 13 (9.3.5) of the spec.*/
-void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+void m1(const GlobalConfig *global, PtpClock *ptpClock)
 {
 	/*Current data set update*/
 	ptpClock->currentDS.stepsRemoved = 0;
@@ -235,18 +235,18 @@ void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		ptpClock->defaultDS.clockQuality.offsetScaledLogVariance;
 	ptpClock->parentDS.grandmasterPriority1 = ptpClock->defaultDS.priority1;
 	ptpClock->parentDS.grandmasterPriority2 = ptpClock->defaultDS.priority2;
-        ptpClock->portDS.logMinDelayReqInterval = rtOpts->logMinDelayReqInterval;
+        ptpClock->portDS.logMinDelayReqInterval = global->logMinDelayReqInterval;
 
 	/*Time Properties data set*/
-	ptpClock->timePropertiesDS.currentUtcOffsetValid = rtOpts->timeProperties.currentUtcOffsetValid;
-	ptpClock->timePropertiesDS.currentUtcOffset = rtOpts->timeProperties.currentUtcOffset;
-	ptpClock->timePropertiesDS.timeTraceable = rtOpts->timeProperties.timeTraceable;
-	ptpClock->timePropertiesDS.frequencyTraceable = rtOpts->timeProperties.frequencyTraceable;
-	ptpClock->timePropertiesDS.ptpTimescale = rtOpts->timeProperties.ptpTimescale;
-	ptpClock->timePropertiesDS.timeSource = rtOpts->timeProperties.timeSource;
+	ptpClock->timePropertiesDS.currentUtcOffsetValid = global->timeProperties.currentUtcOffsetValid;
+	ptpClock->timePropertiesDS.currentUtcOffset = global->timeProperties.currentUtcOffset;
+	ptpClock->timePropertiesDS.timeTraceable = global->timeProperties.timeTraceable;
+	ptpClock->timePropertiesDS.frequencyTraceable = global->timeProperties.frequencyTraceable;
+	ptpClock->timePropertiesDS.ptpTimescale = global->timeProperties.ptpTimescale;
+	ptpClock->timePropertiesDS.timeSource = global->timeProperties.timeSource;
 
 	if(ptpClock->timePropertiesDS.ptpTimescale &&
-	    (secondsToMidnight() < rtOpts->leapSecondNoticePeriod)) {
+	    (secondsToMidnight() < global->leapSecondNoticePeriod)) {
 	    ptpClock->timePropertiesDS.leap59 = ptpClock->clockStatus.leapDelete;
 	    ptpClock->timePropertiesDS.leap61 = ptpClock->clockStatus.leapInsert;
 	} else {
@@ -258,19 +258,19 @@ void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 
 /* first cut on a passive mode specific BMC actions */
-void p1(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
+void p1(PtpClock *ptpClock, const GlobalConfig *global)
 {
 	/* make sure we revert to ARB timescale in Passive mode*/
 	if(ptpClock->portDS.portState == PTP_PASSIVE){
-		ptpClock->timePropertiesDS.currentUtcOffsetValid = rtOpts->timeProperties.currentUtcOffsetValid;
-		ptpClock->timePropertiesDS.currentUtcOffset = rtOpts->timeProperties.currentUtcOffset;
+		ptpClock->timePropertiesDS.currentUtcOffsetValid = global->timeProperties.currentUtcOffsetValid;
+		ptpClock->timePropertiesDS.currentUtcOffset = global->timeProperties.currentUtcOffset;
 	}
 	
 }
 
 
 /*Local clock is synchronized to Ebest Table 16 (9.3.5) of the spec*/
-void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTimeOpts *rtOpts)
+void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const GlobalConfig *global)
 {
 
 	Boolean firstUpdate = !cmpPortIdentity(&ptpClock->parentDS.parentPortIdentity, &ptpClock->portDS.portIdentity);
@@ -308,7 +308,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	ptpClock->parentDS.grandmasterPriority2 = announce->grandmasterPriority2;
 
 	/* use the granted interval if using signaling, otherwise we would try to arm a timer for 2^127! */
-	if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL && ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].granted) {
+	if(global->unicastNegotiation && ptpClock->parentGrants != NULL && ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].granted) {
             ptpClock->portDS.logAnnounceInterval = ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].logInterval;
         } else if (header->logMessageInterval != UNICAST_MESSAGEINTERVAL) {
     	    ptpClock->portDS.logAnnounceInterval = header->logMessageInterval;
@@ -319,7 +319,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 
 	if (ptpClock->portDS.portState != PTP_PASSIVE && ptpClock->timePropertiesDS.currentUtcOffsetValid &&
 			!IS_SET(header->flagField1, UTCV)) {
-		if(rtOpts->alwaysRespectUtcOffset)
+		if(global->alwaysRespectUtcOffset)
 			WARNING("UTC Offset no longer valid and ptpengine:always_respect_utc_offset is set: continuing as normal\n");
 		else
 			WARNING("UTC Offset no longer valid - clock jump expected\n");
@@ -329,7 +329,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
         ptpClock->timePropertiesDS.currentUtcOffsetValid = IS_SET(header->flagField1, UTCV);
 
 	/* set PTP_PASSIVE-specific state */
-	p1(ptpClock, rtOpts);
+	p1(ptpClock, global);
 
 	/* only set leap flags in slave state - info from leap file takes priority*/
 	if (ptpClock->portDS.portState == PTP_SLAVE) {
@@ -349,7 +349,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
         ptpClock->timePropertiesDS.timeSource = announce->timeSource;
 
 	/* if Announce was accepted from some domain, so be it */
-	if(rtOpts->anyDomain || rtOpts->unicastNegotiation) {
+	if(global->anyDomain || global->unicastNegotiation) {
 	    ptpClock->defaultDS.domainNumber = header->domainNumber;
 	}
 
@@ -358,7 +358,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	 * PTP not ARB - spec section 7.2
 	 */
         if (ptpClock->timePropertiesDS.ptpTimescale &&
-	    (ptpClock->timePropertiesDS.currentUtcOffsetValid || rtOpts->alwaysRespectUtcOffset) &&
+	    (ptpClock->timePropertiesDS.currentUtcOffsetValid || global->alwaysRespectUtcOffset) &&
             (ptpClock->timePropertiesDS.currentUtcOffset != previousUtcOffset)) {
 	      INFO("UTC offset is now %d\n",
 		    ptpClock->timePropertiesDS.currentUtcOffset);
@@ -408,7 +408,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 
 	if(!ptpClock->leapSecondPending &&  !ptpClock->leapSecondInProgress) {
 	
-	    if(rtOpts->leapSecondHandling == LEAP_ACCEPT) {
+	    if(global->leapSecondHandling == LEAP_ACCEPT) {
 		ptpClock->clockStatus.leapInsert = ptpClock->timePropertiesDS.leap61;
 		ptpClock->clockStatus.leapDelete = ptpClock->timePropertiesDS.leap59;
 	    }
@@ -468,7 +468,7 @@ copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
  * return similar to memcmp() */
 
 static Integer8
-bmcDataSetComparison(const ForeignMasterRecord *a, const ForeignMasterRecord *b, const PtpClock *ptpClock, const RunTimeOpts *rtOpts)
+bmcDataSetComparison(const ForeignMasterRecord *a, const ForeignMasterRecord *b, const PtpClock *ptpClock, const GlobalConfig *global)
 {
 
 
@@ -546,11 +546,11 @@ dataset_comp_part_1:
 
 	/* OPTIONAL domain comparison / any domain */
 	
-	if(rtOpts->anyDomain) {
+	if(global->anyDomain) {
 	    /* part 1: preferred domain wins */
-	    if(a->header.domainNumber == rtOpts->domainNumber && b->header.domainNumber != ptpClock->defaultDS.domainNumber)
+	    if(a->header.domainNumber == global->domainNumber && b->header.domainNumber != ptpClock->defaultDS.domainNumber)
 		return -1;
-	    if(a->header.domainNumber != rtOpts->domainNumber && b->header.domainNumber == ptpClock->defaultDS.domainNumber)
+	    if(a->header.domainNumber != global->domainNumber && b->header.domainNumber == ptpClock->defaultDS.domainNumber)
 		return 1;
 	
 	    /* part 2: lower domain wins */
@@ -577,7 +577,7 @@ dataset_comp_part_1:
 		return 1;
 
 	/* non-standard BMC extension to prioritise GMs with UTC valid */
-	if(rtOpts->preferUtcValid) {
+	if(global->preferUtcValid) {
 		Boolean utcA = IS_SET(a->header.flagField1, UTCV);
 		Boolean utcB = IS_SET(b->header.flagField1, UTCV);
 		if(utcA > utcB)
@@ -626,7 +626,7 @@ dataset_comp_part_1:
 
 /*State decision algorithm 9.3.3 Fig 26*/
 static UInteger8
-bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+bmcStateDecision(ForeignMasterRecord *foreign, const GlobalConfig *global, PtpClock *ptpClock)
 {
 	Integer8 comp;
 	Boolean newBM;
@@ -644,8 +644,8 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 		if(newBM && (ptpClock->parentGrants != NULL)) {
 		    ptpClock->previousGrants = ptpClock->parentGrants;
 		}
-		s1(&foreign->header,&foreign->announce,ptpClock, rtOpts);
-		if(rtOpts->unicastNegotiation) {
+		s1(&foreign->header,&foreign->announce,ptpClock, global);
+		if(global->unicastNegotiation) {
 			ptpClock->parentGrants = findUnicastGrants(&ptpClock->parentDS.parentPortIdentity, 0,
 						ptpClock->unicastGrants, &ptpClock->grantIndex, ptpClock->unicastDestinationCount,
 					    FALSE);
@@ -661,7 +661,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 			}
 			recalibrateClock(ptpClock, false);
 		}
-                if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL) {
+                if(global->unicastNegotiation && ptpClock->parentGrants != NULL) {
                         ptpClock->portDS.logAnnounceInterval = ptpClock->parentGrants->grantData[ANNOUNCE_INDEXED].logInterval;
 			me.localPreference = ptpClock->parentGrants->localPreference;
 		}
@@ -678,13 +678,13 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 
 	DBGV("local clockQuality.clockClass: %d \n", ptpClock->defaultDS.clockQuality.clockClass);
 
-	comp = bmcDataSetComparison(&me, foreign, ptpClock, rtOpts);
+	comp = bmcDataSetComparison(&me, foreign, ptpClock, global);
 	if (ptpClock->defaultDS.clockQuality.clockClass < 128) {
 		if (comp < 0) {
-			m1(rtOpts, ptpClock);
+			m1(global, ptpClock);
 			return PTP_MASTER;
 		} else if (comp > 0) {
-			s1(&foreign->header, &foreign->announce, ptpClock, rtOpts);
+			s1(&foreign->header, &foreign->announce, ptpClock, global);
 			if (newBM) {
 			/* New BM #2 */
 				SET_ALARM(ALRM_MASTER_CHANGE, TRUE);
@@ -700,10 +700,10 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 		}
 	} else {
 		if (comp < 0) {
-			m1(rtOpts,ptpClock);
+			m1(global,ptpClock);
 			return PTP_MASTER;
 		} else if (comp > 0) {
-			s1(&foreign->header, &foreign->announce,ptpClock, rtOpts);
+			s1(&foreign->header, &foreign->announce,ptpClock, global);
 			if (newBM) {
 			/* New BM #3 */
 				SET_ALARM(ALRM_MASTER_CHANGE, TRUE);
@@ -732,25 +732,25 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 
 UInteger8
 bmc(ForeignMasterRecord *foreignMaster,
-    const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+    const GlobalConfig *global, PtpClock *ptpClock)
 {
 	Integer16 i,best;
 
 	DBGV("number_foreign_records : %d \n", ptpClock->number_foreign_records);
 	if (!ptpClock->number_foreign_records)
 		if (ptpClock->portDS.portState == PTP_MASTER)	{
-			m1(rtOpts,ptpClock);
+			m1(global,ptpClock);
 			return ptpClock->portDS.portState;
 		}
 
 	for (i=1,best = 0; i<ptpClock->number_foreign_records;i++)
 		if ((bmcDataSetComparison(&foreignMaster[i], &foreignMaster[best],
-					  ptpClock, rtOpts)) < 0)
+					  ptpClock, global)) < 0)
 			best = i;
 
 	DBGV("Best record : %d \n",best);
 	ptpClock->foreign_record_best = best;
 	ptpClock->bestMaster = &foreignMaster[best];
 	return (bmcStateDecision(ptpClock->bestMaster,
-				 rtOpts,ptpClock));
+				 global,ptpClock));
 }

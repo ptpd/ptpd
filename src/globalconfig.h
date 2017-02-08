@@ -28,7 +28,7 @@
  * @file   globalconfig.h
  * @date   Sat Jan 9 16:14:10 2015
  *
- * @brief  Global daemon configuration structure: RunTimeOpts
+ * @brief  Global daemon configuration structure: GlobalConfig
  *
  */
 
@@ -56,7 +56,7 @@
 #endif /* HAVE_LINUX_IF_H*/
 
 /**
- * \struct RunTimeOpts
+ * \struct GlobalConfig
  * \brief Program options set at run-time
  */
 /* program options set at run-time */
@@ -370,6 +370,6 @@ typedef struct {
 	Boolean ptpMonAnyDomain;
 	UInteger8 ptpMonDomainNumber;
 
-} RunTimeOpts;
+} GlobalConfig;
 
 #endif /*PTPD_GLOBALCONFIG_H_*/

@@ -1,4 +1,5 @@
-/* Copyright (c) 2016-2017 Wojciech Owczarek,
+/*-
+ * Copyright (c) 2016      Wojciech Owczarek
  *
  * All Rights Reserved
  *
@@ -25,31 +26,26 @@
  */
 
 /**
- * @file   libcck.h
- * @date   Sat Jan 9 16:14:10 2016
+ * @file   cck_glue.h
+ * @date   Thu Nov 24 23:19:00 2016
  *
- * @brief  libCCK initialisation and housekeeping declarations
+ * @brief  Wrappers and callbacks binding libCCK with PTPd code
+ *
  *
  */
 
-#ifndef LIBCCK_H_
-#define LIBCCK_H_
+#ifndef _PTPD_CCK_GLUE_H
+#define _PTPD_CCK_GLUE_H
 
-#include <libcck/fd_set.h>
+#include "../ptpd.h"
+#include "../globalconfig.h"
 
-typedef struct {
+#include "address.h"
+#include "clockdriver.h"
+#include "ptpclock.h"
+#include "timers.h"
+#include "transport.h"
 
-    int clockSyncRate;
-    int netMonitorInterval;
-    int clockUpdateInterval;
-    int transportFaultTimeout;
 
-} CckConfig;
+#endif /* _PTPD_CCK_GLUE_H */
 
-bool		cckInit(CckFdSet *set); /* initialise libCCK and housekeeping events */
-void		cckShutdown();		/* shutdown all libCCK components */
-CckConfig*	getCckConfig();		/* get global libCCK configuration handle */
-CckFdSet*	getCckFdSet();		/* get global FD set */
-const CckConfig *cckDefaults();		/* get libcck default configuration */
-
-#endif /* LIBCCK_H_ */

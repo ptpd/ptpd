@@ -69,17 +69,17 @@
 Boolean
 prepareClockDrivers(PtpClock *ptpClock) {
 
-	RunTimeOpts *rtOpts = ptpClock->rtOpts;
+	GlobalConfig *global = ptpClock->global;
 
 	TTransport *ev = ptpClock->eventTransport;
 
 	ClockDriver *cd = ev->getClockDriver(ev);
 
-	configureClockDriver(getSystemClock(), rtOpts);
+	configureClockDriver(getSystemClock(), global);
 
 	ptpClock->clockDriver = cd;
 
-	configureClockDriver(cd, rtOpts);
+	configureClockDriver(cd, global);
 	cd->inUse = TRUE;
 	cd->config.required = TRUE;
 
@@ -92,10 +92,10 @@ prepareClockDrivers(PtpClock *ptpClock) {
 
 	ClockDriver *lastMaster = ptpClock->masterClock;
 
-	if(strlen(rtOpts->masterClock) > 0) {
-	    ptpClock->masterClock = getClockDriverByName(rtOpts->masterClock);
+	if(strlen(global->masterClock) > 0) {
+	    ptpClock->masterClock = getClockDriverByName(global->masterClock);
 	    if(ptpClock->masterClock == NULL) {
-		WARNING("Could not find designated master clock: %s\n", rtOpts->masterClock);
+		WARNING("Could not find designated master clock: %s\n", global->masterClock);
 	    }
 	} else {
 	    ptpClock->masterClock = NULL;

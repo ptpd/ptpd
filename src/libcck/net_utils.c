@@ -875,7 +875,7 @@ testInterface(const char* ifName, const int family, const char* sourceHint)
  */
 
 int
-monitorInterfaceInfo(const char *ifName, CckInterfaceInfo *last, const CckTransportAddress *sourceHint, const bool quiet)
+monitorInterface(const char *ifName, CckInterfaceInfo *last, const CckTransportAddress *sourceHint, const bool quiet)
 {
 
     CckInterfaceInfo current;

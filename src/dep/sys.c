@@ -271,7 +271,7 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char * format, va_list ap) {
 
 
-	extern RunTimeOpts rtOpts;
+	extern GlobalConfig global;
 	extern Boolean startupInProgress;
 
 	char time_str[MAXTIMESTR];
@@ -281,17 +281,14 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 
 	bool debug = (priority >= LOG_DEBUG);
 
-	char *filter =  debug ? rtOpts.debugFilter : rtOpts.logFilter;
-
-	extern char *translatePortState(PtpClock *ptpClock);
-	extern PtpClock *G_ptpClock;
+	char *filter =  debug ? global.debugFilter : global.logFilter;
 
 	if(destination == NULL)
 		return -1;
 
 	/* If we're starting up as daemon, only print <= WARN */
 	if ((destination == stderr) &&
-		!rtOpts.nonDaemon && startupInProgress &&
+		!global.nonDaemon && startupInProgress &&
 		(priority > LOG_WARNING)){
 		    return 1;
 		}
@@ -300,7 +297,7 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 	vsnprintf(buf, PATH_MAX, format, ap);
 
 	/* deduplication */
-	if(!debug && rtOpts.deduplicateLog) {
+	if(!debug && global.deduplicateLog) {
 	    /* check if this message produces the same hash as last */
 	    hash = fnvHash(buf, sizeof(buf), 0);
 	    if(lastHash != NULL) {
@@ -320,7 +317,7 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 	}
 
 	/* Print timestamps and prefixes only if we're running in foreground or logging to file*/
-	if( rtOpts.nonDaemon || destination != stderr) {
+	if( global.nonDaemon || destination != stderr) {
 
 		/*
 		 * select debug tagged with timestamps. This will slow down PTP itself if you send a lot of messages!
@@ -330,8 +327,8 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 		gettimeofday(&now, 0);
 		strftime(time_str, MAXTIMESTR, "%F %X", localtime((time_t*)&now.tv_sec));
 		fprintf(destination, "%s.%06d ", time_str, (int)now.tv_usec  );
-		fprintf(destination,PTPD_PROGNAME"[%d].%s (%-9s ",
-		(int)getpid(), startupInProgress ? "startup" : rtOpts.ifName,
+		fprintf(destination,PTPD_PROGNAME"[%d].(%-9s ",
+		(int)getpid(),
 		priority == LOG_EMERG   ? "emergency)" :
 		priority == LOG_ALERT   ? "alert)" :
 		priority == LOG_CRIT    ? "critical)" :
@@ -345,8 +342,8 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 		"unk)");
 
 
-		fprintf(destination, " (%s) ", G_ptpClock ?
-		       translatePortState(G_ptpClock) : "___");
+//		fprintf(destination, " (%s) ", G_ptpClock ?
+//		       translatePortState(G_ptpClock) : "___");
 	}
 
 	return fprintf(destination, "%s", buf);
@@ -378,30 +375,30 @@ updateLogSize(LogFileHandler* handler)
 void
 logMessageWrapper(int priority, const char * format, va_list ap)
 {
-	extern RunTimeOpts rtOpts;
+	extern GlobalConfig global;
 	extern Boolean startupInProgress;
 
 	va_list ap1;
 	va_copy(ap1, ap);
 
 #ifdef RUNTIME_DEBUG
-	if ((priority >= LOG_DEBUG) && (priority > rtOpts.debug_level)) {
+	if ((priority >= LOG_DEBUG) && (priority > global.debug_level)) {
 		goto end;
 	}
 #endif
 
 	/* log level filter */
-	if(priority > rtOpts.logLevel) {
+	if(priority > global.logLevel) {
 	    goto end;
 	}
 	/* If we're using a log file and the message has been written OK, we're done*/
-	if(rtOpts.eventLog.logEnabled && rtOpts.eventLog.logFP != NULL) {
-	    if(writeMessage(rtOpts.eventLog.logFP, &rtOpts.eventLog.lastHash, priority, format, ap) > 0) {
-		maintainLogSize(&rtOpts.eventLog);
+	if(global.eventLog.logEnabled && global.eventLog.logFP != NULL) {
+	    if(writeMessage(global.eventLog.logFP, &global.eventLog.lastHash, priority, format, ap) > 0) {
+		maintainLogSize(&global.eventLog);
 		if(!startupInProgress)
 		    goto end;
 		else {
-		    rtOpts.eventLog.lastHash = 0;
+		    global.eventLog.lastHash = 0;
 		    goto std_err;
 		    }
 	    }
@@ -412,8 +409,8 @@ logMessageWrapper(int priority, const char * format, va_list ap)
 	 * If we're running in background and we're starting up, also log first
 	 * messages to syslog to at least leave a trace.
 	 */
-	if (rtOpts.useSysLog ||
-	    (!rtOpts.nonDaemon && startupInProgress)) {
+	if (global.useSysLog ||
+	    (!global.nonDaemon && startupInProgress)) {
 		static Boolean syslogOpened;
 #ifdef RUNTIME_DEBUG
 		/*
@@ -434,14 +431,14 @@ logMessageWrapper(int priority, const char * format, va_list ap)
 			goto end;
 		}
 		else {
-			rtOpts.eventLog.lastHash = 0;
+			global.eventLog.lastHash = 0;
 			goto std_err;
 		}
 	}
 std_err:
 
 	/* Either all else failed or we're running in foreground - or we also log to stderr */
-	writeMessage(stderr, &rtOpts.eventLog.lastHash, priority, format, ap1);
+	writeMessage(stderr, &global.eventLog.lastHash, priority, format, ap1);
 
 end:
 	va_end(ap1);
@@ -589,30 +586,30 @@ maintainLogSize(LogFileHandler* handler)
 }
 
 void
-restartLogging(RunTimeOpts* rtOpts)
+restartLogging(GlobalConfig* global)
 {
 
-	if(!restartLog(&rtOpts->statisticsLog, TRUE))
-		NOTIFY("Failed logging to %s file\n", rtOpts->statisticsLog.logID);
+	if(!restartLog(&global->statisticsLog, TRUE))
+		NOTIFY("Failed logging to %s file\n", global->statisticsLog.logID);
 
-	if(!restartLog(&rtOpts->recordLog, TRUE))
-		NOTIFY("Failed logging to %s file\n", rtOpts->recordLog.logID);
+	if(!restartLog(&global->recordLog, TRUE))
+		NOTIFY("Failed logging to %s file\n", global->recordLog.logID);
 
-	if(!restartLog(&rtOpts->eventLog, TRUE))
-		NOTIFY("Failed logging to %s file\n", rtOpts->eventLog.logID);
+	if(!restartLog(&global->eventLog, TRUE))
+		NOTIFY("Failed logging to %s file\n", global->eventLog.logID);
 
-	if(!restartLog(&rtOpts->statusLog, TRUE))
-		NOTIFY("Failed logging to %s file\n", rtOpts->statusLog.logID);
+	if(!restartLog(&global->statusLog, TRUE))
+		NOTIFY("Failed logging to %s file\n", global->statusLog.logID);
 
 }
 
 void
-stopLogging(RunTimeOpts* rtOpts)
+stopLogging(GlobalConfig* global)
 {
-	closeLog(&rtOpts->statisticsLog);
-	closeLog(&rtOpts->recordLog);
-	closeLog(&rtOpts->eventLog);
-	closeLog(&rtOpts->statusLog);
+	closeLog(&global->statisticsLog);
+	closeLog(&global->recordLog);
+	closeLog(&global->eventLog);
+	closeLog(&global->statusLog);
 }
 
 void
@@ -620,7 +617,7 @@ logStatistics(PtpClock * ptpClock)
 {
 
 	ClockDriver *cd = ptpClock->clockDriver;
-	extern RunTimeOpts rtOpts;
+	extern GlobalConfig global;
 	static int errorMsg = 0;
 	static char sbuf[SCREEN_BUFSZ * 2];
 	int len = 0;
@@ -630,12 +627,12 @@ logStatistics(PtpClock * ptpClock)
 	static TimeInternal prev_now_sync, prev_now_delay;
 	char time_str[MAXTIMESTR];
 
-	if (!rtOpts.logStatistics) {
+	if (!global.logStatistics) {
 		return;
 	}
 
-	if(rtOpts.statisticsLog.logEnabled && rtOpts.statisticsLog.logFP != NULL)
-	    destination = rtOpts.statisticsLog.logFP;
+	if(global.statisticsLog.logEnabled && global.statisticsLog.logFP != NULL)
+	    destination = global.statisticsLog.logFP;
 	else
 	    destination = stdout;
 
@@ -645,7 +642,7 @@ logStatistics(PtpClock * ptpClock)
 		       "Offset From Master, Slave to Master, "
 		       "Master to Slave, Observed Drift, Last packet Received, Sequence ID"
 			", One Way Delay Mean, One Way Delay Std Dev, Offset From Master Mean, Offset From Master Std Dev, Observed Drift Mean, Observed Drift Std Dev, raw delayMS, raw delaySM"
-			"\n", (rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) ? "Timestamp, Unix timestamp" : "Timestamp");
+			"\n", (global.statisticsTimestamp == TIMESTAMP_BOTH) ? "Timestamp, Unix timestamp" : "Timestamp");
 	}
 
 	memset(sbuf, 0, sizeof(sbuf));
@@ -656,11 +653,11 @@ logStatistics(PtpClock * ptpClock)
 	 * print one log entry per X seconds for Sync and DelayResp messages, to reduce disk usage.
 	 */
 
-	if ((ptpClock->portDS.portState == PTP_SLAVE) && (rtOpts.statisticsLogInterval)) {
+	if ((ptpClock->portDS.portState == PTP_SLAVE) && (global.statisticsLogInterval)) {
 			
 		switch(ptpClock->char_last_msg) {
 			case 'S':
-			if((now.seconds - prev_now_sync.seconds) < rtOpts.statisticsLogInterval){
+			if((now.seconds - prev_now_sync.seconds) < global.statisticsLogInterval){
 				DBGV("Suppressed Sync statistics log entry - statisticsLogInterval configured\n");
 				return;
 			}
@@ -668,7 +665,7 @@ logStatistics(PtpClock * ptpClock)
 			    break;
 			case 'D':
 			case 'P':
-			if((now.seconds - prev_now_delay.seconds) < rtOpts.statisticsLogInterval){
+			if((now.seconds - prev_now_delay.seconds) < global.statisticsLogInterval){
 				DBGV("Suppressed Sync statistics log entry - statisticsLogInterval configured\n");
 				return;
 			}
@@ -681,8 +678,8 @@ logStatistics(PtpClock * ptpClock)
 	time_s = now.seconds;
 
 	/* output date-time timestamp if configured */
-	if (rtOpts.statisticsTimestamp == TIMESTAMP_DATETIME ||
-	    rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) {
+	if (global.statisticsTimestamp == TIMESTAMP_DATETIME ||
+	    global.statisticsTimestamp == TIMESTAMP_BOTH) {
 	    strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&time_s));
 	    len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s.%06d, %s, ",
 		       time_str, (int)now.nanoseconds/1000, /* Timestamp */
@@ -690,8 +687,8 @@ logStatistics(PtpClock * ptpClock)
 	}
 
 	/* output unix timestamp s.ns if configured */
-	if (rtOpts.statisticsTimestamp == TIMESTAMP_UNIX ||
-	    rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) {
+	if (global.statisticsTimestamp == TIMESTAMP_UNIX ||
+	    global.statisticsTimestamp == TIMESTAMP_BOTH) {
 	    len += snprintf(sbuf + len, sizeof(sbuf) - len, "%d.%06d, %s,",
 		       now.seconds, now.nanoseconds, /* Timestamp */
 		       translatePortState(ptpClock)); /* State */
@@ -715,7 +712,7 @@ logStatistics(PtpClock * ptpClock)
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
-		if(rtOpts.delayMechanism == E2E) {
+		if(global.delayMechanism == E2E) {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 						    &ptpClock->currentDS.meanPathDelay);
 		} else {
@@ -731,7 +728,7 @@ logStatistics(PtpClock * ptpClock)
 		/* print MS and SM with sign */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 			
-		if(rtOpts.delayMechanism == E2E) {
+		if(global.delayMechanism == E2E) {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 							&(ptpClock->delaySM));
 		} else {
@@ -797,8 +794,8 @@ logStatistics(PtpClock * ptpClock)
 	    }
 	}
 
-	if(destination == rtOpts.statisticsLog.logFP) {
-		if (maintainLogSize(&rtOpts.statisticsLog))
+	if(destination == global.statisticsLog.logFP) {
+		if (maintainLogSize(&global.statisticsLog))
 			ptpClock->resetStatisticsLog = TRUE;
 	}
 
@@ -806,7 +803,7 @@ logStatistics(PtpClock * ptpClock)
 
 /* periodic status update */
 void
-periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+periodicUpdate(const GlobalConfig *global, PtpClock *ptpClock)
 {
 
     char tmpBuf[200];
@@ -859,7 +856,7 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    }
 	}
     } else if(ptpClock->portDS.portState == PTP_MASTER) {
-	if(rtOpts->unicastNegotiation || ptpClock->unicastDestinationCount) {
+	if(global->unicastNegotiation || ptpClock->unicastDestinationCount) {
 	    INFO("Status update: state %s, %d slaves\n", portState_getName(ptpClock->portDS.portState),
 	    ptpClock->unicastDestinationCount + ptpClock->slaveCount);
 	} else {
@@ -903,7 +900,7 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 
 #define STATUSPREFIX "%-19s:"
 void
-writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
+writeStatusFile(PtpClock *ptpClock,const GlobalConfig *global, Boolean quiet)
 {
 	ClockDriver *cd = ptpClock->clockDriver;
 
@@ -915,7 +912,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 
 	getAlarmSummary(alarmBuf, n, ptpClock->alarms, ALRM_MAX);
 
-	if(rtOpts->statusLog.logFP == NULL)
+	if(global->statusLog.logFP == NULL)
 	    return;
 	
 	char timeStr[MAXTIMESTR];
@@ -930,7 +927,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	gettimeofday(&now, 0);
 	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", localtime((time_t*)&now.tv_sec));
 	
-	FILE* out = rtOpts->statusLog.logFP;
+	FILE* out = global->statusLog.logFP;
 	memset(outBuf, 0, sizeof(outBuf));
 
 	setbuf(out, outBuf);
@@ -943,8 +940,8 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, 		STATUSPREFIX"  %s\n","Local time", timeStr);
 	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", gmtime((time_t*)&now.tv_sec));
 	fprintf(out, 		STATUSPREFIX"  %s\n","Kernel time", timeStr);
-	fprintf(out, 		STATUSPREFIX"  %s%s","Interface", rtOpts->ifName,
-		(rtOpts->backupIfaceEnabled && ptpClock->runningBackupInterface) ? " (backup)" : (rtOpts->backupIfaceEnabled)?
+	fprintf(out, 		STATUSPREFIX"  %s%s","Interface", global->ifName,
+		(global->backupIfaceEnabled && ptpClock->runningBackupInterface) ? " (backup)" : (global->backupIfaceEnabled)?
 		    " (primary)" : "");
 /*
 	if(ifInfo->vlanInfo.vlan) {
@@ -967,25 +964,25 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, "\n");
 
 
-	fprintf(out, 		STATUSPREFIX"  %s\n","Preset", dictionary_get(rtOpts->currentConfig, "ptpengine:preset", ""));
+	fprintf(out, 		STATUSPREFIX"  %s\n","Preset", dictionary_get(global->currentConfig, "ptpengine:preset", ""));
 
 	if(transport) {
 	    tmpstr(trStatus, 100);
 	    fprintf(out, 		STATUSPREFIX"  %s","Transport", transport->getInfoLine(transport, trStatus, trStatus_len));
-	    fprintf(out,"%s", rtOpts->unicastNegotiation ? " negotiation":"");
+	    fprintf(out,"%s", global->unicastNegotiation ? " negotiation":"");
 	}
 
 	fprintf(out,"\n");
 
-	fprintf(out, 		STATUSPREFIX"  %s\n","Delay mechanism", dictionary_get(rtOpts->currentConfig, "ptpengine:delay_mechanism", ""));
+	fprintf(out, 		STATUSPREFIX"  %s\n","Delay mechanism", dictionary_get(global->currentConfig, "ptpengine:delay_mechanism", ""));
 	if(ptpClock->portDS.portState >= PTP_MASTER) {
 	fprintf(out, 		STATUSPREFIX"  %s\n","Sync mode", ptpClock->defaultDS.twoStepFlag ? "TWO_STEP" : "ONE_STEP");
 	}
-	if(ptpClock->defaultDS.slaveOnly && rtOpts->anyDomain) {
+	if(ptpClock->defaultDS.slaveOnly && global->anyDomain) {
 		fprintf(out, 		STATUSPREFIX"  %d, preferred %d\n","PTP domain",
-		ptpClock->defaultDS.domainNumber, rtOpts->domainNumber);
-	} else if(ptpClock->defaultDS.slaveOnly && rtOpts->unicastNegotiation) {
-		fprintf(out, 		STATUSPREFIX"  %d, default %d\n","PTP domain", ptpClock->defaultDS.domainNumber, rtOpts->domainNumber);
+		ptpClock->defaultDS.domainNumber, global->domainNumber);
+	} else if(ptpClock->defaultDS.slaveOnly && global->unicastNegotiation) {
+		fprintf(out, 		STATUSPREFIX"  %d, default %d\n","PTP domain", ptpClock->defaultDS.domainNumber, global->domainNumber);
 	} else {
 		fprintf(out, 		STATUSPREFIX"  %d\n","PTP domain", ptpClock->defaultDS.domainNumber);
 	}
@@ -1019,7 +1016,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	if(ptpClock->portDS.portState == PTP_SLAVE) {
 	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d","GM priority",
 	ptpClock->parentDS.grandmasterPriority1, ptpClock->parentDS.grandmasterPriority2, ptpClock->parentDS.grandmasterClockQuality.clockClass);
-	if(rtOpts->unicastNegotiation && ptpClock->parentGrants != NULL ) {
+	if(global->unicastNegotiation && ptpClock->parentGrants != NULL ) {
 	    	fprintf(out, ", localPref %d", ptpClock->parentGrants->localPreference);
 	}
 	fprintf(out, "%s\n", (ptpClock->bestMaster != NULL && ptpClock->bestMaster->disqualified) ? " (timeout)" : "");
@@ -1040,8 +1037,8 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, "%s",ptpClock->timePropertiesDS.leap61 ?
 			", LEAP61 pending" : ptpClock->timePropertiesDS.leap59 ? ", LEAP59 pending" : "");
 	if (ptpClock->portDS.portState == PTP_SLAVE) {	
-	    fprintf(out, "%s", rtOpts->preferUtcValid ? ", prefer UTC" : "");
-	    fprintf(out, "%s", rtOpts->requireUtcValid ? ", require UTC" : "");
+	    fprintf(out, "%s", global->preferUtcValid ? ", prefer UTC" : "");
+	    fprintf(out, "%s", global->requireUtcValid ? ", require UTC" : "");
 	}
 	fprintf(out,"\n");
 	}
@@ -1087,12 +1084,12 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 		fprintf(out,"negative step,");
 	    }
 
-	if(rtOpts->calibrationDelay) {
+	if(global->calibrationDelay) {
 	    fprintf(out, "%s",
 		ptpClock->isCalibrated ? "calibrated" : "not calibrated");
 	}
 
-	if(rtOpts->noAdjust) {
+	if(global->noAdjust) {
 	    fprintf(out, ", read-only");
 	} else {
 		fprintf(out, ", %s",
@@ -1180,9 +1177,9 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 		ptpClock->counters.messageSendRate,
 		ptpClock->counters.bytesSendRate);
 	if(ptpClock->portDS.portState == PTP_MASTER) {
-		if(rtOpts->unicastNegotiation) {
+		if(global->unicastNegotiation) {
 		    fprintf(out,", slaves %d", ptpClock->slaveCount);
-		} else if (rtOpts->transportMode == TMODE_UC) {
+		} else if (global->transportMode == TMODE_UC) {
 		    fprintf(out,", slaves %d", ptpClock->unicastDestinationCount);
 		}
 	}
@@ -1293,12 +1290,12 @@ displayPortIdentity(PortIdentity *port, const char *prefixMessage)
 void
 recordSync(UInteger16 sequenceId, TimeInternal * time)
 {
-	extern RunTimeOpts rtOpts;
-	if (rtOpts.recordLog.logEnabled && rtOpts.recordLog.logFP != NULL) {
-		fprintf(rtOpts.recordLog.logFP, "%d %llu\n", sequenceId,
+	extern GlobalConfig global;
+	if (global.recordLog.logEnabled && global.recordLog.logFP != NULL) {
+		fprintf(global.recordLog.logFP, "%d %llu\n", sequenceId,
 		  ((time->seconds * 1000000000ULL) + time->nanoseconds)
 		);
-		maintainLogSize(&rtOpts.recordLog);
+		maintainLogSize(&global.recordLog);
 	}
 }
 
@@ -1378,7 +1375,7 @@ checkFileLockable(const char *fileName, int *lockPid) {
  * or clock driver name
  */
 Boolean
-checkOtherLocks(RunTimeOpts* rtOpts)
+checkOtherLocks(GlobalConfig* global)
 {
 
 
@@ -1390,8 +1387,8 @@ Boolean ret = TRUE;
 int matches = 0, counter = 0;
 
 	/* no need to check locks */
-	if(rtOpts->ignoreLock ||
-		!rtOpts->autoLockFile)
+	if(global->ignoreLock ||
+		!global->autoLockFile)
 			return TRUE;
 
     /*
@@ -1402,14 +1399,14 @@ int matches = 0, counter = 0;
 
 	/* Check for other ptpd running on the same interface - same for all modes */
 	snprintf(searchPattern, PATH_MAX,"%s/%s_*_%s.lock",
-	    rtOpts->lockDirectory, PTPD_PROGNAME,rtOpts->ifName);
+	    global->lockDirectory, PTPD_PROGNAME,global->ifName);
 
 	DBGV("SearchPattern: %s\n",searchPattern);
 	switch(glob(searchPattern, 0, NULL, &matchedFiles)) {
 
 	    case GLOB_NOSPACE:
 	    case GLOB_ABORTED:
-		    PERROR("Could not scan %s directory\n", rtOpts->lockDirectory);;
+		    PERROR("Could not scan %s directory\n", global->lockDirectory);;
 		    ret = FALSE;
 		    goto end;
 	    default:
@@ -1426,7 +1423,7 @@ int matches = 0, counter = 0;
 		/* Could not check lock status */
 		case -1:
 		    ERROR("Looks like "USER_DESCRIPTION" may be already running on %s: %s found, but could not check lock\n",
-		    rtOpts->ifName, lockPath);
+		    global->ifName, lockPath);
 		    ret = FALSE;
 		    goto end;
 		/* It was possible to acquire lock - file looks abandoned */
@@ -1437,7 +1434,7 @@ int matches = 0, counter = 0;
 		/* file is locked */
 		case 0:
 		    ERROR("Looks like "USER_DESCRIPTION" is already running on %s: %s found and is locked by pid %d\n",
-		    rtOpts->ifName, lockPath, lockPid);
+		    global->ifName, lockPath, lockPid);
 		    ret = FALSE;
 		    goto end;
 	    }
@@ -1446,16 +1443,16 @@ int matches = 0, counter = 0;
 	if(matches > 0)
 		globfree(&matchedFiles);
 	/* Any mode that can control the clock - also check the clock driver */
-	if(rtOpts->clockQuality.clockClass > 127 ) {
+	if(global->clockQuality.clockClass > 127 ) {
 	    snprintf(searchPattern, PATH_MAX,"%s/%s_%s_*.lock",
-	    rtOpts->lockDirectory,PTPD_PROGNAME,DEFAULT_CLOCKDRIVER);
+	    global->lockDirectory,PTPD_PROGNAME,DEFAULT_CLOCKDRIVER);
 	DBGV("SearchPattern: %s\n",searchPattern);
 
 	switch(glob(searchPattern, 0, NULL, &matchedFiles)) {
 
 	    case GLOB_NOSPACE:
 	    case GLOB_ABORTED:
-		    PERROR("Could not scan %s directory\n", rtOpts->lockDirectory);;
+		    PERROR("Could not scan %s directory\n", global->lockDirectory);;
 		    ret = FALSE;
 		    goto end;
 	    default:

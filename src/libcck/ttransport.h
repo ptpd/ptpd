@@ -76,10 +76,13 @@
 #define TT_HDRLEN_UDPV6		62			/* 14 eth + 20 IP6 + 8 UDP */
 
 /* default monitor + rate update interval */
-#define TT_MONITOR_INTERVAL 1
+#define TT_MONITOR_INTERVAL 1.5
 
 /* default network fault clear timeout */
 #define TT_FAULT_TIMEOUT 10
+
+/* how many packets to skip after a topology change or restart */
+#define TT_CHANGE_SKIP_PACKETS 3
 
 /* timestamping transport driver types - automagic */
 enum {
@@ -231,6 +234,8 @@ struct TTransport {
 	int (*onNetworkChange) (void *transport, void *owner, bool major);
 	/* informs the owner that we have had a network fault - called on fault and on recovery */
 	void (*onNetworkFault) (void *transport, void *owner, bool fault);
+	/* informs the owner that the clock driver provided by this transport may have changed */
+	int (*onClockDriverChange) (void *transport, void *owner);
 	/* allows the owner to react to message rate update */
 	void (*onRateUpdate) (void *transport, void *owner);
     } callbacks;
@@ -246,6 +251,7 @@ struct TTransport {
     int	_init;				/* the driver was successfully initialised */
     int *_instanceCount;		/* instance counter for the whole component */
     TTransport *slaveTransport;		/* an associated transport, restarted along with this one */
+    int _skipMessages;			/* dump n next messages (say, after a topology change) */
 
     /* libCCK common fields - to be included in a general object header struct */
     void *_privateData;			/* implementation-specific data */

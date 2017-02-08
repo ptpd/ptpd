@@ -44,9 +44,9 @@ enum {
     PTP_PRESET_MAX
 };
 
-void loadDefaultSettings( RunTimeOpts* rtOpts );
+void loadDefaultSettings( GlobalConfig* global );
 int applyConfigTemplates(dictionary *dict, char *templateNames, char *files);
-PtpEnginePreset getPtpPreset(int presetNumber, RunTimeOpts* rtOpts);
+PtpEnginePreset getPtpPreset(int presetNumber, GlobalConfig* global);
 void dumpConfigTemplates();
 
 #endif /* PTPD_CONFIGDEFAULTS_H_ */

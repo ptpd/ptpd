@@ -113,7 +113,7 @@ _setupClockDriver_unix(ClockDriver* self)
 
     strncpy(self->name, SYSTEM_CLOCK_NAME, CCK_COMPONENT_NAME_MAX);
 
-    CCK_INFO(THIS_COMPONENT"Started Unix clock driver %s\n", self->name);
+    CCK_INFO(THIS_COMPONENT"Unix clock driver '%s' started successfully\n", self->name);
 
     return true;
 
@@ -138,7 +138,7 @@ static int
 clockDriver_shutdown(ClockDriver *self) {
     self->_vendorShutdown(self);
     _instanceCount--;
-    CCK_INFO(THIS_COMPONENT"Unix clock driver %s shutting down\n", self->name);
+    CCK_INFO(THIS_COMPONENT"Unix clock driver '%s' shutting down\n", self->name);
     return 1;
 }
 

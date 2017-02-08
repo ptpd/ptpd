@@ -159,6 +159,7 @@ void getLinuxBondInfo(LinuxBondInfo *info, const char *ifName)
     }
 
     if(info->updated) {
+
 	if (strncmp(lastInfo.activeSlave.name, info->activeSlave.name, IFNAMSIZ)) {
 	    info->activeChanged = true;
 	} else if (lastInfo.slaveCount != info->slaveCount) {
@@ -167,6 +168,7 @@ void getLinuxBondInfo(LinuxBondInfo *info, const char *ifName)
 	    info->activeChanged = false;
 	    info->countChanged = false;
 	}
+
     }
 
     info->updated = true;
@@ -232,6 +234,8 @@ void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifName)
 	return;
     }
 
+    info->valid = true;
+
     getLinuxVlanInfo(vlanInfo, ifName);
 
     if(vlanInfo->vlan) {
@@ -248,5 +252,66 @@ void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifName)
     getEthtoolTsInfo(&info->logicalTsInfo, ifName);
 
     CCK_DBG("getLinuxInterfaceInfo(%s): Underlying physical device: %s\n", ifName, info->physicalDevice);
+
+}
+
+
+/*
+ *  status in the @last structure is only one of OK, DOWN, FAULT, but returned value
+ *  provides event status (went up, went down, fault, fault cleared, major change, or no change)
+ */
+
+
+int monitorLinuxInterface(const char *ifName, LinuxInterfaceInfo *info, const bool quiet)
+{
+
+    int ret = 0;
+
+    if(!info) {
+	return -1;
+    }
+
+    /* no point monitoring without previous data */
+    if(!info->valid) {
+	return 0;
+    }
+
+    /* we don't care about bonding changes when not running h/w timestamping */
+    if(!info->hwTimestamping) {
+
+	return CCK_INTINFO_OK;
+
+
+    }
+
+    getLinuxInterfaceInfo(info, ifName);
+
+    LinuxBondInfo *bi = &info->bondInfo;
+
+    if(bi->bonded) {
+
+	if(!bi->activeBackup) {
+	    CCK_QERROR("transport: monitorLinuxInterface('%s'): Bonded interface"
+			 " not running Active Backup, expect random timing performance\n", ifName);
+	    return CCK_INTINFO_FAULT;
+	}
+
+	if(bi->countChanged) {
+	    CCK_QNOTICE("transport: monitorLinuxInterface('%s'): Bonded interface"
+			 " member count has changed\n", ifName);
+	    ret = CCK_INTINFO_CHANGE;
+	}
+
+	if(bi->activeChanged) {
+	    CCK_QNOTICE("transport: monitorLinuxInterface('%s'): Bonded interface"
+			 " active member changed to %s\n", ifName, info->physicalDevice);
+	    ret |= CCK_INTINFO_CLOCKCHANGE;
+
+	}
+
+    }
+
+
+    return ret;
 
 }

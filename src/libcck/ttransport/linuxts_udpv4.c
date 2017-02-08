@@ -272,7 +272,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     /* try enabling timestamping if we need it */
     if(self->config.timestamping) {
 	if(!initTimestamping_linuxts_common(self, &myData->tsConfig, &myData->lintInfo, myConfig->interface, false)) {
-	    CCK_ERROR(THIS_COMPONENT"tTransport_init(%s): Failed to initialise software timestamping!\n",
+	    CCK_ERROR(THIS_COMPONENT"tTransport_init(%s): Failed to initialise Linux timestamping!\n",
 		self->name);
 		goto cleanup;
 	}
@@ -568,6 +568,14 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 
     ret = recvmsg(self->myFd.fd, &msg, MSG_DONTWAIT | txFlags);
 
+    /* skipping n-- next messages */
+    if(self->_skipMessages) {
+	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): dropping message, _skipmessages left %d\n",
+		    self->name, self->_skipMessages);
+	self->_skipMessages--;
+	return 0;
+    }
+
     /* drain the socket, but ignore what we received */
     if(self->config.discarding) {
 	return 0;
@@ -724,10 +732,53 @@ monitor(TTransport *self, const int interval, const bool quiet) {
     CCK_GET_PCONFIG(TTransport, linuxts_udpv4, self, myConfig);
     CCK_GET_PDATA(TTransport, linuxts_udpv4, self, myData);
 
-
-
-    int res = monitorInterfaceInfo(myConfig->interface,
+    int res = monitorInterface(myConfig->interface,
 	    &myData->intInfo, &myConfig->sourceAddress, quiet);
+
+    /* this will eventually cause transport restart anyway - no need to check bonding etc. */
+    if(res & (CCK_INTINFO_FAULT | CCK_INTINFO_CHANGE)) {
+	return res;
+    }
+
+    /* really monitoring the rest is only meaningful to timestamping transports */
+    if(!self->config.timestamping) {
+	return res;
+    }
+
+    int lres = monitorLinuxInterface(myConfig->interface, &myData->lintInfo, quiet);
+
+    /* Linux-specific fault */
+    if(lres & CCK_INTINFO_FAULT) {
+
+	myData->intInfo.status = CCK_INTINFO_FAULT;
+	/* set return flag to fault */
+	res |= CCK_INTINFO_FAULT;
+	/* clear OK flag */
+	res &= ~CCK_INTINFO_OK;
+
+    /* Linux-specific change */
+    } else {
+
+	/* this is returned when bond slave count has changed - not passed upwards */
+	if(lres & CCK_INTINFO_CHANGE) {
+	    if(!initTimestamping_linuxts_common(self, &myData->tsConfig,
+			    &myData->lintInfo, myConfig->interface, false)) {
+		CCK_QERROR(THIS_COMPONENT"monitor('%s'): Failed to re-initialise Linux timestamping!\n",
+		    self->name);
+		myData->intInfo.status = CCK_INTINFO_FAULT;
+		/* set return flag to fault */
+		res |= CCK_INTINFO_FAULT;
+		/* clear OK flag */
+		res &= ~CCK_INTINFO_OK;
+		return res;
+	    }
+	}
+
+	if(lres & CCK_INTINFO_CLOCKCHANGE) {
+	    res |= lres;
+	}
+
+    }
 
     return res;
 

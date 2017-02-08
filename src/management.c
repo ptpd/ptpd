@@ -54,7 +54,7 @@
 #include "ptpd.h"
 
 static void handleMMNullManagement(MsgManagement*, MsgManagement*, PtpClock*);
-static void handleMMClockDescription(MsgManagement*, MsgManagement*, RunTimeOpts*, PtpClock*);
+static void handleMMClockDescription(MsgManagement*, MsgManagement*, GlobalConfig*, PtpClock*);
 static void handleMMSlaveOnly(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMUserDescription(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMSaveInNonVolatileStorage(MsgManagement*, MsgManagement*, PtpClock*);
@@ -74,13 +74,13 @@ static void handleMMLogSyncInterval(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMVersionNumber(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMEnablePort(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMDisablePort(MsgManagement*, MsgManagement*, PtpClock*);
-static void handleMMTime(MsgManagement*, MsgManagement*, PtpClock*, const RunTimeOpts*);
+static void handleMMTime(MsgManagement*, MsgManagement*, PtpClock*, const GlobalConfig*);
 static void handleMMClockAccuracy(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMUtcProperties(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMTraceabilityProperties(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMTimescaleProperties(MsgManagement*, MsgManagement*, PtpClock*);
 
-static void handleMMUnicastNegotiationEnable(MsgManagement*, MsgManagement*, PtpClock*, RunTimeOpts*);
+static void handleMMUnicastNegotiationEnable(MsgManagement*, MsgManagement*, PtpClock*, GlobalConfig*);
 static void handleMMDelayMechanism(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMLogMinPdelayReqInterval(MsgManagement*, MsgManagement*, PtpClock*);
 static void handleMMErrorStatus(MsgManagement*);
@@ -88,14 +88,14 @@ static void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement 
                                 PtpClock *ptpClock, Enumeration16 mgmtId,
                                 Enumeration16 errorId);
 #if 0
-static void issueManagement(MsgHeader*,MsgManagement*,const RunTimeOpts*,PtpClock*);
+static void issueManagement(MsgHeader*,MsgManagement*,const GlobalConfig*,PtpClock*);
 #endif
-static void issueManagementRespOrAck(MsgManagement*, void*, const RunTimeOpts*,PtpClock*);
-static void issueManagementErrorStatus(MsgManagement*, void*, const RunTimeOpts*,PtpClock*);
+static void issueManagementRespOrAck(MsgManagement*, void*, const GlobalConfig*,PtpClock*);
+static void issueManagementErrorStatus(MsgManagement*, void*, const GlobalConfig*,PtpClock*);
 
 void
 handleManagement(MsgHeader *header,
-		 Boolean isFromSelf, void* sourceAddress, RunTimeOpts *rtOpts, PtpClock *ptpClock)
+		 Boolean isFromSelf, void* sourceAddress, GlobalConfig *global, PtpClock *ptpClock)
 {
 	DBGV("Management message received : \n");
 	void *dst = NULL;
@@ -122,7 +122,7 @@ handleManagement(MsgHeader *header,
 		return;
 	}
 
-	if(!rtOpts->managementEnabled) {
+	if(!global->managementEnabled) {
 		DBGV("Dropping management message - management message support disabled");
 		ptpClock->counters.discardedMessages++;
 		return;
@@ -152,7 +152,7 @@ handleManagement(MsgHeader *header,
                 goto end;
         }
 
-	if(!rtOpts->managementSetEnable &&
+	if(!global->managementSetEnable &&
 	    (mgmtMsg->actionField == SET ||
 	    mgmtMsg->actionField == COMMAND)) {
 		DBGV("Dropping SET/COMMAND management message - read-only mode enabled");
@@ -177,7 +177,7 @@ handleManagement(MsgHeader *header,
 	/* if this is a SET, there is potential for applying new config */
 	if (mgmtMsg->actionField & (SET | COMMAND)) {
 	    ptpClock->managementConfig = dictionary_new(0);
-	    dictionary_merge(rtOpts->currentConfig, ptpClock->managementConfig, 1, 0, NULL);
+	    dictionary_merge(global->currentConfig, ptpClock->managementConfig, 1, 0, NULL);
 	}
 
 	switch(mgmtMsg->tlv->managementId)
@@ -193,7 +193,7 @@ handleManagement(MsgHeader *header,
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
-		handleMMClockDescription(mgmtMsg, &ptpClock->outgoingManageTmp, rtOpts, ptpClock);
+		handleMMClockDescription(mgmtMsg, &ptpClock->outgoingManageTmp, global, ptpClock);
 		break;
 	case MM_USER_DESCRIPTION:
 		DBGV("handleManagement: User Description\n");
@@ -353,7 +353,7 @@ handleManagement(MsgHeader *header,
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
-                handleMMTime(mgmtMsg, &ptpClock->outgoingManageTmp, ptpClock, rtOpts);
+                handleMMTime(mgmtMsg, &ptpClock->outgoingManageTmp, ptpClock, global);
                 break;
         case MM_CLOCK_ACCURACY:
                 DBGV("handleManagement: Clock Accuracy\n");
@@ -398,7 +398,7 @@ handleManagement(MsgHeader *header,
 			ptpClock->counters.messageFormatErrors++;
 			goto end;
 		}
-                handleMMUnicastNegotiationEnable(mgmtMsg, &ptpClock->outgoingManageTmp, ptpClock, rtOpts);
+                handleMMUnicastNegotiationEnable(mgmtMsg, &ptpClock->outgoingManageTmp, ptpClock, global);
                 break;
         case MM_DELAY_MECHANISM:
                 DBGV("handleManagement: Delay Mechanism\n");
@@ -455,10 +455,10 @@ handleManagement(MsgHeader *header,
 	if(ptpClock->outgoingManageTmp.tlv->tlvType == TLV_MANAGEMENT) {
 		if(ptpClock->outgoingManageTmp.actionField == RESPONSE ||
 				ptpClock->outgoingManageTmp.actionField == ACKNOWLEDGE) {
-			issueManagementRespOrAck(&ptpClock->outgoingManageTmp, dst, rtOpts, ptpClock);
+			issueManagementRespOrAck(&ptpClock->outgoingManageTmp, dst, global, ptpClock);
 		}
 	} else if(ptpClock->outgoingManageTmp.tlv->tlvType == TLV_MANAGEMENT_ERROR_STATUS) {
-		issueManagementErrorStatus(&ptpClock->outgoingManageTmp, dst, rtOpts, ptpClock);
+		issueManagementErrorStatus(&ptpClock->outgoingManageTmp, dst, global, ptpClock);
 	}
 
 	end:
@@ -473,7 +473,7 @@ handleManagement(MsgHeader *header,
 
 	if(ptpClock->managementConfig != NULL) {
 	    NOTICE("SET / COMMAND management message received - looking for configuration changes\n");
-	    applyConfig(ptpClock->managementConfig, rtOpts, ptpClock);
+	    applyConfig(ptpClock->managementConfig, global, ptpClock);
 	    dictionary_del(&ptpClock->managementConfig);
 	}
 
@@ -553,7 +553,7 @@ void handleMMNullManagement(MsgManagement* incoming, MsgManagement* outgoing, Pt
 }
 
 /**\brief Handle incoming CLOCK_DESCRIPTION management message*/
-void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, RunTimeOpts *rtOpts, PtpClock* ptpClock)
+void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, GlobalConfig *global, PtpClock* ptpClock)
 {
 	DBGV("received CLOCK_DESCRIPTION management message \n");
 
@@ -603,7 +603,7 @@ void handleMMClockDescription(MsgManagement* incoming, MsgManagement* outgoing, 
 		/* reserved */
 		data->reserved = 0;
 		/* product description */
-		tmpsnprintf(tmpStr, 64, PRODUCT_DESCRIPTION, rtOpts->productDescription);
+		tmpsnprintf(tmpStr, 64, PRODUCT_DESCRIPTION, global->productDescription);
                 data->productDescription.lengthField = strlen(tmpStr);
                 XMALLOC(data->productDescription.textField,
                                         data->productDescription.lengthField);
@@ -1426,7 +1426,7 @@ void handleMMDisablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 }
 
 /**\brief Handle incoming TIME management message type*/
-void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock, const RunTimeOpts* rtOpts)
+void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock, const GlobalConfig* global)
 {
 	DBGV("received TIME message\n");
 
@@ -1450,7 +1450,7 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 		/* GET actions */
 		TimeInternal internalTime;
 		getPtpClockTime(&internalTime, ptpClock);
-		if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
+		if (respectUtcOffset(global, ptpClock) == TRUE) {
 			internalTime.seconds += ptpClock->timePropertiesDS.currentUtcOffset;
 		}
 		toOriginTimestamp(&data->currentTime,&internalTime);
@@ -1660,7 +1660,7 @@ void handleMMTimescaleProperties(MsgManagement* incoming, MsgManagement* outgoin
 }
 
 /**\brief Handle incoming UNICAST_NEGOTIATION_ENABLE management message type*/
-void handleMMUnicastNegotiationEnable(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock, RunTimeOpts *rtOpts)
+void handleMMUnicastNegotiationEnable(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* ptpClock, GlobalConfig *global)
 {
 	DBGV("received UNICAST_NEGOTIATION_ENABLE message\n");
 
@@ -1684,7 +1684,7 @@ void handleMMUnicastNegotiationEnable(MsgManagement* incoming, MsgManagement* ou
 		XMALLOC(outgoing->tlv->dataField, sizeof(MMUnicastNegotiationEnable));
 		data = (MMUnicastNegotiationEnable*)outgoing->tlv->dataField;
 		/* GET actions */
-		data->en = rtOpts->unicastNegotiation;
+		data->en = global->unicastNegotiation;
 		data->reserved = 0x0;
 		break;
 	case RESPONSE:
@@ -1833,7 +1833,7 @@ void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement *outgoi
 
 #if 0
 static void
-issueManagement(MsgHeader *header,MsgManagement *manage,const RunTimeOpts *rtOpts,
+issueManagement(MsgHeader *header,MsgManagement *manage,const GlobalConfig *global,
 		PtpClock *ptpClock)
 {
 
@@ -1843,7 +1843,7 @@ issueManagement(MsgHeader *header,MsgManagement *manage,const RunTimeOpts *rtOpt
 #endif
 
 static void
-issueManagementRespOrAck(MsgManagement *outgoing, void *dst, const RunTimeOpts *rtOpts,
+issueManagementRespOrAck(MsgManagement *outgoing, void *dst, const GlobalConfig *global,
 		PtpClock *ptpClock)
 {
 
@@ -1866,7 +1866,7 @@ issueManagementRespOrAck(MsgManagement *outgoing, void *dst, const RunTimeOpts *
 }
 
 static void
-issueManagementErrorStatus(MsgManagement *outgoing, void *dst, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
+issueManagementErrorStatus(MsgManagement *outgoing, void *dst, const GlobalConfig *global, PtpClock *ptpClock)
 {
 
 	/* pack ManagementErrorStatusTLV */
