@@ -46,7 +46,7 @@
 
 
 /* linked list - so that we can control all registered objects centrally */
-LINKED_LIST_ROOT_STATIC(TTransport);
+LL_ROOT(TTransport);
 
 static const char *ttransportNames[] = {
 
@@ -133,7 +133,7 @@ createTTransport(const int type, const char* name) {
 	return NULL;
     } else {
 	/* maintain the linked list */
-	LINKED_LIST_APPEND_STATIC(transport);
+	LL_APPEND_STATIC(transport);
     }
 
 /* init ACLs */
@@ -240,7 +240,7 @@ freeTTransport(TTransport** transport) {
     }
 
     /* maintain the linked list */
-    LINKED_LIST_REMOVE_STATIC(ptransport);
+    LL_REMOVE_STATIC(ptransport);
 
     if(ptransport->_privateData != NULL) {
 	free(ptransport->_privateData);
@@ -375,20 +375,20 @@ controlTTransports(const int command, const void *arg) {
     switch(command) {
 
 	case TT_NOTINUSE:
-	    LINKED_LIST_FOREACH_STATIC(tt) {
+	    LL_FOREACH_STATIC(tt) {
 		tt->inUse = false;
 //		tt->config.required = false;
 	    }
 	break;
 
 	case TT_SHUTDOWN:
-	    LINKED_LIST_DESTROYALL(tt, freeTTransport);
+	    LL_DESTROYALL(tt, freeTTransport);
 	break;
 
 	case TT_CLEANUP:
 	    do {
 		found = false;
-		LINKED_LIST_FOREACH_STATIC(tt) {
+		LL_FOREACH_STATIC(tt) {
 		    if(!tt->inUse) {
 			freeTTransport(&tt);
 			found = true;
@@ -399,7 +399,7 @@ controlTTransports(const int command, const void *arg) {
 	break;
 
 	case TT_DUMP:
-	    LINKED_LIST_FOREACH_STATIC(tt) {
+	    LL_FOREACH_STATIC(tt) {
 		if(!tt->config.disabled) {
 		/* TODO: dump transport information */
 		tt->dumpCounters(tt);
@@ -413,7 +413,7 @@ controlTTransports(const int command, const void *arg) {
 	break;
 
 	case TT_REFRESH:
-	    LINKED_LIST_FOREACH_STATIC(tt) {
+	    LL_FOREACH_STATIC(tt) {
 		if(!tt->config.disabled) {
 		    tt->refresh(tt);
 		}
@@ -421,19 +421,19 @@ controlTTransports(const int command, const void *arg) {
 	break;
 
 	case TT_CLEARCOUNTERS:
-	    LINKED_LIST_FOREACH_STATIC(tt) {
+	    LL_FOREACH_STATIC(tt) {
 		    tt->clearCounters(tt);
 	    }
 	break;
 
 	case TT_DUMPCOUNTERS:
-	    LINKED_LIST_FOREACH_STATIC(tt) {
+	    LL_FOREACH_STATIC(tt) {
 		    tt->dumpCounters(tt);
 	    }
 	break;
 
 	case TT_UPDATECOUNTERS:
-	    LINKED_LIST_FOREACH_STATIC(tt) {
+	    LL_FOREACH_STATIC(tt) {
 		    tt->updateCounterRates(tt, *(const int *)arg);
 	    }
 	break;
@@ -449,7 +449,7 @@ void
 shutdownTTransports() {
 
 	TTransport *tt;
-	LINKED_LIST_DESTROYALL(tt, freeTTransport);
+	LL_DESTROYALL(tt, freeTTransport);
 
 }
 
@@ -458,7 +458,7 @@ monitorTTransports(const int interval) {
 
     TTransport *tt;
 
-    LINKED_LIST_FOREACH_STATIC(tt) {
+    LL_FOREACH_STATIC(tt) {
 	if(!tt->config.disabled && !tt->config.unmonitored) {
 	    monitorTTransport(tt, interval);
 	}
@@ -499,6 +499,10 @@ void monitorTTransport(TTransport *transport, const int interval) {
 	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport('%s'): Transport link up\n", transport->name);
 	    /* strange things can happen when interfaces go up */
 	    transport->_skipMessages = TT_CHANGE_SKIP_PACKETS;
+	    transport->refresh(transport);
+	    if(transport->slaveTransport != NULL) {
+		transport->slaveTransport->refresh(transport->slaveTransport);
+	    }
 	    SAFE_CALLBACK(transport->callbacks.onNetworkChange, transport, transport->owner, false);
 	} else if (res & CCK_INTINFO_DOWN) {
 	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport('%s'): Transport link down\n", transport->name);
@@ -530,7 +534,7 @@ refreshTTransports() {
 
     TTransport *tt;
 
-    LINKED_LIST_FOREACH_STATIC(tt) {
+    LL_FOREACH_STATIC(tt) {
 	if(!tt->config.disabled) {
 	    tt->refresh(tt);
 	}
@@ -542,7 +546,7 @@ TTransport*
 findTTransport(const char *search) {
 
 	TTransport *tt;
-	LINKED_LIST_FOREACH_STATIC(tt) {
+	LL_FOREACH_STATIC(tt) {
 	    if(tt->isThisMe(tt, search)) {
 		return tt;
 	    }
@@ -557,7 +561,7 @@ getTTransportByName(const char *name) {
 
 	TTransport *tt;
 
-	LINKED_LIST_FOREACH_STATIC(tt) {
+	LL_FOREACH_STATIC(tt) {
 	    if(!strncmp(tt->name, name, CCK_COMPONENT_NAME_MAX)) {
 		return tt;
 	    }

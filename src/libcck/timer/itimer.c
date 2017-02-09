@@ -52,7 +52,7 @@
 #define THIS_COMPONENT "timer.itimer: "
 
 /* we need to iterate over the instances of this implementation */
-LINKED_LIST_ROOT_STATIC(CckTimer);
+LL_ROOT(CckTimer);
 
 /* tracking the number of instances */
 static int _instanceCount = 0;
@@ -99,7 +99,7 @@ timerInit (CckTimer *self, const bool oneShot, CckFdSet *fdSet) {
 
     self->config.oneShot = oneShot;
 
-    LINKED_LIST_APPEND_STATIC(self);
+    LL_APPEND_STATIC(self);
 
     self->_init = true;
 
@@ -114,7 +114,7 @@ timerShutdown (CckTimer *self) {
 
     self->stop(self);
 
-    LINKED_LIST_REMOVE_STATIC(self);
+    LL_REMOVE_STATIC(self);
 
     CCK_DBG(THIS_COMPONENT"(%s): timer shutdown\n", self->name);
 
@@ -250,7 +250,7 @@ static void itimerUpdate() {
 	return;
     }
 
-    LINKED_LIST_FOREACH_STATIC(t) {
+    LL_FOREACH_STATIC(t) {
 
 	CCK_GET_PDATA(CckTimer, itimer, t, it);
 

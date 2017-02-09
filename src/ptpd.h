@@ -125,7 +125,9 @@
 #include "dep/alarms.h"
 
 #include "libcck/clockdriver.h"
+#include "lib1588_glue.h"
 #include "dep/cck_glue.h"
+#include "dep/transport.h"
 
 /* NOTE: this macro can be refactored into a function */
 #define XMALLOC(ptr,size) \
@@ -434,7 +436,7 @@ int check_timestamp_is_fresh(const TimeInternal * timeA);
 
 
 void toState(UInteger8,const GlobalConfig*,PtpClock*);
-void internalFault(PtpClock *ptpClock);
+void ptpInternalFault(PtpClock *ptpClock);
 
 /* helper functions for leap second handling */
 double secondsToMidnight(void);

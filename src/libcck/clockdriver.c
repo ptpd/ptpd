@@ -48,7 +48,7 @@
 
 
 /* linked list - so that we can control all registered objects centrally */
-LINKED_LIST_ROOT_STATIC(ClockDriver);
+LL_ROOT(ClockDriver);
 
 static ClockDriver* _systemClock = NULL;
 static ClockDriver* _bestClock = NULL;
@@ -117,7 +117,7 @@ createClockDriver(int driverType, const char *name)
 	return NULL;
     } else {
 	/* maintain the linked list */
-	LINKED_LIST_APPEND_STATIC(clockDriver);
+	LL_APPEND_STATIC(clockDriver);
     }
 
     clockDriver->refClass = RC_NONE;
@@ -215,7 +215,7 @@ freeClockDriver(ClockDriver** clockDriver)
 	return;
     }
 
-    LINKED_LIST_FOREACH_STATIC(cd) {
+    LL_FOREACH_STATIC(cd) {
 	if(cd->refClock == pdriver) {
 	    pdriver->setReference(pdriver, NULL);
 	}
@@ -226,7 +226,7 @@ freeClockDriver(ClockDriver** clockDriver)
     }
 
     /* maintain the linked list */
-    LINKED_LIST_REMOVE_STATIC(pdriver);
+    LL_REMOVE_STATIC(pdriver);
 
 
     if(pdriver->_privateData != NULL) {
@@ -276,7 +276,7 @@ void
 shutdownClockDrivers() {
 
 	ClockDriver *cd;
-	LINKED_LIST_DESTROYALL(cd, freeClockDriver);
+	LL_DESTROYALL(cd, freeClockDriver);
 	_systemClock = NULL;
 
 }
@@ -405,7 +405,7 @@ updateClockDrivers(int interval) {
 	ClockDriver *cd;
 	CckTimestamp now;
 
-	LINKED_LIST_FOREACH_STATIC(cd) {
+	LL_FOREACH_STATIC(cd) {
 
 	    if(cd->config.disabled) {
 		continue;
@@ -503,7 +503,7 @@ syncClocks(double tau) {
     ClockDriver *cd;
 
     /* sync locked clocks first, in case if they are to unlock */
-    LINKED_LIST_FOREACH_STATIC(cd) {
+    LL_FOREACH_STATIC(cd) {
 
 	    if(cd->config.disabled) {
 		continue;
@@ -515,7 +515,7 @@ syncClocks(double tau) {
 	    }
     }
     /* sync the whole rest */
-    LINKED_LIST_FOREACH_STATIC(cd) {
+    LL_FOREACH_STATIC(cd) {
 
 	    if((cd->config.disabled) || (cd->state == CS_HWFAULT)) {
 		continue;
@@ -534,7 +534,7 @@ void
 stepClocks(bool force) {
 
     ClockDriver *cd;
-    LINKED_LIST_FOREACH_STATIC(cd) {
+    LL_FOREACH_STATIC(cd) {
 
 	if((cd->config.disabled) || (cd->state == CS_HWFAULT)) {
 	    continue;
@@ -558,7 +558,7 @@ reconfigureClockDrivers(bool (*pushConfig)(ClockDriver*, const void*), const voi
 
     ClockDriver *cd;
 
-    LINKED_LIST_FOREACH_STATIC(cd) {
+    LL_FOREACH_STATIC(cd) {
 	pushConfig(cd, config);
     }
 
@@ -1452,7 +1452,7 @@ ClockDriver*
 findClockDriver(const char * search) {
 
 	ClockDriver *cd;
-	LINKED_LIST_FOREACH_STATIC(cd) {
+	LL_FOREACH_STATIC(cd) {
 	    if(cd->isThisMe(cd, search)) {
 		return cd;
 	    }
@@ -1467,7 +1467,7 @@ getClockDriverByName(const char * search) {
 
 	ClockDriver *cd;
 
-	LINKED_LIST_FOREACH_STATIC(cd) {
+	LL_FOREACH_STATIC(cd) {
 	    if(!strncmp(cd->name, search, CCK_COMPONENT_NAME_MAX)) {
 		return cd;
 	    }
@@ -1494,7 +1494,7 @@ compareAllClocks() {
     memset(lineBuf, 0, lineLen);
     memset(timeBuf, 0, sizeof(timeBuf));
 
-    LINKED_LIST_FOREACH_STATIC(cd) {
+    LL_FOREACH_STATIC(cd) {
 	count += snprintf(lineBuf + count, lineLen - count, "\t\t%s", cd->name);
     }
 
@@ -1503,13 +1503,13 @@ compareAllClocks() {
     memset(lineBuf, 0, lineLen);
     count = 0;
 
-    LINKED_LIST_FOREACH_STATIC(outer) {
+    LL_FOREACH_STATIC(outer) {
 
 	memset(lineBuf, 0, lineLen);
 	count = 0;
 	count += snprintf(lineBuf + count, lineLen - count, "%s\t", outer->name);
 
-	LINKED_LIST_FOREACH_STATIC(inner) {
+	LL_FOREACH_STATIC(inner) {
 	    memset(timeBuf, 0, sizeof(timeBuf));
 	    outer->getOffsetFrom(outer, inner, &delta);
 	    snprint_CckTimestamp(timeBuf, sizeof(timeBuf), &delta);
@@ -1562,7 +1562,7 @@ controlClockDrivers(int command) {
     switch(command) {
 
 	case CD_NOTINUSE:
-	    LINKED_LIST_FOREACH_STATIC(cd) {
+	    LL_FOREACH_STATIC(cd) {
 		if(!cd->systemClock) {
 		    cd->inUse = false;
 		    cd->config.required = false;
@@ -1574,14 +1574,14 @@ controlClockDrivers(int command) {
 	break;
 
 	case CD_SHUTDOWN:
-	    LINKED_LIST_DESTROYALL(cd, freeClockDriver);
+	    LL_DESTROYALL(cd, freeClockDriver);
 	    _systemClock = NULL;
 	break;
 
 	case CD_CLEANUP:
 	    do {
 		found = false;
-		LINKED_LIST_FOREACH_STATIC(cd) {
+		LL_FOREACH_STATIC(cd) {
 		    /* the system clock should always be kept */
 		    if(!cd->inUse && !cd->systemClock) {
 			freeClockDriver(&cd);
@@ -1593,7 +1593,7 @@ controlClockDrivers(int command) {
 	break;
 
 	case CD_DUMP:
-	    LINKED_LIST_FOREACH_STATIC(cd) {
+	    LL_FOREACH_STATIC(cd) {
 		if(cd->config.disabled) {
 		    continue;
 		}
@@ -1792,7 +1792,7 @@ findBestClock() {
     ClockDriver *newBest = NULL;
     ClockDriver *cd;
 
-    LINKED_LIST_FOREACH_STATIC(cd) {
+    LL_FOREACH_STATIC(cd) {
 	if((cd->config.disabled) || (cd->config.excluded)) {
 	    continue;
 	}
@@ -1803,7 +1803,7 @@ findBestClock() {
     }
 
     if(newBest == NULL) {
-	LINKED_LIST_FOREACH_STATIC(cd) {
+	LL_FOREACH_STATIC(cd) {
 	    if((cd->config.disabled) || (cd->config.excluded)) {
 		continue;
 	    }
@@ -1815,7 +1815,7 @@ findBestClock() {
     }
 
     if(newBest != NULL) {
-	LINKED_LIST_FOREACH_STATIC(cd) {
+	LL_FOREACH_STATIC(cd) {
 	    if((cd->config.disabled) || (cd->state == CS_HWFAULT) || (cd->config.excluded)) {
 		continue;
 	    }
@@ -1840,7 +1840,7 @@ findBestClock() {
 	if(_bestClock != NULL) {
 	    _bestClock->bestClock = false;
 	    /* we are changing best reference - drop the old one */
-	    LINKED_LIST_FOREACH_STATIC(cd) {
+	    LL_FOREACH_STATIC(cd) {
 		if(cd->config.disabled) {
 		    continue;
 		}
@@ -1855,7 +1855,7 @@ findBestClock() {
 	    _bestClock->bestClock = true;
 	}
 
-	LINKED_LIST_FOREACH_STATIC(cd) {
+	LL_FOREACH_STATIC(cd) {
 	    if(cd->config.disabled) {
 		continue;
 	    }
@@ -1864,7 +1864,7 @@ findBestClock() {
 	    }
 	}
 
-	LINKED_LIST_FOREACH_STATIC(cd) {
+	LL_FOREACH_STATIC(cd) {
 	    if(cd->config.disabled) {
 		continue;
 	    }
@@ -1875,7 +1875,7 @@ findBestClock() {
     }
 
     /* mark ready for sync */
-    LINKED_LIST_FOREACH_STATIC(cd) {
+    LL_FOREACH_STATIC(cd) {
 	    cd->_waitForElection = false;
     }
 

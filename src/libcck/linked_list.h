@@ -36,24 +36,24 @@
 #define CCK_LINKEDLIST_H_
 
 /* static list parent / holder in a module */
-#define LINKED_LIST_ROOT_STATIC(vartype) \
+#define LL_ROOT(vartype) \
 	static vartype *_first = NULL; \
 	static vartype *_last = NULL; \
 	static uint32_t _serial = 0;
 
 /* list parent / holder to be included in a structure */
-#define LINKED_LIST_ROOT_DYNAMIC(vartype) \
+#define LL_HOLDER(vartype) \
 	vartype *_first;\
 	vartype *_last;
 
 /* list child / member to be included in a structure */
-#define LINKED_LIST_TAG(vartype) \
+#define LL_TAG(vartype) \
 	vartype **_first; \
 	vartype *_next; \
 	vartype *_prev;
 
 /* append variable to statically embedded linked list */
-#define LINKED_LIST_APPEND_STATIC(var) \
+#define LL_APPEND_STATIC(var) \
 	if(_first == NULL) { \
 		_first = var; \
 	} \
@@ -68,7 +68,7 @@
 	_serial++;
 
 /* append variable to linked list held in the holder variable */
-#define LINKED_LIST_APPEND_DYNAMIC(holder, var) \
+#define LL_APPEND_DYNAMIC(holder, var) \
 	if(holder->_first == NULL) { \
 		holder->_first = var; \
 	} \
@@ -81,7 +81,7 @@
 	var->_first = &holder->_first;
 
 /* remove variable from a statically embedded list */
-#define LINKED_LIST_REMOVE_STATIC(var) \
+#define LL_REMOVE_STATIC(var) \
 	if(var == _last) { \
 	    _serial = var->_serial; \
 	} \
@@ -113,7 +113,7 @@
 	var->_first = NULL;
 
 /* remove variable from holder variable */
-#define LINKED_LIST_REMOVE_DYNAMIC(holder, var) \
+#define LL_REMOVE_DYNAMIC(holder, var) \
 	if(var->_prev != NULL) { \
 		if(var == holder->_last) { \
 			holder->_last = var->_prev; \
@@ -142,26 +142,26 @@
 	var->_first = NULL;
 
 /* foreach loop within a module, assigning var as we walk */
-#define LINKED_LIST_FOREACH_STATIC(var) \
+#define LL_FOREACH_STATIC(var) \
 	for(var = _first; var != NULL; var = var->_next)
 
 /* reverse linked list walk within module */
-#define LINKED_LIST_FOREACH_STATIC_REVERSE(var) \
+#define LL_FOREACH_STATIC_REVERSE(var) \
 	for(var = _last; var != NULL; var = var->_prev)
 
 /* foreach within holder struct */
-#define LINKED_LIST_FOREACH_DYNAMIC(holder, var) \
+#define LL_FOREACH_DYNAMIC(holder, var) \
 	for(var = (holder)->_first; var != NULL; var = var->_next)
 
 /* reverse foreach within holder struct */
-#define LINKED_LIST_FOREACH_DYNAMIC_REVERSE(holder, var) \
+#define LL_FOREACH_DYNAMIC_REVERSE(holder, var) \
 	for(var = (holder)->_last; var != NULL; var = var->_prev)
 
-#define LINKED_LIST_FOREACH_INNER(holder, var) \
+#define LL_FOREACH_INNER(holder, var) \
 	for(var = (*(holder))->_first; var != NULL; var = var->_next)
 
 /* walk list from last member downwards, calling fun to delete members */
-#define LINKED_LIST_DESTROYALL(helper, fun) \
+#define LL_DESTROYALL(helper, fun) \
 	while(_first != NULL) { \
 	    helper = _last; \
 	    fun(&helper); \

@@ -295,7 +295,7 @@ tTransport_shutdown(TTransport *self) {
     /* free multicast group list and leave groups if we have them */
     if(myConfig->multicastStreams) {
 	    CckTransportAddress *mcAddr;
-	    LINKED_LIST_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
+	    LL_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
 		joinMulticast_ethernet(mcAddr, myConfig->interface, false);
 	    }
     }
@@ -597,7 +597,7 @@ refresh(TTransport *self) {
 
 	if(myConfig->multicastStreams) {
 	    CckTransportAddress *mcAddr;
-	    LINKED_LIST_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
+	    LL_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
 		ret &= joinMulticast_ethernet(mcAddr, myConfig->interface, true);
 	    }
 	}
@@ -639,7 +639,7 @@ createFilterExpr(TTransport *self, char *buf, int size) {
     if(self->config.flags | TT_CAPS_MCAST) {
 	if(myConfig->multicastStreams) {
 	    CckTransportAddress *mcAddr;
-	    LINKED_LIST_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
+	    LL_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
 		ret = snprintf(marker, left, " or ether dst %s", self->tools->toString(strAddr, sizeof(strAddr), mcAddr));
 		if(!maintainStrBuf(ret, &marker, &left)) {
 		    return buf;

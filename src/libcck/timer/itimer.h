@@ -43,7 +43,7 @@ struct CckTimerData_itimer {
     int32_t interval;
     int32_t left;
     uint32_t _serial;	/* instance number */
-    LINKED_LIST_TAG(CckTimer);
+    LL_TAG(CckTimer);
 };
 
 

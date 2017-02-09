@@ -118,7 +118,7 @@ typedef struct CckTransportAddress CckTransportAddress;
 
 struct CckTransportAddress {
 	/* so that this can be used in linked lists */
-	LINKED_LIST_TAG(CckTransportAddress);
+	LL_TAG(CckTransportAddress);
 
 	/* address container */
 	union {
@@ -163,7 +163,7 @@ void	setAddressScope_ipv6(CckTransportAddress *address, uint8_t scope);
 typedef struct CckTransportAddressList CckTransportAddressList;
 
 struct CckTransportAddressList {
-	LINKED_LIST_ROOT_DYNAMIC(CckTransportAddress);
+	LL_HOLDER(CckTransportAddress);
 	void (*add)	(CckTransportAddressList *list, CckTransportAddress *item);
 	bool (*addString) (CckTransportAddressList *list, const char* string);
 	bool (*remove)	(CckTransportAddressList *list, CckTransportAddress *item);

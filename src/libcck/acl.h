@@ -123,7 +123,7 @@ struct CckAcl {
     /* public interface end */
 
     /* attach the linked list */
-    LINKED_LIST_TAG(CckAcl);
+    LL_TAG(CckAcl);
 
 };
 

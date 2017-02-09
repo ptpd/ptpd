@@ -230,10 +230,10 @@ struct TTransport {
 	int (*matchData) (void *transport, void *owner, char *a, const size_t alen, char *b, const size_t blen);
 	/* checks if the data received is regular data or control / management data - used to select ACL being matched */
 	int(*isRegularData) (void *transport, void *owner, char *data, const size_t len, bool isMulticast);
-	/* informs the owner that we have had a network interface / topology change. "major" may require a full restart / reconfig */
-	int (*onNetworkChange) (void *transport, void *owner, bool major);
+	/* informs the owner that we have had a network interface / topology change. */
+	void (*onNetworkChange) (void *transport, void *owner, const bool major);
 	/* informs the owner that we have had a network fault - called on fault and on recovery */
-	void (*onNetworkFault) (void *transport, void *owner, bool fault);
+	void (*onNetworkFault) (void *transport, void *owner, const bool fault);
 	/* informs the owner that the clock driver provided by this transport may have changed */
 	int (*onClockDriverChange) (void *transport, void *owner);
 	/* allows the owner to react to message rate update */
@@ -331,7 +331,7 @@ struct TTransport {
     int (*_vendorHealthCheck) (TTransport *);
 
     /* attach the linked list */
-    LINKED_LIST_TAG(TTransport);
+    LL_TAG(TTransport);
 
 };
 

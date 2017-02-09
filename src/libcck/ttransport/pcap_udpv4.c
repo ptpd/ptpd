@@ -341,7 +341,7 @@ tTransport_shutdown(TTransport *self) {
 
 	if(myConfig->multicastStreams) {
 	    CckTransportAddress *mcAddr;
-	    LINKED_LIST_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
+	    LL_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
 		joinMulticast_ipv4(myData->sockFd, mcAddr, myConfig->interface, &self->ownAddress, false);
 	    }
 	}
@@ -658,7 +658,7 @@ refresh(TTransport *self) {
 
 	if(myConfig->multicastStreams) {
 	    CckTransportAddress *mcAddr;
-	    LINKED_LIST_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
+	    LL_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
 		joinMulticast_ipv4(myData->sockFd, mcAddr, myConfig->interface, &self->ownAddress, true);
 	    }
 	}
@@ -711,7 +711,7 @@ createFilterExpr(TTransport *self, char *buf, int size) {
 	bool first = true;
 	if(myConfig->multicastStreams) {
 	    CckTransportAddress *mcAddr;
-	    LINKED_LIST_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
+	    LL_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
 		ret = snprintf(marker, left, "%sip dst %s", first ? "" : " or ",
 			self->tools->toString(strAddr, sizeof(strAddr), mcAddr));
 		if(!maintainStrBuf(ret, &marker, &left)) {

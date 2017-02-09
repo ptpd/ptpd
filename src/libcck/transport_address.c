@@ -851,7 +851,7 @@ duplicateCckTransportAddressList(const CckTransportAddressList *list)
 
     CckTransportAddressList *dup = createCckTransportAddressList(list->family, list->name);
 
-    LINKED_LIST_FOREACH_DYNAMIC(list, addr) {
+    LL_FOREACH_DYNAMIC(list, addr) {
 
 	copy = duplicateCckTransportAddress(addr);
 	dup->add(dup, copy);
@@ -870,7 +870,7 @@ addrListAdd(CckTransportAddressList *list, CckTransportAddress *item)
 	return;
     }
 
-    LINKED_LIST_APPEND_DYNAMIC(list, item);
+    LL_APPEND_DYNAMIC(list, item);
     list->count++;
 
 }
@@ -910,7 +910,7 @@ addrListRemove (CckTransportAddressList *list, CckTransportAddress *item)
 	return false;
     }
 
-    LINKED_LIST_REMOVE_DYNAMIC(list, item);
+    LL_REMOVE_DYNAMIC(list, item);
     list->count--;
 
     return true;
@@ -923,7 +923,7 @@ addrListClear (CckTransportAddressList *list)
 
     CckTransportAddress *item;
 
-    LINKED_LIST_FOREACH_DYNAMIC( list, item) {
+    LL_FOREACH_DYNAMIC( list, item) {
 	list->remove(list, item);
     }
 
@@ -951,7 +951,7 @@ addrListDump (CckTransportAddressList *list)
 
     tmpstr(strAddr, ts->strLen);
 
-    LINKED_LIST_FOREACH_DYNAMIC(list, address) {
+    LL_FOREACH_DYNAMIC(list, address) {
 
 	CCK_INFO("+\t%s\n", ts->toString(strAddr, strAddr_len, address));
 

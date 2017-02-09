@@ -26,33 +26,41 @@
  */
 
 /**
- * @file   address.h
+ * @file   transport.h
  * @date   Thu Nov 24 23:19:00 2016
  *
- * @brief  Address management wrappers between PTPd / lib1588 and libCCK
+ * @brief  PTPd transport code
  *
  *
  */
 
-#ifndef _PTPD_CCK_GLUE_ADDRESS_H
-#define _PTPD_CCK_GLUE_ADDRESS_H
+#ifndef _PTPD_TRANSPORT_H
+#define _PTPD_TRANSPORT_H
 
-#include <stdint.h>
+#include "../ptpd.h"
 
-/* address management */
-int		myAddrStrLen(void *input);
-int		myAddrDataSize(void *input);
-char*		myAddrToString(char *buf, const int len, void *input);
-uint32_t	myAddrHash(void *addr, const int modulo);
-int		myAddrCompare(void *a, void *b);
-bool		myAddrIsEmpty(void *input);
-bool		myAddrIsMulticast(void *input);
-void		myAddrClear(void *input);
-void		myAddrCopy(void *dst, void *src);
-void*		myAddrDup(void *src);
-void		myAddrFree(void **input);
-void*		myAddrGetData(void *input);
-int		myAddrSize();
+#include <libcck/cck.h>
+#include <libcck/cck_types.h>
+#include <libcck/fd_set.h>
+#include <libcck/ttransport.h>
 
-#endif /* _PTPD_CCK_GLUE_ADDRESS_H */
+#include "../globalconfig.h"
+
+/* Populate network protocol and address information inside PTP clock */
+//void setPtpNetworkInfo(PtpClock *ptpClock);
+
+/* configure ACLs */
+void configureAcls(PtpClock *ptpClock, const GlobalConfig *global);
+/* Create, probe, configure and start network transports for a PTP port */
+bool initPtpTransports(PtpClock *ptpClock, CckFdSet *fdSet, const GlobalConfig *global);
+/* Shut down and free transports for a PTP port */
+void shutdownPtpTransports(PtpClock *ptpClock);
+/* get preferred address family we have configured */
+int getConfiguredFamily(const GlobalConfig *global);
+/* test if desired transport configuration is usable */
+bool testTransportConfig(const GlobalConfig *global);
+/* get preferred address family based on config */
+int getConfiguredFamily(const GlobalConfig *global);
+
+#endif /* _PTPD_TRANSPORT_H */
 

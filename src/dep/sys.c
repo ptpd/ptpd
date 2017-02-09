@@ -818,8 +818,8 @@ periodicUpdate(const GlobalConfig *global, PtpClock *ptpClock)
     len += snprint_PortIdentity(masterIdBuf + len, sizeof(masterIdBuf) - len,
 	    &ptpClock->parentDS.parentPortIdentity);
     if(ptpClock->bestMaster && ptpClock->bestMaster->protocolAddress) {
-	tmpstr(tmpAddr, myAddrStrLen(ptpClock->bestMaster->protocolAddress));
-	myAddrToString(tmpAddr, tmpAddr_len, ptpClock->bestMaster->protocolAddress);
+	tmpstr(tmpAddr, ptpAddrStrLen(ptpClock->bestMaster->protocolAddress));
+	ptpAddrToString(tmpAddr, tmpAddr_len, ptpClock->bestMaster->protocolAddress);
 	len += snprintf(masterIdBuf + len, sizeof(masterIdBuf) - len, " (%s)", tmpAddr);
     }
 
@@ -887,8 +887,8 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 			&ptpClock->parentDS.parentPortIdentity);
 		if(ptpClock->bestMaster && ptpClock->bestMaster->protocolAddress) {
-		    tmpstr(tmpAddr, myAddrStrLen(ptpClock->bestMaster->protocolAddress));
-		    myAddrToString(tmpAddr, tmpAddr_len, ptpClock->bestMaster->protocolAddress);
+		    tmpstr(tmpAddr, ptpAddrStrLen(ptpClock->bestMaster->protocolAddress));
+		    ptpAddrToString(tmpAddr, tmpAddr_len, ptpClock->bestMaster->protocolAddress);
 		    len += snprintf(sbuf + len, sizeof(sbuf) - len, " (%s)", tmpAddr);
 		}
         }
@@ -1007,10 +1007,10 @@ writeStatusFile(PtpClock *ptpClock,const GlobalConfig *global, Boolean quiet)
 	}
 
 	if(ptpClock->portDS.portState > PTP_MASTER &&
-	ptpClock->bestMaster && !myAddrIsEmpty(ptpClock->bestMaster->protocolAddress)) {
-		tmpstr(tmpAddr, myAddrStrLen(ptpClock->bestMaster->protocolAddress));
+	ptpClock->bestMaster && !ptpAddrIsEmpty(ptpClock->bestMaster->protocolAddress)) {
+		tmpstr(tmpAddr, ptpAddrStrLen(ptpClock->bestMaster->protocolAddress));
 		fprintf(out, 		STATUSPREFIX"  %s\n","Best master addr",
-		myAddrToString(tmpAddr, tmpAddr_len, ptpClock->bestMaster->protocolAddress));
+		ptpAddrToString(tmpAddr, tmpAddr_len, ptpClock->bestMaster->protocolAddress));
 	}
 
 	if(ptpClock->portDS.portState == PTP_SLAVE) {

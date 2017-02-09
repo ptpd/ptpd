@@ -44,7 +44,7 @@ typedef struct CckFd CckFd;
 
 /* LibCCK file descriptor wrapper */
 struct CckFd {
-	LINKED_LIST_TAG(CckFd);
+	LL_TAG(CckFd);
 	int 		fd;				/* the actual FD */
 	void 		*owner;				/* component owning this fd */
 	struct {
@@ -57,7 +57,7 @@ struct CckFd {
 
 /* LibCCK wrapper for a set of file descriptors */
 typedef struct {
-	LINKED_LIST_ROOT_DYNAMIC(CckFd);
+	LL_HOLDER(CckFd);
 	bool hasData;
 	CckFd *firstData;
 	fd_set fdSet;

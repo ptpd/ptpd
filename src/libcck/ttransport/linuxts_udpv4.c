@@ -325,7 +325,7 @@ tTransport_shutdown(TTransport *self) {
 
 	if(myConfig->multicastStreams) {
 	    CckTransportAddress *mcAddr;
-	    LINKED_LIST_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
+	    LL_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
 		joinMulticast_ipv4(self->myFd.fd, mcAddr, myConfig->interface, &self->ownAddress, false);
 	    }
 	}
@@ -794,7 +794,7 @@ refresh(TTransport *self) {
 
 	if(myConfig->multicastStreams) {
 	    CckTransportAddress *mcAddr;
-	    LINKED_LIST_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
+	    LL_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
 		joinMulticast_ipv4(self->myFd.fd, mcAddr, myConfig->interface, &self->ownAddress, true);
 	    }
 	}

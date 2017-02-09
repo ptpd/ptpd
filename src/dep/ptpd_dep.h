@@ -315,15 +315,6 @@ void freeTimestamp( Timestamp *t);
 UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpClock*);
 /** \}*/
 
-/** \name net.c (Unix API dependent)
- * -Init network stuff, send and receive datas*/
- /**\{*/
-
-extern ssize_t sendPtpData(PtpClock *ptpClock, bool event, char *data, ssize_t len, void *dst, TimeInternal *timestamp);
-
-Boolean prepareClockDrivers(PtpClock *ptpClock);
-
-/** \}*/
 
 #if defined PTPD_SNMP
 /** \name snmp.c (SNMP subsystem)

@@ -67,7 +67,7 @@ void initData(const GlobalConfig *global, PtpClock *ptpClock)
 	 * init clockIdentity with MAC address and 0xFF and 0xFE. see
 	 * spec 7.5.2.2.2
 	 */
-	myPtpClockSetClockIdentity(ptpClock);
+	setPtpClockIdentity(ptpClock);
 
 	ptpClock->portDS.lastMismatchedDomain = -1;
 

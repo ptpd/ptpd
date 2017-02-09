@@ -94,11 +94,11 @@ enum {
     CSTEP_STARTUP_FORCE /* always step on startup, regardless of offset and if it's negative */
 };
 
-/* reference class */
+/* reference class, in order from least to most preferred */
 enum {
     RC_NONE	= 0, /* because on init it is zero */
-    RC_INTERNAL = 1,
-    RC_EXTERNAL = 2,
+    RC_INTERNAL = 1, /* internal clock driver */
+    RC_EXTERNAL = 2, /* arbitrary external reference */
     RC_PTP	= 3
 };
 
@@ -355,7 +355,7 @@ struct ClockDriver {
     int (*_vendorHealthCheck) (ClockDriver *);
 
     /* attach the linked list */
-    LINKED_LIST_TAG(ClockDriver);
+    LL_TAG(ClockDriver);
 
 };
 

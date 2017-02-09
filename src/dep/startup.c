@@ -315,7 +315,7 @@ restartSubsystems(GlobalConfig *global, PtpClock *ptpClock)
 	    }
 		if(global->restartSubsystems & PTPD_RESTART_ACLS) {
         		NOTIFY("Applying access control list configuration\n");
-		configureAcls(ptpClock);
+		configureAcls(ptpClock, global);
 		}
     		if(global->restartSubsystems & PTPD_RESTART_ALARMS) {
 	    NOTIFY("Applying alarm configuration\n");
@@ -347,7 +347,7 @@ restartSubsystems(GlobalConfig *global, PtpClock *ptpClock)
 		}
 
 		controlClockDrivers(CD_NOTINUSE);
-		prepareClockDrivers(ptpClock);
+		prepareClockDrivers(ptpClock, global);
 		createClockDriversFromString(global->extraClocks, configureClockDriver, global, TRUE);
 		/* clean up unused clock drivers */
 		controlClockDrivers(CD_CLEANUP);
@@ -521,12 +521,12 @@ ptpdShutdown(PtpClock * ptpClock)
 	/* process any outstanding events before exit */
 	updateAlarms(ptpClock->alarms, ALRM_MAX);
 
-	netShutdown(ptpClock);
+	shutdownPtpTransports(ptpClock);
 	shutdownPtpTimers(ptpClock);
 
 	cckShutdown();
 
-	myPtpClockPostShutdown(ptpClock);
+	ptpPortPostShutdown(ptpClock);
 
 	free(ptpClock->foreign);
 
@@ -704,24 +704,9 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, GlobalConfig * global)
 	/* Check network before going into background */
 	INFO("Checking if network interface(s) are usable\n");
 
-	int family = getConfiguredFamily(global);
-
-	if(!testInterface(global->primaryIfaceName, family, global->sourceAddress) ||
-		(detectTTransport(family, global->primaryIfaceName,
-		    getEventTransportFlags(global), global->transportType) == TT_TYPE_NONE)) {
-	    ERROR("Error: Cannot use interface '%s'\n",global->primaryIfaceName);
+	if(!testTransportConfig(global)) {
 	    *ret = 1;
 	    goto configcheck;
-	}
-
-	if(global->backupIfaceEnabled) {
-	    if(!testInterface(global->backupIfaceName, family, global->sourceAddress) ||
-		(detectTTransport(family, global->backupIfaceName,
-		    getEventTransportFlags(global), global->transportType) == TT_TYPE_NONE)) {
-		ERROR("Error: Cannot use interface '%s' as backup\n",global->backupIfaceName);
-		*ret = 1;
-		goto configcheck;
-	    }
 	}
 
 	INFO("Interfaces OK\n");
@@ -790,7 +775,7 @@ configcheck:
 
 	ptpClock->global = global;
 
-	myPtpClockPreInit(ptpClock);
+	ptpPortPreInit(ptpClock);
 
 	if(global->statisticsLog.logEnabled)
 		ptpClock->resetStatisticsLog = TRUE;

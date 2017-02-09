@@ -26,10 +26,10 @@
  */
 
 /**
- * @file   cck_glue.c
+ * @file   transport.c
  * @date   Thu Nov 24 23:19:00 2016
  *
- * @brief  Wrappers configuring LibCCK components from GlobalConfig *
+ * @brief  PTPd transport implementation using libCCK
  *
  *
  */
@@ -53,167 +53,65 @@
 #define FREE_ADDR(var) \
 	freeCckTransportAddress((CckTransportAddress **)(&(var)))
 
-static bool pushClockDriverPrivateConfig_unix(ClockDriver *driver, const GlobalConfig *global);
-static bool pushClockDriverPrivateConfig_linuxphc(ClockDriver *driver, const GlobalConfig *global);
-static bool getCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global);
+/* set PTP groups / destination addresses */
+static void configurePtpAddrs(PtpClock *ptpClock, const int family);
+/* get event transport configuration flags */
+static int getEventTransportFlags(const GlobalConfig *global);
+/* get general transport configuration flags */
+static int getGeneralTransportFlags(const GlobalConfig *global);
+/* generate transport configuration */
+static TTransportConfig *getEventTransportConfig(const int type, const GlobalConfig *global);
+static TTransportConfig *getGeneralTransportConfig(const int type, const GlobalConfig *global);
+/* set common configuration for event and general transport */
+static bool setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global);
+/* set up access control lists */
 static void aclSetup(TTransport *t, const GlobalConfig *global);
-static int parseUnicastDestinations(PtpClock *ptpClock);
+/* configure unicast addressing */
+static bool configureUnicast(PtpClock *ptpClock, const GlobalConfig *global);
+/* parse unicast destination list from global configuration */
+static int parseUnicastDestinations(PtpClock *ptpClock, const GlobalConfig *global);
+/* free all transport-related data in a PTP port structure */
+static void freeTransportData(PtpClock *ptpClock);
+/* update PTP message and data rate information */
+static void updatePtpRates (void *transport, void *owner);
+/* Populate network protocol and address information inside PTP clock */
+static void setPtpNetworkInfo(PtpClock *ptpClock);
 
-static void ptpTimerExpiry(void *self, void *owner);
-static int ptpTimerSetup(PtpTimer *timer, CckFdSet *fdSet, const char *name);
-static void ptpRateUpdate (void *transport, void *owner);
+/* TTransport callbacks */
 
-bool
-configureClockDriver(ClockDriver *driver, const void *configData)
-{
+/* set the PTP unicast flag depending on isMulticast flag */
+static int ptpPreSend (void *transport, void *owner, char *data, const size_t len, bool isMulticast);
 
-    const GlobalConfig *global = configData;
+/*
+ * check if data in two buffers are matching PTP messages (same message ID and sequence number:
+ * used to verify if TX timestamp data matches last send message
+*/
+static int matchPtpData (void *owner, void *transport, char *a, const size_t alen, char *b, const size_t blen);
 
-    bool ret = TRUE;
+/*
+ * check if data in buffer is a management message or other message type:
+ * used to decide which ACL to match data against
+ */
+static int isPtpRegularData (void *transport, void *owner, char *data, const size_t len, bool isMulticast);
 
-    ClockDriverConfig *config = &driver->config;
+/*
+ * receive and process data when available (CckFd callback):
+ * FD's owner is transport, transport's owner is PTP port
+ */
+static void ptpDataCallback(void *fd, void *owner);
 
-    config->stepType = CSTEP_ALWAYS;
+/* handle a network fault or cleared fault */
+static void ptpNetworkFault(void *transport, void *owner, const bool fault);
 
-    if(global->noResetClock) {
-	config->stepType = CSTEP_NEVER;
-    }
+/* handle a network change - major requires protocol re-init, minor needs at least offset re-calibration. */
+static void ptpNetworkChange(void *transport, void *owner, const bool major);
 
-    if(global->stepOnce) {
-	config->stepType = CSTEP_STARTUP;
-    }
-
-    if(global->stepForce) {
-	config->stepType = CSTEP_STARTUP_FORCE;
-    }
-
-    config->disabled = (tokenInList(global->disabledClocks, driver->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
-    config->excluded = (tokenInList(global->excludedClocks, driver->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
-
-    if(global->noAdjust) {
-	config->readOnly = TRUE;
-    } else {
-	config->readOnly = (tokenInList(global->readOnlyClocks, driver->name, DEFAULT_TOKEN_DELIM)) ? TRUE:FALSE;
-    }
-
-    if(config->required && config->disabled) {
-	if(!config->readOnly) {
-	    WARNING("clock: clock %s cannot be disabled - set to read-only to exclude from sync\n", driver->name);
-	} else {
-	    WARNING("clock: clock %s cannot be disabled - already set to read-only\n", driver->name);
-	}
-	config->disabled = FALSE;
-    }
-
-    config->noStep = global->noResetClock;
-    config->negativeStep = global->negativeStep;
-    config->storeToFile = global->storeToFile;
-    config->adevPeriod = global->adevPeriod;
-    config->stableAdev = global->stableAdev;
-    config->unstableAdev = global->unstableAdev;
-    config->lockedAge = global->lockedAge;
-    config->holdoverAge = global->holdoverAge;
-    config->stepTimeout = (global->enablePanicMode) ? global-> panicModeDuration : 0;
-    config->calibrationTime = global->clockCalibrationTime;
-    config->stepExitThreshold = global->panicModeExitThreshold;
-    config->strictSync = global->clockStrictSync;
-    config->minStep = global->clockMinStep;
-
-    config->statFilter = global->clockStatFilterEnable;
-    config->filterWindowSize = global->clockStatFilterWindowSize;
-
-    if(config->filterWindowSize == 0) {
-	config->filterWindowSize = global->clockSyncRate;
-    }
-
-    config->filterType = global->clockStatFilterType;
-    config->filterWindowType = global->clockStatFilterWindowType;
-
-    config->outlierFilter = global->clockOutlierFilterEnable;
-    config->madWindowSize = global->clockOutlierFilterWindowSize;
-    config->madDelay = global->clockOutlierFilterDelay;
-    config->madMax = global->clockOutlierFilterCutoff;
-    config->outlierFilterBlockTimeout = global->clockOutlierFilterBlockTimeout;
-
-    driver->servo.kP = global->servoKP;
-    driver->servo.kI = global->servoKI;
-
-    driver->servo.maxOutput = global->servoMaxPpb;
-    driver->servo.tauMethod = global->servoDtMethod;
-    driver->servo.maxTau = global->servoMaxdT;
-
-    strncpy(config->frequencyDir, global->frequencyDir, PATH_MAX);
-
-    configureClockDriverFilters(driver);
-
-    #define CCK_REGISTER_IMPL(drvtype, suffix, strname) \
-	if(driver->type == drvtype) { \
-	    ret = ret && (pushClockDriverPrivateConfig_##suffix(driver, global)); \
-	}
-
-    #include <libcck/clockdriver.def>
-
-    DBG("clock: Clock driver %s configured\n", driver->name);
-
-    return ret;
-
-}
-
-static bool
-pushClockDriverPrivateConfig_linuxphc(ClockDriver *driver, const GlobalConfig *global)
-{
-
-    ClockDriverConfig *config = &driver->config;
-
-    CCK_GET_PCONFIG(ClockDriver, linuxphc, driver, myConfig);
-
-    config->stableAdev = global->stableAdev_hw;
-    config->unstableAdev = global->unstableAdev_hw;
-    config->lockedAge = global->lockedAge_hw;
-    config->holdoverAge = global->holdoverAge_hw;
-    config->negativeStep = global->negativeStep_hw;
-
-    myConfig->lockDevice = global->lockClockDevice;
-
-    driver->servo.kP = global->servoKP_hw;
-    driver->servo.kI = global->servoKI_hw;
-    driver->servo.maxOutput = global->servoMaxPpb_hw;
-
-    return TRUE;
-
-}
-
-static bool
-pushClockDriverPrivateConfig_unix(ClockDriver *driver, const GlobalConfig *global)
-{
-
-    CCK_GET_PCONFIG(ClockDriver, unix, driver, myConfig);
-
-    myConfig->setRtc = global->setRtc;
-
-    return TRUE;
-
-}
-
-/* wrapper */
-void
-getSystemTime(TimeInternal *time)
-{
-    getSystemClock()->getTime(getSystemClock(), time);
-}
-
-void
-getPtpClockTime(TimeInternal *time, PtpClock *ptpClock)
-{
-    ClockDriver *cd = ptpClock->clockDriver;
-    cd->getTime(cd, time);
-}
-
-
+/* handle a network change requiring us to reconfigure or re-add clock drivers */
+static int ptpClockDriverChange (void *transport, void *owner);
 
 /* set common transport options */
 static bool
-getCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
+setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 
 	bool ret = false;
 	CckAddressToolset *tools = getAddressToolset(getTTransportTypeFamily(config->_type));
@@ -298,7 +196,7 @@ getCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 
 		    CckTransportAddress *maddr;
 
-		    LINKED_LIST_FOREACH_DYNAMIC(pConfig->multicastStreams, maddr) {
+		    LL_FOREACH_DYNAMIC(pConfig->multicastStreams, maddr) {
 			setAddressScope_ipv6(maddr, global->ipv6Scope);
 		    }
 
@@ -388,7 +286,7 @@ getCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 		}
 
 	    default:
-		ERROR("getCommonTransportConfig(): Unsupported transport type %02x\n", config->_type);
+		ERROR("setCommonTransportConfig(): Unsupported transport type %02x\n", config->_type);
 		break;
 	}
 
@@ -397,10 +295,8 @@ getCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 }
 
 /* set Event transport options */
-TTransportConfig
-*getEventTransportConfig(const int type, const PtpClock *ptpClock) {
-
-	const GlobalConfig* global = ptpClock->global;
+static TTransportConfig
+*getEventTransportConfig(const int type, const GlobalConfig *global) {
 
 	CckAddressToolset *tools = getAddressToolset(getTTransportTypeFamily(type));
 
@@ -420,7 +316,7 @@ TTransportConfig
 	    return NULL;
 	}
 
-	if(!getCommonTransportConfig(config, global)) {
+	if(!setCommonTransportConfig(config, global)) {
 	    goto failure;
 	}
 
@@ -462,10 +358,8 @@ failure:
 }
 
 /* set general transport options */
-TTransportConfig
-*getGeneralTransportConfig(const int type, const PtpClock *ptpClock) {
-
-	const GlobalConfig* global = ptpClock->global;
+static TTransportConfig
+*getGeneralTransportConfig(const int type, const GlobalConfig *global) {
 
 	CckAddressToolset *tools = getAddressToolset(getTTransportTypeFamily(type));
 
@@ -485,7 +379,7 @@ TTransportConfig
 	    return NULL;
 	}
 
-	if(!getCommonTransportConfig(config, global)) {
+	if(!setCommonTransportConfig(config, global)) {
 	    freeTTransportConfig(&config);
 	    return NULL;
 	}
@@ -529,23 +423,11 @@ TTransportConfig
 
 }
 
-void
-ptpNetworkRefresh(PtpClock *ptpClock)
-{
+/* receive and process data when ready to read (this is a CckFd callback) */
+static void
+ptpDataCallback(void *fd, void *owner) {
 
-    TTransport *event = ptpClock->eventTransport;
-    TTransport *general = ptpClock->generalTransport;
-
-    event->refresh(event);
-    if(event != general) {
-	general->refresh(general);
-    }
-
-}
-
-void ptpDataCallback(void *fd, void *transport) {
-
-    TTransport *tr = transport;
+    TTransport *tr = owner;
     PtpClock *clock = tr->owner;
     TimeInternal timestamp = {0 ,0};
 
@@ -553,7 +435,7 @@ void ptpDataCallback(void *fd, void *transport) {
 
     if(len < 0 ) {
 	clock->counters.messageRecvErrors++;
-	internalFault(clock);
+	ptpInternalFault(clock);
 	return;
     }
 
@@ -566,47 +448,7 @@ void ptpDataCallback(void *fd, void *transport) {
 
 }
 
-ssize_t
-sendPtpData(PtpClock *ptpClock, bool event, char *data, ssize_t len, void *dst, TimeInternal *timestamp)
-{
-
-	ssize_t ret = 0;
-
-	TTransport *tr = event ? ptpClock->eventTransport : ptpClock->generalTransport;
-	CckTransportAddress *addr = dst ? dst : ( event ? ptpClock->eventDestination : ptpClock->generalDestination);
-
-	if(event) {
-	    setTransportAddressPort(addr, PTP_EVENT_PORT);
-	}
-
-	tr->outgoingMessage.length = len;
-	tr->outgoingMessage.destination = addr;
-
-	ret =  tr->sendMessage(tr, &tr->outgoingMessage);
-
-	if(ret < 0 ) {
-	    ptpClock->counters.messageSendErrors++;
-	    DBG("Error while sending %s message!\n", event ? "event" : "general");
-	    internalFault(ptpClock);
-	    return 0;
-	}
-
-	if(timestamp) {
-
-	    if(tr->outgoingMessage.hasTimestamp) {
-		timestamp->seconds = tr->outgoingMessage.timestamp.seconds;
-		timestamp->nanoseconds = tr->outgoingMessage.timestamp.nanoseconds;
-	    } else {
-		clearTime(timestamp);
-	    }
-
-	}
-
-	return ret;
-
-}
-
-void getPtpNetworkInfo(PtpClock *ptpClock)
+static void setPtpNetworkInfo(PtpClock *ptpClock)
 {
 
     TTransport *event = ptpClock->eventTransport;
@@ -644,352 +486,6 @@ void getPtpNetworkInfo(PtpClock *ptpClock)
     }
 }
 
-void
-myPtpClockSetClockIdentity(PtpClock *ptpClock)
-{
-
-    DBG("myPtpClockSetClockIdentity() called\n");
-
-    TTransport* tr = ptpClock->eventTransport;
-
-    memcpy(ptpClock->defaultDS.clockIdentity, tr->uid, CLOCK_IDENTITY_LENGTH);
-
-}
-
-void
-myPtpClockPreInit(PtpClock *ptpClock)
-{
-
-
-
-    DBG("myPtpClockInit() called\n");
-
-    for(int i = 0; i < UNICAST_MAX_DESTINATIONS; i++) {
-	CREATE_ADDR(ptpClock->syncDestIndex[i].protocolAddress);
-	CREATE_ADDR(ptpClock->unicastDestinations[i].protocolAddress);
-	CREATE_ADDR(ptpClock->unicastGrants[i].protocolAddress);
-    }
-
-    for(int j = 0; j < ptpClock->global->fmrCapacity; j++) {
-	CREATE_ADDR(ptpClock->foreign[j].protocolAddress);
-    }
-
-    CREATE_ADDR(ptpClock->generalDestination);
-    CREATE_ADDR(ptpClock->eventDestination);
-
-    CREATE_ADDR(ptpClock->peerGeneralDestination);
-    CREATE_ADDR(ptpClock->peerEventDestination);
-
-    CREATE_ADDR(ptpClock->unicastPeerDestination.protocolAddress);
-    CREATE_ADDR(ptpClock->lastSyncDst);
-    CREATE_ADDR(ptpClock->lastPdelayRespDst);
-
-    /* set up callbacks */
-    ptpClock->callbacks.onStateChange = myPtpClockStateChange;
-
-}
-
-void
-myPtpClockPostShutdown(PtpClock *ptpClock)
-{
-
-    DBG("myPtpClockShutdown() called\n");
-
-    for(int i = 0; i < UNICAST_MAX_DESTINATIONS; i++) {
-	FREE_ADDR(ptpClock->syncDestIndex[i].protocolAddress);
-	FREE_ADDR(ptpClock->unicastDestinations[i].protocolAddress);
-	FREE_ADDR(ptpClock->unicastGrants[i].protocolAddress);
-    }
-
-    for(int j = 0; j < ptpClock->fmrCapacity; j++) {
-	FREE_ADDR(ptpClock->foreign[j].protocolAddress);
-    }
-
-    FREE_ADDR(ptpClock->generalDestination);
-    FREE_ADDR(ptpClock->eventDestination);
-
-    FREE_ADDR(ptpClock->peerGeneralDestination);
-    FREE_ADDR(ptpClock->peerEventDestination);
-
-    FREE_ADDR(ptpClock->unicastPeerDestination.protocolAddress);
-    FREE_ADDR(ptpClock->lastSyncDst);
-    FREE_ADDR(ptpClock->lastPdelayRespDst);
-
-}
-
-void
-myPtpClockStepNotify(void *owner)
-{
-
-    PtpClock *ptpClock = (PtpClock*)owner;
-
-    DBG("PTP clock was notified of clock step - resetting outlier filters and re-calibrating offsets\n");
-
-    recalibrateClock(ptpClock, true);
-}
-
-void
-myPtpClockUpdate(void *owner)
-{
-
-    PtpClock *ptpClock = owner;
-
-    if(ptpClock && ptpClock->masterClock) {
-
-	ClockDriver *mc = ptpClock->masterClock;
-
-	if((ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
-	    mc->setState(mc, CS_LOCKED);
-	}
-
-	mc->touchClock(mc);
-
-    }
-
-}
-
-void
-myPtpClockLocked(void *owner, bool locked)
-{
-
-    PtpClock *ptpClock = owner;
-
-    if(ptpClock) {
-	ptpClock->clockLocked = locked;
-    }
-
-}
-
-void
-myPtpClockStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
-{
-
-    ClockDriver *cd = ptpClock->clockDriver;
-    ClockDriver *mc = ptpClock->masterClock;
-
-
-    if(!cd) {
-	return;
-    }
-
-    if(mc) {
-	/* entering MASTER or PASSIVE */
-	if((to == PTP_MASTER) || (to == PTP_PASSIVE)) {
-	    mc->setExternalReference(mc, "PREFMST", RC_EXTERNAL);
-	/* leaving MASTER or PASSIVE */
-	} else if((from == PTP_MASTER) || (from == PTP_PASSIVE)) {
-	    mc->setReference(mc, NULL);
-	}
-    }
-
-    if(to == PTP_SLAVE) {
-	    cd->setExternalReference(cd, "PTP", RC_PTP);
-	    cd->owner = ptpClock;
-	    cd->callbacks.onStep = myPtpClockStepNotify;
-	    cd->callbacks.onLock = myPtpClockLocked;
-    } else if (from == PTP_SLAVE) {
-	    if(!mc || (mc != cd)) {
-		cd->setReference(cd, NULL);
-	    }
-	    cd->callbacks.onStep = NULL;
-	    cd->callbacks.onLock = NULL;
-    }
-
-}
-
-int
-myAddrStrLen(void *input)
-{
-
-    if(input == NULL) {
-	return 0;
-    }
-
-    CckTransportAddress *addr = input;
-    CckAddressToolset *ts = getAddressToolset(addr->family);
-
-    if(ts == NULL) {
-	    return 0;
-    }
-
-    return ts->strLen;
-
-}
-
-int
-myAddrDataSize(void *input)
-{
-
-    if(input == NULL) {
-	return 0;
-    }
-
-    CckTransportAddress *addr = input;
-    CckAddressToolset *ts = getAddressToolset(addr->family);
-
-    if(ts == NULL) {
-	    return 0;
-    }
-
-    return ts->addrSize;
-
-}
-
-
-char *
-myAddrToString(char *buf, const int len, void *input)
-{
-
-    if(input == NULL) {
-	return NULL;
-    }
-
-    const CckTransportAddress *addr = input;
-    CckAddressToolset *ts = getAddressToolset(addr->family);
-
-    if(ts == NULL) {
-	    return NULL;
-    }
-
-    return ts->toString(buf, len, addr);
-
-}
-
-uint32_t
-myAddrHash(void *input, const int modulo)
-{
-
-    if(input == NULL) {
-	return 0;
-    }
-
-    const CckTransportAddress *addr = input;
-    CckAddressToolset *ts = getAddressToolset(addr->family);
-
-    if(ts == NULL) {
-	    return 0;
-    }
-
-    return ts->hash(addr, modulo);
-
-}
-
-int
-myAddrCompare(void *a, void *b)
-{
-
-    CckTransportAddress *pa = a;
-
-    CckAddressToolset *ts = getAddressToolset(pa->family);
-
-    if(ts == NULL) {
-	    return 0;
-    }
-
-    return ts->compare(a, b);
-
-}
-
-bool
-myAddrIsEmpty(void *input)
-{
-
-    if(input == NULL) {
-	return true;
-    }
-
-    const CckTransportAddress *addr = input;
-    CckAddressToolset *ts = getAddressToolset(addr->family);
-
-    if(ts == NULL) {
-
-	    return true;
-    }
-
-    return ts->isEmpty(addr);
-
-}
-
-bool
-myAddrIsMulticast(void *input)
-{
-
-    if(input == NULL) {
-	return false;
-    }
-
-    const CckTransportAddress *addr = input;
-    CckAddressToolset *ts = getAddressToolset(addr->family);
-
-    if(ts == NULL) {
-	    return false;
-    }
-
-    return ts->isMulticast(addr);
-
-}
-
-void
-myAddrClear(void *input)
-{
-
-    if(input == NULL) {
-	return;
-    }
-
-    CckTransportAddress *addr = input;
-
-    clearTransportAddress(addr);
-
-}
-
-void
-myAddrCopy(void *dst, void *src)
-{
-
-    CckTransportAddress *pdst = dst;
-    CckTransportAddress *psrc = src;
-
-    copyCckTransportAddress(pdst, psrc);
-
-}
-
-void*
-myAddrDup(void *src)
-{
-
-    CckTransportAddress *addr = src;
-
-    return (void*)duplicateCckTransportAddress(addr);
-
-}
-
-void
-myAddrFree(void **input)
-{
-
-    CckTransportAddress **addr = (CckTransportAddress **)input;
-
-    freeCckTransportAddress(addr);
-
-}
-
-int
-myAddrSize()
-{
-    return sizeof(CckTransportAddress);
-}
-
-void*
-myAddrGetData(void *input)
-{
-    CckTransportAddress *addr = input;
-    return getAddressData(addr);
-
-}
-
-
-
 int
 ptpPreSend (void *transport, void *owner, char *data, const size_t len, bool isMulticast)
 {
@@ -1009,7 +505,7 @@ ptpPreSend (void *transport, void *owner, char *data, const size_t len, bool isM
 }
 
 int
-ptpIsRegularData (void *transport, void *owner, char *data, const size_t len, bool isMulticast)
+isPtpRegularData (void *transport, void *owner, char *data, const size_t len, bool isMulticast)
 {
 
     if(len < HEADER_LENGTH) {
@@ -1019,7 +515,7 @@ ptpIsRegularData (void *transport, void *owner, char *data, const size_t len, bo
     Enumeration4 msgType = (*(Enumeration4 *) (data + 0)) & 0x0F;
 
     if(msgType == MANAGEMENT) {
-	DBG("ptpIsRegularData: data received is a management message\n");
+	DBG("isPtpRegularData: data received is a management message\n");
 	return 0;
     }
 
@@ -1027,11 +523,11 @@ ptpIsRegularData (void *transport, void *owner, char *data, const size_t len, bo
 
 }
 
-int ptpMatchData (void *owner, void *transport, char *a, const size_t alen, char *b, const size_t blen)
+int matchPtpData (void *owner, void *transport, char *a, const size_t alen, char *b, const size_t blen)
 {
 
     if(alen != blen) {
-	DBG("ptpMatchData: a.len=%d != b.len=%d, discarding\n", alen, blen);
+	DBG("matchPtpData: a.len=%d != b.len=%d, discarding\n", alen, blen);
 	return 0;
     }
 
@@ -1041,57 +537,15 @@ int ptpMatchData (void *owner, void *transport, char *a, const size_t alen, char
     uint16_t seqnob = *(uint16_t*)(b + 30);
 
     if( seqnoa != seqnob || msgtypea != msgtypeb ) {
-	DBG("ptpMatchData: a.seqno=%d, b.seqno=%d, a.msgtype=%d, b.msgtype=%d, no match, discarding\n",
+	DBG("matchPtpData: a.seqno=%d, b.seqno=%d, a.msgtype=%d, b.msgtype=%d, no match, discarding\n",
 	    ntohs(seqnoa), ntohs(seqnob), msgtypea, msgtypeb);
 	return 0;
     }
 
-	DBG("ptpMatchData: a.seqno=%d, b.seqno=%d, a.msgtype=%d, b.msgtype=%d, match, permitting\n",
+	DBG("matchPtpData: a.seqno=%d, b.seqno=%d, a.msgtype=%d, b.msgtype=%d, match, permitting\n",
 	    ntohs(seqnoa), ntohs(seqnob), msgtypea, msgtypeb);
 
     return 1;
-
-}
-
-uint32_t
-myPtpClockGetRxPackets(PtpClock *ptpClock)
-{
-
-    uint32_t ret = 0;
-
-    TTransport *ev = ptpClock->eventTransport;
-    TTransport *gen = ptpClock->generalTransport;
-
-    if(ev) {
-	ret = ev->counters.rxMsg;
-    }
-
-    if(gen && (ev != gen)) {
-	ret += gen->counters.rxMsg;
-    }
-
-    return ret;
-
-}
-
-uint32_t
-myPtpClockGetTxPackets(PtpClock *ptpClock)
-{
-
-    uint32_t ret = 0;
-
-    TTransport *ev = ptpClock->eventTransport;
-    TTransport *gen = ptpClock->generalTransport;
-
-    if(ev) {
-	ret = ev->counters.txMsg;
-    }
-
-    if(gen && (ev != gen)) {
-	ret += gen->counters.txMsg;
-    }
-
-    return ret;
 
 }
 
@@ -1115,30 +569,28 @@ aclSetup(TTransport *t, const GlobalConfig *global) {
 
 }
 
-
-void configureAcls(PtpClock *ptpClock) {
+void configureAcls(PtpClock *ptpClock, const GlobalConfig *global) {
 
     TTransport *ev = ptpClock->eventTransport;
     TTransport *gen = ptpClock->generalTransport;
 
     if(ev) {
-	aclSetup(ev, ptpClock->global);
+	aclSetup(ev, global);
     }
 
     if(gen && (ev != gen)) {
-	aclSetup(gen, ptpClock->global);
+	aclSetup(gen, global);
     }
 
 }
 
 static int
-parseUnicastDestinations(PtpClock *ptpClock) {
+parseUnicastDestinations(PtpClock *ptpClock, const GlobalConfig *global) {
 
     int found = 0;
     int total = 0;
     int tmp = 0;
 
-    GlobalConfig *global = ptpClock->global;
     UnicastDestination *output = ptpClock->unicastDestinations;
     CckTransportAddress *addr;
     int family = getConfiguredFamily(global);
@@ -1208,17 +660,14 @@ parseUnicastDestinations(PtpClock *ptpClock) {
 }
 
 /* parse a list of hosts to a list of IP addresses */
-bool configureUnicast(PtpClock *ptpClock)
+bool configureUnicast(PtpClock *ptpClock, const GlobalConfig *global)
 {
-
-    GlobalConfig *global = ptpClock->global;
-
     /* no need to go further */
     if(global->transportMode != TMODE_UC) {
 	return true;
     }
 
-    ptpClock->unicastDestinationCount = parseUnicastDestinations(ptpClock);
+    ptpClock->unicastDestinationCount = parseUnicastDestinations(ptpClock, global);
 
     /* configure unicast peer address (exotic, I know) */
     if(global->delayMechanism == P2P) {
@@ -1337,126 +786,7 @@ int getGeneralTransportFlags(const GlobalConfig *global) {
 }
 
 static void
-ptpTimerExpiry(void *self, void *owner)
-{
-
-    PtpTimer *timer = owner;
-
-    timer->expired = true;
-
-    DBG("Timer %s expired\n", timer->name);
-
-}
-
-bool
-ptpTimerExpired(PtpTimer *timer)
-{
-
-    bool ret = timer->expired;
-    timer->expired = false;
-    return ret;
-
-}
-
-void
-ptpTimerStop(PtpTimer *timer)
-{
-
-    if(timer->data) {
-	CckTimer *myTimer = timer->data;
-	myTimer->stop(myTimer);
-	timer->running = false;
-	timer->expired = false;
-    }
-
-}
-
-void
-ptpTimerStart(PtpTimer *timer, const double interval)
-{
-
-    if(timer->data) {
-	CckTimer *myTimer = timer->data;
-	myTimer->start(myTimer, interval);
-	timer->interval = myTimer->interval;
-	timer->running = true;
-	timer->expired = false;
-
-	DBG("Timer %s started at %.03f\n", timer->name, timer->interval);
-
-    }
-
-}
-
-void
-ptpTimerLogStart (PtpTimer *timer, int power2)
-{
-
-    if(timer->data) {
-	CckTimer *myTimer = timer->data;
-	myTimer->start(myTimer, pow(2, power2));
-	timer->interval = myTimer->interval;
-    }
-
-}
-
-int
-ptpTimerSetup(PtpTimer *timer, CckFdSet *fdSet, const char *name)
-{
-
-    CckTimer *myTimer = NULL;
-
-    memset(timer, 0, sizeof(PtpTimer));
-    strncpy(timer->name, name, PTP_TIMER_NAME_MAX);
-
-    myTimer = createCckTimer(CCKTIMER_ANY, name);
-
-    if(!myTimer) {
-	return 0;
-    }
-
-    if(myTimer->init(myTimer, false, fdSet) != 1) {
-	freeCckTimer(&myTimer);
-	return 0;
-    }
-
-    myTimer->owner = timer;
-    myTimer->callbacks.onExpired = ptpTimerExpiry;
-    timer->data = myTimer;
-
-    return 1;
-
-}
-
-bool
-setupPtpTimers(PtpClock *ptpClock, CckFdSet *fdSet)
-{
-
-    for(int i=0; i < PTP_MAX_TIMER; i++) {
-	    if(ptpTimerSetup(&ptpClock->timers[i], fdSet, getPtpTimerName(i)) != 1) {
-		return false;
-	    }
-    }
-
-    return true;
-
-}
-
-void
-shutdownPtpTimers(PtpClock *ptpClock)
-{
-
-    for(int i=0; i<PTP_MAX_TIMER; i++) {
-	if(ptpClock->timers[i].data) {
-	freeCckTimer((CckTimer**)&ptpClock->timers[i].data);
-	    memset(&ptpClock->timers[i], 0, sizeof(PtpTimer));
-	}
-    }
-
-}
-
-static void
-ptpRateUpdate (void *transport, void *owner)
+updatePtpRates (void *transport, void *owner)
 {
 
     PtpClock *ptpClock = owner;
@@ -1481,12 +811,25 @@ ptpRateUpdate (void *transport, void *owner)
     }
 }
 
-bool
-netInit(PtpClock *ptpClock, CckFdSet *fdSet)
+static void
+freeTransportData(PtpClock *ptpClock)
 {
 
-    GlobalConfig *global = ptpClock->global;
-    Boolean ret = TRUE;
+    freeTTransport((TTransport**)&ptpClock->generalTransport);
+    freeTTransport((TTransport**)&ptpClock->eventTransport);
+
+    FREE_ADDR(ptpClock->eventDestination);
+    FREE_ADDR(ptpClock->generalDestination);
+    FREE_ADDR(ptpClock->peerEventDestination);
+    FREE_ADDR(ptpClock->peerGeneralDestination);
+
+}
+
+bool
+initPtpTransports(PtpClock *ptpClock, CckFdSet *fdSet, const GlobalConfig *global)
+{
+
+    bool ret = true;
     int transportType;
 
     int gFlags = getGeneralTransportFlags(ptpClock->global);
@@ -1494,28 +837,21 @@ netInit(PtpClock *ptpClock, CckFdSet *fdSet)
 
     int family = getConfiguredFamily(global);
 
-    freeTTransport((TTransport**)&ptpClock->generalTransport);
-    freeTTransport((TTransport**)&ptpClock->eventTransport);
-
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->eventDestination);
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->peerEventDestination);
-
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->generalDestination);
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->peerGeneralDestination);
+    freeTransportData(ptpClock);
 
     if(global->backupIfaceEnabled &&
 	    ptpClock->runningBackupInterface) {
-		strncpy(global->ifName, global->backupIfaceName, IFNAMSIZ);
+		strncpy((char *)global->ifName, global->backupIfaceName, IFNAMSIZ);
 	} else {
-		strncpy(global->ifName, global->primaryIfaceName, IFNAMSIZ);
+		strncpy((char *)global->ifName, global->primaryIfaceName, IFNAMSIZ);
 	}
 
     if(!testInterface(global->ifName, family, global->sourceAddress)) {
 	return false;
     }
 
-    if(!configureUnicast(ptpClock)) {
-	ERROR("netInit(): Unicast destination configuration failed\n");
+    if(!configureUnicast(ptpClock, global)) {
+	ERROR("initPtpTransports(): Unicast destination configuration failed\n");
 	return false;
     }
 
@@ -1526,11 +862,11 @@ netInit(PtpClock *ptpClock, CckFdSet *fdSet)
 	return FALSE;
     }
 
-    TTransportConfig *eventConfig = getEventTransportConfig(transportType, ptpClock);
-    TTransportConfig *generalConfig = getGeneralTransportConfig(transportType, ptpClock);
+    TTransportConfig *eventConfig = getEventTransportConfig(transportType, global);
+    TTransportConfig *generalConfig = getGeneralTransportConfig(transportType, global);
 
     if(!eventConfig || !generalConfig) {
-	CRITICAL("netInit(): Could not configure network transports\n");
+	CRITICAL("initPtpTransports(): Could not configure network transports\n");
 	return FALSE;
     }
 
@@ -1551,16 +887,20 @@ netInit(PtpClock *ptpClock, CckFdSet *fdSet)
     TTransport *general = ptpClock->generalTransport;
 
     if(!event || !general) {
-	CRITICAL("netInit(): Could not create network transports\n");
+	CRITICAL("initPtpTransports(): Could not create network transports\n");
 	return FALSE;
     }
 
     event->setBuffers(event, ptpClock->msgIbuf, PACKET_SIZE, ptpClock->msgObuf, PACKET_SIZE);
     event->callbacks.preTx = ptpPreSend;
-    event->callbacks.isRegularData = ptpIsRegularData;
-    event->callbacks.matchData = ptpMatchData;
+    event->callbacks.isRegularData = isPtpRegularData;
+    event->callbacks.matchData = matchPtpData;
     event->myFd.callbacks.onData = ptpDataCallback;
-    event->callbacks.onRateUpdate = ptpRateUpdate;
+    event->callbacks.onRateUpdate = updatePtpRates;
+    event->callbacks.onNetworkChange = ptpNetworkChange;
+    event->callbacks.onNetworkFault = ptpNetworkFault;
+    event->callbacks.onClockDriverChange = ptpClockDriverChange;
+
     event->owner = ptpClock;
     if(event->init(event, eventConfig, fdSet) < 1) {
 	CRITICAL("Coult not start event transport\n");
@@ -1573,7 +913,7 @@ netInit(PtpClock *ptpClock, CckFdSet *fdSet)
     if(event != general) {
 	general->setBuffers(general, ptpClock->msgIbuf, PACKET_SIZE, ptpClock->msgObuf, PACKET_SIZE);
 	general->callbacks.preTx = ptpPreSend;
-	general->callbacks.isRegularData = ptpIsRegularData;
+	general->callbacks.isRegularData = isPtpRegularData;
 	general->myFd.callbacks.onData = ptpDataCallback;
 	general->owner = ptpClock;
 	event->slaveTransport = general;
@@ -1586,16 +926,17 @@ netInit(PtpClock *ptpClock, CckFdSet *fdSet)
 	freeTTransportConfig(&generalConfig);
     }
 
-    configureAcls(ptpClock);
+    configureAcls(ptpClock, global);
 
     controlClockDrivers(CD_NOTINUSE);
 
-    if(!prepareClockDrivers(ptpClock)) {
+    if(!prepareClockDrivers(ptpClock, global)) {
 	ERROR("Cannot start clock drivers - aborting mission\n");
 	exit(-1);
     }
 
-    getPtpNetworkInfo(ptpClock);
+    /* inform network about the protocol and address we are using */
+    setPtpNetworkInfo(ptpClock);
 
     /* create any extra clocks */
     if(!createClockDriversFromString(global->extraClocks, configureClockDriver, global, false)) {
@@ -1613,21 +954,14 @@ netInit(PtpClock *ptpClock, CckFdSet *fdSet)
 
 gameover:
 
-    freeTTransport((TTransport**)&ptpClock->generalTransport);
-    freeTTransport((TTransport**)&ptpClock->eventTransport);
-
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->eventDestination);
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->peerEventDestination);
-
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->generalDestination);
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->peerGeneralDestination);
+    freeTransportData(ptpClock);
 
     return ret;
 
 }
 
 void
-netShutdown(PtpClock *ptpClock)
+shutdownPtpTransports(PtpClock *ptpClock)
 {
 
     TTransport *event = ptpClock->eventTransport;
@@ -1644,10 +978,92 @@ netShutdown(PtpClock *ptpClock)
 	event->shutdown(event);
     }
 
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->eventDestination);
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->peerEventDestination);
+    FREE_ADDR(ptpClock->eventDestination);
+    FREE_ADDR(ptpClock->generalDestination);
+    FREE_ADDR(ptpClock->peerEventDestination);
+    FREE_ADDR(ptpClock->peerGeneralDestination);
 
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->generalDestination);
-    freeCckTransportAddress((CckTransportAddress**)&ptpClock->peerGeneralDestination);
+}
+
+int
+getConfiguredFamily(const GlobalConfig *global)
+{
+
+	int family = global->networkProtocol;
+	if(global->transportType > TT_TYPE_NONE) {
+	    family = getTTransportTypeFamily(global->transportType);
+	}
+
+	return family;
+
+}
+
+bool
+testTransportConfig(const GlobalConfig *global)
+{
+
+	bool ret = true;
+	int family = getConfiguredFamily(global);
+
+	if(!testInterface(global->primaryIfaceName, family, global->sourceAddress) ||
+		(detectTTransport(family, global->primaryIfaceName,
+		    getEventTransportFlags(global), global->transportType) == TT_TYPE_NONE)) {
+	    ERROR("Error: Cannot use interface '%s'\n",global->primaryIfaceName);
+	    ret = false;
+	}
+
+	if(global->backupIfaceEnabled) {
+	    if(!testInterface(global->backupIfaceName, family, global->sourceAddress) ||
+		(detectTTransport(family, global->backupIfaceName,
+		    getEventTransportFlags(global), global->transportType) == TT_TYPE_NONE)) {
+		ERROR("Error: Cannot use interface '%s' as backup\n",global->backupIfaceName);
+		ret = false;
+	    }
+	}
+
+	return ret;
+
+}
+
+static void
+ptpNetworkFault(void *transport, void *owner, const bool fault)
+{
+
+    PtpClock *port = owner;
+
+    if(fault) {
+	toState(PTP_FAULTY, port->global, port);
+    } else {
+	toState(PTP_INITIALIZING, port->global, port);
+    }
+
+}
+
+static void
+ptpNetworkChange(void *transport, void *owner, const bool major)
+{
+
+    PtpClock *port = owner;
+
+    if(major) {
+
+	NOTICE("Major transport change: re-initialising PTP\n");
+	setPtpClockIdentity(port);
+	setPtpNetworkInfo(port);
+	toState(PTP_INITIALIZING, port->global, port);
+    } else {
+
+	recalibrateClock(port, true);
+
+    }
+
+}
+
+
+static int
+ptpClockDriverChange (void *transport, void *owner)
+{
+
+    return 1;
 
 }

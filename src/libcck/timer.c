@@ -44,7 +44,7 @@
 #define THIS_COMPONENT "timer: "
 
 /* linked list - so that we can control all registered objects centrally */
-LINKED_LIST_ROOT_STATIC(CckTimer);
+LL_ROOT(CckTimer);
 
 static const char *timerTypeNames[] = {
 
@@ -89,7 +89,7 @@ createCckTimer(const int type, const char* name) {
 	return NULL;
     } else {
 	/* maintain the linked list */
-	LINKED_LIST_APPEND_STATIC(timer);
+	LL_APPEND_STATIC(timer);
     }
 
     return timer;
@@ -158,7 +158,7 @@ freeCckTimer(CckTimer** timer) {
     }
 
     /* maintain the linked list */
-    LINKED_LIST_REMOVE_STATIC(ptimer);
+    LL_REMOVE_STATIC(ptimer);
 
     if(ptimer->_privateData != NULL) {
 	free(ptimer->_privateData);
@@ -183,19 +183,19 @@ controlCckTimers(const int command, const void *arg) {
     switch(command) {
 
 	case TIMER_NOTINUSE:
-	    LINKED_LIST_FOREACH_STATIC(timer) {
+	    LL_FOREACH_STATIC(timer) {
 		timer->inUse = false;
 	    }
 	break;
 
 	case TIMER_SHUTDOWN:
-	    LINKED_LIST_DESTROYALL(timer, freeCckTimer);
+	    LL_DESTROYALL(timer, freeCckTimer);
 	break;
 
 	case TIMER_CLEANUP:
 	    do {
 		found = false;
-		LINKED_LIST_FOREACH_STATIC(timer) {
+		LL_FOREACH_STATIC(timer) {
 		    if(!timer->inUse) {
 			freeCckTimer(&timer);
 			found = true;
@@ -206,7 +206,7 @@ controlCckTimers(const int command, const void *arg) {
 	break;
 
 	case TIMER_DUMP:
-	    LINKED_LIST_FOREACH_STATIC(timer) {
+	    LL_FOREACH_STATIC(timer) {
 		if(!timer->config.disabled) {
 		/* TODO: dump timer information */
 //		timer->dumpCounters(timer);
@@ -230,7 +230,7 @@ void
 shutdownCckTimers() {
 
 	CckTimer *timer;
-	LINKED_LIST_DESTROYALL(timer, freeCckTimer);
+	LL_DESTROYALL(timer, freeCckTimer);
 
 }
 
@@ -246,7 +246,7 @@ getCckTimerByName(const char *name) {
 
 	CckTimer *timer;
 
-	LINKED_LIST_FOREACH_STATIC(timer) {
+	LL_FOREACH_STATIC(timer) {
 	    if(!strncmp(timer->name, name, CCK_COMPONENT_NAME_MAX)) {
 		return timer;
 	    }
@@ -261,7 +261,7 @@ getCckTimerById(const int numId) {
 
 	CckTimer *timer;
 
-	LINKED_LIST_FOREACH_STATIC(timer) {
+	LL_FOREACH_STATIC(timer) {
 	    if(timer->numId == numId) {
 		return timer;
 	    }
@@ -301,7 +301,7 @@ getCckTimerType(const char* name) {
 void cckDispatchTimers() {
 
     CckTimer * timer;
-    LINKED_LIST_FOREACH_STATIC(timer) {
+    LL_FOREACH_STATIC(timer) {
 	if(!timer->config.disabled) {
 	    if(timer->isExpired(timer)) {
 		SAFE_CALLBACK(timer->callbacks.onExpired, timer, timer->owner);

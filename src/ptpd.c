@@ -118,7 +118,7 @@ main(int argc, char **argv)
 	tmrStart(ptpClock, STATUSFILE_UPDATE, global.statusFileUpdateInterval * (1.0 + 0.2 * getRand()));
 	tmrStart(ptpClock, PERIODIC_INFO, global.statsUpdateInterval);
 
-	if (!netInit(ptpClock, getCckFdSet())) {
+	if (!initPtpTransports(ptpClock, getCckFdSet(), &global)) {
 	    CRITICAL("Failed to start network transports!\n");
 	    return 1;
 	}

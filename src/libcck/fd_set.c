@@ -65,7 +65,7 @@ cckAddFd(CckFdSet *set, CckFd *fd)
 
     FD_SET(fd->fd, &set->fdSet);
 
-    LINKED_LIST_APPEND_DYNAMIC(set, fd);
+    LL_APPEND_DYNAMIC(set, fd);
 
     set->maxFd = getMaxFd(set);
 
@@ -93,7 +93,7 @@ cckRemoveFd(CckFdSet *set, CckFd *fd)
 
     FD_CLR(fd->fd, &set->fdSet);
 
-    LINKED_LIST_REMOVE_DYNAMIC(set, fd);
+    LL_REMOVE_DYNAMIC(set, fd);
 
     set->maxFd = getMaxFd(set);
 
@@ -146,7 +146,7 @@ cckPollData(CckFdSet *set, struct timeval *timeout_in)
     /* walk through all fds used, mark them if they have data to read */
     if(ret > 0) {
 
-	LINKED_LIST_FOREACH_DYNAMIC(set, fd) {
+	LL_FOREACH_DYNAMIC(set, fd) {
 	    fd->hasData = false;
 	    fd->nextData = NULL;
 	    if(FD_ISSET(fd->fd, &set->_workSet)) {
@@ -204,7 +204,7 @@ getMaxFd(CckFdSet *set)
 	return -1;
     }
 
-    LINKED_LIST_FOREACH_DYNAMIC(set, fd) {
+    LL_FOREACH_DYNAMIC(set, fd) {
 	if(fd->fd > maxFd) {
 	    maxFd = fd->fd;
 	}

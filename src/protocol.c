@@ -135,7 +135,7 @@ ptpRun(GlobalConfig *global, PtpClock *ptpClock)
 				    ptpClock->unicastDestinationCount : UNICAST_MAX_DESTINATIONS,
 			global, ptpClock);
 
-		if(!myAddrIsEmpty(ptpClock->unicastPeerDestination.protocolAddress)) {
+		if(!ptpAddrIsEmpty(ptpClock->unicastPeerDestination.protocolAddress)) {
 		    refreshUnicastGrants(&ptpClock->peerGrants,
 			1, global, ptpClock);
 		}
@@ -272,7 +272,7 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 					ptpClock->unicastDestinationCount, ptpClock->unicastDestinations,
 					global, ptpClock);
 		    }
-		    if(!myAddrIsEmpty(ptpClock->unicastPeerDestination.protocolAddress)) {
+		    if(!ptpAddrIsEmpty(ptpClock->unicastPeerDestination.protocolAddress)) {
 			initUnicastGrantTable(&ptpClock->peerGrants,
 					ptpClock->portDS.delayMechanism,
 					1, &ptpClock->unicastPeerDestination,
@@ -608,14 +608,14 @@ doState(GlobalConfig *global, PtpClock *ptpClock)
 	switch (ptpClock->portDS.portState)
 	{
 	case PTP_FAULTY:
-		/* wait for timeout (only for internal faults, reported via internalFault() ) */
+		/* wait for timeout (only for internal faults, reported via ptpInternalFault() ) */
 
 		if(tmrExpired(ptpClock, PORT_FAULT)) {
 		    DBG("event FAULT_CLEARED\n");
 		    toState(PTP_INITIALIZING, global, ptpClock);
 		}
 
-		return;
+		break;
 		
 	case PTP_LISTENING:
 	case PTP_UNCALIBRATED:
@@ -982,7 +982,7 @@ processPtpData(PtpClock *ptpClock, TimeInternal* timeStamp, ssize_t length, void
 
     if (length < 0) {
 	DBG("Error while receiving message");
-	internalFault(ptpClock);
+	ptpInternalFault(ptpClock);
 	ptpClock->counters.messageRecvErrors++;
 	return;
     }
@@ -1129,7 +1129,7 @@ processPtpData(PtpClock *ptpClock, TimeInternal* timeStamp, ssize_t length, void
 		ptpClock->counters.domainMismatchErrors++;
 
 		SET_ALARM(ALRM_DOMAIN_MISMATCH, ((ptpClock->counters.domainMismatchErrors >= DOMAIN_MISMATCH_MIN) &&
-		ptpClock->counters.domainMismatchErrors == myPtpClockGetRxPackets(ptpClock)));
+		ptpClock->counters.domainMismatchErrors == getPtpPortRxPackets(ptpClock)));
 
 		return;
 	}
@@ -1487,7 +1487,7 @@ indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, void *protocolAddress,
     uint32_t hash = 0;
 
 #ifdef RUNTIME_DEBUG
-	tmpstr(strAddr, myAddrStrLen(protocolAddress));
+	tmpstr(strAddr, ptpAddrStrLen(protocolAddress));
 #endif /* RUNTIME_DEBUG */
 
     if(timeStamp == NULL || index == NULL) {
@@ -1496,12 +1496,12 @@ indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, void *protocolAddress,
 
     hash = fnvHash(timeStamp, sizeof(TimeInternal), UNICAST_MAX_DESTINATIONS);
 
-    if(myAddrIsEmpty(index[hash].protocolAddress)) {
-	DBG("indexSync: hash collision - clearing entry %s:%04x\n", myAddrToString(strAddr, strAddr_len, protocolAddress), hash);
-	myAddrClear(index[hash].protocolAddress);
+    if(ptpAddrIsEmpty(index[hash].protocolAddress)) {
+	DBG("indexSync: hash collision - clearing entry %s:%04x\n", ptpAddrToString(strAddr, strAddr_len, protocolAddress), hash);
+	ptpAddrClear(index[hash].protocolAddress);
     } else {
-	DBG("indexSync: indexed successfully %s:%04x\n", myAddrToString(strAddr, strAddr_len, protocolAddress), hash);
-	myAddrCopy(index[hash].protocolAddress, protocolAddress);
+	DBG("indexSync: indexed successfully %s:%04x\n", ptpAddrToString(strAddr, strAddr_len, protocolAddress), hash);
+	ptpAddrCopy(index[hash].protocolAddress, protocolAddress);
     }
 
 }
@@ -1519,7 +1519,7 @@ lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, SyncDestEntry *i
 
     hash = fnvHash(timeStamp, sizeof(TimeInternal), UNICAST_MAX_DESTINATIONS);
 
-    if(myAddrIsEmpty(index[hash].protocolAddress)) {
+    if(ptpAddrIsEmpty(index[hash].protocolAddress)) {
 	DBG("lookupSyncIndex: cache miss\n");
 	return 0;
     } else {
@@ -1753,9 +1753,9 @@ handleSync(const MsgHeader *header, ssize_t length,
 
 #ifdef RUNTIME_DEBUG
 			    {
-				tmpstr(strAddr, myAddrStrLen(dst));
+				tmpstr(strAddr, ptpAddrStrLen(dst));
 				DBG("handleSync: master sync dest cache hit: %s\n", 
-				    myAddrToString(strAddr, strAddr_len, dst));
+				    ptpAddrToString(strAddr, strAddr_len, dst));
 			    }
 #endif /* RUNTIME_DEBUG */
 
@@ -1783,7 +1783,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 			 * before returning it...
 			 */
 			if(clearIndexEntry) {
-			    myAddrClear(myDst);
+			    ptpAddrClear(myDst);
 			}
 #endif /* PTPD_SLAVE_ONLY */
 			break;
@@ -2717,7 +2717,7 @@ issueSync(const GlobalConfig *global,PtpClock *ptpClock)
 	/* send Sync to unicast destination(s) */
 	} else {
 	    for(i = 0; i < UNICAST_MAX_DESTINATIONS; i++) {
-		myAddrClear(ptpClock->syncDestIndex[i].protocolAddress);
+		ptpAddrClear(ptpClock->syncDestIndex[i].protocolAddress);
 		clearTime(&ptpClock->unicastGrants[i].lastSyncTimestamp);
 		clearTime(&ptpClock->unicastDestinations[i].lastSyncTimestamp);
 	    }
@@ -2734,9 +2734,9 @@ issueSync(const GlobalConfig *global,PtpClock *ptpClock)
 			}
 #ifdef RUNTIME_DEBUG
 			{
-			    tmpstr(strAddr, myAddrStrLen(grant->parent->protocolAddress));
+			    tmpstr(strAddr, ptpAddrStrLen(grant->parent->protocolAddress));
 			    DBG("mixed interval to %d counter: %d\n",
-			        myAddrToString(strAddr, strAddr_len, grant->parent->protocolAddress), grant->intervalCounter);
+			        ptpAddrToString(strAddr, strAddr_len, grant->parent->protocolAddress), grant->intervalCounter);
 			    grant->intervalCounter++;
 			}
 #endif /* RUNTIME_DEBUG */
@@ -2801,7 +2801,7 @@ issueSyncSingle(void *dst, UInteger16 *sequenceId, const GlobalConfig *global,Pt
 			    processSyncFromSelf(&internalTime, global, ptpClock, dst, *sequenceId);
 		}
 
-		myAddrCopy(ptpClock->lastSyncDst, dst);
+		ptpAddrCopy(ptpClock->lastSyncDst, dst);
 
 		if(!internalTime.seconds && !internalTime.nanoseconds) {
 		    internalTime = now;
@@ -2979,7 +2979,7 @@ issuePdelayResp(const TimeInternal *tint,MsgHeader *header, void *src, const Glo
 
 		
 		ptpClock->counters.pdelayRespMessagesSent++;
-		myAddrCopy(ptpClock->lastPdelayRespDst, dst);
+		ptpAddrCopy(ptpClock->lastPdelayRespDst, dst);
 	}
 }
 
@@ -3096,7 +3096,7 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPrefe
 		ptpClock->foreign[j].foreignMasterAnnounceMessages = 0;
 		ptpClock->foreign[j].localPreference = localPreference;
 
-		myAddrCopy(ptpClock->foreign[j].protocolAddress, src);
+		ptpAddrCopy(ptpClock->foreign[j].protocolAddress, src);
 		ptpClock->foreign[j].disqualified = FALSE;
 		/*
 		 * header and announce field of each Foreign Master are
@@ -3273,7 +3273,7 @@ static int populatePtpMon(char *buf, MsgHeader *header, PtpClock *ptpClock, cons
 		if(ptpClock->portDS.portState > PTP_MASTER &&
 		    ptpClock->bestMaster && ptpClock->bestMaster->protocolAddress) {
 			memcpy(monresp->parentPortAddress.addressField,
-                        myAddrGetData(ptpClock->bestMaster->protocolAddress),
+                        ptpAddrGetData(ptpClock->bestMaster->protocolAddress),
                         monresp->parentPortAddress.addressLength);
 		}
 
@@ -3363,7 +3363,7 @@ static int populatePtpMon(char *buf, MsgHeader *header, PtpClock *ptpClock, cons
 }
 
 void
-internalFault(PtpClock *ptpClock)
+ptpInternalFault(PtpClock *ptpClock)
 {
 
     tmrStart(ptpClock, PORT_FAULT, ptpClock->global->faultTimeout);

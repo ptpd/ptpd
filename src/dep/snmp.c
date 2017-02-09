@@ -590,8 +590,8 @@ snmpClockDSTable(SNMP_SIGNATURE) {
 		    return SNMP_INTEGER(0);
 		}
 		return SNMP_OCTETSTR(
-			(u_char *) myAddrGetData(snmpPtpClock->bestMaster->protocolAddress),
-			myAddrDataSize(snmpPtpClock->bestMaster->protocolAddress));
+			(u_char *) ptpAddrGetData(snmpPtpClock->bestMaster->protocolAddress),
+			ptpAddrDataSize(snmpPtpClock->bestMaster->protocolAddress));
 	/* ptpbaseClockDefaultDSTable */
 	case PTPBASE_CLOCK_DEFAULT_DS_TWO_STEP_FLAG:
 		return SNMP_BOOLEAN(snmpPtpClock->defaultDS.twoStepFlag);
@@ -1966,7 +1966,7 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *ev
 			    ASN_INTEGER, (u_char *) &addrType, sizeof(addrType));
 
 			snmp_varlist_add_variable(varBinds, portAddrOid, OID_LENGTH(portAddrOid),
-			    ASN_OCTET_STR, (u_char *) myAddrGetData(eventData->bestMaster.protocolAddress), myAddrDataSize(eventData->bestMaster.protocolAddress));
+			    ASN_OCTET_STR, (u_char *) ptpAddrGetData(eventData->bestMaster.protocolAddress), ptpAddrDataSize(eventData->bestMaster.protocolAddress));
 
 			snmp_varlist_add_variable(varBinds, gmClockIdOid, OID_LENGTH(gmClockIdOid),
 			    ASN_OCTET_STR, (u_char *) &eventData->parentDS.grandmasterIdentity, sizeof(ClockIdentity));

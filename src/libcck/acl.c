@@ -46,7 +46,7 @@
 
 
 /* linked list - so that we can control all registered objects centrally */
-LINKED_LIST_ROOT_STATIC(CckAcl);
+LL_ROOT(CckAcl);
 
 /* inherited method declarations */
 
@@ -91,7 +91,7 @@ createCckAcl(const int type, const char* name) {
 	return NULL;
     } else {
 	/* maintain the linked list */
-	LINKED_LIST_APPEND_STATIC(acl);
+	LL_APPEND_STATIC(acl);
     }
 
     return acl;
@@ -158,7 +158,7 @@ freeCckAcl(CckAcl** acl) {
     }
 
     /* maintain the linked list */
-    LINKED_LIST_REMOVE_STATIC(pacl);
+    LL_REMOVE_STATIC(pacl);
 
     CCK_DBG(THIS_COMPONENT"Deleted ACL type %d name %s serial %d\n", pacl->type, pacl->name, pacl->_serial);
 
@@ -173,7 +173,7 @@ void
 shutdownCckAcls() {
 
 	CckAcl *tt;
-	LINKED_LIST_DESTROYALL(tt, freeCckAcl);
+	LL_DESTROYALL(tt, freeCckAcl);
 
 }
 
@@ -182,7 +182,7 @@ getCckAclByName(const char *name) {
 
 	CckAcl *acl;
 
-	LINKED_LIST_FOREACH_STATIC(acl) {
+	LL_FOREACH_STATIC(acl) {
 	    if(!strncmp(acl->name, name, CCK_COMPONENT_NAME_MAX)) {
 		return acl;
 	    }

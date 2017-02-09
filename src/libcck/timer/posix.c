@@ -64,7 +64,7 @@
 static int _instanceCount = 0;
 
 /* we need to iterate over the instances of this implementation */
-LINKED_LIST_ROOT_STATIC(CckTimer);
+LL_ROOT(CckTimer);
 
 static bool _initialised = false;
 
@@ -116,7 +116,7 @@ timerInit (CckTimer *self, const bool oneShot, CckFdSet *fdSet) {
 
     self->config.oneShot = oneShot;
 
-    LINKED_LIST_APPEND_STATIC(self);
+    LL_APPEND_STATIC(self);
 
     self->_init = true;
 
@@ -137,7 +137,7 @@ timerShutdown (CckTimer *self) {
 	CCK_PERROR(THIS_COMPONENT"(%s): Could not delete posix timer %s!", self->name);
     }
 
-    LINKED_LIST_REMOVE_STATIC(self);
+    LL_REMOVE_STATIC(self);
 
     CCK_DBG(THIS_COMPONENT"(%s): timer shutdown\n", self->name);
 

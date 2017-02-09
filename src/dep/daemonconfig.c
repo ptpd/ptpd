@@ -798,19 +798,6 @@ parseUserVariables(dictionary *dict, dictionary *target)
 
 }
 
-int
-getConfiguredFamily(const GlobalConfig *global)
-{
-
-	int family = global->networkProtocol;
-	if(global->transportType > TT_TYPE_NONE) {
-	    family = getTTransportTypeFamily(global->transportType);
-	}
-
-	return family;
-
-}
-
 /**
  * Iterate through dictionary dict (template) and check for keys in source
  * that are not present in the template - display only.

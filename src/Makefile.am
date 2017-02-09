@@ -38,7 +38,8 @@ ptpd_SOURCES =				\
 	dep/msg.c			\
 	dep/cck_glue.h			\
 	dep/cck_glue.c			\
-	dep/net.c			\
+	dep/transport.h			\
+	dep/transport.c			\
 	dep/ptpd_dep.h			\
 	ptp_timers.h			\
 	ptp_timers.c			\
@@ -164,6 +165,8 @@ ptpd_SOURCES =				\
 	lib1588/ptp_message.h		\
 	lib1588/ptp_message.c		\
 	lib1588/tmp.h			\
+	lib1588_glue.h			\
+	lib1588_glue.c			\
 	dep/statistics.h		\
 	dep/statistics.c		\
 	dep/outlierfilter.h		\
