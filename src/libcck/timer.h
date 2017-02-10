@@ -133,7 +133,7 @@ struct CckTimer {
     /* public / private interface end */
 
     /* attach the linked list */
-    LL_TAG(CckTimer);
+    LL_MEMBER(CckTimer);
 
 };
 

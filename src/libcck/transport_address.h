@@ -118,7 +118,7 @@ typedef struct CckTransportAddress CckTransportAddress;
 
 struct CckTransportAddress {
 	/* so that this can be used in linked lists */
-	LL_TAG(CckTransportAddress);
+	LL_MEMBER(CckTransportAddress);
 
 	/* address container */
 	union {

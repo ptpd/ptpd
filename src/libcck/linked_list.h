@@ -47,7 +47,7 @@
 	vartype *_last;
 
 /* list child / member to be included in a structure */
-#define LL_TAG(vartype) \
+#define LL_MEMBER(vartype) \
 	vartype **_first; \
 	vartype *_next; \
 	vartype *_prev;
@@ -166,5 +166,15 @@
 	    helper = _last; \
 	    fun(&helper); \
 	}
+
+/* pool holder data to be included in a structure */
+#define POOL_HOLDER(vartype, count) \
+    vartype _pooldata[count]; \
+    vartype *_first; \
+    vartype *_last; \
+    struct { \
+	vartype *_first; \
+	vartype *_last; \
+    } _pool; \
 
 #endif /* CCK_LINKEDLIST_H_ */

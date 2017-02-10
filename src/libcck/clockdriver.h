@@ -355,7 +355,7 @@ struct ClockDriver {
     int (*_vendorHealthCheck) (ClockDriver *);
 
     /* attach the linked list */
-    LL_TAG(ClockDriver);
+    LL_MEMBER(ClockDriver);
 
 };
 

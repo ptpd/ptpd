@@ -140,10 +140,8 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
     clockDriver->type = driverType;
     strncpy(clockDriver->name, name, CCK_COMPONENT_NAME_MAX);
 
-    /* callbacks */
-    clockDriver->callbacks.onStep = cdDummyOwnerCallback;
-
-    /* callbacks end */
+    /* reset callbacks */
+    memset(&clockDriver->callbacks, 0, sizeof(clockDriver->callbacks));
 
     /* inherited methods - implementation may wish to override them,
      * or even preserve these pointers in its private data and call both
@@ -734,7 +732,7 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	CCK_NOTICE(THIS_COMPONENT"Clock %s lost external reference %s\n", a->name, a->refName);
 	/* reset owner and owner callbacks */
 	a->owner = NULL;
-	a->callbacks.onStep = cdDummyOwnerCallback;
+	memset(&a->callbacks, 0, sizeof(a->callbacks));
 	a->externalReference = false;
 	memset(a->refName, 0, CCK_COMPONENT_NAME_MAX);
 	a->lastRefClass = a->refClass;
@@ -934,7 +932,7 @@ stepTime (ClockDriver* driver, CckTimestamp *delta, bool force)
 	}
 
 	/* notify the owner that time has changed */
-	driver->callbacks.onStep(driver->owner);
+	SAFE_CALLBACK(driver->callbacks.onStep, driver->owner);
 
 	/* reset filters */
 
@@ -1568,7 +1566,7 @@ controlClockDrivers(int command) {
 		    cd->config.required = false;
 		    /* clean up the owner and reset callbacks */
 		    cd->owner = NULL;
-		    cd->callbacks.onStep = cdDummyOwnerCallback;
+		    memset(&cd->callbacks, 0, sizeof(cd->callbacks));
 		}
 	    }
 	break;
@@ -1780,11 +1778,6 @@ int
 clockDriverDummyCallback(ClockDriver* self) {
     return 1;
 }
-
-void
-cdDummyOwnerCallback(void *owner) {
-}
-
 
 static void
 findBestClock() {

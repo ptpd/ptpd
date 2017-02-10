@@ -43,7 +43,7 @@ typedef struct  {
 
     timer_t timerId;
     uint32_t _serial;	/* instance number */
-    LL_TAG(CckTimer);
+    LL_MEMBER(CckTimer);
 
 } CckTimerData_posix;
 

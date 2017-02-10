@@ -402,20 +402,48 @@ prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global) {
 
 
 	TTransport *ev = ptpClock->eventTransport;
+	ClockDriver *old = ptpClock->clockDriver;
+
+	/*
+	 * if this driver is still there, getClockDriver() should mark it
+	 * as required again. If not (say, bond member removed),
+	 * it will be cleaned up on next cleanup.
+	 */
+	if(old) {
+	    old->config.required = false;
+	    old->inUse = false;
+	}
 
 	ClockDriver *cd = ev->getClockDriver(ev);
 
+	/* we are pretty much useless without a working clock driver. */
+	if(!cd) {
+	    return false;
+	}
+
 	configureClockDriver(getSystemClock(), global);
+
+	/* clock driver change */
+	if(old &&  (cd != old)) {
+	    DBG("PTP port clock driver changing from '%s' to '%s\n",
+		    old->name, cd->name);
+	    old->setReference(old, NULL);
+	    old->owner = NULL;
+	    memset(&old->callbacks, 0, sizeof(old->callbacks));
+	}
 
 	ptpClock->clockDriver = cd;
 
 	configureClockDriver(cd, global);
-	cd->inUse = TRUE;
-	cd->config.required = TRUE;
+	cd->inUse = true;
+	cd->config.required = true;
 
+	/* if we are slave, set the reference straigh away */
 	if(ptpClock->portDS.portState == PTP_SLAVE) {
 	    cd->setExternalReference(ptpClock->clockDriver, "PTP", RC_PTP);
 	    cd->owner = ptpClock;
+	    /* clean callbacks, we could have had them from somewhere else */
+	    memset(&cd->callbacks, 0, sizeof(cd->callbacks));
 	    cd->callbacks.onStep = ptpPortStepNotify;
 	    cd->callbacks.onLock = ptpPortLocked;
 	}
@@ -444,7 +472,7 @@ prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global) {
 
 	cd->callbacks.onUpdate = ptpPortUpdate;
 
-	return TRUE;
+	return true;
 
 
 }

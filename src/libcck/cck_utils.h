@@ -92,6 +92,9 @@ memset(name, 0, name ## _len);
 #define swap16(var) (((var & 0xff00) >> 8) | ((var & 0x00ff) << 8))
 #define swap32(var) (((var & 0xff000000) >> 24) | ((var & 0x00ff0000) >> 8) | ((var & 0x0000ff00) << 8) | ((var & 0x000000ff) << 24))
 
+/* zero memset shortcut */
+#define zeromem(var) memset(var, 0, sizeof(*(var)))
+
 /* explicit endian conversion */
 #if BYTE_ORDER == BIG_ENDIAN || defined(_BIG_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN)
     #define tobe16(var) (var)

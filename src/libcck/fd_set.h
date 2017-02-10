@@ -44,7 +44,7 @@ typedef struct CckFd CckFd;
 
 /* LibCCK file descriptor wrapper */
 struct CckFd {
-	LL_TAG(CckFd);
+	LL_MEMBER(CckFd);
 	int 		fd;				/* the actual FD */
 	void 		*owner;				/* component owning this fd */
 	struct {

@@ -1,4 +1,4 @@
-/*-
+/*-    PtpClock *port = owner;
  * Copyright (c) 2016      Wojciech Owczarek
  *
  * All Rights Reserved
@@ -1063,6 +1063,12 @@ ptpNetworkChange(void *transport, void *owner, const bool major)
 static int
 ptpClockDriverChange (void *transport, void *owner)
 {
+
+    PtpClock *port = owner;
+
+	prepareClockDrivers(port, port->global);
+
+//    ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
 
     return 1;
 

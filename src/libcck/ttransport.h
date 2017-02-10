@@ -331,7 +331,7 @@ struct TTransport {
     int (*_vendorHealthCheck) (TTransport *);
 
     /* attach the linked list */
-    LL_TAG(TTransport);
+    LL_MEMBER(TTransport);
 
 };
 
