@@ -71,6 +71,8 @@ volatile sig_atomic_t	 sigusr2_received = 0;
 /* Pointer to the current lock file */
 FILE* G_lockFilePointer;
 
+static void exitHandler(PtpClock * ptpClock);
+
 /*
  * Function to catch signals asynchronously.
  * Assuming that the daemon periodically calls checkSignals(), then all operations are safely done synchrously at a later opportunity.
@@ -104,20 +106,6 @@ void catchSignals(int sig)
 		 */
 		break;
 	}
-}
-
-/*
- * exit the program cleanly
- */
-void
-exitHandler(PtpClock * ptpClock)
-{
-
-	shutdownPtpPort(ptpClock, ptpClock->global);
-	ptpdShutdown(ptpClock);
-
-	NOTIFY("Shutdown on close signal\n");
-	exit(0);
 }
 
 void
@@ -507,26 +495,27 @@ writeLockFile(GlobalConfig * global)
 
 }
 
+/*
+ * exit the program cleanly
+ */
+static void
+exitHandler(PtpClock * ptpClock)
+{
+
+	shutdownPtpPort(ptpClock, ptpClock->global);
+	ptpdShutdown(ptpClock);
+
+	NOTIFY("Shutdown on close signal\n");
+	exit(0);
+}
+
 void
 ptpdShutdown(PtpClock * ptpClock)
 {
 
 	extern GlobalConfig global;
 	
-	/*
-         * go into DISABLED state so the FSM can call any PTP-specific shutdown actions,
-	 * such as canceling unicast transmission
-         */
-	toState(PTP_DISABLED, &global, ptpClock);
-	/* process any outstanding events before exit */
-	updateAlarms(ptpClock->alarms, ALRM_MAX);
-
-	shutdownPtpTransports(ptpClock);
-	shutdownPtpTimers(ptpClock);
-
 	cckShutdown();
-
-	ptpPortPostShutdown(ptpClock);
 
 	if (global.currentConfig != NULL)
 		dictionary_del(&global.currentConfig);
@@ -538,6 +527,7 @@ ptpdShutdown(PtpClock * ptpClock)
 	    fclose(G_lockFilePointer);
 	    G_lockFilePointer = NULL;
 	}
+
 	unlink(global.lockFile);
 
 	if(global.statusLog.logEnabled) {

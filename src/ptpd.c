@@ -211,6 +211,19 @@ bool initPtpPort(PtpClock *port, GlobalConfig *global)
 void shutdownPtpPort(PtpClock *port, GlobalConfig *global)
 {
 
+	/*
+         * go into DISABLED state so the FSM can call any PTP-specific shutdown actions,
+	 * such as canceling unicast transmission
+         */
+	toState(PTP_DISABLED, global, port);
+	/* process any outstanding events before exit */
+	updateAlarms(port->alarms, ALRM_MAX);
+
+	shutdownPtpTransports(port);
+	shutdownPtpTimers(port);
+
+	ptpPortPreShutdown(port);
+
 	free(port->foreign);
 
 	/* free management and signaling messages, they can have dynamic memory allocated */

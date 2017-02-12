@@ -223,7 +223,7 @@ ptpPortPostInit(PtpClock *ptpClock)
 }
 
 void
-ptpPortPostShutdown(PtpClock *ptpClock)
+ptpPortPreShutdown(PtpClock *ptpClock)
 {
 
     DBG("ptpPortShutdown() called\n");

@@ -54,7 +54,7 @@ typedef struct {
 } PtpClockUserData;
 
 void ptpPortPostInit(PtpClock *ptpClock);
-void ptpPortPostShutdown(PtpClock *ptpClock);
+void ptpPortPreShutdown(PtpClock *ptpClock);
 void setPtpClockIdentity(PtpClock *ptpClock);
 void ptpPortStepNotify(void *owner);
 void ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to);
