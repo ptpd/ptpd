@@ -14,7 +14,7 @@ HEADERFILE="../../ptp_tlv_management.h"
 
 read -r -d '' code <<"EOF"
 /*-
- * Copyright (c) 2016 Wojciech Owczarek,
+ * Copyright (c) 2016-2017              Wojciech Owczarek,
  *
  * All Rights Reserved
  *

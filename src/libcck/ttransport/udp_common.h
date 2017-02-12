@@ -63,7 +63,4 @@ typedef struct {
 void _initTTransportConfig_udp_common(TTransportConfig_udp_common *myConfig, const int family);
 void _freeTTransportConfig_udp_common(TTransportConfig_udp_common *myConfig);
 
-/* any other common functions */
-bool initTimestamping_udp_common(TTransport *self,  TTsocketTimestampConfig *config);
-
 #endif /* CCK_TTRANSPORT_UDP_COMMON_H_ */

@@ -110,6 +110,8 @@ ptpd_SOURCES =				\
 	libcck/ttransport_interface.h	\
 	libcck/ttransport/udp_common.h\
 	libcck/ttransport/udp_common.c\
+	libcck/ttransport/socket_common.h\
+	libcck/ttransport/socket_common.c\
 	libcck/ttransport/socket_udpv4.h\
 	libcck/ttransport/socket_udpv4.c\
 	libcck/ttransport/socket_udpv6.h\

@@ -579,3 +579,31 @@ probeLinuxTs(const char *path, const int family, const int caps) {
 	return(testLinuxTimestamping(&ti, realDevice, family, preferHw, false));
 
 }
+
+char*
+getStatusLine_linuxts(const TTransport *transport, const CckInterfaceInfo *info, const LinuxInterfaceInfo *linfo, char *buf, const size_t len)
+{
+
+	snprintf(buf, len, "%s%s%s%s%s, status: %s",
+		    info->ifName,
+		    linfo->vlanInfo.vlan ? ", VLAN" : "",
+		    linfo->bondInfo.bonded ? ", bond" : "",
+		    (linfo->bondInfo.bonded || linfo->vlanInfo.vlan) ? ", physical ": "",
+		    (linfo->bondInfo.bonded || linfo->vlanInfo.vlan) ? linfo->physicalDevice: "",
+		    getIntStatusName(info->status)
+		);
+
+	return buf;
+
+}
+
+char*
+getInfoLine_linuxts(const TTransport *transport, const CckInterfaceInfo *info, const LinuxInterfaceInfo *linfo, char *buf, const size_t len)
+{
+	snprintf(buf, len, "%s, %s, %s", getTTransportTypeName(transport->type),
+		    linfo->hwTimestamping ? "H/W tstamp" : "S/W tstamp",
+		    TT_UC_MC(transport->config.flags) ? "hybrid UC/MC" :
+		    TT_MC(transport->config.flags) ? "multicast" : "unicast");
+
+	return buf;
+}

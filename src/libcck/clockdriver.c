@@ -380,7 +380,7 @@ setState(ClockDriver *driver, ClockState newState) {
 		/* do not sync this clock until next findBestClock() */
 		driver->_waitForElection = true;
 
-		CCK_INFO(THIS_COMPONENT"Clock %s adev %.03f minAdev %.03f maxAdev %.03f minAdevTotal %.03f maxAdevTotal %.03f totalAdev %.03f\n",
+		CCK_DBG(THIS_COMPONENT"Clock '%s' adev %.03f minAdev %.03f maxAdev %.03f minAdevTotal %.03f maxAdevTotal %.03f totalAdev %.03f\n",
 		driver->name, driver->adev, driver->minAdev, driver->maxAdev, driver->minAdevTotal, driver->maxAdevTotal, driver->totalAdev);
 	    }
 

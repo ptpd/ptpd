@@ -55,6 +55,8 @@ static int _instanceCount = 0;
 
 /* short information line - our own implementation */
 static char* getInfoLine(TTransport *self, char *buf, size_t len);
+/* short status line - interface up/down, etc */
+static char* getStatusLine(TTransport *self, char *buf, size_t len);
 
 bool
 _setupTTransport_linuxts_raweth(TTransport *self)
@@ -62,6 +64,7 @@ _setupTTransport_linuxts_raweth(TTransport *self)
 
     INIT_INTERFACE(self);
     self->getInfoLine = getInfoLine;
+    self->getStatusLine = getStatusLine;
 
     CCK_INIT_PDATA(TTransport, linuxts_raweth, self);
     CCK_INIT_PCONFIG(TTransport, linuxts_raweth, self);
@@ -632,9 +635,69 @@ getClockDriver(TTransport *self) {
 static int
 monitor(TTransport *self, const int interval, const bool quiet) {
 
-    return 0;
+    CCK_GET_PCONFIG(TTransport, linuxts_udpv4, self, myConfig);
+    CCK_GET_PDATA(TTransport, linuxts_udpv4, self, myData);
+
+    if(!myData->intInfo.valid) {
+	getInterfaceInfo(&myData->intInfo, myConfig->interface,
+	self->family, NULL, CCK_QUIET);
+    }
+
+    int res = monitorInterface(&myData->intInfo, NULL, quiet);
+
+    /* this will eventually cause transport restart anyway - no need to check bonding etc. */
+    if(res & (CCK_INTINFO_FAULT | CCK_INTINFO_CHANGE)) {
+	return res;
+    }
+
+    /* really monitoring the rest is only meaningful to timestamping transports */
+    if(!self->config.timestamping) {
+	return res;
+    }
+
+    if(!myData->lintInfo.valid) {
+	getLinuxInterfaceInfo(&myData->lintInfo, myConfig->interface);
+    };
+
+    int lres = monitorLinuxInterface(&myData->lintInfo, quiet);
+
+    /* Linux-specific fault */
+    if(lres & CCK_INTINFO_FAULT) {
+
+	myData->intInfo.status = CCK_INTINFO_FAULT;
+	/* set return flag to fault */
+	res |= CCK_INTINFO_FAULT;
+	/* clear OK flag */
+	res &= ~CCK_INTINFO_OK;
+
+    /* Linux-specific change */
+    } else {
+
+	/* this is returned when bond slave count has changed - not passed upwards */
+	if(lres & CCK_INTINFO_CHANGE) {
+	    if(!initTimestamping_linuxts_common(self, &myData->tsConfig,
+			    &myData->lintInfo, myConfig->interface, false)) {
+		CCK_QERROR(THIS_COMPONENT"monitor('%s'): Failed to re-initialise Linux timestamping!\n",
+		    self->name);
+		myData->intInfo.status = CCK_INTINFO_FAULT;
+		/* set return flag to fault */
+		res |= CCK_INTINFO_FAULT;
+		/* clear OK flag */
+		res &= ~CCK_INTINFO_OK;
+		return res;
+	    }
+	}
+
+	if(lres & CCK_INTINFO_CLOCKCHANGE) {
+	    res |= lres;
+	}
+
+    }
+
+    return res;
 
 }
+
 
 static int
 refresh(TTransport *self) {
@@ -718,11 +781,16 @@ static char*
 getInfoLine(TTransport *self, char *buf, size_t len) {
 
 	CCK_GET_PDATA(TTransport, linuxts_udpv4, self, myData);
-	snprintf(buf, len, "%s, %s, %s", getTTransportTypeName(self->type),
-		    myData->lintInfo.hwTimestamping ? "H/W tstamp" : "S/W tstamp",
-		    TT_UC_MC(self->config.flags) ? "hybrid UC/MC" :
-		    TT_MC(self->config.flags) ? "multicast" : "unicast");
 
-	return buf;
+	return getInfoLine_linuxts(self, &myData->intInfo, &myData->lintInfo, buf, len);
+
+}
+
+static char*
+getStatusLine(TTransport *self, char *buf, size_t len) {
+
+	CCK_GET_PDATA(TTransport, linuxts_raweth, self, myData);
+
+	return getStatusLine_linuxts(self, &myData->intInfo, &myData->lintInfo, buf, len);
 
 }

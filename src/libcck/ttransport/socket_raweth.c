@@ -52,14 +52,15 @@
 /* tracking the number of instances */
 static int _instanceCount = 0;
 
-/* initialise timestamping and populate @config */
-static bool initTimestamping(TTransport *self, TTsocketTimestampConfig *config);
+/* short status line - interface up/down, etc */
+static char* getStatusLine(TTransport *self, char *buf, size_t len);
 
 bool
 _setupTTransport_socket_raweth(TTransport *self)
 {
 
     INIT_INTERFACE(self);
+    self->getStatusLine = getStatusLine;
 
     CCK_INIT_PDATA(TTransport, socket_raweth, self);
     CCK_INIT_PCONFIG(TTransport, socket_raweth, self);
@@ -217,7 +218,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     }
 
     /* try enabling timestamping if we need it */
-    if(self->config.timestamping && !initTimestamping(self, &myData->tsConfig)) {
+    if(self->config.timestamping && !initTimestamping_socket_common(self, &myData->tsConfig)) {
 	CCK_ERROR(THIS_COMPONENT"tTransport_init(%s): Failed to initialise software timestamping!\n",
 		self->name);
 	goto cleanup;
@@ -657,7 +658,15 @@ getClockDriver(TTransport *self) {
 static int
 monitor(TTransport *self, const int interval, const bool quiet) {
 
-    return 0;
+    CCK_GET_PCONFIG(TTransport, socket_raweth, self, myConfig);
+    CCK_GET_PDATA(TTransport, socket_raweth, self, myData);
+
+    if(!myData->intInfo.valid) {
+	getInterfaceInfo(&myData->intInfo, myConfig->interface,
+	self->family, NULL, CCK_QUIET);
+    }
+
+    return monitorInterface(&myData->intInfo, NULL, quiet);
 
 }
 
@@ -739,69 +748,11 @@ loadVendorExt(TTransport *self) {
 }
 */
 
-static bool
-initTimestamping(TTransport *self,  TTsocketTimestampConfig *config) {
+static char*
+getStatusLine(TTransport *self, char *buf, size_t len) {
 
-	int level = SOL_SOCKET;
-	int option;
-	int val = 1;
+	CCK_GET_PDATA(TTransport, socket_raweth, self, myData);
 
-	config->arrayIndex = 0;
-	config->cmsgLevel = SOL_SOCKET;
-
-/* find which timestamp options are available */
-
-#if defined(SO_TIMESTAMPNS) /* begin ifdef block: select available SO_XXXX option */
-
-	CCK_DBG(THIS_COMPONENT"initTimestamping(%s): using SO_TIMESTAMPNS\n", self->name);
-	option = SO_TIMESTAMPNS;
-	config->cmsgType = SCM_TIMESTAMPNS;
-	config->elemSize = sizeof(struct timespec);
-	config->convertTs = convertTimestamp_timespec;
-
-#elif defined(SO_BINTIME)
-
-	CCK_DBG(THIS_COMPONENT"initTimestamping(%s): using SO_BINTIME\n", self->name);
-	option = SO_BINTIME;
-	config->cmsgType = SCM_BINTIME;
-	config->elemSize = sizeof(struct bintime);
-	config->convertTs = convertTimestamp_bintime;
-
-#elif defined(SO_TIMESTAMP)
-
-	CCK_DBG(THIS_COMPONENT"initTimestamping(%s): using SO_TIMESTAMP\n", self->name);
-	option = SO_BINTIME;
-	config->cmsgType = SCM_TIMESTAMP;
-	config->elemSize = sizeof(struct timeval);
-	config->convertTs = convertTimestamp_timeval;
-
-#else /* no SO_XXXX option available */
-
-#if defined(__QNXNTO__) && defined (CCK_EXPERIMENTAL) /* interpolation on QNX is OK, no need for a warning */
-
-	CCK_DBG(THIS_COMPONENT"initTimestamping(%s): using QNX timestamp interpolation\n", self->name);
-
-#else /* not QNX or not CCK_EXPERIMENTAL: warn about poor precision */
-
-	CCK_WARNING("initTimestamping(%s): no timestamp API available, timestamps will be imprecise!\n",
-		    self->name);
-
-#endif
-
-	/* we are using naive timestamps, that is it */
-	confif->naive = true;
-	return true;
-
-#endif /* end ifdef block */
-
-
-	/* we have an option to try */
-
-	if (setsockopt(self->myFd.fd, level, option, &val, sizeof(int)) < 0) {
-		CCK_PERROR("initTimestamping(%s): failed to enable socket timestamps", self->name);
-		return false;
-	}
-
-	return true;
+	return getIntStatusLine(&myData->intInfo, buf, len);
 
 }

@@ -4,19 +4,6 @@
 #ifndef CONSTANTS_DEP_H
 #define CONSTANTS_DEP_H
 
-/**
-*\file
-* \brief Plateform-dependent constants definition
-*
-* This header defines all includes and constants which are plateform-dependent
-*
-* ptpdv2 is only implemented for linux, NetBSD and FreeBSD
- */
-
-/* platform dependent */
-
-
-
 #ifdef HAVE_MACHINE_ENDIAN_H
 #	include <machine/endian.h>
 #endif /* HAVE_MACHINE_ENDIAN_H */
@@ -46,8 +33,8 @@
 #define PTP_EVENT_PORT    319
 #define PTP_GENERAL_PORT  320
 
-#define PTP_MCAST_GROUP_IPV4     	"224.0.1.129"
-#define PTP_MCAST_PEER_GROUP_IPV4        "224.0.0.107"
+#define PTP_MCAST_GROUP_IPV4		"224.0.1.129"
+#define PTP_MCAST_PEER_GROUP_IPV4	"224.0.0.107"
 
 #define PTP_MCAST_GROUP_IPV6     	"FF03:0:0:0:0:0:0:181"
 #define PTP_MCAST_PEER_GROUP_IPV6       "FF02:0:0:0:0:0:0:6B"
@@ -84,12 +71,6 @@
 
 /* Difference between Unix time / UTC and NTP time */
 #define NTP_EPOCH 2208988800ULL
-
-/* how many times to check for the TX timestamp */
-#define LATE_TXTIMESTAMP_RETRIES 6
-
-/* wait a maximum of 2 ms for a late TX timestamp after all retries*/
-#define LATE_TXTIMESTAMP_FINAL_US 2000
 
 #define DEFAULT_TOKEN_DELIM ", ;\t"
 

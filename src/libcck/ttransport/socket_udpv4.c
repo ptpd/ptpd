@@ -50,11 +50,15 @@
 /* tracking the number of instances */
 static int _instanceCount = 0;
 
+/* short status line - interface up/down, etc */
+static char* getStatusLine(TTransport *self, char *buf, size_t len);
+
 bool
 _setupTTransport_socket_udpv4(TTransport *self)
 {
 
     INIT_INTERFACE(self);
+    self->getStatusLine = getStatusLine;
 
     CCK_INIT_PDATA(TTransport, socket_udpv4, self);
     CCK_INIT_PCONFIG(TTransport, socket_udpv4, self);
@@ -262,7 +266,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     }
 
     /* try enabling timestamping if we need it */
-    if(self->config.timestamping && !initTimestamping_udp_common(self, &myData->tsConfig)) {
+    if(self->config.timestamping && !initTimestamping_socket_common(self, &myData->tsConfig)) {
 	CCK_ERROR(THIS_COMPONENT"tTransport_init(%s): Failed to initialise software timestamping!\n",
 		self->name);
 	goto cleanup;
@@ -750,7 +754,15 @@ getClockDriver(TTransport *self) {
 static int
 monitor(TTransport *self, const int interval, const bool quiet) {
 
-    return 0;
+    CCK_GET_PCONFIG(TTransport, socket_udpv4, self, myConfig);
+    CCK_GET_PDATA(TTransport, socket_udpv4, self, myData);
+
+    if(!myData->intInfo.valid) {
+	getInterfaceInfo(&myData->intInfo, myConfig->interface,
+	self->family, &myConfig->sourceAddress, CCK_QUIET);
+    }
+
+    return monitorInterface(&myData->intInfo, &myConfig->sourceAddress, quiet);
 
 }
 
@@ -777,5 +789,14 @@ refresh(TTransport *self) {
 
 static void
 loadVendorExt(TTransport *self) {
+
+}
+
+static char*
+getStatusLine(TTransport *self, char *buf, size_t len) {
+
+	CCK_GET_PDATA(TTransport, socket_udpv4, self, myData);
+
+	return getIntStatusLine(&myData->intInfo, buf, len);
 
 }

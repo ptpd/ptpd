@@ -940,39 +940,16 @@ writeStatusFile(PtpClock *ptpClock,const GlobalConfig *global, Boolean quiet)
 	fprintf(out, 		STATUSPREFIX"  %s\n","Local time", timeStr);
 	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", gmtime((time_t*)&now.tv_sec));
 	fprintf(out, 		STATUSPREFIX"  %s\n","Kernel time", timeStr);
-	fprintf(out, 		STATUSPREFIX"  %s%s","Interface", global->ifName,
-		(global->backupIfaceEnabled && ptpClock->runningBackupInterface) ? " (backup)" : (global->backupIfaceEnabled)?
-		    " (primary)" : "");
-/*
-	if(ifInfo->vlanInfo.vlan) {
-	    fprintf(out, "%s", ", VLAN");
-	}
-	if(ifInfo->bondInfo.bonded) {
-	    fprintf(out, ", bonded");
-	    if(ifInfo->bondInfo.activeBackup) {
-		if(ifInfo->bondInfo.activeCount>0) {
-		    fprintf(out, ", active %s", ifInfo->physicalDevice);
-		} else {
-		    fprintf(out, ", no active slaves!");
-		}
-		
-	    }
-	} else if(ifInfo->vlanInfo.vlan) {
-		    fprintf(out, ", physical %s", ifInfo->physicalDevice);
-	}
-*/
-	fprintf(out, "\n");
-
-
-	fprintf(out, 		STATUSPREFIX"  %s\n","Preset", dictionary_get(global->currentConfig, "ptpengine:preset", ""));
 
 	if(transport) {
 	    tmpstr(trStatus, 100);
+	    fprintf(out, 		STATUSPREFIX"  %s\n","Interface", transport->getStatusLine(transport, trStatus, trStatus_len));
 	    fprintf(out, 		STATUSPREFIX"  %s","Transport", transport->getInfoLine(transport, trStatus, trStatus_len));
 	    fprintf(out,"%s", global->unicastNegotiation ? " negotiation":"");
+	    fprintf(out,"\n");
 	}
 
-	fprintf(out,"\n");
+	fprintf(out, 		STATUSPREFIX"  %s\n","PTP preset", dictionary_get(global->currentConfig, "ptpengine:preset", ""));
 
 	fprintf(out, 		STATUSPREFIX"  %s\n","Delay mechanism", dictionary_get(global->currentConfig, "ptpengine:delay_mechanism", ""));
 	if(ptpClock->portDS.portState >= PTP_MASTER) {

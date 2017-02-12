@@ -52,4 +52,7 @@ typedef struct {
 	char name[40];
 } OptionName;
 
+#define CCK_QUIET true
+#define CCK_NOQUIET false
+
 #endif /* CCK_TYPES_H_ */

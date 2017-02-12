@@ -53,6 +53,8 @@ static int _instanceCount = 0;
 
 /* short information line - our own implementation */
 static char* getInfoLine(TTransport *self, char *buf, size_t len);
+/* short status line - interface up/down, etc */
+static char* getStatusLine(TTransport *self, char *buf, size_t len);
 
 bool
 _setupTTransport_linuxts_udpv4(TTransport *self)
@@ -60,6 +62,7 @@ _setupTTransport_linuxts_udpv4(TTransport *self)
 
     INIT_INTERFACE(self);
     self->getInfoLine = getInfoLine;
+    self->getStatusLine = getStatusLine;
 
     CCK_INIT_PDATA(TTransport, linuxts_udpv4, self);
     CCK_INIT_PCONFIG(TTransport, linuxts_udpv4, self);
@@ -732,8 +735,12 @@ monitor(TTransport *self, const int interval, const bool quiet) {
     CCK_GET_PCONFIG(TTransport, linuxts_udpv4, self, myConfig);
     CCK_GET_PDATA(TTransport, linuxts_udpv4, self, myData);
 
-    int res = monitorInterface(myConfig->interface,
-	    &myData->intInfo, &myConfig->sourceAddress, quiet);
+    if(!myData->intInfo.valid) {
+	getInterfaceInfo(&myData->intInfo, myConfig->interface,
+	self->family, &myConfig->sourceAddress, true);
+    }
+
+    int res = monitorInterface(&myData->intInfo, &myConfig->sourceAddress, quiet);
 
     /* this will eventually cause transport restart anyway - no need to check bonding etc. */
     if(res & (CCK_INTINFO_FAULT | CCK_INTINFO_CHANGE)) {
@@ -745,7 +752,11 @@ monitor(TTransport *self, const int interval, const bool quiet) {
 	return res;
     }
 
-    int lres = monitorLinuxInterface(myConfig->interface, &myData->lintInfo, quiet);
+    if(!myData->lintInfo.valid) {
+	getLinuxInterfaceInfo(&myData->lintInfo, myConfig->interface);
+    };
+
+    int lres = monitorLinuxInterface(&myData->lintInfo, quiet);
 
     /* Linux-specific fault */
     if(lres & CCK_INTINFO_FAULT) {
@@ -866,11 +877,16 @@ static char*
 getInfoLine(TTransport *self, char *buf, size_t len) {
 
 	CCK_GET_PDATA(TTransport, linuxts_udpv4, self, myData);
-	snprintf(buf, len, "%s, %s, %s", getTTransportTypeName(self->type),
-		    myData->lintInfo.hwTimestamping ? "H/W tstamp" : "S/W tstamp",
-		    TT_UC_MC(self->config.flags) ? "hybrid UC/MC" :
-		    TT_MC(self->config.flags) ? "multicast" : "unicast");
 
-	return buf;
+	return getInfoLine_linuxts(self, &myData->intInfo, &myData->lintInfo, buf, len);
+
+}
+
+static char*
+getStatusLine(TTransport *self, char *buf, size_t len) {
+
+	CCK_GET_PDATA(TTransport, linuxts_udpv4, self, myData);
+
+	return getStatusLine_linuxts(self, &myData->intInfo, &myData->lintInfo, buf, len);
 
 }

@@ -94,6 +94,7 @@ typedef struct {
 #define CCK_INTINFO_OK		1 << 0		/* A-OK */
 #define CCK_INTINFO_DOWN	1 << 1		/* Down (was up) */
 #define CCK_INTINFO_FAULT	1 << 2		/* Fault (was OK) */
+
 /* monitor result / events */
 #define CCK_INTINFO_NOCHANGE	1 << 3		/* Same status as previously */
 #define CCK_INTINFO_CHANGE	1 << 4		/* Change occurred (mostly address change) */
@@ -101,7 +102,11 @@ typedef struct {
 #define CCK_INTINFO_CLEAR	1 << 6		/* Fault cleared (was fault) */
 #define CCK_INTINFO_CLOCKCHANGE 1 << 7		/* minor topology change */
 
+/* get a string representing the statuses above */
+const char* getIntStatusName(int status);
+
 typedef struct {
+    char ifName[IFNAMSIZ + 1];		/* guess */
     CckTransportAddress afAddress;	/* address of required family */
     CckTransportAddress hwAddress;	/* hardware address */
     int family;				/* address family we are interested in */
@@ -114,6 +119,9 @@ typedef struct {
     int status;				/* last monitorInterface() status */
     bool valid;				/* has been updated */
 } CckInterfaceInfo;
+
+/* get a short interface status line */
+char* getIntStatusLine(const CckInterfaceInfo *info, char *buf, const size_t len);
 
 #ifdef HAVE_LINUX_IF_H
 /* missing from linux/if.h */
@@ -146,7 +154,7 @@ bool getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int fami
 bool testInterface(const char* ifName, const int family, const char* sourceHint);
 
 /* compare current info with @last info for @interface, optional required source address @sourceHint, @return one of CCK_INTINFO */
-int monitorInterface(const char *ifName, CckInterfaceInfo *last, const CckTransportAddress *sourceHint, const bool quiet);
+int monitorInterface(CckInterfaceInfo *last, const CckTransportAddress *sourceHint, const bool quiet);
 
 /* join or leave a multicast address */
 bool joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifName, const CckTransportAddress *ownAddr, const bool join);
@@ -162,13 +170,10 @@ bool setSocketDscp(int fd, const int family, const int _value);
 void prepareMsgHdr(struct msghdr *msg, struct iovec *vec, char *dataBuf, size_t dataBufSize, char *controlBuf, size_t controlLen, struct sockaddr *addr, int addrLen);
 /* get control message data of minimum size len from control message header. Return 1 if found, 0 if not found, -1 if data too short */
 int getCmsgData(void **data, struct cmsghdr *cmsg, const int level, const int type, const size_t len);
-
 /* get control message data of n-th array member of size elemSize from control message header. Return 1 if found, 0 if not found, -1 if data too short */
 int getCmsgItem(void **data, struct cmsghdr *cmsg, const int level, const int type, const size_t elemSize, const int arrayIndex);
-
 /* get timestamp from control message header based on timestamp type described by tstampConfig. Return 1 if found and non-zero, 0 if not found or zero, -1 if data too short */
 int getCmsgTimestamp(CckTimestamp *timestamp, struct cmsghdr *cmsg, const TTsocketTimestampConfig *config);
-
 /* get timestamp from a timestamp struct of the given type */
 void convertTimestamp_timespec(CckTimestamp *timestamp, const void *data);
 void convertTimestamp_timeval(CckTimestamp *timestamp, const void *data);

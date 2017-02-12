@@ -769,7 +769,6 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, c
     memset(info, 0, sizeof(CckInterfaceInfo));
 
     info->valid = true;
-
     info->family = family;
 
     if(!strlen(ifName)) {
@@ -783,6 +782,8 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, c
 	CCK_QERROR(THIS_COMPONENT"getInferfaceInfo(%s): interface not found\n", ifName);
 	return false;
     }
+
+    strncpy(info->ifName, ifName, IFNAMSIZ);
 
     /* get h/w address */
     info->hwStatus = getIfAddr(&info->hwAddress, ifName, TT_FAMILY_ETHERNET, NULL);
@@ -875,11 +876,10 @@ testInterface(const char* ifName, const int family, const char* sourceHint)
  */
 
 int
-monitorInterface(const char *ifName, CckInterfaceInfo *last, const CckTransportAddress *sourceHint, const bool quiet)
+monitorInterface(CckInterfaceInfo *last, const CckTransportAddress *sourceHint, const bool quiet)
 {
 
     CckInterfaceInfo current;
-
 
     int ret = 0;
 
@@ -895,7 +895,7 @@ monitorInterface(const char *ifName, CckInterfaceInfo *last, const CckTransportA
     CckAddressToolset *ts = getAddressToolset(last->family);
 
     /* interface seems OK - check for changes and previous faults */
-    if(getInterfaceInfo(&current, ifName, last->family, sourceHint, quiet)) {
+    if(getInterfaceInfo(&current, last->ifName, last->family, sourceHint, quiet)) {
 
 	/* if not else, or else */
 	current.status = CCK_INTINFO_OK;
@@ -946,6 +946,58 @@ gameover:
     /* update current info */
     memcpy(last, &current, sizeof(current));
 
+    CCK_DBG(THIS_COMPONENT"monitorInterface('%s'): status %s\n",
+		current->ifName, getIntStatusName(current.status));
+
     return ret;
+
+}
+
+#define CCK_INTINFO_OK		1 << 0		/* A-OK */
+#define CCK_INTINFO_DOWN	1 << 1		/* Down (was up) */
+#define CCK_INTINFO_FAULT	1 << 2		/* Fault (was OK) */
+
+/* monitor result / events */
+#define CCK_INTINFO_NOCHANGE	1 << 3		/* Same status as previously */
+#define CCK_INTINFO_CHANGE	1 << 4		/* Change occurred (mostly address change) */
+#define CCK_INTINFO_UP		1 << 5		/* Up (was down) */
+#define CCK_INTINFO_CLEAR	1 << 6		/* Fault cleared (was fault) */
+#define CCK_INTINFO_CLOCKCHANGE 1 << 7		/* minor topology change */
+
+/* get a string representing the statuses above */
+const char*
+getIntStatusName(int status)
+{
+    switch(status) {
+	case CCK_INTINFO_OK:
+	    return "OK";
+	case CCK_INTINFO_DOWN:
+	    return "DOWN";
+	case CCK_INTINFO_FAULT:
+	    return "FAULT";
+	case CCK_INTINFO_NOCHANGE:
+	    return "NOCHANGE";
+	case CCK_INTINFO_CHANGE:
+	    return "CHANGE";
+	case CCK_INTINFO_UP:
+	    return "UP";
+	case CCK_INTINFO_CLEAR:
+	    return "CLEAR";
+	case CCK_INTINFO_CLOCKCHANGE:
+	    return "CLOCKCHANGE";
+	default:
+	    return "UNKNOWN";
+    }
+}
+
+/* get a one-line interface status line */
+char*
+getIntStatusLine(const CckInterfaceInfo *info, char *buf, const size_t len)
+{
+
+    snprintf(buf, len, "%s, status: %s",
+	info->ifName, getIntStatusName(info->status));
+
+    return buf;
 
 }

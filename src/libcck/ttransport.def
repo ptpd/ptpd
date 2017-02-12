@@ -60,6 +60,7 @@
     #include "ttransport/pcap_udpv4.h"
     #include "ttransport/pcap_udpv6.h"
 
+    #include "ttransport/socket_common.h" /* currently used by all UDP transports */
     #include "ttransport/socket_udpv4.h"
     #include "ttransport/socket_udpv6.h"
     #include "ttransport/socket_raweth.h"

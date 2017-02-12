@@ -825,15 +825,13 @@ getInfoLine(TTransport *self, char *buf, size_t len) {
 
 }
 
-/* short information line */
+/* short status line (default implementation only gives an empty string */
 static char*
 getStatusLine(TTransport *self, char *buf, size_t len) {
 
 	return buf;
 
 }
-
-
 
 bool
 copyTTransportConfig(TTransportConfig *to, const TTransportConfig *from) {

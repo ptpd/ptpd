@@ -1,5 +1,4 @@
-/*-
- * Copyright (c) 2016-2017 Wojciech Owczarek,
+/* Copyright (c) 2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -12,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
  * DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
@@ -25,39 +24,22 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PTP_TLV_SIGNALING_H_
-#define PTP_TLV_SIGNALING_H_
+/**
+ * @file   socket_common.h
+ * @date   Sat Jan 9 16:14:10 2016
+ *
+ * @brief  common structure definitions for socket-based timestamping transports
+ *
+ */
 
-#include "ptp_tlv.h"
+#ifndef CCK_TTRANSPORT_SOCKET_COMMON_H_
+#define CCK_TTRANSPORT_SOCKET_COMMON_H_
 
-/* begin generated code */
+#include <libcck/ttransport.h>
+#include <libcck/net_utils.h>
+#include <libcck/transport_address.h>
 
-/* signaling TLV data types */
+/* any other common functions */
+bool initTimestamping_socket_common(TTransport *self,  TTsocketTimestampConfig *config);
 
-typedef struct {
-	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "def/signalingTlv/acknowledgeCancelUnicastTransmission.def"
-	#undef PROCESS_FIELD
-} PtpTlvAcknowledgeCancelUnicastTransmission;
-
-typedef struct {
-	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "def/signalingTlv/cancelUnicastTransmission.def"
-	#undef PROCESS_FIELD
-} PtpTlvCancelUnicastTransmission;
-
-typedef struct {
-	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "def/signalingTlv/grantUnicastTransmission.def"
-	#undef PROCESS_FIELD
-} PtpTlvGrantUnicastTransmission;
-
-typedef struct {
-	#define PROCESS_FIELD( name, size, type ) type name;
-	#include "def/signalingTlv/requestUnicastTransmission.def"
-	#undef PROCESS_FIELD
-} PtpTlvRequestUnicastTransmission;
-
-/* end generated code */
-
-#endif /* PTP_TLV_SIGNALING_H */
+#endif /* CCK_TTRANSPORT_UDP_COMMON_H_ */

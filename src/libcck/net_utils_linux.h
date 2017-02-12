@@ -86,6 +86,7 @@ typedef struct {
 } LinuxVlanInfo;
 
 typedef struct {
+	char ifName[IFNAMSIZ + 1];
 	char physicalDevice[IFNAMSIZ + 1];
 	struct ethtool_ts_info tsInfo;	/* physical device */
 	struct ethtool_ts_info logicalTsInfo; /* logical device */
@@ -100,6 +101,7 @@ void getLinuxBondInfo(LinuxBondInfo *info, const char *ifName);
 void getLinuxVlanInfo(LinuxVlanInfo *info, const char* ifName);
 void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifName);
 
-int monitorLinuxInterface(const char *ifName, LinuxInterfaceInfo *info, const bool quiet);
+/* check for interface changes */
+int monitorLinuxInterface(LinuxInterfaceInfo *info, const bool quiet);
 
 #endif /* CCK_NET_UTILS_LINUX_H_ */

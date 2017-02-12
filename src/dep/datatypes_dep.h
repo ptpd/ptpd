@@ -8,25 +8,6 @@
 #include "constants_dep.h"
 #include "../ptp_primitives.h"
 
-#ifdef PTPD_PCAP
-#ifdef HAVE_PCAP_PCAP_H
-#include <pcap/pcap.h>
-#else /* !HAVE_PCAP_PCAP_H */
-/* Cases like RHEL5 and others where only pcap.h exists */
-#ifdef HAVE_PCAP_H
-#include <pcap.h>
-#endif /* HAVE_PCAP_H */
-#endif
-#endif
-
-#include <netinet/ether.h>
-
-#ifdef HAVE_LINUX_IF_H
-#include <linux/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
-#elif defined(HAVE_NET_IF_H)
-#include <net/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
-#endif /* HAVE_LINUX_IF_H*/
-
 /**
 *\file
 * \brief Implementation specific datatype
@@ -54,35 +35,6 @@ typedef struct {
     Integer32  s_exp;
 } IIRfilter;
 
-
-/**
-* \brief Struct containing interface information and capabilities
- */
-typedef struct {
-        struct sockaddr afAddress;
-        unsigned char hwAddress[14];
-        Boolean hasHwAddress;
-        Boolean hasAfAddress;
-        int addressFamily;
-        unsigned int flags;
-	int ifIndex;
-	char physicalDevice[IFNAMSIZ + 1];
-//	BondInfo bondInfo;
-//	VlanInfo vlanInfo;
-} InterfaceInfo;
-
-
-/**
-* \brief Struct describing network transport data
- */
-typedef struct {
-
-	Boolean hwTimestamping;
-	Boolean hwTimestamping_backup;
-
-} NetPath;
-
-
 typedef struct {
 
 	char* logID;
@@ -100,7 +52,6 @@ typedef struct {
 	int maxFiles;
 
 } LogFileHandler;
-
 
 typedef struct{
 

@@ -61,6 +61,8 @@ void getLinuxTsInfo(LinuxTsInfo *output, const struct ethtool_ts_info *source, c
 ClockDriver * getLinuxClockDriver(const TTransport *transport, const LinuxInterfaceInfo *intInfo);
 void getLinuxTxTimestamp(TTransport *transport, TTransportMessage *txMessage);
 bool initTimestamping_linuxts_common(TTransport *transport, TTsocketTimestampConfig *tsConfig, LinuxInterfaceInfo *intInfo, const char *ifName, const bool quiet);
+char* getStatusLine_linuxts(const TTransport *transport, const CckInterfaceInfo *info, const LinuxInterfaceInfo *linfo, char *buf, const size_t len);
+char* getInfoLine_linuxts(const TTransport *transport, const CckInterfaceInfo *info, const LinuxInterfaceInfo *linfo, char *buf, const size_t len);
 
 #endif /* CCK_TTRANSPORT_LINUXTS_COMMON_H_ */
 

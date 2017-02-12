@@ -236,6 +236,8 @@ void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifName)
 
     info->valid = true;
 
+    strncpy(info->ifName, ifName, IFNAMSIZ);
+
     getLinuxVlanInfo(vlanInfo, ifName);
 
     if(vlanInfo->vlan) {
@@ -262,7 +264,7 @@ void getLinuxInterfaceInfo(LinuxInterfaceInfo *info, const char *ifName)
  */
 
 
-int monitorLinuxInterface(const char *ifName, LinuxInterfaceInfo *info, const bool quiet)
+int monitorLinuxInterface(LinuxInterfaceInfo *info, const bool quiet)
 {
 
     int ret = 0;
@@ -281,10 +283,9 @@ int monitorLinuxInterface(const char *ifName, LinuxInterfaceInfo *info, const bo
 
 	return CCK_INTINFO_OK;
 
-
     }
 
-    getLinuxInterfaceInfo(info, ifName);
+    getLinuxInterfaceInfo(info, info->ifName);
 
     LinuxBondInfo *bi = &info->bondInfo;
 
@@ -292,25 +293,24 @@ int monitorLinuxInterface(const char *ifName, LinuxInterfaceInfo *info, const bo
 
 	if(!bi->activeBackup) {
 	    CCK_QERROR("transport: monitorLinuxInterface('%s'): Bonded interface"
-			 " not running Active Backup, expect random timing performance\n", ifName);
+			 " not running Active Backup, expect random timing performance\n", info->ifName);
 	    return CCK_INTINFO_FAULT;
 	}
 
 	if(bi->countChanged) {
 	    CCK_QNOTICE("transport: monitorLinuxInterface('%s'): Bonded interface"
-			 " member count has changed\n", ifName);
+			 " member count has changed\n", info->ifName);
 	    ret = CCK_INTINFO_CHANGE;
 	}
 
 	if(bi->activeChanged) {
 	    CCK_QNOTICE("transport: monitorLinuxInterface('%s'): Bonded interface"
-			 " active member changed to %s\n", ifName, info->physicalDevice);
+			 " active member changed to %s\n", info->ifName, info->physicalDevice);
 	    ret |= CCK_INTINFO_CLOCKCHANGE;
 
 	}
 
     }
-
 
     return ret;
 

@@ -57,11 +57,15 @@ static int _instanceCount = 0;
 
 static char* createFilterExpr(TTransport *self, char *buf, int size);
 
+/* short status line - interface up/down, etc */
+static char* getStatusLine(TTransport *self, char *buf, size_t len);
+
 bool
 _setupTTransport_pcap_udpv4(TTransport *self)
 {
 
     INIT_INTERFACE(self);
+    self->getStatusLine = getStatusLine;
 
     CCK_INIT_PDATA(TTransport, pcap_udpv4, self);
     CCK_INIT_PCONFIG(TTransport, pcap_udpv4, self);
@@ -643,9 +647,18 @@ getClockDriver(TTransport *self) {
 static int
 monitor(TTransport *self, const int interval, const bool quiet) {
 
-    return 0;
+    CCK_GET_PCONFIG(TTransport, pcap_udpv4, self, myConfig);
+    CCK_GET_PDATA(TTransport, pcap_udpv4, self, myData);
+
+    if(!myData->intInfo.valid) {
+	getInterfaceInfo(&myData->intInfo, myConfig->interface,
+	self->family, &myConfig->sourceAddress, true);
+    }
+
+    return monitorInterface(&myData->intInfo, &myConfig->sourceAddress, quiet);
 
 }
+
 
 static int
 refresh(TTransport *self) {
@@ -732,5 +745,14 @@ createFilterExpr(TTransport *self, char *buf, int size) {
 	    self->name, buf);
 
     return buf;
+
+}
+
+static char*
+getStatusLine(TTransport *self, char *buf, size_t len) {
+
+	CCK_GET_PDATA(TTransport, pcap_udpv4, self, myData);
+
+	return getIntStatusLine(&myData->intInfo, buf, len);
 
 }
