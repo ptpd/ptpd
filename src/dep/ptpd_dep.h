@@ -321,7 +321,7 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
  * -Handle SNMP subsystem*/
  /**\{*/
 
-void snmpInit(GlobalConfig *, PtpClock *);
+void snmpInit(const GlobalConfig *, PtpClock *);
 void snmpShutdown();
 void snmpPrePoll(void *cfds, int *nfd, fd_set *fds, struct timeval *timeout, int *block);
 void snmpOnData(void *cfds, int *nfd, fd_set *fds, struct timeval *timeout);
@@ -352,7 +352,7 @@ void stepClock(const GlobalConfig * global, PtpClock * ptpClock, Boolean force);
  * -Handle with runtime options*/
  /**\{*/
 int setCpuAffinity(int cpu);
-PtpClock * ptpdStartup(int,char**,Integer16*,GlobalConfig*);
+int ptpdStartup(int argc ,char** argv, GlobalConfig* global);
 
 void ptpdShutdown(PtpClock * ptpClock);
 void checkSignals(GlobalConfig * global, PtpClock * ptpClock);

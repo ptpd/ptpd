@@ -448,6 +448,9 @@ Boolean respectUtcOffset(const GlobalConfig * global, PtpClock * ptpClock);
 void capturePtpEventData(PtpEventData *data, PtpClock *ptpClock, GlobalConfig *global); 	/* capture data from an alarm event */
 void setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock); /* set alarm condition and capture data */
 
+bool initPtpPort(PtpClock *port, GlobalConfig *global);
+void shutdownPtpPort(PtpClock *port, GlobalConfig *global);
+
 
 /* actual ptpd.h ... */
 

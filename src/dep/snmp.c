@@ -2129,7 +2129,7 @@ sendNotif(int eventType, PtpEventData *eventData) {
  * Initialisation of SNMP subsystem.
  */
 void
-snmpInit(GlobalConfig *global, PtpClock *ptpClock) {
+snmpInit(const GlobalConfig *global, PtpClock *ptpClock) {
 	netsnmp_enable_subagent();
 	snmp_disable_log();
 	snmp_enable_calllog();

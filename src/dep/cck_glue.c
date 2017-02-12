@@ -192,7 +192,7 @@ pushClockDriverPrivateConfig_unix(ClockDriver *driver, const GlobalConfig *globa
 }
 
 void
-ptpPortPreInit(PtpClock *ptpClock)
+ptpPortPostInit(PtpClock *ptpClock)
 {
 
     DBG("ptpPortInit() called\n");

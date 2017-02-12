@@ -2830,7 +2830,7 @@ printSettingHelp(char* key)
  * the respective currentConfig dictionary entry should be set,
  * instead of just setting the global field.
  */
-Boolean loadCommandLineOptions(GlobalConfig* global, dictionary* dict, int argc, char** argv, Integer16* ret) {
+Boolean loadCommandLineOptions(GlobalConfig* global, dictionary* dict, int argc, char** argv, int* ret) {
 
 	int c;
 #ifdef HAVE_GETOPT_LONG

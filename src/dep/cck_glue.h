@@ -53,7 +53,7 @@ typedef struct {
 	CckFdSet *fdSet;
 } PtpClockUserData;
 
-void ptpPortPreInit(PtpClock *ptpClock);
+void ptpPortPostInit(PtpClock *ptpClock);
 void ptpPortPostShutdown(PtpClock *ptpClock);
 void setPtpClockIdentity(PtpClock *ptpClock);
 void ptpPortStepNotify(void *owner);

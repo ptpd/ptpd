@@ -71,7 +71,7 @@ enum {
 
 Boolean loadConfigFile (dictionary**, GlobalConfig*);
 void loadCommandLineKeys(dictionary*, int, char**);
-Boolean loadCommandLineOptions(GlobalConfig*, dictionary*, int, char** , Integer16*);
+Boolean loadCommandLineOptions(GlobalConfig*, dictionary*, int, char** , int*);
 dictionary* parseConfig (int, void*, dictionary*, GlobalConfig*);
 int reloadConfig ( GlobalConfig*, PtpClock* );
 Boolean compareConfig(dictionary* source, dictionary* target);

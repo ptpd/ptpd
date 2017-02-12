@@ -81,7 +81,6 @@ enum {
 	LEAP_SECOND_PAUSE_TIMER,	/* Event message processing pause around leap second event */
 	STATUSFILE_UPDATE_TIMER,	/* Status file update */
 	ALARM_UPDATE_TIMER,		/* Alarm ageing */
-	MASTER_NETREFRESH_TIMER,	/* Master state periodic mcast joins */
 
 	/* marker */
 	PTP_MAX_TIMER
@@ -96,11 +95,11 @@ extern bool ptpTimerInit(struct PtpClock *ptpClock);
 extern void ptpTimerShutdown(struct PtpClock *ptpClock);
 
 /* quickhand macros assuming that the @var variable contains a timers array indexed by @id */
-#define tmrExpired(var, id)	ptpTimerExpired(&var->timers[id##_TIMER])
-#define tmrStart(var, id, val)	ptpTimerStart(&var->timers[id##_TIMER], val)
-#define tmrStop(var, id)	ptpTimerStop(&var->timers[id##_TIMER])
-#define tmrRunning(var, id)	var->timers[id##_TIMER].running
-#define tmrInterval(var, id)	var->timers[id##_TIMER].interval
+#define tmrExpired(var, id)	ptpTimerExpired(&((var)->timers[id##_TIMER]))
+#define tmrStart(var, id, val)	ptpTimerStart(&((var)->timers[id##_TIMER]), val)
+#define tmrStop(var, id)	ptpTimerStop(&((var)->timers[id##_TIMER]))
+#define tmrRunning(var, id)	((var)->timers[id##_TIMER].running)
+#define tmrInterval(var, id)	((var)->timers[id##_TIMER].interval)
 
 const char * getPtpTimerName(int id);
 

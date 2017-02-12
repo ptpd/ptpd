@@ -341,9 +341,6 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 		priority == LOG_DEBUGV  ? "debug3)" :
 		"unk)");
 
-
-//		fprintf(destination, " (%s) ", G_ptpClock ?
-//		       translatePortState(G_ptpClock) : "___");
 	}
 
 	return fprintf(destination, "%s", buf);

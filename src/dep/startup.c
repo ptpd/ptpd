@@ -113,6 +113,7 @@ void
 exitHandler(PtpClock * ptpClock)
 {
 
+	shutdownPtpPort(ptpClock, ptpClock->global);
 	ptpdShutdown(ptpClock);
 
 	NOTIFY("Shutdown on close signal\n");
@@ -277,7 +278,6 @@ sighupHandler(GlobalConfig * global, PtpClock * ptpClock)
 
 	if(global->statisticsLog.logEnabled)
 		ptpClock->resetStatisticsLog = TRUE;
-
 
 }
 
@@ -528,35 +528,10 @@ ptpdShutdown(PtpClock * ptpClock)
 
 	ptpPortPostShutdown(ptpClock);
 
-	free(ptpClock->foreign);
-
-	/* free management and signaling messages, they can have dynamic memory allocated */
-	if(ptpClock->msgTmpHeader.messageType == MANAGEMENT)
-		freeManagementTLV(&ptpClock->msgTmp.manage);
-	freeManagementTLV(&ptpClock->outgoingManageTmp);
-	if(ptpClock->msgTmpHeader.messageType == SIGNALING)
-		freeSignalingTLV(&ptpClock->msgTmp.signaling);
-	freeSignalingTLV(&ptpClock->outgoingSignalingTmp);
-
-#ifdef PTPD_SNMP
-	snmpShutdown();
-#endif /* PTPD_SNMP */
-
-	ptpClock->oFilterMS.shutdown(&ptpClock->oFilterMS);
-	ptpClock->oFilterSM.shutdown(&ptpClock->oFilterSM);
-        freeDoubleMovingStatFilter(&ptpClock->filterMS);
-        freeDoubleMovingStatFilter(&ptpClock->filterSM);
-
 	if (global.currentConfig != NULL)
 		dictionary_del(&global.currentConfig);
 	if(global.cliConfig != NULL)
 		dictionary_del(&global.cliConfig);
-
-	free(ptpClock);
-	ptpClock = NULL;
-
-	extern PtpClock* G_ptpClock;
-	G_ptpClock = NULL;
 
 	/* properly clean lockfile (eventough new deaemons can acquire the lock after we die) */
 	if(!global.ignoreLock && G_lockFilePointer != NULL) {
@@ -597,11 +572,12 @@ void argvDump(int argc, char **argv)
 	INFO("Starting %s daemon with parameters:      %s\n", PTPD_PROGNAME, sbuf);
 }
 
-PtpClock *
-ptpdStartup(int argc, char **argv, Integer16 * ret, GlobalConfig * global)
+int
+ptpdStartup(int argc, char **argv, GlobalConfig * global)
 {
-	PtpClock * ptpClock;
+
 	TimeInternal tmpTime;
+	int ret = 0;
 	int i = 0;
 
 	/* pass our log message writer function to libCCK */
@@ -646,7 +622,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, GlobalConfig * global)
 	/* parse all long section:key options and clean up argv for getopt */
 	loadCommandLineKeys(global->cliConfig,argc,argv);
 	/* parse the normal short and long options, exit on error */
-	if (!loadCommandLineOptions(global, global->cliConfig, argc, argv, ret)) {
+	if (!loadCommandLineOptions(global, global->cliConfig, argc, argv, &ret)) {
 	    goto fail;
 	}
 
@@ -661,7 +637,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, GlobalConfig * global)
 	if(geteuid() != 0)
 	{
 		printf("Error: "PTPD_PROGNAME" daemon can only be run as root\n");
-			*ret = 1;
+			ret = 1;
 			goto fail;
 		}
 
@@ -672,8 +648,8 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, GlobalConfig * global)
 		if(loadConfigFile(&global->candidateConfig, global)) {
 			dictionary_merge(global->cliConfig, global->candidateConfig, 1, 1, "from command line");
 		} else {
-		    *ret = 1;
-			dictionary_merge(global->cliConfig, global->candidateConfig, 1, 1, "from command line");
+		    ret = 1;
+		    dictionary_merge(global->cliConfig, global->candidateConfig, 1, 1, "from command line");
 		    goto configcheck;
 		}
 	} else {
@@ -686,7 +662,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, GlobalConfig * global)
 	 * etc. The getopt loop in loadCommandLineOptions() only sets keys verified here.
 	 */
 	if( ( global->currentConfig = parseConfig(CFGOP_PARSE, NULL, global->candidateConfig,global)) == NULL ) {
-	    *ret = 1;
+	    ret = 1;
 	    dictionary_del(&global->candidateConfig);
 	    goto configcheck;
 	}
@@ -694,7 +670,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, GlobalConfig * global)
 	/* we've been told to print the lock file and exit cleanly */
 	if(global->printLockFile) {
 	    printf("%s\n", global->lockFile);
-	    *ret = 0;
+	    ret = 0;
 	    goto fail;
 	}
 
@@ -705,7 +681,7 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, GlobalConfig * global)
 	INFO("Checking if network interface(s) are usable\n");
 
 	if(!testTransportConfig(global)) {
-	    *ret = 1;
+	    ret = 1;
 	    goto configcheck;
 	}
 
@@ -716,9 +692,9 @@ configcheck:
 	 * We've been told to check config only - clean exit before checking locks
 	 */
 	if(global->checkConfigOnly) {
-	    if(*ret != 0) {
+	    if(ret != 0) {
 		printf("Configuration has errors\n");
-		*ret = 1;
+		ret = 1;
 		}
 	    else
 		printf("Configuration OK\n");
@@ -726,7 +702,7 @@ configcheck:
 	}
 
 	/* Previous errors - exit */
-	if(*ret !=0)
+	if(ret !=0)
 		goto fail;
 
 	/* First lock check, just to be user-friendly to the operator */
@@ -734,12 +710,12 @@ configcheck:
 		if(!writeLockFile(global)){
 			/* check and create Lock */
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
-			*ret = 3;
+			ret = 3;
 			goto fail;
 		}
 		/* check for potential conflicts when automatic lock files are used */
 		if(!checkOtherLocks(global)) {
-			*ret = 3;
+			ret = 3;
 			goto fail;
 		}
 	}
@@ -747,51 +723,10 @@ configcheck:
 	/* Manage log files: stats, log, status and quality file */
 	restartLogging(global);
 
-	/* Allocate memory after we're done with other checks but before going into daemon */
-	ptpClock = (PtpClock *) calloc(1, sizeof(PtpClock));
-	if (!ptpClock) {
-		PERROR("Error: Failed to allocate memory for protocol engine data");
-		*ret = 2;
-		goto fail;
-	} else {
-		DBG("allocated %d bytes for protocol engine data\n",
-		    (int)sizeof(PtpClock));
-
-		ptpClock->foreign = (ForeignMasterRecord *)
-			calloc(global->fmrCapacity,
-			       sizeof(ForeignMasterRecord));
-		if (!ptpClock->foreign) {
-			PERROR("failed to allocate memory for foreign "
-			       "master data");
-			*ret = 2;
-			free(ptpClock);
-			goto fail;
-		} else {
-			DBG("allocated %d bytes for foreign master data\n",
-			    (int)(global->fmrCapacity *
-				  sizeof(ForeignMasterRecord)));
-		}
-	}
-
-	ptpClock->global = global;
-
-	ptpPortPreInit(ptpClock);
-
-	if(global->statisticsLog.logEnabled)
-		ptpClock->resetStatisticsLog = TRUE;
-
-	/* Init to 0 net buffer */
-	memset(ptpClock->msgIbuf, 0, PACKET_SIZE);
-	memset(ptpClock->msgObuf, 0, PACKET_SIZE);
-	
-	/* Init outgoing management message */
-	ptpClock->outgoingManageTmp.tlv = NULL;
-	
-
 	/*  DAEMON */
 #ifdef PTPD_NO_DAEMON
 	if(!global->nonDaemon){
-		global->nonDaemon=TRUE;
+		global->nonDaemon = TRUE;
 	}
 #endif
 
@@ -803,7 +738,7 @@ configcheck:
 		 */
 		if (daemon(1,0) == -1) {
 			PERROR("Failed to fork to background");
-			*ret = 3;
+			ret = 3;
 			goto fail;
 		}
 		INFO("Now running in the background\n");
@@ -825,7 +760,7 @@ configcheck:
 		/* check and create Lock */
 		if(!writeLockFile(global)){
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
-			*ret = 3;
+			ret = 3;
 			goto fail;
 		}
 	}
@@ -840,17 +775,6 @@ configcheck:
 		}
 	}
 #endif
-
-	/* init alarms */
-	initAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
-	configureAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
-	ptpClock->alarmDelay = global->alarmInitialDelay;
-	/* we're delaying alarm processing - disable alarms for now */
-	if(ptpClock->alarmDelay) {
-	    enableAlarms(ptpClock->alarms, ALRM_MAX, FALSE);
-	}
-
-
 	/* establish signal handlers */
 	signal(SIGINT,  catchSignals);
 	signal(SIGTERM, catchSignals);
@@ -859,41 +783,11 @@ configcheck:
 	signal(SIGUSR1, catchSignals);
 	signal(SIGUSR2, catchSignals);
 
-#if defined PTPD_SNMP
-	/* Start SNMP subsystem */
-	if (global->snmpEnabled)
-		snmpInit(global, ptpClock);
-#endif
-
-	NOTICE(USER_DESCRIPTION" started successfully on %s using \"%s\" preset (PID %d)\n",
-			    global->ifName,
-			    (getPtpPreset(global->selectedPreset,global)).presetName,
-			    getpid());
-	ptpClock->resetStatisticsLog = TRUE;
-
-	outlierFilterSetup(&ptpClock->oFilterMS);
-	outlierFilterSetup(&ptpClock->oFilterSM);
-
-	ptpClock->oFilterMS.init(&ptpClock->oFilterMS,&global->oFilterMSConfig, "delayMS");
-	ptpClock->oFilterSM.init(&ptpClock->oFilterSM,&global->oFilterSMConfig, "delaySM");
-
-	if(global->filterMSOpts.enabled) {
-		ptpClock->filterMS = createDoubleMovingStatFilter(&global->filterMSOpts,"delayMS");
-	}
-
-	if(global->filterSMOpts.enabled) {
-		ptpClock->filterSM = createDoubleMovingStatFilter(&global->filterSMOpts, "delaySM");
-	}
-
-	*ret = 0;
-	return ptpClock;
+	return 0;
 	
 fail:
 	dictionary_del(&global->cliConfig);
 	dictionary_del(&global->candidateConfig);
 	dictionary_del(&global->currentConfig);
-	return 0;
+	return ret;
 }
-
-
-

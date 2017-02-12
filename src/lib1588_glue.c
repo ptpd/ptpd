@@ -56,6 +56,7 @@ ptpTimerExpired(PtpTimer *timer)
 
     bool ret = timer->expired;
     timer->expired = false;
+
     return ret;
 
 }

@@ -193,7 +193,6 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 		tmrStop(ptpClock, ANNOUNCE_INTERVAL);
 		tmrStop(ptpClock, PDELAYREQ_INTERVAL);
 		tmrStop(ptpClock, DELAY_RECEIPT);
-		tmrStop(ptpClock, MASTER_NETREFRESH);
 
 		if(global->unicastNegotiation && global->transportMode==TMODE_UC) {
 		    cancelAllGrants(ptpClock->unicastGrants, UNICAST_MAX_DESTINATIONS,
@@ -426,11 +425,7 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 		    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
 			MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logMinPdelayReqInterval))));
 		}
-		if( global->refreshMulticast &&
-		    global->transportMode != TMODE_UC &&
-		    global->masterRefreshInterval > 9 )
-			tmrStart(ptpClock, MASTER_NETREFRESH,
-			   global->masterRefreshInterval);
+
 		setPortState(ptpClock, PTP_MASTER);
 		displayStatus(ptpClock, "Now in state: ");
 
@@ -875,14 +870,6 @@ doState(GlobalConfig *global, PtpClock *ptpClock)
 					    issuePdelayReq(global,ptpClock);
 				}
 			}
-		}
-
-		if(global->refreshMulticast &&
-		    global->masterRefreshInterval > 9 &&
-		    tmrExpired(ptpClock, MASTER_NETREFRESH)) {
-				DBGV("Master state periodic IGMP refresh - next in %d seconds...\n",
-				global->masterRefreshInterval);
-                		ptpNetworkRefresh(ptpClock);
 		}
 
 		if (tmrExpired(ptpClock, SYNC_INTERVAL)) {
