@@ -254,9 +254,9 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 						filter->stepSamples = 0;
 					    }
 					    /* prevent from informing about a single step. */
-//					    if(filter->stepSamples == 1) {
+					    if(filter->stepSamples == 1) {
 						INFO_LOCAL_ID(filter,"%.03f us step detected, filter will now block\n", step * 1E6);
-//					    }
+					    }
 					    DBG_LOCAL_ID(filter,"step: %.09f, credit left %d, requesting %d\n",step,
 						    filter->delayCredit, filter->consecutiveOutliers);
 					    filter->delay = filter->consecutiveOutliers;

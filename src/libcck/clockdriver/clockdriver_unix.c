@@ -331,7 +331,7 @@ setTime (ClockDriver *self, CckTimestamp *time) {
 static bool
 setOffset (ClockDriver *self, CckTimestamp *delta) {
 
-	CckTimestamp oldTime, newTime = {0, 0};
+	CckTimestamp newTime = {0, 0};
 
 	if((!self->_init) || (self->state == CS_HWFAULT)) {
 	    return false;
@@ -351,6 +351,7 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	return setTime(self, &newTime);
 #else
 	CCK_GET_PCONFIG(ClockDriver, unix, self, myConfig);
+	CckTimestamp oldTime;
 
 	struct timex tmx;
 	memset(&tmx, 0, sizeof(tmx));
