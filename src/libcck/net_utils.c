@@ -34,6 +34,8 @@
 
 #include <config.h>
 
+#include <libcck/cck.h>
+
 #include <sys/types.h>
 #include <string.h>
 #include <errno.h>
@@ -384,7 +386,14 @@ joinMulticast_ethernet(const CckTransportAddress *addr, const char *ifName, cons
 bool
 setMulticastLoopback(int fd,  const int family, const bool _value)
 {
-	int value = _value ? 1 : 0;
+
+#if defined(__OpenBSD__) || defined(__sun)
+	uint8_t value;
+#else
+	int value;
+#endif
+
+	value = _value ? 1 : 0;
 
 	int proto, option;
 
@@ -417,7 +426,13 @@ bool
 setMulticastTtl(int fd,  const int family, const int _value)
 {
 
-	int value = _value;
+#if defined(__OpenBSD__) || defined(__sun)
+	uint8_t value;
+#else
+	int value;
+#endif
+
+	value = _value;
 
 	int proto, option;
 
@@ -965,7 +980,7 @@ gameover:
     memcpy(last, &current, sizeof(current));
 
     CCK_DBG(THIS_COMPONENT"monitorInterface('%s'): status %s\n",
-		current->ifName, getIntStatusName(current.status));
+		current.ifName, getIntStatusName(current.status));
 
     return ret;
 

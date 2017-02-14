@@ -32,6 +32,24 @@
  *
  */
 
+#ifdef linux
+#	ifndef _GNU_SOURCE
+#		define _GNU_SOURCE
+	#endif /* _GNU_SOURCE */
+#endif
+
+#ifdef __sun
+#	ifndef _XPG6
+#		define _XPG6
+#	endif /* _XPG6 */
+#	ifndef _XOPEN_SOURCE
+#		define _XOPEN_SOURCE 500
+#	endif /* _XOPEN_SOURCE */
+#	ifndef __EXTENSIONS__
+#		define __EXTENSIONS__
+#	endif /* __EXTENSIONS */
+#endif /* __sun */
+
 #ifndef CCK_H_
 #define CCK_H_
 
@@ -42,6 +60,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <limits.h>
+
 
 #define CCKCALLOC(ptr, size) \
         if(!((ptr)=calloc(1, size))) { \

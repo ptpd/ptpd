@@ -690,7 +690,7 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 #ifdef CCK_DEBUG
 	tmpstr(strAddr, self->tools->strLen);
 	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): got message destination %s via IP_RECVDSTADDR\n",
-		    self->name, self->tools.toString(strAddr, strAddr_len, &message->to));
+		    self->name, self->tools->toString(strAddr, strAddr_len, &message->to));
 #endif /* CCK_DEBUG */
 	}
 #endif /* IP_RECVDSTADDR */

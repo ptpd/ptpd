@@ -7,6 +7,8 @@
 
 #include "../../ptp_primitives.h"
 
+#include <netdb.h>
+
 typedef struct {
 	Boolean enableEngine;
 	Boolean enableControl;

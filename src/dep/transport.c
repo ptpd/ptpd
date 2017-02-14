@@ -949,7 +949,7 @@ initPtpTransports(PtpClock *ptpClock, CckFdSet *fdSet, const GlobalConfig *globa
 
     event->owner = ptpClock;
     if(event->init(event, eventConfig, fdSet) < 1) {
-	CRITICAL("Coult not start event transport\n");
+	CRITICAL("Could not start event transport\n");
 	ret = FALSE;
 	goto gameover;
     }
@@ -964,7 +964,7 @@ initPtpTransports(PtpClock *ptpClock, CckFdSet *fdSet, const GlobalConfig *globa
 	general->owner = ptpClock;
 	event->slaveTransport = general;
 	if(general->init(general, generalConfig, fdSet) < 1) {
-	    CRITICAL("Coult not start general transport\n");
+	    CRITICAL("Could not start general transport\n");
 	    ret = FALSE;
 	    goto gameover;
 	}

@@ -42,6 +42,14 @@ void cckLogMessage(int level, const char *format, ...);
 void cckDefaultLoggerFun (int level, const char *format, va_list ap);
 void cckSetLoggerFun(void (*) (int, const char*, va_list));
 
+/* Solaris, maybe others */
+#ifndef LOG_PRIMASK
+#define LOG_PRIMASK 0x07
+#endif
+#ifndef LOG_PRI
+#define LOG_PRI(prio) ((prio) & LOG_PRIMASK)
+#endif
+
 //#define CCK_DEBUG
 
 #define CCK_EMERGENCY(x, ...)		cckLogMessage(LOG_EMERG, x, ##__VA_ARGS__);
