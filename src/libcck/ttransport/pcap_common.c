@@ -37,7 +37,11 @@
 #include <libcck/cck_types.h>
 
 #include <errno.h>
-#include <net/ethernet.h>
+
+#ifdef HAVE_NET_ETHERNET_H
+#include <net/ethernet.h>	/* struct ether_addr */
+#endif /* HAVE_NET_ETHERNET_H */
+
 #ifdef HAVE_LINUX_IF_PACKET_H
 #include <linux/if_packet.h>
 #endif /* HAVE_LINUX_IF_PACKET_H */

@@ -89,8 +89,13 @@ memset(name, 0, name ## _len);
 #define SAFE_CALLBACK(fun, ...) { if(fun) { fun( __VA_ARGS__ ); } }
 
 /* byte swap */
+#ifndef swap16
 #define swap16(var) (((var & 0xff00) >> 8) | ((var & 0x00ff) << 8))
+#endif
+
+#ifndef swap32
 #define swap32(var) (((var & 0xff000000) >> 24) | ((var & 0x00ff0000) >> 8) | ((var & 0x0000ff00) << 8) | ((var & 0x000000ff) << 24))
+#endif
 
 /* zero memset shortcut */
 #define zeromem(var) memset(var, 0, sizeof(*(var)))

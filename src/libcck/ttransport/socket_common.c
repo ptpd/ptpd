@@ -71,7 +71,7 @@ initTimestamping_socket_common(TTransport *self,  TTsocketTimestampConfig *confi
 #elif defined(SO_TIMESTAMP)
 
 	CCK_DBG(THIS_COMPONENT"initTimestamping(%s): using SO_TIMESTAMP\n", self->name);
-	option = SO_BINTIME;
+	option = SO_TIMESTAMP;
 	config->cmsgType = SCM_TIMESTAMP;
 	config->elemSize = sizeof(struct timeval);
 	config->convertTs = convertTimestamp_timeval;

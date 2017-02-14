@@ -36,9 +36,6 @@
 
 #include <libcck/cck_types.h>
 
-#include <errno.h>
-#include <net/ethernet.h>
-
 #include <libcck/cck.h>
 #include <libcck/cck_utils.h>
 #include <libcck/cck_logger.h>
@@ -47,6 +44,16 @@
 #include <libcck/ttransport/pcap_common.h>
 #include <libcck/net_utils.h>
 #include <libcck/clockdriver.h>
+
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif /* HAVE_SYS_SOCKET_H */
+#include <errno.h>
+
+#ifdef HAVE_NET_ETHERNET_H
+#include <net/ethernet.h>	/* struct ether_addr */
+#endif /* HAVE_NET_ETHERNET_H */
+
 
 #define THIS_COMPONENT "ttransport.pcap_ethernet: "
 

@@ -46,6 +46,10 @@
 #include <sys/socket.h>
 #endif /* HAVE_SYS_SOCKET_H */
 
+#ifdef HAVE_NET_IF_ARP_H
+#include <net/if_arp.h>
+#endif /* HAVE_NET_IF_ARP_H */
+
 #ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>	/* struct ether_addr */
 #endif /* HAVE_NET_ETHERNET_H */

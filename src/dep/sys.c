@@ -71,6 +71,10 @@
 #  include <net/if_ether.h>
 #endif
 
+#ifdef HAVE_SYS_TIMEX_H
+#include <sys/timex.h>
+#endif
+
 /* only C99 has the round function built-in */
 double round (double __x);
 

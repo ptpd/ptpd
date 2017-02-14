@@ -36,8 +36,9 @@
 
 #include <errno.h>
 
-#include <libcck/cck.h>
 #include <libcck/cck_types.h>
+
+#include <libcck/cck.h>
 #include <libcck/cck_utils.h>
 #include <libcck/cck_logger.h>
 #include <libcck/ttransport.h>
@@ -46,7 +47,14 @@
 #include <libcck/net_utils.h>
 #include <libcck/clockdriver.h>
 
-#include <net/ethernet.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif /* HAVE_SYS_SOCKET_H */
+
+#ifdef HAVE_NET_ETHERNET_H
+#include <net/ethernet.h>	/* struct ether_addr */
+#endif /* HAVE_NET_ETHERNET_H */
+
 #include <netinet/ip6.h>
 #include <netinet/udp.h>
 

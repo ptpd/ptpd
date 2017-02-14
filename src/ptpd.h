@@ -57,7 +57,6 @@
 #include <limits.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/timex.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <stdarg.h>

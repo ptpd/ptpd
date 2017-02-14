@@ -47,4 +47,9 @@
 #define PCAP_TIMEOUT 1		/* expressed in milliseconds */
 #define FILTER_EXPR_LEN 1000	/* maximum PCAP filter expression length */
 
+/* missing on some systems / libpcap versions */
+#ifndef PCAP_NETMASK_UNKNOWN
+#define PCAP_NETMASK_UNKNOWN 0xffffffff
+#endif
+
 #endif /* CCK_TTRANSPORT_PCAP_COMMON_H_ */

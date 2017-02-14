@@ -37,6 +37,11 @@
 #include <sys/types.h>
 #include <string.h>
 #include <errno.h>
+
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif /* HAVE_SYS_SOCKET_H */
+
 #include <ifaddrs.h>
 
 #ifdef HAVE_NET_IF_DL_H

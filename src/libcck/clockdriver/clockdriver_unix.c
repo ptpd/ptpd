@@ -88,7 +88,10 @@ static CckTimestamp _stepAccumulator = {0,0};
 static int _instanceCount = 0;
 
 static void setRtc(ClockDriver* self, CckTimestamp *timeToSet);
+#ifdef HAVE_SYS_TIMEX_H
 static bool adjFreq_unix(ClockDriver *self, double adj);
+#endif
+
 static void updateXtmp_unix (CckTimestamp oldTime, CckTimestamp newTime);
 
 #ifdef __QNXNTO__
@@ -442,6 +445,7 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 static double
 getFrequency (ClockDriver * self) {
 
+#ifdef HAVE_SYS_TIMEX_H
 	struct timex tmx;
 	memset(&tmx, 0, sizeof(tmx));
 	if(adjtimex(&tmx) < 0) {
@@ -450,6 +454,9 @@ getFrequency (ClockDriver * self) {
 	}
 
 	return((tmx.freq + 0.0) / 65.536);
+#else
+	return self->lastFrequency;
+#endif
 
 }
 
@@ -498,7 +505,7 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, CckTimestamp *output)
 	return true;
 }
 
-
+#ifdef HAVE_SYS_TIMEX_H
 static bool
 adjFreq_unix(ClockDriver *self, double adj)
 {
@@ -580,10 +587,7 @@ adjFreq_unix(ClockDriver *self, double adj)
 	
 	return !adjtimex(&t);
 }
-
-
-
-
+#endif /* HAVE_SYS_TIMEX_H */
 
 /* Set the RTC to the desired time time */
 static void setRtc(ClockDriver *self, CckTimestamp *timeToSet)
