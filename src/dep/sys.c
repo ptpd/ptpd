@@ -76,24 +76,6 @@ double round (double __x);
 
 static int closeLog(LogFileHandler* handler);
 
-#ifdef __QNXNTO__
-typedef struct {
-  _uint64 counter;		/* iteration counter */
-  _uint64 prev_tsc;		/* previous clock cycles */
-  _uint64 last_clock;		/* clock reading at last timer interrupt */
-  _uint64 cps;			/* cycles per second */
-  _uint64 prev_delta;		/* previous clock cycle delta */
-  _uint64 cur_delta;		/* last clock cycle delta */
-  _uint64 filtered_delta;	/* filtered delta */
-  double ns_per_tick;		/* nanoseconds per cycle */
-} TimerIntData;
-
-/* do not access directly! tied to clock interrupt! */
-static TimerIntData tData;
-static Boolean tDataUpdated = FALSE;
-
-#endif /* __QNXNTO__ */
-
 int
 snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
 {

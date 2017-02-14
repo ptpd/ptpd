@@ -42,11 +42,33 @@
  * implementation must match type_suffix.
  */
 
+/*
+ * selective builds check for CCK_BUILD_xxx, but CCK_ALL_IMPL causes
+ * all macros to be invoked. This is used when including this from
+ * the main component header, to preserve a full set of enums.
+ */
+
+#include <config.h>
+
 #ifndef CCK_REGISTER_IMPL
     #include "clockdriver/clockdriver_unix.h"
-    #include "clockdriver/clockdriver_linuxphc.h"
+
+    #ifdef CCK_BUILD_CLOCKDRIVER_LINUXPHC
+	#include "clockdriver/clockdriver_linuxphc.h"
+    #endif
+
 #else
+
     CCK_REGISTER_IMPL(CLOCKDRIVER_UNIX, unix, "unix")
-    CCK_REGISTER_IMPL(CLOCKDRIVER_LINUXPHC, linuxphc, "linuxphc")
+
+    #if defined(CCK_BUILD_CLOCKDRIVER_LINUXPHC) || defined(CCK_ALL_IMPL)
+	CCK_REGISTER_IMPL(CLOCKDRIVER_LINUXPHC, linuxphc, "linuxphc")
+    #endif
+
+    #ifdef CCK_ALL_IMPL
+	#undef CCK_ALL_IMPL
+    #endif
+
     #undef CCK_REGISTER_IMPL
+
 #endif /* CCK_REGISTER_IMPL */

@@ -50,15 +50,19 @@
 
     #include "ttransport/udp_common.h" /* currently used by all UDP transports */
 
-    #include "ttransport/linuxts_common.h"
-    #include "ttransport/linuxts_udpv4.h"
-    #include "ttransport/linuxts_udpv6.h"
-    #include "ttransport/linuxts_raweth.h"
+    #ifdef CCK_BUILD_TTRANSPORT_LINUXTS
+	#include "ttransport/linuxts_common.h"
+	#include "ttransport/linuxts_udpv4.h"
+	#include "ttransport/linuxts_udpv6.h"
+	#include "ttransport/linuxts_raweth.h"
+    #endif
 
-    #include "ttransport/pcap_common.h"
-    #include "ttransport/pcap_ethernet.h"
-    #include "ttransport/pcap_udpv4.h"
-    #include "ttransport/pcap_udpv6.h"
+    #ifdef CCK_BUILD_TTRANSPORT_PCAP
+	#include "ttransport/pcap_common.h"
+	#include "ttransport/pcap_ethernet.h"
+	#include "ttransport/pcap_udpv4.h"
+	#include "ttransport/pcap_udpv6.h"
+    #endif
 
     #include "ttransport/socket_common.h" /* currently used by all UDP transports */
     #include "ttransport/socket_udpv4.h"
@@ -78,29 +82,35 @@
 
 
     /* Linux software / hardware timestamps (SO_TIMESTAMPING) */
+    #if defined(CCK_BUILD_TTRANSPORT_LINUXTS) || defined(CCK_ALL_IMPL)
 
-    CCK_REGISTER_IMPL(TT_TYPE_LINUXTS_UDPV4,	linuxts_udpv4,	"linuxts_udpv4",	TT_FAMILY_IPV4,
+	CCK_REGISTER_IMPL(TT_TYPE_LINUXTS_UDPV4,	linuxts_udpv4,	"linuxts_udpv4",	TT_FAMILY_IPV4,
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_HW_TIMESTAMP_PTP |
 			    TT_CAPS_HW_TIMESTAMP_ANY | TT_CAPS_HW_PTP_ONE_STEP | TT_CAPS_PREFER_SW), TT_TYPE_SOCKET_UDPV4)
 
-    CCK_REGISTER_IMPL(TT_TYPE_LINUXTS_UDPV6,	linuxts_udpv6,	"linuxts_udpv6",	TT_FAMILY_IPV6,
+	CCK_REGISTER_IMPL(TT_TYPE_LINUXTS_UDPV6,	linuxts_udpv6,	"linuxts_udpv6",	TT_FAMILY_IPV6,
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_HW_TIMESTAMP_PTP |
 			    TT_CAPS_HW_TIMESTAMP_ANY | TT_CAPS_HW_PTP_ONE_STEP | TT_CAPS_PREFER_SW), TT_TYPE_SOCKET_UDPV6)
 
-    CCK_REGISTER_IMPL(TT_TYPE_LINUXTS_RAWETH,	linuxts_raweth,	"linuxts_raweth",	TT_FAMILY_ETHERNET,
+	CCK_REGISTER_IMPL(TT_TYPE_LINUXTS_RAWETH,	linuxts_raweth,	"linuxts_raweth",	TT_FAMILY_ETHERNET,
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_HW_TIMESTAMP_PTP |
 			    TT_CAPS_HW_TIMESTAMP_ANY | TT_CAPS_HW_PTP_ONE_STEP | TT_CAPS_PREFER_SW), TT_TYPE_SOCKET_RAWETH)
 
-    /* libpcap-based transports - better TX timestamp approximation */
+    #endif
 
-    CCK_REGISTER_IMPL(TT_TYPE_PCAP_UDPV4,	pcap_udpv4,	"pcap_udpv4",	TT_FAMILY_IPV4,
+    /* libpcap-based transports - better TX timestamp approximation than pure s/w timestamps */
+    #if defined(CCK_BUILD_TTRANSPORT_PCAP) || defined(CCK_ALL_IMPL)
+
+	CCK_REGISTER_IMPL(TT_TYPE_PCAP_UDPV4,	pcap_udpv4,	"pcap_udpv4",	TT_FAMILY_IPV4,
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_SOCKET_UDPV4)
 
-    CCK_REGISTER_IMPL(TT_TYPE_PCAP_UDPV6,	pcap_udpv6,	"pcap_udpv6",	TT_FAMILY_IPV6,
+	CCK_REGISTER_IMPL(TT_TYPE_PCAP_UDPV6,	pcap_udpv6,	"pcap_udpv6",	TT_FAMILY_IPV6,
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_SOCKET_UDPV6)
 
-    CCK_REGISTER_IMPL(TT_TYPE_PCAP_ETHERNET,	pcap_ethernet,	"pcap_ethernet",TT_FAMILY_ETHERNET,
+	CCK_REGISTER_IMPL(TT_TYPE_PCAP_ETHERNET,	pcap_ethernet,	"pcap_ethernet",TT_FAMILY_ETHERNET,
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_NONE)
+    #endif
+
 
     /* standard Unix sockets with software timestamp support - no TX timestamps for unicast: manual loop only */
 
@@ -112,6 +122,10 @@
 
     CCK_REGISTER_IMPL(TT_TYPE_SOCKET_RAWETH,	socket_raweth,	"socket_raweth", TT_FAMILY_ETHERNET,
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP  | TT_CAPS_PREFER_SW | TT_CAPS_BROKEN),	TT_TYPE_NONE)
+
+    #ifdef CCK_ALL_IMPL
+	#undef CCK_ALL_IMPL
+    #endif
 
     #undef CCK_REGISTER_IMPL
 

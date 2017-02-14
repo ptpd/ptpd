@@ -35,6 +35,7 @@
  */
 
 #include <string.h>
+#include <config.h>
 #include <math.h>
 
 #include "cck_glue.h"
@@ -125,8 +126,13 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 
 	switch(config->_type) {
 
+#ifdef CCK_BUILD_TTRANSPORT_LINUXTS
 	    case TT_TYPE_LINUXTS_UDPV4:
+#endif
+
+#ifdef CCK_BUILD_TTRANSPORT_PCAP
 	    case TT_TYPE_PCAP_UDPV4:
+#endif
 	    case TT_TYPE_SOCKET_UDPV4:
 		{
 		    CCK_GET_PCONFIG(TTransport, socket_udpv4, config, pConfig);
@@ -163,8 +169,13 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 		    break;
 		}
 
+#ifdef CCK_BUILD_TTRANSPORT_LINUXTS
 	    case TT_TYPE_LINUXTS_UDPV6:
+#endif
+
+#ifdef CCK_BUILD_TTRANSPORT_PCAP
 	    case TT_TYPE_PCAP_UDPV6:
+#endif
 	    case TT_TYPE_SOCKET_UDPV6:
 		{
 		    CCK_GET_PCONFIG(TTransport, socket_udpv6, config, pConfig);
@@ -233,6 +244,7 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 		    break;
 		}
 
+#ifdef CCK_BUILD_TTRANSPORT_PCAP
 	    case TT_TYPE_PCAP_ETHERNET:
 		{
 		    CCK_GET_PCONFIG(TTransport, pcap_ethernet, config, pConfig);
@@ -258,7 +270,9 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 		    ret = true;
 		    break;
 		}
+#endif
 
+#ifdef CCK_BUILD_TTRANSPORT_LINUXTS
 	    case TT_TYPE_LINUXTS_RAWETH:
 		{
 		    CCK_GET_PCONFIG(TTransport, linuxts_raweth, config, pConfig);
@@ -284,7 +298,7 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 		    ret = true;
 		    break;
 		}
-
+#endif
 	    default:
 		ERROR("setCommonTransportConfig(): Unsupported transport type %02x\n", config->_type);
 		break;
@@ -327,11 +341,18 @@ static TTransportConfig
 	}
 
 	switch(type) {
+
+#ifdef CCK_BUILD_TTRANSPORT_LINUXTS
 	    case TT_TYPE_LINUXTS_UDPV6:
-	    case TT_TYPE_PCAP_UDPV6:
-	    case TT_TYPE_SOCKET_UDPV6:
 	    case TT_TYPE_LINUXTS_UDPV4:
+#endif
+
+#ifdef CCK_BUILD_TTRANSPORT_PCAP
+	    case TT_TYPE_PCAP_UDPV6:
 	    case TT_TYPE_PCAP_UDPV4:
+#endif
+
+	    case TT_TYPE_SOCKET_UDPV6:
 	    case TT_TYPE_SOCKET_UDPV4:
 		{
 		    CCK_GET_PCONFIG(TTransport, udp_common, config, pConfig);
@@ -340,9 +361,15 @@ static TTransportConfig
 
 		}
 
-	    case TT_TYPE_PCAP_ETHERNET:
-	    case TT_TYPE_SOCKET_RAWETH:
+#ifdef CCK_BUILD_TTRANSPORT_LINUXTS
 	    case TT_TYPE_LINUXTS_RAWETH:
+#endif
+
+#ifdef CCK_BUILD_TTRANSPORT_PCAP
+	    case TT_TYPE_PCAP_ETHERNET:
+#endif
+	    case TT_TYPE_SOCKET_RAWETH:
+
 		    return config;
 	    default:
 		ERROR("getEventTransportConfig(): Unsupported transport type %02x\n", type);
@@ -389,11 +416,16 @@ static TTransportConfig
 
 	switch(type) {
 
+#ifdef CCK_BUILD_TTRANSPORT_LINUXTS
 	    case TT_TYPE_LINUXTS_UDPV4:
-	    case TT_TYPE_PCAP_UDPV4:
-	    case TT_TYPE_SOCKET_UDPV4:
 	    case TT_TYPE_LINUXTS_UDPV6:
+#endif
+
+#ifdef CCK_BUILD_TTRANSPORT_PCAP
+	    case TT_TYPE_PCAP_UDPV4:
 	    case TT_TYPE_PCAP_UDPV6:
+#endif
+	    case TT_TYPE_SOCKET_UDPV4:
 	    case TT_TYPE_SOCKET_UDPV6:
 
 		{

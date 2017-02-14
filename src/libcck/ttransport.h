@@ -89,6 +89,7 @@ enum {
 
     TT_TYPE_NONE = 0,
 
+#define CCK_ALL_IMPL /* invoke all implementations, even those we are not building */
 #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, addressfamily, capabilities, extends) \
     typeenum,
 #include "ttransport.def"

@@ -50,6 +50,7 @@ enum {
     CCKTIMER_NONE = 0,
     /* "any" uses first ("best") timer implementaion available */
     CCKTIMER_ANY = 1,
+#define CCK_ALL_IMPL /* invoke all implementations, even those we are not building */
 #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname, textdesc) \
     typeenum,
 #include "timer.def"

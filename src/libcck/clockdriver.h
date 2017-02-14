@@ -53,6 +53,7 @@
 /* clock driver types */
 enum {
 
+#define CCK_ALL_IMPL /* invoke all implementations, even those we are not building */
 #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname) \
     typeenum,
 

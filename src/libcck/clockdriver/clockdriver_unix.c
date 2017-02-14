@@ -86,8 +86,25 @@ static bool adjFreq_unix(ClockDriver *self, double adj);
 static void updateXtmp_unix (CckTimestamp oldTime, CckTimestamp newTime);
 
 #ifdef __QNXNTO__
+
+typedef struct {
+  _uint64 counter;		/* iteration counter */
+  _uint64 prev_tsc;		/* previous clock cycles */
+  _uint64 last_clock;		/* clock reading at last timer interrupt */
+  _uint64 cps;			/* cycles per second */
+  _uint64 prev_delta;		/* previous clock cycle delta */
+  _uint64 cur_delta;		/* last clock cycle delta */
+  _uint64 filtered_delta;	/* filtered delta */
+  double ns_per_tick;		/* nanoseconds per cycle */
+} TimerIntData;
+
+/* do not access directly! tied to clock interrupt! */
+static TimerIntData tData;
+static Boolean tDataUpdated = FALSE;
+
 static const struct sigevent* timerIntHandler(void* data, int id);
-#endif
+
+#endif /* __QNXNTO__ */
 
 bool
 _setupClockDriver_unix(ClockDriver* self)

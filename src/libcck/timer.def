@@ -39,17 +39,33 @@
 
 #ifndef CCK_REGISTER_IMPL
 
-    #include "timer/timerfd.h"
-    #include "timer/posix.h"
+    #ifdef CCK_BUILD_TIMER_TIMERFD
+	#include "timer/timerfd.h"
+    #endif
+
+    #ifdef CCK_BUILD_TIMER_POSIX
+	#include "timer/posix.h"
+    #endif
+
     #include "timer/itimer.h"
 
 #else
 
-    /* 			type,			type suffix,	"text name",	"text desc" */
+    /* 			type,		type suffix,	"text name",	"text desc" */
 
-    CCK_REGISTER_IMPL(CCKTIMER_TIMERFD,	timerfd,	"timerfd",	"Linux TimerFD")
-    CCK_REGISTER_IMPL(CCKTIMER_POSIX,		posix,		"posix",	"POSIX")
-    CCK_REGISTER_IMPL(CCKTIMER_ITIMER,		itimer,		"itimer",	"itimer")
+    #if defined(CCK_BUILD_TIMER_TIMERFD) || defined(CCK_ALL_IMPL)
+	CCK_REGISTER_IMPL(CCKTIMER_TIMERFD,	timerfd,	"timerfd",	"Linux TimerFD")
+    #endif
+
+    #if defined(CCK_BUILD_TIMER_POSIX) || defined(CCK_ALL_IMPL)
+	CCK_REGISTER_IMPL(CCKTIMER_POSIX,	posix,		"posix",	"POSIX")
+    #endif
+
+    CCK_REGISTER_IMPL(CCKTIMER_ITIMER,	itimer,		"itimer",	"itimer")
+
+    #ifdef CCK_ALL_IMPL
+	#undef CCK_ALL_IMPL
+    #endif
 
     #undef CCK_REGISTER_IMPL
 

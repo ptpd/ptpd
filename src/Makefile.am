@@ -9,14 +9,9 @@ AM_CFLAGS	= $(SNMP_CFLAGS) $(PCAP_CFLAGS) -Wall -fexceptions
 AM_CPPFLAGS	= $(SNMP_CPPFLAGS) $(PCAP_CPPFLAGS)
 AM_LDFLAGS	= $(SNMP_LIBS) $(PCAP_LIBS)
 
-if LINUX_KERNEL_HEADERS
-AM_CFLAGS += $(LINUX_KERNEL_INCLUDES)
-endif
-AM_CPPFLAGS    += -DDATADIR='"$(datadir)"' $(PTP_DBL) $(PTP_DAEMON) $(PTP_EXP) $(PTP_SNMP) $(PTP_PCAP) $(PTP_SLAVE_ONLY) $(PTP_PTIMERS) $(PTP_UNICAST_MAX) $(PTP_DISABLE_SOTIMESTAMPING) $(PTP_PROFILING_OUTPUT)
+AM_CPPFLAGS    += -DDATADIR='"$(datadir)"' $(PTP_DBL) $(PTP_DAEMON) $(PTP_EXP) $(PTP_SLAVE_ONLY) $(PTP_PROFILING_OUTPUT)
 
 NULL=
-
-BOB=@VERSION_NUMBER@
 
 #VERSION = 2.3.1
 #SHAREDLIBVER = $(SHAREDLIB).$(VERSION)
@@ -84,12 +79,8 @@ ptpd_SOURCES =				\
 	libcck/timer.h			\
 	libcck/timer.c			\
 	libcck/timer_interface.h	\
-	libcck/timer/timerfd.h		\
-	libcck/timer/timerfd.c		\
 	libcck/timer/itimer.h		\
 	libcck/timer/itimer.c		\
-	libcck/timer/posix.h		\
-	libcck/timer/posix.c		\
 	libcck/transport_address.h	\
 	libcck/transport_address.c	\
 	libcck/acl.def			\
@@ -118,36 +109,12 @@ ptpd_SOURCES =				\
 	libcck/ttransport/socket_udpv6.c\
 	libcck/ttransport/socket_raweth.h\
 	libcck/ttransport/socket_raweth.c\
-	libcck/ttransport/pcap_common.h\
-	libcck/ttransport/pcap_common.c\
-	libcck/ttransport/pcap_ethernet.h\
-	libcck/ttransport/pcap_ethernet.c\
-	libcck/ttransport/pcap_udpv4.h\
-	libcck/ttransport/pcap_udpv4.c\
-	libcck/ttransport/pcap_udpv6.h\
-	libcck/ttransport/pcap_udpv6.c\
-	libcck/ttransport/linuxts_common.h\
-	libcck/ttransport/linuxts_common.c\
-	libcck/ttransport/linuxts_udpv4.h\
-	libcck/ttransport/linuxts_udpv4.c\
-	libcck/ttransport/linuxts_udpv6.h\
-	libcck/ttransport/linuxts_udpv6.c\
-	libcck/ttransport/linuxts_raweth.h\
-	libcck/ttransport/linuxts_raweth.c\
 	libcck/clockdriver.def		\
 	libcck/clockdriver.h		\
 	libcck/clockdriver.c		\
 	libcck/clockdriver_interface.h	\
 	libcck/clockdriver/clockdriver_unix.h		\
 	libcck/clockdriver/clockdriver_unix.c		\
-	libcck/clockdriver/vext/linuxphc_vext_intel.h \
-	libcck/clockdriver/vext/linuxphc_vext_intel.c \
-	libcck/clockdriver/vext/efx_ioctl_timesync.h \
-	libcck/clockdriver/vext/linuxphc_vext.def \
-	libcck/clockdriver/vext/linuxphc_vext_solarflare.h \
-	libcck/clockdriver/vext/linuxphc_vext_solarflare.c \
-	libcck/clockdriver/clockdriver_linuxphc.h	\
-	libcck/clockdriver/clockdriver_linuxphc.c	\
 	libcck/piservo.h		\
 	libcck/piservo.c		\
 	libcck/libcck.h			\
@@ -179,8 +146,58 @@ ptpd_SOURCES =				\
 	ptpd.h				\
 	$(NULL)
 
+# LibCCK conditional component builds follow
+
+if CCK_BUILD_TTRANSPORT_LINUXTS
+ptpd_SOURCES += libcck/ttransport/linuxts_common.h\
+		libcck/ttransport/linuxts_common.c\
+		libcck/ttransport/linuxts_udpv4.h\
+		libcck/ttransport/linuxts_udpv4.c\
+		libcck/ttransport/linuxts_udpv6.h\
+		libcck/ttransport/linuxts_udpv6.c\
+		libcck/ttransport/linuxts_raweth.h\
+		libcck/ttransport/linuxts_raweth.c
+endif
+
+if CCK_BUILD_TTRANSPORT_PCAP
+ptpd_SOURCES += libcck/ttransport/pcap_common.h\
+		libcck/ttransport/pcap_common.c\
+		libcck/ttransport/pcap_ethernet.h\
+		libcck/ttransport/pcap_ethernet.c\
+		libcck/ttransport/pcap_udpv4.h\
+		libcck/ttransport/pcap_udpv4.c\
+		libcck/ttransport/pcap_udpv6.h\
+		libcck/ttransport/pcap_udpv6.c
+endif
+
+if CCK_BUILD_CLOCKDRIVER_LINUXPHC
+ptpd_SOURCES += libcck/clockdriver/vext/linuxphc_vext_intel.h\
+		libcck/clockdriver/vext/linuxphc_vext_intel.c\
+		libcck/clockdriver/vext/efx_ioctl_timesync.h\
+		libcck/clockdriver/vext/linuxphc_vext.def\
+		libcck/clockdriver/vext/linuxphc_vext_solarflare.h\
+		libcck/clockdriver/vext/linuxphc_vext_solarflare.c\
+		libcck/clockdriver/clockdriver_linuxphc.h\
+		libcck/clockdriver/clockdriver_linuxphc.c
+endif
+
+if CCK_BUILD_TIMER_POSIX
+ptpd_SOURCES += libcck/timer/posix.h\
+		libcck/timer/posix.c
+endif
+
+if CCK_BUILD_TIMER_TIMERFD
+ptpd_SOURCES += libcck/timer/timerfd.h\
+		libcck/timer/timerfd.c
+endif
+
+#if CCK_BUILD_
+#ptpd_SOURCES += 
+#endif
+
+
 # SNMP
-if SNMP
+if PTPD_SNMP
 ptpd_SOURCES += dep/snmp.c
 endif
 
