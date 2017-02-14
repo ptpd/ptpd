@@ -93,6 +93,8 @@ _parseEntry (CckAcl *self, CckAclEntry* entry, const char *line, const bool quie
     clearTransportAddress(&tmpAddr);
     clearTransportAddress(&maskAddr);
 
+    memset(&data, 0, sizeof(data));
+
     /* default mask width = host mask */
     data.netmask = maskwidth;
 

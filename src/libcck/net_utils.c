@@ -267,12 +267,12 @@ joinMulticast_ipv4(int fd, const CckTransportAddress *addr, const char *ifName, 
 		}
 	/* drop multicast group on specified interface first, to actually re-send a join */
 	(void)setsockopt(fd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-           &imr, sizeof(struct ip_mreq));
+           &imr, sizeof(imr));
     }
 
     /* join or leave multicast group on specified interface */
     if (setsockopt(fd, IPPROTO_IP, op,
-           &imr, sizeof(struct ip_mreq)) < 0 ) {
+           &imr, sizeof(imr)) < 0 ) {
 	    if(join) {
 		CCK_PERROR(THIS_COMPONENT"failed to %s multicast group %s on %s: ", join ? "join" : "leave", addrStr, ifName);
 		    return false;

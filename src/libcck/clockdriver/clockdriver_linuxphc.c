@@ -317,8 +317,8 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	if( ret < 0) {
 #ifdef CCK_DEBUG
 	    CCK_GET_PCONFIG(ClockDriver, linuxphc, self, myConfig);
-#endif /* CCK_DEBUG */
 	    CCK_DBG("Could set clock offset of Linux PHC clock %s (%s): %d\n", self->name, myConfig->characterDevice, ret);
+#endif /* CCK_DEBUG */
 	    getTime(self, &newTime);
 	    tsOps()->add(&newTime, &newTime, delta);
 	    return setTime(self, &newTime);
@@ -327,7 +327,6 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	return true;
 
 }
-
 
 
 static bool

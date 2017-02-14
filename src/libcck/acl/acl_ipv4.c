@@ -90,6 +90,7 @@ _parseEntry (CckAcl *self, CckAclEntry* entry, const char *line, const bool quie
     clearTransportAddress(&tmpAddr);
     clearTransportAddress(&maskAddr);
 
+    data.network = 0;
     data.netmask = 32;
     data.bitmask = ~0;
 

@@ -331,7 +331,7 @@ setTime (ClockDriver *self, CckTimestamp *time) {
 static bool
 setOffset (ClockDriver *self, CckTimestamp *delta) {
 
-	CckTimestamp oldTime,newTime;
+	CckTimestamp oldTime, newTime = {0, 0};
 
 	if((!self->_init) || (self->state == CS_HWFAULT)) {
 	    return false;
@@ -345,9 +345,11 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 		return false;
 	}
 
-	getTime(self, &oldTime);
-
-#ifdef ADJ_SETOFFSET
+#ifndef ADJ_SETOFFSET
+	getTime(self, &newTime);
+	tsOps()->add(&newTime, &newTime, delta);
+	return setTime(self, &newTime);
+#else
 	CCK_GET_PCONFIG(ClockDriver, unix, self, myConfig);
 
 	struct timex tmx;
@@ -357,13 +359,14 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	tmx.time.tv_sec = delta->seconds;
 	tmx.time.tv_usec = delta->nanoseconds;
 
-	getTime(self, &newTime);
-	tsOps()->add(&newTime, &newTime, delta);
-
-
 	if(adjtimex(&tmx) < 0) {
 	    CCK_DBG("Could not set clock offset of Unix clock %s\n", self->name);
+	    getTime(self, &newTime);
+	    tsOps()->add(&newTime, &newTime, delta);
 	    return setTime(self, &newTime);
+	} else {
+	    getTime(self, &oldTime);
+	    tsOps()->add(&newTime, &oldTime, delta);
 	}
 
 	tsOps()->add(&_stepAccumulator, &_stepAccumulator, delta);
@@ -376,8 +379,6 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	}
 
 	return true;
-#else
-	return setTime(self, &newTime);
 #endif
 
 }

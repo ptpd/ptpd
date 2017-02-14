@@ -364,6 +364,8 @@ sendPtpData(PtpClock *ptpClock, bool event, char *data, ssize_t len, void *dst, 
 
 	if(event) {
 	    setTransportAddressPort(addr, PTP_EVENT_PORT);
+	} else {
+	    setTransportAddressPort(addr, PTP_GENERAL_PORT);
 	}
 
 	tr->outgoingMessage.length = len;

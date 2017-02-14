@@ -773,11 +773,14 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
 
     ptpClock->grantIndex.portMask = global->unicastPortMask;
 
-    for(j=0; j<nodeCount; j++) {   
+    for(j=0; j<nodeCount; j++) {
 
 	nodeTable = &grantTable[j];
-	
+
+	/* preserve protocolAddress as it is dynamically allocated */
+	void *tmpPa = nodeTable->protocolAddress;
 	memset(nodeTable, 0, sizeof(UnicastGrantTable));
+	nodeTable->protocolAddress = tmpPa;
 
 	if(destinations != NULL && !ptpAddrIsEmpty(destinations[j].protocolAddress)) {
 	    ptpAddrCopy(nodeTable->protocolAddress, destinations[j].protocolAddress);

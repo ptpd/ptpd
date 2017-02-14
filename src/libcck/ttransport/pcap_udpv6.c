@@ -110,7 +110,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     tmpstr(filterExpr, FILTER_EXPR_LEN);
     tmpstr(strAddr, self->tools->strLen);
 
-    struct in6_addr anyv6  = IN6ADDR_ANY_INIT;
+    const struct in6_addr anyv6  = IN6ADDR_ANY_INIT;
 
     int promisc = 0;
     struct bpf_program program;
