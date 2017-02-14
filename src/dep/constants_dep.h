@@ -1,4 +1,6 @@
 
+#include <config.h>
+
 /* constants_dep.h */
 
 #ifndef CONSTANTS_DEP_H
@@ -16,6 +18,12 @@
 #	include <sys/isa_defs.h>
 #endif /* HAVE_SYS_ISA_DEFS_H */
 
+#ifndef HAVE_ADJTIMEX
+#ifdef HAVE_NTP_ADJTIME
+#define adjtimex ntp_adjtime
+#endif /* HAVE_NTP_ADJTIME */
+#endif /* HAVE_ADJTIMEX */
+
 # if BYTE_ORDER == LITTLE_ENDIAN || defined(_LITTLE_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
 #   define PTPD_LSBF
 # elif BYTE_ORDER == BIG_ENDIAN || defined(_BIG_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN)
@@ -29,6 +37,7 @@
 #define PACKET_BEGIN_UDP (ETHER_HDR_LEN + sizeof(struct ip) + \
 	    sizeof(struct udphdr))
 #define PACKET_BEGIN_ETHER (ETHER_HDR_LEN)
+
 
 #define PTP_EVENT_PORT    319
 #define PTP_GENERAL_PORT  320

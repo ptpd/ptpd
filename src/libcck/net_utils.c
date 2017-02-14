@@ -39,6 +39,14 @@
 #include <errno.h>
 #include <ifaddrs.h>
 
+#ifdef HAVE_NET_IF_DL_H
+#include <net/if_dl.h>
+#endif /* HAVE_NET_IF_DL_H */
+
+#ifdef HAVE_NET_IF_TYPES_H
+#include <net/if_types.h>
+#endif /* HAVE_NET_IF_TYPES_H */
+
 #include <libcck/net_utils.h>
 #include <libcck/cck_logger.h>
 #include <libcck/cck_utils.h>
@@ -342,8 +350,13 @@ joinMulticast_ethernet(const CckTransportAddress *addr, const char *ifName, cons
     memset(&ifr, 0, sizeof(ifr));
 
     strncpy(ifr.ifr_name, ifName, strlen(ifName));
+#ifdef HAVE_STRUCT_IFREQ_IFR_HWADDR
     ifr.ifr_hwaddr.sa_family = AF_UNSPEC;
     memcpy(&ifr.ifr_hwaddr.sa_data, addr->addr.ether.ether_addr_octet, TT_ADDRLEN_ETHERNET);
+#else
+    ifr.ifr_addr.sa_family = AF_UNSPEC;
+    memcpy(&ifr.ifr_addr.sa_data, addr->addr.ether.ether_addr_octet, TT_ADDRLEN_ETHERNET);
+#endif
 
     /* join multicast group on specified interface */
     if ((ioctl(fd, op, &ifr)) < 0 ) {

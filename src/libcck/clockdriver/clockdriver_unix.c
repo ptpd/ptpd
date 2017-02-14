@@ -61,6 +61,12 @@
 #include <linux/rtc.h>
 #endif /* HAVE_LINUX_RTC_H */
 
+#ifndef HAVE_ADJTIMEX
+#ifdef HAVE_NTP_ADJTIME
+#define adjtimex ntp_adjtime
+#endif /* HAVE_NTP_ADJTIME */
+#endif /* HAVE_ADJTIMEX */
+
 #include <libcck/cck.h>
 #include <libcck/cck_types.h>
 #include <libcck/cck_logger.h>
@@ -323,7 +329,6 @@ static bool
 setOffset (ClockDriver *self, CckTimestamp *delta) {
 
 	CckTimestamp oldTime,newTime;
-	CCK_GET_PCONFIG(ClockDriver, unix, self, myConfig);
 
 	if((!self->_init) || (self->state == CS_HWFAULT)) {
 	    return false;
@@ -340,6 +345,8 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	getTime(self, &oldTime);
 
 #ifdef ADJ_SETOFFSET
+	CCK_GET_PCONFIG(ClockDriver, unix, self, myConfig);
+
 	struct timex tmx;
 	memset(&tmx, 0, sizeof(tmx));
 	tmx.modes = ADJ_SETOFFSET | ADJ_NANO;
@@ -367,7 +374,7 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 
 	return true;
 #else
-	return setTime(self, &newTime, force);
+	return setTime(self, &newTime);
 #endif
 
 }

@@ -67,7 +67,10 @@
     #include "ttransport/socket_common.h" /* currently used by all UDP transports */
     #include "ttransport/socket_udpv4.h"
     #include "ttransport/socket_udpv6.h"
-    #include "ttransport/socket_raweth.h"
+
+    #ifdef CCK_BUILD_TTRANSPORT_SOCK_RAWETH
+	#include "ttransport/socket_raweth.h"
+    #endif
 
 
 #else
@@ -120,8 +123,10 @@
     CCK_REGISTER_IMPL(TT_TYPE_SOCKET_UDPV6,	socket_udpv6,	"socket_udpv6",	TT_FAMILY_IPV6,
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_NONE)
 
-    CCK_REGISTER_IMPL(TT_TYPE_SOCKET_RAWETH,	socket_raweth,	"socket_raweth", TT_FAMILY_ETHERNET,
+    #if defined(CCK_BUILD_TTRANSPORT_SOCK_RAWETH) || defined(CCK_ALL_IMPL)
+	CCK_REGISTER_IMPL(TT_TYPE_SOCKET_RAWETH,	socket_raweth,	"socket_raweth", TT_FAMILY_ETHERNET,
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP  | TT_CAPS_PREFER_SW | TT_CAPS_BROKEN),	TT_TYPE_NONE)
+    #endif
 
     #ifdef CCK_ALL_IMPL
 	#undef CCK_ALL_IMPL

@@ -7,6 +7,10 @@
 
 #include "../../ptpd.h"
 
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/udp.h>
+
 #include "ntpoptions.h"
 
 Boolean ntpInit(NTPoptions* options, NTPcontrol* control);

@@ -36,12 +36,9 @@
 
 #include <errno.h>
 
-#include <net/ethernet.h>
-#include <netinet/ip.h>
-#include <netinet/udp.h>
-
-#include <libcck/cck.h>
 #include <libcck/cck_types.h>
+#include <libcck/cck.h>
+
 #include <libcck/cck_utils.h>
 #include <libcck/cck_logger.h>
 #include <libcck/ttransport.h>
@@ -49,6 +46,10 @@
 #include <libcck/ttransport/pcap_common.h>
 #include <libcck/net_utils.h>
 #include <libcck/clockdriver.h>
+
+#include <net/ethernet.h>
+#include <netinet/ip.h>
+#include <netinet/udp.h>
 
 #define THIS_COMPONENT "ttransport.pcap_udpv4: "
 
@@ -590,10 +591,17 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
     message->to.addr.inet4.sin_family = self->tools->afType;
     memcpy(&message->from.addr.inet4.sin_addr, &ip->ip_src, sizeof(struct in_addr));
     memcpy(&message->to.addr.inet4.sin_addr, &ip->ip_dst, sizeof(struct in_addr));
+#ifdef HAVE_STRUCT_UDPHDR_SOURCE
     message->from.addr.inet4.sin_port = udp->source;
     message->to.addr.inet4.sin_port = udp->dest;
     message->from.port = ntohs(udp->source);
     message->to.port = ntohs(udp->dest);
+#else
+    message->from.addr.inet4.sin_port = udp->uh_sport;
+    message->to.addr.inet4.sin_port = udp->uh_dport;
+    message->from.port = ntohs(udp->uh_sport);
+    message->to.port = ntohs(udp->uh_dport);
+#endif
 
     if(!self->tools->isEmpty(&message->from)) {
 	message->from.populated = true;

@@ -54,7 +54,10 @@
 	freeCckTransportAddress((CckTransportAddress **)(&(var)))
 
 static bool pushClockDriverPrivateConfig_unix(ClockDriver *driver, const GlobalConfig *global);
+
+#ifdef CCK_BUILD_CLOCKDRIVER_LINUXPHC
 static bool pushClockDriverPrivateConfig_linuxphc(ClockDriver *driver, const GlobalConfig *global);
+#endif
 
 static void ptpTimerExpiry(void *self, void *owner);
 static int setupPtpTimer(PtpTimer *timer, CckFdSet *fdSet, const char *name);
@@ -155,6 +158,7 @@ configureClockDriver(ClockDriver *driver, const void *configData)
 
 }
 
+#ifdef CCK_BUILD_CLOCKDRIVER_LINUXPHC
 static bool
 pushClockDriverPrivateConfig_linuxphc(ClockDriver *driver, const GlobalConfig *global)
 {
@@ -178,6 +182,7 @@ pushClockDriverPrivateConfig_linuxphc(ClockDriver *driver, const GlobalConfig *g
     return TRUE;
 
 }
+#endif
 
 static bool
 pushClockDriverPrivateConfig_unix(ClockDriver *driver, const GlobalConfig *global)

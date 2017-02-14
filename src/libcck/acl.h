@@ -35,6 +35,8 @@
 #ifndef CCK_ACL_H_
 #define CCK_ACL_H_
 
+#include <string.h>
+
 #include <libcck/cck.h>
 #include <libcck/linked_list.h>
 #include <libcck/cck_types.h>

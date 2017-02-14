@@ -34,11 +34,12 @@
 
 #include <config.h>
 
+#include <libcck/cck_types.h>
+
 #include <errno.h>
 #include <net/ethernet.h>
 
 #include <libcck/cck.h>
-#include <libcck/cck_types.h>
 #include <libcck/cck_utils.h>
 #include <libcck/cck_logger.h>
 #include <libcck/ttransport.h>

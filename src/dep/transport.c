@@ -218,6 +218,7 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 		    break;
 		}
 
+#ifdef CCK_BUILD_TTRANSPORT_SOCK_RAWETH
 	    case TT_TYPE_SOCKET_RAWETH:
 		{
 		    CCK_GET_PCONFIG(TTransport, socket_raweth, config, pConfig);
@@ -243,6 +244,7 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 		    ret = true;
 		    break;
 		}
+#endif
 
 #ifdef CCK_BUILD_TTRANSPORT_PCAP
 	    case TT_TYPE_PCAP_ETHERNET:
@@ -363,14 +365,18 @@ static TTransportConfig
 
 #ifdef CCK_BUILD_TTRANSPORT_LINUXTS
 	    case TT_TYPE_LINUXTS_RAWETH:
+		    return config;
 #endif
 
 #ifdef CCK_BUILD_TTRANSPORT_PCAP
 	    case TT_TYPE_PCAP_ETHERNET:
-#endif
-	    case TT_TYPE_SOCKET_RAWETH:
-
 		    return config;
+#endif
+
+#ifdef CCK_BUILD_TTRANSPORT_SOCK_RAWETH
+	    case TT_TYPE_SOCKET_RAWETH:
+		    return config;
+#endif
 	    default:
 		ERROR("getEventTransportConfig(): Unsupported transport type %02x\n", type);
 		break;
@@ -437,12 +443,20 @@ static TTransportConfig
 
 		}
 
+#ifdef CCK_BUILD_TTRANSPORT_PCAP
 	    case TT_TYPE_PCAP_ETHERNET:
-	    case TT_TYPE_SOCKET_RAWETH:
-	    case TT_TYPE_LINUXTS_RAWETH:
-		{
 		    return config;
-		}
+#endif
+
+#ifdef CCK_BUILD_TTRANSPORT_SOCK_RAWETH
+	    case TT_TYPE_SOCKET_RAWETH:
+		    return config;
+#endif
+
+#ifdef CCK_BUILD_TTRANSPORT_LINUXTS
+	    case TT_TYPE_LINUXTS_RAWETH:
+		    return config;
+#endif
 
 	    default:
 		ERROR("getGeneralTransportConfig(): Unsupported transport type %02x\n", type);

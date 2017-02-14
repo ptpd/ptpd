@@ -72,8 +72,8 @@ AC_SEARCH_LIBS([gethostbyname], [nsl])
 # Checks for header files.
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h])
-AC_CHECK_HEADERS([stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h ifaddrs.h sys/time.h syslog.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h net/if_dl.h net/if_types.h])
+AC_CHECK_HEADERS([linux/if_packet.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h ifaddrs.h sys/time.h syslog.h unistd.h])
 AC_CHECK_HEADERS([glob.h sched.h utmp.h utmpx.h unix.h linux/rtc.h sys/timex.h getopt.h sys/un.h linux/sockios.h])
 
 AC_CHECK_HEADERS([endian.h machine/endian.h sys/isa_defs.h])
@@ -207,6 +207,9 @@ AC_CHECK_MEMBERS([struct ether_addr.octet], [], [],
 #endif
 ])
 
+#Check for source / dest in udphdr structure
+AC_CHECK_MEMBERS([struct udphdr.source], [], [], [[#include <netinet/udp.h>]])
+
 # Checks for library functions
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MALLOC
@@ -215,7 +218,7 @@ AC_FUNC_SELECT_ARGTYPES
 AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal ntp_gettime getopt_long clock_adjtime if_nametoindex])
+AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal ntp_gettime getopt_long clock_adjtime if_nametoindex ntp_adjtime adjtimex])
 
 if test -n "$GCC"; then
     AC_MSG_CHECKING(if GCC -fstack-protector is usable)
@@ -229,6 +232,16 @@ if test -n "$GCC"; then
     ])
 fi
 
+is_linux=false
+case $host in
+*linux*)
+    is_linux=true
+    AC_DEFINE([CCK_BUILD_TTRANSPORT_SOCK_RAWETH], [1], [Build LibCCK Linux raw ethernet transport])
+;;
+esac
+
+AM_CONDITIONAL([LINUX], [test "$is_linux" == "true" ])
+AM_CONDITIONAL([CCK_BUILD_TTRANSPORT_SOCK_RAWETH], [test "$is_linux" == "true" ])
 
 # LibCCK conditional component build checks
 
@@ -276,8 +289,6 @@ AC_MSG_NOTICE([************************************************************])
 AC_MSG_NOTICE([* PTPD BUILD FLAG AND LIBRARY DEPENDENCY CHECKS START HERE *])
 AC_MSG_NOTICE([************************************************************])
 
-
-
 AC_CHECK_DECLS([POSIX_TIMERS_SUPPORTED], [build_posix_timers=true], [build_posix_timers=false], [
 #ifdef __sun && !defined(_XPG6)
 #define _XPG6
@@ -290,7 +301,6 @@ AC_CHECK_DECLS([POSIX_TIMERS_SUPPORTED], [build_posix_timers=true], [build_posix
 ])
 
 # ALL USER-CONTROLLED KNOBS START HERE
-
 
 
 AC_MSG_CHECKING([if we can build POSIX timer support])

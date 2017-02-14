@@ -78,8 +78,6 @@
 #ifdef HAVE_NETINET_IN_SYSTM_H
 #include <netinet/in_systm.h>
 #endif
-#include <netinet/ip.h>
-#include <netinet/udp.h>
 
 #if defined(linux) && defined(HAVE_SCHED_H)
 #include <sched.h>

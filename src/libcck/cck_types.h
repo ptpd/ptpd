@@ -35,8 +35,14 @@
 #ifndef CCK_TYPES_H_
 #define CCK_TYPES_H_
 
+#include <config.h>
+
 #include <stdint.h>
 #include <stdbool.h>
+
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif /* HAVE_SYS_TYPES_H */
 
 #define ZEROF 10E-12
 

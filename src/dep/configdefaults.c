@@ -231,9 +231,7 @@ loadDefaultSettings( GlobalConfig* global )
 	global->portDisabled	 = FALSE;
 	global->stepOnce	 = FALSE;
 	global->stepForce	 = FALSE;
-#ifdef HAVE_LINUX_RTC_H
 	global->setRtc		 = FALSE;
-#endif /* HAVE_LINUX_RTC_H */
 
 	global->clearCounters = FALSE;
 	global->statisticsLogInterval = 0;

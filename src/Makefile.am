@@ -63,8 +63,6 @@ ptpd_SOURCES =				\
 	libcck/cck_logger.c		\
 	libcck/net_utils.h		\
 	libcck/net_utils.c		\
-	libcck/net_utils_linux.h	\
-	libcck/net_utils_linux.c	\
 	libcck/statistics.h		\
 	libcck/statistics.c		\
 	libcck/cck.h			\
@@ -107,8 +105,6 @@ ptpd_SOURCES =				\
 	libcck/ttransport/socket_udpv4.c\
 	libcck/ttransport/socket_udpv6.h\
 	libcck/ttransport/socket_udpv6.c\
-	libcck/ttransport/socket_raweth.h\
-	libcck/ttransport/socket_raweth.c\
 	libcck/clockdriver.def		\
 	libcck/clockdriver.h		\
 	libcck/clockdriver.c		\
@@ -147,6 +143,16 @@ ptpd_SOURCES =				\
 	$(NULL)
 
 # LibCCK conditional component builds follow
+if LINUX
+ptpd_SOURCES += libcck/net_utils_linux.h\
+		libcck/net_utils_linux.c
+endif
+
+if CCK_BUILD_TTRANSPORT_SOCK_RAWETH
+ptpd_SOURCES += libcck/ttransport/socket_raweth.h\
+		libcck/ttransport/socket_raweth.c
+endif
+
 
 if CCK_BUILD_TTRANSPORT_LINUXTS
 ptpd_SOURCES += libcck/ttransport/linuxts_common.h\

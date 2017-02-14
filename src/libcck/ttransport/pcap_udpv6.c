@@ -36,10 +36,6 @@
 
 #include <errno.h>
 
-#include <net/ethernet.h>
-#include <netinet/ip6.h>
-#include <netinet/udp.h>
-
 #include <libcck/cck.h>
 #include <libcck/cck_types.h>
 #include <libcck/cck_utils.h>
@@ -49,6 +45,11 @@
 #include <libcck/ttransport/pcap_common.h>
 #include <libcck/net_utils.h>
 #include <libcck/clockdriver.h>
+
+#include <net/ethernet.h>
+#include <netinet/ip6.h>
+#include <netinet/udp.h>
+
 
 #define THIS_COMPONENT "ttransport.pcap_udpv6: "
 
@@ -591,10 +592,17 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
     message->to.addr.inet6.sin6_family = self->tools->afType;
     memcpy(&message->from.addr.inet6.sin6_addr, &ip6->ip6_src, sizeof(struct in6_addr));
     memcpy(&message->to.addr.inet6.sin6_addr, &ip6->ip6_dst, sizeof(struct in6_addr));
+#ifdef HAVE_STRUCT_UDPHDR_SOURCE
     message->from.addr.inet6.sin6_port = udp->source;
     message->to.addr.inet6.sin6_port = udp->dest;
     message->from.port = ntohs(udp->source);
     message->to.port = ntohs(udp->dest);
+#else
+    message->from.addr.inet6.sin6_port = udp->uh_sport;
+    message->to.addr.inet6.sin6_port = udp->uh_dport;
+    message->from.port = ntohs(udp->uh_sport);
+    message->to.port = ntohs(udp->uh_dport);
+#endif
 
     if(!self->tools->isEmpty(&message->from)) {
 	message->from.populated = true;

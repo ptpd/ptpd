@@ -42,6 +42,10 @@
 #include <arpa/inet.h>		/* struct sockaddr and friends, ntoh/hton */
 #include <netinet/in.h>		/* struct sockaddr and friends */
 
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif /* HAVE_SYS_SOCKET_H */
+
 #ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>	/* struct ether_addr */
 #endif /* HAVE_NET_ETHERNET_H */

@@ -34,12 +34,15 @@
 
 #include <config.h>
 
+#include <libcck/cck_types.h>
+
 #include <errno.h>
 #include <net/ethernet.h>
+#ifdef HAVE_LINUX_IF_PACKET_H
 #include <linux/if_packet.h>
+#endif /* HAVE_LINUX_IF_PACKET_H */
 
 #include <libcck/cck.h>
-#include <libcck/cck_types.h>
 #include <libcck/cck_utils.h>
 #include <libcck/cck_logger.h>
 #include <libcck/ttransport.h>

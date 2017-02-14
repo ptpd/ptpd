@@ -291,7 +291,7 @@ enum {
 static oid  ptp_oid[] = { PTPBASE_MIB_OID };
 
 static PtpClock *snmpPtpClock;
-static GlobalConfig *snmpRtOpts;
+static const GlobalConfig *snmpRtOpts;
 
 /* Helper functions to build header_*indexed_table() functions.  Those
    functions keep an internal state. They are not reentrant!
