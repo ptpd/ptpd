@@ -42,6 +42,12 @@
 #include <arpa/inet.h>		/* struct sockaddr and friends, ntoh/hton */
 #include <netinet/in.h>		/* struct sockaddr and friends */
 
+#ifdef HAVE_LINUX_IF_H
+#include <linux/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
+#elif defined(HAVE_NET_IF_H)
+#include <net/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
+#endif /* HAVE_LINUX_IF_H*/
+
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif /* HAVE_SYS_SOCKET_H */
