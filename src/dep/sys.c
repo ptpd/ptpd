@@ -53,26 +53,13 @@
 
 #include "../ptpd.h"
 
-#ifdef HAVE_NETINET_ETHER_H
-#  include <netinet/ether.h>
-#endif
-
-#ifdef HAVE_NET_ETHERNET_H
-#  include <net/ethernet.h>
-#endif
-
-#ifdef HAVE_LINUX_IF_H
-#include <linux/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
-#elif defined(HAVE_NET_IF_H)
-#include <net/if.h>		/* struct ifaddr, ifreq, ifconf, ifmap, IF_NAMESIZE etc. */
-#endif /* HAVE_LINUX_IF_H*/
-
-#ifdef HAVE_NET_IF_ETHER_H
-#  include <net/if_ether.h>
-#endif
-
 #ifdef HAVE_SYS_TIMEX_H
 #include <sys/timex.h>
+#endif
+
+#ifdef __QNXNTO__
+#include <sys/syspage.h>
+#include <sys/neutrino.h>
 #endif
 
 /* only C99 has the round function built-in */
@@ -1004,39 +991,42 @@ writeStatusFile(PtpClock *ptpClock,const GlobalConfig *global, Boolean quiet)
 	}
 
 	if(ptpClock->portDS.portState == PTP_SLAVE) {
+
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
 		&ptpClock->currentDS.offsetFromMaster);
-	fprintf(out, 		STATUSPREFIX" %s s","Offset from Master", tmpBuf);
-	if(ptpClock->slaveStats.statsCalculated)
-	fprintf(out, ", mean % .09f s, dev % .09f s",
-		ptpClock->slaveStats.ofmMean,
-		ptpClock->slaveStats.ofmStdDev
-	);
+	    fprintf(out, 		STATUSPREFIX" %s s","Offset from Master", tmpBuf);
+	    if(ptpClock->slaveStats.statsCalculated) {
+		fprintf(out, ", mean % .09f s, dev % .09f s",
+		    ptpClock->slaveStats.ofmMean,
+		    ptpClock->slaveStats.ofmStdDev
+		);
+	    }
 	    fprintf(out,"\n");
 
-	if(ptpClock->portDS.delayMechanism == E2E) {
-	    memset(tmpBuf, 0, sizeof(tmpBuf));
-	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
-		&ptpClock->currentDS.meanPathDelay);
-	fprintf(out, 		STATUSPREFIX" %s s","Mean Path Delay", tmpBuf);
+	    if(ptpClock->portDS.delayMechanism == E2E) {
+		memset(tmpBuf, 0, sizeof(tmpBuf));
+		snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
+		    &ptpClock->currentDS.meanPathDelay);
+		fprintf(out, 		STATUSPREFIX" %s s","Mean Path Delay", tmpBuf);
+		if(ptpClock->slaveStats.statsCalculated) {
+		    fprintf(out, ", mean % .09f s, dev % .09f s",
+			ptpClock->slaveStats.mpdMean,
+			ptpClock->slaveStats.mpdStdDev
+		    );
+		}
+	    fprintf(out,"\n");
+	    }
 
-	if(ptpClock->slaveStats.statsCalculated)
-	fprintf(out, ", mean % .09f s, dev % .09f s",
-		ptpClock->slaveStats.mpdMean,
-		ptpClock->slaveStats.mpdStdDev
-	);
-	fprintf(out,"\n");
-	}
-	if(ptpClock->portDS.delayMechanism == P2P) {
-	    memset(tmpBuf, 0, sizeof(tmpBuf));
-	    snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
-		&ptpClock->portDS.peerMeanPathDelay);
-	fprintf(out, 		STATUSPREFIX" %s s","Mean Path (p)Delay", tmpBuf);
-	fprintf(out,"\n");
-	}
+	    if(ptpClock->portDS.delayMechanism == P2P) {
+		memset(tmpBuf, 0, sizeof(tmpBuf));
+		snprint_TimeInternal(tmpBuf, sizeof(tmpBuf),
+		    &ptpClock->portDS.peerMeanPathDelay);
+		fprintf(out, 		STATUSPREFIX" %s s","Mean Path (p)Delay", tmpBuf);
+		fprintf(out,"\n");
+	    }
 
-	fprintf(out, 		STATUSPREFIX"  ","PTP Clock status");
+	    fprintf(out, 		STATUSPREFIX"  ","PTP Clock status");
 	    if(cd->state == CS_STEP) {
 		fprintf(out,"panic mode,");
 	    }
@@ -1044,20 +1034,20 @@ writeStatusFile(PtpClock *ptpClock,const GlobalConfig *global, Boolean quiet)
 		fprintf(out,"negative step,");
 	    }
 
-	if(global->calibrationDelay) {
-	    fprintf(out, "%s",
-		ptpClock->isCalibrated ? "calibrated" : "not calibrated");
-	}
+	    if(global->calibrationDelay) {
+		fprintf(out, "%s, ",
+		    ptpClock->isCalibrated ? "calibrated" : "not calibrated");
+	    }
 
-	if(global->noAdjust) {
-	    fprintf(out, ", read-only");
-	} else {
-		fprintf(out, ", %s",
+	    if(global->noAdjust) {
+		fprintf(out, "read-only");
+	    } else {
+		fprintf(out, "%s",
 		    (cd->state == CS_LOCKED) ? "stabilised" : "not stabilised");
-	}
-	fprintf(out,"\n");
+	    }
+	    fprintf(out,"\n");
 
-	}
+	} /* PTP_SLAVE */
 
 
 	if(ptpClock->portDS.portState == PTP_MASTER || ptpClock->portDS.portState == PTP_PASSIVE) {

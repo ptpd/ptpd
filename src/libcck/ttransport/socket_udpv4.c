@@ -457,10 +457,6 @@ sendMessage(TTransport *self, TTransportMessage *message) {
     ssize_t ret, sent;
     bool mc;
 
-    CCK_GET_PDATA(TTransport, socket_udpv4, self, myData);
-
-
-
     if(self->config.disabled) {
 	return 0;
     }
@@ -469,8 +465,6 @@ sendMessage(TTransport *self, TTransportMessage *message) {
 	CCK_DBG(THIS_COMPONENT"sendMessage(%s): no destination provided, dropping message\n");
 	return 0;
     }
-
-
 
     mc = self->tools->isMulticast(message->destination);
 
@@ -495,6 +489,7 @@ sendMessage(TTransport *self, TTransportMessage *message) {
 	getSystemClock()->getTime(getSystemClock(), &message->timestamp);
 	message->hasTimestamp = true;
 #else
+    CCK_GET_PDATA(TTransport, socket_udpv4, self, myData);
     if(myData->tsConfig.naive) {
 	getSystemClock()->getTime(getSystemClock(), &message->timestamp);
 	message->hasTimestamp = true;
@@ -564,6 +559,7 @@ static ssize_t
 receiveMessage(TTransport *self, TTransportMessage *message) {
 
     CCK_GET_PDATA(TTransport, socket_udpv4, self, myData);
+
     ssize_t ret = 0;
 
     struct msghdr msg;
@@ -589,6 +585,7 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 	message->hasTimestamp = true;
 #else
 /* get system timestamp as early as possible */
+
     if(myData->tsConfig.naive) {
 	getSystemClock()->getTime(getSystemClock(), &message->timestamp);
 	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): got naive system timestamp %d.%d\n",

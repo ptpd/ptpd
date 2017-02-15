@@ -455,8 +455,6 @@ sendMessage(TTransport *self, TTransportMessage *message) {
     ssize_t ret, sent;
     bool mc;
 
-    CCK_GET_PDATA(TTransport, socket_udpv6, self, myData);
-
     if(self->config.disabled) {
 	return 0;
     }
@@ -488,6 +486,7 @@ sendMessage(TTransport *self, TTransportMessage *message) {
 	getSystemClock()->getTime(getSystemClock(), &message->timestamp);
 	message->hasTimestamp = true;
 #else
+    CCK_GET_PDATA(TTransport, socket_udpv6, self, myData);
     if(myData->tsConfig.naive) {
 	getSystemClock()->getTime(getSystemClock(), &message->timestamp);
 	message->hasTimestamp = true;

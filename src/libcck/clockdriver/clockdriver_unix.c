@@ -96,6 +96,9 @@ static void updateXtmp_unix (CckTimestamp oldTime, CckTimestamp newTime);
 
 #ifdef __QNXNTO__
 
+#include <sys/syspage.h>
+#include <sys/neutrino.h>
+
 typedef struct {
   _uint64 counter;		/* iteration counter */
   _uint64 prev_tsc;		/* previous clock cycles */
@@ -109,8 +112,7 @@ typedef struct {
 
 /* do not access directly! tied to clock interrupt! */
 static TimerIntData tData;
-static Boolean tDataUpdated = FALSE;
-
+static bool tDataUpdated = false;
 static const struct sigevent* timerIntHandler(void* data, int id);
 
 #endif /* __QNXNTO__ */
@@ -179,7 +181,9 @@ getTime (ClockDriver *self, CckTimestamp *time) {
   uint64_t clock_offset;
   struct timespec tp;
   if(!tDataUpdated) {
+
     memset(&tData, 0, sizeof(TimerIntData));
+
     if(ThreadCtl(_NTO_TCTL_IO, 0) == -1) {
       CCK_ERROR(THIS_COMPONENT"QNX: could not give process I/O privileges");
       return false;
@@ -190,16 +194,20 @@ getTime (ClockDriver *self, CckTimestamp *time) {
     tData.prev_tsc = ClockCycles();
     clock_gettime(CLOCK_REALTIME, &tp);
     tData.last_clock = timespec2nsec(&tp);
+
     ret = InterruptAttach(0, timerIntHandler, &tData, sizeof(TimerIntData), _NTO_INTR_FLAGS_END | _NTO_INTR_FLAGS_TRK_MSK);
 
     if(ret == -1) {
       CCK_ERROR(THIS_COMPONENT"QNX: could not attach to timer interrupt");
       return false;
     }
+
     tDataUpdated = true;
     time->seconds = tp.tv_sec;
     time->nanoseconds = tp.tv_nsec;
-    return;
+
+    return true;
+
   }
 
   memcpy(&tmpData, &tData, sizeof(TimerIntData));
@@ -223,6 +231,7 @@ getTime (ClockDriver *self, CckTimestamp *time) {
     time->seconds = tp.tv_sec;
     time->nanoseconds = tp.tv_nsec;
   return true;
+
 #else
 
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)

@@ -387,8 +387,8 @@ bool
 setMulticastLoopback(int fd,  const int family, const bool _value)
 {
 
-#if defined(__OpenBSD__) || defined(__sun)
-	uint8_t value;
+#if defined(__OpenBSD__) || defined(__sun) || defined(__NetBSD__)
+	u_char value;
 #else
 	int value;
 #endif
@@ -426,8 +426,8 @@ bool
 setMulticastTtl(int fd,  const int family, const int _value)
 {
 
-#if defined(__OpenBSD__) || defined(__sun)
-	uint8_t value;
+#if defined(__OpenBSD__) || defined(__sun) || defined(__NetBSD__)
+	u_char value;
 #else
 	int value;
 #endif
