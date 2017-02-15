@@ -146,7 +146,7 @@ int interfaceExists(const char* ifName);
 /* return interface index */
 int getInterfaceIndex(const char *ifName);
 /* set / get interface flags */
-int getInterfaceFlags(const char *ifName);
+int getInterfaceFlags(const char *ifName, int* flags);
 int setInterfaceFlags(const char *ifName, const int flags);
 int clearInterfaceFlags(const char *ifName, const int flags);
 /* get interface information + test if operational */

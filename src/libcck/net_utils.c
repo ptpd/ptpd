@@ -722,7 +722,7 @@ return if_nametoindex(ifName);
 }
 
 int
-getInterfaceFlags(const char *ifName)
+getInterfaceFlags(const char *ifName, int *flags)
 {
 
     struct ifreq ifr;
@@ -730,7 +730,8 @@ getInterfaceFlags(const char *ifName)
 
     if (ioctlHelper(&ifr, ifName, SIOCGIFFLAGS)) {
 	CCK_DBG(THIS_COMPONENT"getInterfaceFlags(%s): success: %d\n", ifName, ifr.ifr_flags);
-	return ifr.ifr_flags;
+	*flags = ifr.ifr_flags;
+	return 1;
     }
 
     CCK_DBG(THIS_COMPONENT"getInterfaceFlags(%s): could not get interface flags\n", ifName);
@@ -745,10 +746,10 @@ setInterfaceFlags(const char *ifName, const int flags)
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
 
-    int intFlags = getInterfaceFlags(ifName);
+    int intFlags;
 
-    if(intFlags < 0) {
-	return intFlags;
+    if (getInterfaceFlags(ifName, &intFlags) < 0) {
+	return -1;
     }
 
     ifr.ifr_flags = flags | intFlags;
@@ -770,10 +771,10 @@ clearInterfaceFlags(const char *ifName, const int flags)
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
 
-    int intFlags = getInterfaceFlags(ifName);
+    int intFlags;
 
-    if(intFlags < 0) {
-	return intFlags;
+    if (getInterfaceFlags(ifName, &intFlags) < 0) {
+	return -1;
     }
 
     ifr.ifr_flags = ~flags & intFlags;
@@ -859,8 +860,8 @@ getInterfaceInfo(CckInterfaceInfo *info, const char* ifName, const int family, c
 	return false;
     }
 
-    info->flags = getInterfaceFlags(ifName);
-    if(info->flags < 0) {
+
+    if(getInterfaceFlags(ifName, &info->flags) < 0) {
 	CCK_QWARNING(THIS_COMPONENT"getInferfaceInfo(%s): could not query interface flags\n",
 	ifName);
     }

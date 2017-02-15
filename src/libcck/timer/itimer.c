@@ -264,14 +264,13 @@ static void itimerUpdate() {
 
 	    it->left = it->interval;
 	    t->_expired = true;
-	    CCK_INFO(THIS_COMPONENT"(%s): timer expired, re-armed to %d ticks (%d us)%s\n",
+	    CCK_DBG(THIS_COMPONENT"(%s): timer expired, re-armed to %d ticks (%d us)%s\n",
 				    t->name, it->interval, it->interval * ITIMER_INTERVAL_US,
 				    t->config.oneShot ? ", one-shot, will stop on next expiry check" : "");
 
 	}
 
     }
-    
 
     elapsed = 0;
 
