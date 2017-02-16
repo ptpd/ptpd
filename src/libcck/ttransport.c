@@ -278,7 +278,7 @@ detectTTransport(const int family, const char *path, const int caps, const int s
 				path, getAddressFamilyName(family), caps);\
 			CCK_DBG(THIS_COMPONENT"detectTTransport(%s): probing "textname"...\n", path);\
 			if(_probeTTransport_##typesuffix(path, caps)) {\
-			    CCK_INFO(THIS_COMPONENT"detectTTransport(%s): using "textname"\n", path);\
+			    CCK_INFO(THIS_COMPONENT"detectTTransport(%s): selected '"textname"'\n", path);\
 			    return typeenum; \
 			}\
 		    } \

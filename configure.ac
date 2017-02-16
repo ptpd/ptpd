@@ -15,6 +15,8 @@ AC_CONFIG_HEADER([config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 
+AC_GNU_SOURCE
+
 AM_INIT_AUTOMAKE([1.9 foreign silent-rules -Wall])
 
 AM_SILENT_RULES([yes])
@@ -164,7 +166,7 @@ m4_version_prereq(2.60,[
     [AC_TYPE_SIZE_T]
 )
 
-# Check for tick in the timex structure
+
 AC_CHECK_MEMBERS([struct utmp.ut_time], [], [], [
 #ifdef HAVE_UTMP_H
 #include <utmp.h>

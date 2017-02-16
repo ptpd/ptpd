@@ -237,7 +237,7 @@ int
 hexDigitToInt(const char digit)
 {
 
-    int c = tolower(digit);
+    int c = tolower((int)digit);
 
     if((c >= 'a') && (c <= 'f')) {
 	return (c - 'a' + 10);
@@ -515,10 +515,12 @@ tokenInList(const char *list, const char * search, const char * delim)
 	return false;
     }
 
+
     foreach_token_begin(tmp, list, token, delim);
 
 	if(!strcmp(token, search)) {
 	    ret = true;
+	    break;
 	}
 
     foreach_token_end(tmp);

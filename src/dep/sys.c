@@ -67,6 +67,51 @@ double round (double __x);
 
 static int closeLog(LogFileHandler* handler);
 
+/*
+ returns a static char * for the representation of time, for debug purposes
+ DO NOT call this twice in the same printf!
+*/
+char *dump_TimeInternal(const TimeInternal * p)
+{
+	static char buf[100];
+
+	snprint_TimeInternal(buf, 100, p);
+	return buf;
+}
+
+
+/*
+ displays 2 timestamps and their strings in sequence, and the difference between then
+ DO NOT call this twice in the same printf!
+*/
+char *dump_TimeInternal2(const char *st1, const TimeInternal * p1, const char *st2, const TimeInternal * p2)
+{
+	static char buf[BUF_SIZE];
+	int n = 0;
+
+	/* display Timestamps */
+	if (st1) {
+		n += snprintf(buf + n, BUF_SIZE - n, "%s ", st1);
+	}
+	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, p1);
+	n += snprintf(buf + n, BUF_SIZE - n, "    ");
+
+	if (st2) {
+		n += snprintf(buf + n, BUF_SIZE - n, "%s ", st2);
+	}
+	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, p2);
+	n += snprintf(buf + n, BUF_SIZE - n, " ");
+
+	/* display difference */
+	TimeInternal r;
+	subTime(&r, p1, p2);
+	n += snprintf(buf + n, BUF_SIZE - n, "   (diff: ");
+	n += snprint_TimeInternal(buf + n, BUF_SIZE - n, &r);
+	n += snprintf(buf + n, BUF_SIZE - n, ") ");
+
+	return buf;
+}
+
 int
 snprint_TimeInternal(char *s, int max_len, const TimeInternal * p)
 {

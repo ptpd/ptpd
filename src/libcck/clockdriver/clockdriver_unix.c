@@ -33,6 +33,7 @@
  */
 
 #include <config.h>
+#include <libcck/cck.h>
 
 #include <sys/types.h>
 #include <errno.h>
@@ -68,7 +69,7 @@
 #endif /* HAVE_NTP_ADJTIME */
 #endif /* HAVE_ADJTIMEX */
 
-#include <libcck/cck.h>
+
 #include <libcck/cck_types.h>
 #include <libcck/cck_logger.h>
 #include <libcck/cck_utils.h>
