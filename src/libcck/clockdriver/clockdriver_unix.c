@@ -35,6 +35,7 @@
 #include <config.h>
 
 #include <sys/types.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>

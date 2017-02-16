@@ -133,6 +133,19 @@ static void
 timerStart (CckTimer *self, const double interval) {
 
     double actual = max(interval, CCK_TIMER_MIN_INTERVAL);
+    double initial = actual;
+
+    if(self->config.randomDelay) {
+        initial =  actual * cckRand() * CCK_TIMER_RANDDELAY;
+        CCK_DBG(THIS_COMPONENT"(%s): Random delay %.05f s\n",
+                        self->name, initial);
+        initial += actual;
+    } else if(self->config.delay) {
+        initial = self->config.delay;
+        CCK_DBG(THIS_COMPONENT"(%s): Fixed delay %.05f s\n",
+                self->name, initial);
+        initial += actual;
+    }
 
     CCK_GET_PDATA(CckTimer, itimer, self, myData);
 
@@ -140,14 +153,12 @@ timerStart (CckTimer *self, const double interval) {
     self->_running = true;
     self->interval = actual;
 
-    myData->left = (actual * 1E6) / ITIMER_INTERVAL_US;
-
-    myData->left = max(myData->left, 1);
-    myData->interval = myData->left;
+    myData->left = max(1, (initial * 1E6) / ITIMER_INTERVAL_US);
+    myData->interval = max(1, (actual * 1E6) / ITIMER_INTERVAL_US);
 
     CCK_DBG(THIS_COMPONENT"(%s): Timer armed for %f s requested, %f s actual (%d * %d us ticks)%s\n",
-			    self->name, interval, actual, myData->interval, ITIMER_INTERVAL_US,
-			    self->config.oneShot ? ", one-shot" : "");
+                            self->name, interval, actual, myData->interval, ITIMER_INTERVAL_US,
+                            self->config.oneShot ? ", one-shot" : "");
 
 }
 
@@ -261,13 +272,11 @@ static void itimerUpdate() {
 	it->left -= elapsed;
 
 	if(it->left <= 0) {
-
 	    it->left = it->interval;
 	    t->_expired = true;
 	    CCK_DBG(THIS_COMPONENT"(%s): timer expired, re-armed to %d ticks (%d us)%s\n",
 				    t->name, it->interval, it->interval * ITIMER_INTERVAL_US,
 				    t->config.oneShot ? ", one-shot, will stop on next expiry check" : "");
-
 	}
 
     }

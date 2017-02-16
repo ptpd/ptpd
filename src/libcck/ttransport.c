@@ -74,7 +74,6 @@ static void clearTransportFault(TTransport *transport);
 /* age fault timeout */
 static void ageTransportFault(TTransport *, const int interval);
 
-
 /* inherited method declarations */
 
 /* restart: shutdown + init */
@@ -1094,9 +1093,11 @@ ageTransportFault(TTransport * transport, const int interval)
 
     if(transport->_faultTimeout <= 0) {
 	transport->_faultTimeout = 0;
-	transport->fault = false;
-	CCK_DBG(THIS_COMPONENT": transport %s fault timeout, check at next monitor interval\n",
+	if(transport->fault) {
+	    CCK_DBG(THIS_COMPONENT"transport '%s' fault timeout, check at next monitor interval\n",
 			transport->name);
+	}
+	transport->fault = false;
     }
 
 }

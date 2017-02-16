@@ -911,15 +911,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	CONFIG_KEY_REQUIRED("ptpengine:interface");
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:interface",
-		PTPD_RESTART_NETWORK, global->primaryIfaceName, sizeof(global->primaryIfaceName), global->primaryIfaceName,
+		PTPD_RESTART_NETWORK, global->ifName, sizeof(global->ifName), global->ifName,
 	"Network interface to use - eth0, igb0 etc. (required).");
-
-	parseResult &= configMapString(opCode, opArg, dict, target, "ptpengine:backup_interface",
-		PTPD_RESTART_NETWORK, global->backupIfaceName, sizeof(global->backupIfaceName), global->backupIfaceName,
-		"Backup network interface to use - eth0, igb0 etc. When no GM available, \n"
-	"	 slave will keep alternating between primary and secondary until a GM is found.\n");
-
-	CONFIG_KEY_TRIGGER("ptpengine:backup_interface", global->backupIfaceEnabled,TRUE,FALSE);
 
 	/* Preset option names have to be mapped to defined presets - no free strings here */
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:preset",
@@ -1198,8 +1191,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	CONFIG_CONDITIONAL_ASSERTION(global->logSyncInterval >= global->logMaxSyncInterval,
 					"ptpengine:log_sync_interval value must be lower than ptpengine:log_sync_interval_max\n");
 
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:log_delayreq_override", PTPD_UPDATE_DATASETS, &global->ignore_delayreq_interval_master,
-	global->ignore_delayreq_interval_master,
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:log_delayreq_override", PTPD_UPDATE_DATASETS, &global->logDelayReqOverride,
+	global->logDelayReqOverride,
 		 "Override the Delay Request interval announced by best master.");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:log_delayreq_auto", PTPD_UPDATE_DATASETS, &global->autoDelayReqInterval,
@@ -1474,19 +1467,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 		PTPD_RESTART_NONE, INTTYPE_I8, &global->ptpMonDomainNumber, global->domainNumber,
 		"Allowed PTP domain number to accept PTPMON Delay Requests from.\n"
 	"	 The default is to use the PTPd domain number (ptpengine:domain).", RANGECHECK_RANGE,0,255);
-
-	CONFIG_KEY_ALIAS("ptpengine:igmp_refresh","ptpengine:multicast_rejoin");
-
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:multicast_rejoin",
-		PTPD_RESTART_NONE, &global->refreshMulticast, global->refreshMulticast,
-	"Refresh multicast group membership between engine resets and periodically\n"
-	"	 in master state.");
-
-	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:master_multicast_rejoin_interval",
-		PTPD_RESTART_PROTOCOL, INTTYPE_I8, &global->masterRefreshInterval, global->masterRefreshInterval,
-		"Periodic IGMP join interval (seconds) in master state when running\n"
-		"	 IPv4 multicast: when set below 10 or when ptpengine:multicast_rejoin\n"
-		"	 is disabled, this setting has no effect.",RANGECHECK_RANGE,0,255);
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:multicast_ttl",
 		PTPD_RESTART_NETWORK, INTTYPE_INT, &global->ttl, global->ttl,
@@ -2560,8 +2540,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 
 /* ==== Any additional logic should go here ===== */
 
-	strncpy(global->ifName, global->primaryIfaceName, IFNAMSIZ);
-
 	/* test ACLs */
 
 	int family = getConfiguredFamily(global);
@@ -2596,7 +2574,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	 */
 	if((global->transportMode == TMODE_MIXED) &&
 	 !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
-		global->ignore_delayreq_interval_master=TRUE;
+		global->logDelayReqOverride=TRUE;
 
 	/*
 	 * We're in unicast slave-capable mode and we haven't specified the delay request interval:
@@ -2605,7 +2583,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	if((global->transportMode == TMODE_UC &&
 	    global->clockQuality.clockClass > 127) &&
 	    !CONFIG_ISSET("ptpengine:log_delayreq_interval"))
-		global->ignore_delayreq_interval_master=TRUE;
+		global->logDelayReqOverride=TRUE;
 
 	/*
 	 * construct the lock file name based on operation mode:
@@ -2840,7 +2818,7 @@ Boolean loadCommandLineOptions(GlobalConfig* global, dictionary* dict, int argc,
 
 	/* there's NOTHING wrong with this */
 	if(argc==1) {
-			*ret = 1;
+			*ret = -1;
 			goto short_help;
 	}
 

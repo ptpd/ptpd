@@ -354,7 +354,7 @@ void stepClock(const GlobalConfig * global, PtpClock * ptpClock, Boolean force);
  * -Handle with runtime options*/
  /**\{*/
 int setCpuAffinity(int cpu);
-int ptpdStartup(int argc ,char** argv, GlobalConfig* global);
+bool ptpdStartup(int argc ,char** argv, GlobalConfig* global, int *ret);
 
 void ptpdShutdown(PtpClock * ptpClock);
 void checkSignals(GlobalConfig * global, PtpClock * ptpClock);

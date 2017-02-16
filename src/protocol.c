@@ -306,8 +306,8 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 			MANUFACTURER_ID_OUI1,
 			MANUFACTURER_ID_OUI2);
 		{
-		    char filterMask[200];
-		    strncpy(filterMask,FILTER_MASK,199);
+		    char filterMask[208];
+		    strncpy(filterMask,FILTER_MASK,208);
 		}
 
 		initData(global, ptpClock);
@@ -661,34 +661,13 @@ doState(GlobalConfig *global, PtpClock *ptpClock)
 					ptpClock->number_foreign_records = 0;
 					ptpClock->foreign_record_i = 0;
 					ptpClock->bestMaster = NULL;
-					/* if flipping between primary and backup interface, a full nework re-init is required */
-					if(global->backupIfaceEnabled) {
-						ptpClock->runningBackupInterface = !ptpClock->runningBackupInterface;
-						toState(PTP_INITIALIZING, global, ptpClock);
-						NOTICE("Now switching to %s interface\n", ptpClock->runningBackupInterface ?
-							    "backup":"primary");
-					    } else {
-
-						toState(PTP_LISTENING, global, ptpClock);
-					    }
-
-					}
+					toState(PTP_LISTENING, global, ptpClock);
+				}
 			} else {
-
-				    /* if flipping between primary and backup interface, a full nework re-init is required */
-				    if(global->backupIfaceEnabled) {
-					ptpClock->runningBackupInterface = !ptpClock->runningBackupInterface;
-					toState(PTP_INITIALIZING, global, ptpClock);
-					NOTICE("Now switching to %s interface\n", ptpClock->runningBackupInterface ?
-						"backup":"primary");
-
-				    } else {
 				/*
-				 *  Force a reset when getting a timeout in state listening, that will lead to an IGMP reset
-				 *  previously this was not the case when we were already in LISTENING mode
+				 * Cycle into LISTENING
 				 */
 				    toState(PTP_LISTENING, global, ptpClock);
-				    }
                                 }
 
                 }
@@ -2129,7 +2108,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 					NOTICE("Received first Delay Response from Master\n");
 				}
 
-				if (global->ignore_delayreq_interval_master == 0) {
+				if (global->logDelayReqOverride == 0) {
 					DBGV("current delay_req: %d  new delay req: %d \n",
 						ptpClock->portDS.logMinDelayReqInterval,
 					header->logMessageInterval);
@@ -2368,7 +2347,7 @@ handlePdelayResp(const MsgHeader *header, TimeInternal *tint,
 					
 					integer64_to_internalTime(header->correctionField,&correctionField);
 					updatePeerDelay (&ptpClock->mpdIirFilter,global,ptpClock,&correctionField,FALSE);
-				if (global->ignore_delayreq_interval_master == 0) {
+				if (global->logDelayReqOverride == 0) {
 					DBGV("current pdelay_req: %d  new pdelay req: %d \n",
 						ptpClock->portDS.logMinPdelayReqInterval,
 					header->logMessageInterval);
@@ -2510,7 +2489,7 @@ handlePdelayRespFollowUp(const MsgHeader *header, ssize_t length,
 						 &correctionField,TRUE);
 
 /* pdelay interval handling begin */
-				if (global->ignore_delayreq_interval_master == 0) {
+				if (global->logDelayReqOverride == 0) {
 					DBGV("current delay_req: %d  new delay req: %d \n",
 						ptpClock->portDS.logMinPdelayReqInterval,
 					header->logMessageInterval);

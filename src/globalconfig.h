@@ -104,9 +104,6 @@ typedef struct {
 //	Integer16 currentUtcOffset;
 
 	char ifName[IFNAMSIZ + 1];
-	char primaryIfaceName[IFNAMSIZ+1];
-	char backupIfaceName[IFNAMSIZ+1];
-	Boolean backupIfaceEnabled;
 
 	Boolean	noResetClock; // don't step the clock if offset > 1s
 	Boolean stepForce; // force clock step on first sync after startup
@@ -114,8 +111,6 @@ typedef struct {
 	Boolean setRtc;
 
 	Boolean clearCounters;
-
-	Integer8 masterRefreshInterval;
 
 	Integer32 maxOffset; /* Maximum number of nanoseconds of offset */
 	Integer32 maxDelay; /* Maximum number of nanoseconds of delay */
@@ -167,12 +162,11 @@ typedef struct {
 	int statusFileUpdateInterval;
 
 	Boolean ignoreLock;
-	Boolean refreshMulticast;
 	Boolean  nonDaemon;
 
 	int initial_delayreq;
 
-	Boolean ignore_delayreq_interval_master;
+	Boolean logDelayReqOverride;
 	Boolean autoDelayReqInterval;
 
 	Boolean autoLockFile; /* mode and interface specific lock files are used

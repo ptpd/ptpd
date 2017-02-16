@@ -136,6 +136,7 @@ timerShutdown (CckTimer *self) {
 static void
 timerStart (CckTimer *self, const double interval) {
 
+    double initial = 0.0;
     double actual = max(interval, CCK_TIMER_MIN_INTERVAL);
     struct timespec ts;
     struct itimerspec its;
@@ -144,6 +145,22 @@ timerStart (CckTimer *self, const double interval) {
     ts.tv_nsec = (actual - ts.tv_sec) * 1E9;
 
     its.it_interval = ts;
+
+    if(self->config.randomDelay) {
+	initial =  actual * cckRand() * CCK_TIMER_RANDDELAY;
+	CCK_DBG(THIS_COMPONENT"(%s): Random delay %.05f s\n",
+			self->name, initial);
+	initial += actual;
+    } else if(self->config.delay) {
+	initial = self->config.delay;
+	CCK_DBG(THIS_COMPONENT"(%s): Fixed delay %.05f s\n",
+		self->name, initial);
+	initial += actual;
+    }
+
+    ts.tv_sec = initial;
+    ts.tv_nsec = (initial - ts.tv_sec) * 1E9;
+
     its.it_value = ts;
 
     if (timerfd_settime(self->myFd.fd, 0, &its, NULL) < 0) {

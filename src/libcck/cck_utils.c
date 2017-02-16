@@ -679,3 +679,8 @@ void cckVersion() {
     printf(CCK_API_INFO_STR"\n");
 
 }
+
+double cckRand(void)
+{
+	return((rand() * 1.0) / RAND_MAX);
+}

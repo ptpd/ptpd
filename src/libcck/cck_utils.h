@@ -193,4 +193,8 @@ void andBuffer(void *vout, const void *va, const void *vb, const size_t len);
 /* "not" operation on a buffer */
 void inverseBuffer(void *vout, const void *va, const size_t len);
 
+/* get a random number between 0.0 and 1.0 */
+double cckRand(void);
+
+
 #endif /* CCK_UTILS_H_ */

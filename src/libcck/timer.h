@@ -41,6 +41,8 @@
 #include <libcck/fd_set.h>
 
 
+#define CCK_TIMER_RANDDELAY 0.1
+
 /* 50 us to prevent loops impossible to handle */
 #define CCK_TIMER_MIN_INTERVAL 0.00005
 
@@ -72,6 +74,8 @@ typedef struct {
     bool disabled;			/* timer is disabled */
     bool oneShot;			/* one-shot timer, no auto-rearm */
     double interval;			/* timer interval */
+    bool randomDelay;			/* randomly delay first start */
+    double delay;			/* fixed delay of first start */
 } CckTimerConfig;
 
 typedef struct CckTimer CckTimer;
@@ -110,6 +114,7 @@ struct CckTimer {
 
     bool _expired;			/* timer has expired */
     bool _running;			/* timer is running (started) */
+    bool _delayed;			/* delay executed */
 
     /* libCCK common fields - to be included in a general object header struct */
     void *_privateData;			/* implementation-specific data */

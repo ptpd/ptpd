@@ -44,7 +44,12 @@
 #endif /* HAVE_PCAP_H */
 #endif
 
-#define PCAP_TIMEOUT 1		/* expressed in milliseconds */
+#ifdef __sun
+#define PCAP_TIMEOUT 10		/* BPF-pcap buffering issues */
+#else
+#define PCAP_TIMEOUT 1
+#endif /* __sun */
+
 #define FILTER_EXPR_LEN 1000	/* maximum PCAP filter expression length */
 
 /* missing on some systems / libpcap versions */

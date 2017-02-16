@@ -216,8 +216,7 @@ loadDefaultSettings( GlobalConfig* global )
 	/*
 	 * defaults for new options
 	 */
-	global->ignore_delayreq_interval_master = FALSE;
-	global->refreshMulticast = TRUE;
+	global->logDelayReqOverride = FALSE;
 	global->useSysLog       = FALSE;
 	global->announceReceiptTimeout  = DEFAULT_ANNOUNCE_RECEIPT_TIMEOUT;
 #ifdef RUNTIME_DEBUG
@@ -239,7 +238,6 @@ loadDefaultSettings( GlobalConfig* global )
 	global->initial_delayreq = DEFAULT_DELAYREQ_INTERVAL;
 	global->logMinDelayReqInterval = DEFAULT_DELAYREQ_INTERVAL;
 	global->autoDelayReqInterval = TRUE;
-	global->masterRefreshInterval = 60;
 
 	/* maximum values for unicast negotiation */
     	global->logMaxPdelayReqInterval = 5;

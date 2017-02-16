@@ -251,7 +251,7 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 		{
 		    CCK_GET_PCONFIG(TTransport, pcap_ethernet, config, pConfig);
 
-		    strncpy(pConfig->interface, global->primaryIfaceName, IFNAMSIZ);
+		    strncpy(pConfig->interface, global->ifName, IFNAMSIZ);
 
 		    pConfig->etherType = PTP_ETHER_TYPE;
 
@@ -279,7 +279,7 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 		{
 		    CCK_GET_PCONFIG(TTransport, linuxts_raweth, config, pConfig);
 
-		    strncpy(pConfig->interface, global->primaryIfaceName, IFNAMSIZ);
+		    strncpy(pConfig->interface, global->ifName, IFNAMSIZ);
 
 		    pConfig->etherType = PTP_ETHER_TYPE;
 
@@ -885,13 +885,6 @@ initPtpTransports(PtpClock *ptpClock, CckFdSet *fdSet, const GlobalConfig *globa
 
     freeTransportData(ptpClock);
 
-    if(global->backupIfaceEnabled &&
-	    ptpClock->runningBackupInterface) {
-		strncpy((char *)global->ifName, global->backupIfaceName, IFNAMSIZ);
-	} else {
-		strncpy((char *)global->ifName, global->primaryIfaceName, IFNAMSIZ);
-	}
-
     if(!testInterface(global->ifName, family, global->sourceAddress)) {
 	return false;
     }
@@ -1048,26 +1041,16 @@ bool
 testTransportConfig(const GlobalConfig *global)
 {
 
-	bool ret = true;
 	int family = getConfiguredFamily(global);
 
-	if(!testInterface(global->primaryIfaceName, family, global->sourceAddress) ||
-		(detectTTransport(family, global->primaryIfaceName,
+	if(!testInterface(global->ifName, family, global->sourceAddress) ||
+		(detectTTransport(family, global->ifName,
 		    getEventTransportFlags(global), global->transportType) == TT_TYPE_NONE)) {
-	    ERROR("Error: Cannot use interface '%s'\n",global->primaryIfaceName);
-	    ret = false;
+	    ERROR("Error: Cannot use interface '%s'\n",global->ifName);
+	    return false;
 	}
 
-	if(global->backupIfaceEnabled) {
-	    if(!testInterface(global->backupIfaceName, family, global->sourceAddress) ||
-		(detectTTransport(family, global->backupIfaceName,
-		    getEventTransportFlags(global), global->transportType) == TT_TYPE_NONE)) {
-		ERROR("Error: Cannot use interface '%s' as backup\n",global->backupIfaceName);
-		ret = false;
-	    }
-	}
-
-	return ret;
+	return true;
 
 }
 

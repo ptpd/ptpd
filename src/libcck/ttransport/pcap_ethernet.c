@@ -473,7 +473,7 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
     ssize_t ret = 0;
 
     struct pcap_pkthdr *pkt_header;
-    const u_char *buf;
+    const u_char *buf = NULL;
 
     if(self->config.disabled) {
 	return 0;
@@ -494,6 +494,11 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
     /* drain the buffer, but ignore what we received */
     if(self->config.discarding) {
 	return 0;
+    }
+
+    if(buf == NULL) {
+        CCK_DBG(THIS_COMPONENT"receiveMessage(%s): libcap returned empty buffer\n", self->name);
+        return 0;
     }
 
     if(ret < 0) {

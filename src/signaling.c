@@ -1017,8 +1017,8 @@ cancelNodeGrants(UnicastGrantTable *nodeTable, const GlobalConfig *global, PtpCl
 
 	if(grantData->granted) {
 	    cancelUnicastTransmission(grantData, global, ptpClock);
-	    /* sleep 250 to 500 us so that we don't flood the node */
-	    usleep(250+round(getRand()*250));
+	    /* sleep 100 to 200 us so that we don't flood the node */
+	    usleep(100+round(getRand()*100));
 	}
 
     }

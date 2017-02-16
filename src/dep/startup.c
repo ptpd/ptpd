@@ -150,13 +150,9 @@ applyConfig(dictionary *baseConfig, GlobalConfig *global, PtpClock *ptpClock)
 	if(global->restartSubsystems & PTPD_RESTART_NETWORK) {
 		INFO("Network configuration changed - checking interface(s)\n");
 		int family = getConfiguredFamily(&tmpOpts);
-		if(!testInterface(tmpOpts.primaryIfaceName, family, tmpOpts.sourceAddress)) {
+		if(!testInterface(tmpOpts.ifName, family, tmpOpts.sourceAddress)) {
 		    reloadSuccessful = FALSE;
-		    ERROR("Error: Cannot use %s interface\n",tmpOpts.primaryIfaceName);
-		}
-		if(global->backupIfaceEnabled && !testInterface(tmpOpts.backupIfaceName, family, tmpOpts.sourceAddress)) {
-		    global->restartSubsystems = -1;
-		    ERROR("Error: Cannot use %s interface as backup\n",tmpOpts.backupIfaceName);
+		    ERROR("Error: Cannot use %s interface\n",tmpOpts.ifName);
 		}
 	}
 #if (defined(linux) && defined(HAVE_SCHED_H)) || defined(HAVE_SYS_CPUSET_H) || defined(__QNXNTO__)
@@ -288,8 +284,6 @@ restartSubsystems(GlobalConfig *global, PtpClock *ptpClock)
 			INFO("Applying protocol configuration: going into %s\n",
 			ptpClock->disabled ? "PTP_DISABLED" : "PTP_INITIALIZING");
 		    }
-			    /* Move back to primary interface only during configuration changes. */
-		    ptpClock->runningBackupInterface = FALSE;
 		    toState(ptpClock->disabled ? PTP_DISABLED : PTP_INITIALIZING, global, ptpClock);
 	    } else {
 
@@ -562,12 +556,11 @@ void argvDump(int argc, char **argv)
 	INFO("Starting %s daemon with parameters:      %s\n", PTPD_PROGNAME, sbuf);
 }
 
-int
-ptpdStartup(int argc, char **argv, GlobalConfig * global)
+bool
+ptpdStartup(int argc, char **argv, GlobalConfig * global, int *ret)
 {
 
 	TimeInternal tmpTime;
-	int ret = 0;
 	int i = 0;
 
 	/* pass our log message writer function to libCCK */
@@ -612,7 +605,7 @@ ptpdStartup(int argc, char **argv, GlobalConfig * global)
 	/* parse all long section:key options and clean up argv for getopt */
 	loadCommandLineKeys(global->cliConfig,argc,argv);
 	/* parse the normal short and long options, exit on error */
-	if (!loadCommandLineOptions(global, global->cliConfig, argc, argv, &ret)) {
+	if (!loadCommandLineOptions(global, global->cliConfig, argc, argv, ret)) {
 	    goto fail;
 	}
 
@@ -627,7 +620,7 @@ ptpdStartup(int argc, char **argv, GlobalConfig * global)
 	if(geteuid() != 0)
 	{
 		printf("Error: "PTPD_PROGNAME" daemon can only be run as root\n");
-			ret = 1;
+			*ret = 1;
 			goto fail;
 		}
 
@@ -638,7 +631,7 @@ ptpdStartup(int argc, char **argv, GlobalConfig * global)
 		if(loadConfigFile(&global->candidateConfig, global)) {
 			dictionary_merge(global->cliConfig, global->candidateConfig, 1, 1, "from command line");
 		} else {
-		    ret = 1;
+		    *ret = 1;
 		    dictionary_merge(global->cliConfig, global->candidateConfig, 1, 1, "from command line");
 		    goto configcheck;
 		}
@@ -652,7 +645,7 @@ ptpdStartup(int argc, char **argv, GlobalConfig * global)
 	 * etc. The getopt loop in loadCommandLineOptions() only sets keys verified here.
 	 */
 	if( ( global->currentConfig = parseConfig(CFGOP_PARSE, NULL, global->candidateConfig,global)) == NULL ) {
-	    ret = 1;
+	    *ret = 1;
 	    dictionary_del(&global->candidateConfig);
 	    goto configcheck;
 	}
@@ -660,7 +653,7 @@ ptpdStartup(int argc, char **argv, GlobalConfig * global)
 	/* we've been told to print the lock file and exit cleanly */
 	if(global->printLockFile) {
 	    printf("%s\n", global->lockFile);
-	    ret = 0;
+	    *ret = 0;
 	    goto fail;
 	}
 
@@ -671,7 +664,7 @@ ptpdStartup(int argc, char **argv, GlobalConfig * global)
 	INFO("Checking if network interface(s) are usable\n");
 
 	if(!testTransportConfig(global)) {
-	    ret = 1;
+	    *ret = 1;
 	    goto configcheck;
 	}
 
@@ -682,9 +675,9 @@ configcheck:
 	 * We've been told to check config only - clean exit before checking locks
 	 */
 	if(global->checkConfigOnly) {
-	    if(ret != 0) {
+	    if(*ret != 0) {
 		printf("Configuration has errors\n");
-		ret = 1;
+		*ret = 1;
 		}
 	    else
 		printf("Configuration OK\n");
@@ -692,7 +685,7 @@ configcheck:
 	}
 
 	/* Previous errors - exit */
-	if(ret !=0)
+	if(*ret !=0)
 		goto fail;
 
 	/* First lock check, just to be user-friendly to the operator */
@@ -700,12 +693,12 @@ configcheck:
 		if(!writeLockFile(global)){
 			/* check and create Lock */
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
-			ret = 3;
+			*ret = 3;
 			goto fail;
 		}
 		/* check for potential conflicts when automatic lock files are used */
 		if(!checkOtherLocks(global)) {
-			ret = 3;
+			*ret = 3;
 			goto fail;
 		}
 	}
@@ -728,7 +721,7 @@ configcheck:
 		 */
 		if (daemon(1,0) == -1) {
 			PERROR("Failed to fork to background");
-			ret = 3;
+			*ret = 3;
 			goto fail;
 		}
 		INFO("Now running in the background\n");
@@ -750,7 +743,7 @@ configcheck:
 		/* check and create Lock */
 		if(!writeLockFile(global)){
 			ERROR("Error: file lock failed (use -L or global:ignore_lock to ignore lock file)\n");
-			ret = 3;
+			*ret = 3;
 			goto fail;
 		}
 	}
@@ -772,12 +765,12 @@ configcheck:
 
 	signal(SIGUSR1, catchSignals);
 	signal(SIGUSR2, catchSignals);
-
-	return 0;
+	*ret = 0;
+	return true;
 	
 fail:
 	dictionary_del(&global->cliConfig);
 	dictionary_del(&global->candidateConfig);
 	dictionary_del(&global->currentConfig);
-	return ret;
+	return false;
 }

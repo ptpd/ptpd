@@ -91,13 +91,16 @@ main(int argc, char **argv)
 	startupInProgress = true;
 
 	/* Parse and check config, go into background */
-	ret = ptpdStartup(argc, argv, &global);
-
-	if (ret != 0) {
-		if (!global.checkConfigOnly) {
-			ERROR(USER_DESCRIPTION" startup failed\n");
-		}
-		return ret;
+	/* ret == 0: success. ret > 0: failure. ret < 0: no options given. */
+	if(!ptpdStartup(argc, argv, &global, &ret)) {
+	    if((ret > 0) && !global.checkConfigOnly) {
+		    ERROR(USER_DESCRIPTION" startup failed\n");
+	    }
+	    /* no options given - return 1, but it's not a config failure */
+	    if(ret < 0) {
+		return 1;
+	    }
+	    return ret;
 	}
 
 	cckInit(getCckFdSet());
