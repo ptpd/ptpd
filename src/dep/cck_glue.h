@@ -56,12 +56,12 @@ typedef struct {
 void ptpPortPostInit(PtpClock *ptpClock);
 void ptpPortPreShutdown(PtpClock *ptpClock);
 void setPtpClockIdentity(PtpClock *ptpClock);
-void ptpPortStepNotify(void *owner);
-void ptpPortFrequencyJump(void *owner);
+void ptpPortStepNotify(void *clockdriver, void *owner);
+void ptpPortFrequencyJump(void *clockdriver, void *owner);
 void ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to);
-void ptpPortLocked(void *owner, bool locked);
+void ptpPortLocked(void *clockdriver, void *owner, bool locked);
 
-void ptpPortUpdate(void *owner);
+void ptpPortClockUpdate(void *clockdriver, void *owner);
 
 /* timer support */
 bool setupPtpTimers(PtpClock *ptpClock, CckFdSet *fdSet);

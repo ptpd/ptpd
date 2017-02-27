@@ -283,13 +283,15 @@ struct ClockDriver {
 
     /* callbacks */
     struct {
-	void (*onStep) (void *owner);			/* user callback to be called after clock was stepped */
-	void (*onUpdate) (void *owner);			/* user callback to be called on periodic update (not on clock sync) */
-	void (*onSync) (void *owner);			/* user callback to be called after clock is synced */
-	void (*onLock) (void *owner, bool locked);	/* user callback to be called when we enter or exit locked state */
-	void (*onFrequencyJump) (void *owner);		/* user callback to be called if the offset would cause a frequency jump */
-	void (*onLeapSecond) (void *owner, bool end);	/* user callback to be called when we begin and end the leap second event */
-	void (*onStatusUpdate) (void *owner, ClockStatus *status); /* user callback to be called when status is updated (but not by owner) */
+	void (*onStep) (void *driver, void *owner);			/* user callback to be called after clock was stepped */
+	void (*onUpdate) (void *driver, void *owner);			/* user callback to be called on periodic update (not on clock sync) */
+	void (*onSync) (void *driver, void *owner);			/* user callback to be called after clock is synced */
+	void (*onLock) (void *driver, void *owner, bool locked);	/* user callback to be called when we enter or exit locked state */
+	void (*onFrequencyJump) (void *driver, void *owner);		/* user callback to be called if the offset would cause a frequency jump */
+	void (*onLeapSecond) (void *driver, void *owner, bool end);	/* user callback to be called when we begin and end the leap second event */
+	void (*onStatusUpdate) (void *driver, void *owner, ClockStatus *status); /* user callback to be called when status is updated (but not by owner) */
+	/* informs the owner that we have had a clock fault - called on fault and on recovery */
+	void (*onClockFault) (void *driver, void *owner, const bool fault);
     } callbacks;
 
     /* BEGIN "private" fields */

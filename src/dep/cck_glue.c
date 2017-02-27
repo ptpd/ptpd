@@ -62,6 +62,10 @@ static bool pushClockDriverPrivateConfig_linuxphc(ClockDriver *driver, const Glo
 static void ptpTimerExpiry(void *self, void *owner);
 static int setupPtpTimer(PtpTimer *timer, CckFdSet *fdSet, const char *name);
 
+/* handle a clock fault or cleared fault */
+static void ptpClockFault(void *clockdriver, void *owner, const bool fault);
+
+
 bool
 configureClockDriver(ClockDriver *driver, const void *configData)
 {
@@ -257,7 +261,7 @@ ptpPortPreShutdown(PtpClock *ptpClock)
 }
 
 void
-ptpPortStepNotify(void *owner)
+ptpPortStepNotify(void *clockdriver, void *owner)
 {
 
     PtpClock *ptpClock = (PtpClock*)owner;
@@ -268,7 +272,7 @@ ptpPortStepNotify(void *owner)
 }
 
 void
-ptpPortFrequencyJump(void *owner)
+ptpPortFrequencyJump(void *clockdriver, void *owner)
 {
 
     PtpClock *ptpClock = (PtpClock*)owner;
@@ -279,7 +283,7 @@ ptpPortFrequencyJump(void *owner)
 }
 
 void
-ptpPortUpdate(void *owner)
+ptpPortClockUpdate(void *driver, void *owner)
 {
 
     PtpClock *ptpClock = owner;
@@ -299,7 +303,7 @@ ptpPortUpdate(void *owner)
 }
 
 void
-ptpPortLocked(void *owner, bool locked)
+ptpPortLocked(void *clockdriver, void *owner, bool locked)
 {
 
     PtpClock *ptpClock = owner;
@@ -338,6 +342,7 @@ ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
 	    cd->callbacks.onStep = ptpPortStepNotify;
 	    cd->callbacks.onLock = ptpPortLocked;
 	    cd->callbacks.onFrequencyJump = ptpPortFrequencyJump;
+	    cd->callbacks.onClockFault = ptpClockFault;
     } else if (from == PTP_SLAVE) {
 	    if(!mc || (mc != cd)) {
 		cd->setReference(cd, NULL);
@@ -345,6 +350,7 @@ ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
 	    cd->callbacks.onStep = NULL;
 	    cd->callbacks.onLock = NULL;
 	    cd->callbacks.onFrequencyJump = NULL;
+	    cd->callbacks.onClockFault = NULL;
     }
 
 }
@@ -490,9 +496,23 @@ prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global) {
 	    }
 	}
 
-	cd->callbacks.onUpdate = ptpPortUpdate;
+	cd->callbacks.onUpdate = ptpPortClockUpdate;
 
 	return true;
 
+
+}
+
+static void
+ptpClockFault(void *clockdriver, void *owner, const bool fault)
+{
+
+    PtpClock *port = owner;
+
+    if(fault) {
+	toState(PTP_FAULTY, port->global, port);
+    } else {
+	toState(PTP_INITIALIZING, port->global, port);
+    }
 
 }

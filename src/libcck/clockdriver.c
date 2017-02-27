@@ -354,8 +354,8 @@ setState(ClockDriver *driver, ClockState newState) {
 	}
 
 	/* todo: switch/case FSM leaving+entering as we get more conditions */
-
 	if(driver->state != newState) {
+
 	    CCK_NOTICE(THIS_COMPONENT"Clock %s changed state from %s to %s\n",
 		    driver->name, getClockStateName(driver->state),
 		    getClockStateName(newState));
@@ -386,12 +386,17 @@ setState(ClockDriver *driver, ClockState newState) {
 
 	    if(newState == CS_HWFAULT) {
 		driver->setReference(driver, NULL);
+		SAFE_CALLBACK(driver->callbacks.onClockFault, driver, driver->owner, true);
+	    }
+
+	    if(driver->state == CS_HWFAULT) {
+		SAFE_CALLBACK(driver->callbacks.onClockFault, driver, driver->owner, false);
 	    }
 
 	    driver->lastState = driver->state;
 	    driver->state = newState;
 
-	    SAFE_CALLBACK(driver->callbacks.onLock, driver->owner, newState == CS_LOCKED);
+	    SAFE_CALLBACK(driver->callbacks.onLock, driver, driver->owner, newState == CS_LOCKED);
 
 	}
 
@@ -485,7 +490,7 @@ updateClockDrivers(int interval) {
 
 	    }
 
-	    SAFE_CALLBACK(cd->callbacks.onUpdate, cd->owner);
+	    SAFE_CALLBACK(cd->callbacks.onUpdate, cd, cd->owner);
 
 	}
 
@@ -932,7 +937,7 @@ stepTime (ClockDriver* driver, CckTimestamp *delta, bool force)
 	}
 
 	/* notify the owner that time has changed */
-	SAFE_CALLBACK(driver->callbacks.onStep, driver->owner);
+	SAFE_CALLBACK(driver->callbacks.onStep, driver, driver->owner);
 
 	/* reset filters */
 
@@ -1257,7 +1262,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 			CCK_NOTICE(THIS_COMPONENT"disciplineClock('%s'): discarded %d ns offset to prevent a %.03f ppb frequency jump\n",
 					driver->name, offset.nanoseconds, fwdDelta, driver->config.unstableAdev);
 
-			SAFE_CALLBACK(driver->callbacks.onFrequencyJump, driver->owner);
+			SAFE_CALLBACK(driver->callbacks.onFrequencyJump, driver, driver->owner);
 
 			driver->setState(driver, CS_HOLDOVER);
 
