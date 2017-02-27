@@ -117,6 +117,7 @@ configureClockDriver(ClockDriver *driver, const void *configData)
     config->stepExitThreshold = global->panicModeExitThreshold;
     config->strictSync = global->clockStrictSync;
     config->minStep = global->clockMinStep;
+    config->stepDetection = global->clockFreqStepDetection;
 
     config->statFilter = global->clockStatFilterEnable;
     config->filterWindowSize = global->clockStatFilterWindowSize;
@@ -267,6 +268,17 @@ ptpPortStepNotify(void *owner)
 }
 
 void
+ptpPortFrequencyJump(void *owner)
+{
+
+    PtpClock *ptpClock = (PtpClock*)owner;
+
+    DBG("PTP clock was notified of offset which would cause a frequency jump - resetting outlier filters and re-calibrating offsets\n");
+
+    recalibrateClock(ptpClock, true);
+}
+
+void
 ptpPortUpdate(void *owner)
 {
 
@@ -325,12 +337,14 @@ ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
 	    cd->owner = ptpClock;
 	    cd->callbacks.onStep = ptpPortStepNotify;
 	    cd->callbacks.onLock = ptpPortLocked;
+	    cd->callbacks.onFrequencyJump = ptpPortFrequencyJump;
     } else if (from == PTP_SLAVE) {
 	    if(!mc || (mc != cd)) {
 		cd->setReference(cd, NULL);
 	    }
 	    cd->callbacks.onStep = NULL;
 	    cd->callbacks.onLock = NULL;
+	    cd->callbacks.onFrequencyJump = NULL;
     }
 
 }

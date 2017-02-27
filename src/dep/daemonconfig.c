@@ -2044,6 +2044,11 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 		"	 after which a health check is performed, and if it succeeds, clock is brought\n"
 		"	 back into FREERUN state.\n", RANGECHECK_RANGE,5,600);
 
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:frequency_step_detection",
+		PTPD_RESTART_NONE, &global->clockFreqStepDetection, global->clockFreqStepDetection,
+		 "In LOCKED state, react to offsets which would cause a frequency step outside LOCKED threshold,\n"
+		 "	 before they are fed to the clock servo.");
+
 	/* BEGIN inter-clock filter settings */
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:stat_filter_enable",

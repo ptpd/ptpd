@@ -74,6 +74,7 @@ struct PIservo {
     bool _updated;
 
     double (*feed) (PIservo*, int32_t, double);
+    double (*simulate) (PIservo *, int32_t);
     void (*prime) (PIservo *, double);
     void (*reset) (PIservo*);
 

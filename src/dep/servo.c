@@ -111,6 +111,8 @@ updateDelay(IIRfilter * mpdIirFilter, const GlobalConfig * global, PtpClock * pt
 
 	DBGV("updateDelay\n");
 
+
+
 	/* todo: do all intermediate calculations on temp vars */
 	TimeInternal prev_meanPathDelay = ptpClock->currentDS.meanPathDelay;
 
@@ -210,16 +212,6 @@ updateDelay(IIRfilter * mpdIirFilter, const GlobalConfig * global, PtpClock * pt
 		correctionField);
 
 
-/* testing only: step detection */
-#if 0
-	TimeInternal bob;
-	bob.nanoseconds = -1000000;
-	bob.seconds = 0;
-	if(ptpClock->addOffset) {
-	    	addTime(&ptpClock->rawDelaySM, &ptpClock->rawDelaySM, &bob);
-	}
-#endif
-
 	/* run the delayMS stats filter */
 	if(global->filterSMOpts.enabled) {
 	    if(!feedDoubleMovingStatFilter(ptpClock->filterSM, timeInternalToDouble(&ptpClock->rawDelaySM))) {
@@ -232,6 +224,7 @@ updateDelay(IIRfilter * mpdIirFilter, const GlobalConfig * global, PtpClock * pt
 	if(ptpClock->oFilterMS.config.enabled && ptpClock->oFilterMS.lastOutlier) {
 	    return;
 	}
+
 	/* run the delaySM outlier filter */
 	if(!global->noAdjust && ptpClock->oFilterSM.config.enabled && (ptpClock->oFilterSM.config.alwaysFilter || !cd->servo.runningMaxOutput) ) {
 		if(ptpClock->oFilterSM.filter(&ptpClock->oFilterSM, timeInternalToDouble(&ptpClock->rawDelaySM))) {
@@ -250,7 +243,6 @@ updateDelay(IIRfilter * mpdIirFilter, const GlobalConfig * global, PtpClock * pt
 	} else {
 		ptpClock->delaySM = ptpClock->rawDelaySM;
 	}
-
 		/* update MeanPathDelay */
 		addTime(&ptpClock->currentDS.meanPathDelay, &ptpClock->delaySM,
 			&ptpClock->delayMS);
@@ -270,14 +262,12 @@ updateDelay(IIRfilter * mpdIirFilter, const GlobalConfig * global, PtpClock * pt
 		}
 
 		if(ptpClock->currentDS.meanPathDelay.nanoseconds < 0){
-			DBG("update delay: found negative value for OWD, "
-			    "so ignoring this value: %d\n",
+			DBG("updateDelay: ignoring negative MPD of %d ns\n",
 				ptpClock->currentDS.meanPathDelay.nanoseconds);
 			/* revert back to previous value */
 			ptpClock->currentDS.meanPathDelay = prev_meanPathDelay;
 			goto finish;
 		}
-
 		/* avoid overflowing filter */
 		s = global->s;
 		while (abs(mpdIirFilter->y) >> (31 - s))
@@ -553,6 +543,17 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	} else {
 		ptpClock->delayMS = ptpClock->rawDelayMS;
 	}
+
+/* testing only: step detection */
+#if 0
+	TimeInternal bob;
+	bob.nanoseconds = 100000;
+	bob.seconds = 0;
+	if(ptpClock->addOffset) {
+	    	addTime(&ptpClock->delayMS, &ptpClock->delayMS, &bob);
+	}
+#endif
+
 
 	/* update 'offsetFromMaster' */
 	if (ptpClock->portDS.delayMechanism == P2P) {
@@ -838,10 +839,6 @@ recalibrateClock(PtpClock *ptpClock, bool resetFilters) {
 	ptpClock->oFilterMS.reset(&ptpClock->oFilterMS);
 	ptpClock->oFilterSM.reset(&ptpClock->oFilterSM);
 
-	clearTime(&ptpClock->currentDS.offsetFromMaster);
-	clearTime(&ptpClock->currentDS.meanPathDelay);
-	clearTime(&ptpClock->delaySM);
-	clearTime(&ptpClock->delayMS);
 
 	ptpClock->ofm_filt.y           = 0;
 	ptpClock->ofm_filt.nsec_prev   = 0;
@@ -849,6 +846,25 @@ recalibrateClock(PtpClock *ptpClock, bool resetFilters) {
 	ptpClock->maxDelayRejected = 0;
 
     }
+
+    ptpClock->offsetFirstUpdated   = FALSE;
+
+	clearTime(&ptpClock->currentDS.offsetFromMaster);
+	clearTime(&ptpClock->currentDS.meanPathDelay);
+
+	clearTime(&ptpClock->pdelay_req_receive_time);
+	clearTime(&ptpClock->pdelay_req_send_time);
+	clearTime(&ptpClock->pdelay_resp_receive_time);
+	clearTime(&ptpClock->pdelay_resp_send_time);
+	clearTime(&ptpClock->sync_receive_time);
+	clearTime(&ptpClock->delay_req_send_time);
+	clearTime(&ptpClock->delay_req_receive_time);
+
+	clearTime(&ptpClock->delaySM);
+	clearTime(&ptpClock->delayMS);
+	clearTime(&ptpClock->rawDelaySM);
+	clearTime(&ptpClock->rawDelayMS);
+
 
     if(ptpClock->global->calibrationDelay) {
 	NOTIFY("Re-calibrating PTP: Waiting for %d seconds to pre-compute offsets\n",

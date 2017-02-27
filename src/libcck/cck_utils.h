@@ -152,7 +152,8 @@ typedef struct {
 	bool (*isNegative) (const CckTimestamp *);
 	bool (*isZero) (const CckTimestamp *);
 	int (*cmp) (const void *, const void *);
-	void (*rtt) (CckTimestamp *, CckTimestamp *, CckTimestamp *, CckTimestamp *);
+	void (*mean2) (CckTimestamp *, CckTimestamp *, CckTimestamp *);
+	void (*rttCor) (CckTimestamp *, CckTimestamp *, CckTimestamp *, CckTimestamp *);
 } CckTimestampOps;
 
 /* grab the timestamp ops helper object */

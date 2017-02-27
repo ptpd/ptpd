@@ -286,6 +286,8 @@ typedef struct {
 	Enumeration8 servoDtMethod;
 	double servoMaxdT;
 
+	Boolean clockFreqStepDetection;
+
 	Boolean clockStrictSync;
 	int clockMinStep;
 	int clockCalibrationTime;

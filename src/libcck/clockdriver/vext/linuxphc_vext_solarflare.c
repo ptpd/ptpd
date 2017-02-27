@@ -53,6 +53,8 @@ loadCdVendorExt_solarflare(ClockDriver *driver, const char *ifname) {
 
     strncpy(sfData->ifName, ifname, IFNAMSIZ);
 
+//todo: do not call vendorInit here, just allocate, just overload it and driver will call it
+
     ret = vendorInit(driver);
 
     if(ret < 0) {
@@ -60,11 +62,12 @@ loadCdVendorExt_solarflare(ClockDriver *driver, const char *ifname) {
 	return ret;
     }
 
+
+    /* test if the vendor extension is operational */
     if(getSystemClockOffset(driver, &delta)) {
 	driver->getSystemClockOffset = getSystemClockOffset;
 	ret = 1;
     }
-
 
     if(ret < 1)  {
 	vendorShutdown(driver);

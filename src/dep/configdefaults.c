@@ -307,6 +307,7 @@ loadDefaultSettings( GlobalConfig* global )
 	global->clockStrictSync = TRUE;
 	global->clockMinStep = 500;
 	global->clockCalibrationTime = 10;
+	global->clockFreqStepDetection = false;
 
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
 	global->servoMaxdT = 5.0;

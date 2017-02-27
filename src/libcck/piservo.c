@@ -45,6 +45,7 @@
 #define THIS_COMPONENT "servo: "
 
 static double feed (PIservo*, int32_t, double);
+static double simulate (PIservo*, int32_t);
 static void prime (PIservo *, double);
 static void reset (PIservo*);
 
@@ -53,6 +54,7 @@ void
 setupPIservo(PIservo *self) {
     memset(self, 0, sizeof(PIservo));
     self->feed = feed;
+    self->simulate = simulate;
     self->prime = prime;
     self->reset = reset;
     self->delayFactor = 1.0;
@@ -126,6 +128,22 @@ feed (PIservo* self, int32_t input, double tau) {
     return self->output;
 
 }
+
+static double
+simulate (PIservo* self, int32_t input) {
+
+    double integral = self->integral;
+    double output;
+
+    integral += (self->tau * self->delayFactor) * ((input + 0.0 ) * self->kI);
+    output = (self->kP * (input + 0.0) ) + integral;
+
+    output = clamp(output, self->maxOutput);
+
+    return output;
+
+}
+
 
 static void
 prime (PIservo *self, double integral) {

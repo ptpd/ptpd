@@ -389,7 +389,6 @@ checkSignals(GlobalConfig * global, PtpClock * ptpClock)
 		ptpClock->addOffset ^= 1;
 		INFO("a: %d\n", ptpClock->addOffset);
 		sigusr2_received = 0;
-		return;
 		}
 #endif
 		displayCounters(ptpClock);
@@ -495,11 +494,12 @@ writeLockFile(GlobalConfig * global)
 static void
 exitHandler(PtpClock * ptpClock)
 {
+	NOTIFY("*** "PTPD_PROGNAME" shutting down on close signal\n");
 
 	shutdownPtpPort(ptpClock, ptpClock->global);
 	ptpdShutdown(ptpClock);
 
-	NOTIFY("Shutdown on close signal\n");
+	NOTIFY("*** Shutdown\n");
 	exit(0);
 }
 

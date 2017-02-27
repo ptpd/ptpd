@@ -1191,7 +1191,6 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 			if(driver->_canResume) {
 /* WOJ:CHECK */
 /* we're assuming that we can actually step! */
-
 			} else {
 			    CCK_WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), suspending clock control for %d seconds (panic mode)\n",
 				    driver->name, buf, driver->config.stepTimeout);
@@ -1236,23 +1235,41 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 		    driver->setState(driver, CS_FREERUN);
 		}
 
-		if(driver->externalReference) {
-		    if(driver->state == CS_FREQEST) {
-			return estimateFrequency(driver, tau);
-		    }
-//		    CCK_INFO("%s fed %d\n", driver->name, driver->refOffset.nanoseconds);
-		    driver->servo.feed(&driver->servo, driver->refOffset.nanoseconds, tau);
-		    return driver->adjustFrequency(driver, driver->servo.output, tau);
-		}
-
-		if(!filterClock(driver, tau)) {
+		/* run filter if running internal reference, drop sample if filter discards it */
+		if(!driver->externalReference && !filterClock(driver, tau)) {
 		    return false;
 		}
 
 		if(driver->state == CS_FREQEST) {
 			return estimateFrequency(driver, tau);
 		}
-//		    CCK_INFO("%s fed %d\n", driver->name, driver->refOffset.nanoseconds);
+
+		if(driver->config.stepDetection && driver->state == CS_LOCKED) {
+		    /* simulate next servo run before feeding it, calculate next frequency delta to last frequency */
+		    double fwdDelta = driver->servo.tau *
+					fabs(driver->servo.simulate(&driver->servo, driver->refOffset.nanoseconds) -
+						driver->servo._lastOutput);
+
+		    CCK_DBG("disciplineClock('%s'): nextdelta %.03f tau %.03f\n", driver->name, fwdDelta, driver->servo.tau);
+
+		    /* check if a frequency jump would occur */
+		    if(fwdDelta > driver->config.unstableAdev) {
+			CCK_NOTICE(THIS_COMPONENT"disciplineClock('%s'): discarded %d ns offset to prevent a %.03f ppb frequency jump\n",
+					driver->name, offset.nanoseconds, fwdDelta, driver->config.unstableAdev);
+
+			SAFE_CALLBACK(driver->callbacks.onFrequencyJump, driver->owner);
+
+			driver->setState(driver, CS_HOLDOVER);
+
+			driver->rawOffset = driver->_lastOffset;
+			driver->refOffset = driver->_lastOffset;
+
+			return false;
+		    }
+
+		}
+
+		/* offset accepted, feed it to servo and adjust clock frequency */
 		driver->servo.feed(&driver->servo, driver->refOffset.nanoseconds, tau);
 		return driver->adjustFrequency(driver, driver->servo.output, tau);
 
@@ -1932,4 +1949,99 @@ static bool healthCheck(ClockDriver *driver) {
     ret &= driver->_vendorHealthCheck(driver);
 
     return ret;
+}
+
+int parseLeapFile(ClockLeapInfo *info, const char *path)
+{
+    FILE *leapFP;
+    CckTimestamp now;
+    char lineBuf[PATH_MAX];
+
+    unsigned long ntpSeconds = 0;
+    int32_t utcSeconds = 0;
+    int32_t utcExpiry = 0;
+    int ntpOffset = 0;
+    int res;
+
+    getSystemClock()->getTime(getSystemClock(), &now);
+
+    info->valid = false;
+
+    if( (leapFP = fopen(path,"r")) == NULL) {
+	CCK_PERROR("Could not open leap second list file %s", path);
+	return 0;
+    } else
+
+    memset(info, 0, sizeof(ClockLeapInfo));
+
+    while (fgets(lineBuf, PATH_MAX - 1, leapFP) != NULL) { 
+
+	/* capture file expiry time */
+	res = sscanf(lineBuf, "#@ %lu", &ntpSeconds);
+	if(res == 1) {
+	    utcExpiry = ntpSeconds - NTP_EPOCH;
+	    CCK_DBG(THIS_COMPONENT"parseLeapInfo('%s'): leapfile expiry %d\n", path, utcExpiry);
+	}
+	/* capture leap seconds information */
+	res = sscanf(lineBuf, "%lu %d", &ntpSeconds, &ntpOffset);
+	if(res ==2) {
+	    utcSeconds = ntpSeconds - NTP_EPOCH;
+	    CCK_DBG(THIS_COMPONENT"parseLeapInfo('%s'): date %d offset %d\n", path, utcSeconds, ntpOffset);
+
+	    /* next leap second date found */
+
+	    if((now.seconds ) < utcSeconds) {
+		info->nextOffset = ntpOffset;
+		info->endTime = utcSeconds;
+		info->startTime = utcSeconds - 86400;
+		break;
+	    } else
+	    /* current leap second value found */
+		if(now.seconds >= utcSeconds) {
+		info->currentOffset = ntpOffset;
+	    }
+
+	}
+
+    }
+
+    fclose(leapFP);
+
+    /* leap file past expiry date */
+    if(utcExpiry && utcExpiry < now.seconds) {
+	CCK_WARNING(THIS_COMPONENT"parseLeapInfo('%s'): Leap seconds file is expired. Please download the current version.\n",
+		    path);
+	return 0;
+    }
+
+    /* we have the current offset - the rest can be invalid but at least we have this */
+    if(info->currentOffset != 0) {
+	info->offsetValid = true;
+    }
+
+    /* if anything failed, return 0 so we know we cannot use leap file information */
+    if((info->startTime == 0) || (info->endTime == 0) ||
+	(info->currentOffset == 0) || (info->nextOffset == 0)) {
+	return 0;
+	CCK_INFO(THIS_COMPONENT"parseLeapInfo('%s') Leap seconds file loaded (incomplete): now %d, current %d next %d from %d to %d, type %s\n", path,
+	now.seconds,
+	info->currentOffset, info->nextOffset,
+	info->startTime, info->endTime, info->leapType > 0 ? "positive" : info->leapType < 0 ? "negative" : "unknown");
+    }
+
+    if(info->nextOffset > info->currentOffset) {
+	info->leapType = 1;
+    }
+
+    if(info->nextOffset < info->currentOffset) {
+	info->leapType = -1;
+    }
+
+    CCK_INFO(THIS_COMPONENT"parseLeapInfo('%s'): Leap seconds file loaded: now %d, current %d next %d from %d to %d, type %s\n", path,
+	now.seconds,
+	info->currentOffset, info->nextOffset,
+	info->startTime, info->endTime, info->leapType > 0 ? "positive" : info->leapType < 0 ? "negative" : "unknown");
+    info->valid = true;
+    return 1;
+
 }

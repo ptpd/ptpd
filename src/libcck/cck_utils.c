@@ -53,22 +53,24 @@ static void tsAbs (CckTimestamp *);
 static bool tsIsNegative (const CckTimestamp *);
 static bool tsIsZero (const CckTimestamp *);
 static int tsCmp (const void *, const void *);
-static void tsRtt (CckTimestamp *, CckTimestamp *, CckTimestamp *, CckTimestamp *);
+static void tsMean2 (CckTimestamp *mean, CckTimestamp *t1, CckTimestamp *t2);
+static void tsRttCor (CckTimestamp *, CckTimestamp *, CckTimestamp *, CckTimestamp *);
 static void tsNorm (CckTimestamp *);
 
 static const CckTimestampOps tOps = {
-	tsAdd,
-	tsSub,
-	tsToDouble,
-	tsFromDouble,
-	tsDiv2,
-	tsClear,
-	tsNegative,
-	tsAbs,
-	tsIsNegative,
-	tsIsZero,
-	tsCmp,
-	tsRtt
+	.add =		tsAdd,
+	.sub =		tsSub,
+	.toDouble =	tsToDouble,
+	.fromDouble =	tsFromDouble,
+	.div2 =		tsDiv2,
+	.clear =	tsClear,
+	.negative =	tsNegative,
+	.abs =		tsAbs,
+	.isNegative =	tsIsNegative,
+	.isZero =	tsIsZero,
+	.cmp =		tsCmp,
+	.mean2 =	tsMean2,
+	.rttCor =	tsRttCor
 };
 
 const CckTimestampOps*
@@ -221,15 +223,26 @@ static int tsCmp(const void *a, const void *b)
 	return 1;
 }
 
-static void tsRtt(CckTimestamp *rtt, CckTimestamp *before, CckTimestamp *meas, CckTimestamp *after)
+static void tsMean2(CckTimestamp *mean, CckTimestamp *t1, CckTimestamp *t2)
 {
 
-	CckTimestamp tmpDelta;
+	CckTimestamp t1c = *t1;
+	CckTimestamp t2c = *t2;
 
-	tsDiv2(before);
-	tsDiv2(after);
-	tsAdd(&tmpDelta, before, after);
-	tsSub(rtt, &tmpDelta, meas);
+	tsDiv2(&t1c);
+	tsDiv2(&t2c);
+	tsClear(mean);
+	tsAdd(mean, &t1c, &t2c);
+}
+
+static void tsRttCor(CckTimestamp *rtt, CckTimestamp *before, CckTimestamp *meas, CckTimestamp *after)
+{
+
+	CckTimestamp mean;
+	CckTimestamp cmeas = *meas;
+
+	tsMean2(&mean, before, after);
+	tsSub(rtt, &mean, &cmeas);
 
 }
 

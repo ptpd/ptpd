@@ -43,7 +43,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
-
 #include <sys/time.h>
 #include <time.h>
 
@@ -487,12 +486,12 @@ static bool
 }
 
 static bool
-setStatus (ClockDriver *self, ClockStatus *status) {
+processStatus (ClockDriver *self, ClockStatus *current, ClockStatus *new) {
     return true;
 }
 
 /*
- *this is the OS clock driver unaware of the other drivers,
+ * this is the OS clock driver unaware of the other drivers,
  * so we compare the clock using the other clock's comparison.
  */
 static bool
@@ -508,7 +507,6 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, CckTimestamp *output)
 	}
 
 	if(!from->getOffsetFrom(from, self, &delta)) {
-	    CCK_INFO(THIS_COMPONENT"%s false AGAIN?\n", self->name);
 	    return false;
 	}
 

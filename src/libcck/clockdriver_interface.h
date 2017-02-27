@@ -47,7 +47,7 @@ static bool setFrequency (ClockDriver *, double, double);
 static double getFrequency (ClockDriver *);
 
 static bool getStatus (ClockDriver *, ClockStatus *);
-static bool setStatus (ClockDriver *, ClockStatus *);
+static bool processStatus (ClockDriver *, ClockStatus *current, ClockStatus *new);
 static bool getSystemClockOffset (ClockDriver *, CckTimestamp *);
 static bool getOffsetFrom (ClockDriver *, ClockDriver *, CckTimestamp *);
 
@@ -67,10 +67,9 @@ static void loadVendorExt(ClockDriver *);
     var->setFrequency = setFrequency; \
     var->getFrequency = getFrequency; \
     var->getStatus = getStatus; \
-    var->setStatus = setStatus; \
+    var->processStatus = processStatus; \
     var->getSystemClockOffset = getSystemClockOffset; \
     var->getOffsetFrom = getOffsetFrom; \
     var->privateHealthCheck = privateHealthCheck; \
     var->isThisMe = isThisMe; \
     var->loadVendorExt = loadVendorExt;
-

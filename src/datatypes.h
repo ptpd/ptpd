@@ -419,7 +419,7 @@ struct PtpClock {
 	dictionary *managementConfig;
 
 	/* testing only - used to add a 1ms offset */
-#if 0
+#if 1
 	Boolean addOffset;
 #endif
 

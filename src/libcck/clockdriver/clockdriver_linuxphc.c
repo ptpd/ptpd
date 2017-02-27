@@ -40,10 +40,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
-
 #include <sys/time.h>
-#include <sys/timex.h>
 #include <time.h>
+
+#ifdef HAVE_SYS_TIMEX_H
+#include <sys/timex.h>
+#endif /* HAVE_SYS_TIMEX_H */
 
 #include <linux/sockios.h>
 #include <linux/ethtool.h>
@@ -139,7 +141,7 @@ clockDriver_init(ClockDriver* self, const void *userData) {
 
     }
 
-    CCK_INFO(THIS_COMPONENT"Linux PHC clock driver %s starting\n", myConfig->networkDevice);
+    CCK_INFO(THIS_COMPONENT"Clock driver %s starting\n", myConfig->networkDevice);
 
     self->_init = false;
 
@@ -154,7 +156,7 @@ clockDriver_init(ClockDriver* self, const void *userData) {
 	}
 	myData->phcIndex = info.phc_index;
 	if(myData->phcIndex == -1) {
-	    CCK_ERROR(THIS_COMPONENT"Device %s has no PTP clock\n", myConfig->networkDevice);
+	    CCK_ERROR(THIS_COMPONENT"Device '%s' has no PTP clock\n", myConfig->networkDevice);
 	    return -1;
 	}
 	snprintf(myConfig->characterDevice, PATH_MAX, "/dev/ptp%d", info.phc_index);
@@ -166,7 +168,7 @@ clockDriver_init(ClockDriver* self, const void *userData) {
     if(strlen(myConfig->characterDevice)) {
 	myData->clockFd = open(myConfig->characterDevice, O_RDWR);
 	if(myData->clockFd < 0) {
-	    CCK_PERROR(THIS_COMPONENT"Could not open clock device %s for writing", myConfig->characterDevice);
+	    CCK_PERROR(THIS_COMPONENT"Could not open clock device '%s' for writing", myConfig->characterDevice);
 	    return -1;
 	}
 	myData->clockId = (~(clockid_t) (myData->clockFd) << 3) | 3;
@@ -177,11 +179,11 @@ clockDriver_init(ClockDriver* self, const void *userData) {
     }
 
     if(caps.pps) {
-	CCK_INFO(THIS_COMPONENT"Linux PHC clock '%s' supports 1PPS output\n", self->name);
+	CCK_INFO(THIS_COMPONENT"Clock '%s' supports 1PPS output\n", self->name);
 	if (ioctl(myData->clockFd, PTP_ENABLE_PPS, 1) < 0) {
-		CCK_ERROR(THIS_COMPONENT"Could not enable 1PPS output for Linux PHC clock '%s'\n", self->name);
+	    CCK_ERROR(THIS_COMPONENT"Could not enable 1PPS output for Linux PHC clock '%s'\n", self->name);
 	} else {
-		CCK_INFO(THIS_COMPONENT"Successfully enabled 1PPS output for Linux PHC clock '%s'\n", self->name);
+	    CCK_INFO(THIS_COMPONENT"Enabled 1PPS output for Linux PHC clock '%s'\n", self->name);
 	}
     }
 
@@ -192,7 +194,7 @@ clockDriver_init(ClockDriver* self, const void *userData) {
 
     self->servo.maxOutput = self->maxFrequency;
 
-    CCK_INFO(THIS_COMPONENT"Linux PHC clock driver '%s' (%s, ID 0x%06x) started successfully\n", self->name, myConfig->characterDevice, myData->clockId);
+    CCK_INFO(THIS_COMPONENT"Clock driver '%s' (%s, ID 0x%06x) started\n", self->name, myConfig->characterDevice, myData->clockId);
 
     self->_init = true;
 
@@ -211,7 +213,7 @@ clockDriver_shutdown(ClockDriver *self) {
     CCK_GET_PDATA(ClockDriver, linuxphc, self, myData);
     CCK_GET_PCONFIG(ClockDriver, linuxphc, self, myConfig);
 
-    CCK_INFO(THIS_COMPONENT"Linux PHC clock driver '%s' (%s) shutting down\n", self->name, myConfig->characterDevice);
+    CCK_INFO(THIS_COMPONENT"Clock driver '%s' (%s) shutting down\n", self->name, myConfig->characterDevice);
 
     /* run any vendor-specific shutdown code */
     self->_vendorShutdown(self);
@@ -239,7 +241,7 @@ getTime (ClockDriver *self, CckTimestamp *time) {
 
 	struct timespec tp;
 	if (clock_gettime(myData->clockId, &tp) < 0) {
-		CCK_PERROR(THIS_COMPONENT"Linux PHC clock_gettime() failed,");
+		CCK_PERROR(THIS_COMPONENT"clock_gettime() failed,");
 		self->setState(self, CS_HWFAULT);
 		return false;
 	}
@@ -281,7 +283,7 @@ setTime (ClockDriver *self, CckTimestamp *time) {
 	tp.tv_nsec = time->nanoseconds;
 
 	if (clock_settime(myData->clockId, &tp) < 0) {
-		CCK_PERROR(THIS_COMPONENT"Linux PHC clock %s (%s): Could not set time ", self->name, myConfig->characterDevice);
+		CCK_PERROR(THIS_COMPONENT"Clock '%s' (%s): Could not set time ", self->name, myConfig->characterDevice);
 		self->setState(self, CS_HWFAULT);
 		return false;
 	}
@@ -312,16 +314,38 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	tmx.time.tv_sec = delta->seconds;
 	tmx.time.tv_usec = delta->nanoseconds;
 
+
 	int ret = clock_adjtime(myData->clockId, &tmx);
 
+
 	if( ret < 0) {
+
+	    CckTimestamp post, corr;
+
 #ifdef CCK_DEBUG
 	    CCK_GET_PCONFIG(ClockDriver, linuxphc, self, myConfig);
 	    CCK_DBG("Could set clock offset of Linux PHC clock %s (%s): %d\n", self->name, myConfig->characterDevice, ret);
 #endif /* CCK_DEBUG */
+
+	    /* correct the new time for how long approximately it took to get it */
 	    getTime(self, &newTime);
+	    getTime(self, &post);
+	    tsOps()->sub(&corr, &post, &newTime);
+	    /* for the "post" read */
+	    tsOps()->add(&newTime, &newTime, &corr);
+	    /* half for the newTime read */
+	    tsOps()->div2(&corr);
+	    tsOps()->add(&newTime, &newTime, &corr);
+
 	    tsOps()->add(&newTime, &newTime, delta);
-	    return setTime(self, &newTime);
+
+	    ret = setTime(self, &newTime);
+
+	    CCK_DBG(THIS_COMPONENT"setTime(%s) newTime %d.%d corr %d.%d\n",
+				    self->name, newTime.seconds, newTime.nanoseconds,
+				    corr.seconds, corr.nanoseconds);
+
+	    return ret;
 	}
 
 	return true;
@@ -386,13 +410,14 @@ getFrequency (ClockDriver *self) {
 
 }
 
+
 static bool
     getStatus (ClockDriver *self, ClockStatus *status) {
     return true;
 }
 
 static bool
-setStatus (ClockDriver *self, ClockStatus *status) {
+processStatus (ClockDriver *self, ClockStatus *current, ClockStatus *new) {
     return true;
 }
 
@@ -499,7 +524,7 @@ getSystemClockOffset(ClockDriver *self, CckTimestamp *output)
 
 	tsOps()->sub(&duration, &t2, &t1);
 
-	tsOps()->rtt(&tmpDelta, &t1, &tptp, &t2);
+	tsOps()->rttCor(&tmpDelta, &t1, &tptp, &t2);
 #if defined(CCK_DEBUG) || defined(PTPD_CLOCK_SYNC_PROFILING)
 	isMin = ' ';
 #endif /* debug or clock sync profiling */
@@ -590,7 +615,7 @@ loadVendorExt(ClockDriver *self) {
 		if(loader(self, myConfig->networkDevice) < 0) {
 		    CCK_ERROR(THIS_COMPONENT"%s: vendor: %s, failed loading extensions, using Linux PHC\n", self->name, vendorName);
 		} else {
-		    CCK_INFO(THIS_COMPONENT"%s: vendor: %s, extensions loaded successfully\n", self->name, vendorName);
+		    CCK_INFO(THIS_COMPONENT"%s: vendor: %s, extensions loaded\n", self->name, vendorName);
 		}
 	    }
 
@@ -609,7 +634,7 @@ privateHealthCheck(ClockDriver *driver)
 	return false;
     }
 
-    CCK_DBG(THIS_COMPONENT"clock %s private health check...\n", driver->name);
+    CCK_DBG(THIS_COMPONENT"Clock '%s' private health check...\n", driver->name);
 
     return ret;
 

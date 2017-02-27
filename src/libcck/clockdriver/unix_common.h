@@ -1,5 +1,4 @@
-/*-
- * Copyright (c) 2016      Wojciech Owczarek
+/* Copyright (c) 2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -26,54 +25,34 @@
  */
 
 /**
- * @file   cck_configure.h
- * @date   Thu Nov 24 23:19:00 2016
+ * @file   unix_common.h
+ * @date   Sat Jan 9 16:14:10 2017
  *
- * @brief  Wrappers and callbacks binding libCCK with PTPd code
- *
+ * @brief  Declaration for common Unix / Linux clock driver utilities
  *
  */
 
-#ifndef _PTPD_CCK_GLUE_H
-#define _PTPD_CCK_GLUE_H
+#ifndef CCK_CLOCKDRIVER_UNIX_COMMON_H_
+#define CCK_CLOCKDRIVER_UNIX_COMMON_H_
 
-#include "../ptpd.h"
+#include <config.h>
 
 #include <libcck/cck.h>
 #include <libcck/cck_types.h>
-#include <libcck/fd_set.h>
-#include <libcck/timer.h>
+#include <libcck/cck_utils.h>
+
 #include <libcck/clockdriver.h>
-#include <libcck/ttransport.h>
-#include <libcck/libcck.h>
 
-#include "../globalconfig.h"
+/* Helper function to manage ntpadjtime / adjtimex flags and UTC/TAI offset */
+int	getTimexFlags(void);
+bool	checkTimexFlags(const int flags);
+bool	setTimexFlags(const int flags, const bool quiet);
+bool	clearTimexFlags(const int flags, const bool quiet);
 
-typedef struct {
-	CckFdSet *fdSet;
-} PtpClockUserData;
+bool	setKernelUtcOffset(const int offset);
+int	getKernelUtcOffset(void);
 
-void ptpPortPostInit(PtpClock *ptpClock);
-void ptpPortPreShutdown(PtpClock *ptpClock);
-void setPtpClockIdentity(PtpClock *ptpClock);
-void ptpPortStepNotify(void *owner);
-void ptpPortFrequencyJump(void *owner);
-void ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to);
-void ptpPortLocked(void *owner, bool locked);
+/* MOD_ESTERROR + MOD_MAXERROR */
+int	setOffsetInfo(CckTimestamp *offset);
 
-void ptpPortUpdate(void *owner);
-
-/* timer support */
-bool setupPtpTimers(PtpClock *ptpClock, CckFdSet *fdSet);
-void shutdownPtpTimers(struct PtpClock *ptpClock);
-
-/* component configuration */
-
-/* push clock driver configuration to a single clock driver */
-bool configureClockDriver(ClockDriver *driver, const void *configData);
-bool prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global);
-
-
-
-#endif /* _PTPD_CCK_GLUE_H */
-
+#endif /* CCK_CLOCKDRIVER_UNIX_COMMON_H_ */

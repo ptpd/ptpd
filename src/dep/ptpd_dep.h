@@ -395,24 +395,6 @@ Boolean checkOtherLocks(GlobalConfig *global);
 
 void recordSync(UInteger16 sequenceId, TimeInternal * time);
 
-#ifdef HAVE_SYS_TIMEX_H
-void informClockSource(PtpClock* ptpClock);
-
-/* Helper function to manage ntpadjtime / adjtimex flags */
-void setTimexFlags(int flags, Boolean quiet);
-void unsetTimexFlags(int flags, Boolean quiet);
-int getTimexFlags(void);
-Boolean checkTimexFlags(int flags);
-
-#if defined(MOD_TAI) &&  NTP_API == 4
-void setKernelUtcOffset(int utc_offset);
-Boolean getKernelUtcOffset(int *utc_offset);
-#endif /* MOD_TAI */
-
-#endif /* HAVE_SYS_TIMEX_H */
-
-int parseLeapFile(char * path, LeapSecondInfo *info);
-
 void
 resetWarnings(const GlobalConfig * global, PtpClock * ptpClock);
 

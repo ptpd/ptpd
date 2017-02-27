@@ -78,9 +78,6 @@
 /* Highest log level (default) catches all */
 #define LOG_ALL LOG_DEBUGV
 
-/* Difference between Unix time / UTC and NTP time */
-#define NTP_EPOCH 2208988800ULL
-
 #define DEFAULT_TOKEN_DELIM ", ;\t"
 
 /*

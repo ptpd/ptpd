@@ -50,6 +50,9 @@
 #define SYSTEM_CLOCK_NAME "syst"
 #define CLOCKDRIVER_FREQFILE_PREFIX "clock"
 
+/* Difference between Unix time / UTC and NTP time */
+#define NTP_EPOCH 2208988800ULL
+
 /* clock driver types */
 enum {
 
@@ -111,7 +114,7 @@ typedef enum {
     CS_HWFAULT,		/* hardware fault */
     CS_INIT,		/* initial state, proceeds to FREERUN */
     CS_FREERUN,		/* clock is not being disciplined - or has a reference but has not been updated */
-    CS_FREQEST,	/* clock has (re)gained a reference and is preparing for sync */
+    CS_FREQEST,		/* clock has (re)gained a reference and is preparing for sync */
     CS_TRACKING,	/* clock is tracking a reference but is not (yet) locked, or was locked and adev is outside threshold. */
     CS_HOLDOVER,	/* clock is in holdover: was LOCKED but has been idle (no updates) or lost its reference */
     CS_LOCKED		/* clock is locked to reference (adev below threshold) */
@@ -147,15 +150,24 @@ typedef struct {
     bool statFilter;			/* enable statistical filter */
     bool strictSync;			/* enforce sync to LOCKED and HOLDOVER only */
 
+    bool stepDetection;			/*
+					 * _frequency_ step detection enabled / disabled: this happens in LOCKED state.
+					 * Before offset is fed to the servo, a simulation of the next output runs,
+					 * and if the next output delta is above the upper adev threshold for LOCKED state,
+					 * servo goes into TRACKING and a callback runs: this allows, for example, a
+					 * time sync protocol controlling the clock, to re-compute its offset.
+					 */
+
     uint8_t groupFlags;			/*
 					 * todo: sync groups:
-					 * Clock may be in up to 8 groups,
-					 * but best clock selection runs only within the same group,
-					 * so we can partition clock sync: say, all externally-disciplined
-					 * clocks and system clock are in group 1 (default),
-					 * all other clocks are in group 2. Effect: system clock syncs
-					 * with one of the externally-disciplined clocks, all other clocks
-					 * sync with the system clock.
+					 * Clock may be in up to 8 groups, but best clock selection
+					 * runs only within the same group, so we can partition
+					 * clock sync: say, all externally-disciplined clocks
+					 * and system clock are in group 1 (default), all other clocks
+					 * are in group 2. Since a clock can be best in one group,
+					 * but sync to another clock in another group, system clock syncs
+					 * with one of the externally-disciplined clocks, but all other
+					 * clocks sync with the system clock.
 					 */
 
     char frequencyFile[PATH_MAX +1];	/* frequency file - filled by the driver itself */
@@ -187,15 +199,26 @@ enum {
     CCMD_LEAP_INS 	= 1 << 1,
     CCMD_LEAP_DEL 	= 1 << 2,
     CCMD_LEAP_PENDING	= 1 << 3,
-    CCMD_UTC_OFFSET 	= 1 << 3
+    CCMD_UTC_OFFSET 	= 1 << 4
 };
 
 typedef struct {
-    int cmd;
-    bool inSync;
-    bool leapInsert;
-    bool leapDelete;
-    int utcOffset;
+    bool valid;			/* we have complete information from somewhere else - like a leap seconds file */
+    bool offsetValid;		/* UTC offset is valid */
+    int currentOffset;		/* current UTC offset */
+    int nextOffset;		/* next UTC offset on leap */
+    int leapType;		/* leap type: -1: negative, 1: positive, 0: none */
+    uint32_t startTime;		/* unix time: start of leap second event (event - 24h, unless we want to inform later */
+    uint32_t endTime;		/* unix time: end of leap second event (the actual event) */
+} ClockLeapInfo;
+
+
+typedef struct {
+    int		utcOffset;	/* current UTC offset */
+    bool	inSync;		/* clock is being synchronised */
+    bool	holdover;	/* clock is in holdover */
+    bool	leapPending;	/* we are awaiting a leap second */
+    int8_t	leapType;	/* leap type as per ClockLeapInfo */
 } ClockStatus;
 
 /* clock driver specification container, useful when creating clock drivers specified as string */
@@ -209,6 +232,8 @@ typedef struct ClockDriver ClockDriver;
 
 /* enTER THE C L O C K D R I V E R R R R R */
 struct ClockDriver {
+    /* attach the linked list */
+    LL_MEMBER(ClockDriver);
 
     int type;				/* clock driver type */
     char name[CCK_COMPONENT_NAME_MAX];	/* name of the driver's instance */
@@ -224,9 +249,9 @@ struct ClockDriver {
     ClockDriverConfig config;		/* config container */
 
     /* flags */
-    bool	inUse;			/* the driver is in active use, if not, can be removed */
-    bool	lockedUp;		/* clock is locked up due to failure (like negative step) */
-    bool systemClock;		/* this driver is THE system clock */
+    bool inUse;				/* the driver is in active use, if not, can be removed */
+    bool lockedUp;			/* clock is locked up due to failure (like negative step) */
+    bool systemClock;			/* this driver is THE system clock */
     bool bestClock;			/* this driver is the current best clock */
     bool externalReference;		/* the clock is using an external reference */
     bool adevValid;			/* we have valid adev computed */
@@ -258,10 +283,13 @@ struct ClockDriver {
 
     /* callbacks */
     struct {
-	void (*onStep) (void *owner);	/* user callback to be called after clock was stepped */
-	void (*onUpdate) (void *owner); /* user callback to be called on periodic update (not on clock sync) */
-	void (*onSync) (void *owner);	/* user callback to be called after clock is synced */
-	void (*onLock) (void *owner, bool locked);
+	void (*onStep) (void *owner);			/* user callback to be called after clock was stepped */
+	void (*onUpdate) (void *owner);			/* user callback to be called on periodic update (not on clock sync) */
+	void (*onSync) (void *owner);			/* user callback to be called after clock is synced */
+	void (*onLock) (void *owner, bool locked);	/* user callback to be called when we enter or exit locked state */
+	void (*onFrequencyJump) (void *owner);		/* user callback to be called if the offset would cause a frequency jump */
+	void (*onLeapSecond) (void *owner, bool end);	/* user callback to be called when we begin and end the leap second event */
+	void (*onStatusUpdate) (void *owner, ClockStatus *status); /* user callback to be called when status is updated (but not by owner) */
     } callbacks;
 
     /* BEGIN "private" fields */
@@ -270,6 +298,7 @@ struct ClockDriver {
     unsigned char _uid[8];		/* 64-bit uid (like MAC) */
     bool	_init;			/* the driver was successfully initialised */
     ClockStatus _status;		/* status flags - leap etc. */
+    ClockLeapInfo _leapInfo;		/* leap second information */
     bool _updated;			/* clock has received at least one update */
     bool _stepped;			/* clock has been stepped at least once */
     bool _locked;			/* clock has locked at least once */
@@ -299,25 +328,26 @@ struct ClockDriver {
 
     /* inherited methods */
 
-    void (*setState) (ClockDriver *, ClockState);
+    void (*setState) (ClockDriver *, ClockState);			/* put clock driver in given state */
+    void (*setStatus) (ClockDriver*, int flags, ClockStatus*);		/* set clock status ( a reference would do that ) */
     void (*processUpdate) (ClockDriver *);
 
-    bool (*healthCheck) (ClockDriver *);
+    bool (*healthCheck) (ClockDriver *);				/* imaginary health check */
 
-    void (*setReference) (ClockDriver *, ClockDriver *);
-    void (*setExternalReference) (ClockDriver *, const char *, int);
+    void (*setReference) (ClockDriver *, ClockDriver *);		/* set another clock driver as clock driver's reference */
+    void (*setExternalReference) (ClockDriver *, const char * name, int class);	/* set external reference */
 
-    bool (*stepTime) (ClockDriver*, CckTimestamp *, bool);
-    bool (*adjustFrequency) (ClockDriver *, double, double);
-    void (*restoreFrequency) (ClockDriver *);
-    void (*storeFrequency) (ClockDriver *);
+    bool (*stepTime) (ClockDriver*, CckTimestamp *, bool force);		/* step time to current offset from reference */
+    bool (*adjustFrequency) (ClockDriver *, double frequency, double tau);		/* set clock frequency offset */
+    void (*restoreFrequency) (ClockDriver *);				/* restore clock frequency using some method the driver chooses */
+    void (*storeFrequency) (ClockDriver *);				/* store clock frequency using some method the driver uses */
 
-    bool (*syncClock) (ClockDriver*, double);
-    bool (*syncClockExternal) (ClockDriver*, CckTimestamp, double);
-    void (*putStatsLine) (ClockDriver *, char*, int);
-    void (*putInfoLine) (ClockDriver *, char*, int);
+    bool (*syncClock) (ClockDriver*, double);				/* feed current internal reference offset */
+    bool (*syncClockExternal) (ClockDriver*, CckTimestamp delta, double tau);	/* feed external offset */
+    void (*putStatsLine) (ClockDriver *, char* buf, int len);			/* clock statistics string */
+    void (*putInfoLine) (ClockDriver *, char* buf, int len);			/* clock information string */
 
-    void (*touchClock) (ClockDriver *);
+    void (*touchClock) (ClockDriver *);					/* keepalive */
 
     /* inherited methods end */
 
@@ -336,7 +366,7 @@ struct ClockDriver {
 
     double (*getFrequency) (ClockDriver *);
     bool (*getStatus) (ClockDriver *, ClockStatus *);
-    bool (*setStatus) (ClockDriver *, ClockStatus *);
+    bool (*processStatus) (ClockDriver *, ClockStatus *current, ClockStatus *new);	/* tell the implementation to deal with new clock status */
     bool (*getOffsetFrom) (ClockDriver *, ClockDriver *, CckTimestamp*);
     bool (*getSystemClockOffset) (ClockDriver *, CckTimestamp*);
 
@@ -355,8 +385,6 @@ struct ClockDriver {
     int (*_vendorShutdown) (ClockDriver *);
     int (*_vendorHealthCheck) (ClockDriver *);
 
-    /* attach the linked list */
-    LL_MEMBER(ClockDriver);
 
 };
 
@@ -389,6 +417,9 @@ const char*	getClockDriverTypeName(int);
 int		getClockDriverType(const char*);
 bool		parseClockDriverSpec(const char*, ClockDriverSpec *);
 void		compareAllClocks();
+
+/* other utility functions */
+int parseLeapFile(ClockLeapInfo *info, const char *path);
 
 /* invoking this without CCK_REGISTER_IMPL defined, includes the implementation headers */
 #include "clockdriver.def"

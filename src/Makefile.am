@@ -109,6 +109,8 @@ ptpd_SOURCES =				\
 	libcck/clockdriver.h		\
 	libcck/clockdriver.c		\
 	libcck/clockdriver_interface.h	\
+	libcck/clockdriver/unix_common.h \
+	libcck/clockdriver/unix_common.c \
 	libcck/clockdriver/clockdriver_unix.h		\
 	libcck/clockdriver/clockdriver_unix.c		\
 	libcck/piservo.h		\
