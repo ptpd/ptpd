@@ -278,6 +278,10 @@ void
 shutdownClockDrivers() {
 
 	ClockDriver *cd;
+	/* destroy designated master first, to avoid EXTSYNC reference flapping */
+	if(_masterClock != NULL) {
+	    freeClockDriver(&_masterClock);
+	}
 	LL_DESTROYALL(cd, freeClockDriver);
 	_systemClock = NULL;
 
