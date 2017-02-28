@@ -46,12 +46,15 @@
 
 #define THIS_COMPONENT "clock: "
 
+#define PREFMST_REFNAME "EXTSYNC"
 
 /* linked list - so that we can control all registered objects centrally */
 LL_ROOT(ClockDriver);
 
 static ClockDriver* _systemClock = NULL;
 static ClockDriver* _bestClock = NULL;
+static ClockDriver *_masterClock = NULL;
+
 // TODO: take care of this
 //static int _updateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
 static int _syncInterval = 1.0 / (CLOCKDRIVER_SYNC_RATE + 0.0);
@@ -468,7 +471,7 @@ updateClockDrivers(int interval) {
 				break;
 			    }
 			}
-			if(cd->age.seconds > cd->config.lockedAge) {
+			if(!cd->maintainLock && (cd->age.seconds > cd->config.lockedAge)) {
 			    resetIntPermanentAdev(&cd->_adev);
 			    cd->setState(cd, CS_HOLDOVER);
 			}
@@ -729,7 +732,7 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	    a->distance = 255;
 	}
 	a->refClass = RC_NONE;
-	return;
+	goto finalise;
 	
     }
 
@@ -748,12 +751,13 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	    a->distance = 255;
 	}
 	a->refClass = RC_NONE;
-	return;
+	goto finalise;
     } else if (b != NULL) {
 	CCK_NOTICE(THIS_COMPONENT"Clock %s changing reference to %s\n", a->name, b->name);
 	if(a->refClock == NULL) {
 	    a->lastRefClass = RC_NONE;
 	}
+	a->refClass = RC_INTERNAL;
 	a->externalReference = false;
 	a->refClock = b;
 	a->distance = b->distance + 1;
@@ -767,17 +771,26 @@ setReference(ClockDriver *a, ClockDriver *b) {
     }
 
 
+
 // WOJ:CHECK
 
 /*
-
-
-
     if(a->systemClock && (b!= NULL) && !b->systemClock) {
 	a->servo.kI = b->servo.kI;
 	a->servo.kP = b->servo.kP;
     }
 */
+
+    return;
+
+finalise:
+
+    /* preferred master clock has lost reference - automatically assign imaginary external reference and lock it */
+    if(a == _masterClock && b == NULL) {
+	a->setExternalReference(a, PREFMST_REFNAME, RC_EXTERNAL);
+	a->maintainLock = true;
+	a->setState(a, CS_LOCKED);
+    }
 
 }
 
@@ -2048,5 +2061,41 @@ int parseLeapFile(ClockLeapInfo *info, const char *path)
 	info->startTime, info->endTime, info->leapType > 0 ? "positive" : info->leapType < 0 ? "negative" : "unknown");
     info->valid = true;
     return 1;
+
+}
+
+void
+setCckMasterClock(ClockDriver *newMaster)
+{
+
+    /* need to preserve last master before assigning */
+    ClockDriver* lastMaster = _masterClock;
+
+    /* we assign the master clock early so that last master is not master when it loses reference */
+    _masterClock = newMaster;
+
+    /* we have an existing master clock and it is losing its master status */
+    if( lastMaster != NULL && newMaster != lastMaster) {
+
+	/* if master clock loses reference, it is automatically locked to imaginary external reference, this is why we assigned earlier */
+	lastMaster->setReference(lastMaster, NULL);
+	lastMaster->maintainLock = false;
+	lastMaster->setState(lastMaster, CS_FREERUN);
+
+    }
+
+    if(_masterClock != NULL && _masterClock->refClass == RC_NONE) {
+	_masterClock->setExternalReference(_masterClock, PREFMST_REFNAME, RC_EXTERNAL);
+	_masterClock->maintainLock = true;
+	_masterClock->setState(_masterClock, CS_LOCKED);
+    }
+
+}
+
+ClockDriver*
+getCckMasterClock()
+{
+
+    return _masterClock;
 
 }

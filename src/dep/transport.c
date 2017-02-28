@@ -1095,7 +1095,7 @@ ptpClockDriverChange (void *transport, void *owner)
 
     PtpClock *port = owner;
 
-	prepareClockDrivers(port, port->global);
+    prepareClockDrivers(port, port->global);
 
 //    ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
 

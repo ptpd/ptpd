@@ -319,7 +319,6 @@ struct PtpClock {
 	/* user-supplied objects go here */
 
 	void *clockDriver;		/* some clock driver interface */
-	void *masterClock;		/* some "master" clock used when no other reference available */
 	void *eventTransport;		/* some transport to send/receive event messages */
 	void *generalTransport;		/* some transport to send/receive general messages */
 	void *eventDestination;		/* some default address object to send event messages to */

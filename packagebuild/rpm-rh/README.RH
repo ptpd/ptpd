@@ -18,7 +18,7 @@
 
 - The rpmbuild.sh script calls "make dist" to generate
   the tarball used for building the RPMs. If you are
-  building from svn, make sure you run autotools
+  building from svn or git, make sure you run autotools
   (autoreconf) before trying to build RPMs. Follow the
   README.repocheckout file in the main source directory
   if in doubt.
@@ -35,7 +35,7 @@
 *******************************************************
 
 Wojciech Owczarek <wojciech%at%owczarek.co.uk>
-2013-2015, PTPd project, http://ptpd.sf.net
+2013-2017, PTPd project, https://github.com/wowczarek/ptpd/tree/wowczarek-2.3.2-libcck
 
 Please report init script and / or spec file
 bugs and modifications to the ptpd-devel mailing list

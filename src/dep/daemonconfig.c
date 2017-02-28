@@ -2007,9 +2007,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "clock:master_clock_name",
 		PTPD_RESTART_NONE, global->masterClock, sizeof(global->masterClock), global->masterClock,
-	"Specify the clock name of a clock which is to be the preferred clock source\n"
-	"	 when PTP is running as master or passive (and all other clocks will sinchronise with it).\n"
-	"	 When not running as master / passive, this clock will sync to the current best clock");
+	"Specify the clock name of a clock which is to be the preferred best clock\n"
+	"	 that other clock synchronise with. This clock is assumed to be controlled by an external\n"
+	"	 source such as NTP. This clock can only be controlled by PTP, otherwise it is\n"
+	"	 permanently in LOCKED state");
 
 	parseResult &= configMapString(opCode, opArg, dict, target, "clock:disabled_clock_names",
 		PTPD_RESTART_NONE, global->disabledClocks, sizeof(global->disabledClocks), global->disabledClocks,

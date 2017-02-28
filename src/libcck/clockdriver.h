@@ -255,6 +255,7 @@ struct ClockDriver {
     bool bestClock;			/* this driver is the current best clock */
     bool externalReference;		/* the clock is using an external reference */
     bool adevValid;			/* we have valid adev computed */
+    bool maintainLock;			/* if set and status set to LOCKED, it is unconditionally locked */
 
     ClockState state;			/* clock state */
     ClockState lastState;		/* previous clock state */
@@ -419,6 +420,9 @@ const char*	getClockDriverTypeName(int);
 int		getClockDriverType(const char*);
 bool		parseClockDriverSpec(const char*, ClockDriverSpec *);
 void		compareAllClocks();
+
+void		setCckMasterClock(ClockDriver *);
+ClockDriver*	getCckMasterClock();
 
 /* other utility functions */
 int parseLeapFile(ClockLeapInfo *info, const char *path);

@@ -16,23 +16,23 @@
 %endif
 
 %if %{slaveonly_build} == 1
-Name: ptpd-linuxphc-slaveonly
+Name: ptpd-libcck-slaveonly
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard. Slave-only version.
 %else
-Name: ptpd-linuxphc
+Name: ptpd-libcck
 Summary: Synchronises system time using the Precision Time Protocol (PTP) implementing the IEEE 1588-2008 (PTP v 2) standard. Full version with master and slave support.
 %endif
 Version: 2.3.2
-Release: 5%{distver}%{?gittag}
+Release: 6%{distver}%{?gittag}
 License: distributable
 Group: System Environment/Daemons
 Vendor: PTPd project team
-Source0: ptpd-2.3.2-ttransport-git.tar.gz
+Source0: ptpd-2.3.2-libcck-git.tar.gz
 
 Source2: ptpd.sysconfig
 Source3: ptpd.conf
 
-URL: http://ptpd.sf.net
+URL: http://github.com/wowczarek/ptpd/tree/wowczarek-2.3.2-libcck
 
 %if %{slaveonly_build} == 1
 Conflicts: ptpd
@@ -66,9 +66,9 @@ coordination of LAN connected computers.
 Install the ptpd package if you need tools for keeping your system's
 time synchronised via the PTP protocol or serving PTP time.
 
-%prep 
+%prep
 
-%setup -n ptpd-2.3.2-ttransport-git
+%setup -n ptpd-2.3.2-libcck-git
 
 %build
 
@@ -217,6 +217,8 @@ fi
 %{_datadir}/ptpd/*
 
 %changelog
+* Mon Feb 27 2017 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.2-6
+- libcck progress import (clockdriver, transport, timer)
 * Fri Nov 18 2016 Wojciech Owczarek <wojciech@owczarek.co.uk> 2.3.2-5
 - further clock selection work,
 - libcck progress (transport),

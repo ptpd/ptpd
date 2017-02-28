@@ -44,7 +44,7 @@
 
 #define THIS_COMPONENT "libCCK: "
 
-#define tmrctl(id, command, ... ) timers[id]->command(timers[id], __VA_ARGS__)
+#define tmrctl(id, command, ... ) _timers[id]->command(_timers[id], __VA_ARGS__)
 
 enum {
     TMR_CLOCKSYNC,
@@ -68,7 +68,7 @@ static const CckConfig defaults = {
 
 };
 
-static CckTimer* timers[TMR_MAX];
+static CckTimer* _timers[TMR_MAX];
 static CckConfig config;
 static CckFdSet fdSet;
 
@@ -131,8 +131,6 @@ cckDefaults()
     return &defaults;
 }
 
-
-
 static void
 cckApplyConfig()
 {
@@ -174,17 +172,17 @@ initCckTimers(CckFdSet *set)
 
     for(int i = 0; i < TMR_MAX; i++) {
 
-	timers[i] = createCckTimer(CCKTIMER_ANY, timerDesc[i]);
-	timers[i]->numId = i;
-	timers[i]->config.randomDelay = true;
+	_timers[i] = createCckTimer(CCKTIMER_ANY, timerDesc[i]);
+	_timers[i]->numId = i;
+	_timers[i]->config.randomDelay = true;
 
-	int res = timers[i]->init(timers[i], false, set);
+	int res = _timers[i]->init(_timers[i], false, set);
 
 	if(res != 1) {
 	    return false;
 	}
 
-	timers[i]->callbacks.onExpired = cckTimerHandler;
+	_timers[i]->callbacks.onExpired = cckTimerHandler;
 
     }
 

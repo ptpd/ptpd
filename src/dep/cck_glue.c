@@ -283,26 +283,6 @@ ptpPortFrequencyJump(void *clockdriver, void *owner)
 }
 
 void
-ptpPortClockUpdate(void *driver, void *owner)
-{
-
-    PtpClock *ptpClock = owner;
-
-    if(ptpClock && ptpClock->masterClock) {
-
-	ClockDriver *mc = ptpClock->masterClock;
-
-	if((ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
-	    mc->setState(mc, CS_LOCKED);
-	}
-
-	mc->touchClock(mc);
-
-    }
-
-}
-
-void
 ptpPortLocked(void *clockdriver, void *owner, bool locked)
 {
 
@@ -319,34 +299,21 @@ ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
 {
 
     ClockDriver *cd = ptpClock->clockDriver;
-    ClockDriver *mc = ptpClock->masterClock;
-
 
     if(!cd) {
 	return;
     }
 
-    if(mc) {
-	/* entering MASTER or PASSIVE */
-	if((to == PTP_MASTER) || (to == PTP_PASSIVE)) {
-	    mc->setExternalReference(mc, "PREFMST", RC_EXTERNAL);
-	/* leaving MASTER or PASSIVE */
-	} else if((from == PTP_MASTER) || (from == PTP_PASSIVE)) {
-	    mc->setReference(mc, NULL);
-	}
-    }
-
     if(to == PTP_SLAVE) {
 	    cd->setExternalReference(cd, "PTP", RC_PTP);
 	    cd->owner = ptpClock;
+	    cd->maintainLock = false;
 	    cd->callbacks.onStep = ptpPortStepNotify;
 	    cd->callbacks.onLock = ptpPortLocked;
 	    cd->callbacks.onFrequencyJump = ptpPortFrequencyJump;
 	    cd->callbacks.onClockFault = ptpClockFault;
     } else if (from == PTP_SLAVE) {
-	    if(!mc || (mc != cd)) {
-		cd->setReference(cd, NULL);
-	    }
+	    cd->setReference(cd, NULL);
 	    cd->callbacks.onStep = NULL;
 	    cd->callbacks.onLock = NULL;
 	    cd->callbacks.onFrequencyJump = NULL;
@@ -430,6 +397,8 @@ prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global) {
 	TTransport *ev = ptpClock->eventTransport;
 	ClockDriver *old = ptpClock->clockDriver;
 
+	ClockDriver *masterClock = NULL;
+
 	/*
 	 * if this driver is still there, getClockDriver() should mark it
 	 * as required again. If not (say, bond member removed),
@@ -474,29 +443,14 @@ prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global) {
 	    cd->callbacks.onLock = ptpPortLocked;
 	}
 
-	ClockDriver *lastMaster = ptpClock->masterClock;
-
 	if(strlen(global->masterClock) > 0) {
-	    ptpClock->masterClock = getClockDriverByName(global->masterClock);
-	    if(ptpClock->masterClock == NULL) {
+	    masterClock = getClockDriverByName(global->masterClock);
+	    if(masterClock == NULL) {
 		WARNING("Could not find designated master clock: %s\n", global->masterClock);
 	    }
-	} else {
-	    ptpClock->masterClock = NULL;
 	}
 
-	if((lastMaster) && (lastMaster != ptpClock->masterClock)) {
-	    lastMaster->setReference(lastMaster, NULL);
-	    lastMaster->setState(lastMaster, CS_FREERUN);
-	}
-
-	if((ptpClock->masterClock) && (ptpClock->masterClock != ptpClock->clockDriver)) {
-	    if( (ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
-		((ClockDriver*)ptpClock->masterClock)->setExternalReference(ptpClock->masterClock, "PREFMST", RC_EXTERNAL);
-	    }
-	}
-
-	cd->callbacks.onUpdate = ptpPortClockUpdate;
+	setCckMasterClock(masterClock);
 
 	return true;
 
