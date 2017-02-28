@@ -62,6 +62,7 @@ static int _syncInterval = 1.0 / (CLOCKDRIVER_SYNC_RATE + 0.0);
 
 static const char *clockDriverNames[] = {
 
+    #define CCK_ALL_IMPL
     #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname) \
 	[typeenum] = textname,
 
@@ -188,7 +189,7 @@ setupClockDriver(ClockDriver* clockDriver, int driverType, const char *name)
     #include "clockdriver.def"
 
     if(!found) {
-	CCK_ERROR(THIS_COMPONENT"Setup requested for unknown clock driver type: %d\n", driverType);
+	CCK_ERROR(THIS_COMPONENT"setupClockDriver(): Requested unknown clock driver type: 0x%02x\n", driverType);
     } else if(!setup) {
 	return false;
     } else {
@@ -287,6 +288,7 @@ createClockDriversFromString(const char* list, bool (*pushConfig) (ClockDriver *
 
 	ClockDriverSpec spec;
 	ClockDriver *cd = NULL;
+	bool errors = false;
 	int namelen = 0;
 	int pathlen = 0;
 	memset(&spec, 0, sizeof(spec));
@@ -294,6 +296,7 @@ createClockDriversFromString(const char* list, bool (*pushConfig) (ClockDriver *
 	foreach_token_begin(clockspecs, list, specLine, DEFAULT_TOKEN_DELIM);
 
 	    if(!parseClockDriverSpec(specLine, &spec)) {
+		errors = true;
 		counter_clockspecs--;
 		continue;
 	    }
@@ -313,6 +316,7 @@ createClockDriversFromString(const char* list, bool (*pushConfig) (ClockDriver *
 
 	    if(!strlen(spec.name) && !strlen(spec.path)) {
 		CCK_ERROR(THIS_COMPONENT"Clock driver string: \"%s\": no name or path given\n", specLine);
+		errors = true;
 		counter_clockspecs--;
 		continue;
 	    }
@@ -1371,13 +1375,13 @@ getClockDriverTypeName(int type) {
 int
 getClockDriverType(const char* name) {
 
-    for(int i = 0; i < CLOCKDRIVER_MAX; i++) {
 
-	if(!strcmp(name, clockDriverNames[i])) {
-	    return i;
-	}
+    #define CCK_REGISTER_IMPL(typeenum, typesuffix, textname) \
+	if(!strcmp(name, textname)) {\
+	    return typeenum;\
+	}\
 
-    }
+    #include "clockdriver.def"
 
     return -1;
 
@@ -2075,7 +2079,7 @@ setCckMasterClock(ClockDriver *newMaster)
     _masterClock = newMaster;
 
     /* we have an existing master clock and it is losing its master status */
-    if( lastMaster != NULL && newMaster != lastMaster) {
+    if( (lastMaster != NULL) && (newMaster != lastMaster)) {
 
 	/* if master clock loses reference, it is automatically locked to imaginary external reference, this is why we assigned earlier */
 	lastMaster->setReference(lastMaster, NULL);
@@ -2084,7 +2088,7 @@ setCckMasterClock(ClockDriver *newMaster)
 
     }
 
-    if(_masterClock != NULL && _masterClock->refClass == RC_NONE) {
+    if((_masterClock != NULL) && (_masterClock->refClass == RC_NONE)) {
 	_masterClock->setExternalReference(_masterClock, PREFMST_REFNAME, RC_EXTERNAL);
 	_masterClock->maintainLock = true;
 	_masterClock->setState(_masterClock, CS_LOCKED);

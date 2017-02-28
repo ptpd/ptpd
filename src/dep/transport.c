@@ -994,6 +994,18 @@ initPtpTransports(PtpClock *ptpClock, CckFdSet *fdSet, const GlobalConfig *globa
 	goto gameover;
     }
 
+    /* check if we want a master clock */
+    ClockDriver *masterClock = NULL;
+
+    if(strlen(global->masterClock) > 0) {
+	masterClock = getClockDriverByName(global->masterClock);
+	if(masterClock == NULL) {
+	    WARNING("Could not find designated master clock: %s\n", global->masterClock);
+	}
+    }
+
+    setCckMasterClock(masterClock);
+
     /* clean up unused clock drivers */
     controlClockDrivers(CD_CLEANUP);
 

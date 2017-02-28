@@ -403,8 +403,6 @@ prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global) {
 	TTransport *ev = ptpClock->eventTransport;
 	ClockDriver *old = ptpClock->clockDriver;
 
-	ClockDriver *masterClock = NULL;
-
 	/*
 	 * if this driver is still there, getClockDriver() should mark it
 	 * as required again. If not (say, bond member removed),
@@ -448,15 +446,6 @@ prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global) {
 	    cd->callbacks.onStep = ptpPortStepNotify;
 	    cd->callbacks.onLock = ptpPortLocked;
 	}
-
-	if(strlen(global->masterClock) > 0) {
-	    masterClock = getClockDriverByName(global->masterClock);
-	    if(masterClock == NULL) {
-		WARNING("Could not find designated master clock: %s\n", global->masterClock);
-	    }
-	}
-
-	setCckMasterClock(masterClock);
 
 	return true;
 
