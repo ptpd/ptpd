@@ -52,7 +52,11 @@
 	var = createCckTransportAddress();
 
 #define FREE_ADDR(var) \
-	freeCckTransportAddress((CckTransportAddress **)(&(var)))
+	{\
+	    CckTransportAddress* tmp = var;\
+	    freeCckTransportAddress(&tmp);\
+	    var = NULL;\
+	}
 
 /* set PTP groups / destination addresses */
 static void configurePtpAddrs(PtpClock *ptpClock, const int family);
@@ -861,8 +865,14 @@ static void
 freeTransportData(PtpClock *ptpClock)
 {
 
-    freeTTransport((TTransport**)&ptpClock->generalTransport);
-    freeTTransport((TTransport**)&ptpClock->eventTransport);
+    TTransport *event = ptpClock->eventTransport;
+    TTransport *general = ptpClock->generalTransport;
+
+    freeTTransport(&event);
+    freeTTransport(&general);
+
+    ptpClock->eventTransport = NULL;
+    ptpClock->generalTransport = NULL;
 
     FREE_ADDR(ptpClock->eventDestination);
     FREE_ADDR(ptpClock->generalDestination);

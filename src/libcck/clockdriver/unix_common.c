@@ -51,6 +51,12 @@
 #include <sys/timex.h>
 #endif /* HAVE_SYS_TIMEX_H */
 
+#ifndef HAVE_ADJTIMEX
+#ifdef HAVE_NTP_ADJTIME
+#define adjtimex ntp_adjtime
+#endif /* HAVE_NTP_ADJTIME */
+#endif /* HAVE_ADJTIMEX */
+
 #ifdef HAVE_SYS_TIMEX_H
 
 int

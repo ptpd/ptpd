@@ -1298,7 +1298,7 @@ recordSync(UInteger16 sequenceId, TimeInternal * time)
 double
 getRand(void)
 {
-	return((rand() * 1.0) / RAND_MAX);
+	return((rand() * 1.0) / (RAND_MAX + 0.0));
 }
 
 /* Attempt setting advisory write lock on a file descriptor*/

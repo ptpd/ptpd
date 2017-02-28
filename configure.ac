@@ -27,12 +27,15 @@ MAN_VERSION="VERSION_NUMBER"
 AC_SUBST(MAN_DATE)
 AC_SUBST(MAN_VERSION)
 
-# Checks for programs.
+# Checks for programs
 AC_PROG_AWK
 AC_PROG_CC
 ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99])
-AC_PROG_LIBTOOL
 AM_PROG_CC_C_O
+
+# We do not need this for now, also produces autoconf 2.69 warnings
+# AC_PROG_LIBTOOL
+
 
 # Check for date, cut and tr
 

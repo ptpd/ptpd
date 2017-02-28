@@ -58,6 +58,9 @@ static void warnRestart(const char *key, int flags);
 static int configMapBoolean(int opCode, void *opArg,  dictionary* dict,
 	dictionary *target, const char * key, int restartFlags, Boolean *var, Boolean def, const char* helptext);
 
+static int configMapBool(int opCode, void *opArg,  dictionary* dict,
+	dictionary *target, const char * key, int restartFlags, bool *var, bool def, const char* helptext);
+
 static int configMapString(int opCode, void *opArg,  dictionary *dict,
 	dictionary *target, const char *key, int restartFlags, char *var, int size, char *def, const char* helptext);
 
@@ -269,6 +272,66 @@ warnRestart(const char *key, int flags)
 static int
 configMapBoolean(int opCode, void *opArg,  dictionary* dict, dictionary *target,
 		    const char * key, int restartFlags, Boolean *var, Boolean def, const char* helptext)
+{
+
+	if(opCode & CFGOP_RESTART_FLAGS) {
+	    if(CONFIG_ISSET(key)) {
+		*(int*)opArg |= restartFlags;
+		if(opCode & CFGOP_RESTART_FLAGS && !(opCode & CFGOP_PARSE_QUIET)) {
+		    warnRestart(key, restartFlags);
+		}
+	    }
+	    return 1;
+	} else if(opCode & CFGOP_HELP_FULL || opCode & CFGOP_HELP_SINGLE) {
+
+		char *helpKey = (char*)opArg;
+
+		if((opCode & CFGOP_HELP_SINGLE)){
+		    if (strcmp(key, helpKey)) {
+			return 1;
+		    } else {
+			/* this way we tell the caller that we have already found the setting we were looking for */
+			/* ...it is a pretty shit method, I solemnly admit. */
+			helpKey[0] = '\0';
+		    }
+		}
+
+		printf("setting: %s (--%s)\n", key, key);
+		printf("   type: BOOLEAN (value must start with t/T/y/Y/1/f/F/n/N/0)\n");
+		printf("  usage: %s\n", helptext);
+		printf("default: %s\n", def ? "Y" : "N");
+		printf("\n");
+		return 1;
+	} else {
+		if (!CONFIG_ISPRESENT(key)) {
+		    *var = def;
+		    dictionary_set(target,key,(*var)?"Y":"N");
+		    if(strcmp(helptext, "") && opCode & CFGOP_PRINT_DEFAULT) {
+			    printComment(helptext);
+			    printf("%s = %s\n", key,(*var)?"Y":"N");
+		    }
+		    return 1;
+		} else if(!CONFIG_ISSET(key) || iniparser_getboolean(dict,key,-1) == -1) {
+		    if(!(opCode & CFGOP_PARSE_QUIET)) {
+			ERROR("Configuration error: option \"%s='%s'\" has unknown boolean value:  must start with 0/1/t/T/f/F/y/Y/n/N\n",key,iniparser_getstring(dict,key,""));
+		    }
+		    dictionary_set(target,key,""); /* suppress the "unknown entry" warning for malformed boolean values */ \
+		    return 0;
+		} else {
+		    *var=iniparser_getboolean(dict,key,def);
+		    dictionary_set(target,key,(*var)?"Y":"N");
+		    if(strcmp(helptext, "") && opCode & CFGOP_PRINT_DEFAULT) {
+			    printComment(helptext);\
+			    printf("%s = %s\n", key,(*var)?"Y":"N");
+		    }
+		    return 1;
+		}
+	}
+}
+
+static int
+configMapBool(int opCode, void *opArg,  dictionary* dict, dictionary *target,
+		    const char * key, int restartFlags, bool *var, bool def, const char* helptext)
 {
 
 	if(opCode & CFGOP_RESTART_FLAGS) {
@@ -1501,8 +1564,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 		"DiffServ CodepPoint for packet prioritisation (decimal). When set to zero, \n"
 	"	 this option is not used. Use 46 for Expedited Forwarding (0x2e).",RANGECHECK_RANGE,0,63);
 
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_enable",
-		PTPD_RESTART_FILTERS, (Boolean*)&global->filterMSOpts.enabled, global->filterMSOpts.enabled,
+	parseResult &= configMapBool(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_enable",
+		PTPD_RESTART_FILTERS, &global->filterMSOpts.enabled, global->filterMSOpts.enabled,
 		 "Enable statistical filter for Sync messages.");
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:sync_stat_filter_type",
@@ -1533,8 +1596,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	"sliding", WINDOW_SLIDING,
 	"interval", WINDOW_INTERVAL, NULL);
 
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_enable",
-		PTPD_RESTART_FILTERS, (Boolean*)&global->filterSMOpts.enabled, global->filterSMOpts.enabled,
+	parseResult &= configMapBool(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_enable",
+		PTPD_RESTART_FILTERS, &global->filterSMOpts.enabled, global->filterSMOpts.enabled,
 		 "Enable statistical filter for Delay messages.");
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:delay_stat_filter_type",

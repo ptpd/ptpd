@@ -35,8 +35,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <linux/if.h>
 #include "linuxphc_vext_solarflare.h"
+#include "efx_ioctl_timesync.h"
 #include <libcck/cck.h>
+
+typedef struct {
+	struct ifreq ifr;
+	struct efx_sock_ioctl sfioctl;
+	int fd;
+	char ifName[IFNAMSIZ + 1];
+} ClockDriverExtData_solarflare;
 
 static bool getSystemClockOffset(ClockDriver *driver, CckTimestamp *output);
 static int vendorInit(ClockDriver *driver);

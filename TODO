@@ -34,7 +34,7 @@
 - complete built-in templates
 - add dummy or populated default template file x [dummy]
 - NVRAM write?
-- use split token loop macros
+- use split token loop macros x
 - SET messages to refresh the config properly x/-
   add set + commit + rollback as snmp handles
 - remaining management message SET handling
@@ -64,14 +64,14 @@
 - man: diff -O vs. man, complete any missing entries
 - man: alarms and descriptions
 - document SNMP integration and alarm handling
-- document HW/w integrationc, clock states and clock selection
-- clockdriver: implement vendor-specific extensions. Dependency: get MAC address, ioctl helper,
+- document HW/w integration, clock states and clock selection
+x clockdriver: implement vendor-specific extensions. Dependency: get MAC address, ioctl helper,
   dependency: netutils.c
-- net: source address selection
+x- net: source address selection
 
-- net: extract helper code to netutils.c, create a "static class" providing functions netutils()->fun()
 
-- start working on transport implementation, TransportAddress etc.
+
+x start working on transport implementation, TransportAddress etc.
 - reconsider NTP integration? Shm with zero offsets? Forget about mode6 / mode7. Too much work.
 
 - JSON interface for configuration?

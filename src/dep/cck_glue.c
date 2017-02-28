@@ -51,7 +51,11 @@
 	var = createCckTransportAddress();
 
 #define FREE_ADDR(var) \
-	freeCckTransportAddress((CckTransportAddress **)(&(var)))
+	{\
+	    CckTransportAddress* tmp = var;\
+	    freeCckTransportAddress(&tmp);\
+	    var = NULL;\
+	}
 
 static bool pushClockDriverPrivateConfig_unix(ClockDriver *driver, const GlobalConfig *global);
 
@@ -383,7 +387,9 @@ shutdownPtpTimers(PtpClock *ptpClock)
 
     for(int i=0; i<PTP_MAX_TIMER; i++) {
 	if(ptpClock->timers[i].data) {
-	freeCckTimer((CckTimer**)&ptpClock->timers[i].data);
+	    CckTimer *tmp = ptpClock->timers[i].data;
+	    freeCckTimer(&tmp);
+	    ptpClock->timers[i].data = NULL;
 	    memset(&ptpClock->timers[i], 0, sizeof(PtpTimer));
 	}
     }
