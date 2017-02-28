@@ -288,7 +288,6 @@ createClockDriversFromString(const char* list, bool (*pushConfig) (ClockDriver *
 
 	ClockDriverSpec spec;
 	ClockDriver *cd = NULL;
-	bool errors = false;
 	int namelen = 0;
 	int pathlen = 0;
 	memset(&spec, 0, sizeof(spec));
@@ -296,7 +295,6 @@ createClockDriversFromString(const char* list, bool (*pushConfig) (ClockDriver *
 	foreach_token_begin(clockspecs, list, specLine, DEFAULT_TOKEN_DELIM);
 
 	    if(!parseClockDriverSpec(specLine, &spec)) {
-		errors = true;
 		counter_clockspecs--;
 		continue;
 	    }
@@ -316,7 +314,6 @@ createClockDriversFromString(const char* list, bool (*pushConfig) (ClockDriver *
 
 	    if(!strlen(spec.name) && !strlen(spec.path)) {
 		CCK_ERROR(THIS_COMPONENT"Clock driver string: \"%s\": no name or path given\n", specLine);
-		errors = true;
 		counter_clockspecs--;
 		continue;
 	    }
