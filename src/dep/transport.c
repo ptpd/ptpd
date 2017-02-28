@@ -977,7 +977,7 @@ initPtpTransports(PtpClock *ptpClock, CckFdSet *fdSet, const GlobalConfig *globa
 
     configureAcls(ptpClock, global);
 
-    controlClockDrivers(CD_NOTINUSE);
+    controlClockDrivers(CD_NOTINUSE, NULL);
 
     if(!prepareClockDrivers(ptpClock, global)) {
 	ERROR("Cannot start clock drivers - aborting mission\n");
@@ -1007,7 +1007,7 @@ initPtpTransports(PtpClock *ptpClock, CckFdSet *fdSet, const GlobalConfig *globa
     setCckMasterClock(masterClock);
 
     /* clean up unused clock drivers */
-    controlClockDrivers(CD_CLEANUP);
+    controlClockDrivers(CD_CLEANUP, NULL);
 
     reconfigureClockDrivers(configureClockDriver, global);
 
@@ -1097,7 +1097,6 @@ ptpNetworkChange(void *transport, void *owner, const bool major)
     PtpClock *port = owner;
 
     if(major) {
-
 	NOTICE("Major transport change: re-initialising PTP\n");
 	setPtpClockIdentity(port);
 	setPtpNetworkInfo(port);
@@ -1115,11 +1114,15 @@ static int
 ptpClockDriverChange (void *transport, void *owner)
 {
 
+    /* skip one offset */
+    int skipSync = 1;
+
     PtpClock *port = owner;
 
     prepareClockDrivers(port, port->global);
 
-//    ptpClock->clockDriver->setReference(ptpClock->clockDriver, NULL);
+    /* all drivers skip one beat */
+    controlClockDrivers(CD_SKIPSYNC, &skipSync);
 
     return 1;
 

@@ -76,7 +76,7 @@
 #define TT_HDRLEN_UDPV6		62			/* 14 eth + 20 IP6 + 8 UDP */
 
 /* default monitor + rate update interval */
-#define TT_MONITOR_INTERVAL 1.5
+#define TT_MONITOR_INTERVAL 1
 
 /* default network fault clear timeout */
 #define TT_FAULT_TIMEOUT 10

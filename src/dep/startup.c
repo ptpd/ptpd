@@ -328,7 +328,7 @@ restartSubsystems(GlobalConfig *global, PtpClock *ptpClock)
 
 		}
 
-		controlClockDrivers(CD_NOTINUSE);
+		controlClockDrivers(CD_NOTINUSE, NULL);
 		prepareClockDrivers(ptpClock, global);
 		createClockDriversFromString(global->extraClocks, configureClockDriver, global, TRUE);
 		/* check if we want a master clock */
@@ -342,7 +342,7 @@ restartSubsystems(GlobalConfig *global, PtpClock *ptpClock)
 		setCckMasterClock(masterClock);
 
 		/* clean up unused clock drivers */
-		controlClockDrivers(CD_CLEANUP);
+		controlClockDrivers(CD_CLEANUP, NULL);
 		reconfigureClockDrivers(configureClockDriver, global);
 
 		    /* Config changes don't require subsystem restarts - acknowledge it */

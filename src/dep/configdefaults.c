@@ -305,7 +305,7 @@ loadDefaultSettings( GlobalConfig* global )
 	global->clockSyncRate = CLOCKDRIVER_SYNC_RATE;
 	global->clockFailureDelay = 10;
 	global->clockStrictSync = TRUE;
-	global->clockMinStep = 500;
+	global->clockMinStep = 10000;
 	global->clockCalibrationTime = 10;
 	global->clockFreqStepDetection = false;
 

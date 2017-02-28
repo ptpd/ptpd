@@ -132,7 +132,8 @@ int32_t
 feedIntPermanentMean(IntPermanentMean* container, int32_t sample)
 {
 
-	container->mean += ( sample - container-> mean ) / ++container->count;
+	container->count++;
+	container->mean += ( sample - container-> mean ) / container->count;
 
 	if(container->previous) {
 	    container->bufferedMean = (container->previous + container->mean) / 2;
@@ -214,8 +215,8 @@ resetDoublePermanentMean(DoublePermanentMean* container)
 double
 feedDoublePermanentMean(DoublePermanentMean* container, double sample)
 {
-
-	container->mean += ( sample - container-> mean ) / ++container->count;
+	container->count++;
+	container->mean += ( sample - container-> mean ) / container->count;
 
 	if(container->previous) {
 	    container->bufferedMean = (container->previous + container->mean) / 2;

@@ -49,6 +49,8 @@
 #define CLOCKDRIVER_SYNC_RATE 5
 #define SYSTEM_CLOCK_NAME "syst"
 #define CLOCKDRIVER_FREQFILE_PREFIX "clock"
+/* how many next sync updates to skip after a change or failover */
+#define CLOCKDRIVER_CHANGE_SKIP_SYNC 10
 
 /* Difference between Unix time / UTC and NTP time */
 #define NTP_EPOCH 2208988800ULL
@@ -87,7 +89,8 @@ enum {
     CD_SHUTDOWN,	/* shutdown all */
     CD_CLEANUP,		/* clean up drivers not in use */
     CD_DUMP,		/* dump clock information for all */
-    CD_STEP		/* step all clocks to their last known offsets */
+    CD_STEP,		/* step all clocks to their last known offsets */
+    CD_SKIPSYNC		/* discard next n offsets */
 };
 
 /* clock stepping behaviour */
@@ -317,9 +320,10 @@ struct ClockDriver {
     double _tau;			/* time constant (servo run interval) */
     DoubleMovingStatFilter *_filter;	/* offset filter */
     DoubleMovingStatFilter *_madFilter;	/* MAD container */
+    int	_estimateCount;
     CckTimestamp _lastDelta;			/* last offset used during frequency estimation */
     DoublePermanentMean _calMean;	/* mean contained used during frequency estimation */
-    bool _skipSync;			/* skip next sync */
+    int _skipSync;			/* skip next n sync requests */
     int *_instanceCount;		/* instance counter for the whole component */
 
     /* libCCK common fields - to be included in a general object header struct */
@@ -401,7 +405,7 @@ void		cdDummyOwnerCallback(void *owner);
 ClockDriver* 	getSystemClock();
 
 void 		shutdownClockDrivers();
-void		controlClockDrivers(int);
+void		controlClockDrivers(int, const void*);
 
 void		updateClockDrivers(int);
 

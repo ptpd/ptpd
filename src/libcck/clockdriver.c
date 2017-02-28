@@ -522,7 +522,7 @@ syncClocks(double tau) {
 
 	    if(cd->state == CS_LOCKED) {
 		cd->syncClock(cd, tau);
-		cd->_skipSync = true;
+		cd->_skipSync = 1;
 	    }
     }
     /* sync the whole rest */
@@ -532,10 +532,8 @@ syncClocks(double tau) {
 		continue;
 	    }
 
-	    if(!cd->_skipSync) {
-		cd->syncClock(cd, tau);
-	    }
-	    cd->_skipSync = false;
+	    cd->syncClock(cd, tau);
+
     }
 
 
@@ -1044,29 +1042,40 @@ estimateFrequency(ClockDriver *driver, double tau) {
 	    return false;
 	}
 
+	/* first run */
 	if(!(driver->_lastDelta.nanoseconds)) {
 	    resetDoublePermanentMean(&driver->_calMean);
 	    resetClockAge(driver);
+	    driver->_estimateCount = 0;
 	    driver->_lastDelta = driver->refOffset;
 	    return false;
 	}
 
-	tsOps()->sub(&delta, &driver->refOffset, &driver->_lastDelta);
+	driver->_estimateCount++;
 
-	dDelta = tsOps()->toDouble(&delta);
+	/* update frequency estimate every second */
+	if((driver->_estimateCount % (int)(1 / tau)) == 0) {
 
-	feedDoublePermanentMean(&driver->_calMean, dDelta / tau);
-	driver->estimatedFrequency = driver->_calMean.mean * 1E9;
-	driver->_lastDelta = driver->refOffset;
+	    tsOps()->sub(&delta, &driver->refOffset, &driver->_lastDelta);
+	    dDelta = tsOps()->toDouble(&delta);
+	    feedDoublePermanentMean(&driver->_calMean, dDelta);
+	    CCK_DBG(THIS_COMPONENT"estimateFrequency('%s): samples %.0f delta %.09f mean %.09f\n", driver->name,
+		driver->_calMean.count / tau, dDelta, driver->_calMean.mean);
+	    driver->estimatedFrequency = driver->_calMean.mean  * 1E9;
+	    driver->_lastDelta = driver->refOffset;
 
+	}
+
+	/* frequency estimation time is up */
 	if(driver->age.seconds >= driver->config.calibrationTime) {
-			CCK_INFO(THIS_COMPONENT"Clock %s estimated frequency error %.03f ppb\n",
-				driver->name, driver->estimatedFrequency);
-			driver->_lastDelta.seconds = 0;
-			driver->_lastDelta.nanoseconds = 0;
-			setFrequencyEstimate(driver);
-			driver->stepTime(driver, &driver->refOffset, false);
-			driver->setState(driver, CS_TRACKING);
+		CCK_INFO(THIS_COMPONENT"Clock %s estimated frequency error %.03f ppb (%d samples)\n",
+			driver->name, driver->estimatedFrequency, (int)(driver->_calMean.count / tau) );
+		driver->_lastDelta.seconds = 0;
+		driver->_lastDelta.nanoseconds = 0;
+		driver->_estimateCount = 0;
+		setFrequencyEstimate(driver);
+		driver->stepTime(driver, &driver->refOffset, false);
+		driver->setState(driver, CS_TRACKING);
 	}
 
 	return true;
@@ -1158,6 +1167,11 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
     CckTimestamp offsetCorrection = { 0, driver->config.offsetCorrection };
 
     if(driver->config.disabled) {
+	return false;
+    }
+
+    if(driver->_skipSync > 0) {
+	driver->_skipSync--;
 	return false;
     }
 
@@ -1592,7 +1606,7 @@ void configureClockDriverFilters(ClockDriver *driver) {
 }
 
 void
-controlClockDrivers(int command) {
+controlClockDrivers(int command, const void *arg) {
 
     ClockDriver *cd;
     bool found;
@@ -1638,6 +1652,16 @@ controlClockDrivers(int command) {
 		CCK_INFO(THIS_COMPONENT"Clock driver %s state %s\n", cd->name, getClockStateName(cd->state));
 	    }
 	break;
+
+	case CD_SKIPSYNC:
+	    LL_FOREACH_STATIC(cd) {
+		if(cd->config.disabled || !cd->inUse) {
+		    continue;
+		}
+		cd->_skipSync = *(const int*)arg;
+	    }
+	break;
+
 
 	default:
 	    CCK_ERROR(THIS_COMPONENT"Unnown clock driver command %02d\n", command);
@@ -2090,9 +2114,11 @@ setCckMasterClock(ClockDriver *newMaster)
     }
 
     if((_masterClock != NULL) && (_masterClock->refClass == RC_NONE)) {
+
 	_masterClock->setExternalReference(_masterClock, PREFMST_REFNAME, RC_EXTERNAL);
 	_masterClock->maintainLock = true;
 	_masterClock->setState(_masterClock, CS_LOCKED);
+
     }
 
 }
