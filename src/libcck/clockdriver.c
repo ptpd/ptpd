@@ -100,7 +100,6 @@ static void setFrequencyEstimate(ClockDriver *);
 static void resetClockAge(ClockDriver *driver);
 static bool filterClock(ClockDriver *driver, double tau); /* filter the current refOffset */
 
-
 ClockDriver *
 createClockDriver(int driverType, const char *name)
 {
@@ -1031,7 +1030,6 @@ setFrequencyEstimate (ClockDriver *driver) {
 
 }
 
-
 static bool
 estimateFrequency(ClockDriver *driver, double tau) {
 
@@ -1053,23 +1051,25 @@ estimateFrequency(ClockDriver *driver, double tau) {
 
 	driver->_estimateCount++;
 
-	/* update frequency estimate every second */
-	if((driver->_estimateCount % (int)(1 / tau)) == 0) {
+	/* update frequency estimate at least every second */
+	if((driver->_estimateCount * tau) >= CLOCKDRIVER_FREQEST_INTERVAL) {
 
 	    tsOps()->sub(&delta, &driver->refOffset, &driver->_lastDelta);
-	    dDelta = tsOps()->toDouble(&delta);
-	    feedDoublePermanentMean(&driver->_calMean, dDelta);
+	    dDelta = tsOps()->toDouble(&delta) / (driver->_estimateCount * tau);
+	    feedDoublePermanentMean(&driver->_calMean, dDelta );
 	    CCK_DBG(THIS_COMPONENT"estimateFrequency('%s): samples %.0f delta %.09f mean %.09f\n", driver->name,
-		driver->_calMean.count / tau, dDelta, driver->_calMean.mean);
+		driver->_calMean.count, dDelta, driver->_calMean.mean);
 	    driver->estimatedFrequency = driver->_calMean.mean  * 1E9;
 	    driver->_lastDelta = driver->refOffset;
+	    driver->_estimateCount = 0;
 
 	}
 
 	/* frequency estimation time is up */
-	if(driver->age.seconds >= driver->config.calibrationTime) {
-		CCK_INFO(THIS_COMPONENT"Clock %s estimated frequency error %.03f ppb (%d samples)\n",
-			driver->name, driver->estimatedFrequency, (int)(driver->_calMean.count / tau) );
+	if(driver->age.seconds >=
+	    max(max(CLOCKDRIVER_FREQEST_MIN_TAU * tau, CLOCKDRIVER_FREQEST_INTERVAL), driver->config.calibrationTime)) {
+		CCK_INFO(THIS_COMPONENT"Clock %s estimated frequency error %.03f ppb\n",
+			driver->name, driver->estimatedFrequency);
 		driver->_lastDelta.seconds = 0;
 		driver->_lastDelta.nanoseconds = 0;
 		driver->_estimateCount = 0;

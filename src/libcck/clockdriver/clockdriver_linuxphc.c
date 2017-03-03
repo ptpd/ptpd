@@ -492,7 +492,7 @@ getSystemClockOffset(ClockDriver *self, CckTimestamp *output)
     CCK_GET_PDATA(ClockDriver, linuxphc, self, myData);
     CCK_GET_PCONFIG(ClockDriver, linuxphc, self, myConfig);
 
-    CckTimestamp t1, t2, tptp, tmpDelta, duration, minDuration, delta;
+    CckTimestamp delta = {0,0,0};
 
     struct ptp_clock_time *samples;
     struct ptp_sys_offset sof;
@@ -503,7 +503,6 @@ getSystemClockOffset(ClockDriver *self, CckTimestamp *output)
 	return false;
     }
 
-
     if(ioctl(myData->clockFd, PTP_SYS_OFFSET, &sof) < 0) {
 	CCK_PERROR(THIS_COMPONENT"Could not read OS clock offset for %s (%s)",
 		self->name, myConfig->characterDevice);
@@ -513,7 +512,15 @@ getSystemClockOffset(ClockDriver *self, CckTimestamp *output)
 
     samples = sof.ts;
 
+    if(!sof.n_samples) {
+	CCK_DBG(THIS_COMPONENT"getSystemClockOffset('%s'): no samples returned!\n",
+	self->name);
+	return false;
+    }
+
     for(int i = 0; i < sof.n_samples; i++) {
+
+	CckTimestamp t1, t2, tptp, tmpDelta, duration, minDuration;
 
 	t1.seconds = samples[2*i].sec;
 	t1.nanoseconds = samples[2*i].nsec;

@@ -504,12 +504,12 @@ writeLockFile(GlobalConfig * global)
 static void
 exitHandler(PtpClock * ptpClock)
 {
-	NOTIFY("*** "PTPD_PROGNAME" shutting down on close signal\n");
+	NOTIFY(PTPD_PROGNAME" shutting down on close signal\n");
 
 	shutdownPtpPort(ptpClock, ptpClock->global);
 	ptpdShutdown(ptpClock);
 
-	NOTIFY("*** Shutdown\n");
+	NOTIFY(PTPD_PROGNAME" exiting\n");
 	exit(0);
 }
 

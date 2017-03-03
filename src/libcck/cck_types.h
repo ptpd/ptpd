@@ -44,14 +44,9 @@
 #include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
 
+#include <libcck/cck_timestamp.h>
+
 #define ZEROF 10E-12
-
-#define CCK_TIMESTAMP_STRLEN 30
-
-typedef struct {
-	int32_t		seconds;
-	int32_t		nanoseconds;
-} CckTimestamp;
 
 typedef struct {
 	int value;

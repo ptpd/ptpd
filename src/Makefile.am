@@ -71,6 +71,8 @@ ptpd_SOURCES =				\
 	libcck/linked_list.h		\
 	libcck/cck_utils.h		\
 	libcck/cck_utils.c		\
+	libcck/cck_timestamp.h		\
+	libcck/cck_timestamp.c		\
 	libcck/fd_set.h			\
 	libcck/fd_set.c			\
 	libcck/timer.def		\

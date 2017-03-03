@@ -44,11 +44,14 @@
 #include <libcck/statistics.h>
 #include <libcck/cck_types.h>
 
-#define CLOCKDRIVER_UPDATE_INTERVAL 1
-#define CLOCKDRIVER_CCK_WARNING_TIMEOUT 60
-#define CLOCKDRIVER_SYNC_RATE 5
-#define SYSTEM_CLOCK_NAME "syst"
-#define CLOCKDRIVER_FREQFILE_PREFIX "clock"
+#define CLOCKDRIVER_UPDATE_INTERVAL 1		/* clock status update / check interval */
+#define CLOCKDRIVER_CCK_WARNING_TIMEOUT 60	/* max frequency output and other warnings */
+#define CLOCKDRIVER_SYNC_RATE 5			/* default clock sync rate per second */
+#define CLOCKDRIVER_FREQEST_INTERVAL 2		/* minimum frequency estimation delta interval */
+#define CLOCKDRIVER_FREQEST_MIN_TAU 2		/* ensure that frequency is estimated for at least 2 tau */
+#define SYSTEM_CLOCK_NAME "syst"		/* predefined system clock name */
+#define CLOCKDRIVER_FREQFILE_PREFIX "clock"	/* frequency file prefix */
+
 /* how many next sync updates to skip after a change or failover */
 #define CLOCKDRIVER_CHANGE_SKIP_SYNC 10
 
@@ -103,10 +106,12 @@ enum {
 
 /* reference class, in order from least to most preferred */
 enum {
-    RC_NONE	= 0, /* because on init it is zero */
-    RC_INTERNAL = 1, /* internal clock driver */
-    RC_EXTERNAL = 2, /* arbitrary external reference */
-    RC_PTP	= 3
+    RC_NONE	= 0,	/* because on init it is zero */
+    RC_INTERNAL = 1,	/* internal clock driver */
+    RC_EXTERNAL = 2,	/* arbitrary external reference */
+    RC_NTP	= 3,	/* NTP */
+    RC_PTP	= 4,	/* PTP */
+    RC_1PPS	= 5	/* 1PPS */
 };
 
 /* clock states */
@@ -243,7 +248,7 @@ struct ClockDriver {
     CckTimestamp age;			/* clock's age (time spent in current state) */
 
     int timeScale;			/* for future use: clock's native time scale */
-    int utcOffset;			/* for future use: clock timescale's offset to UTC */
+//    int utcOffset;			/* for future use: clock timescale's offset to UTC */
 
     int distance;			/* number of "hops" from topmost reference */
 
@@ -429,7 +434,7 @@ void		setCckMasterClock(ClockDriver *);
 ClockDriver*	getCckMasterClock();
 
 /* other utility functions */
-int parseLeapFile(ClockLeapInfo *info, const char *path);
+int		parseLeapFile(ClockLeapInfo *info, const char *path);
 
 /* invoking this without CCK_REGISTER_IMPL defined, includes the implementation headers */
 #include "clockdriver.def"

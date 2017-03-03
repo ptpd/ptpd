@@ -139,27 +139,6 @@ memset(name, 0, name ## _len);
 /* dump LibCCK version information */
 void cckVersion();
 
-/* a collection of timestamp operations */
-typedef struct {
-	void (*add) (CckTimestamp *, const CckTimestamp *, const CckTimestamp *);
-	void (*sub) (CckTimestamp *, const CckTimestamp *, const CckTimestamp *);
-	double (*toDouble) (const CckTimestamp *);
-	CckTimestamp (*fromDouble) (const double);
-	void (*div2) (CckTimestamp *);
-	void (*clear) (CckTimestamp *);
-	CckTimestamp (*negative) (const CckTimestamp *);
-	void (*abs) (CckTimestamp *);
-	bool (*isNegative) (const CckTimestamp *);
-	bool (*isZero) (const CckTimestamp *);
-	int (*cmp) (const void *, const void *);
-	void (*mean2) (CckTimestamp *, CckTimestamp *, CckTimestamp *);
-	void (*rttCor) (CckTimestamp *, CckTimestamp *, CckTimestamp *, CckTimestamp *);
-} CckTimestampOps;
-
-/* grab the timestamp ops helper object */
-const	CckTimestampOps *tsOps(void);
-/* print formatted timestamp into buffer */
-int	snprint_CckTimestamp(char *s, int max_len, const CckTimestamp * p);
 /* get a FNV hash of @input buffer of size @len, modulo divide result by @modulo */
 uint32_t getFnvHash(const void *input, const size_t len, const int modulo);
 /* convert a hex digit (0-f) to int */

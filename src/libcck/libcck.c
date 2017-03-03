@@ -96,7 +96,6 @@ cckInit(CckFdSet *set)
 
     cckApplyConfig();
 
-
     CCK_NOTICE(THIS_COMPONENT"LibCCK version "CCK_API_VER_STR" initialised\n");
 
     return ret;

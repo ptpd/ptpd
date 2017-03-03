@@ -282,7 +282,7 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 				/* NO STEP */
 				} else {
 
-					if (filter->blocking && (filter->stepSamples > 0)) {
+					if (filter->blocking && (filter->stepSamples > 1)) {
 					    INFO_LOCAL_ID(filter,"step event over (%d samples), filter will stop blocking\n", filter->stepSamples);
 					}
 					filter->blocking = FALSE;
