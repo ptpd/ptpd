@@ -153,12 +153,19 @@ void setPortState(PtpClock *ptpClock, Enumeration8 state)
 {
 
     if(ptpClock->portDS.portState != state) {
-	ptpClock->portDS.lastPortState = ptpClock->portDS.portState;
-	DBG("State change from %s to %s\n", portState_getName(ptpClock->portDS.lastPortState), portState_getName(state));
+
+	DBG("State change request from %s to %s\n", portState_getName(ptpClock->portDS.lastPortState), portState_getName(state));
 
 	if(ptpClock->callbacks.onStateChange) {
-	    ptpClock->callbacks.onStateChange(ptpClock, ptpClock->portDS.portState, state);
+	    if(!ptpClock->callbacks.onStateChange(ptpClock, ptpClock->portDS.portState, state)) {
+		DBG("onStateChange callback denied state change request\n");
+		return;
+	    }
+
 	}
+
+	ptpClock->portDS.lastPortState = ptpClock->portDS.portState;
+
 
     }
 

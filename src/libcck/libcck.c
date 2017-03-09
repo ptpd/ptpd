@@ -62,9 +62,11 @@ static const char * timerDesc[] = {
 static const CckConfig defaults = {
 
     .clockSyncRate		= CLOCKDRIVER_SYNC_RATE,
-    .netMonitorInterval		= TT_MONITOR_INTERVAL,
     .clockUpdateInterval	= CLOCKDRIVER_UPDATE_INTERVAL,
+    .clockFaultTimeout		= CLOCKDRIVER_FAULT_TIMEOUT,
+    .transportMonitorInterval	= TT_MONITOR_INTERVAL,
     .transportFaultTimeout	= TT_FAULT_TIMEOUT,
+    .masterClockRefName		= "EXTSYNC"
 
 };
 
@@ -74,7 +76,6 @@ static CckFdSet fdSet;
 
 static bool initCckTimers(CckFdSet *set);
 static void cckTimerHandler(void *timer, void *owner);
-static void cckApplyConfig();
 
 bool
 cckInit(CckFdSet *set)
@@ -85,6 +86,7 @@ cckInit(CckFdSet *set)
     clearCckFdSet(set);
 
     /* set defaults */
+    memset(&config, 0, sizeof(config));
     memcpy(&config, &defaults, sizeof(config));
 
     ret &= initCckTimers(set);
@@ -130,12 +132,22 @@ cckDefaults()
     return &defaults;
 }
 
-static void
+void
 cckApplyConfig()
 {
+
+    ClockDriver *mc = getCckMasterClock();
+
     tmrctl(TMR_CLOCKUPDATE, start, config.clockUpdateInterval);
-    tmrctl(TMR_NETMONITOR, start, config.netMonitorInterval);
+    tmrctl(TMR_NETMONITOR, start, config.transportMonitorInterval);
     tmrctl(TMR_CLOCKSYNC, start, 1 / ( 0.0 + config.clockSyncRate));
+
+    if(mc != NULL) {
+	strncpy(mc->refName, config.masterClockRefName, sizeof(config.masterClockRefName));
+    }
+
+    CCK_DBG(THIS_COMPONENT"applyCckConfig() called\n");
+
 }
 
 static void

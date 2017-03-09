@@ -998,10 +998,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 
 	ptpPreset = getPtpPreset(global->selectedPreset, global);
 
-	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:transport",
+	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:transport_protocol",
 		PTPD_RESTART_NETWORK, &global->networkProtocol, global->networkProtocol,
-		"Transport type (protocol) used for PTP transmission. Unless ptpengine:transport_implementation\n"
-	"        is used, the best available transport implementation will be selected\n",
+		"Transport protocol used for PTP transmission. Unless ptpengine:transport_implementation\n"
+	"        is used, the best available transport implementation will be selected.",
 				"ipv4",		TT_FAMILY_IPV4,
 				"ipv6",		TT_FAMILY_IPV6,
 				"ethernet", 	TT_FAMILY_ETHERNET, NULL
@@ -1017,6 +1017,17 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 				#include <libcck/ttransport.def>
 				NULL
 				);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:transport_monitor_interval",
+		PTPD_RESTART_NONE, INTTYPE_INT, &global->transportMonitorInterval, global->transportMonitorInterval,
+		"Transport link state and address change monitoring interval (seconds).\n"
+	"        Shorter interval provides faster reaction to changes, but more intensive polling.",
+	RANGECHECK_RANGE, 1,60);
+
+	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:transport_fault_timeout",
+		PTPD_RESTART_NONE, INTTYPE_INT, &global->transportFaultTimeout, global->transportFaultTimeout,
+		"On transport failure, delay between attempting to test and restart the transport.",
+	RANGECHECK_RANGE, 1,600);
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "ptpengine:dot1as", PTPD_UPDATE_DATASETS, &global->dot1AS, global->dot1AS,
 		"Enable TransportSpecific field compatibility with 802.1AS / AVB (requires Ethernet transport)");
@@ -2075,6 +2086,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	"	 source such as NTP. This clock can only be controlled by PTP, otherwise it is\n"
 	"	 permanently in LOCKED state");
 
+	parseResult &= configMapString(opCode, opArg, dict, target, "clock:master_clock_reference_name",
+		PTPD_RESTART_NONE, global->masterClockRefName, sizeof(global->masterClockRefName), global->masterClockRefName,
+	"Specify the name of the external reference controlling the master clock (clock:master_clock_name).");
+
 	parseResult &= configMapString(opCode, opArg, dict, target, "clock:disabled_clock_names",
 		PTPD_RESTART_NONE, global->disabledClocks, sizeof(global->disabledClocks), global->disabledClocks,
 	"Specify a comma, space or tab separated list of names of clocks that should be disabled - disabled clocks\n"
@@ -2100,9 +2115,9 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 		"Clock sync rate (per second) - the rate at which internal clocks are synced\n"
 		"	 with each other (excluding PTP-controlled clocks)." ,RANGECHECK_RANGE,1,32);
 
-	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:failure_delay",
-		PTPD_RESTART_NONE, INTTYPE_INT, &global->clockFailureDelay,
-		global->clockFailureDelay,
+	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:fault_timeout",
+		PTPD_RESTART_NONE, INTTYPE_INT, &global->clockFaultTimeout,
+		global->clockFaultTimeout,
 		"Clock failure suspension timeout (seconds). When one of clock functions fails unexpectedly,\n"
 		"	 it is placed in HWFAIL state, its operation is suspended for this period,\n"
 		"	 after which a health check is performed, and if it succeeds, clock is brought\n"

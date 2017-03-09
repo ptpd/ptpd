@@ -67,7 +67,7 @@
 #include <libcck/libcck.h>
 #include <libcck/timer.h>
 
-GlobalConfig global;			/* statically allocated run-time
+static GlobalConfig global;			/* statically allocated run-time
 					 * configuration data */
 
 bool startupInProgress;
@@ -104,6 +104,7 @@ main(int argc, char **argv)
 	}
 
 	cckInit(getCckFdSet());
+	configureLibCck(&global);
 
 	if(!initPtpPort(&ptpClock, &global)) {
 	    return 1;
@@ -246,4 +247,12 @@ void shutdownPtpPort(PtpClock *port, GlobalConfig *global)
         freeDoubleMovingStatFilter(&port->filterMS);
         freeDoubleMovingStatFilter(&port->filterSM);
 
+}
+
+
+/* temporary */
+GlobalConfig*
+getGlobalConfig()
+{
+    return &global;
 }

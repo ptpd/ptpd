@@ -41,12 +41,14 @@
 #include "piservo.h"
 
 #include <libcck/cck.h>
+#include <libcck/libcck.h>
 #include <libcck/statistics.h>
 #include <libcck/cck_types.h>
 
 #define CLOCKDRIVER_UPDATE_INTERVAL 1		/* clock status update / check interval */
 #define CLOCKDRIVER_CCK_WARNING_TIMEOUT 60	/* max frequency output and other warnings */
 #define CLOCKDRIVER_SYNC_RATE 5			/* default clock sync rate per second */
+#define CLOCKDRIVER_FAULT_TIMEOUT 10		/* default clock driver fault timeout */
 #define CLOCKDRIVER_FREQEST_INTERVAL 2		/* minimum frequency estimation delta interval */
 #define CLOCKDRIVER_FREQEST_MIN_TAU 2		/* ensure that frequency is estimated for at least 2 tau */
 #define SYSTEM_CLOCK_NAME "syst"		/* predefined system clock name */
@@ -195,7 +197,7 @@ typedef struct {
     int stepType;			/* Clock reaction to a 1 second+ step */
     int stepTimeout;			/* Panic mode / suspend period when step detected */
     int calibrationTime;		/* Frequency estimation time */
-    int failureDelay;			/* Clock fault recovery countdown timer */
+    int faultTimeout;			/* Clock fault recovery countdown timer */
     int minStep;			/* Minimum delta a clock can be stepped by */
     int32_t offsetCorrection;		/* Offset correction / calibration value */
     uint32_t stepExitThreshold;		/* Offset from reference when we can exit panic mode early */
@@ -268,7 +270,7 @@ struct ClockDriver {
     ClockState state;			/* clock state */
     ClockState lastState;		/* previous clock state */
 
-    char refName[CCK_COMPONENT_NAME_MAX]; /* instance name of the clock's reference */
+    char refName[CCK_COMPONENT_NAME_MAX + 1]; /* instance name of the clock's reference */
     int refClass;			/* reference class - internal, external, PTP, etc. */
     int lastRefClass;			/* previous reference class (when we lost reference) */
     ClockDriver *refClock;		/* reference clock object */

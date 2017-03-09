@@ -53,12 +53,13 @@ typedef struct {
 	CckFdSet *fdSet;
 } PtpClockUserData;
 
+/* PTP callbacks and helpers */
 void ptpPortPostInit(PtpClock *ptpClock);
 void ptpPortPreShutdown(PtpClock *ptpClock);
 void setPtpClockIdentity(PtpClock *ptpClock);
 void ptpPortStepNotify(void *clockdriver, void *owner);
 void ptpPortFrequencyJump(void *clockdriver, void *owner);
-void ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to);
+bool ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to);
 void ptpPortLocked(void *clockdriver, void *owner, bool locked);
 
 /* timer support */
@@ -69,9 +70,12 @@ void shutdownPtpTimers(struct PtpClock *ptpClock);
 
 /* push clock driver configuration to a single clock driver */
 bool configureClockDriver(ClockDriver *driver, const void *configData);
+
+/* prepare clock drivers controlled by the given PTP clock */
 bool prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global);
 
-
+/* apply common libcck configuration */
+bool configureLibCck(const GlobalConfig *global);
 
 #endif /* _PTPD_CCK_GLUE_H */
 

@@ -78,7 +78,7 @@ static const ConfigTemplate configTemplates[] = {
     },
 
     { "layer2-p2p-master", "Layer 2 master using Peer to Peer", {
-	{"ptpengine:transport","ethernet"},
+	{"ptpengine:transport_protocol","ethernet"},
 	{"ptpengine:delay_mechanism","P2P"},
 	{"ptpengine:preset","masteronly"},
 //	{"",""},
@@ -86,7 +86,7 @@ static const ConfigTemplate configTemplates[] = {
     },
 
     { "layer2-p2p-slave", "Layer 2 slave running End to End", {
-	{"ptpengine:transport","ethernet"},
+	{"ptpengine:transport_protocol","ethernet"},
 	{"ptpengine:delay_mechanism","E2E"},
 	{"ptpengine:preset","slaveonly"},
 //	{"",""},
@@ -186,6 +186,8 @@ loadDefaultSettings( GlobalConfig* global )
 	global->timeProperties.ptpTimescale = TRUE;
 
 	global->transportMode = TMODE_MC;
+	global->transportMonitorInterval = TT_MONITOR_INTERVAL;
+	global->transportFaultTimeout = TT_FAULT_TIMEOUT;
 	global->dot1AS = FALSE;
 	global->bindToInterface = FALSE;
 
@@ -303,11 +305,16 @@ loadDefaultSettings( GlobalConfig* global )
 
 	global->clockUpdateInterval = CLOCKDRIVER_UPDATE_INTERVAL;
 	global->clockSyncRate = CLOCKDRIVER_SYNC_RATE;
-	global->clockFailureDelay = 10;
+	global->clockFaultTimeout = CLOCKDRIVER_FAULT_TIMEOUT;
 	global->clockStrictSync = TRUE;
 	global->clockMinStep = 10000;
 	global->clockCalibrationTime = 10;
-	global->clockFreqStepDetection = false;
+	global->clockFreqStepDetection = true;
+
+	global->masterFirstLock = true;
+	global->masterLockedOnly = false;
+
+	strncpy(global->masterClockRefName, "EXTSYNC", sizeof(global->masterClockRefName));
 
 	/* when measuring dT, use a maximum of 5 sync intervals (would correspond to avg 20% discard rate) */
 	global->servoMaxdT = 5.0;

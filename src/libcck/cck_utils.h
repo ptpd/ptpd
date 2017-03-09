@@ -88,6 +88,12 @@ memset(name, 0, name ## _len);
 /* "safe" callback: run only if callback pointer not null */
 #define SAFE_CALLBACK(fun, ...) { if(fun) { fun( __VA_ARGS__ ); } }
 
+/* set variable a to b if b greater than zero */
+#define SET_IF_POSITIVE(a,b) { if(b > 0) { a = b; } }
+
+/* set variable a to b if b greater than zero */
+#define SET_IF_POSITIVE(a,b) { if(b > 0) { a = b; } }
+
 /* byte swap */
 #ifndef swap16
 #define swap16(var) (((var & 0xff00) >> 8) | ((var & 0x00ff) << 8))

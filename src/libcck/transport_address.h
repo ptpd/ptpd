@@ -108,6 +108,7 @@
 
 #include <libcck/linked_list.h>
 #include <libcck/cck.h>
+#include <libcck/libcck.h>
 #include <libcck/cck_types.h>
 
 /* ========= address family ========= */

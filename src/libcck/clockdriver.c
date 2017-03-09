@@ -392,6 +392,7 @@ setState(ClockDriver *driver, ClockState newState) {
 	    }
 
 	    if(newState == CS_HWFAULT) {
+		driver->config.faultTimeout = getCckConfig()->clockFaultTimeout;
 		driver->setReference(driver, NULL);
 		SAFE_CALLBACK(driver->callbacks.onClockFault, driver, driver->owner, true);
 	    }
@@ -433,7 +434,7 @@ updateClockDrivers(int interval) {
 	    switch(cd->state) {
 
 		case CS_HWFAULT:
-		    if(cd->age.seconds >= cd->config.failureDelay) {
+		    if(cd->age.seconds >= cd->config.faultTimeout) {
 			if(cd->healthCheck(cd)) {
 			    cd->setState(cd, CS_FREERUN);
 			} else {
@@ -789,7 +790,7 @@ finalise:
 
     /* preferred master clock has lost reference - automatically assign imaginary external reference and lock it */
     if(a == _masterClock && b == NULL) {
-	a->setExternalReference(a, PREFMST_REFNAME, RC_EXTERNAL);
+	a->setExternalReference(a, getCckConfig()->masterClockRefName, RC_EXTERNAL);
 	a->maintainLock = true;
 	a->setState(a, CS_LOCKED);
     }
@@ -1329,6 +1330,8 @@ syncClock(ClockDriver* driver, double tau) {
 
 	/* nothing to sync with */
 	if(driver->externalReference || (driver->refClock == NULL)) {
+	    /* update frequency information */
+	    driver->lastFrequency = driver->getFrequency(driver);
 	    return false;
 	}
 
@@ -1967,8 +1970,8 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
 
     if((driver->state == CS_STEP) && driver->config.stepTimeout) {
 	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.stepTimeout - driver->age.seconds);
-    } else if((driver->state == CS_HWFAULT) && driver->config.failureDelay) {
-	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.failureDelay - driver->age.seconds);
+    } else if((driver->state == CS_HWFAULT) && driver->config.faultTimeout) {
+	snprintf(tmpBuf2, sizeof(tmpBuf2), "%s %-4d", getClockStateShortName(driver->state), driver->config.faultTimeout - driver->age.seconds);
     } else {
 	strncpy(tmpBuf2, getClockStateName(driver->state), CCK_COMPONENT_NAME_MAX);
     }
@@ -2115,7 +2118,7 @@ setCckMasterClock(ClockDriver *newMaster)
 
     if((_masterClock != NULL) && (_masterClock->refClass == RC_NONE)) {
 
-	_masterClock->setExternalReference(_masterClock, PREFMST_REFNAME, RC_EXTERNAL);
+	_masterClock->setExternalReference(_masterClock, getCckConfig()->masterClockRefName, RC_EXTERNAL);
 	_masterClock->maintainLock = true;
 	_masterClock->setState(_masterClock, CS_LOCKED);
 

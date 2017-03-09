@@ -35,14 +35,18 @@
 #ifndef LIBCCK_H_
 #define LIBCCK_H_
 
+#define CCK_COMPONENT_NAME_MAX 20
+
 #include <libcck/fd_set.h>
 
 typedef struct {
 
     int clockSyncRate;
-    int netMonitorInterval;
     int clockUpdateInterval;
+    int clockFaultTimeout;
+    int transportMonitorInterval;
     int transportFaultTimeout;
+    char masterClockRefName [CCK_COMPONENT_NAME_MAX + 1];
 
 } CckConfig;
 
@@ -51,5 +55,6 @@ void		cckShutdown();		/* shutdown all libCCK components */
 CckConfig*	getCckConfig();		/* get global libCCK configuration handle */
 CckFdSet*	getCckFdSet();		/* get global FD set */
 const CckConfig *cckDefaults();		/* get libcck default configuration */
+void cckApplyConfig();			/* apply current common libCCK configuration */
 
 #endif /* LIBCCK_H_ */

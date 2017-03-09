@@ -86,6 +86,4 @@
 #define CCK_GET_EXTDATA(comptype, extimpl, self, var) \
     comptype ##ExtData_##extimpl *var = (comptype ##ExtData_##extimpl*)self->_extData;
 
-#define CCK_COMPONENT_NAME_MAX 20
-
 #endif /* CCK_H_ */

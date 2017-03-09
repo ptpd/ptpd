@@ -36,6 +36,7 @@
 #define CCK_TIMER_H_
 
 #include <libcck/cck.h>
+#include <libcck/libcck.h>
 #include <libcck/linked_list.h>
 #include <libcck/cck_types.h>
 #include <libcck/fd_set.h>

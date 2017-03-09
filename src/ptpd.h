@@ -337,6 +337,8 @@ DECLARE_UNPACK( Octet )
 DECLARE_UNPACK( UInteger48 )
 DECLARE_UNPACK( Integer64 )
 
+GlobalConfig* getGlobalConfig();
+
 /* display.c */
 void displayGlobalConfig(const GlobalConfig*);
 void displayDefault (const PtpClock*);

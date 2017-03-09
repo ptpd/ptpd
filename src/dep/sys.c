@@ -289,7 +289,7 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char * format, va_list ap) {
 
 
-	extern GlobalConfig global;
+	GlobalConfig *global = getGlobalConfig();
 	extern Boolean startupInProgress;
 
 	char time_str[MAXTIMESTR];
@@ -299,14 +299,14 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 
 	bool debug = (priority >= LOG_DEBUG);
 
-	char *filter =  debug ? global.debugFilter : global.logFilter;
+	char *filter =  debug ? global->debugFilter : global->logFilter;
 
 	if(destination == NULL)
 		return -1;
 
 	/* If we're starting up as daemon, only print <= WARN */
 	if ((destination == stderr) &&
-		!global.nonDaemon && startupInProgress &&
+		!global->nonDaemon && startupInProgress &&
 		(priority > LOG_WARNING)){
 		    return 1;
 		}
@@ -315,7 +315,7 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 	vsnprintf(buf, PATH_MAX, format, ap);
 
 	/* deduplication */
-	if(!debug && global.deduplicateLog) {
+	if(!debug && global->deduplicateLog) {
 	    /* check if this message produces the same hash as last */
 	    hash = fnvHash(buf, sizeof(buf), 0);
 	    if(lastHash != NULL) {
@@ -335,7 +335,7 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 	}
 
 	/* Print timestamps and prefixes only if we're running in foreground or logging to file*/
-	if( global.nonDaemon || destination != stderr) {
+	if( global->nonDaemon || destination != stderr) {
 
 		/*
 		 * select debug tagged with timestamps. This will slow down PTP itself if you send a lot of messages!
@@ -390,30 +390,30 @@ updateLogSize(LogFileHandler* handler)
 void
 logMessageWrapper(int priority, const char * format, va_list ap)
 {
-	extern GlobalConfig global;
+	GlobalConfig *global = getGlobalConfig();
 	extern Boolean startupInProgress;
 
 	va_list ap1;
 	va_copy(ap1, ap);
 
 #ifdef RUNTIME_DEBUG
-	if ((priority >= LOG_DEBUG) && (priority > global.debug_level)) {
+	if ((priority >= LOG_DEBUG) && (priority > global->debug_level)) {
 		goto end;
 	}
 #endif
 
 	/* log level filter */
-	if(priority > global.logLevel) {
+	if(priority > global->logLevel) {
 	    goto end;
 	}
 	/* If we're using a log file and the message has been written OK, we're done*/
-	if(global.eventLog.logEnabled && global.eventLog.logFP != NULL) {
-	    if(writeMessage(global.eventLog.logFP, &global.eventLog.lastHash, priority, format, ap) > 0) {
-		maintainLogSize(&global.eventLog);
+	if(global->eventLog.logEnabled && global->eventLog.logFP != NULL) {
+	    if(writeMessage(global->eventLog.logFP, &global->eventLog.lastHash, priority, format, ap) > 0) {
+		maintainLogSize(&global->eventLog);
 		if(!startupInProgress)
 		    goto end;
 		else {
-		    global.eventLog.lastHash = 0;
+		    global->eventLog.lastHash = 0;
 		    goto std_err;
 		    }
 	    }
@@ -424,8 +424,8 @@ logMessageWrapper(int priority, const char * format, va_list ap)
 	 * If we're running in background and we're starting up, also log first
 	 * messages to syslog to at least leave a trace.
 	 */
-	if (global.useSysLog ||
-	    (!global.nonDaemon && startupInProgress)) {
+	if (global->useSysLog ||
+	    (!global->nonDaemon && startupInProgress)) {
 		static Boolean syslogOpened;
 #ifdef RUNTIME_DEBUG
 		/*
@@ -446,14 +446,14 @@ logMessageWrapper(int priority, const char * format, va_list ap)
 			goto end;
 		}
 		else {
-			global.eventLog.lastHash = 0;
+			global->eventLog.lastHash = 0;
 			goto std_err;
 		}
 	}
 std_err:
 
 	/* Either all else failed or we're running in foreground - or we also log to stderr */
-	writeMessage(stderr, &global.eventLog.lastHash, priority, format, ap1);
+	writeMessage(stderr, &global->eventLog.lastHash, priority, format, ap1);
 
 end:
 	va_end(ap1);
@@ -632,7 +632,7 @@ logStatistics(PtpClock * ptpClock)
 {
 
 	ClockDriver *cd = ptpClock->clockDriver;
-	extern GlobalConfig global;
+	GlobalConfig *global = getGlobalConfig();
 	static int errorMsg = 0;
 	static char sbuf[SCREEN_BUFSZ * 2];
 	int len = 0;
@@ -642,12 +642,12 @@ logStatistics(PtpClock * ptpClock)
 	static TimeInternal prev_now_sync, prev_now_delay;
 	char time_str[MAXTIMESTR];
 
-	if (!global.logStatistics) {
+	if (!global->logStatistics) {
 		return;
 	}
 
-	if(global.statisticsLog.logEnabled && global.statisticsLog.logFP != NULL)
-	    destination = global.statisticsLog.logFP;
+	if(global->statisticsLog.logEnabled && global->statisticsLog.logFP != NULL)
+	    destination = global->statisticsLog.logFP;
 	else
 	    destination = stdout;
 
@@ -657,7 +657,7 @@ logStatistics(PtpClock * ptpClock)
 		       "Offset From Master, Slave to Master, "
 		       "Master to Slave, Observed Drift, Last packet Received, Sequence ID"
 			", One Way Delay Mean, One Way Delay Std Dev, Offset From Master Mean, Offset From Master Std Dev, Observed Drift Mean, Observed Drift Std Dev, raw delayMS, raw delaySM"
-			"\n", (global.statisticsTimestamp == TIMESTAMP_BOTH) ? "Timestamp, Unix timestamp" : "Timestamp");
+			"\n", (global->statisticsTimestamp == TIMESTAMP_BOTH) ? "Timestamp, Unix timestamp" : "Timestamp");
 	}
 
 	memset(sbuf, 0, sizeof(sbuf));
@@ -668,11 +668,11 @@ logStatistics(PtpClock * ptpClock)
 	 * print one log entry per X seconds for Sync and DelayResp messages, to reduce disk usage.
 	 */
 
-	if ((ptpClock->portDS.portState == PTP_SLAVE) && (global.statisticsLogInterval)) {
+	if ((ptpClock->portDS.portState == PTP_SLAVE) && (global->statisticsLogInterval)) {
 			
 		switch(ptpClock->char_last_msg) {
 			case 'S':
-			if((now.seconds - prev_now_sync.seconds) < global.statisticsLogInterval){
+			if((now.seconds - prev_now_sync.seconds) < global->statisticsLogInterval){
 				DBGV("Suppressed Sync statistics log entry - statisticsLogInterval configured\n");
 				return;
 			}
@@ -680,7 +680,7 @@ logStatistics(PtpClock * ptpClock)
 			    break;
 			case 'D':
 			case 'P':
-			if((now.seconds - prev_now_delay.seconds) < global.statisticsLogInterval){
+			if((now.seconds - prev_now_delay.seconds) < global->statisticsLogInterval){
 				DBGV("Suppressed Sync statistics log entry - statisticsLogInterval configured\n");
 				return;
 			}
@@ -693,8 +693,8 @@ logStatistics(PtpClock * ptpClock)
 	time_s = now.seconds;
 
 	/* output date-time timestamp if configured */
-	if (global.statisticsTimestamp == TIMESTAMP_DATETIME ||
-	    global.statisticsTimestamp == TIMESTAMP_BOTH) {
+	if (global->statisticsTimestamp == TIMESTAMP_DATETIME ||
+	    global->statisticsTimestamp == TIMESTAMP_BOTH) {
 	    strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&time_s));
 	    len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s.%06d, %s, ",
 		       time_str, (int)now.nanoseconds/1000, /* Timestamp */
@@ -702,8 +702,8 @@ logStatistics(PtpClock * ptpClock)
 	}
 
 	/* output unix timestamp s.ns if configured */
-	if (global.statisticsTimestamp == TIMESTAMP_UNIX ||
-	    global.statisticsTimestamp == TIMESTAMP_BOTH) {
+	if (global->statisticsTimestamp == TIMESTAMP_UNIX ||
+	    global->statisticsTimestamp == TIMESTAMP_BOTH) {
 	    len += snprintf(sbuf + len, sizeof(sbuf) - len, "%d.%06d, %s,",
 		       now.seconds, now.nanoseconds, /* Timestamp */
 		       translatePortState(ptpClock)); /* State */
@@ -727,7 +727,7 @@ logStatistics(PtpClock * ptpClock)
 
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 
-		if(global.delayMechanism == E2E) {
+		if(global->delayMechanism == E2E) {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 						    &ptpClock->currentDS.meanPathDelay);
 		} else {
@@ -743,7 +743,7 @@ logStatistics(PtpClock * ptpClock)
 		/* print MS and SM with sign */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
 			
-		if(global.delayMechanism == E2E) {
+		if(global->delayMechanism == E2E) {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 							&(ptpClock->delaySM));
 		} else {
@@ -809,8 +809,8 @@ logStatistics(PtpClock * ptpClock)
 	    }
 	}
 
-	if(destination == global.statisticsLog.logFP) {
-		if (maintainLogSize(&global.statisticsLog))
+	if(destination == global->statisticsLog.logFP) {
+		if (maintainLogSize(&global->statisticsLog))
 			ptpClock->resetStatisticsLog = TRUE;
 	}
 
@@ -992,10 +992,20 @@ writeStatusFile(PtpClock *ptpClock,const GlobalConfig *global, Boolean quiet)
 	    memset(tmpBuf, 0, sizeof(tmpBuf));
 	    snprint_PortIdentity(tmpBuf, sizeof(tmpBuf),
 	    &ptpClock->parentDS.parentPortIdentity);
-	fprintf(out, 		STATUSPREFIX"  %s","Best master ID", tmpBuf);
-	if(ptpClock->portDS.portState == PTP_MASTER)
-	    fprintf(out," (self)");
-	    fprintf(out,"\n");
+
+	    fprintf(out, 		STATUSPREFIX"  %s","Best master ID", tmpBuf);
+	    if(ptpClock->portDS.portState == PTP_MASTER) {
+		fprintf(out," (self)\n");
+		fprintf(out, 		STATUSPREFIX
+			"  Priority1 %d, Priority2 %d\n","Local priority",
+			    ptpClock->defaultDS.priority1,
+			    ptpClock->defaultDS.priority2);
+	    } else {
+		fprintf(out,"\n");
+	    }
+
+
+
 	}
 
 	if(ptpClock->portDS.portState > PTP_MASTER &&
@@ -1006,7 +1016,7 @@ writeStatusFile(PtpClock *ptpClock,const GlobalConfig *global, Boolean quiet)
 	}
 
 	if(ptpClock->portDS.portState == PTP_SLAVE) {
-	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d","GM priority",
+	fprintf(out, 		STATUSPREFIX"  Priority1 %d, Priority2 %d, clockClass %d","Master priority",
 	ptpClock->parentDS.grandmasterPriority1, ptpClock->parentDS.grandmasterPriority2, ptpClock->parentDS.grandmasterClockQuality.clockClass);
 	if(global->unicastNegotiation && ptpClock->parentGrants != NULL ) {
 	    	fprintf(out, ", localPref %d", ptpClock->parentGrants->localPreference);
@@ -1285,12 +1295,12 @@ displayPortIdentity(PortIdentity *port, const char *prefixMessage)
 void
 recordSync(UInteger16 sequenceId, TimeInternal * time)
 {
-	extern GlobalConfig global;
-	if (global.recordLog.logEnabled && global.recordLog.logFP != NULL) {
-		fprintf(global.recordLog.logFP, "%d %llu\n", sequenceId,
+	GlobalConfig *global = getGlobalConfig();
+	if (global->recordLog.logEnabled && global->recordLog.logFP != NULL) {
+		fprintf(global->recordLog.logFP, "%d %llu\n", sequenceId,
 		  ((time->seconds * 1000000000ULL) + time->nanoseconds)
 		);
-		maintainLogSize(&global.recordLog);
+		maintainLogSize(&global->recordLog);
 	}
 }
 

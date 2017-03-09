@@ -51,12 +51,12 @@ typedef enum {
 	ALRM_OFM_SECONDS = 2, 		/*x done*/
 	ALRM_CLOCK_STEP = 3,		/*x done*/
 	ALRM_NO_SYNC = 4,		/*x done*/
-	ALRM_NO_DELAY = 5, 			/*x done*/
-	ALRM_MASTER_CHANGE = 6, 		/*x done*/
+	ALRM_NO_DELAY = 5, 		/*x done*/
+	ALRM_MASTER_CHANGE = 6, 	/*x done*/
 	ALRM_NETWORK_FLT = 7,		/*x done*/
-	ALRM_FAST_ADJ = 8,			/*+/- currently only at maxppb */
-	ALRM_TIMEPROP_CHANGE = 9,		/*x done*/
-	ALRM_DOMAIN_MISMATCH = 10, 		/*+/- currently only when all packets come from an incorrect domain */
+	ALRM_FAST_ADJ = 8,		/*+/- currently only at maxppb */
+	ALRM_TIMEPROP_CHANGE = 9,	/*x done*/
+	ALRM_DOMAIN_MISMATCH = 10, 	/*+/- currently only when all packets come from an incorrect domain */
 	ALRM_MAX
 } AlarmType;
 

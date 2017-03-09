@@ -335,7 +335,7 @@ struct PtpClock {
 //	    void (*postShutdown) (PtpClock *ptpClock);
 //	    int (*addrStrLen)	(void *addr);
 //	    char (*addrToString) (char *buf, const int len, void *addr);
-	    void (*onStateChange) (PtpClock *ptpClock, const uint8_t from, const uint8_t to);
+	    bool (*onStateChange) (PtpClock *ptpClock, const uint8_t from, const uint8_t to);
 	} callbacks;
 
 	/*Stats header will be re-printed when set to true*/

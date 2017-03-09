@@ -328,6 +328,8 @@ restartSubsystems(GlobalConfig *global, PtpClock *ptpClock)
 
 		}
 
+		configureLibCck(global);
+
 		controlClockDrivers(CD_NOTINUSE, NULL);
 		prepareClockDrivers(ptpClock, global);
 		createClockDriversFromString(global->extraClocks, configureClockDriver, global, TRUE);
@@ -444,16 +446,14 @@ checkSignals(GlobalConfig * global, PtpClock * ptpClock)
 /* These functions are useful to temporarily enable Debug around parts of code, similar to bash's "set -x" */
 void enable_runtime_debug(void )
 {
-	extern GlobalConfig global;
-	
-	global.debug_level = max(LOG_DEBUGV, global.debug_level);
+	GlobalConfig *global = getGlobalConfig();
+	global->debug_level = max(LOG_DEBUGV, global->debug_level);
 }
 
 void disable_runtime_debug(void )
 {
-	extern GlobalConfig global;
-	
-	global.debug_level = LOG_INFO;
+	GlobalConfig *global = getGlobalConfig();
+	global->debug_level = LOG_INFO;
 }
 #endif
 
@@ -517,33 +517,33 @@ void
 ptpdShutdown(PtpClock * ptpClock)
 {
 
-	extern GlobalConfig global;
+	GlobalConfig *global = getGlobalConfig();
 	
 	cckShutdown();
 
-	if (global.currentConfig != NULL)
-		dictionary_del(&global.currentConfig);
-	if(global.cliConfig != NULL)
-		dictionary_del(&global.cliConfig);
+	if (global->currentConfig != NULL)
+		dictionary_del(&global->currentConfig);
+	if(global->cliConfig != NULL)
+		dictionary_del(&global->cliConfig);
 
 	/* properly clean lockfile (eventough new deaemons can acquire the lock after we die) */
-	if(!global.ignoreLock && G_lockFilePointer != NULL) {
+	if(!global->ignoreLock && G_lockFilePointer != NULL) {
 	    fclose(G_lockFilePointer);
 	    G_lockFilePointer = NULL;
 	}
 
-	unlink(global.lockFile);
+	unlink(global->lockFile);
 
-	if(global.statusLog.logEnabled) {
+	if(global->statusLog.logEnabled) {
 		/* close and remove the status file */
-		if(global.statusLog.logFP != NULL) {
-			fclose(global.statusLog.logFP);
-			global.statusLog.logFP = NULL;
+		if(global->statusLog.logFP != NULL) {
+			fclose(global->statusLog.logFP);
+			global->statusLog.logFP = NULL;
 		}
-		unlink(global.statusLog.logPath);
+		unlink(global->statusLog.logPath);
 	}
 
-	stopLogging(&global);
+	stopLogging(global);
 
 }
 

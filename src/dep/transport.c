@@ -1080,12 +1080,14 @@ static void
 ptpNetworkFault(void *transport, void *owner, const bool fault)
 {
 
-    PtpClock *port = owner;
+    PtpClock *ptpClock = owner;
 
     if(fault) {
-	toState(PTP_FAULTY, port->global, port);
+	SET_ALARM(ALRM_NETWORK_FLT, TRUE);
+	toState(PTP_FAULTY, ptpClock->global, ptpClock);
     } else {
-	toState(PTP_INITIALIZING, port->global, port);
+	SET_ALARM(ALRM_NETWORK_FLT, FALSE);
+	toState(PTP_INITIALIZING, ptpClock->global, ptpClock);
     }
 
 }

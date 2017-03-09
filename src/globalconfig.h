@@ -191,9 +191,11 @@ typedef struct {
 	int	alarmInitialDelay;	/* initial delay before we start processing alarms; example:  */
 					/* we don't need a port state alarm just before the port starts to sync */
 
-	uint8_t networkProtocol; /* transport type */
-	Enumeration8 transportMode; /* IP transmission mode */
-	uint8_t transportType; /* force transport implementation */
+	uint8_t networkProtocol;	/* transport type */
+	Enumeration8 transportMode;	/* IP transmission mode */
+	uint8_t transportType;		/* force transport implementation */
+	int transportFaultTimeout;	/* transport fault clear delay */
+	int transportMonitorInterval; /* transport monitor interval */
 
 	Boolean dot1AS; /* 801.2AS support -> transportSpecific field */
 	Boolean bindToInterface; /* always bind to interface */
@@ -210,11 +212,15 @@ typedef struct {
 	/* list of extra clocks to sync */
 	char extraClocks[PATH_MAX];
 	char masterClock[PATH_MAX];
+	char masterClockRefName[20];
 	char readOnlyClocks[PATH_MAX];
 	char disabledClocks[PATH_MAX];
 	char excludedClocks[PATH_MAX];
 
-	int clockFailureDelay;
+	bool masterFirstLock; /* do not enter master state until PTP clock locked */
+	bool masterLockedOnly; /* only run as master when PTP clock is locked or in holdover */
+
+	int clockFaultTimeout;
 	Boolean lockClockDevice;
 
 	char productDescription[65];
@@ -255,6 +261,7 @@ typedef struct {
 
 	int servoMaxPpb;
 	int servoMaxPpb_hw;
+	int servoMaxPpb_internal;
 
 	double servoKP;
 	double servoKI;
@@ -262,11 +269,17 @@ typedef struct {
 	double servoKI_hw;
 	double servoKP_hw;
 
+	double servoKI_internal;
+	double servoKP_internal;
+
+
 	double stableAdev;
 	double stableAdev_hw;
+	double stableAdev_internal;
 
 	double unstableAdev;
 	double unstableAdev_hw;
+	double unstableAdev_internal;
 
 	int lockedAge;
 	int lockedAge_hw;

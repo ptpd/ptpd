@@ -265,8 +265,9 @@ setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock)
 	}
 
 	/* capture event data and time if condition is met */
-
-	capturePtpEventData(&alarm->eventData, ptpClock, ptpClock->global);
+	if(ptpClock != NULL) {
+	    capturePtpEventData(&alarm->eventData, ptpClock, ptpClock->global);
+	}
 
 	if(condition) {
 	    getSystemTime(&alarm->timeSet);
@@ -285,6 +286,10 @@ setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock)
 void
 capturePtpEventData(PtpEventData *eventData, PtpClock *ptpClock, GlobalConfig *global)
 {
+
+    if(ptpClock == NULL) {
+	return;
+    }
 
     eventData->defaultDS = ptpClock->defaultDS;
     eventData->currentDS = ptpClock->currentDS;

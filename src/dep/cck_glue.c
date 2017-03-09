@@ -298,14 +298,21 @@ ptpPortLocked(void *clockdriver, void *owner, bool locked)
 
 }
 
-void
+bool
 ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
 {
 
     ClockDriver *cd = ptpClock->clockDriver;
+//    GlobalConfig *global = getGlobalConfig();
 
     if(!cd) {
-	return;
+	return true;
+    }
+
+    if((to != from)) {
+
+	/* TODO: prevent from going into master state if clock not locked */
+
     }
 
     if(to == PTP_SLAVE) {
@@ -323,6 +330,8 @@ ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
 	    cd->callbacks.onFrequencyJump = NULL;
 	    cd->callbacks.onClockFault = NULL;
     }
+
+    return true;
 
 }
 
@@ -463,5 +472,28 @@ ptpClockFault(void *clockdriver, void *owner, const bool fault)
     } else {
 	toState(PTP_INITIALIZING, port->global, port);
     }
+
+}
+
+bool
+configureLibCck(const GlobalConfig *global)
+{
+
+    CckConfig *config = getCckConfig();
+
+    SET_IF_POSITIVE(config->clockSyncRate, global->clockSyncRate);
+    SET_IF_POSITIVE(config->clockUpdateInterval, global->clockUpdateInterval);
+    SET_IF_POSITIVE(config->clockFaultTimeout, global->clockFaultTimeout);
+    SET_IF_POSITIVE(config->transportMonitorInterval, global->transportMonitorInterval);
+    SET_IF_POSITIVE(config->transportFaultTimeout, global->transportFaultTimeout);
+
+    if(strlen(global->masterClockRefName)) {
+	strncpy(config->masterClockRefName, global->masterClockRefName,
+	    sizeof(config->masterClockRefName));
+    }
+
+    cckApplyConfig();
+
+    return true;
 
 }
