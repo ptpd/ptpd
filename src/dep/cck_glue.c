@@ -82,7 +82,7 @@ configureClockDriver(ClockDriver *driver, const void *configData)
 
     config->stepType = CSTEP_ALWAYS;
 
-    if(global->noResetClock) {
+    if(global->noStep) {
 	config->stepType = CSTEP_NEVER;
     }
 
@@ -112,7 +112,7 @@ configureClockDriver(ClockDriver *driver, const void *configData)
 	config->disabled = FALSE;
     }
 
-    config->noStep = global->noResetClock;
+    config->noStep = global->noStep;
     config->negativeStep = global->negativeStep;
     config->storeToFile = global->storeToFile;
     config->adevPeriod = global->adevPeriod;
@@ -146,7 +146,8 @@ configureClockDriver(ClockDriver *driver, const void *configData)
     driver->servo.kP = global->servoKP;
     driver->servo.kI = global->servoKI;
 
-    driver->servo.maxOutput = global->servoMaxPpb;
+    driver->servo.maxOutput = min(driver->maxFrequency, global->servoMaxPpb);
+
     driver->servo.tauMethod = global->servoDtMethod;
     driver->servo.maxTau = global->servoMaxdT;
 
@@ -186,7 +187,7 @@ pushClockDriverPrivateConfig_linuxphc(ClockDriver *driver, const GlobalConfig *g
 
     driver->servo.kP = global->servoKP_hw;
     driver->servo.kI = global->servoKI_hw;
-    driver->servo.maxOutput = global->servoMaxPpb_hw;
+    driver->servo.maxOutput = min(driver->maxFrequency, global->servoMaxPpb_hw);
 
     return TRUE;
 

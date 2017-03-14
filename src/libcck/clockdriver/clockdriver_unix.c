@@ -81,8 +81,6 @@
 
 #define THIS_COMPONENT "clock.unix: "
 
-#define ADJ_FREQ_MAX 500000
-
 /* accumulates all clock steps to simulate monotonic time */
 static CckTimestamp _stepAccumulator = {0,0};
 /* tracking the number of instances - only one allowed */
@@ -155,7 +153,11 @@ clockDriver_init(ClockDriver* self, const void *config) {
     self->inUse = true;
     memset(self->config.frequencyFile, 0, PATH_MAX);
     snprintf(self->config.frequencyFile, PATH_MAX, CLOCKDRIVER_FREQFILE_PREFIX"_systemclock.frequency");
-    self->maxFrequency = ADJ_FREQ_MAX;
+#ifndef HAVE_STRUCT_TIMEX_TICK
+    self->maxFrequency = UNIX_MAX_FREQ;
+#else
+    self->maxFrequency = UNIX_TICKADJ_MULT * UNIX_MAX_FREQ;
+#endif
     self->servo.maxOutput = self->maxFrequency;
     self->_vendorInit(self);
     self->setState(self, CS_FREERUN);
@@ -457,6 +459,8 @@ setFrequency (ClockDriver *self, double adj, double tau) {
 static double
 getFrequency (ClockDriver * self) {
 
+    double out = self->lastFrequency;
+
 #ifdef HAVE_SYS_TIMEX_H
 	struct timex tmx;
 	memset(&tmx, 0, sizeof(tmx));
@@ -465,10 +469,20 @@ getFrequency (ClockDriver * self) {
 	    return 0;
 	}
 
-	return((tmx.freq + 0.0) / 65.536);
-#else
-	return self->lastFrequency;
-#endif
+	out = (tmx.freq + 0.0) / 65.536;
+
+	/* add frequency resulting from tick adjustment */
+#ifdef HAVE_STRUCT_TIMEX_TICK
+	int32_t userHZ = sysconf(_SC_CLK_TCK);
+	int32_t normTick = 1E6 / userHZ;
+	int32_t tickRes = userHZ * 1000;
+	out += (tmx.tick - normTick + 0.0) * tickRes;
+#endif /* HAVE_STRUCT_TIMEX_TICK */
+
+#endif /* HAVE_SYS_TIMEX_H */
+
+	return out;
+
 
 }
 
@@ -546,6 +560,7 @@ adjFreq_unix(ClockDriver *self, double adj)
 
 	/* Get the USER_HZ value */
 	int32_t userHZ = sysconf(_SC_CLK_TCK);
+	int32_t normTick = 1E6 / userHZ;
 
 	/*
 	 * Get the tick resolution (ppb) - offset caused by changing the tick value by 1.
@@ -565,23 +580,26 @@ adjFreq_unix(ClockDriver *self, double adj)
 	 * preventing long stabilisation times say when  we had a non-default tick value left over
 	 * from a previous NTP run.
 	 */
-	if (adj > ADJ_FREQ_MAX){
-		while (adj > ADJ_FREQ_MAX) {
+	if (adj > UNIX_MAX_FREQ){
+		while (adj > UNIX_MAX_FREQ) {
 		    tickAdj++;
 		    adj -= tickRes;
 		}
 
-	} else if (adj < -ADJ_FREQ_MAX){
-		while (adj < -ADJ_FREQ_MAX) {
+	} else if (adj < -UNIX_MAX_FREQ){
+		while (adj < -UNIX_MAX_FREQ) {
 		    tickAdj--;
 		    adj += tickRes;
 		}
         }
+
 	/* Base tick duration - 10000 when userHZ = 100 */
-	t.tick = 1E6 / userHZ;
-	/* Tick adjustment if necessary */
+	t.tick = normTick;
+	/* Tick adjustment if necessary, keep it in 10% bounds */
+	tickAdj = clamp(tickAdj, normTick / 10);
         t.tick += tickAdj;
 
+	CCK_DBG(THIS_COMPONENT"adjFreq_unix(%s): tickadj %d max %d\n", self->name, tickAdj, normTick / 10);
 
 	t.modes = ADJ_TICK;
 

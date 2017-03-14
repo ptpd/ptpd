@@ -37,6 +37,10 @@
 
 #include <libcck/clockdriver.h>
 
+#define UNIX_MAX_FREQ 500000
+/* to keep tick adjustment to 0.1s / s  - 2 * max_freq */
+#define UNIX_TICKADJ_MULT ( (1E9 / 10) / UNIX_MAX_FREQ - 2 )
+
 bool _setupClockDriver_unix(ClockDriver* clockDriver);
 
 typedef struct {

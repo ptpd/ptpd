@@ -101,8 +101,9 @@ feed (PIservo* self, int32_t input, double tau) {
 	    self->kI = 0.000001;
 
     self->integral += (self->tau * self->delayFactor) * ((input + 0.0 ) * self->kI);
-    self->output = (self->kP * (input + 0.0) ) + self->integral;
+    self->integral = clamp(self->integral, self->maxOutput);
 
+    self->output = (self->kP * (input + 0.0) ) + self->integral;
     self->output = clamp(self->output, self->maxOutput);
 
     runningMaxOutput = (fabs(self->output) >= self->maxOutput);

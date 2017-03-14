@@ -228,7 +228,7 @@ loadDefaultSettings( GlobalConfig* global )
 	global->ipv6Scope = IPV6_SCOPE_GLOBAL;
 
 	global->delayMechanism   = DEFAULT_DELAY_MECHANISM;
-	global->noResetClock     = DEFAULT_NO_RESET_CLOCK;
+	global->noStep     = DEFAULT_NO_RESET_CLOCK;
 	global->portDisabled	 = FALSE;
 	global->stepOnce	 = FALSE;
 	global->stepForce	 = FALSE;

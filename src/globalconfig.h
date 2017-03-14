@@ -105,7 +105,7 @@ typedef struct {
 
 	char ifName[IFNAMSIZ + 1];
 
-	Boolean	noResetClock; // don't step the clock if offset > 1s
+	Boolean	noStep; // don't step the clock if offset > 1s
 	Boolean stepForce; // force clock step on first sync after startup
 	Boolean stepOnce; // only step clock on first sync after startup
 	Boolean setRtc;

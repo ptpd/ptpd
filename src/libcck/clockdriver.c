@@ -1241,8 +1241,8 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 		if(driver->config.noStep) {
 			if(!driver->_warningTimeout) {
 			    driver->_warningTimeout = CLOCKDRIVER_CCK_WARNING_TIMEOUT;
-			    CCK_WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s) and cannot step clock, slewing clock at maximum rate (%d us/s)",
-				driver->name, buf, (sign * driver->servo.maxOutput) / 1000);
+			    CCK_WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s) and cannot step clock, slewing clock at maximum rate (%.0f us/s)\n",
+				driver->name, buf, (sign * driver->servo.maxOutput) / 1000.0);
 			}
 			driver->servo.prime(&driver->servo, sign * driver->servo.maxOutput);
 			driver->_canResume = false;

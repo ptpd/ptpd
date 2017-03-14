@@ -39,6 +39,7 @@
 
 #include <libcck/cck_utils.h>
 #include "../ptpd.h"
+#include <libcck/clockdriver/clockdriver_unix.h>
 
 /*-
  * Helper macros - this is effectively the API for using the new config file interface.
@@ -1967,8 +1968,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 		PTPD_RESTART_NONE, &global->noAdjust,ptpPreset.noAdjust,
 	"Do not adjust the clock");
 
-	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:no_reset",
-		PTPD_RESTART_NONE, &global->noResetClock, global->noResetClock,
+	CONFIG_KEY_ALIAS("clock:no_reset","clock:no_step");
+
+	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:no_step",
+		PTPD_RESTART_NONE, &global->noStep, global->noStep,
 	"Do not step the clock - only slew");
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:calibration_time",
@@ -1988,12 +1991,12 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:step_startup_force",
 		PTPD_RESTART_NONE, &global->stepForce, global->stepForce,
-	"Force clock step on first sync after startup regardless of offset and clock:no_reset");
+	"Force clock step on first sync after startup regardless of offset and clock:no_step");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:step_startup",
 		PTPD_RESTART_NONE, &global->stepOnce, global->stepOnce,
 		"Step clock on startup if offset >= +/-1 second, ignoring\n"
-	"        panic mode and clock:no_reset");
+	"        panic mode and clock:no_step");
 
 	parseResult &= configMapBoolean(opCode, opArg, dict, target, "clock:strict_sync",
 		PTPD_RESTART_NONE, &global->clockStrictSync, global->clockStrictSync,
@@ -2181,7 +2184,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 
 	/* END inter-clock filter settings */
 
-#ifdef HAVE_STRUCT_TIMEX_TICK
+
 	/* This really is clock specific - different clocks may allow different ranges */
 	parseResult &= configMapInt(opCode, opArg, dict, target, "clock:max_offset_ppm",
 		PTPD_RESTART_NONE, INTTYPE_INT, &global->servoMaxPpb, global->servoMaxPpb,
@@ -2189,7 +2192,10 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	"	 when slewing the clock. Expressed in parts per million (1 ppm = shift of\n"
 	"	 1 us per second. Values above 500 will use the tick duration correction\n"
 	"	 to allow even faster slewing. Default maximum is 500 without using tick.", RANGECHECK_RANGE,
-	ADJ_FREQ_MAX/1000, ADJ_FREQ_MAX/500);
+#ifdef HAVE_STRUCT_TIMEX_TICK
+	50, (UNIX_MAX_FREQ * UNIX_TICKADJ_MULT) / 1000);
+#else
+	50, UNIX_MAX_FREQ / 1000);
 #endif /* HAVE_STRUCT_TIMEX_TICK */
 
 	/* This really is clock specific - different clocks may allow different ranges */
@@ -2199,9 +2205,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	"	 when slewing the clock. Expressed in parts per million (1 ppm = shift of\n"
 	"	 1 us per second. Values above 512 will use the tick duration correction\n"
 	"	 to allow even faster slewing. Default maximum is 2000 without using tick.", RANGECHECK_RANGE,
-	200,2000);
-
-
+	50,2000);
 
 	/*
 	 * TimeProperties DS - in future when clock driver API is implemented,
@@ -3306,7 +3310,7 @@ printLongHelp()
 		"Handled signals:\n"
 		"  SIGHUP         Reload configuration file and close / re-open log files\n"
 		"  SIGUSR1        Manually step clock to current OFM value\n"
-		"                 (overides clock:no_reset, but honors clock:no_adjust)\n"
+		"                 (overides clock:no_step, but honors clock:no_adjust)\n"
 		"  SIGUSR2	  Dump all PTP protocol counters to current log target\n"
 		"                 (and clear if ptpengine:sigusr2_clears_counters set)\n"
 		"\n"
