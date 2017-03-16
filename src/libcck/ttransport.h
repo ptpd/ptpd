@@ -252,7 +252,8 @@ struct TTransport {
     int	_init;				/* the driver was successfully initialised */
     int *_instanceCount;		/* instance counter for the whole component */
     TTransport *slaveTransport;		/* an associated transport, restarted along with this one */
-    int _skipMessages;			/* dump n next messages (say, after a topology change) */
+    int _skipRxMessages;			/* dump n next received messages (say, after a topology change) */
+    int _skipTxMessages;			/* dump n next transmitted messages (say, after a topology change) */
 
     /* libCCK common fields - to be included in a general object header struct */
     void *_privateData;			/* implementation-specific data */

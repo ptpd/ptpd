@@ -497,7 +497,8 @@ void monitorTTransport(TTransport *transport, const int interval) {
 	} else if (res & CCK_INTINFO_UP) {
 	    CCK_NOTICE(THIS_COMPONENT"monitorTTransport('%s'): Transport link up\n", transport->name);
 	    /* strange things can happen when interfaces go up */
-	    transport->_skipMessages = TT_CHANGE_SKIP_PACKETS;
+	    transport->_skipRxMessages = TT_CHANGE_SKIP_PACKETS;
+	    transport->_skipTxMessages = TT_CHANGE_SKIP_PACKETS;
 	    transport->refresh(transport);
 	    if(transport->slaveTransport != NULL) {
 		transport->slaveTransport->refresh(transport->slaveTransport);
@@ -516,7 +517,8 @@ void monitorTTransport(TTransport *transport, const int interval) {
 	    } else {
 		clearTransportFault(transport);
 		/* strange things can happen when interfaces go up */
-		transport->_skipMessages = TT_CHANGE_SKIP_PACKETS;
+		transport->_skipRxMessages = TT_CHANGE_SKIP_PACKETS;
+		transport->_skipTxMessages = TT_CHANGE_SKIP_PACKETS;
 		SAFE_CALLBACK(transport->callbacks.onNetworkChange, transport, transport->owner, true);
 	    }
 	} else if (res & CCK_INTINFO_CLOCKCHANGE) {

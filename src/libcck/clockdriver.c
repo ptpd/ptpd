@@ -1267,10 +1267,8 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 		    } else {
 			return false;
 		    }
-		}
-
-		if(driver->state == CS_FREQEST) {
-			return estimateFrequency(driver, tau);
+		} else {
+		    return estimateFrequency(driver, tau);
 		}
 
 	} else {

@@ -409,6 +409,14 @@ sendMessage(TTransport *self, TTransportMessage *message) {
 	return 0;
     }
 
+    /* skipping n-- next messages */
+    if(self->_skipTxMessages) {
+	CCK_DBG(THIS_COMPONENT"sendMessage(%s): _skipTxMessages = %d, dropping message\n",
+		    self->name, self->_skipTxMessages);
+	self->_skipTxMessages--;
+	return 0;
+    }
+
     ethh = (struct ether_header*) buf;
 
     memcpy(buf + self->headerLen, message->data, message->length);
@@ -484,10 +492,10 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
     ret = pcap_next_ex(myData->readerHandle, &pkt_header, &buf);
 
     /* skipping n-- next messages */
-    if(self->_skipMessages) {
-	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): _skipMessages = %d, dropping message\n",
-		    self->name, self->_skipMessages);
-	self->_skipMessages--;
+    if(self->_skipRxMessages) {
+	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): _skipRxMessages = %d, dropping message\n",
+		    self->name, self->_skipRxMessages);
+	self->_skipRxMessages--;
 	return 0;
     }
 
