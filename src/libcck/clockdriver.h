@@ -328,6 +328,7 @@ struct ClockDriver {
     double _tau;			/* time constant (servo run interval) */
     DoubleMovingStatFilter *_filter;	/* offset filter */
     DoubleMovingStatFilter *_madFilter;	/* MAD container */
+    bool _frequencyEstimated;		/* frequency estimation completed */
     int	_estimateCount;
     CckTimestamp _lastDelta;			/* last offset used during frequency estimation */
     DoublePermanentMean _calMean;	/* mean contained used during frequency estimation */

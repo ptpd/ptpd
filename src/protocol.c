@@ -166,12 +166,12 @@ void setPortState(PtpClock *ptpClock, Enumeration8 state)
 
 	ptpClock->portDS.lastPortState = ptpClock->portDS.portState;
 
+	ptpClock->portDS.portState = state;
+	displayStatus(ptpClock, "Now in state: ");
 
     }
 
     /* "expected state" checks */
-
-    ptpClock->portDS.portState = state;
 
     if(ptpClock->defaultDS.slaveOnly) {
 	    SET_ALARM(ALRM_PORT_STATE, state != PTP_SLAVE);
@@ -332,7 +332,6 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 		
 	case PTP_FAULTY:
 		setPortState(ptpClock, PTP_FAULTY);
-		displayStatus(ptpClock, "Now in state: ");
 		break;
 		
 	case PTP_DISABLED:
@@ -406,16 +405,7 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 
 		ptpClock->bestMaster = NULL;
 
-		/*
-		 * Log status update only once - condition must be checked before we write the new state,
-		 * but the new state must be eritten before the log message...
-		 */
-		if (ptpClock->portDS.portState != state) {
-			setPortState(ptpClock, PTP_LISTENING);
-			displayStatus(ptpClock, "Now in state: ");
-		} else {
-			setPortState(ptpClock, PTP_LISTENING);
-		}
+		setPortState(ptpClock, PTP_LISTENING);
 
 		break;
 #ifndef PTPD_SLAVE_ONLY
@@ -444,7 +434,6 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 			break;
 		}
 
-		displayStatus(ptpClock, "Now in state: ");
 		ptpClock->bestMaster = NULL;
 
 		break;
@@ -462,7 +451,6 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 		}
 		setPortState(ptpClock, PTP_PASSIVE);
 		p1(ptpClock, global);
-		displayStatus(ptpClock, "Now in state: ");
 		break;
 
 	case PTP_UNCALIBRATED:
@@ -529,7 +517,6 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 		ptpClock->delayRespWaiting = TRUE;
 		ptpClock->announceTimeouts = 0;
 		setPortState(ptpClock, PTP_SLAVE);
-		displayStatus(ptpClock, "Now in state: ");
 		ptpClock->followUpGap = 0;
 
 		if(global->oFilterMSConfig.enabled) {

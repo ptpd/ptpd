@@ -647,11 +647,7 @@ processUpdate(ClockDriver *driver) {
 	}
 
 	if(driver->state == CS_FREERUN) {
-	    if(driver->config.calibrationTime) {
-		driver->setState(driver, CS_FREQEST);
-	    } else {
-		driver->setState(driver, CS_TRACKING);
-	    }
+	    driver->setState(driver, CS_TRACKING);
 	    update = true;
 	}
 
@@ -767,11 +763,8 @@ setReference(ClockDriver *a, ClockDriver *b) {
 	a->distance = b->distance + 1;
 	strncpy(a->refName, b->name, CCK_COMPONENT_NAME_MAX);
 
-	if(a->config.calibrationTime) {
-	    a->setState(a, CS_FREQEST);
-	} else {
-	    a->setState(a, CS_FREERUN);
-	}
+	a->setState(a, CS_FREERUN);
+
     }
 
 
@@ -815,11 +808,7 @@ static void setExternalReference(ClockDriver *a, const char* refName, int refCla
 
 	if(!a->externalReference || strncmp(a->refName, refName, CCK_COMPONENT_NAME_MAX)) {
 	    CCK_NOTICE(THIS_COMPONENT"Clock %s changing to external reference %s\n", a->name, refName);
-	    if(a->config.calibrationTime) {
-		a->setState(a, CS_FREQEST);
-	    } else {
-		a->setState(a, CS_FREERUN);
-	    }
+	    a->setState(a, CS_FREERUN);
 	}
 
 	strncpy(a->refName, refName, CCK_COMPONENT_NAME_MAX);
@@ -925,6 +914,12 @@ stepTime (ClockDriver* driver, CckTimestamp *delta, bool force)
 
 	if(force) {
 	    driver->lockedUp = false;
+	} else {
+	    /* no frequency estimate, start the process */
+	    if(driver->config.calibrationTime && !driver->_frequencyEstimated) {
+		driver->setState(driver, CS_FREQEST);
+		return false;
+	    }
 	}
 
 	if(!force && !driver->config.negativeStep && tsOps()->isNegative(delta)) {
@@ -937,6 +932,8 @@ stepTime (ClockDriver* driver, CckTimestamp *delta, bool force)
 
 	driver->getTime(driver, &newTime);
 	tsOps()->add(&newTime, &newTime, delta);
+
+	driver->_frequencyEstimated = false;
 
 	if(newTime.seconds == 0) {
 	    CCK_ERROR(THIS_COMPONENT"Cannot step clock %s to zero seconds\n", driver->name);
@@ -1048,6 +1045,7 @@ estimateFrequency(ClockDriver *driver, double tau) {
 	    resetClockAge(driver);
 	    driver->_estimateCount = 0;
 	    driver->_lastDelta = driver->refOffset;
+	    driver->_frequencyEstimated = false;
 	    return false;
 	}
 
@@ -1075,6 +1073,7 @@ estimateFrequency(ClockDriver *driver, double tau) {
 		driver->_lastDelta.seconds = 0;
 		driver->_lastDelta.nanoseconds = 0;
 		driver->_estimateCount = 0;
+		driver->_frequencyEstimated = true;
 		setFrequencyEstimate(driver);
 		driver->stepTime(driver, &driver->refOffset, false);
 		driver->setState(driver, CS_TRACKING);
@@ -1208,7 +1207,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 
 	/* forced step on first update */
 	if((driver->config.stepType == CSTEP_STARTUP_FORCE) && !driver->_updated && !driver->_stepped && !driver->lockedUp) {
-//		return driver->stepTime(driver, &offset, false);
+		return driver->stepTime(driver, &offset, false);
 	}
 
 	if(driver->refOffset.seconds) {
@@ -1220,7 +1219,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 
 		/* step on first update */
 		if((driver->config.stepType == CSTEP_STARTUP) && !driver->_updated && !driver->_stepped && !driver->lockedUp) {
-//			return driver->stepTime(driver, &offset, true);
+			return driver->stepTime(driver, &offset, true);
 		}
 
 		/* panic mode */
@@ -1259,13 +1258,19 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 			return driver->adjustFrequency(driver, sign * driver->servo.maxOutput, tau);
 		}
 
-		CCK_WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), attempting to step the clock\n", driver->name, buf);
-		if( driver->stepTime(driver, &offset, false) ) {
-		    driver->_canResume = false;
-		    tsOps()->clear(&driver->refOffset);
-		    return true;
-		} else {
-		    return false;
+		if(driver->state != CS_FREQEST) {
+		    CCK_WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), attempting to step the clock\n", driver->name, buf);
+		    if( driver->stepTime(driver, &offset, false) ) {
+			driver->_canResume = false;
+			tsOps()->clear(&driver->refOffset);
+			return true;
+		    } else {
+			return false;
+		    }
+		}
+
+		if(driver->state == CS_FREQEST) {
+			return estimateFrequency(driver, tau);
 		}
 
 	} else {
@@ -1297,7 +1302,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 
 		    /* check if a frequency jump would occur */
 		    if(fwdDelta > driver->config.unstableAdev) {
-			CCK_NOTICE(THIS_COMPONENT"disciplineClock('%s'): discarded %d s offset to prevent a frequency jump\n",
+			CCK_NOTICE(THIS_COMPONENT"disciplineClock('%s'): discarded %d ns offset to prevent a frequency jump\n",
 					driver->name, driver->refOffset.nanoseconds, fwdDelta, driver->config.unstableAdev);
 
 			SAFE_CALLBACK(driver->callbacks.onFrequencyJump, driver, driver->owner);

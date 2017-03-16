@@ -384,13 +384,9 @@ checkSignals(GlobalConfig * global, PtpClock * ptpClock)
 	}
 
 	if(sigusr1_received){
-	    if(ptpClock->portDS.portState == PTP_SLAVE){
-		    WARNING("SIGUSR1 received, stepping clock to current known OFM\n");
-		    stepClocks(TRUE);
-	    } else {
-		    ERROR("SIGUSR1 received - will not step clock, not in PTP_SLAVE state\n");
-	    }
-	sigusr1_received = 0;
+		WARNING("SIGUSR1 received, stepping all clocks to current known offset\n");
+		stepClocks(TRUE);
+		sigusr1_received = 0;
 	}
 
 	if(sigusr2_received){
