@@ -253,7 +253,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     self->_vendorInit(self);
     self->_init = true;
 
-    CCK_NOTICE(THIS_COMPONENT"Transport '%s' (%s) started successfully.\n",
+    CCK_NOTICE(THIS_COMPONENT"Transport '%s' (%s) started\n",
 		self->name, myConfig->interface);
 
     return 1;
@@ -768,7 +768,7 @@ loadVendorExt(TTransport *self) {
 		if(loader(self, ifname) < 0) {
 		    CCK_ERROR(THIS_COMPONENT"%s: vendor: %s, failed loading extensions, using Linux PHC\n", self->name, vendorName);
 		} else {
-		    CCK_INFO(THIS_COMPONENT"%s: vendor: %s, extensions loaded successfully\n", self->name, vendorName);
+		    CCK_INFO(THIS_COMPONENT"%s: vendor: %s, extensions loaded\n", self->name, vendorName);
 		}
 	    }
 

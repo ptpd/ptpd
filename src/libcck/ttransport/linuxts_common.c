@@ -323,8 +323,11 @@ initHwTimestamping(LinuxTsInfo *info, const char *ifName, const int family, cons
 bool
 initTimestamping_linuxts_common(TTransport *transport, TTsocketTimestampConfig *tsConfig, LinuxInterfaceInfo *intInfo, const char *ifName, const bool quiet) {
 
+
 	const char *realDevice;
 	LinuxBondInfo *bi = &intInfo->bondInfo;
+	LinuxVlanInfo *vi = &intInfo->vlanInfo;
+
 	LinuxTsInfo pti, ti;
 	bool ret = true;
 	bool preferHw = !(transport->config.flags & TT_CAPS_PREFER_SW);
@@ -339,11 +342,35 @@ initTimestamping_linuxts_common(TTransport *transport, TTsocketTimestampConfig *
 	    tsInfo = &intInfo->logicalTsInfo;
 	}
 
+	/* socket timestamp properties */
 	tsConfig->arrayIndex = 2;
 	tsConfig->cmsgLevel = SOL_SOCKET;
 	tsConfig->cmsgType = SCM_TIMESTAMPING;
 	tsConfig->elemSize = sizeof(struct timespec);
 	tsConfig->convertTs = convertTimestamp_timespec;
+
+	if(vi->vlan) {
+	    CCK_INFO("initTimestamping(%s): VLAN interface, VLAN %d, underlying interface: %s\n",
+			ifName, vi->vlanId, vi->realDevice);
+	}
+
+	if(bi->bonded) {
+	    tmpstr(bondMembers, (IFNAMSIZ + 2) * bi->slaveCount);
+	    char *marker = bondMembers;
+	    for(int i = 0; i < bi->slaveCount; i++) {
+		char *slaveName = bi->slaves[i].name;
+		if(strlen(slaveName)) {
+		    marker += snprintf(marker, IFNAMSIZ+2,"%s%s", slaveName,
+		    (i+1) < bi->slaveCount ? ", " : "");
+		}
+	    }
+
+	    CCK_INFO("initTimestamping(%s): Bonded interface%s%s, slaves: %s\n",
+			vi->vlan ? vi->realDevice : ifName, bi->activeBackup ? ", active: ": "",
+			bi->activeBackup ? realDevice : "",
+			bondMembers);
+
+	}
 
 	getLinuxTsInfo(&pti, tsInfo, realDevice, transport->family, preferHw);
 	if(!testLinuxTimestamping(&pti, realDevice, transport->family, preferHw, quiet)
@@ -397,7 +424,7 @@ finalise:
 	}
 
 	if(!quiet && ret) {
-	    CCK_INFO("initTimestamping(%s): Linux %s timestamping successfully enabled\n", ifName,
+	    CCK_INFO("initTimestamping(%s): Linux %s timestamping enabled\n", ifName,
 			pti.hwTimestamping ? "hardware" : "software");
 	}
 

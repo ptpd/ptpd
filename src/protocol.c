@@ -375,6 +375,10 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 			ptpClock->foreign_record_i = 0;
 			m1(global,ptpClock);
 			toState(PTP_MASTER, global, ptpClock);
+			/* in case if we were not allowed to go into master state */
+			if(ptpClock->portDS.portState != PTP_MASTER) {
+			    toState(PTP_PASSIVE, global, ptpClock);
+			}
 			break;
 		}
 
@@ -434,8 +438,13 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 		}
 
 		setPortState(ptpClock, PTP_MASTER);
-		displayStatus(ptpClock, "Now in state: ");
+		/* in case if we were not allowed to go into master state */
+		if(ptpClock->portDS.portState != PTP_MASTER) {
+			toState(PTP_PASSIVE, global, ptpClock);
+			break;
+		}
 
+		displayStatus(ptpClock, "Now in state: ");
 		ptpClock->bestMaster = NULL;
 
 		break;
@@ -640,6 +649,10 @@ doState(GlobalConfig *global, PtpClock *ptpClock)
 				ptpClock->bestMaster = NULL;
 				m1(global,ptpClock);
 				toState(PTP_MASTER, global, ptpClock);
+				/* in case if we were not allowed to go into master state */
+				if(ptpClock->portDS.portState != PTP_MASTER) {
+				    toState(PTP_PASSIVE, global, ptpClock);
+				}
 
 			} else if(ptpClock->portDS.portState != PTP_LISTENING) {
 				/* stop statistics updates */

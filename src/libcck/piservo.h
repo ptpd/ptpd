@@ -57,7 +57,7 @@ struct PIservo {
     struct ClockDriver *controller;
 
     double maxOutput;
-    int32_t input;
+    double input;
     double output;
     double integral;
     double kP, kI;
@@ -68,13 +68,12 @@ struct PIservo {
     int maxTau;
     double delayFactor;
 
-    int32_t diff;
     double _lastOutput;
-    int32_t _lastInput;
+    double _lastInput;
     bool _updated;
 
-    double (*feed) (PIservo*, int32_t, double);
-    double (*simulate) (PIservo *, int32_t);
+    double (*feed) (PIservo*, double, double);
+    double (*simulate) (PIservo *, double);
     void (*prime) (PIservo *, double);
     void (*reset) (PIservo*);
 

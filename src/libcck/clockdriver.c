@@ -375,8 +375,8 @@ setState(ClockDriver *driver, ClockState newState) {
 		driver->restoreFrequency(driver);
 	    }
 
-	    if( (newState == CS_LOCKED) && !driver->_locked) {
-		driver->_locked = true;
+	    if( (newState == CS_LOCKED) && !driver->wasLocked) {
+		driver->wasLocked = true;
 		driver->minAdev = driver->adev;
 		driver->maxAdev = driver->adev;
 	    }
@@ -404,6 +404,7 @@ setState(ClockDriver *driver, ClockState newState) {
 	    driver->lastState = driver->state;
 	    driver->state = newState;
 
+	    SAFE_CALLBACK(driver->callbacks.onStateChange, driver, driver->owner, driver->lastState, driver->state);
 	    SAFE_CALLBACK(driver->callbacks.onLock, driver, driver->owner, newState == CS_LOCKED);
 
 	}
@@ -1162,8 +1163,8 @@ filterClock(ClockDriver *driver, double tau) {
 static bool
 disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 
-
     char buf[100];
+    double dOffset;
 
     CckTimestamp offsetCorrection = { 0, driver->config.offsetCorrection };
 
@@ -1182,6 +1183,13 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 
     tsOps()->sub(&driver->refOffset, &driver->refOffset, &offsetCorrection);
 
+    /* run filter if running internal reference, drop sample if filter discards it */
+    if(!driver->externalReference && !filterClock(driver, tau)) {
+	driver->rawOffset = driver->_lastOffset;
+	driver->refOffset = driver->_lastOffset;
+	return false;
+    }
+
     /* do nothing if offset is zero - prevents from linked clocks being dragged around,
      * and it's not obvious that two clocks can be linked, as we can see with Intel,
      * where multiple NIC ports can present themselves as different clock IDs, but
@@ -1194,6 +1202,8 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 	return true;
     }
 
+    dOffset = tsOps()->toDouble(&driver->refOffset);
+
     if(!driver->config.readOnly) {
 
 	/* forced step on first update */
@@ -1201,12 +1211,12 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 //		return driver->stepTime(driver, &offset, false);
 	}
 
-	if(offset.seconds) {
+	if(driver->refOffset.seconds) {
 
 		memset(buf, 0, sizeof(buf));
 		snprint_CckTimestamp(buf, sizeof(buf), &driver->refOffset);
 
-		int sign = (offset.seconds < 0) ? -1 : 1;
+		int sign = (driver->refOffset.seconds < 0) ? -1 : 1;
 
 		/* step on first update */
 		if((driver->config.stepType == CSTEP_STARTUP) && !driver->_updated && !driver->_stepped && !driver->lockedUp) {
@@ -1241,7 +1251,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 		if(driver->config.noStep) {
 			if(!driver->_warningTimeout) {
 			    driver->_warningTimeout = CLOCKDRIVER_CCK_WARNING_TIMEOUT;
-			    CCK_WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s) and cannot step clock, slewing clock at maximum rate (%.0f us/s)\n",
+			    CCK_WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), clock step disabled, slewing at max rate (%.0f us/s)\n",
 				driver->name, buf, (sign * driver->servo.maxOutput) / 1000.0);
 			}
 			driver->servo.prime(&driver->servo, sign * driver->servo.maxOutput);
@@ -1261,7 +1271,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 	} else {
 		if(driver->state == CS_STEP) {
 		    /* we are outside the exit threshold, clock is still suspended */
-		    if(driver->config.stepExitThreshold && (labs(offset.nanoseconds) > driver->config.stepExitThreshold)) {
+		    if(driver->config.stepExitThreshold && (labs(driver->refOffset.nanoseconds) > driver->config.stepExitThreshold)) {
 			return false;
 		    }
 		    CCK_NOTICE(THIS_COMPONENT"Clock %s offset below 1 second, resuming clock control\n", driver->name);
@@ -1273,11 +1283,6 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 		    driver->setState(driver, CS_FREERUN);
 		}
 
-		/* run filter if running internal reference, drop sample if filter discards it */
-		if(!driver->externalReference && !filterClock(driver, tau)) {
-		    return false;
-		}
-
 		if(driver->state == CS_FREQEST) {
 			return estimateFrequency(driver, tau);
 		}
@@ -1285,15 +1290,15 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 		if(driver->config.stepDetection && driver->state == CS_LOCKED) {
 		    /* simulate next servo run before feeding it, calculate next frequency delta to last frequency */
 		    double fwdDelta = driver->servo.tau *
-					fabs(driver->servo.simulate(&driver->servo, driver->refOffset.nanoseconds) -
+					fabs(driver->servo.simulate(&driver->servo, dOffset) -
 						driver->servo._lastOutput);
 
 		    CCK_DBG("disciplineClock('%s'): nextdelta %.03f tau %.03f\n", driver->name, fwdDelta, driver->servo.tau);
 
 		    /* check if a frequency jump would occur */
 		    if(fwdDelta > driver->config.unstableAdev) {
-			CCK_NOTICE(THIS_COMPONENT"disciplineClock('%s'): discarded %d ns offset to prevent a %.03f ppb frequency jump\n",
-					driver->name, offset.nanoseconds, fwdDelta, driver->config.unstableAdev);
+			CCK_NOTICE(THIS_COMPONENT"disciplineClock('%s'): discarded %d s offset to prevent a frequency jump\n",
+					driver->name, driver->refOffset.nanoseconds, fwdDelta, driver->config.unstableAdev);
 
 			SAFE_CALLBACK(driver->callbacks.onFrequencyJump, driver, driver->owner);
 
@@ -1308,7 +1313,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 		}
 
 		/* offset accepted, feed it to servo and adjust clock frequency */
-		driver->servo.feed(&driver->servo, driver->refOffset.nanoseconds, tau);
+		driver->servo.feed(&driver->servo, dOffset, tau);
 		return driver->adjustFrequency(driver, driver->servo.output, tau);
 
 	}

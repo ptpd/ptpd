@@ -44,8 +44,8 @@
 
 #define THIS_COMPONENT "servo: "
 
-static double feed (PIservo*, int32_t, double);
-static double simulate (PIservo*, int32_t);
+static double feed (PIservo*, double, double);
+static double simulate (PIservo*, double);
 static void prime (PIservo *, double);
 static void reset (PIservo*);
 
@@ -61,7 +61,7 @@ setupPIservo(PIservo *self) {
 }
 
 static double
-feed (PIservo* self, int32_t input, double tau) {
+feed (PIservo* self, double input, double tau) {
 
     CckTimestamp now, delta;
     bool runningMaxOutput;
@@ -100,10 +100,10 @@ feed (PIservo* self, int32_t input, double tau) {
     if (self->kI < 0.000001)
 	    self->kI = 0.000001;
 
-    self->integral += (self->tau * self->delayFactor) * ((input + 0.0 ) * self->kI);
+    self->integral += (self->tau * self->delayFactor) * (input * NS_PER_SEC * self->kI);
     self->integral = clamp(self->integral, self->maxOutput);
 
-    self->output = (self->kP * (input + 0.0) ) + self->integral;
+    self->output = (self->kP * input * NS_PER_SEC ) + self->integral;
     self->output = clamp(self->output, self->maxOutput);
 
     runningMaxOutput = (fabs(self->output) >= self->maxOutput);
@@ -131,14 +131,15 @@ feed (PIservo* self, int32_t input, double tau) {
 }
 
 static double
-simulate (PIservo* self, int32_t input) {
+simulate (PIservo* self, double input) {
 
     double integral = self->integral;
     double output;
 
-    integral += (self->tau * self->delayFactor) * ((input + 0.0 ) * self->kI);
-    output = (self->kP * (input + 0.0) ) + integral;
+    integral += (self->tau * self->delayFactor) * (input * NS_PER_SEC * self->kI);
+    integral = clamp(integral, self->maxOutput);
 
+    output = (self->kP * input * NS_PER_SEC) + integral;
     output = clamp(output, self->maxOutput);
 
     return output;

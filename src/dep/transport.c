@@ -1,4 +1,4 @@
-/*-    PtpClock *port = owner;
+/*-
  * Copyright (c) 2016      Wojciech Owczarek
  *
  * All Rights Reserved

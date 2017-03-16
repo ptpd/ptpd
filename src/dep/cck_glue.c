@@ -69,7 +69,6 @@ static int setupPtpTimer(PtpTimer *timer, CckFdSet *fdSet, const char *name);
 /* handle a clock fault or cleared fault */
 static void ptpClockFault(void *clockdriver, void *owner, const bool fault);
 
-
 bool
 configureClockDriver(ClockDriver *driver, const void *configData)
 {
@@ -273,7 +272,9 @@ ptpPortStepNotify(void *clockdriver, void *owner)
 
     DBG("PTP clock was notified of clock step - resetting outlier filters and re-calibrating offsets\n");
 
-    recalibrateClock(ptpClock, true);
+    if(ptpClock->portDS.portState == PTP_SLAVE) {
+	recalibrateClock(ptpClock, true);
+    }
 }
 
 void
@@ -284,7 +285,9 @@ ptpPortFrequencyJump(void *clockdriver, void *owner)
 
     DBG("PTP clock was notified of offset which would cause a frequency jump - resetting outlier filters and re-calibrating offsets\n");
 
-    recalibrateClock(ptpClock, true);
+    if(ptpClock->portDS.portState == PTP_SLAVE) {
+	recalibrateClock(ptpClock, true);
+    }
 }
 
 void
@@ -304,7 +307,7 @@ ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
 {
 
     ClockDriver *cd = ptpClock->clockDriver;
-//    GlobalConfig *global = getGlobalConfig();
+    GlobalConfig *global = getGlobalConfig();
 
     if(!cd) {
 	return true;
@@ -312,27 +315,66 @@ ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
 
     if((to != from)) {
 
-	/* TODO: prevent from going into master state if clock not locked */
+	if(to == PTP_MASTER) {
+
+	    /* prevent from going into master state if clock was never locked */
+	    if(global->masterFirstLock && !cd->wasLocked) {
+		return false;
+	    }
+
+	    /* prevent from going into master state if clock is not locked or in holdover */
+	    if(global->masterLockedOnly && cd->state != CS_HOLDOVER && cd->state != CS_LOCKED) {
+		return false;
+	    }
+
+	}
 
     }
 
-    if(to == PTP_SLAVE) {
-	    cd->setExternalReference(cd, "PTP", RC_PTP);
+    if(to == PTP_SLAVE || to == PTP_MASTER || to == PTP_PASSIVE) {
+	    if(to == PTP_SLAVE) {
+		cd->setExternalReference(cd, "PTP", RC_PTP);
+	    }
 	    cd->owner = ptpClock;
 	    cd->maintainLock = false;
 	    cd->callbacks.onStep = ptpPortStepNotify;
 	    cd->callbacks.onLock = ptpPortLocked;
 	    cd->callbacks.onFrequencyJump = ptpPortFrequencyJump;
 	    cd->callbacks.onClockFault = ptpClockFault;
+	    cd->callbacks.onStateChange = clockStateChange;
     } else if (from == PTP_SLAVE) {
 	    cd->setReference(cd, NULL);
 	    cd->callbacks.onStep = NULL;
 	    cd->callbacks.onLock = NULL;
 	    cd->callbacks.onFrequencyJump = NULL;
 	    cd->callbacks.onClockFault = NULL;
+	    cd->callbacks.onStateChange = NULL;
     }
 
     return true;
+
+}
+
+void
+clockStateChange
+(void *clockdriver, void *owner, const int oldState, const int newState)
+{
+
+    PtpClock *port = owner;
+    GlobalConfig *global = getGlobalConfig();
+
+
+    if(owner == NULL) {
+	return;
+    }
+
+    if(global->masterLockedOnly && newState != CS_LOCKED && newState != CS_HOLDOVER) {
+
+	if(port->portDS.portState == PTP_MASTER) {
+	    toState(PTP_PASSIVE, global, port);
+	}
+
+    }
 
 }
 
@@ -436,7 +478,9 @@ prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global) {
 	if(old &&  (cd != old)) {
 	    DBG("PTP port clock driver changing from '%s' to '%s\n",
 		    old->name, cd->name);
-	    old->setReference(old, NULL);
+	    if(ptpClock->portDS.portState == PTP_SLAVE) {
+		old->setReference(old, NULL);
+	    }
 	    old->owner = NULL;
 	    memset(&old->callbacks, 0, sizeof(old->callbacks));
 	}
@@ -447,14 +491,22 @@ prepareClockDrivers(PtpClock *ptpClock, const GlobalConfig *global) {
 	cd->inUse = true;
 	cd->config.required = true;
 
-	/* if we are slave, set the reference straigh away */
-	if(ptpClock->portDS.portState == PTP_SLAVE) {
-	    cd->setExternalReference(ptpClock->clockDriver, "PTP", RC_PTP);
+
+	if(ptpClock->portDS.portState == PTP_SLAVE ||
+		ptpClock->portDS.portState == PTP_MASTER ||
+		ptpClock->portDS.portState == PTP_PASSIVE) {
+	    /* if we are slave, set the reference straight away */
+	    if(ptpClock->portDS.portState == PTP_SLAVE) {
+		cd->setExternalReference(ptpClock->clockDriver, "PTP", RC_PTP);
+	    }
 	    cd->owner = ptpClock;
 	    /* clean callbacks, we could have had them from somewhere else */
 	    memset(&cd->callbacks, 0, sizeof(cd->callbacks));
 	    cd->callbacks.onStep = ptpPortStepNotify;
 	    cd->callbacks.onLock = ptpPortLocked;
+	    cd->callbacks.onFrequencyJump = ptpPortFrequencyJump;
+	    cd->callbacks.onClockFault = ptpClockFault;
+	    cd->callbacks.onStateChange = clockStateChange;
 	}
 
 	return true;

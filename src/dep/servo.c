@@ -554,7 +554,6 @@ updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
 	}
 #endif
 
-
 	/* update 'offsetFromMaster' */
 	if (ptpClock->portDS.delayMechanism == P2P) {
 		subTime(&ptpClock->currentDS.offsetFromMaster,

@@ -311,7 +311,7 @@ loadDefaultSettings( GlobalConfig* global )
 	global->clockCalibrationTime = 10;
 	global->clockFreqStepDetection = true;
 
-	global->masterFirstLock = true;
+	global->masterFirstLock = false;
 	global->masterLockedOnly = false;
 
 	strncpy(global->masterClockRefName, "EXTSYNC", sizeof(global->masterClockRefName));

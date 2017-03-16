@@ -281,7 +281,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     self->_init = true;
 
 
-    CCK_NOTICE(THIS_COMPONENT"Transport '%s' (%s) started successfully.\n",
+    CCK_NOTICE(THIS_COMPONENT"Transport '%s' (%s) started\n",
 		self->name, myConfig->interface);
 
     return 1;

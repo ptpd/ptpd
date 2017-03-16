@@ -266,6 +266,7 @@ struct ClockDriver {
     bool externalReference;		/* the clock is using an external reference */
     bool adevValid;			/* we have valid adev computed */
     bool maintainLock;			/* if set and status set to LOCKED, it is unconditionally locked */
+    bool wasLocked;			/* clock has been LOCKED state at least once */
 
     ClockState state;			/* clock state */
     ClockState lastState;		/* previous clock state */
@@ -298,6 +299,7 @@ struct ClockDriver {
 	void (*onUpdate) (void *driver, void *owner);			/* user callback to be called on periodic update (not on clock sync) */
 	void (*onSync) (void *driver, void *owner);			/* user callback to be called after clock is synced */
 	void (*onLock) (void *driver, void *owner, bool locked);	/* user callback to be called when we enter or exit locked state */
+	void (*onStateChange) (void *driver, void *owner, const int oldState, const int newState);	/* user callback to be called when clock changes state */
 	void (*onFrequencyJump) (void *driver, void *owner);		/* user callback to be called if the offset would cause a frequency jump */
 	void (*onLeapSecond) (void *driver, void *owner, bool end);	/* user callback to be called when we begin and end the leap second event */
 	void (*onStatusUpdate) (void *driver, void *owner, ClockStatus *status); /* user callback to be called when status is updated (but not by owner) */
@@ -314,7 +316,6 @@ struct ClockDriver {
     ClockLeapInfo _leapInfo;		/* leap second information */
     bool _updated;			/* clock has received at least one update */
     bool _stepped;			/* clock has been stepped at least once */
-    bool _locked;			/* clock has locked at least once */
     bool _canResume;			/* we are OK to resume sync after step */
     bool _waitForElection;		/* do not sync to- or from- until best clock election runs next */
     IntPermanentAdev _adev;		/* running Allan deviation container */

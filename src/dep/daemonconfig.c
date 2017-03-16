@@ -996,8 +996,15 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 				(getPtpPreset(PTP_PRESET_SLAVEONLY, global)).presetName,	PTP_PRESET_SLAVEONLY, NULL
 				);
 
-
 	ptpPreset = getPtpPreset(global->selectedPreset, global);
+
+	parseResult &= configMapBool(opCode, opArg, dict, target, "ptpengine:master_first_lock",
+		PTPD_RESTART_NONE, &global->masterFirstLock, global->masterFirstLock,
+		 "Do not operate as PTP master until master port clock is in LOCKED state");
+
+	parseResult &= configMapBool(opCode, opArg, dict, target, "ptpengine:master_locked_only",
+		PTPD_RESTART_NONE, &global->masterFirstLock, global->masterFirstLock,
+		 "Only operate as PTP master if master port clock is in LOCKED or HOLDOVER state");
 
 	parseResult &= configMapSelectValue(opCode, opArg, dict, target, "ptpengine:transport_protocol",
 		PTPD_RESTART_NETWORK, &global->networkProtocol, global->networkProtocol,

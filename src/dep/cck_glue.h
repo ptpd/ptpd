@@ -61,6 +61,7 @@ void ptpPortStepNotify(void *clockdriver, void *owner);
 void ptpPortFrequencyJump(void *clockdriver, void *owner);
 bool ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to);
 void ptpPortLocked(void *clockdriver, void *owner, bool locked);
+void clockStateChange(void *clockdriver, void *owner, const int oldState, const int newState);
 
 /* timer support */
 bool setupPtpTimers(PtpClock *ptpClock, CckFdSet *fdSet);

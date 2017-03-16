@@ -90,6 +90,8 @@ abs((var)->seconds), abs((var)->nanoseconds), \
 " ", \
 getTimescaleName((var)->timescale)
 
+#define NS_PER_SEC 1E9
+
 typedef struct {
 	int32_t		seconds;
 	int32_t		nanoseconds;
