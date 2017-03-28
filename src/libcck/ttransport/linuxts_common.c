@@ -574,7 +574,7 @@ gameover:
 	    }
 	}
 	txMessage->hasTimestamp = false;
-	tsOps()->clear(&txMessage->timestamp);
+	tsOps.clear(&txMessage->timestamp);
 	
 	transport->counters.txTimestampErrors++;
 

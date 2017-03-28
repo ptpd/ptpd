@@ -52,10 +52,16 @@
 	/*
 	 * DO NOT REFER TO THESE TWO CONSTANTS DIRECTLY,
 	 * as values may have been updated by leap second files or PTP.
-	 * Use getTimescaleOffset() instead.
+	 * Use getTimescaleOffset() instead. These are for initialisation only.
 	 */
 
-#define TO_UTC_TAI	37	/* as of first half 2017 */
+/* allow default UTC-TAI offset to be defined at build time */
+#ifdef CCK_BUILD_UTC_TAI_OFFSET
+    #define TO_UTC_TAI CCK_BUILD_UTC_TAI_OFFSET
+#else
+    #define TO_UTC_TAI 37	/* as of first half 2017 */
+#endif /* CCK_BUILD_UTC_TAI_OFFSET */
+
 #define TO_UTC_GPS	(TO_UTC_TAI - TO_GPS_TAI)
 
 enum {
@@ -65,6 +71,7 @@ enum {
     TS_GPS	= 3,	/* GPS */
     TS_MAX		/* marker */
 };
+
 #define TS_MIN TS_ARB
 
 /*
@@ -98,6 +105,12 @@ typedef struct {
 	int		timescale;
 } CckTimestamp;
 
+/* offset sample for use with filters and servos */
+typedef struct {
+	CckTimestamp	value;		/* value of the offset */
+	CckTimestamp	at;		/* when sample taken */
+} CckOffsetSample;
+
 /* a collection of timestamp operations */
 typedef struct {
 	void (*add) (CckTimestamp *, const CckTimestamp *, const CckTimestamp *);
@@ -113,9 +126,11 @@ typedef struct {
 	int (*cmp) (const void *, const void *);
 	void (*mean2) (CckTimestamp *, CckTimestamp *, CckTimestamp *);
 	void (*rttCor) (CckTimestamp *, CckTimestamp *, CckTimestamp *, CckTimestamp *);
-	void (*convert) (CckTimestamp*, const int);
-	CckTimestamp (*getConversion) (CckTimestamp*, const int);
+	void (*convert) (CckTimestamp*, const int timescale);
+	CckTimestamp (*getConversion) (CckTimestamp*, const int timescale);
 } CckTimestampOps;
+
+extern const CckTimestampOps tsOps; /* helper object -> cck_timestamp.c */
 
 /* timescale management functions */
 int		getTimescaleOffset(const int a, const int b); /* get offset of timescale a (TS_xx) vs. b */
@@ -124,8 +139,6 @@ const char*	getTimescaleName(const int type);
 int		getTimescaleType(const char* name);
 void		dumpTimescaleOffsets();
 
-/* grab the timestamp ops helper object */
-const		CckTimestampOps *tsOps(void);
 /* print formatted timestamp into buffer */
 int		snprint_CckTimestamp(char *s, int max_len, const CckTimestamp * p);
 

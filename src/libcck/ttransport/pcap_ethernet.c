@@ -535,7 +535,7 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 	    message->timestamp.nanoseconds *= 1000;
 	}
 
-	if(!tsOps()->isZero(&message->timestamp)) {
+	if(!tsOps.isZero(&message->timestamp)) {
 	    message->hasTimestamp = true;
 	} else {
 	    CCK_DBG(THIS_COMPONENT"receiveMessage(%s): Error: no timestamp received!\n",

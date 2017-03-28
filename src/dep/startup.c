@@ -418,6 +418,8 @@ checkSignals(GlobalConfig * global, PtpClock * ptpClock)
 		    }
 		}
 
+		controlTTransports(TT_DUMP, NULL);
+
 		if(global->oFilterSMConfig.enabled) {
 			ptpClock->oFilterSM.display(&ptpClock->oFilterSM);
 		}

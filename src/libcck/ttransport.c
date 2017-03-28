@@ -672,17 +672,17 @@ dumpCounters (TTransport *transport) {
 
 	TTransportCounters *c = &transport->counters;
 
-	CCK_INFO(THIS_COMPONENT" ======= transport %s counters =============\n", transport->name);
-	CCK_INFO(THIS_COMPONENT"       rxMsg: %lu\n", c->rxMsg);
-	CCK_INFO(THIS_COMPONENT"       txMsg: %lu\n", c->txMsg);
-	CCK_INFO(THIS_COMPONENT"     rxBytes: %lu\n", c->rxBytes);
-	CCK_INFO(THIS_COMPONENT"     txBytes: %lu\n", c->txBytes);
-	CCK_INFO(THIS_COMPONENT" ======= transport %s rates ================\n", transport->name);
+	CCK_INFO(THIS_COMPONENT" ======= transport '%s' counters =============\n", transport->name);
+	CCK_INFO(THIS_COMPONENT"             rxMsg: %lu\n", c->rxMsg);
+	CCK_INFO(THIS_COMPONENT"             txMsg: %lu\n", c->txMsg);
+	CCK_INFO(THIS_COMPONENT"           rxBytes: %lu\n", c->rxBytes);
+	CCK_INFO(THIS_COMPONENT"           txBytes: %lu\n", c->txBytes);
+	CCK_INFO(THIS_COMPONENT" ======= transport '%s' rates ================\n", transport->name);
 	CCK_INFO(THIS_COMPONENT"         rxRateMsg: %lu / s\n", c->rxRateMsg);
 	CCK_INFO(THIS_COMPONENT"         txRateMsg: %lu / s\n", c->txRateMsg);
 	CCK_INFO(THIS_COMPONENT"       rxRateBytes: %lu / s\n", c->rxRateBytes);
 	CCK_INFO(THIS_COMPONENT"       txRateBytes: %lu / s\n", c->txRateBytes);
-	CCK_INFO(THIS_COMPONENT" ======= transport %s error counters =======\n", transport->name);
+	CCK_INFO(THIS_COMPONENT" ======= transport '%s' error counters =======\n", transport->name);
 	CCK_INFO(THIS_COMPONENT"          rxErrors: %lu\n", c->rxErrors);
 	CCK_INFO(THIS_COMPONENT"          txErrors: %lu\n", c->txErrors);
 	CCK_INFO(THIS_COMPONENT" rxTimestampErrors: %lu\n", c->rxTimestampErrors);
@@ -954,7 +954,7 @@ clearTTransportMessage(TTransportMessage *message) {
     memset(&message->from, 0, sizeof(CckTransportAddress));
     memset(&message->to, 0, sizeof(CckTransportAddress));
 
-    tsOps()->clear(&message->timestamp);
+    tsOps.clear(&message->timestamp);
 
 }
 

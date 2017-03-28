@@ -278,7 +278,7 @@ getTimeMonotonic(ClockDriver *self, CckTimestamp * time)
 	ret = self->getTime(self, time);
 
 	/* simulate a monotonic clock, tracking all step changes */
-	tsOps()->add(time, time, &_stepAccumulator);
+	tsOps.add(time, time, &_stepAccumulator);
 
 	return ret;
 
@@ -305,7 +305,7 @@ setTime (ClockDriver *self, CckTimestamp *time) {
 	}
 
 	getTime(self, &oldTime);
-	tsOps()->sub(&delta, &oldTime, time);
+	tsOps.sub(&delta, &oldTime, time);
 
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 	struct timespec tp;
@@ -322,11 +322,11 @@ setTime (ClockDriver *self, CckTimestamp *time) {
 		CCK_PERROR(THIS_COMPONENT"Could not set system time");
 		return false;
 	}
-	tsOps()->add(&_stepAccumulator, &_stepAccumulator, &delta);
+	tsOps.add(&_stepAccumulator, &_stepAccumulator, &delta);
 #else
 
 	settimeofday(&tv, 0);
-	tsOps()->add(&_stepAccumulator, &_stepAccumulator, &delta);
+	tsOps.add(&_stepAccumulator, &_stepAccumulator, &delta);
 #endif /* _POSIX_TIMERS */
 
 	if(oldTime.seconds != time->seconds) {
@@ -349,7 +349,7 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	    return false;
 	}
 
-	if(tsOps()->isZero(delta)) {
+	if(tsOps.isZero(delta)) {
 	    return true;
 	}
 
@@ -359,7 +359,7 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 
 #ifndef ADJ_SETOFFSET
 	getTime(self, &newTime);
-	tsOps()->add(&newTime, &newTime, delta);
+	tsOps.add(&newTime, &newTime, delta);
 	return setTime(self, &newTime);
 #else
 	CCK_GET_PCONFIG(ClockDriver, unix, self, myConfig);
@@ -375,14 +375,14 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	if(adjtimex(&tmx) < 0) {
 	    CCK_DBG("Could not set clock offset of Unix clock %s\n", self->name);
 	    getTime(self, &newTime);
-	    tsOps()->add(&newTime, &newTime, delta);
+	    tsOps.add(&newTime, &newTime, delta);
 	    return setTime(self, &newTime);
 	} else {
 	    getTime(self, &oldTime);
-	    tsOps()->add(&newTime, &oldTime, delta);
+	    tsOps.add(&newTime, &oldTime, delta);
 	}
 
-	tsOps()->add(&_stepAccumulator, &_stepAccumulator, delta);
+	tsOps.add(&_stepAccumulator, &_stepAccumulator, delta);
 
 	if(oldTime.seconds != newTime.seconds) {
 	    updateXtmp_unix(oldTime, newTime);
@@ -651,7 +651,7 @@ static void setRtc(ClockDriver *self, CckTimestamp *timeToSet)
 
 	CCK_DBGV("Usable RTC device: %s\n",rtcDev);
 
-	if(tsOps()->isZero(timeToSet)) {
+	if(tsOps.isZero(timeToSet)) {
 	    getTime(self, timeToSet);
 	}
 

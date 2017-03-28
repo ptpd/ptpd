@@ -47,7 +47,9 @@
 	#include "timer/posix.h"
     #endif
 
-    #include "timer/itimer.h"
+    #ifdef CCK_BUILD_TIMER_ITIMER
+	#include "timer/itimer.h"
+    #endif
 
 #else
 
@@ -61,7 +63,9 @@
 	CCK_REGISTER_IMPL(CCKTIMER_POSIX,	posix,		"posix",	"POSIX")
     #endif
 
-    CCK_REGISTER_IMPL(CCKTIMER_ITIMER,	itimer,		"itimer",	"itimer")
+    #if defined(CCK_BUILD_TIMER_ITIMER) || defined(CCK_ALL_IMPL)
+	CCK_REGISTER_IMPL(CCKTIMER_ITIMER,	itimer,		"itimer",	"itimer")
+    #endif
 
     #ifdef CCK_ALL_IMPL
 	#undef CCK_ALL_IMPL

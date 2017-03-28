@@ -42,6 +42,8 @@
 #include <libcck/cck_utils.h>
 #include <libcck/cck_logger.h>
 
+#define THIS_COMPONENT "timestamp: "
+
 /* timescale offset table, updateable using setTimescaleOffset() */
 static int _timescaleOffsets[TS_MAX][TS_MAX] = {
 
@@ -79,7 +81,7 @@ static void tsConvert(CckTimestamp*, const int);
 static CckTimestamp tsGetConversion(CckTimestamp*, const int);
 static void tsNorm (CckTimestamp *);
 
-static const CckTimestampOps tOps = {
+const CckTimestampOps tsOps = {
 	.add =		tsAdd,
 	.sub =		tsSub,
 	.toDouble =	tsToDouble,
@@ -96,12 +98,6 @@ static const CckTimestampOps tOps = {
 	.convert =	tsConvert,
 	.getConversion = tsGetConversion
 };
-
-const CckTimestampOps*
-tsOps()
-{
-    return &tOps;
-}
 
 int snprint_CckTimestamp(char *s, int max_len, const CckTimestamp * p)
 {
@@ -142,6 +138,11 @@ setTimescaleOffset(const int a, const int b, const int offset)
     }
 
     if(b < TS_MIN || b >= TS_MAX) {
+	return;
+    }
+
+    /* leave me alone */
+    if(a == TS_ARB || b == TS_ARB) {
 	return;
     }
 

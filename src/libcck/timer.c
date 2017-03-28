@@ -126,6 +126,11 @@ setupCckTimer(CckTimer* timer, const int type, const char* name) {
 	}
     #include "timer.def"
 
+    if(type == CCKTIMER_ANY && !found) {
+	CCK_CRITICAL(THIS_COMPONENT"No available timer implementations found. LibCCK is inoperable\n");
+	exit(1);
+    }
+
     if(!found) {
 
 	CCK_ERROR(THIS_COMPONENT"Setup requested for unknown clock timer type: %d\n", type);

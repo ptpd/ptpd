@@ -994,7 +994,7 @@ writeStatusFile(PtpClock *ptpClock,const GlobalConfig *global, Boolean quiet)
 	    &ptpClock->parentDS.parentPortIdentity);
 
 	    fprintf(out, 		STATUSPREFIX"  %s","Best master ID", tmpBuf);
-	    if(ptpClock->portDS.portState == PTP_MASTER) {
+	    if(ptpClock->portDS.portState == PTP_MASTER || ptpClock->portDS.portState == PTP_PASSIVE) {
 		fprintf(out," (self)\n");
 		fprintf(out, 		STATUSPREFIX
 			"  Priority1 %d, Priority2 %d\n","Local priority",

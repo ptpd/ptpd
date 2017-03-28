@@ -368,7 +368,7 @@ setState(ClockDriver *driver, ClockState newState) {
 		    getClockStateName(newState));
 
 	    getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastUpdate);
-	    tsOps()->clear(&driver->age);
+	    tsOps.clear(&driver->age);
 
 	    /* if we're going into FREERUN, but not from a "good" state, restore last good frequency */
 	    if( (newState == CS_FREERUN) && !(driver->state == CS_LOCKED || driver->state == CS_HOLDOVER)) {
@@ -428,7 +428,7 @@ updateClockDrivers(int interval) {
 	    }
 
 	    getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
-	    tsOps()->sub(&cd->age, &now, &cd->_lastUpdate);
+	    tsOps.sub(&cd->age, &now, &cd->_lastUpdate);
 
 	    CCK_DBGV(THIS_COMPONENT"Clock %s age %d.%d\n", cd->name, cd->age.seconds, cd->age.nanoseconds);
 
@@ -661,7 +661,7 @@ processUpdate(ClockDriver *driver) {
 	    update = true;
 	}
 
-	if((driver->state == CS_NEGSTEP) && !tsOps()->isNegative(&driver->refOffset)) {
+	if((driver->state == CS_NEGSTEP) && !tsOps.isNegative(&driver->refOffset)) {
 	    driver->lockedUp = false;
 	    driver->setState(driver, CS_FREERUN);
 	    update = true;
@@ -901,7 +901,7 @@ stepTime (ClockDriver* driver, CckTimestamp *delta, bool force)
 		return true;
 	}
 
-	if(tsOps()->isZero(delta)) {
+	if(tsOps.isZero(delta)) {
 	    return true;
 	}
 
@@ -922,7 +922,7 @@ stepTime (ClockDriver* driver, CckTimestamp *delta, bool force)
 	    }
 	}
 
-	if(!force && !driver->config.negativeStep && tsOps()->isNegative(delta)) {
+	if(!force && !driver->config.negativeStep && tsOps.isNegative(delta)) {
 		CCK_CRITICAL(THIS_COMPONENT"Cannot step clock %s  backwards\n", driver->name);
 		CCK_CRITICAL(THIS_COMPONENT"Manual intervention required or SIGUSR1 to force %s clock step\n", driver->name);
 		driver->lockedUp = true;
@@ -931,7 +931,7 @@ stepTime (ClockDriver* driver, CckTimestamp *delta, bool force)
 	}
 
 	driver->getTime(driver, &newTime);
-	tsOps()->add(&newTime, &newTime, delta);
+	tsOps.add(&newTime, &newTime, delta);
 
 	driver->_frequencyEstimated = false;
 
@@ -999,7 +999,7 @@ touchClock(ClockDriver *driver) {
 
 	CckTimestamp now;
 	getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
-	tsOps()->sub(&driver->age, &now, &driver->_lastUpdate);
+	tsOps.sub(&driver->age, &now, &driver->_lastUpdate);
 	getSystemClock()->getTimeMonotonic(getSystemClock(), &driver->_lastUpdate);
 	driver->_updated = true;
 
@@ -1054,8 +1054,8 @@ estimateFrequency(ClockDriver *driver, double tau) {
 	/* update frequency estimate at least every second */
 	if((driver->_estimateCount * tau) >= CLOCKDRIVER_FREQEST_INTERVAL) {
 
-	    tsOps()->sub(&delta, &driver->refOffset, &driver->_lastDelta);
-	    dDelta = tsOps()->toDouble(&delta) / (driver->_estimateCount * tau);
+	    tsOps.sub(&delta, &driver->refOffset, &driver->_lastDelta);
+	    dDelta = tsOps.toDouble(&delta) / (driver->_estimateCount * tau);
 	    feedDoublePermanentMean(&driver->_calMean, dDelta );
 	    CCK_DBG(THIS_COMPONENT"estimateFrequency('%s): samples %.0f delta %.09f mean %.09f\n", driver->name,
 		driver->_calMean.count, dDelta, driver->_calMean.mean);
@@ -1086,7 +1086,7 @@ estimateFrequency(ClockDriver *driver, double tau) {
 static bool
 filterClock(ClockDriver *driver, double tau) {
 
-	double dOffset = tsOps()->toDouble(&driver->refOffset);
+	double dOffset = tsOps.toDouble(&driver->refOffset);
 
 	/* stage 1: run the outlier filter */
 	if(driver->config.outlierFilter) {
@@ -1152,7 +1152,7 @@ filterClock(ClockDriver *driver, double tau) {
 		    driver->_filter->lastBlocked = false;
 		    driver->_filter->consecutiveBlocked = 0;
 	    }
-	    driver->refOffset = tsOps()->fromDouble(driver->_filter->output);
+	    driver->refOffset = tsOps.fromDouble(driver->_filter->output);
 	}
 
 	return true;
@@ -1180,7 +1180,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
     driver->rawOffset = offset;
     driver->refOffset = offset;
 
-    tsOps()->sub(&driver->refOffset, &driver->refOffset, &offsetCorrection);
+    tsOps.sub(&driver->refOffset, &driver->refOffset, &offsetCorrection);
 
     /* run filter if running internal reference, drop sample if filter discards it */
     if(!driver->externalReference && !filterClock(driver, tau)) {
@@ -1195,13 +1195,13 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
      * in fact all show the same frequency (or so it seems...)
      */
 
-    if(tsOps()->isZero(&driver->refOffset)) {
+    if(tsOps.isZero(&driver->refOffset)) {
 	driver->lastFrequency = driver->getFrequency(driver);
 	driver->processUpdate(driver);
 	return true;
     }
 
-    dOffset = tsOps()->toDouble(&driver->refOffset);
+    dOffset = tsOps.toDouble(&driver->refOffset);
 
     if(!driver->config.readOnly) {
 
@@ -1262,7 +1262,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 		    CCK_WARNING(THIS_COMPONENT"Clock %s offset above 1 second (%s s), attempting to step the clock\n", driver->name, buf);
 		    if( driver->stepTime(driver, &offset, false) ) {
 			driver->_canResume = false;
-			tsOps()->clear(&driver->refOffset);
+			tsOps.clear(&driver->refOffset);
 			return true;
 		    } else {
 			return false;

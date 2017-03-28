@@ -313,7 +313,7 @@ ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
 	return true;
     }
 
-    if((to != from)) {
+    if(to != from) {
 
 	if(to == PTP_MASTER) {
 

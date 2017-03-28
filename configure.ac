@@ -102,8 +102,6 @@ AC_CHECK_HEADERS([net/if.h linux/if.h linux/un.h], [], [],
 #endif
 ])
 
-
-
 # Similar case for if_arp.h
 AC_CHECK_HEADERS([net/if_arp.h], [], [],
 [
@@ -288,9 +286,37 @@ AS_IF([test "$build_timerfd" == "true"],
     )
 AM_CONDITIONAL([CCK_BUILD_TIMER_TIMERFD], [test "$build_timerfd" == "true"])
 
+build_itimer=true
+AC_CHECK_FUNCS([setitimer], [], [build_itimer=false])
+AS_IF([test "$build_itimer" == "true"],
+	[
+	    AC_DEFINE([CCK_BUILD_TIMER_ITIMER], [1], [Build LibCCK timer itimer])
+	]
+	[]
+    )
+AM_CONDITIONAL([CCK_BUILD_TIMER_ITIMER], [test "$build_itimer" == "true"])
+
 AC_MSG_NOTICE([************************************************************])
 AC_MSG_NOTICE([* PTPD BUILD FLAG AND LIBRARY DEPENDENCY CHECKS START HERE *])
 AC_MSG_NOTICE([************************************************************])
+
+AC_MSG_CHECKING([if we can build itimer support])
+case "$build_itimer" in
+     "true")
+	AC_MSG_RESULT([yes])
+	;;
+     *) AC_MSG_RESULT([no])
+	;;
+esac
+
+AC_MSG_CHECKING([if we can build FD timer support])
+case "$build_timerfd" in
+     "true")
+	AC_MSG_RESULT([yes])
+	;;
+     *) AC_MSG_RESULT([no])
+	;;
+esac
 
 AC_CHECK_DECLS([POSIX_TIMERS_SUPPORTED], [build_posix_timers=true], [build_posix_timers=false], [
 #ifdef __sun && !defined(_XPG6)
@@ -302,10 +328,6 @@ AC_CHECK_DECLS([POSIX_TIMERS_SUPPORTED], [build_posix_timers=true], [build_posix
 #else
 #endif
 ])
-
-# ALL USER-CONTROLLED KNOBS START HERE
-
-
 AC_MSG_CHECKING([if we can build POSIX timer support])
 
 case "$build_posix_timers" in
@@ -687,12 +709,32 @@ AC_ARG_WITH(
     [max_destinations=$with_max_unicast_destinations],
     [max_destinations=128]
 )
-
 test $max_destinations -lt 16 && max_destinations=16
 test $max_destinations -gt 2048 && max_destinations=2048
 
-AC_DEFINE([PTP_UNICAST_MAX], [$max_destinations], [Maximum PTP unicast destinations])
+AC_DEFINE_UNQUOTED([PTP_UNICAST_MAX], [$max_destinations], [Maximum PTP unicast destinations])
 AC_MSG_RESULT([$max_destinations])
+
+AC_MSG_CHECKING([for non-default UTC to TAI offset])
+AC_ARG_WITH(
+    [utc-tai-offset],
+    [AS_HELP_STRING(
+	[--with-utc-tai-offset = [ 0+ (default: LibCCK build default)]],
+	[Change the default UTC to TAI offset used. LibCCK provides its 
+	    own default value which is kept up to date with IERS Bulletin C.
+	    This overrides this default.]
+    )],
+    [utc_tai_offset=$with_utc_tai_offset],
+    [utc_tai_offset=-1]
+)
+if test $utc_tai_offset -gt -1
+then
+    AC_DEFINE_UNQUOTED([CCK_BUILD_UTC_TAI_OFFSET], [$utc_tai_offset], [Non-default LibCCK UTC to TAI offset])
+    AC_MSG_RESULT([$utc_tai_offset])
+else
+    AC_MSG_RESULT([none given])
+fi
+
 
 AC_MSG_CHECKING([for daemon mode])
 AC_ARG_ENABLE(

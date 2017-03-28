@@ -79,8 +79,6 @@ ptpd_SOURCES =				\
 	libcck/timer.h			\
 	libcck/timer.c			\
 	libcck/timer_interface.h	\
-	libcck/timer/itimer.h		\
-	libcck/timer/itimer.c		\
 	libcck/transport_address.h	\
 	libcck/transport_address.c	\
 	libcck/acl.def			\
@@ -189,6 +187,11 @@ ptpd_SOURCES += libcck/clockdriver/vext/linuxphc_vext_intel.h\
 		libcck/clockdriver/vext/linuxphc_vext_solarflare.c\
 		libcck/clockdriver/clockdriver_linuxphc.h\
 		libcck/clockdriver/clockdriver_linuxphc.c
+endif
+
+if CCK_BUILD_TIMER_ITIMER
+ptpd_SOURCES += libcck/timer/itimer.h\
+		libcck/timer/itimer.c
 endif
 
 if CCK_BUILD_TIMER_POSIX

@@ -330,14 +330,14 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	    /* correct the new time for how long approximately it took to get it */
 	    getTime(self, &newTime);
 	    getTime(self, &post);
-	    tsOps()->sub(&corr, &post, &newTime);
+	    tsOps.sub(&corr, &post, &newTime);
 	    /* for the "post" read */
-	    tsOps()->add(&newTime, &newTime, &corr);
+	    tsOps.add(&newTime, &newTime, &corr);
 	    /* half for the newTime read */
-	    tsOps()->div2(&corr);
-	    tsOps()->add(&newTime, &newTime, &corr);
+	    tsOps.div2(&corr);
+	    tsOps.add(&newTime, &newTime, &corr);
 
-	    tsOps()->add(&newTime, &newTime, delta);
+	    tsOps.add(&newTime, &newTime, delta);
 
 	    ret = setTime(self, &newTime);
 
@@ -461,7 +461,7 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, CckTimestamp *delta)
 		if(!self->getSystemClockOffset(from, &deltaB)) {
 		    return false;
 		}
-		tsOps()->sub(delta, &deltaA, &deltaB);
+		tsOps.sub(delta, &deltaA, &deltaB);
 	    }
 	    return true;
 	}
@@ -529,14 +529,14 @@ getSystemClockOffset(ClockDriver *self, CckTimestamp *output)
 	t2.seconds = samples[2*i+2].sec;
 	t2.nanoseconds = samples[2*i+2].nsec;
 
-	tsOps()->sub(&duration, &t2, &t1);
+	tsOps.sub(&duration, &t2, &t1);
 
-	tsOps()->rttCor(&tmpDelta, &t1, &tptp, &t2);
+	tsOps.rttCor(&tmpDelta, &t1, &tptp, &t2);
 #if defined(CCK_DEBUG) || defined(PTPD_CLOCK_SYNC_PROFILING)
 	isMin = ' ';
 #endif /* debug or clock sync profiling */
 
-	if((i == 0) || (tsOps()->cmp(&duration, &minDuration) < 0) ) {
+	if((i == 0) || (tsOps.cmp(&duration, &minDuration) < 0) ) {
 	    minDuration = duration;
 	    delta = tmpDelta;
 #if defined(CCK_DEBUG) || defined(PTPD_CLOCK_SYNC_PROFILING)

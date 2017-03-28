@@ -71,10 +71,10 @@ feed (PIservo* self, double input, double tau) {
     switch(self->tauMethod) {
 	case DT_MEASURED:
 	    getSystemClock()->getTimeMonotonic(getSystemClock(), &now);
-	    if(tsOps()->isZero(&self->lastUpdate)) {
+	    if(tsOps.isZero(&self->lastUpdate)) {
 		self->tau = 1.0;
 	    } else {
-		tsOps()->sub(&delta, &now, &self->lastUpdate);
+		tsOps.sub(&delta, &now, &self->lastUpdate);
 		self->tau = delta.seconds + delta.nanoseconds / 1E9;
 	    }
 
