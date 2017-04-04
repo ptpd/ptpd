@@ -1216,7 +1216,6 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
      */
 
     if(tsOps.isZero(&driver->refOffset)) {
-
 	driver->lastFrequency = driver->getFrequency(driver);
 	driver->processUpdate(driver);
 	return true;
@@ -1228,7 +1227,6 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 
 	/* forced step on first update */
 	if((driver->config.stepType == CSTEP_STARTUP_FORCE) && !driver->_updated && !driver->_stepped && !driver->lockedUp) {
-
 		return driver->stepTime(driver, &offset, false);
 	}
 
@@ -1241,7 +1239,6 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 
 		/* step on first update */
 		if((driver->config.stepType == CSTEP_STARTUP) && !driver->_updated && !driver->_stepped && !driver->lockedUp) {
-
 			return driver->stepTime(driver, &offset, true);
 		}
 
