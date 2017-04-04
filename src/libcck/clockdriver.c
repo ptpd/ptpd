@@ -824,11 +824,10 @@ static void setExternalReference(ClockDriver *a, const char* refName, int refCla
 
 }
 
-
 static void
 restoreFrequency (ClockDriver *driver) {
 
-    double frequency = 0;
+    double frequency = 0.0;
     char frequencyPath [PATH_MAX + 1];
     memset(frequencyPath, 0, PATH_MAX + 1);
 
@@ -836,19 +835,25 @@ restoreFrequency (ClockDriver *driver) {
 	return;
     }
 
+    /* try to retrieve from file */
     if(driver->config.storeToFile) {
 	snprintf(frequencyPath, PATH_MAX, "%s/%s", driver->config.frequencyDir, driver->config.frequencyFile);
 	if(!doubleFromFile(frequencyPath, &frequency)) {
-	    frequency = driver->getFrequency(driver);
+	    frequency = driver->storedFrequency;
 	}
+    /* otherwise use stored frequency from last lock */
+    } else {
+	frequency = driver->storedFrequency;
     }
 
     /* goddamn floats! */
     if(fabs(frequency) <= ZEROF) {
+	/* last resort - use current frequency */
 	frequency = driver->getFrequency(driver);
     }
 
     frequency = clamp(frequency, driver->maxFrequency);
+
     driver->servo.prime(&driver->servo, frequency);
     driver->storedFrequency = driver->servo.output;
     driver->setFrequency(driver, driver->storedFrequency, 1.0);
@@ -1039,14 +1044,23 @@ estimateFrequency(ClockDriver *driver, double tau) {
 	    return false;
 	}
 
-	/* first run */
-	if(!(driver->_lastDelta.nanoseconds)) {
+	/* we will only get here if config has been changed while we were in FREQEST */
+	if(driver->config.calibrationTime == 0) {
+	    driver->_lastDelta.seconds = 0;
+	    driver->_lastDelta.nanoseconds = 0;
+	    driver->_estimateCount = 0;
 	    resetDoublePermanentMean(&driver->_calMean);
+	    driver->stepTime(driver, &driver->refOffset, false);
+	    driver->setState(driver, CS_TRACKING);
+	    return true;
+	}
+
+	/* first run */
+	if(driver->_calMean.count == 0 && driver->_estimateCount == 0) {
 	    resetClockAge(driver);
 	    driver->_estimateCount = 0;
 	    driver->_lastDelta = driver->refOffset;
 	    driver->_frequencyEstimated = false;
-	    return false;
 	}
 
 	driver->_estimateCount++;
@@ -1070,11 +1084,14 @@ estimateFrequency(ClockDriver *driver, double tau) {
 	    max(max(CLOCKDRIVER_FREQEST_MIN_TAU * tau, CLOCKDRIVER_FREQEST_INTERVAL), driver->config.calibrationTime)) {
 		CCK_INFO(THIS_COMPONENT"Clock %s estimated frequency error %.03f ppb\n",
 			driver->name, driver->estimatedFrequency);
-		driver->_lastDelta.seconds = 0;
-		driver->_lastDelta.nanoseconds = 0;
+		tsOps.clear(&driver->_lastDelta);
 		driver->_estimateCount = 0;
 		driver->_frequencyEstimated = true;
-		setFrequencyEstimate(driver);
+		/* nothing to do if too little data for a mean */
+		if(driver->_calMean.count > 1) {
+		    setFrequencyEstimate(driver);
+		}
+		resetDoublePermanentMean(&driver->_calMean);
 		driver->stepTime(driver, &driver->refOffset, false);
 		driver->setState(driver, CS_TRACKING);
 	}
@@ -1960,7 +1977,7 @@ putStatsLine(ClockDriver* driver, char* buf, int len) {
     if(driver->config.disabled) {
 	snprintf(buf, len - 1, "disabled");
     } else {
-	snprintf(buf, len - 1, "%s%soffs: %-13s  adev: %-8.3f freq: %.03f", driver->config.readOnly ? "r" : " ",
+	snprintf(buf, len - 1, "%s%s offs: %-13s  adev: %-8.3f freq: %.03f", driver->config.readOnly ? "r" : " ",
 	    driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : driver->config.excluded ? "-" : " ",
 	    tmpBuf, driver->adev, driver->lastFrequency);
     }
@@ -1987,7 +2004,7 @@ putInfoLine(ClockDriver* driver, char* buf, int len) {
     if(driver->config.disabled) {
 	snprintf(buf, len - 1, "disabled");
     } else {
-	snprintf(buf, len - 1, "%s%sname:  %-12s state: %-9s ref: %-7s", driver->config.readOnly ? "r" : " ",
+	snprintf(buf, len - 1, "%s%s name:  %-12s state: %-9s ref: %-7s", driver->config.readOnly ? "r" : " ",
 		driver->bestClock ? "*" : driver->state <= CS_INIT ? "!" : driver->config.excluded ? "-" : " ",
 	    driver->name, tmpBuf2, strlen(driver->refName) ? driver->refName : "none");
     }
