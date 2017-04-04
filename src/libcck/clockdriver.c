@@ -523,7 +523,10 @@ syncClocks(double tau) {
 
 	    if(cd->state == CS_LOCKED) {
 		cd->syncClock(cd, tau);
-		cd->_skipSync = 1;
+		/* this will prevent the clock from syncing again below - only for internal reference */
+		if(!cd->externalReference) {
+		    cd->_skipSync = 1;
+		}
 	    }
     }
     /* sync the whole rest */
@@ -1213,6 +1216,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
      */
 
     if(tsOps.isZero(&driver->refOffset)) {
+
 	driver->lastFrequency = driver->getFrequency(driver);
 	driver->processUpdate(driver);
 	return true;
@@ -1224,6 +1228,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 
 	/* forced step on first update */
 	if((driver->config.stepType == CSTEP_STARTUP_FORCE) && !driver->_updated && !driver->_stepped && !driver->lockedUp) {
+
 		return driver->stepTime(driver, &offset, false);
 	}
 
@@ -1236,6 +1241,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 
 		/* step on first update */
 		if((driver->config.stepType == CSTEP_STARTUP) && !driver->_updated && !driver->_stepped && !driver->lockedUp) {
+
 			return driver->stepTime(driver, &offset, true);
 		}
 
@@ -1289,6 +1295,7 @@ disciplineClock(ClockDriver *driver, CckTimestamp offset, double tau) {
 		}
 
 	} else {
+
 		if(driver->state == CS_STEP) {
 		    /* we are outside the exit threshold, clock is still suspended */
 		    if(driver->config.stepExitThreshold && (labs(driver->refOffset.nanoseconds) > driver->config.stepExitThreshold)) {
