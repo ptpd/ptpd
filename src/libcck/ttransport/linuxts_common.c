@@ -301,7 +301,8 @@ initHwTimestamping(LinuxTsInfo *info, const char *ifName, const int family, cons
 
 	/* if the driver has changed the RX filter, check if we can use what we got */
 	if(config.rx_filter != info->rxFilter) {
-	    if(checkRxFilter(config.rx_filter, family)) {
+	    /* Some drivers return HWTSTAMP_FILTER_SOME - apparently "what we requested plus more". */
+	    if(checkRxFilter(config.rx_filter, family) || config.rx_filter == HWTSTAMP_FILTER_SOME ) {
 		CCK_WARNING("initHwTimestamping(%s): Interface changed hardware receive filter type from %d to %d - still acceptable\n",
 		ifName, info->rxFilter, config.rx_filter);
 	    /* nope. */
