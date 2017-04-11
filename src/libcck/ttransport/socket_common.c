@@ -90,7 +90,7 @@ initTimestamping_socket_common(TTransport *self,  TTsocketTimestampConfig *confi
 #endif
 
 	/* we are using naive timestamps, that is it */
-	confif->naive = true;
+	config->naive = true;
 	return true;
 
 #endif /* end ifdef block */

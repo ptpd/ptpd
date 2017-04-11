@@ -1696,11 +1696,11 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	"	 or decreased by when auto-tuning.", RANGECHECK_RANGE, 0.01,10.0);
 
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "ptpengine:delay_outlier_filter_autotune_minthreshold",
-		PTPD_RESTART_NONE, &global->oFilterSMConfig.minThreshold, global->oFilterSMConfig.minThreshold,
+		PTPD_RESTART_FILTERS, &global->oFilterSMConfig.minThreshold, global->oFilterSMConfig.minThreshold,
 		"Minimum Delay Response filter threshold value used when auto-tuning", RANGECHECK_RANGE, 0.01,10.0);
 
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "ptpengine:delay_outlier_filter_autotune_maxthreshold",
-		PTPD_RESTART_NONE, &global->oFilterSMConfig.maxThreshold, global->oFilterSMConfig.maxThreshold,
+		PTPD_RESTART_FILTERS, &global->oFilterSMConfig.maxThreshold, global->oFilterSMConfig.maxThreshold,
 		"Maximum Delay Response filter threshold value used when auto-tuning", RANGECHECK_RANGE, 0.01,10.0);
 
 	CONFIG_CONDITIONAL_ASSERTION(global->oFilterSMConfig.maxPercent <= global->oFilterSMConfig.minPercent,
@@ -1788,11 +1788,11 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	"	 or decreased by when auto-tuning.", RANGECHECK_RANGE, 0.01,10.0);
 
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "ptpengine:sync_outlier_filter_autotune_minthreshold",
-		PTPD_RESTART_NONE, &global->oFilterMSConfig.minThreshold, global->oFilterMSConfig.minThreshold,
+		PTPD_RESTART_FILTERS, &global->oFilterMSConfig.minThreshold, global->oFilterMSConfig.minThreshold,
 		"Minimum Sync outlier filter threshold value used when auto-tuning", RANGECHECK_RANGE, 0.01,10.0);
 
 	parseResult &= configMapDouble(opCode, opArg, dict, target, "ptpengine:sync_outlier_filter_autotune_maxthreshold",
-		PTPD_RESTART_NONE, &global->oFilterMSConfig.maxThreshold, global->oFilterMSConfig.maxThreshold,
+		PTPD_RESTART_FILTERS, &global->oFilterMSConfig.maxThreshold, global->oFilterMSConfig.maxThreshold,
 		"Maximum Sync outlier filter threshold value used when auto-tuning", RANGECHECK_RANGE, 0.01,10.0);
 
 	CONFIG_CONDITIONAL_ASSERTION(global->oFilterMSConfig.maxPercent <= global->oFilterMSConfig.minPercent,
