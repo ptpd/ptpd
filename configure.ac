@@ -250,18 +250,19 @@ case $host in
     DLPI_LIBS=""
     AC_CHECK_HEADERS([libdlpi.h],
 		    [
-			AC_MSG_CHECKING(for libdlpi library)
+			AC_MSG_CHECKING([for libdlpi library])
 			if test "$have_libdlpi" == "true"; then
-			    AC_MSG_RESULT(-ldlpi)
+			    AC_MSG_RESULT([-ldlpi])
 			elif test -f "/lib/libdlpi.so.1"; then
-			    AC_MSG_RESULT(/lib/libdlpi.so.1)
+			    AC_MSG_RESULT([/lib/libdlpi.so.1])
 			    DLPI_LIBS="/lib/libdlpi.so.1"
 			else
-			    AC_MSG_RESULT(none)
-			    AC_MSG_ERROR(no usable libdlpi library found)
+			    AC_MSG_RESULT([none])
+			    AC_MSG_ERROR([no usable libdlpi library found])
 			fi
 		    ],
-		    [])
+		    [echo bob]
+    )
     AC_SUBST([DLPI_LIBS])
     ;;
 esac
@@ -274,26 +275,24 @@ case $host in
 ;;
 esac
 
-
-
 AM_CONDITIONAL([LINUX], [test "$is_linux" == "true" ])
 AM_CONDITIONAL([CCK_BUILD_TTRANSPORT_SOCK_RAWETH], [test "$is_linux" == "true" ])
-
 AM_CONDITIONAL([CCK_BUILD_DAEMON], [test "$have_daemon" == "false" ])
+AM_CONDITIONAL([CCK_BUILD_SOLARIS_GETIFADDRS], [test "$have_ifaddrs_h" == "false"])
 
 # LibCCK conditional component build checks
 
 build_linuxphc=false
 
+
 case $host in
 *solaris*)
 
-	    AM_CONDITIONAL([CCK_BUILD_SOLARIS_GETIFADDRS], [test "$have_ifaddrs_h" == "false"])
+
 	    AS_IF([test "$have_ifaddrs_h" == "false"],
 		[
 		    AC_DEFINE([CCK_BUILD_SOLARIS_GETIFADDRS], [1], [Build internal getifaddrs() implementation on Solaris])
-		],
-		[]
+		]
 	    )
     ;;
 
@@ -311,8 +310,7 @@ case $host in
 		[
 		    AC_DEFINE([CCK_BUILD_TTRANSPORT_LINUXTS], [1], [Build LibCCK Linux timestamping transports])
 		    AC_DEFINE([CCK_BUILD_CLOCKDRIVER_LINUXPHC], [1], [Build LibCCK Linux PHC clock driver])
-		],
-		[]
+		]
 	    )
 
     ;;
@@ -327,7 +325,6 @@ AS_IF([test "$build_timerfd" == "true"],
 	[
 	    AC_DEFINE([CCK_BUILD_TIMER_TIMERFD], [1], [Build LibCCK timer FD timer])
 	]
-	[]
     )
 AM_CONDITIONAL([CCK_BUILD_TIMER_TIMERFD], [test "$build_timerfd" == "true"])
 
@@ -337,7 +334,6 @@ AS_IF([test "$build_itimer" == "true"],
 	[
 	    AC_DEFINE([CCK_BUILD_TIMER_ITIMER], [1], [Build LibCCK timer itimer])
 	]
-	[]
     )
 AM_CONDITIONAL([CCK_BUILD_TIMER_ITIMER], [test "$build_itimer" == "true"])
 
