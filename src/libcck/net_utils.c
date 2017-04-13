@@ -205,7 +205,7 @@ end:
 
 #else
 /* We have nothing to work with */
-    CCK_ERROR(THIS_COMPONENT"getHwAddrData(%s): No suitable method to get hardware address. Function needd ported to current platform\n", ifName);
+    CCK_ERROR(THIS_COMPONENT"getHwAddrData(%s): No suitable method to get hardware address. Function needs ported to current platform\n", ifName);
 ret = -1;
 return ret;
 
