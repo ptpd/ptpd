@@ -47,6 +47,10 @@
 #	include <endian.h>
 #endif /* HAVE_ENDIAN_H */
 
+#ifdef HAVE_SYS_ISA_DEFS_H
+#     include <sys/isa_defs.h>
+#endif /* HAVE_SYS_ISA_DEFS_H */
+
 #include <libcck/cck_types.h>
 
 /* min, max */
@@ -107,12 +111,12 @@ memset(name, 0, name ## _len);
 #define zeromem(var) memset(var, 0, sizeof(*(var)))
 
 /* explicit endian conversion */
-#if BYTE_ORDER == BIG_ENDIAN || defined(_BIG_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN)
+#if (defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)) || defined(_BIG_ENDIAN) || (defined(__BYTE_ORDER) && (__BYTE_ORDER == __BIG_ENDIAN))
     #define tobe16(var) (var)
     #define tobe32(var) (var)
     #define tole16(var) swap16(var)
     #define tole32(var) swap32(var)
-#elif BYTE_ORDER == LITTLE_ENDIAN || defined(_LITTLE_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
+#elif (defined(BYTE_ORDER) && (BYTE_ORDER == LITTLE_ENDIAN)) || defined(_LITTLE_ENDIAN) || (defined(__BYTE_ORDER) && (__BYTE_ORDER == __LITTLE_ENDIAN))
     #define tobe16(var) swap16(var)
     #define tobe32(var) swap32(var)
     #define tole16(var) (var)

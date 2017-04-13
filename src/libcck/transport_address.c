@@ -58,6 +58,12 @@ static const char *addressFamilyNames[] = {
 	[TT_FAMILY_MAX]		= "nosuchtype"
 };
 
+#if !defined(AF_LOCAL) && defined(AF_UNIX)
+#define AF_LOCAL AF_UNIX
+#elif !defined(AF_UNIX)
+#define AF_LOCAL AF_UNSPEC
+#endif /* !AF_LOCAL && AF_UNIX */
+
 static const int addressFamilyMappings[] = {
 	[TT_FAMILY_IPV4]	= AF_INET,
 	[TT_FAMILY_IPV6]	= AF_INET6,

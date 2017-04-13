@@ -7,7 +7,7 @@ man_MANS = ptpd.8 ptpd.conf.5
 
 AM_CFLAGS	= $(SNMP_CFLAGS) $(PCAP_CFLAGS) -Wall -fexceptions
 AM_CPPFLAGS	= $(SNMP_CPPFLAGS) $(PCAP_CPPFLAGS)
-AM_LDFLAGS	= $(SNMP_LIBS) $(PCAP_LIBS)
+AM_LDFLAGS	= $(SNMP_LIBS) $(PCAP_LIBS) $(DLPI_LIBS)
 
 AM_CPPFLAGS    += -DDATADIR='"$(datadir)"' $(PTP_DBL) $(PTP_DAEMON) $(PTP_EXP) $(PTP_SLAVE_ONLY) $(PTP_PROFILING_OUTPUT)
 
@@ -203,6 +203,16 @@ if CCK_BUILD_TIMER_TIMERFD
 ptpd_SOURCES += libcck/timer/timerfd.h\
 		libcck/timer/timerfd.c
 endif
+
+if CCK_BUILD_SOLARIS_GETIFADDRS
+ptpd_SOURCES += libcck/compat/getifaddrs_solaris.c\
+		libcck/compat/ifaddrs.h
+endif
+
+if CCK_BUILD_DAEMON
+ptpd_SOURCES += libcck/compat/daemon.c
+endif
+
 
 #if CCK_BUILD_
 #ptpd_SOURCES += 

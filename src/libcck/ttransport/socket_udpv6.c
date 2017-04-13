@@ -92,7 +92,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     bool bindToAddress = true;
     CckTransportAddress bindAddr;
 
-    const struct in6_addr anyv6 = IN6ADDR_ANY_INIT;
+    const struct in6_addr anyv6 = CCK_IN6_ANY;
 
     tmpstr(strAddr, self->tools->strLen);
 

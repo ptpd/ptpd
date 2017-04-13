@@ -106,6 +106,9 @@
 #define IPV6_SCOPE_ORG_LOCAL	0x08
 #define IPV6_SCOPE_GLOBAL	0x0E
 
+/* some IN6ADDR_ANY_INIT lack outer braces and produce unnecessary warnings */
+#define CCK_IN6_ANY {{{ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }}}
+
 #include <libcck/linked_list.h>
 #include <libcck/cck.h>
 #include <libcck/libcck.h>

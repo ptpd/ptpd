@@ -58,6 +58,10 @@
 #include "cck_glue.h"
 #include <libcck/cck_logger.h>
 
+#ifndef HAVE_DAEMON
+extern int daemon(int nochdir, int noclose);
+#endif
+
 /*
  * Synchronous signal processing:
  * original idea: http://www.openbsd.org/cgi-bin/cvsweb/src/usr.sbin/ntpd/ntpd.c?rev=1.68;content-type=text%2Fplain

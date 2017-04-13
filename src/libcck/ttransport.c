@@ -881,7 +881,6 @@ setTTransportUid(TTransport *transport) {
     unsigned char *addrData = getAddressData(&transport->ownAddress);
 
     uint16_t filler = tobe16(transport->config.uidPid ? getpid() : 0xfffe);
-
     uint16_t *middle = (uint16_t*)(transport->uid + 3);
     uint16_t *right = (uint16_t*)(transport->uid + 6);
 
@@ -893,7 +892,6 @@ setTTransportUid(TTransport *transport) {
 	memcpy(transport->uid, transport->config.customUid, 8);
 
     } else if (transport->hwAddress.populated) {
-
 	/* copy MAC address to the outer 48 bits */
 	memcpy(transport->uid, hwData, 3);
 	memcpy(transport->uid + 5, hwData + 3, 3);

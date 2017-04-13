@@ -34,12 +34,16 @@ ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99])
 AM_PROG_CC_C_O
 AC_PROG_LIBTOOL
 
-
-# Check for date, cut and tr
+# Check for uname,date, cut and tr
 
 AC_PATH_PROG(cutpath, cut)
 AC_PATH_PROG(trpath, tr)
 AC_PATH_PROG(datepath, date)
+AC_PATH_PROG(unamepath, uname)
+
+if test -n "$unamepath"; then
+    os_family=`uname`
+fi
 
 if test -n "$datepath"; then
     build_date=`$datepath +%Y%m%d`
@@ -72,12 +76,15 @@ AC_SEARCH_LIBS([timer_create], [rt])
 AC_SEARCH_LIBS([connect], [socket])
 AC_SEARCH_LIBS([gethostbyname], [nsl])
 
+
 # Checks for header files.
 AC_HEADER_STDC
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h net/if_dl.h net/if_types.h])
-AC_CHECK_HEADERS([linux/if_packet.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h ifaddrs.h sys/time.h syslog.h unistd.h])
+AC_CHECK_HEADERS([linux/if_packet.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h sys/time.h syslog.h unistd.h])
 AC_CHECK_HEADERS([glob.h sched.h utmp.h utmpx.h unix.h linux/rtc.h sys/timex.h getopt.h sys/un.h linux/sockios.h])
+
+AC_CHECK_HEADERS([ifaddrs.h], [have_ifaddrs_h=true], [have_ifaddrs_h=false], [])
 
 AC_CHECK_HEADERS([endian.h machine/endian.h sys/isa_defs.h])
 
@@ -221,6 +228,8 @@ AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([clock_gettime dup2 ftruncate gethostbyname2 gettimeofday inet_ntoa memset pow select socket strchr strdup strerror strtol glob pututline utmpxname updwtmpx setutent endutent signal ntp_gettime getopt_long clock_adjtime if_nametoindex ntp_adjtime adjtimex])
 
+AC_CHECK_FUNCS([daemon], [have_daemon=true], [have_daemon=false])
+
 if test -n "$GCC"; then
     AC_MSG_CHECKING(if GCC -fstack-protector is usable)
     OLDCFLAGS="$CFLAGS"
@@ -233,6 +242,30 @@ if test -n "$GCC"; then
     ])
 fi
 
+# Solaris libdlpi checks
+case $host in
+*solaris*)
+    AC_CHECK_HEADERS([sys/dlpi.h])
+    AC_SEARCH_LIBS([dlpi_open], [dlpi], [have_libdlpi=true], [have_libdlpi=false])
+    DLPI_LIBS=""
+    AC_CHECK_HEADERS([libdlpi.h],
+		    [
+			AC_MSG_CHECKING(for libdlpi library)
+			if test "$have_libdlpi" == "true"; then
+			    AC_MSG_RESULT(-ldlpi)
+			elif test -f "/lib/libdlpi.so.1"; then
+			    AC_MSG_RESULT(/lib/libdlpi.so.1)
+			    DLPI_LIBS="/lib/libdlpi.so.1"
+			else
+			    AC_MSG_RESULT(none)
+			    AC_MSG_ERROR(no usable libdlpi library found)
+			fi
+		    ],
+		    [])
+    AC_SUBST([DLPI_LIBS])
+    ;;
+esac
+
 is_linux=false
 case $host in
 *linux*)
@@ -241,17 +274,29 @@ case $host in
 ;;
 esac
 
+
+
 AM_CONDITIONAL([LINUX], [test "$is_linux" == "true" ])
 AM_CONDITIONAL([CCK_BUILD_TTRANSPORT_SOCK_RAWETH], [test "$is_linux" == "true" ])
 
+AM_CONDITIONAL([CCK_BUILD_DAEMON], [test "$have_daemon" == "false" ])
+
 # LibCCK conditional component build checks
-
-
-# Linux transport / clock driver
 
 build_linuxphc=false
 
 case $host in
+*solaris*)
+
+	    AM_CONDITIONAL([CCK_BUILD_SOLARIS_GETIFADDRS], [test "$have_ifaddrs_h" == "false"])
+	    AS_IF([test "$have_ifaddrs_h" == "false"],
+		[
+		    AC_DEFINE([CCK_BUILD_SOLARIS_GETIFADDRS], [1], [Build internal getifaddrs() implementation on Solaris])
+		],
+		[]
+	    )
+    ;;
+
 *linux*)
 	    build_linuxphc=true
 	    AC_CHECK_HEADERS([linux/ethtool.h], [], [build_linuxphc=false], [])
@@ -266,7 +311,7 @@ case $host in
 		[
 		    AC_DEFINE([CCK_BUILD_TTRANSPORT_LINUXTS], [1], [Build LibCCK Linux timestamping transports])
 		    AC_DEFINE([CCK_BUILD_CLOCKDRIVER_LINUXPHC], [1], [Build LibCCK Linux PHC clock driver])
-		]
+		],
 		[]
 	    )
 

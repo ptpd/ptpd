@@ -44,7 +44,11 @@
 #include <sys/socket.h>
 #endif /* HAVE_SYS_SOCKET_H */
 
+#ifdef HAVE_IFADDRS_H
 #include <ifaddrs.h>
+#elif defined(CCK_BUILD_SOLARIS_GETIFADDRS)
+#include "compat/ifaddrs.h"
+#endif /* HAVE_IFADDRS_H */
 
 #ifdef HAVE_NET_IF_DL_H
 #include <net/if_dl.h>
@@ -79,7 +83,7 @@ getHwAddrData (unsigned char* hwAddr, const char* ifName, const int hwAddrSize)
     struct ifaddrs *ifaddr, *ifa;
 
     if(getifaddrs(&ifaddr) == -1) {
-	CCK_PERROR("Could not get interface list");
+	CCK_PERROR(THIS_COMPONENT"getHwAddrData(%s): Could not get interface list", ifName);
 	ret = -1;
 	goto end;
 
@@ -108,7 +112,7 @@ getHwAddrData (unsigned char* hwAddr, const char* ifName, const int hwAddrSize)
     }
 
     ret = 0;
-    CCK_DBG("Interface not found: %s\n", ifName);
+    CCK_DBG(THIS_COMPONENT"getHwAddrData(%s): Interface not found\n", ifName);
 
 end:
 
@@ -116,7 +120,42 @@ end:
     return ret;
 
 
-#else
+#elif defined(__sun) && !defined(SIOCGIFHWADDR) && defined(HAVE_LIBDLPI_H)
+/* older Solaris, need DLPI */
+#include <libdlpi.h>
+
+    size_t addrlen = DLPI_PHYSADDR_MAX;
+    char physaddr[addrlen];
+    dlpi_handle_t dh;
+    int res;
+
+    res = dlpi_open(ifName, &dh, 0);
+
+    if(res != DLPI_SUCCESS) {
+	if(res == DLPI_ENOLINK || res == DLPI_ELINKNAMEINVAL) {
+	    CCK_DBG(THIS_COMPONENT"getHwAddrData(%s): DLPI: Interface not found or invalid name\n", ifName);
+	    ret = 0;
+	} else {
+	    CCK_DBG(THIS_COMPONENT"getHwAddrData(%s): DLPI: could not open DLPI handle\n", ifName);
+	    ret = -1;
+	}
+    } else {
+
+	if(dlpi_get_physaddr(dh, DL_CURR_PHYS_ADDR, physaddr, &addrlen) !=
+	    DLPI_SUCCESS) {
+	    CCK_DBG(THIS_COMPONENT"getHwAddrData(%s): DLPI: dlpi_get_physaddr() failed\n", ifName);
+	    ret = -1;
+	} else {
+	    memcpy(hwAddr, physaddr, min(hwAddrSize, addrlen));
+	    ret = 1;
+	}
+
+    }
+
+    dlpi_close(dh);
+    return ret;
+
+#elif defined(SIOCGHWIFADDR)
 /* Linux and Solaris family which also have SIOCGIFHWADDR/SIOCGLIFHWADDR */
     int sockfd;
     struct ifreq ifr;
@@ -124,7 +163,7 @@ end:
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     if(sockfd < 0) {
-	CCK_PERROR("Could not open test socket");
+	CCK_PERROR(THIS_COMPONENT"getHwAddrData(%s): Could not open test socket", ifName);
 	return -1;
     }
 
@@ -132,12 +171,11 @@ end:
 
     strncpy(ifr.ifr_name, ifName, IF_NAMESIZE);
 
-    if (ioctl(sockfd, SIOCGIFHWADDR, &ifr) < 0) {
+    if (ioctl(sockfd, SIOCGHWIFADDR, &ifr) < 0) {
             CCK_DBGV("failed to request hardware address for %s", ifName);
 	    ret = -1;
 	    goto end;
     }
-
 #ifdef HAVE_STRUCT_IFREQ_IFR_HWADDR
     int af = ifr.ifr_hwaddr.sa_family;
 #else
@@ -165,7 +203,13 @@ end:
     close(sockfd);
     return ret;
 
-#endif /* AF_LINK */
+#else
+/* We have nothing to work with */
+    CCK_ERROR(THIS_COMPONENT"getHwAddrData(%s): No suitable method to get hardware address. Function needd ported to current platform\n", ifName);
+ret = -1;
+return ret;
+
+#endif /* AF_LINK - end of ifdef block*/
 
 }
 
