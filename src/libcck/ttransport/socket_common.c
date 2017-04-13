@@ -80,11 +80,11 @@ initTimestamping_socket_common(TTransport *self,  TTsocketTimestampConfig *confi
 
 #if defined(__QNXNTO__) && defined (CCK_EXPERIMENTAL) /* interpolation on QNX is OK, no need for a warning */
 
-	CCK_DBG(THIS_COMPONENT"initTimestamping(%s): using QNX timestamp interpolation\n", self->name);
+	CCK_NOTICE(THIS_COMPONENT"initTimestamping(%s): using QNX timestamp interpolation\n", self->name);
 
 #else /* not QNX or not CCK_EXPERIMENTAL: warn about poor precision */
 
-	CCK_WARNING("initTimestamping(%s): no timestamp API available, timestamps will be imprecise!\n",
+	CCK_WARNING("initTimestamping(%s): no socket timestamp API available, timestamps may imprecise\n",
 		    self->name);
 
 #endif
