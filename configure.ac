@@ -34,12 +34,17 @@ ifdef([AC_PROG_CC_C99], [AC_PROG_CC_C99])
 AM_PROG_CC_C_O
 AC_PROG_LIBTOOL
 
+# check for 'make' alternatives, set the MAKE variable accordingly
+AC_PATH_PROGS(MAKE, [ make gmake gnumake ])
+AC_SUBST(MAKE)
+
 # Check for uname,date, cut and tr
 
 AC_PATH_PROG(cutpath, cut)
 AC_PATH_PROG(trpath, tr)
 AC_PATH_PROG(datepath, date)
 AC_PATH_PROG(unamepath, uname)
+
 
 if test -n "$unamepath"; then
     os_family=`uname`
