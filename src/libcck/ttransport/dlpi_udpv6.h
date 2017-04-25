@@ -28,7 +28,7 @@
  * @file   dlpi_udpv6.h
  * @date   Sat Jan 9 16:14:10 2016
  *
- * @brief  structure definitions for libpcap-based IPv6 timestamping transport
+ * @brief  structure definitions for libdlpi-based IPv6 timestamping transport
  *
  */
 

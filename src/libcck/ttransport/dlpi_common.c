@@ -387,7 +387,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
     fd = dlpi_fd(*dh);
 
     if(fd < 0) {
-	    CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not get file descriptor from DLPI handle\n",
+	    CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not get file descriptor from DLPI handle",
 		ifName);
 	    return -1;
     }
@@ -396,7 +396,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
 
 	ret = ioctl(fd, I_PUSH, "pfmod");
 	if (ret < 0) {
-	    CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not push pfmod to DLPI handle\n",
+	    CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not push pfmod to DLPI handle",
 			ifName);
 	    return -1;
 	}
@@ -404,7 +404,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
 	ret = strIoctlHelper(fd, PFIOCSETF, -1, sizeof(struct pfstruct), (char*)pf);
 
 	if (ret < 0) {
-	    CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not set pfmod filter on DLPI handle\n",
+	    CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not set pfmod filter on DLPI handle",
 			ifName);
 	    return -1;
 	}
@@ -413,7 +413,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
 
     ret = ioctl(fd, I_PUSH, "bufmod");
     if (ret < 0) {
-	CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not push bufmod to DLPI handle\n",
+	CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not push bufmod to DLPI handle",
 		ifName);
 	return -1;
     }
@@ -429,7 +429,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
     ret = strIoctlHelper(fd, SBIOCSCHUNK, -1, sizeof(chunksize), (char*)&chunksize);
 
     if (ret < 0) {
-	CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI chunk size\n",
+	CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI chunk size",
 		ifName);
 	return -1;
     }
@@ -437,7 +437,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
     ret = strIoctlHelper(fd, SBIOCSSNAP, -1, sizeof(snaplen), (char*)&snaplen);
 
     if (ret < 0) {
-	CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI snap length\n",
+	CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI snap length",
 		ifName);
 	return -1;
     }
@@ -445,7 +445,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
     ret = ioctl(fd, I_FLUSH, FLUSHR);
 
     if(ret < 0) {
-	CCK_WARNING(THIS_COMPONENT"dlpiInit(%s): could not flush DLPI handle\n",
+	CCK_WARNING(THIS_COMPONENT"dlpiInit(%s): could not flush DLPI handle",
 		ifName);
     }
 

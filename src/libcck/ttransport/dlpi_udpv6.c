@@ -28,7 +28,7 @@
  * @file   dlpi_udpv6.c
  * @date   Sat Jan 9 16:14:10 2016
  *
- * @brief  dlpi-based IPv6 software timestamping transport implementation
+ * @brief  libdlpi-based IPv6 software timestamping transport implementation
  *
  */
 
@@ -208,7 +208,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     /* set various options */
     if(self->config.flags & TT_CAPS_MCAST) {
 
-	/* no need for multicast loopback - libpcap receives everything */
+	/* no need for multicast loopback - dlpi receives everything */
 	if (!setMulticastLoopback(*fd, self->family, false)) {
 	    goto cleanup;
 	}
@@ -232,12 +232,10 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
 
     struct timeval timeout = { 0,0};
 
-    ret = dlpiInit(&myData->readerHandle, myConfig->interface, promisc, timeout, 0, self->inputBufferSize + self->headerLen, &pf);
-
-    *dlpiFd = dlpi_fd(myData->readerHandle);
+    *dlpiFd = dlpiInit(&myData->readerHandle, myConfig->interface, promisc, timeout, 0, self->inputBufferSize + self->headerLen, &pf);
 
     if(*dlpiFd < 0) {
-	CCK_PERROR(THIS_COMPONENT"tTransportInit(%s): Failed to get PCAP file descriptor", self->name);
+	CCK_PERROR(THIS_COMPONENT"tTransportInit(%s): Failed to get DLPI file descriptor", self->name);
 	goto cleanup;
     }
 
@@ -307,7 +305,7 @@ tTransport_shutdown(TTransport *self) {
     }
     self->myFd.fd = -1;
 
-    /* close the pcap handle */
+    /* close the dlpi handle */
     dlpi_close(myData->readerHandle);
 
     if(self->_init) {
@@ -509,7 +507,7 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 
     if(ret < 0) {
 	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): Error while receiving message via DLPI: %s\n",
-	    self->name, pcap_geterr(myData->readerHandle));
+	    self->name, strerror(errno));
 	    self->counters.rxErrors++;
 	return ret;
     }
