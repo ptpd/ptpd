@@ -272,6 +272,7 @@ case $host in
 			    #include <sys/pfmod.h>
 			    ])
 		    ],
+		    [],
 		    []
     )
     AC_SUBST([DLPI_LIBS])
