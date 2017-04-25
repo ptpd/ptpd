@@ -1232,7 +1232,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 
 	if(global->unicastNegotiation && global->transportMode == TMODE_UC) {
 
-		nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0,
+		nodeTable = findUnicastGrants(&header->sourcePortIdentity, NULL,
 							ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS,
 							FALSE);
 		if(nodeTable == NULL || !(nodeTable->grantData[ANNOUNCE_INDEXED].granted)) {
@@ -1558,7 +1558,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 
 	if(!isFromSelf && global->unicastNegotiation && global->transportMode == TMODE_UC) {
 	    UnicastGrantTable *nodeTable = NULL;
-	    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0,
+	    nodeTable = findUnicastGrants(&header->sourcePortIdentity, NULL,
 			ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS,
 			FALSE);
 	    if(nodeTable != NULL) {
@@ -1913,7 +1913,7 @@ handleDelayReq(const MsgHeader *header, ssize_t length,
 	if (ptpClock->portDS.delayMechanism == E2E) {
 
 		if(!isFromSelf && global->unicastNegotiation && global->transportMode == TMODE_UC) {
-		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0,
+		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, NULL,
 				ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS,
 				FALSE);
 		    if(nodeTable == NULL || !(nodeTable->grantData[DELAY_RESP_INDEXED].granted)) {
@@ -2027,7 +2027,7 @@ handleDelayResp(const MsgHeader *header, ssize_t length,
 
 		if(global->unicastNegotiation && global->transportMode == TMODE_UC) {
 		    UnicastGrantTable *nodeTable = NULL;
-		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0,
+		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, NULL,
 				ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS,
 				FALSE);
 		    if(nodeTable != NULL) {
@@ -2195,7 +2195,7 @@ handlePdelayReq(MsgHeader *header, ssize_t length,
 	if (ptpClock->portDS.delayMechanism == P2P) {
 
 		if(!isFromSelf && global->unicastNegotiation && global->transportMode == TMODE_UC) {
-		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, 0,
+		    nodeTable = findUnicastGrants(&header->sourcePortIdentity, NULL,
 				ptpClock->unicastGrants, &ptpClock->grantIndex, UNICAST_MAX_DESTINATIONS,
 				FALSE);
 		    if(nodeTable == NULL || !(nodeTable->grantData[PDELAY_RESP_INDEXED].granted)) {

@@ -86,7 +86,7 @@ AC_CHECK_HEADERS([glob.h sched.h utmp.h utmpx.h unix.h linux/rtc.h sys/timex.h g
 
 AC_CHECK_HEADERS([ifaddrs.h], [have_ifaddrs_h=true], [have_ifaddrs_h=false], [])
 
-AC_CHECK_HEADERS([endian.h machine/endian.h sys/isa_defs.h])
+AC_CHECK_HEADERS([endian.h machine/endian.h sys/isa_defs.h sys/pfmod.h sys/bufmod.h])
 
 AC_CHECK_HEADERS([math.h],[],[AC_MSG_ERROR([math.h is required to compile PTPd])],[])
 
@@ -172,7 +172,6 @@ m4_version_prereq(2.60,[
     [AC_TYPE_SIZE_T]
 )
 
-
 AC_CHECK_MEMBERS([struct utmp.ut_time], [], [], [
 #ifdef HAVE_UTMP_H
 #include <utmp.h>
@@ -243,6 +242,7 @@ if test -n "$GCC"; then
 fi
 
 # Solaris libdlpi checks
+have_libdlpi="false"
 case $host in
 *solaris*)
     AC_CHECK_HEADERS([sys/dlpi.h])
@@ -254,18 +254,27 @@ case $host in
 			if test "$have_libdlpi" == "true"; then
 			    AC_MSG_RESULT([-ldlpi])
 			elif test -f "/lib/libdlpi.so.1"; then
+			    have_libdlpi="true"
 			    AC_MSG_RESULT([/lib/libdlpi.so.1])
 			    DLPI_LIBS="/lib/libdlpi.so.1"
 			else
 			    AC_MSG_RESULT([none])
 			    AC_MSG_ERROR([no usable libdlpi library found])
 			fi
+			# Check if we have the extended packetfilt structure available
+			AC_CHECK_MEMBERS([struct Pf_ext_packetfilt.Pf_Priority], [], [], [
+			    #include <sys/types.h>
+			    #include <sys/pfmod.h>
+			    ])
 		    ],
-		    [echo bob]
+		    []
     )
     AC_SUBST([DLPI_LIBS])
     ;;
 esac
+
+AM_CONDITIONAL([CCK_BUILD_TTRANSPORT_DLPI], [test "$have_libdlpi" == "true"])
+
 
 is_linux=false
 case $host in
@@ -294,6 +303,14 @@ case $host in
 		    AC_DEFINE([CCK_BUILD_SOLARIS_GETIFADDRS], [1], [Build internal getifaddrs() implementation on Solaris])
 		]
 	    )
+
+	    AS_IF([test "$have_libdlpi" == "true"],
+		[
+		    AC_DEFINE([CCK_BUILD_TTRANSPORT_DLPI], [1], [Build libdlpi transports on Solaris])
+		]
+	    )
+
+
     ;;
 
 *linux*)
@@ -340,6 +357,15 @@ AM_CONDITIONAL([CCK_BUILD_TIMER_ITIMER], [test "$build_itimer" == "true"])
 AC_MSG_NOTICE([************************************************************])
 AC_MSG_NOTICE([* PTPD BUILD FLAG AND LIBRARY DEPENDENCY CHECKS START HERE *])
 AC_MSG_NOTICE([************************************************************])
+
+AC_MSG_CHECKING([if we can build libdlpi transports])
+case "$have_libdlpi" in
+     "true")
+	AC_MSG_RESULT([yes])
+	;;
+     *) AC_MSG_RESULT([no])
+	;;
+esac
 
 AC_MSG_CHECKING([if we can build itimer support])
 case "$build_itimer" in

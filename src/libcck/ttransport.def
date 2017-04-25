@@ -64,6 +64,14 @@
 	#include "ttransport/pcap_udpv6.h"
     #endif
 
+    #ifdef CCK_BUILD_TTRANSPORT_DLPI
+	#include "ttransport/dlpi_common.h"
+//	#include "ttransport/dlpi_ethernet.h"
+	#include "ttransport/dlpi_udpv4.h"
+	#include "ttransport/dlpi_udpv6.h"
+    #endif
+
+
     #include "ttransport/socket_common.h" /* currently used by all UDP transports */
     #include "ttransport/socket_udpv4.h"
     #include "ttransport/socket_udpv6.h"
@@ -112,6 +120,19 @@
 
 	CCK_REGISTER_IMPL(TT_TYPE_PCAP_ETHERNET,	pcap_ethernet,	"pcap_ethernet",TT_FAMILY_ETHERNET,
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_NONE)
+    #endif
+
+    /* libclpi-based transports - better TX timestamp approximation than pure s/w timestamps, the only "socket timestamp" option for Solaris 10 */
+    #if defined(CCK_BUILD_TTRANSPORT_DLPI) || defined(CCK_ALL_IMPL)
+
+	CCK_REGISTER_IMPL(TT_TYPE_DLPI_UDPV4,	dlpi_udpv4,	"dlpi_udpv4",	TT_FAMILY_IPV4,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_SOCKET_UDPV4)
+
+	CCK_REGISTER_IMPL(TT_TYPE_DLPI_UDPV6,	dlpi_udpv6,	"dlpi_udpv6",	TT_FAMILY_IPV6,
+			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_SOCKET_UDPV6)
+
+//CK_REGISTER_IMPL(TT_TYPE_DLPI_ETHERNET,	dlpi_ethernet,	"dlpi_ethernet",TT_FAMILY_ETHERNET,
+//	(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_NONE)
     #endif
 
 

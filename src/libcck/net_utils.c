@@ -77,7 +77,7 @@ getHwAddrData (unsigned char* hwAddr, const char* ifName, const int hwAddrSize)
     if(!strlen(ifName))
 	return 0;
 
-/* BSD* - AF_LINK gives us access to the hw address via struct sockaddr_dl */
+/* BSD* - getifaddrs provides AF_LINK which gives us access to the hw address via struct sockaddr_dl */
 #if defined(AF_LINK) && !defined(__sun)
 
     struct ifaddrs *ifaddr, *ifa;
@@ -155,8 +155,9 @@ end:
     dlpi_close(dh);
     return ret;
 
-#elif defined(SIOCGHWIFADDR)
+#elif defined(SIOCGIFHWADDR)
 /* Linux and Solaris family which also have SIOCGIFHWADDR/SIOCGLIFHWADDR */
+
     int sockfd;
     struct ifreq ifr;
 
@@ -171,7 +172,7 @@ end:
 
     strncpy(ifr.ifr_name, ifName, IF_NAMESIZE);
 
-    if (ioctl(sockfd, SIOCGHWIFADDR, &ifr) < 0) {
+    if (ioctl(sockfd, SIOCGIFHWADDR, &ifr) < 0) {
             CCK_DBGV("failed to request hardware address for %s", ifName);
 	    ret = -1;
 	    goto end;
@@ -431,13 +432,27 @@ bool
 setMulticastLoopback(int fd,  const int family, const bool _value)
 {
 
+	void *value;
+	size_t valsize;
+
 #if defined(__OpenBSD__) || defined(__sun) || defined(__NetBSD__)
-	u_char value;
+	u_char uvalue = _value ? 1 : 0;
+	value = &uvalue;
+	valsize = sizeof(uvalue);
 #else
-	int value;
+	int ivalue = _value ? 1 : 0;
+	value = &ivalue;
+	valsize = sizeof(ivalue);
 #endif
 
-	value = _value ? 1 : 0;
+/* on Sol10, these are u_char for ipv4, but int for ipv6! madness! */
+#ifdef __sun
+	int ivalue = _value ? 1 : 0;
+	if(family == TT_FAMILY_IPV6) {
+	    value = &ivalue;
+	    valsize = sizeof(ivalue);
+	}
+#endif
 
 	int proto, option;
 
@@ -453,7 +468,7 @@ setMulticastLoopback(int fd,  const int family, const bool _value)
 	}
 
 	if (setsockopt(fd, proto, option,
-	       &value, sizeof(value)) < 0) {
+	       value, valsize) < 0) {
 		CCK_PERROR(THIS_COMPONENT"Failed to %s IPv%s multicast loopback",
 			    value ? "enable":"disable",
 			    (family == TT_FAMILY_IPV4) ? "4" : "6");
@@ -470,13 +485,28 @@ bool
 setMulticastTtl(int fd,  const int family, const int _value)
 {
 
+	void *value;
+	size_t valsize;
+
 #if defined(__OpenBSD__) || defined(__sun) || defined(__NetBSD__)
-	u_char value;
+	u_char uvalue = _value;
+	value = &uvalue;
+	valsize = sizeof(uvalue);
 #else
-	int value;
+	int ivalue = _value;
+	value = &ivalue;
+	valsize = sizeof(ivalue);
 #endif
 
-	value = _value;
+/* on Sol10, these are u_char for ipv4, but int for ipv6! madness! */
+#ifdef __sun
+	int ivalue = _value ? 1 : 0;
+	if(family == TT_FAMILY_IPV6) {
+	    value = &ivalue;
+	    valsize = sizeof(ivalue);
+	}
+#endif
+
 
 	int proto, option;
 
@@ -492,7 +522,7 @@ setMulticastTtl(int fd,  const int family, const int _value)
 	}
 
 	if (setsockopt(fd, proto, option,
-	       &value, sizeof(value)) < 0) {
+	       value, valsize) < 0) {
 		CCK_PERROR(THIS_COMPONENT"setMulticastTtl(): Failed to set IPv%s to %d",
 			    (family == TT_FAMILY_IPV4) ? "4 multicast TTL" : "6 multicast hops",
 			    value);

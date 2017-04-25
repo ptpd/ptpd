@@ -178,6 +178,18 @@ ptpd_SOURCES += libcck/ttransport/pcap_common.h\
 		libcck/ttransport/pcap_udpv6.c
 endif
 
+if CCK_BUILD_TTRANSPORT_DLPI
+ptpd_SOURCES += libcck/ttransport/dlpi_common.h\
+		libcck/ttransport/dlpi_common.c\
+		libcck/ttransport/dlpi_udpv4.h\
+		libcck/ttransport/dlpi_udpv4.c\
+		libcck/ttransport/dlpi_udpv6.h\
+		libcck/ttransport/dlpi_udpv6.c
+endif
+#		libcck/ttransport/pcap_ethernet.h
+#		libcck/ttransport/pcap_ethernet.c
+
+
 if CCK_BUILD_CLOCKDRIVER_LINUXPHC
 ptpd_SOURCES += libcck/clockdriver/vext/linuxphc_vext_intel.h\
 		libcck/clockdriver/vext/linuxphc_vext_intel.c\

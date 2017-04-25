@@ -134,6 +134,10 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 	    case TT_TYPE_LINUXTS_UDPV4:
 #endif
 
+#ifdef CCK_BUILD_TTRANSPORT_DLPI
+	    case TT_TYPE_DLPI_UDPV4:
+#endif
+
 #ifdef CCK_BUILD_TTRANSPORT_PCAP
 	    case TT_TYPE_PCAP_UDPV4:
 #endif
@@ -175,6 +179,10 @@ setCommonTransportConfig(TTransportConfig *config, const GlobalConfig *global) {
 
 #ifdef CCK_BUILD_TTRANSPORT_LINUXTS
 	    case TT_TYPE_LINUXTS_UDPV6:
+#endif
+
+#ifdef CCK_BUILD_TTRANSPORT_DLPI
+	    case TT_TYPE_DLPI_UDPV6:
 #endif
 
 #ifdef CCK_BUILD_TTRANSPORT_PCAP
@@ -353,6 +361,11 @@ static TTransportConfig
 	    case TT_TYPE_LINUXTS_UDPV4:
 #endif
 
+#ifdef CCK_BUILD_TTRANSPORT_DLPI
+	    case TT_TYPE_DLPI_UDPV6:
+	    case TT_TYPE_DLPI_UDPV4:
+#endif
+
 #ifdef CCK_BUILD_TTRANSPORT_PCAP
 	    case TT_TYPE_PCAP_UDPV6:
 	    case TT_TYPE_PCAP_UDPV4:
@@ -429,6 +442,11 @@ static TTransportConfig
 #ifdef CCK_BUILD_TTRANSPORT_LINUXTS
 	    case TT_TYPE_LINUXTS_UDPV4:
 	    case TT_TYPE_LINUXTS_UDPV6:
+#endif
+
+#ifdef CCK_BUILD_TTRANSPORT_DLPI
+	    case TT_TYPE_DLPI_UDPV4:
+	    case TT_TYPE_DLPI_UDPV6:
 #endif
 
 #ifdef CCK_BUILD_TTRANSPORT_PCAP

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Wojciech Owczarek,
+/* Copyright (c) 2017 Wojciech Owczarek,
  *
  * All Rights Reserved
  *
@@ -25,10 +25,10 @@
  */
 
 /**
- * @file   pcap_udpv4.c
+ * @file   dlpi_udpv4.c
  * @date   Sat Jan 9 16:14:10 2016
  *
- * @brief  Libpcap-based IPv4 software timestamping transport implementation
+ * @brief  dlpi-based IPv4 software timestamping transport implementation
  *
  */
 
@@ -43,7 +43,7 @@
 #include <libcck/cck_logger.h>
 #include <libcck/ttransport.h>
 #include <libcck/ttransport_interface.h>
-#include <libcck/ttransport/pcap_common.h>
+#include <libcck/ttransport/dlpi_common.h>
 #include <libcck/net_utils.h>
 #include <libcck/clockdriver.h>
 
@@ -59,25 +59,25 @@
 #include <netinet/udp.h>
 
 
-#define THIS_COMPONENT "ttransport.pcap_udpv4: "
+#define THIS_COMPONENT "ttransport.dlpi_udpv4: "
 
 /* tracking the number of instances */
 static int _instanceCount = 0;
 
-static char* createFilterExpr(TTransport *self, char *buf, int size);
+static void createFilterExpr(TTransport *self, struct pfstruct *pf);
 
 /* short status line - interface up/down, etc */
 static char* getStatusLine(TTransport *self, char *buf, size_t len);
 
 bool
-_setupTTransport_pcap_udpv4(TTransport *self)
+_setupTTransport_dlpi_udpv4(TTransport *self)
 {
 
     INIT_INTERFACE(self);
     self->getStatusLine = getStatusLine;
 
-    CCK_INIT_PDATA(TTransport, pcap_udpv4, self);
-    CCK_INIT_PCONFIG(TTransport, pcap_udpv4, self);
+    CCK_INIT_PDATA(TTransport, dlpi_udpv4, self);
+    CCK_INIT_PCONFIG(TTransport, dlpi_udpv4, self);
 
     self->_instanceCount = &_instanceCount;
 
@@ -90,7 +90,7 @@ _setupTTransport_pcap_udpv4(TTransport *self)
 }
 
 bool
-_probeTTransport_pcap_udpv4(const char *path, const int flags) {
+_probeTTransport_dlpi_udpv4(const char *path, const int flags) {
 
     return true;
 
@@ -100,23 +100,25 @@ static int
 tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSet) {
 
     int *fd;
-    int *pcapFd = &self->myFd.fd;
+    int *dlpiFd = &self->myFd.fd;
     int val = 1;
     int valsize = sizeof(val);
     int ret;
 
     bool bindToAddress = true;
     CckTransportAddress bindAddr;
-    tmpstr(filterExpr, FILTER_EXPR_LEN);
+
     tmpstr(strAddr, self->tools->strLen);
 
-    int promisc = 0;
-    struct bpf_program program;
-    char errbuf[PCAP_ERRBUF_SIZE];
+    int promisc = 1;
 
-    CCK_GET_PDATA(TTransport, pcap_udpv4, self, myData);
-    CCK_GET_PCONFIG(TTransport, pcap_udpv4, self, myConfig);
-    CCK_GET_PCONFIG(TTransport, pcap_udpv4, config, yourConfig);
+    struct pfstruct pf;
+
+    memset(&pf, 0, sizeof(struct pfstruct));
+
+    CCK_GET_PDATA(TTransport, dlpi_udpv4, self, myData);
+    CCK_GET_PCONFIG(TTransport, dlpi_udpv4, self, myConfig);
+    CCK_GET_PCONFIG(TTransport, dlpi_udpv4, config, yourConfig);
 
     if(!getInterfaceInfo(&myData->intInfo, yourConfig->interface, self->family, &yourConfig->sourceAddress, false)) {
 	CCK_ERROR(THIS_COMPONENT"tTransportInit(%s): Interface %s not usable, cannot continue\n",
@@ -134,7 +136,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
     fd = &myData->sockFd;
 
     *fd = -1;
-    *pcapFd = -1;
+    *dlpiFd = -1;
 
     /* if initialising with existing config, it's a restart */
     if(config != &self->config) {
@@ -201,17 +203,6 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
 	self->name, strAddr, myConfig->listenPort, myConfig->interface);
     }
 
-#ifdef linux /* SO_BINDTODEVICE */
-    /* multicast only */
-    if( (self->config.flags & TT_CAPS_MCAST) && !(self->config.flags & TT_CAPS_UCAST)) {
-	ret = setsockopt(*fd, SOL_SOCKET, SO_BINDTODEVICE, myConfig->interface, strlen(myConfig->interface));
-	if(ret < 0) {
-	    CCK_PERROR(THIS_COMPONENT"tTransport_init(%s): Failed to call SO_BINDTODEVICE on %s\n",
-			self->name, myConfig->interface);
-	}
-    }
-#endif /* linux, SO_BINDTODEVICE */
-
     /* set various options */
     if(self->config.flags & TT_CAPS_MCAST) {
 
@@ -230,78 +221,20 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
 	setSocketDscp(*fd, self->family, myConfig->dscpValue);
     }
 
-    /* ===== part 2: set up libpcap reader */
+    /* ===== part 2: set up DLPI reader */
 
-    /* build the filter expression before we set up libpcap so we can quit early on error */
-    createFilterExpr(self, filterExpr, sizeof(filterExpr));
+    /* build the DLPI filter */
+    createFilterExpr(self, &pf);
 
-    if(!strlen(filterExpr)) {
-	CCK_ERROR(THIS_COMPONENT"tTransportInit(%s): could not build PCAP filter expression for %s\n",
-	self->name, myConfig->interface);
-	return -1;
-    }
+    /* set up DLPI reader */
 
-    /* set up PCAP reader */
+    struct timeval timeout = { 0,0};
 
-#ifdef PCAP_TSTAMP_PRECISION_NANO /* use the elaborate PCAP activation to set ns timestamp precision */
+    ret = dlpiInit(&myData->readerHandle, myConfig->interface, promisc, timeout, 0, self->inputBufferSize + self->headerLen, &pf);
 
-    myData->readerHandle = pcap_create(myConfig->interface, errbuf);
+    *dlpiFd = dlpi_fd(myData->readerHandle);
 
-    if(myData->readerHandle == NULL) {
-	CCK_PERROR(THIS_COMPONENT"tTransportInit(%s): failed to open PCAP reader device on %s",
-	self->name, myConfig->interface);
-	goto cleanup;
-    }
-
-    /* these only fail if the handle has already been activated, and it hasn't */
-    pcap_set_promisc(myData->readerHandle, promisc);
-    pcap_set_snaplen(myData->readerHandle, self->inputBufferSize + self->headerLen);
-    pcap_set_timeout(myData->readerHandle, PCAP_TIMEOUT);
-
-    myData->nanoPrecision = false;
-
-    if (pcap_set_tstamp_precision(myData->readerHandle, PCAP_TSTAMP_PRECISION_NANO) == 0) {
-	CCK_DBG(THIS_COMPONENT"tTransportInit(%s): using PCAP_TSTAMP_PRECISION_NANO on %s\n",
-	self->name, myConfig->interface);
-	myData->nanoPrecision = true;
-    }
-
-    if(pcap_activate(myData->readerHandle) != 0) {
-	CCK_ERROR(THIS_COMPONENT"tTransportInit(%s): reader: could not activate PCAP device for %s :%s \n",
-	self->name, myConfig->interface, pcap_geterr(myData->readerHandle));
-	goto cleanup;
-    }
-
-#else /* use pcap_open_live */
-
-    myData->readerHandle = pcap_open_live(myConfig->interface, self->inputBufferSize + self->headerLen,
-					promisc, PCAP_TIMEOUT, errbuf);
-
-    if(myData->readerHandle == NULL) {
-	CCK_PERROR(THIS_COMPONENT"tTransportInit(%s): failed to open PCAP reader device on %s",
-	self->name, myConfig->interface);
-	return -1;
-    }
-
-#endif /* PCAP_TSTAMP_PRECISION_NANO */
-
-    if(pcap_compile(myData->readerHandle, &program, filterExpr, 1, PCAP_NETMASK_UNKNOWN) < 0) {
-	CCK_ERROR(THIS_COMPONENT"tTransportInit(%s): reader: could not compile PCAP filter expression for %s: %s \n",
-	self->name, myConfig->interface, pcap_geterr(myData->readerHandle));
-	goto cleanup;
-    }
-
-    if(pcap_setfilter(myData->readerHandle, &program) < 0) {
-	CCK_ERROR(THIS_COMPONENT"tTransportInit(%s): reader: could not set PCAP filter for %s: %s \n",
-	self->name, myConfig->interface, pcap_geterr(myData->readerHandle));
-	goto cleanup;
-    }
-
-    pcap_freecode(&program);
-
-    *pcapFd = pcap_get_selectable_fd(myData->readerHandle);
-
-    if(*pcapFd < 0) {
+    if(*dlpiFd < 0) {
 	CCK_PERROR(THIS_COMPONENT"tTransportInit(%s): Failed to get PCAP file descriptor", self->name);
 	goto cleanup;
     }
@@ -341,8 +274,8 @@ cleanup:
 static int
 tTransport_shutdown(TTransport *self) {
 
-    CCK_GET_PDATA(TTransport, pcap_udpv4, self, myData);
-    CCK_GET_PCONFIG(TTransport, pcap_udpv4, self, myConfig);
+    CCK_GET_PDATA(TTransport, dlpi_udpv4, self, myData);
+    CCK_GET_PCONFIG(TTransport, dlpi_udpv4, self, myConfig);
 
     /* remove our fd from fd set if we have one */
     if(self->fdSet) {
@@ -373,7 +306,7 @@ tTransport_shutdown(TTransport *self) {
     self->myFd.fd = -1;
 
     /* close the pcap handle */
-    pcap_close(myData->readerHandle);
+    dlpi_close(myData->readerHandle);
 
     if(self->_init) {
 	CCK_INFO(THIS_COMPONENT"Transport '%s' (%s) shutting down\n", self->name, myConfig->interface);
@@ -395,7 +328,7 @@ tTransport_shutdown(TTransport *self) {
 static bool
 isThisMe(TTransport *self, const char* search)
 {
-	CCK_GET_PCONFIG(TTransport, pcap_udpv4, self, myConfig);
+	CCK_GET_PCONFIG(TTransport, dlpi_udpv4, self, myConfig);
 
 	tmpstr(strAddr, self->tools->strLen);
 
@@ -447,7 +380,7 @@ sendMessage(TTransport *self, TTransportMessage *message) {
     ssize_t ret, sent;
     bool mc;
 
-    CCK_GET_PDATA(TTransport, pcap_udpv4, self, myData);
+    CCK_GET_PDATA(TTransport, dlpi_udpv4, self, myData);
 
     if(self->config.disabled) {
 	return 0;
@@ -526,20 +459,28 @@ sendMessage(TTransport *self, TTransportMessage *message) {
 static ssize_t
 receiveMessage(TTransport *self, TTransportMessage *message) {
 
-    CCK_GET_PDATA(TTransport, pcap_udpv4, self, myData);
+
+    CCK_GET_PDATA(TTransport, dlpi_udpv4, self, myData);
+
     ssize_t ret = 0;
+    size_t len = self->headerLen + message->capacity;
+
+    struct {
+	struct sb_hdr hdr;
+	char data[len];
+    } mbuf;
+
+    char *buf = mbuf.data;
+    struct sb_hdr *hdr = &mbuf.hdr;
 
     struct ip *ip;
     struct udphdr *udp;
-
-    struct pcap_pkthdr *pkt_header;
-    const u_char *buf = NULL;
 
     if(self->config.disabled) {
 	return 0;
     }
 
-    ret = pcap_next_ex(myData->readerHandle, &pkt_header, &buf);
+    ret = dlpi_recv(myData->readerHandle, NULL, NULL, &mbuf, &len, 0, NULL);
 
     /* drop socket data on the floor */
     recv(myData->sockFd, message->data, message->capacity, MSG_DONTWAIT);
@@ -559,19 +500,19 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 	return 0;
     }
 
-    if(buf == NULL) {
-        CCK_DBG(THIS_COMPONENT"receiveMessage(%s): libcap returned empty buffer\n", self->name);
+    if(hdr->sbh_msglen == 0) {
+        CCK_DBG(THIS_COMPONENT"receiveMessage(%s): DLPI returned no data\n", self->name);
         return 0;
     }
 
     if(ret < 0) {
-	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): Error while receiving message via libpcap: %s\n",
+	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): Error while receiving message via DLPI: %s\n",
 	    self->name, pcap_geterr(myData->readerHandle));
 	    self->counters.rxErrors++;
 	return ret;
     }
 
-    ret = pkt_header->caplen;
+    ret = hdr->sbh_msglen;
 
     if(ret <= self->headerLen) {
 	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): Received truncated data (%d <= %d)", self->name,
@@ -583,12 +524,8 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 
     if(self->config.timestamping) {
 
-	message->timestamp.seconds = pkt_header->ts.tv_sec;
-	message->timestamp.nanoseconds = pkt_header->ts.tv_usec;
-
-	if (!myData->nanoPrecision) {
-	    message->timestamp.nanoseconds *= 1000;
-	}
+	message->timestamp.seconds = hdr->sbh_timestamp.tv_sec;
+	message->timestamp.nanoseconds = hdr->sbh_timestamp.tv_usec * 1000;
 
 	if(!tsOps.isZero(&message->timestamp)) {
 	    message->hasTimestamp = true;
@@ -604,6 +541,7 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
     memcpy(message->data, buf + self->headerLen, message->length);
 
     /* grab source and destination */
+
     ip = (struct ip*) (buf + sizeof(struct ether_header));
     udp = (struct udphdr*) (buf + sizeof(struct ether_header) + sizeof(struct ip));
 
@@ -655,9 +593,9 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 {
 	tmpstr(strAddrt, self->tools->strLen);
 	tmpstr(strAddrf, self->tools->strLen);
-	CCK_DBG(THIS_COMPONENT"receiveMesage(%s): received %d bytes from %s to %s\n",
-		self->name, ret, self->tools->toString(strAddrf, strAddrf_len, &message->from),
-				self->tools->toString(strAddrt, strAddrt_len, &message->to));
+	CCK_DBG(THIS_COMPONENT"receiveMesage(%s): received %d bytes from %s:%d to %s:%d\n",
+		self->name, ret, self->tools->toString(strAddrf, strAddrf_len, &message->from), message->from.port,
+				self->tools->toString(strAddrt, strAddrt_len, &message->to), message->to.port);
 }
 #endif
 
@@ -675,8 +613,8 @@ getClockDriver(TTransport *self) {
 static int
 monitor(TTransport *self, const int interval, const bool quiet) {
 
-    CCK_GET_PCONFIG(TTransport, pcap_udpv4, self, myConfig);
-    CCK_GET_PDATA(TTransport, pcap_udpv4, self, myData);
+    CCK_GET_PCONFIG(TTransport, dlpi_udpv4, self, myConfig);
+    CCK_GET_PDATA(TTransport, dlpi_udpv4, self, myData);
 
     if(!myData->intInfo.valid) {
 	getInterfaceInfo(&myData->intInfo, myConfig->interface,
@@ -687,12 +625,11 @@ monitor(TTransport *self, const int interval, const bool quiet) {
 
 }
 
-
 static int
 refresh(TTransport *self) {
 
-    CCK_GET_PDATA(TTransport, pcap_udpv4, self, myData);
-    CCK_GET_PCONFIG(TTransport, pcap_udpv4, self, myConfig);
+    CCK_GET_PDATA(TTransport, dlpi_udpv4, self, myData);
+    CCK_GET_PCONFIG(TTransport, dlpi_udpv4, self, myConfig);
 
     /* join multicast groups if we have them */
     if(self->config.flags | TT_CAPS_MCAST) {
@@ -715,71 +652,62 @@ loadVendorExt(TTransport *self) {
 
 }
 
-static char*
-createFilterExpr(TTransport *self, char *buf, int size) {
+static void
+createFilterExpr(TTransport *self, struct pfstruct *pf) {
 
-    tmpstr(strAddr, self->tools->strLen);
-    char *marker = buf;
-    int left = size;
-    int ret;
+    CCK_GET_PCONFIG(TTransport, dlpi_udpv4, self, myConfig);
 
-    CCK_GET_PCONFIG(TTransport, pcap_udpv4, self, myConfig);
+    /* skip VLAN tag if present */
+    pfSkipVlan(pf);
 
-    /* port */
-    ret = snprintf(marker, left, "udp port %d and (", myConfig->listenPort);
-    if(!maintainStrBuf(ret, &marker, &left)) {
-	return buf;
-    }
+    /* IP ethertype */
+    pfMatchEthertype(pf, ETHERTYPE_IP);
 
+    /* match my own source or my own destination */
     if(TT_UC(self->config.flags)) {
-	/* own address */
-	ret = snprintf(marker, left, "ip host %s", self->tools->toString(strAddr, sizeof(strAddr), &self->ownAddress));
-	if(!maintainStrBuf(ret, &marker, &left)) {
-	    return buf;
-	}
+	pfMatchAddressDir(pf, &self->ownAddress, PFD_ANY);
     }
 
-    if(TT_UC_MC(self->config.flags) && myConfig->multicastStreams->count) {
-	/* own address */
-	ret = snprintf(marker, left, " or ");
-	if(!maintainStrBuf(ret, &marker, &left)) {
-	    return buf;
-	}
-    }
-
-    /* build multicast address list */
+    /* OR on any multicast destinations */
     if(TT_MC(self->config.flags)) {
 	bool first = true;
 	if(myConfig->multicastStreams) {
+
 	    CckTransportAddress *mcAddr;
 	    LL_FOREACH_DYNAMIC(myConfig->multicastStreams, mcAddr) {
-		ret = snprintf(marker, left, "%sip dst %s", first ? "" : " or ",
-			self->tools->toString(strAddr, sizeof(strAddr), mcAddr));
-		if(!maintainStrBuf(ret, &marker, &left)) {
-		    return buf;
+
+		pfMatchAddressDir(pf, mcAddr, PFD_TO);
+
+		/* if we have no unicast, no need for OR after first mcast group, otherwise an OR */
+		if(!first || TT_UC_MC(self->config.flags)) {
+		    PFPUSH(ENF_OR);
 		}
 		first = false;
 	    }
 	}
     }
 
-    /* the closing bracket... */
-    ret = snprintf(marker, left, ")");
-    if(!maintainStrBuf(ret, &marker, &left)) {
-	return buf;
-    }
+    /* AND previous */
+    PFPUSH(ENF_AND);
 
-    CCK_DBG(THIS_COMPONENT"createFilterExpr(%s): PCAP filter expression: %s\n",
-	    self->name, buf);
+    /* UDP */
+    pfMatchIpProto(pf, self->family, IPPROTO_UDP);
 
-    return buf;
+    /* AND previous */
+    PFPUSH(ENF_AND);
+
+    /* match UDP destination port */
+    pfMatchWord(pf, TT_HDRLEN_ETHERNET + 20 + 2, htons(myConfig->listenPort));
+
+    /* AND previous */
+    PFPUSH(ENF_AND);
 
 }
 
 static char*
 getStatusLine(TTransport *self, char *buf, size_t len) {
 
-	CCK_GET_PDATA(TTransport, pcap_udpv4, self, myData);
+	CCK_GET_PDATA(TTransport, dlpi_udpv4, self, myData);
 
 	return getIntStatusLine(&myData->intInfo, buf, len);
 

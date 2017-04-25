@@ -89,7 +89,7 @@ timerInit (CckTimer *self, const bool oneShot, CckFdSet *fdSet) {
 	    CCK_PERROR(THIS_COMPONENT"(%s): Could not create timerfd timer\n", self->name);
 	    return 0;
 	} else {
-	    CCK_DBG(THIS_COMPONENT"(%s): Created timerfd timer id %d\n", self->name, myData->timerId);
+	    CCK_DBG(THIS_COMPONENT"(%s): Created timerfd timer id %d\n", self->name, self->numId);
 	}
 
     self->config.oneShot = oneShot;

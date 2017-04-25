@@ -230,7 +230,7 @@ findUnicastGrants
 	    }
 
 	    /* no port identity match but we have a transport address match */
-	    if(!ptpAddrIsEmpty(nodeTable->protocolAddress) &&
+	    if(!ptpAddrIsEmpty(nodeTable->protocolAddress) && !ptpAddrIsEmpty(transportAddress) &&
 		(!ptpAddrCompare(nodeTable->protocolAddress, transportAddress))) {
 
 		found = nodeTable;
@@ -238,6 +238,7 @@ findUnicastGrants
 			found->portIdentity = tmpIdentity;
 			updateUnicastIndex(found, index);
 		}
+
 		break;
 	    }
 
