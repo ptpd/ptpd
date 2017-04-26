@@ -34,27 +34,20 @@
 
 #include <config.h>
 
-#include <libcck/cck_types.h>
-
 #include <errno.h>
-
-#ifdef HAVE_NET_ETHERNET_H
-#include <net/ethernet.h>	/* struct ether_addr */
-#endif /* HAVE_NET_ETHERNET_H */
-
 #include <sys/stropts.h>
 
+#include <libcck/cck_types.h>
 #include <libcck/cck.h>
-#include <libcck/cck_utils.h>
 #include <libcck/cck_logger.h>
 #include <libcck/ttransport.h>
 #include <libcck/ttransport/dlpi_common.h>
 #include <libcck/net_utils.h>
-#include <libcck/clockdriver.h>
 
 #define THIS_COMPONENT "ttransport.dlpi: "
 
-static int strIoctlHelper(int fd, int cmd, int timout, int len, void *buf);
+/* helper function for the I_STR ioctl */
+static int strIoctlHelper(int fd, int cmd, int timeout, int len, void *buf);
 
 /* push a word into a packetfilt structure */
 void
@@ -76,25 +69,6 @@ pfPush(struct pfstruct *pf, const uint16_t word)
 
 }
 
-/* conditionally skip VLAN header if present */
-void pfSkipVlan(struct pfstruct *pf)
-{
-
-    if(pf == NULL) {
-	return;
-    }
-
-    PFPUSH(ENF_PUSHWORD + 6);		/* 6 words = 12 bytes past header = ethertype */
-    PFPUSH(ENF_PUSHLIT | ENF_EQ );	/* push dot1q ethertype, check if equal */
-    PFPUSH(htons(ETHERTYPE_VLAN));
-    PFPUSH(ENF_BRFL);			/* branch if false */
-    PFPUSH(3);				/* skip 3 words:  */
-    PFPUSH(ENF_LOAD_OFFSET);		/*  1: we have a VLAN tag, skip it */
-    PFPUSH(2);				/*  2: 2 words = 4 bytes */
-    PFPUSH(ENF_POP);			/*  3: pop last result off the stack */
-
-}
-
 /* match a specific ethertype */
 void pfMatchEthertype(struct pfstruct *pf, const uint16_t ethertype)
 {
@@ -104,9 +78,28 @@ void pfMatchEthertype(struct pfstruct *pf, const uint16_t ethertype)
     }
 
     PFPUSH(ENF_PUSHWORD + 6);		/* 6 words = 12 bytes past header = ethertype */
-    PFPUSH(ENF_PUSHLIT | ENF_EQ );	/* push dot1q ethertype, check if equal */
+    PFPUSH(ENF_PUSHLIT | ENF_EQ );	/* push ethertype, check if equal */
     PFPUSH(htons(ethertype));
 }
+
+
+/* conditionally skip VLAN header if present */
+void pfSkipVlan(struct pfstruct *pf)
+{
+
+    if(pf == NULL) {
+	return;
+    }
+
+    pfMatchEthertype(pf, ETHERTYPE_VLAN);
+    PFPUSH(ENF_BRFL);			/* branch if false */
+    PFPUSH(3);				/* skip 3 words:  */
+    PFPUSH(ENF_LOAD_OFFSET);		/*  1: we have a VLAN tag, skip it */
+    PFPUSH(2);				/*  2: 2 words = 4 bytes */
+    PFPUSH(ENF_POP);			/*  3: pop last result off the stack */
+
+}
+
 
 /* match a specific byte at a specific offset */
 void pfMatchByte(struct pfstruct *pf, const int offset, const uint8_t byte)
@@ -164,8 +157,8 @@ void pfMatchData(struct pfstruct *pf, int offset, const void *buf, const size_t 
 {
 
     int left = len;
-    const char *marker = buf;
     bool first = true;
+    const char *marker = buf;
 
     if(len == 0 || buf == NULL) {
 	return;
@@ -176,6 +169,7 @@ void pfMatchData(struct pfstruct *pf, int offset, const void *buf, const size_t 
 
 	pfMatchByte(pf, offset++, (uint8_t)*(marker++));
 	left--;
+	first = false;
 
     }
 
@@ -227,41 +221,43 @@ void
 pfMatchAddressDir(struct pfstruct *pf, CckTransportAddress *addr, const int direction)
 {
 
+    int srcOffset, dstOffset;
+
     if(pf == NULL || addr == NULL) {
 	return;
     }
 
-    int srcOffset, dstOffset;
+    /* establish source and destination address offsets */
+    switch(addr->family) {
 
-	switch(addr->family) {
+	case TT_FAMILY_IPV4:
 
-	    case TT_FAMILY_IPV4:
+	    srcOffset = TT_HDRLEN_ETHERNET + 12;
+	    dstOffset = TT_HDRLEN_ETHERNET + 16;
 
-		srcOffset = TT_HDRLEN_ETHERNET + 12;
-		dstOffset = TT_HDRLEN_ETHERNET + 16;
+	    break;
 
-		break;
+	case TT_FAMILY_IPV6:
 
-	    case TT_FAMILY_IPV6:
+	    srcOffset = TT_HDRLEN_ETHERNET + 8;
+	    dstOffset = TT_HDRLEN_ETHERNET + 24;
 
-		srcOffset = TT_HDRLEN_ETHERNET + 8;
-		dstOffset = TT_HDRLEN_ETHERNET + 24;
+	    break;
 
-		break;
+	case TT_FAMILY_ETHERNET:
 
-	    case TT_FAMILY_ETHERNET:
+	    srcOffset = 6;
+	    dstOffset = 0;
 
-		srcOffset = 6;
-		dstOffset = 0;
+	    break;
 
-		break;
+	default:
+	    CCK_DBG(THIS_COMPONENT"pfMatchAddressDir(): unsupported address family %d\n", addr->family);
+	    return;
 
-	    default:
-		CCK_DBG(THIS_COMPONENT"pfMatchAddressDir(): unsupported address family %d\n", addr->family);
-		return;
+    }
 
-	}
-
+    /* match the address in given direction */
     switch(direction) {
 
 	case PFD_TO:
@@ -277,6 +273,7 @@ pfMatchAddressDir(struct pfstruct *pf, CckTransportAddress *addr, const int dire
 	case PFD_ANY:
 	default:
 
+	    /* match source OR destination */
 	    pfMatchAddress(pf, addr, srcOffset);
 	    pfMatchAddress(pf, addr, dstOffset);
 	    PFPUSH(ENF_OR);
@@ -285,6 +282,7 @@ pfMatchAddressDir(struct pfstruct *pf, CckTransportAddress *addr, const int dire
 
 }
 
+/* match specified IP protocol in IPv4 or IPv6 */
 void
 pfMatchIpProto(struct pfstruct *pf, const int family, const uint8_t proto)
 {
@@ -303,6 +301,7 @@ pfMatchIpProto(struct pfstruct *pf, const int family, const uint8_t proto)
 
 }
 
+/* dump pf filter - hex only "for now" */
 void pfDump(struct pfstruct *pf)
 {
 
@@ -315,6 +314,7 @@ void pfDump(struct pfstruct *pf)
 
 }
 
+/* I_STR helper function */
 static int
 strIoctlHelper(int fd, int cmd, int timeout, int len, void *buf)
 {
@@ -333,6 +333,7 @@ strIoctlHelper(int fd, int cmd, int timeout, int len, void *buf)
 
 }
 
+/* initialise a DLPI handle and set all options required, return the fd */
 int
 dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timeval timeout, uint32_t chunksize, uint32_t snaplen, struct pfstruct *pf)
 {
@@ -340,35 +341,38 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
     int fd = -1;
     int ret;
 
+    /* open */
     ret = dlpi_open(ifName, dh, DLPI_PASSIVE | DLPI_RAW);
 
     if (ret != DLPI_SUCCESS) {
 
 	CCK_ERROR(THIS_COMPONENT"dlpiInit(%s): could not open DLPI handle (%s)\n",
-			ifName, dlpi_strerror(ret));
+			ifName, (ret == DL_SYSERR) ? strerror(errno) : dlpi_strerror(ret));
 	return -1;
 
 
     }
 
+    /* bind */
     ret = dlpi_bind(*dh, DLPI_ANY_SAP, NULL);
 
     if (ret != DLPI_SUCCESS) {
 
 	CCK_ERROR(THIS_COMPONENT"dlpiInit(%s): could not bind DLPI handle (%s)\n",
-			ifName, dlpi_strerror(ret));
+			ifName, (ret == DL_SYSERR) ? strerror(errno) : dlpi_strerror(ret));
 	return -1;
 
 
     }
 
+    /* set promisc modes */
     if(promisc) {
 
 	ret = dlpi_promiscon(*dh, DL_PROMISC_PHYS);
 	if (ret != DLPI_SUCCESS) {
 
-	    CCK_ERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI promiscuous mode (%s)\n",
-			ifName, dlpi_strerror(ret));
+	    CCK_ERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI _PHYS promiscuous mode (%s)\n",
+			ifName, (ret == DL_SYSERR) ? strerror(errno) : dlpi_strerror(ret));
 	    return -1;
 
 	}
@@ -376,14 +380,15 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
 	ret = dlpi_promiscon(*dh, DL_PROMISC_SAP);
 	if (ret != DLPI_SUCCESS) {
 
-	    CCK_ERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI promiscuous mode (%s)\n",
-			ifName, dlpi_strerror(ret));
+	    CCK_ERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI _SAP promiscuous mode (%s)\n",
+			ifName, (ret == DL_SYSERR) ? strerror(errno) : dlpi_strerror(ret));
 	    return -1;
 
 	}
 
     }
 
+    /* get FD */
     fd = dlpi_fd(*dh);
 
     if(fd < 0) {
@@ -392,7 +397,8 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
 	    return -1;
     }
 
-    if (pf) {
+    /* push pfmod to STREAMS if we have a filter */
+    if (pf && (pf->Pf_FilterLen > 0)) {
 
 	ret = ioctl(fd, I_PUSH, "pfmod");
 	if (ret < 0) {
@@ -411,12 +417,15 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
 
     }
 
+    /* push bufmod to STREAMS so we get a header with timestamps */
     ret = ioctl(fd, I_PUSH, "bufmod");
     if (ret < 0) {
 	CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not push bufmod to DLPI handle",
 		ifName);
 	return -1;
     }
+
+    /* set bufmod options */
 
     ret = strIoctlHelper(fd, SBIOCSTIME, -1, sizeof(struct timeval), (char*)&timeout);
 
@@ -442,6 +451,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
 	return -1;
     }
 
+    /* flush anything that might have arrived before we completed */
     ret = ioctl(fd, I_FLUSH, FLUSHR);
 
     if(ret < 0) {
