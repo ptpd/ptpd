@@ -232,7 +232,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
 
     struct timeval timeout = { 0,0};
 
-    *dlpiFd = dlpiInit(&myData->readerHandle, myConfig->interface, promisc, timeout, 0, self->inputBufferSize + self->headerLen, &pf);
+    *dlpiFd = dlpiInit(&myData->readerHandle, myConfig->interface, promisc, timeout, 0, self->inputBufferSize + self->headerLen, &pf, (uint_t)ETHERTYPE_IPV6);
 
     if(*dlpiFd < 0) {
 	CCK_PERROR(THIS_COMPONENT"tTransportInit(%s): Failed to get DLPI file descriptor", self->name);

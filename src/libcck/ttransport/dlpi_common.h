@@ -72,6 +72,7 @@ enum {
 /* packet filter helper functions */
 void pfPush(struct pfstruct *pf, const uint16_t word); /* push a word onto the filter stack */
 void pfMatchEthertype(struct pfstruct *pf, const uint16_t ethertype); /* match a specific ethertype */
+void pfMatchVlan(struct pfstruct *pf, const uint16_t vid); /* Match specific VLAN ID */
 void pfSkipVlan(struct pfstruct *pf); /* skip VLAN header if present */
 void pfMatchByte(struct pfstruct *pf, const int offset, const uint8_t byte); /* match a byte at specific offset */
 void pfMatchWord(struct pfstruct *pf, const int offset, const uint16_t word); /* match a word at a specific offset */
@@ -85,7 +86,7 @@ void pfDump(struct pfstruct *pf); /* dump PF code */
 /* DLPI setup functions */
 
 /* open, bind and prepare a DLPI handle, return the fd */
-int dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timeval timeout, uint32_t chunksize, uint32_t snaplen, struct pfstruct *pf);
+int dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timeval timeout, uint32_t chunksize, uint32_t snaplen, struct pfstruct *pf, uint_t sap);
 
 
 #endif /* CCK_TTRANSPORT_DLPI_COMMON_H_ */

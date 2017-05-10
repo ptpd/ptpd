@@ -83,7 +83,26 @@ void pfMatchEthertype(struct pfstruct *pf, const uint16_t ethertype)
 }
 
 
-/* conditionally skip VLAN header if present */
+/* Match specific VLAN ID and skip past VLAN header */
+void
+pfMatchVlan(struct pfstruct *pf, const uint16_t vid)
+{
+
+    if(pf == NULL) {
+	return;
+    }
+
+    pfMatchEthertype(pf, ETHERTYPE_VLAN);
+    pfMatchWord(pf, 14, htons(vid));
+    PFPUSH(ENF_AND);
+    PFPUSH(ENF_BRFL);
+    PFPUSH(2);
+    PFPUSH(ENF_LOAD_OFFSET);
+    PFPUSH(2);
+
+}
+
+/* skip VLAN header if present */
 void pfSkipVlan(struct pfstruct *pf)
 {
 
@@ -104,8 +123,6 @@ void pfSkipVlan(struct pfstruct *pf)
 /* match a specific byte at a specific offset */
 void pfMatchByte(struct pfstruct *pf, const int offset, const uint8_t byte)
 {
-
-
 
     /* odd offset: lower bits */
     if(offset % 2 ) {
@@ -335,11 +352,15 @@ strIoctlHelper(int fd, int cmd, int timeout, int len, void *buf)
 
 /* initialise a DLPI handle and set all options required, return the fd */
 int
-dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timeval timeout, uint32_t chunksize, uint32_t snaplen, struct pfstruct *pf)
+dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timeval timeout, uint32_t chunksize, uint32_t snaplen, struct pfstruct *pf, uint_t sap)
 {
 
     int fd = -1;
     int ret;
+
+    if(sap == 0) {
+	sap = DLPI_ANY_SAP;
+    }
 
     /* open */
     ret = dlpi_open(ifName, dh, DLPI_PASSIVE | DLPI_RAW);
@@ -368,7 +389,9 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
     /* set promisc modes */
     if(promisc) {
 
+	/* unfortunately this is basically required to see our own transmitted packets */
 	ret = dlpi_promiscon(*dh, DL_PROMISC_PHYS);
+
 	if (ret != DLPI_SUCCESS) {
 
 	    CCK_ERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI _PHYS promiscuous mode (%s)\n",
@@ -378,6 +401,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
 	}
 
 	ret = dlpi_promiscon(*dh, DL_PROMISC_SAP);
+
 	if (ret != DLPI_SUCCESS) {
 
 	    CCK_ERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI _SAP promiscuous mode (%s)\n",
@@ -385,6 +409,17 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
 	    return -1;
 
 	}
+
+	ret = dlpi_promiscon(*dh, DL_PROMISC_MULTI);
+
+	if (ret != DLPI_SUCCESS) {
+
+	    CCK_ERROR(THIS_COMPONENT"dlpiInit(%s): could not set DLPI _SAP promiscuous mode (%s)\n",
+			ifName, (ret == DL_SYSERR) ? strerror(errno) : dlpi_strerror(ret));
+	    return -1;
+
+	}
+
 
     }
 
@@ -401,6 +436,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
     if (pf && (pf->Pf_FilterLen > 0)) {
 
 	ret = ioctl(fd, I_PUSH, "pfmod");
+
 	if (ret < 0) {
 	    CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not push pfmod to DLPI handle",
 			ifName);
@@ -419,6 +455,7 @@ dlpiInit(dlpi_handle_t *dh, const char *ifName, const bool promisc, struct timev
 
     /* push bufmod to STREAMS so we get a header with timestamps */
     ret = ioctl(fd, I_PUSH, "bufmod");
+
     if (ret < 0) {
 	CCK_PERROR(THIS_COMPONENT"dlpiInit(%s): could not push bufmod to DLPI handle",
 		ifName);
