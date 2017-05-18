@@ -245,7 +245,7 @@ tTransport_init(TTransport* self, const TTransportConfig *config, CckFdSet *fdSe
 #elif defined(IPV6_PKTINFO)
     ret = setsockopt(*fd, IPPROTO_IPV6, IPV6_PKTINFO, &val, valsize);
     if(ret < 0) {
-	CCK_DBG(THIS_COMPONENT"tTransportInit(%s): Failed to set IPC6_RECVPKTINFO: %s\n",
+	CCK_DBG(THIS_COMPONENT"tTransportInit(%s): Failed to set IPV6_PKTINFO: %s\n",
 			self->name, strerror(errno));
     }
 #endif /* IPV6_RECVPKTINFO */
@@ -527,7 +527,7 @@ sendMessage(TTransport *self, TTransportMessage *message) {
     }
 
     /* loop packet to self if we have no naive timestamp */
-    if(!mc && !message->hasTimestamp) {
+    if(self->config.timestamping && !mc && !message->hasTimestamp) {
 	    ret = sendto(
 		    self->myFd.fd,
 		    message->data,
@@ -641,12 +641,14 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
     if (msg.msg_flags & MSG_TRUNC) {
 	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): Received truncated message (check buffer size - is %d bytes, received %d)\n",
 		    self->name, message->capacity, ret);
+	self->counters.rxErrors++;
 	return 0;
     }
 
     if ((msg.msg_flags & MSG_CTRUNC) || (msg.msg_controllen <= 0)) {
 	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): Received truncated control data (check control buffer size - is %d bytes, received %d, controllen %d)\n",
 		    self->name, sizeof(cun_t.control), ret, msg.msg_controllen);
+	self->counters.rxErrors++;
 	return 0;
     }
 
@@ -663,24 +665,8 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 	    }
 	}
 
-    /* try getting message destination */
-#ifdef IPV6_RECVPKTINFO
-	if ((cmsg->cmsg_level == IPPROTO_IPV6) &&
-	    (cmsg->cmsg_type == IPV6_RECVPKTINFO)) {
-		struct in6_pktinfo *pi =
-		(struct in6_pktinfo *) CMSG_DATA(cmsg);
-		memcpy(&message->to.addr.inet6.sin6_addr, &pi->ipi6_addr, self->tools->structSize);
-		if(!self->tools->isEmpty(&message->to)) {
-		    message->to.populated = true;
-		    message->to.family = self->family;
-		}
-#ifdef CCK_DEBUG
-	tmpstr(strAddr, self->tools->strLen);
-	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): got message destination %s via IPV6_RECVPKTINFO\n",
-		    self->name, self->tools->toString(strAddr, strAddr_len, &message->to));
-#endif /* CCK_DEBUG */
-	}
-#elif defined(IPV6_PKTINFO)
+	/* try getting message destination */
+#ifdef IPV6_PKTINFO
 	if ((cmsg->cmsg_level == IPPROTO_IPV6) &&
 	    (cmsg->cmsg_type == IPV6_PKTINFO)) {
 		struct in6_pktinfo *pi =
@@ -689,6 +675,7 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 		if(!self->tools->isEmpty(&message->to)) {
 		    message->to.populated = true;
 		    message->to.family = self->family;
+		    message->to.addr.inet6.sin6_family = AF_INET6; /* not always automatically populated */
 		}
 #ifdef CCK_DEBUG
 	tmpstr(strAddr, self->tools->strLen);

@@ -618,12 +618,14 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
     if (msg.msg_flags & MSG_TRUNC) {
 	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): Received truncated message (check buffer size - is %d bytes, received %d)\n",
 		    self->name, message->capacity, ret);
+	self->counters.rxErrors++;
 	return 0;
     }
 
     if ((msg.msg_flags & MSG_CTRUNC) || (msg.msg_controllen <= 0)) {
 	CCK_DBG(THIS_COMPONENT"receiveMessage(%s): Received truncated control data (check control buffer size - is %d bytes, received %d, controllen %d)\n",
 		    self->name, sizeof(cun_t.control), ret, msg.msg_controllen);
+	self->counters.rxErrors++;
 	return 0;
     }
 
@@ -634,8 +636,8 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 	/* grab the timestamp */
 	if(self->config.timestamping && !message->hasTimestamp) {
 	    if(getCmsgTimestamp (&message->timestamp, cmsg, &myData->tsConfig)) {
-		CCK_DBG(THIS_COMPONENT"receiveMessage(%s): got timestamp %d.%d\n",
-		    self->name, message->timestamp.seconds, message->timestamp.nanoseconds);
+		CCK_DBG(THIS_COMPONENT"receiveMessage(%s): got %s timestamp %d.%d\n",
+		    self->name, txFlags ? "TX" : "RX" , message->timestamp.seconds, message->timestamp.nanoseconds);
 		message->hasTimestamp = true;
 		/* if this is a TX timestamp, the buffer includes transport protocol headers - skip them */
 		if(txFlags) {
@@ -654,6 +656,7 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 		if(!self->tools->isEmpty(&message->to)) {
 		    message->to.populated = true;
 		    message->to.family = self->family;
+		    message->to.addr.inet4.sin_family = AF_INET; /* not always automatically populated */
 		}
 #ifdef CCK_DEBUG
 	tmpstr(strAddr, self->tools->strLen);
@@ -671,6 +674,7 @@ receiveMessage(TTransport *self, TTransportMessage *message) {
 		if(!self->tools->isEmpty(&message->to)) {
 		    message->to.populated = true;
 		    message->to.family = self->family;
+		    message->to.addr.inet4.sin_family = AF_INET; /* not always automatically populated */
 		}
 #ifdef CCK_DEBUG
 	tmpstr(strAddr, self->tools->strLen);

@@ -499,6 +499,8 @@ ptpDataCallback(void *fd, void *owner) {
     PtpClock *clock = tr->owner;
     TimeInternal timestamp = {0 ,0};
 
+    bool looped;
+    
     int len = tr->receiveMessage(tr, &tr->incomingMessage);
 
     if(len < 0 ) {
@@ -512,7 +514,9 @@ ptpDataCallback(void *fd, void *owner) {
 	timestamp.nanoseconds = tr->incomingMessage.timestamp.nanoseconds;
     }
 
-    processPtpData(clock, &timestamp, len, &tr->incomingMessage.from, &tr->incomingMessage.to);
+    /* if this is a looped message, set destination to NULL so the protocol engine knows it is 'unknown' */
+    looped = tr->incomingMessage.fromSelf && tr->incomingMessage.toSelf;
+    processPtpData(clock, &timestamp, len, &tr->incomingMessage.from, looped ? NULL : &tr->incomingMessage.to);
 
 }
 

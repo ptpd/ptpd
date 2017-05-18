@@ -1469,7 +1469,7 @@ indexSync(TimeInternal *timeStamp, UInteger16 sequenceId, void *protocolAddress,
 
     hash = fnvHash(timeStamp, sizeof(TimeInternal), UNICAST_MAX_DESTINATIONS);
 
-    if(ptpAddrIsEmpty(index[hash].protocolAddress)) {
+    if(!ptpAddrIsEmpty(index[hash].protocolAddress)) {
 	DBG("indexSync: hash collision - clearing entry %s:%04x\n", ptpAddrToString(strAddr, strAddr_len, protocolAddress), hash);
 	ptpAddrClear(index[hash].protocolAddress);
     } else {
@@ -1494,7 +1494,7 @@ lookupSyncIndex(TimeInternal *timeStamp, UInteger16 sequenceId, SyncDestEntry *i
 
     if(ptpAddrIsEmpty(index[hash].protocolAddress)) {
 	DBG("lookupSyncIndex: cache miss\n");
-	return 0;
+	return NULL;
     } else {
 	DBG("lookupSyncIndex: cache hit - old entry should be cleared\n");
 	return index[hash].protocolAddress;
@@ -1738,7 +1738,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 				DBG("handleSync: master sync dest cache miss - searching\n");
 				myDst = findSyncDestination(&OriginTimestamp, global, ptpClock);
 				/* give up. Better than sending FollowUp to random destinations*/
-				if(!dst) {
+				if(!myDst) {
 				    DBG("handleSync: master sync dest not found for followUp. Giving up.\n");
 				    return;
 				} else {
@@ -2745,6 +2745,9 @@ issueSyncSingle(void *dst, UInteger16 *sequenceId, const GlobalConfig *global,Pt
 {
 	Timestamp originTimestamp;
 	TimeInternal internalTime, now;
+
+	clearTime(&internalTime);
+	clearTime(&now);
 
 	getPtpClockTime(&internalTime, ptpClock);
 

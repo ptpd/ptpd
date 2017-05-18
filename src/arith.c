@@ -225,8 +225,8 @@ div2Time(TimeInternal *r)
 void
 clearTime(TimeInternal *r)
 {
-	r->seconds     = 0;
-	r->nanoseconds = 0;
+	memset(r, 0, sizeof(TimeInternal));
+
 }
 
 

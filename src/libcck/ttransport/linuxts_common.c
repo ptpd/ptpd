@@ -1,3 +1,4 @@
+
 /* Copyright (c) 2016 Wojciech Owczarek,
  *
  * All Rights Reserved
@@ -506,7 +507,6 @@ finalise:
 
 void
 getLinuxTxTimestamp(TTransport *transport, TTransportMessage *txMessage) {
-
 	char buf[txMessage->capacity];
 	TTransportMessage tsMessage;
 	ssize_t ret;

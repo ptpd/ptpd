@@ -309,8 +309,7 @@ tsDiv2(CckTimestamp *r)
 static void
 tsClear(CckTimestamp *r)
 {
-	r->seconds     = 0;
-	r->nanoseconds = 0;
+	memset(r, 0, sizeof(CckTimestamp));
 }
 
 static CckTimestamp
