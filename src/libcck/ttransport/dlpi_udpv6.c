@@ -697,7 +697,7 @@ createFilterExpr(TTransport *self, struct pfstruct *pf) {
     PFPUSH(ENF_AND);
 
     /* match UDP destination port */
-    pfMatchWord(pf, TT_HDRLEN_ETHERNET + 20 + 2, htons(myConfig->listenPort));
+    pfMatchWord(pf, TT_HDRLEN_ETHERNET + 40 + 2, htons(myConfig->listenPort));
 
     /* AND previous */
     PFPUSH(ENF_AND);
