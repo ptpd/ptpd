@@ -2710,10 +2710,10 @@ issueSync(const GlobalConfig *global,PtpClock *ptpClock)
 			    tmpstr(strAddr, ptpAddrStrLen(grant->parent->protocolAddress));
 			    DBG("mixed interval to %d counter: %d\n",
 			        ptpAddrToString(strAddr, strAddr_len, grant->parent->protocolAddress), grant->intervalCounter);
-			    grant->intervalCounter++;
+
 			}
 #endif /* RUNTIME_DEBUG */
-
+			grant->intervalCounter++;
 		    }
 
 		    if(grant->granted) {

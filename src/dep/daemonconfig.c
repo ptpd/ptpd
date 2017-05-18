@@ -1220,7 +1220,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:log_announce_interval", PTPD_UPDATE_DATASETS, INTTYPE_I8, &global->logAnnounceInterval, global->logAnnounceInterval,
 		"PTP announce message interval in master state. When using unicast negotiation, for\n"
 	"	 slaves this is the minimum interval requested, and for masters\n"
-	"	 this is the only interval granted.\n"
+	"	 this is the minimum interval granted.\n"
 #ifdef PTPD_EXPERIMENTAL
     "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
@@ -1228,8 +1228,8 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 #endif
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:log_announce_interval_max", PTPD_UPDATE_DATASETS, INTTYPE_I8, &global->logMaxAnnounceInterval, global->logMaxAnnounceInterval,
-		"Maximum Announce message interval requested by slaves "
-		"when using unicast negotiation,\n"
+		"Maximum Announce message interval requested by slaves and granted by masters"
+		"when using unicast negotiation\n"
 #ifdef PTPD_EXPERIMENTAL
     "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
@@ -1254,7 +1254,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:log_sync_interval", PTPD_UPDATE_DATASETS, INTTYPE_I8, &global->logSyncInterval, global->logSyncInterval,
 		"PTP sync message interval in master state. When using unicast negotiation, for\n"
 	"	 slaves this is the minimum interval requested, and for masters\n"
-	"	 this is the only interval granted.\n"
+	"	 this is the minimum interval granted.\n"
 #ifdef PTPD_EXPERIMENTAL
     "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
 #else
@@ -1262,7 +1262,7 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, GlobalConfig *global )
 #endif
 
 	parseResult &= configMapInt(opCode, opArg, dict, target, "ptpengine:log_sync_interval_max", PTPD_UPDATE_DATASETS, INTTYPE_I8, &global->logMaxSyncInterval, global->logMaxSyncInterval,
-		"Maximum Sync message interval requested by slaves "
+		"Maximum Sync message interval requested by slaves and granted by masters"
 		"when using unicast negotiation,\n"
 #ifdef PTPD_EXPERIMENTAL
     "	"LOG2_HELP,RANGECHECK_RANGE,-30,30);
