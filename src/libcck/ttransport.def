@@ -122,7 +122,7 @@
 			(TT_CAPS_UCAST | TT_CAPS_MCAST | TT_CAPS_SW_TIMESTAMP | TT_CAPS_PREFER_SW),	TT_TYPE_NONE)
     #endif
 
-    /* libclpi-based transports - better TX timestamp approximation than pure s/w timestamps, the only "socket timestamp" option for Solaris 10 */
+    /* libdlpi-based transports - better TX timestamp approximation than pure s/w timestamps, the only "socket timestamp" option for Solaris 10 */
     #if defined(CCK_BUILD_TTRANSPORT_DLPI) || defined(CCK_ALL_IMPL)
 
 	CCK_REGISTER_IMPL(TT_TYPE_DLPI_UDPV4,	dlpi_udpv4,	"dlpi_udpv4",	TT_FAMILY_IPV4,

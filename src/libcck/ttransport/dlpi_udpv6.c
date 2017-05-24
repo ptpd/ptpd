@@ -696,7 +696,7 @@ createFilterExpr(TTransport *self, struct pfstruct *pf) {
     /* AND previous */
     PFPUSH(ENF_AND);
 
-    /* match UDP destination port */
+    /* match UDP destination port: Ethernet, assumed 40 bytes of IPv6 header, 2 bytes into UDP */
     pfMatchWord(pf, TT_HDRLEN_ETHERNET + 40 + 2, htons(myConfig->listenPort));
 
     /* AND previous */
