@@ -491,7 +491,7 @@ toState(UInteger8 state, const GlobalConfig *global, PtpClock *ptpClock)
 
 		tmrStart(ptpClock, SYNC_RECEIPT, max(
 		   (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
-		   MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logSyncInterval))
+		   MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logSyncInterval == UNICAST_MESSAGEINTERVAL ? 0 : ptpClock->portDS.logSyncInterval))
 		));
 
 		if(ptpClock->portDS.delayMechanism == E2E) {
@@ -1587,7 +1587,7 @@ handleSync(const MsgHeader *header, ssize_t length,
 			ptpClock->counters.syncMessagesReceived++;
 			tmrStart(ptpClock, SYNC_RECEIPT, max(
 			    (ptpClock->portDS.announceReceiptTimeout) * (pow(2,ptpClock->portDS.logAnnounceInterval)),
-			    MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logSyncInterval))
+			    MISSED_MESSAGES_MAX * (pow(2,ptpClock->portDS.logSyncInterval == UNICAST_MESSAGEINTERVAL ? 0 : ptpClock->portDS.logSyncInterval))
 			));
 
 			/* We only start our own delayReq timer after receiving the first sync */
