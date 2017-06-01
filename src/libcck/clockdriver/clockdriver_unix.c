@@ -75,9 +75,10 @@
 #include <libcck/clockdriver.h>
 #include <libcck/clockdriver_interface.h>
 
-#if defined(linux) && !defined(ADJ_SETOFFSET)
+/* Cases where we have no ADJ_SETOFFSET in sys/timex.h, but it's there in linux/timex.h */
+#if defined(linux) && !defined(ADJ_SETOFFSET) && defined(HAVE_DECL_ADJ_SETOFFSET)
 #define ADJ_SETOFFSET 0x0100
-#endif
+#endif /* linux && !ADJ_SETOFFSET */
 
 #define THIS_COMPONENT "clock.unix: "
 
@@ -226,7 +227,7 @@ getTime (ClockDriver *self, CckTimestamp *time) {
     clock_offset = 0;
   }
 
-    CCK_DBGV("QNX getTime cps: %lld tick interval: %.09f, time since last tick: %lld\n",
+    CCK_DBGV(THIS_COMPONENT"getTime(): QNX getTime cps: %lld tick interval: %.09f, time since last tick: %lld\n",
     tmpData.cps, tmpData.filtered_delta * tmpData.ns_per_tick, clock_offset);
 
     nsec2timespec(&tp, tmpData.last_clock + clock_offset);
@@ -358,10 +359,12 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	}
 
 #ifndef ADJ_SETOFFSET
+	CCK_DBG(THIS_COMPONENT"setOffset(): ADJ_SETOFFSET (Linux) not available, using setTime instead\n");
 	getTime(self, &newTime);
 	tsOps.add(&newTime, &newTime, delta);
 	return setTime(self, &newTime);
 #else
+	CCK_DBG(THIS_COMPONENT"setOffset(): Using Linux ADJ_SETOFFSET\n");
 	CCK_GET_PCONFIG(ClockDriver, unix, self, myConfig);
 	CckTimestamp oldTime;
 
@@ -373,7 +376,7 @@ setOffset (ClockDriver *self, CckTimestamp *delta) {
 	tmx.time.tv_usec = delta->nanoseconds;
 
 	if(adjtimex(&tmx) < 0) {
-	    CCK_DBG("Could not set clock offset of Unix clock %s\n", self->name);
+	    CCK_DBG(THIS_COMPONENT"setOffset(): ADJ_SETOFFSET failed for clock %s\n", self->name);
 	    getTime(self, &newTime);
 	    tsOps.add(&newTime, &newTime, delta);
 	    return setTime(self, &newTime);
@@ -401,7 +404,7 @@ static bool
 setFrequency (ClockDriver *self, double adj, double tau) {
 
     if (self->config.readOnly){
-		CCK_DBGV("adjFreq2: noAdjust on, returning\n");
+		CCK_DBGV(THIS_COMPONENT"setFrequency(): Clock %s is read-only, returning\n");
 		return false;
 	}
 

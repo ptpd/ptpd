@@ -35,6 +35,8 @@
 #ifndef CCK_LOGGER_H_
 #define CCK_LOGGER_H_
 
+#include <config.h>
+
 #include <syslog.h>
 #include <stdarg.h>
 
@@ -49,8 +51,6 @@ void cckSetLoggerFun(void (*) (int, const char*, va_list));
 #ifndef LOG_PRI
 #define LOG_PRI(prio) ((prio) & LOG_PRIMASK)
 #endif
-
-//#define CCK_DEBUG
 
 #define CCK_EMERGENCY(x, ...)		cckLogMessage(LOG_EMERG, x, ##__VA_ARGS__);
 #define CCK_ALERT(x, ...)		cckLogMessage(LOG_ALERT, x, ##__VA_ARGS__);

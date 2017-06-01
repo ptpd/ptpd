@@ -86,8 +86,9 @@ AC_SEARCH_LIBS([gethostbyname], [nsl])
 AC_HEADER_STDC
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h net/ethernet.h netinet/in.h netinet/in_systm.h netinet/ether.h sys/uio.h net/if_dl.h net/if_types.h])
-AC_CHECK_HEADERS([linux/if_packet.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h sys/time.h syslog.h unistd.h])
-AC_CHECK_HEADERS([glob.h sched.h utmp.h utmpx.h unix.h linux/rtc.h sys/timex.h getopt.h sys/un.h linux/sockios.h])
+AC_CHECK_HEADERS([stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/sockio.h sys/time.h syslog.h unistd.h])
+AC_CHECK_HEADERS([glob.h sched.h utmp.h utmpx.h unix.h sys/timex.h getopt.h sys/un.h])
+AC_CHECK_HEADERS([linux/if_packet.h linux/sockios.h linux/rtc.h ])
 
 AC_CHECK_HEADERS([ifaddrs.h], [have_ifaddrs_h=true], [have_ifaddrs_h=false], [])
 
@@ -327,6 +328,7 @@ case $host in
 	    # If we have Linux HWTS headers, check if they are complete...
 	    AC_CHECK_DECLS([PTP_SYS_OFFSET], [], [], [[#include <linux/ptp_clock.h>]])
 	    AC_CHECK_DECLS([ETHTOOL_GET_TS_INFO], [], [], [[#include <linux/ethtool.h>]])
+	    AC_CHECK_DECLS([ADJ_SETOFFSET], [], [], [[#include <linux/timex.h>]])
 	    AC_CHECK_DECLS([MSG_ERRQUEUE], [], [build_linuxphc=false], [[#include <sys/socket.h>]])
 
 	    AS_IF([test "$build_linuxphc" == "true"],
@@ -769,6 +771,23 @@ case "$enable_runtime_debug" in
     ;;
 esac
 AC_SUBST(PTP_DBL)
+
+AC_MSG_CHECKING([if we want to enable LibCCK debug mode])
+
+AC_ARG_ENABLE(
+    [libcck-debug],
+    [AS_HELP_STRING(
+	[--enable-libcck-debug (disabled by default)],
+	[Enable LibCCK debug mode]
+    )],
+    [
+	AC_DEFINE([CCK_DEBUG], [1], [Enable LibCCK debug mode])
+	libcck_debug=yes
+    ],
+    [libcck_debug=no]
+)
+
+AC_MSG_RESULT([$libcck_debug])
 
 AC_MSG_CHECKING([for maximum unicast destination table size])
 AC_ARG_WITH(

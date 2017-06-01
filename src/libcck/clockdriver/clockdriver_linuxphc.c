@@ -62,9 +62,10 @@
 #include <libcck/net_utils.h>
 #include <libcck/net_utils_linux.h>
 
-#if defined(linux) && !defined(ADJ_SETOFFSET)
+/* Cases where we have no ADJ_SETOFFSET in sys/timex.h, but it's there in linux/timex.h */
+#if defined(linux) && !defined(ADJ_SETOFFSET) && defined(HAVE_DECL_ADJ_SETOFFSET)
 #define ADJ_SETOFFSET 0x0100
-#endif
+#endif /* linux && !ADJ_SETOFFSET */
 
 /*
  * Some Linux distributions come with kernels which support SYS_OFFSET,
