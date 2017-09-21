@@ -334,9 +334,9 @@ ptpPortStateChange(PtpClock *ptpClock, const uint8_t from, const uint8_t to)
     if(to == PTP_SLAVE || to == PTP_MASTER || to == PTP_PASSIVE) {
 	    if(to == PTP_SLAVE) {
 		cd->setExternalReference(cd, "PTP", RC_PTP);
+		cd->maintainLock = false;
 	    }
 	    cd->owner = ptpClock;
-	    cd->maintainLock = false;
 	    cd->callbacks.onStep = ptpPortStepNotify;
 	    cd->callbacks.onLock = ptpPortLocked;
 	    cd->callbacks.onFrequencyJump = ptpPortFrequencyJump;
