@@ -459,7 +459,7 @@ getOffsetFrom (ClockDriver *self, ClockDriver *from, CckTimestamp *delta)
 		if(!self->getSystemClockOffset(self, &deltaA)) {
 		    return false;
 		}
-		if(!self->getSystemClockOffset(from, &deltaB)) {
+		if(!from->getSystemClockOffset(from, &deltaB)) {
 		    return false;
 		}
 		tsOps.sub(delta, &deltaA, &deltaB);
