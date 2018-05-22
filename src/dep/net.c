@@ -2017,7 +2017,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 
 ssize_t
 netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
-	       const const RunTimeOpts *rtOpts, Integer32 destinationAddress)
+	       const RunTimeOpts *rtOpts, Integer32 destinationAddress)
 {
 	ssize_t ret;
 	struct sockaddr_in addr;

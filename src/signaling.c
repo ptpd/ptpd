@@ -37,7 +37,7 @@
 
 #include "ptpd.h"
 
-/* how many times we send a cancel before we stop waiting for ack */
+/* how many times we send a cancel before we stop waiting for ack. 8 bit unsigned. */
 #define GRANT_CANCEL_ACK_TIMEOUT 3
 /* every N grant refreshes, we re-request messages we don't seem to be receiving */
 #define GRANT_KEEPALIVE_INTERVAL 5
@@ -56,7 +56,7 @@ static void handleSMAcknowledgeCancelUnicastTransmission(MsgSignaling* incoming,
 static Boolean prepareSMRequestUnicastTransmission(MsgSignaling* outgoing, UnicastGrantData *grant, PtpClock* ptpClock);
 static Boolean prepareSMCancelUnicastTransmission(MsgSignaling* outgoing, UnicastGrantData* grant, PtpClock* ptpClock);
 static void requestUnicastTransmission(UnicastGrantData *grant, UInteger32 duration, const RunTimeOpts* rtOpts, PtpClock* ptpClock);
-static void issueSignaling(MsgSignaling *outgoing, Integer32 destination, const const RunTimeOpts *rtOpts, PtpClock *ptpclock);
+static void issueSignaling(MsgSignaling *outgoing, Integer32 destination, const RunTimeOpts *rtOpts, PtpClock *ptpclock);
 static void cancelNodeGrants(UnicastGrantTable *nodeTable, const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 
 /* Return unicast grant array index for given message type */
@@ -658,7 +658,6 @@ handleSMAcknowledgeCancelUnicastTransmission(MsgSignaling* incoming, Integer32 s
 	myGrant->granted = FALSE;
 	myGrant->requested = FALSE;
 	myGrant->sentSeqId = 0;
-	myGrant->cancelCount = 0;
 	myGrant->timeLeft = 0;
 	myGrant->duration = 0;
 	myGrant->canceled = FALSE;
@@ -959,7 +958,7 @@ requestUnicastTransmission(UnicastGrantData *grant, UInteger32 duration, const R
 }
 
 void
-cancelUnicastTransmission(UnicastGrantData* grant, const const RunTimeOpts* rtOpts, PtpClock* ptpClock)
+cancelUnicastTransmission(UnicastGrantData* grant, const RunTimeOpts* rtOpts, PtpClock* ptpClock)
 {
 
 /* todo: dbg sending */
@@ -979,7 +978,7 @@ cancelUnicastTransmission(UnicastGrantData* grant, const const RunTimeOpts* rtOp
 }
 
 static void
-issueSignaling(MsgSignaling *outgoing, Integer32 destination, const const RunTimeOpts *rtOpts,
+issueSignaling(MsgSignaling *outgoing, Integer32 destination, const RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
 
@@ -1259,7 +1258,7 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 
 		}
 
-		if(grantData->canceled && grantData->cancelCount >= GRANT_CANCEL_ACK_TIMEOUT) {
+		if((grantData->canceled > 0) && (grantData->cancelCount >= GRANT_CANCEL_ACK_TIMEOUT)) {
 		    grantData->cancelCount = 0;
 		    grantData->canceled = FALSE;
 		    grantData->granted = FALSE;

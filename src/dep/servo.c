@@ -1035,7 +1035,7 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 }
 
 void
-setupPIservo(PIservo* servo, const const RunTimeOpts* rtOpts)
+setupPIservo(PIservo* servo, const RunTimeOpts* rtOpts)
 {
     servo->maxOutput = rtOpts->servoMaxPpb;
     servo->kP = rtOpts->servoKP;
