@@ -70,7 +70,6 @@ static void timerSignalHandler(int sig);
 void
 setupEventTimer(EventTimer *timer)
 {
-
 	if(timer == NULL) {
 	    return;
 	}
@@ -88,7 +87,6 @@ setupEventTimer(EventTimer *timer)
 static void
 eventTimerStart_itimer(EventTimer *timer, double interval)
 {
-
 	timer->expired = FALSE;
 	timer->running = TRUE;
 
@@ -104,7 +102,7 @@ eventTimerStart_itimer(EventTimer *timer, double interval)
 		 */
 		timer->itimerLeft = 1;
 	}
-	
+
 	timer->itimerInterval = timer->itimerLeft;
 
 	DBG2("timerStart:     Set timer %s to %f  New interval: %d; new left: %d\n", timer->id, interval, timer->itimerLeft , timer->itimerInterval);
@@ -113,17 +111,14 @@ eventTimerStart_itimer(EventTimer *timer, double interval)
 static void
 eventTimerStop_itimer(EventTimer *timer)
 {
-
 	timer->itimerInterval = 0;
 	timer->running = FALSE;
 	DBG2("timerStop:      Stopping timer %s\n", timer->id);
-
 }
 
 static void
 itimerUpdate(EventTimer *et)
 {
-
 	EventTimer *timer = NULL;
 
 	if (elapsed <= 0)
@@ -145,7 +140,6 @@ itimerUpdate(EventTimer *et)
 	}
 
 	elapsed = 0;
-
 }
 
 
@@ -164,7 +158,6 @@ eventTimerShutdown_itimer(EventTimer *timer)
 static Boolean
 eventTimerIsRunning_itimer(EventTimer *timer)
 {
-
 	itimerUpdate(timer);
 
 	DBG2("timerIsRunning:   Timer %s %s running\n", timer->id,
@@ -176,7 +169,6 @@ eventTimerIsRunning_itimer(EventTimer *timer)
 static Boolean
 eventTimerIsExpired_itimer(EventTimer *timer)
 {
-
 	Boolean ret;
 
 	itimerUpdate(timer);
@@ -191,7 +183,6 @@ eventTimerIsExpired_itimer(EventTimer *timer)
 	}
 
 	return ret;
-
 }
 
 void
@@ -214,7 +205,7 @@ startEventTimers(void)
 
 #ifdef __sun
 	sigset(SIGALRM, timerSignalHandler);
-#else	
+#else
 	signal(SIGALRM, timerSignalHandler);
 #endif /* __sun */
 	setitimer(ITIMER_REAL, &itimer, 0);
@@ -223,7 +214,6 @@ startEventTimers(void)
 void
 shutdownEventTimers(void)
 {
-
 #ifdef __sun
 	sigset(SIGALRM, SIG_IGN);
 #else

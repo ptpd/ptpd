@@ -221,7 +221,6 @@ printf("Note: The use of '-%c' option is deprecated %s- consider using '-%c' (--
 static void
 printComment(const char* helptext)
 {
-
     int i, len;
     len = strlen(helptext);
 
@@ -241,18 +240,15 @@ printComment(const char* helptext)
 	}
     }
     printf("\n");
-
 }
 
 static int
 configSettingChanged(dictionary *oldConfig, dictionary *newConfig, const char *key)
 {
-
     return(strcmp(
 		    dictionary_get(newConfig, key,""),
 		    dictionary_get(oldConfig, key,"")
 		) != 0 );
-
 }
 
 /* warn about restart required if needed */
@@ -270,7 +266,6 @@ static int
 configMapBoolean(int opCode, void *opArg,  dictionary* dict, dictionary *target,
 		    const char * key, int restartFlags, Boolean *var, Boolean def, const char* helptext)
 {
-
 	if(opCode & CFGOP_RESTART_FLAGS) {
 	    if(CONFIG_ISSET(key)) {
 		*(int*)opArg |= restartFlags;
@@ -554,7 +549,6 @@ configMapDouble(int opCode, void *opArg,  dictionary *dict, dictionary *target, 
 		    double *var, double def, const char *helptext, int rangeFlags,
 		    double minBound, double maxBound)
 {
-
 	int ret = 0;
 	if(opCode & CFGOP_RESTART_FLAGS) {
 	    if(CONFIG_ISSET(key)) {
@@ -651,7 +645,6 @@ static int
 configMapSelectValue(int opCode, void *opArg,  dictionary *dict, dictionary *target,
 const char* key, int restartFlags, uint8_t *var, int def, const char *helptext, ...)
 {
-
     int ret;
     int i;
     /* fixed maximum to avoid while(1) */
@@ -750,24 +743,20 @@ result:
     }
 
     return ret;
-
 }
 
 void setConfig(dictionary *dict, const char* key, const char *value)
 {
-
     if(dict == NULL) {
 	return;
     }
 
     dictionary_set(dict, key, value);
-
 }
 
 static void
 parseUserVariables(dictionary *dict, dictionary *target)
 {
-
     int i = 0;
     char *search, *replace, *key;
     char varname[100];
@@ -792,7 +781,6 @@ parseUserVariables(dictionary *dict, dictionary *target)
 	}
 
     }
-
 }
 
 /**
@@ -802,7 +790,6 @@ parseUserVariables(dictionary *dict, dictionary *target)
 static void
 findUnknownSettings(int opCode, dictionary* source, dictionary* dict)
 {
-
     int i = 0;
 
     if( source == NULL || dict == NULL) return;
@@ -2482,8 +2469,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 
 	dictionary_del(&target);
 	return NULL;
-
-
 }
 
 /**
@@ -2494,7 +2479,6 @@ parseConfig ( int opCode, void *opArg, dictionary* dict, RunTimeOpts *rtOpts )
 Boolean
 loadConfigFile(dictionary **target, RunTimeOpts *rtOpts)
 {
-
 	dictionary *dict;
 
 	if ( (dict = iniparser_load(rtOpts->configFile)) == NULL) {
@@ -2520,7 +2504,6 @@ loadConfigFile(dictionary **target, RunTimeOpts *rtOpts)
 void
 loadCommandLineKeys(dictionary* dict, int argc,char** argv)
 {
-
     int i;
     char key[PATH_MAX],val[PATH_MAX];
 
@@ -2578,7 +2561,6 @@ loadCommandLineKeys(dictionary* dict, int argc,char** argv)
 void
 printDefaultConfig()
 {
-
 	RunTimeOpts rtOpts;
 	dictionary *dict;
 
@@ -2599,7 +2581,6 @@ printDefaultConfig()
 	dictionary_del(&dict);
 
 	printf("\n; ========= newline required in the end ==========\n\n");
-
 }
 
 
@@ -2612,7 +2593,6 @@ printDefaultConfig()
 void
 printConfigHelp()
 {
-
 	RunTimeOpts rtOpts;
 	dictionary *dict;
 
@@ -2625,7 +2605,6 @@ printConfigHelp()
 	parseConfig(CFGOP_HELP_FULL | CFGOP_PARSE_QUIET, NULL, dict, &rtOpts);
 
 	dictionary_del(&dict);
-
 }
 
 /**
@@ -2636,7 +2615,6 @@ printConfigHelp()
 void
 printSettingHelp(char* key)
 {
-
 	RunTimeOpts rtOpts;
 	dictionary *dict;
 	char* origKey = strdup(key);
@@ -2666,8 +2644,8 @@ printSettingHelp(char* key)
  * the respective currentConfig dictionary entry should be set,
  * instead of just setting the rtOpts field.
  */
-Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, char** argv, Integer16* ret) {
-
+Boolean loadCommandLineOptions(RunTimeOpts* rtOpts, dictionary* dict, int argc, char** argv, Integer16* ret)
+{
 	int c;
 #ifdef HAVE_GETOPT_LONG
 	int opt_index = 0;
@@ -2899,15 +2877,13 @@ short_help:
 	    }
 	}
 
-return TRUE;
-
+    return TRUE;
 }
 
 /* Display informatin about the built-in presets */
 void
 printPresetHelp()
 {
-
 	int i = 0;
 	PtpEnginePreset preset;
 	RunTimeOpts defaultOpts;
@@ -2936,7 +2912,6 @@ printPresetHelp()
     }
 
 	printf("\n=============================================================\n");
-
 }
 
 /* print "short" help - standard parameters only */
@@ -3043,7 +3018,6 @@ printShortHelp()
 void
 printLongHelp()
 {
-
 	printShortHelp();
 
 	printConfigHelp();
@@ -3090,7 +3064,6 @@ printLongHelp()
 		"BMC Algorithm defaults:\n"
 		"  Software:   P1(128) > Class(13|248) > Accuracy(\"unk\"/0xFE)   > Variance(65536) > P2(128)\n"
 		    );
-
 }
 
 
@@ -3101,7 +3074,6 @@ printLongHelp()
 Boolean
 compareConfig(dictionary* newConfig, dictionary* oldConfig)
 {
-
     int i = 0;
 
     if( newConfig == NULL || oldConfig == NULL) return -1;
@@ -3118,14 +3090,12 @@ compareConfig(dictionary* newConfig, dictionary* oldConfig)
 	}
     }
 
-return TRUE;
-
+    return TRUE;
 }
 
 /* Compare two configurations and set flags to mark components requiring restart */
 int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig, RunTimeOpts *rtOpts)
 {
-
 	int restartFlags = 0;
 	dictionary *tmpDict = dictionary_new(0);
 
@@ -3188,5 +3158,4 @@ int checkSubsystemRestart(dictionary* newConfig, dictionary* oldConfig, RunTimeO
 	    restartFlags = PTPD_RESTART_NONE;
 
 	return restartFlags;
-
 }

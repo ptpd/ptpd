@@ -111,13 +111,11 @@ initClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 //	ptpClock->masterAddr = 0;
 
 	ptpClock->maxDelayRejected = 0;
-
 }
 
 void
 updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
-
 	/* updates paused, leap second pending - do nothing */
 	if(ptpClock->leapSecondInProgress)
 		return;
@@ -225,14 +223,14 @@ updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpCloc
 #ifdef PTPD_STATISTICS
 
 /* testing only: step detection */
-#if 0
+#  if 0
 	TimeInternal bob;
 	bob.nanoseconds = -1000000;
 	bob.seconds = 0;
 	if(ptpClock->addOffset) {
 	    	addTime(&ptpClock->rawDelaySM, &ptpClock->rawDelaySM, &bob);
 	}
-#endif
+#  endif
 
 	/* run the delayMS stats filter */
 	if(rtOpts->filterSMOpts.enabled) {
@@ -275,12 +273,12 @@ updateDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, PtpCloc
 
 		/* Compute one-way delay */
 		div2Time(&ptpClock->currentDS.meanPathDelay);
-		
+
 		if (ptpClock->currentDS.meanPathDelay.seconds) {
 			DBG("update delay: cannot filter with large OFM, "
 				"clearing filter\n");
 			INFO("Servo: Ignoring delayResp because of large OFM\n");
-			
+
 			mpd_filt->s_exp = mpd_filt->nsec_prev = 0;
 			/* revert back to previous value */
 			ptpClock->currentDS.meanPathDelay = prev_meanPathDelay;
@@ -351,7 +349,6 @@ DBG("UpdateDelay: Max delay hit: %d\n", maxDelayHit);
 #endif /* PTPD_STATISTICS */
 
 	logStatistics(ptpClock);
-
 }
 
 void
@@ -366,7 +363,7 @@ updatePeerDelay(one_way_delay_filter * mpd_filt, const RunTimeOpts * rtOpts, Ptp
 
 	DBGV("updatePeerDelay\n");
 
-	ptpClock->char_last_msg = 'P';	
+	ptpClock->char_last_msg = 'P';
 
 	if (twoStep) {
 		/* calc 'slave_to_master_delay' */
@@ -441,7 +438,6 @@ void
 updateOffset(TimeInternal * send_time, TimeInternal * recv_time,
     offset_from_master_filter * ofm_filt, const RunTimeOpts * rtOpts, PtpClock * ptpClock, TimeInternal * correctionField)
 {
-
 	ptpClock->clockControl.offsetOK = FALSE;
 
 	Boolean maxDelayHit = FALSE;
@@ -606,7 +602,7 @@ DBG("UpdateOffset: max delay hit: %d\n", maxDelayHit);
 	} else {
 		SET_ALARM(ALRM_OFM_SECONDS, FALSE);
 		if(rtOpts->ofmAlarmThreshold) {
-		    if( abs(ptpClock->currentDS.offsetFromMaster.nanoseconds) 
+		    if( abs(ptpClock->currentDS.offsetFromMaster.nanoseconds)
 			> rtOpts->ofmAlarmThreshold) {
 			SET_ALARM(ALRM_OFM_THRESHOLD, TRUE);
 		    } else {
@@ -677,7 +673,6 @@ finish:
 	    ptpClock->currentDS.offsetFromMaster.seconds,
 	    ptpClock->currentDS.offsetFromMaster.nanoseconds);
 	DBGV("observed drift:          %10d\n", ptpClock->servo.observedDrift);
-
 }
 
 void
@@ -712,7 +707,6 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
         if(rtOpts->calibrationDelay) {
                 ptpClock->isCalibrated = FALSE;
         }
-
 }
 
 void
@@ -724,7 +718,6 @@ warn_operator_fast_slewing(const RunTimeOpts * rtOpts, PtpClock * ptpClock, doub
 			NOTICE("Servo: Going to slew the clock with the maximum frequency adjustment\n");
 		}
 	}
-
 }
 
 void
@@ -742,7 +735,7 @@ warn_operator_slow_slewing(const RunTimeOpts * rtOpts, PtpClock * ptpClock )
 			ptpClock->currentDS.offsetFromMaster.seconds,
 			estimated
 		);
-		
+
 	}
 }
 
@@ -806,7 +799,6 @@ adjFreq_wrapper(const RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
 /* check if it's OK to update the clock, deal with panic mode, call for clock step */
 void checkOffset(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-
 	/* unless offset OK */
 	ptpClock->clockControl.updateOK = FALSE;
 
@@ -858,7 +850,7 @@ void checkOffset(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		if(!rtOpts->enablePanicMode) {
 			if (!rtOpts->noResetClock)
-				CRITICAL("Offset above 1 second (%.09f s). Clock will step.\n", 
+				CRITICAL("Offset above 1 second (%.09f s). Clock will step.\n",
 					    timeInternalToDouble(&ptpClock->currentDS.offsetFromMaster));
 			ptpClock->clockControl.stepRequired = TRUE;
 			ptpClock->clockControl.updateOK = TRUE;
@@ -950,19 +942,17 @@ void checkOffset(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 
 	ptpClock->clockControl.updateOK = TRUE;
-
 }
 
 void
 updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
-
 	if(rtOpts->noAdjust) {
 		ptpClock->clockControl.available = FALSE;
 		DBGV("updateClock: noAdjust - skipped clock update\n");
 		return;
 	}
-	
+
 	if(!ptpClock->clockControl.updateOK) {
 		DBGV("updateClock: !clockUpdateOK - skipped clock update\n");
 		return;
@@ -1031,7 +1021,6 @@ updateClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 	ptpClock->servo.driftMin = min(ptpClock->servo.driftMin, ptpClock->servo.observedDrift);
 	}
 #endif
-
 }
 
 void
@@ -1062,7 +1051,6 @@ resetPIservo(PIservo* servo)
 double
 runPIservo(PIservo* servo, const Integer32 input)
 {
-
         double dt;
 
         TimeInternal now, delta;
@@ -1140,14 +1128,12 @@ runPIservo(PIservo* servo, const Integer32 input)
 	DBGV("Servo dt: %.09f, input (ofm): %d, output(adj): %.09f, accumulator (observed drift): %.09f\n", dt, input, servo->output, servo->observedDrift);
 
 	return -servo->output;
-
 }
 
 #ifdef PTPD_STATISTICS
 static void
 checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 {
-
         DBG("servo stablecount: %d\n",ptpClock->servo.stableCount);
 
 	/* if not calibrated, do nothing */
@@ -1201,15 +1187,13 @@ checkServoStable(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
                         }
 		}
 	}
-
 }
 
 void
 updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 {
-
 	DBG("Refreshing slave engine stats counters\n");
-	
+
 		DBG("samples used: %d/%d = %.03f\n", ptpClock->acceptedUpdates, ptpClock->offsetUpdates, (ptpClock->acceptedUpdates + 0.0) / (ptpClock->offsetUpdates + 0.0));
 
 	ptpClock->slaveStats.mpdMean = ptpClock->slaveStats.mpdStats.meanContainer.mean;
@@ -1256,7 +1240,6 @@ updatePtpEngineStats (PtpClock* ptpClock, const RunTimeOpts* rtOpts)
 
 	ptpClock->offsetUpdates = 0;
 	ptpClock->acceptedUpdates = 0;
-
 }
 
 #endif /* PTPD_STATISTICS */

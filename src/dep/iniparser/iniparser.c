@@ -297,7 +297,6 @@ int iniparser_getsecnkeys(dictionary * d, char * s)
     }
 
     return nkeys;
-
 }
 
 /*-------------------------------------------------------------------------*/
@@ -316,7 +315,6 @@ int iniparser_getsecnkeys(dictionary * d, char * s)
 /*--------------------------------------------------------------------------*/
 char ** iniparser_getseckeys(dictionary * d, char * s)
 {
-
     char **keys;
 
     int i, j ;
@@ -347,7 +345,6 @@ char ** iniparser_getseckeys(dictionary * d, char * s)
     }
 
     return keys;
-
 }
 
 /*-------------------------------------------------------------------------*/
@@ -736,8 +733,8 @@ dictionary * iniparser_load(const char * ininame)
 }
 
 
-int iniparser_merge_file(dictionary *dict, const char *filename, int overwrite) {
-
+int iniparser_merge_file(dictionary *dict, const char *filename, int overwrite)
+{
     dictionary *src;
 
     if ((src = iniparser_load(filename)) == NULL) {
@@ -749,7 +746,6 @@ int iniparser_merge_file(dictionary *dict, const char *filename, int overwrite) 
     dictionary_del(&src);
 
     return 1;
-
 }
 
 /*-------------------------------------------------------------------------*/

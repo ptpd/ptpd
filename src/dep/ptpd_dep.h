@@ -10,8 +10,8 @@
 #define PTPD_DEP_H_
 
 #ifdef RUNTIME_DEBUG
-#undef PTPD_DBGV
-#define PTPD_DBGV
+#  undef PTPD_DBGV
+#  define PTPD_DBGV
 #endif
 
  /** \name System messages*/
@@ -58,9 +58,9 @@
 #define INFO_LOCAL_ID(o,x, ...)		INFO(LOCAL_PREFIX".%s: "x,o->id, ##__VA_ARGS__)
 
 #if defined(__FILE__) && defined(__LINE__)
-#define MARKER INFO("Marker: %s:%d\n", __FILE__, __LINE__)
+#  define MARKER INFO("Marker: %s:%d\n", __FILE__, __LINE__)
 #else
-#define MARKER INFO("Marker\n")
+#  define MARKER INFO("Marker\n")
 #endif
 
 #include <assert.h>
@@ -83,9 +83,9 @@
 #define DBG_UNIT_NS (1)
 
 #ifdef DEBUG_IN_NS
-#define DBG_UNIT DBG_UNIT_NS
+#  define DBG_UNIT DBG_UNIT_NS
 #else
-#define DBG_UNIT DBG_UNIT_US
+#  define DBG_UNIT DBG_UNIT_US
 #endif
 
 
@@ -97,18 +97,18 @@
  /**\{*/
 
 #ifdef PTPD_DBGV
-#undef PTPD_DBG
-#undef PTPD_DBG2
-#define PTPD_DBG
-#define PTPD_DBG2
+#  undef PTPD_DBG
+#  undef PTPD_DBG2
+#  define PTPD_DBG
+#  define PTPD_DBG2
 
-#define DBGV(x, ...) logMessage(LOG_DEBUGV, x, ##__VA_ARGS__)
-#define DBGV_LOCAL(x, ...) DBGV(LOCAL_PREFIX": " x,##__VA_ARGS__)
-#define DBGV_LOCAL_ID(o,x, ...)	DBGV(LOCAL_PREFIX".%s:"x,o->id,##__VA_ARGS__)
+#  define DBGV(x, ...) logMessage(LOG_DEBUGV, x, ##__VA_ARGS__)
+#  define DBGV_LOCAL(x, ...) DBGV(LOCAL_PREFIX": " x,##__VA_ARGS__)
+#  define DBGV_LOCAL_ID(o,x, ...)	DBGV(LOCAL_PREFIX".%s:"x,o->id,##__VA_ARGS__)
 #else
-#define DBGV(x, ...)
-#define DBGV_LOCAL(x, ...)
-#define DBGV_LOCAL_ID(x, ...)
+#  define DBGV(x, ...)
+#  define DBGV_LOCAL(x, ...)
+#  define DBGV_LOCAL_ID(x, ...)
 #endif
 
 /*
@@ -118,27 +118,25 @@
 
 
 #ifdef PTPD_DBG2
-#undef PTPD_DBG
-#define PTPD_DBG
-#define DBG2(x, ...) logMessage(LOG_DEBUG2, x, ##__VA_ARGS__)
-#define DBG2_LOCAL(x, ...) DBG2(LOCAL_PREFIX": " x,##__VA_ARGS__)
-#define DBG2_LOCAL_ID(o,x, ...)	DBG2(LOCAL_PREFIX".%s:"x,o->id,##__VA_ARGS__)
-
+#  undef PTPD_DBG
+#  define PTPD_DBG
+#  define DBG2(x, ...) logMessage(LOG_DEBUG2, x, ##__VA_ARGS__)
+#  define DBG2_LOCAL(x, ...) DBG2(LOCAL_PREFIX": " x,##__VA_ARGS__)
+#  define DBG2_LOCAL_ID(o,x, ...)	DBG2(LOCAL_PREFIX".%s:"x,o->id,##__VA_ARGS__)
 #else
-
-#define DBG2(x, ...)
-#define DBG2_LOCAL(x, ...)
-#define DBG2_LOCAL_ID(x, ...)
+#  define DBG2(x, ...)
+#  define DBG2_LOCAL(x, ...)
+#  define DBG2_LOCAL_ID(x, ...)
 #endif
 
 #ifdef PTPD_DBG
-#define DBG(x, ...) logMessage(LOG_DEBUG, x, ##__VA_ARGS__)
-#define DBG_LOCAL(x, ...) DBG(LOCAL_PREFIX": " x,##__VA_ARGS__)
-#define DBG_LOCAL_ID(o,x, ...)	DBG(LOCAL_PREFIX".%s:"x,o->id,##__VA_ARGS__)
+#  define DBG(x, ...) logMessage(LOG_DEBUG, x, ##__VA_ARGS__)
+#  define DBG_LOCAL(x, ...) DBG(LOCAL_PREFIX": " x,##__VA_ARGS__)
+#  define DBG_LOCAL_ID(o,x, ...)	DBG(LOCAL_PREFIX".%s:"x,o->id,##__VA_ARGS__)
 #else
-#define DBG(x, ...)
-#define DBG_LOCAL(x, ...)
-#define DBG_LOCAL_ID(x, ...)
+#  define DBG(x, ...)
+#  define DBG_LOCAL(x, ...)
+#  define DBG_LOCAL_ID(x, ...)
 #endif
 
 /** \}*/
@@ -147,11 +145,11 @@
  /**\{*/
 
 #if defined(PTPD_MSBF)
-#define shift8(x,y)   ( (x) << ((3-y)<<3) )
-#define shift16(x,y)  ( (x) << ((1-y)<<4) )
+#  define shift8(x,y)   ( (x) << ((3-y)<<3) )
+#  define shift16(x,y)  ( (x) << ((1-y)<<4) )
 #elif defined(PTPD_LSBF)
-#define shift8(x,y)   ( (x) << ((y)<<3) )
-#define shift16(x,y)  ( (x) << ((y)<<4) )
+#  define shift8(x,y)   ( (x) << ((y)<<3) )
+#  define shift16(x,y)  ( (x) << ((y)<<4) )
 #endif
 
 #define flip16(x) htons(x)
@@ -161,8 +159,8 @@
    but here are generic funtions just in case */
 /*
 #if defined(PTPD_MSBF)
-#define flip16(x) (x)
-#define flip32(x) (x)
+#  define flip16(x) (x)
+#  define flip32(x) (x)
 #elif defined(PTPD_LSBF)
 static inline Integer16 flip16(Integer16 x)
 {
@@ -485,10 +483,10 @@ void unsetTimexFlags(int flags, Boolean quiet);
 int getTimexFlags(void);
 Boolean checkTimexFlags(int flags);
 
-#if defined(MOD_TAI) &&  NTP_API == 4
+#  if defined(MOD_TAI) &&  NTP_API == 4
 void setKernelUtcOffset(int utc_offset);
 Boolean getKernelUtcOffset(int *utc_offset);
-#endif /* MOD_TAI */
+#  endif /* MOD_TAI */
 
 #endif /* HAVE_SYS_TIMEX_H */
 

@@ -44,9 +44,9 @@
  */
 
 #ifdef _POSIX_MONOTONIC_CLOCK
-#define CLK_TYPE CLOCK_MONOTONIC
+#  define CLK_TYPE CLOCK_MONOTONIC
 #else
-#define CLK_TYPE CLOCK_REALTIME
+#  define CLK_TYPE CLOCK_REALTIME
 #endif /* CLOCK_MONOTONIC */
 
 static void eventTimerStart_posix(EventTimer *timer, double interval);
@@ -60,7 +60,6 @@ static void timerSignalHandler(int sig, siginfo_t *info, void *usercontext);
 void
 setupEventTimer(EventTimer *timer)
 {
-
 	struct sigevent sev;
 
 	if(timer == NULL) {
@@ -91,10 +90,9 @@ setupEventTimer(EventTimer *timer)
 static void
 eventTimerStart_posix(EventTimer *timer, double interval)
 {
-
 	struct timespec ts;
 	struct itimerspec its;
-   
+
 	memset(&its, 0, sizeof(its));
 
 	ts.tv_sec = interval;
@@ -118,13 +116,11 @@ eventTimerStart_posix(EventTimer *timer, double interval)
 
 	timer->expired = FALSE;
 	timer->running = TRUE;
-
 }
 
 static void
 eventTimerStop_posix(EventTimer *timer)
 {
-
 	struct itimerspec its;
 
 	DBGV("Timer %s stop requested\n", timer->id);
@@ -139,7 +135,6 @@ eventTimerStop_posix(EventTimer *timer)
 	timer->running = FALSE;
 
 	DBG2("timerStop: stopped timer %s\n", timer->id);
-
 }
 
 static void
@@ -153,13 +148,11 @@ eventTimerShutdown_posix(EventTimer *timer)
 	if(timer_delete(timer->timerId) == -1) {
 	    PERROR("Could not delete timer %s!", timer->id);
 	}
-
 }
 
 static Boolean
 eventTimerIsRunning_posix(EventTimer *timer)
 {
-
 	DBG2("timerIsRunning:   Timer %s %s running\n", timer->id,
 		timer->running ? "is" : "is not");
 
@@ -169,7 +162,6 @@ eventTimerIsRunning_posix(EventTimer *timer)
 static Boolean
 eventTimerIsExpired_posix(EventTimer *timer)
 {
-
 	Boolean ret;
 
 	ret = timer->expired;
@@ -183,7 +175,6 @@ eventTimerIsExpired_posix(EventTimer *timer)
 	}
 
 	return ret;
-
 }
 
 void
@@ -205,13 +196,11 @@ startEventTimers(void)
 	if(sigaction(TIMER_SIGNAL, &sa, NULL) == -1) {
 	    PERROR("Could not initialise timer handler");
 	}
-
 }
 
 void
 shutdownEventTimers(void)
 {
-
 #ifdef __sun
 	sigset(SIGALRM, SIG_IGN);
 #else
@@ -223,7 +212,6 @@ shutdownEventTimers(void)
 static void
 timerSignalHandler(int sig, siginfo_t *info, void *usercontext)
 {
-
 	/* retrieve the user data structure */
 	EventTimer * timer = (EventTimer*)info->si_value.sival_ptr;
 
@@ -235,5 +223,4 @@ timerSignalHandler(int sig, siginfo_t *info, void *usercontext)
 	if(timer != NULL) {
 	    timer->expired = TRUE;
 	}
-
 }

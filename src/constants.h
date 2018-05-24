@@ -24,16 +24,13 @@
   "IEEE 802.3"
 #define PRODUCT_DESCRIPTION \
   "ptpd;"PACKAGE_VERSION";%s"
+
 #ifndef PTPD_SLAVE_ONLY
-
-#define USER_VERSION \
-  PACKAGE_VERSION
-
+#  define USER_VERSION \
+    PACKAGE_VERSION
 #else
-
-#define USER_VERSION \
-  PACKAGE_VERSION"-slaveonly"
-
+#  define USER_VERSION \
+    PACKAGE_VERSION"-slaveonly"
 #endif /* PTPD_SLAVE_ONLY */
 
 #define REVISION \
@@ -98,13 +95,13 @@ section 7.6.2.5, page 56:
 */
 #define DEFAULT_CLOCK_ACCURACY		0xFE
 
-#define DEFAULT_PRIORITY1		128       
+#define DEFAULT_PRIORITY1		128
 #define DEFAULT_PRIORITY2		128        /* page 238, default priority is the midpoint, to allow easy control of the BMC algorithm */
 
 
 /* page 238:  τ, see 7.6.3.2: The default initialization value shall be 1.0 s.  */
 //#define DEFAULT_CLOCK_VARIANCE 	        28768 /* To be determined in 802.1AS. */
-#define DEFAULT_CLOCK_VARIANCE			0xFFFF                                            
+#define DEFAULT_CLOCK_VARIANCE			0xFFFF
 
 #define UNICAST_MESSAGEINTERVAL 0x7F
 #define MAX_FOLLOWUP_GAP 3

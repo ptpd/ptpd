@@ -299,7 +299,6 @@ unpackMMUserDescription( Octet *buf, int baseOffset, MsgManagement* m, PtpClock*
 	#endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -385,7 +384,6 @@ int unpackMMDefaultDataSet( Octet *buf, int baseOffset, MsgManagement* m, PtpClo
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -420,7 +418,6 @@ int unpackMMCurrentDataSet( Octet *buf, int baseOffset, MsgManagement* m, PtpClo
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -455,7 +452,6 @@ int unpackMMParentDataSet( Octet *buf, int baseOffset, MsgManagement* m, PtpCloc
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -490,7 +486,6 @@ int unpackMMTimePropertiesDataSet( Octet *buf, int baseOffset, MsgManagement* m,
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -525,7 +520,6 @@ int unpackMMPortDataSet( Octet *buf, int baseOffset, MsgManagement* m, PtpClock*
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -560,7 +554,6 @@ int unpackMMPriority1( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* p
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -595,7 +588,6 @@ int unpackMMPriority2( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* p
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -630,7 +622,6 @@ int unpackMMDomain( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpC
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -665,7 +656,6 @@ int unpackMMLogAnnounceInterval( Octet *buf, int baseOffset, MsgManagement* m, P
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -700,7 +690,6 @@ int unpackMMAnnounceReceiptTimeout( Octet *buf, int baseOffset, MsgManagement* m
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -735,7 +724,6 @@ int unpackMMLogSyncInterval( Octet *buf, int baseOffset, MsgManagement* m, PtpCl
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -770,7 +758,6 @@ int unpackMMVersionNumber( Octet *buf, int baseOffset, MsgManagement* m, PtpCloc
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -805,7 +792,6 @@ int unpackMMTime( Octet *buf, int baseOffset, MsgManagement* m, PtpClock* ptpClo
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -840,7 +826,6 @@ int unpackMMClockAccuracy( Octet *buf, int baseOffset, MsgManagement* m, PtpCloc
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -875,7 +860,6 @@ int unpackMMUtcProperties( Octet *buf, int baseOffset, MsgManagement* m, PtpCloc
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -910,7 +894,6 @@ int unpackMMTraceabilityProperties( Octet *buf, int baseOffset, MsgManagement* m
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -945,7 +928,6 @@ int unpackMMTimescaleProperties( Octet *buf, int baseOffset, MsgManagement* m, P
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -981,7 +963,6 @@ int unpackMMUnicastNegotiationEnable( Octet *buf, int baseOffset, MsgManagement*
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -1017,7 +998,6 @@ int unpackMMDelayMechanism( Octet *buf, int baseOffset, MsgManagement* m, PtpClo
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -1052,7 +1032,6 @@ int unpackMMLogMinPdelayReqInterval( Octet *buf, int baseOffset, MsgManagement* 
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 UInteger16
@@ -1087,7 +1066,6 @@ int unpackMMErrorStatus( Octet *buf, int baseOffset, MsgManagement* m, PtpClock*
         #endif /* PTPD_DBG */
 
 	return 1;
-
 }
 
 void
@@ -1581,7 +1559,6 @@ packMsgManagement(MsgManagement *m, Octet *buf)
 		pack##type (&data->name, buf + offset); \
 		offset = offset + size;
 	#include "../def/message/management.def"
-
 }
 
 void unpackMsgManagement(Octet *buf, MsgManagement *m, PtpClock *ptpClock)
@@ -1644,7 +1621,6 @@ packMsgSignaling(MsgSignaling *m, Octet *buf)
 		pack##type (&data->name, buf + offset); \
 		offset = offset + size;
 	#include "../def/message/signaling.def"
-
 }
 
 void
@@ -1765,7 +1741,7 @@ void
 msgPackAnnounce(Octet * buf, UInteger16 sequenceId, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
 	UInteger16 stepsRemoved;
-	
+
 	msgPackHeader(buf, ptpClock);
 
 	/* changes in header */
@@ -1815,7 +1791,7 @@ void
 msgUnpackAnnounce(Octet * buf, MsgAnnounce * announce)
 {
 	UInteger16 stepsRemoved;
-	
+
 	announce->originTimestamp.secondsField.msb =
 		flip16(*(UInteger16 *) (buf + 34));
 	announce->originTimestamp.secondsField.lsb =
@@ -1848,7 +1824,7 @@ void
 msgPackFollowUp(Octet * buf, Timestamp * preciseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -1894,7 +1870,7 @@ void
 msgPackPdelayReq(Octet * buf, Timestamp * originTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -1950,7 +1926,7 @@ void
 msgPackDelayResp(Octet * buf, MsgHeader * header, Timestamp * receiveTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -1992,7 +1968,7 @@ void
 msgPackPdelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTimestamp, PtpClock * ptpClock)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -2019,7 +1995,6 @@ msgPackPdelayResp(Octet * buf, MsgHeader * header, Timestamp * requestReceiptTim
 	*(UInteger32 *) (buf + 40) = flip32(requestReceiptTimestamp->nanosecondsField);
 	copyClockIdentity((buf + 44), header->sourcePortIdentity.clockIdentity);
 	*(UInteger16 *) (buf + 52) = flip16(header->sourcePortIdentity.portNumber);
-
 }
 
 
@@ -2037,7 +2012,6 @@ msgUnpackDelayReq(Octet * buf, MsgDelayReq * delayreq)
 	#ifdef PTPD_DBG
 	msgDelayReq_display(delayreq);
 	#endif /* PTPD_DBG */
-
 }
 
 
@@ -2055,7 +2029,6 @@ msgUnpackPdelayReq(Octet * buf, MsgPdelayReq * pdelayreq)
 	#ifdef PTPD_DBG
 	msgPdelayReq_display(pdelayreq);
 	#endif /* PTPD_DBG */
-
 }
 
 
@@ -2105,7 +2078,7 @@ void
 msgPackPdelayRespFollowUp(Octet * buf, MsgHeader * header, Timestamp * responseOriginTimestamp, PtpClock * ptpClock, const UInteger16 sequenceId)
 {
 	msgPackHeader(buf, ptpClock);
-	
+
 	/* changes in header */
 	*(char *)(buf + 0) = *(char *)(buf + 0) & 0xF0;
 	/* RAZ messageType */
@@ -2457,7 +2430,6 @@ msgPackManagement(Octet *buf, MsgManagement *outgoing, PtpClock *ptpClock)
 {
 	DBGV("packing management message \n");
 	packMsgManagement(outgoing, buf);
-
 }
 
 /*
@@ -2482,9 +2454,8 @@ msgUnpackManagement(Octet *buf, MsgManagement * manage, MsgHeader * header, PtpC
 	{
 		manage->tlv = NULL;
 		return FALSE;
-		
-	}
 
+	}
 }
 
 void
@@ -2521,7 +2492,6 @@ msgUnpackSignaling(Octet *buf, MsgSignaling * signaling, MsgHeader * header, Ptp
 		DBGV("Signaling seq %d: No more TLVs in message\n", header->sequenceId);
 		return FALSE;
 	}
-
 }
 
 /**
@@ -2541,23 +2511,23 @@ void msgDump(PtpClock *ptpClock)
 	case SYNC:
 		msgDebugSync(&ptpClock->msgTmp.sync);
 		break;
-   
+
 	case ANNOUNCE:
 		msgDebugAnnounce(&ptpClock->msgTmp.announce);
 		break;
-   
+
 	case FOLLOW_UP:
 		msgDebugFollowUp(&ptpClock->msgTmp.follow);
 		break;
-   
+
 	case DELAY_REQ:
 		msgDebugDelayReq(&ptpClock->msgTmp.req);
 		break;
-   
+
 	case DELAY_RESP:
 		msgDebugDelayResp(&ptpClock->msgTmp.resp);
 		break;
-   
+
 	case MANAGEMENT:
 		msgDebugManagement(&ptpClock->msgTmp.manage);
 		break;
@@ -2567,7 +2537,7 @@ void msgDump(PtpClock *ptpClock)
 		/* TODO: IMPLEMENT ME */
 		/* msgDebugSignaling(&ptpClock->msgTmp.signaling); */
 		break;
-   
+
 	default:
 		NOTIFY("msgDump:unrecognized message\n");
 		break;
@@ -2579,7 +2549,7 @@ void msgDump(PtpClock *ptpClock)
 		return;
 
 	dumped++;
-	NOTIFY("msgDump: core file created.\n");   
+	NOTIFY("msgDump: core file created.\n");
 
 	switch(rfork(RFFDG|RFPROC|RFNOWAIT)) {
 	case -1:
@@ -2626,7 +2596,6 @@ void msgDebugHeader(MsgHeader *header)
 	NOTIFY("msgDebugHeader: controlField %d\n", header->controlField);
 	NOTIFY("msgDebugHeader: logMessageIntervale %d\n",
 	       header->logMessageInterval);
-
 }
 
 /**

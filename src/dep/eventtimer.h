@@ -48,7 +48,7 @@ struct EventTimer {
 	void (*reset) (EventTimer* timer);
 	void (*shutdown) (EventTimer* timer);
 	Boolean (*isExpired) (EventTimer* timer);
-	Boolean (*isRunning) (EventTimer* timer);	
+	Boolean (*isRunning) (EventTimer* timer);
 
 	/* implementation data */
 #ifdef PTPD_PTIMERS
@@ -74,4 +74,3 @@ void shutdownEventTimers();
 
 
 #endif /* EVENTTIMER_H_ */
-

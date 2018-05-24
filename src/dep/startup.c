@@ -130,7 +130,6 @@ void catchSignals(int sig)
 void
 do_signal_close(PtpClock * ptpClock)
 {
-
 	timingDomain.shutdown(&timingDomain);
 
 	NOTIFY("Shutdown on close signal\n");
@@ -140,7 +139,6 @@ do_signal_close(PtpClock * ptpClock)
 void
 applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-
 	Boolean reloadSuccessful = TRUE;
 
 
@@ -254,9 +252,6 @@ applyConfig(dictionary *baseConfig, RunTimeOpts *rtOpts, PtpClock *ptpClock)
 void
 do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 {
-
-
-
 	NOTIFY("SIGHUP received\n");
 
 #ifdef RUNTIME_DEBUG
@@ -300,8 +295,6 @@ do_signal_sighup(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	if(rtOpts->statisticsLog.logEnabled)
 		ptpClock->resetStatisticsLog = TRUE;
-
-
 }
 
 void
@@ -434,7 +427,6 @@ restartSubsystems(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		    if(rtOpts->restartSubsystems != -1)
 			    rtOpts->restartSubsystems = 0;
-
 }
 
 
@@ -507,7 +499,6 @@ checkSignals(RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif /* PTPD_STATISTICS */
 		sigusr2_received = 0;
 	}
-
 }
 
 #ifdef RUNTIME_DEBUG
@@ -530,7 +521,6 @@ void disable_runtime_debug(void )
 int
 writeLockFile(RunTimeOpts * rtOpts)
 {
-
 	int lockPid = 0;
 
 	DBGV("Checking lock file: %s\n", rtOpts->lockFile);
@@ -565,13 +555,11 @@ writeLockFile(RunTimeOpts * rtOpts)
 	failure:
 	fclose(G_lockFilePointer);
 	return(0);
-
 }
 
 void
 ptpdShutdown(PtpClock * ptpClock)
 {
-
 	extern RunTimeOpts rtOpts;
 	
 	/*
@@ -643,12 +631,10 @@ ptpdShutdown(PtpClock * ptpClock)
 	}
 
 	stopLogging(&rtOpts);
-
 }
 
 void dump_command_line_parameters(int argc, char **argv)
 {
-
 	int i = 0;
 	char sbuf[1000];
 	char *st = sbuf;
@@ -992,8 +978,6 @@ void
 ntpSetup (RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	TimingService *ts = &ptpClock->ntpControl.timingService;
-
-
 
 	if (rtOpts->ntpOptions.enableEngine) {
 	    timingDomain.services[1] = ts;

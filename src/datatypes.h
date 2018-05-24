@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <dep/iniparser/dictionary.h>
 #ifdef PTPD_STATISTICS
-#include <dep/statistics.h>
+#  include <dep/statistics.h>
 #endif /* PTPD_STATISTICS */
 #include "dep/alarms.h"
 
@@ -551,7 +551,7 @@ typedef struct {
 
 /*
 	20110630: These variables were deprecated in favor of the ones that appear in the stats log (delayMS and delaySM)
-	
+
 	TimeInternal  master_to_slave_delay;
 	TimeInternal  slave_to_master_delay;
 
@@ -584,7 +584,7 @@ typedef struct {
 	UInteger16  recvPdelayRespSequenceId;
 	Boolean  waitingForFollow;
 	Boolean  waitingForDelayResp;
-	
+
 	offset_from_master_filter  ofm_filt;
 	one_way_delay_filter  mpd_filt;
 

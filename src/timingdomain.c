@@ -43,7 +43,6 @@ timingDomainSetup(TimingDomain *domain)
 int
 timingServiceSetup(TimingService *service)
 {
-
 	if(service == NULL) {
 		return 0;
 	}
@@ -71,14 +70,13 @@ timingServiceSetup(TimingService *service)
 	}
 
 	return 1;
-
 }
 
 static
 const char*
 reasonToString(int reason) {
 	switch(reason) {
-	
+
 	case REASON_IDLE:
 	    return("idle");
 	case REASON_ELECTION:
@@ -97,7 +95,6 @@ reasonToString(int reason) {
 static int
 cmpTimingService(TimingService *a, TimingService *b, Boolean useableOnly)
 {
-
 	/* if called with false, only dataset is examined */
 	if(useableOnly) {
 	/* operational is always better */
@@ -135,12 +132,10 @@ cmpTimingService(TimingService *a, TimingService *b, Boolean useableOnly)
 static int
 cmpTimingServiceQS (void *pA, void *pB)
 {
-
 	TimingService *a = (TimingService*)pA;
 	TimingService *b = (TimingService*)pB;
 
 	return cmpTimingService(a, b, TRUE);
-
 }
 */
 
@@ -204,21 +199,21 @@ ptpServiceRelease (TimingService* service, int reason)
  * only clockStatus is being picked up in protocol.c
  */
 static void
-prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
-
+prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
 	TimeInternal now;
 	Boolean leapInsert = FALSE, leapDelete = FALSE;
 #ifdef HAVE_SYS_TIMEX_H
 	int flags;
 
 	/* first get the offset from kernel if we can */
-#if defined(MOD_TAI) &&  NTP_API == 4
+#  if defined(MOD_TAI) &&  NTP_API == 4
 	int utcOffset;
 
 	if(getKernelUtcOffset(&utcOffset) && utcOffset != 0) {
 	    ptpClock->clockStatus.utcOffset = utcOffset;
 	}
-#endif /* MOD_TAI */
+#  endif /* MOD_TAI */
 
 	flags= getTimexFlags();
 
@@ -254,7 +249,7 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 			if(rtOpts->leapInfo.leapType == -1) {
 			    ptpClock->clockStatus.leapDelete = TRUE;
 			}
-			
+
 			ptpClock->clockStatus.override = TRUE;
 
 		}
@@ -280,7 +275,6 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 		    ptpClock->clockStatus.leapInsert = leapInsert;
 		    ptpClock->clockStatus.leapDelete = leapDelete;
 	    }
-	   
 }
 
 static int
@@ -524,7 +518,6 @@ ntpServiceInit (TimingService* service)
 	    INFO_LOCAL_ID(service,"Could not start NTP service. Will keep retrying.\n");
 	    return 0;
 	}
-
 }
 
 static int
@@ -572,7 +565,6 @@ ntpServiceAcquire (TimingService* service)
 			controller->requestFailed = TRUE;
 			return 0;
 	}
-
 }
 
 static int
@@ -608,13 +600,11 @@ ntpServiceRelease (TimingService* service, int reason)
 			controller->requestFailed = TRUE;
 			return 0;
 	}
-
 }
 
 static int
 ntpServiceUpdate (TimingService* service)
 {
-
 	int res;
 
 	NTPoptions *config = (NTPoptions*) service->config;
@@ -686,7 +676,6 @@ timingDomainInit(TimingDomain *domain)
 	domain->preferred = NULL;
 
 	return 1;
-
 }
 
 static int
@@ -713,7 +702,6 @@ timingDomainShutdown(TimingDomain *domain)
 static int
 timingDomainUpdate(TimingDomain *domain)
 {
-
 	int i = 0;
 	int cmp = 0;
 
@@ -722,7 +710,7 @@ timingDomainUpdate(TimingDomain *domain)
 	TimingService *service = NULL;
 
 
-	/* update the election delay timer */	
+	/* update the election delay timer */
 	if(domain->electionLeft > 0) {
 		if(domain->electionLeft == domain->electionDelay) {
 			NOTIFY_LOCAL("election hold timer started: %d seconds\n", domain->electionDelay);
@@ -809,7 +797,7 @@ timingDomainUpdate(TimingDomain *domain)
 						service->released = TRUE;
 						domain->electionLeft = domain->electionDelay;
 						domain->current = NULL;
-					   
+
 					}
 
 			}
@@ -833,7 +821,7 @@ timingDomainUpdate(TimingDomain *domain)
 
 	/* second pass: elect the best service, establish preferred */
 	best = domain->services[0];
-	preferred = domain->services[0];	
+	preferred = domain->services[0];
 
 	for(i=0; i < domain->serviceCount; i++) {
 		service = domain->services[i];
@@ -966,4 +954,3 @@ timingDomainUpdate(TimingDomain *domain)
 
 	return 1;
 }
-

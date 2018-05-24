@@ -19,33 +19,33 @@
 #define PTPD_H_
 
 #ifdef HAVE_CONFIG_H
-# include <config.h>
+#  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
 
 #ifdef linux
-#	ifndef _GNU_SOURCE
-#		define _GNU_SOURCE
-	#endif /* _GNU_SOURCE */
+#  ifndef _GNU_SOURCE
+#    define _GNU_SOURCE
+#  endif /* _GNU_SOURCE */
 #endif
 
 #ifdef __sun
-#	ifndef _XPG6
-#		define _XPG6
-#	endif /* _XPG6 */
-#	ifndef _XOPEN_SOURCE
-#		define _XOPEN_SOURCE 500
-#	endif /* _XOPEN_SOURCE */
-#	ifndef __EXTENSIONS__
-#		define __EXTENSIONS__
-#	endif /* __EXTENSIONS */
+#  ifndef _XPG6
+#    define _XPG6
+#  endif /* _XPG6 */
+#  ifndef _XOPEN_SOURCE
+#    define _XOPEN_SOURCE 500
+#  endif /* _XOPEN_SOURCE */
+#  ifndef __EXTENSIONS__
+#    define __EXTENSIONS__
+#  endif /* __EXTENSIONS */
 #endif /* __sun */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #ifdef HAVE_STRINGS_H
-#include <strings.h>
+#  include <strings.h>
 #endif /* HAVE_STRINGS_H */
 #include <unistd.h>
 #include <math.h>
@@ -59,7 +59,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #ifdef HAVE_SYS_TIMEX_H
-#include <sys/timex.h>
+#  include <sys/timex.h>
 #endif
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -70,67 +70,67 @@
 #include <syslog.h>
 #include <limits.h>
 #ifdef HAVE_GETOPT_H
-#include <getopt.h>
+#  include <getopt.h>
 #endif /* HAVE_GETOPT_H */
 #include <ctype.h>
 #include <glob.h>
 #include <stddef.h>
 #include <stdint.h>
 #ifdef HAVE_UTMPX_H
-#include <utmpx.h>
+#  include <utmpx.h>
 #else
-#ifdef HAVE_UTMP_H
-#include <utmp.h>
-#endif /* HAVE_UTMP_H */
+#  ifdef HAVE_UTMP_H
+#    include <utmp.h>
+#  endif /* HAVE_UTMP_H */
 #endif /* HAVE_UTMPX_H */
 
 #ifdef HAVE_NET_ETHERNET_H
-#include <net/ethernet.h>
+#  include <net/ethernet.h>
 #endif /* HAVE_NET_ETHERNET_H */
 
 #ifdef HAVE_UNIX_H /* setlinebuf() on QNX */
-#include <unix.h>
+#  include <unix.h>
 #endif /* HAVE_UNIX_H */
 
 #include <netinet/in.h>
 #ifdef HAVE_NETINET_IN_SYSTM_H
-#include <netinet/in_systm.h>
+#  include <netinet/in_systm.h>
 #endif
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #ifdef HAVE_NETINET_ETHER_H
-#include <netinet/ether.h>
+#  include <netinet/ether.h>
 #endif /* HAVE_NETINET_ETHER_H */
 
 #ifdef HAVE_NET_IF_ARP_H
-#include <net/if_arp.h>
+#  include <net/if_arp.h>
 #endif /* HAVE_NET_IF_ARP_H*/
 
 #ifdef HAVE_NET_IF_H
-#include <net/if.h>
+#  include <net/if.h>
 #endif /* HAVE_NET_IF_H*/
 
 #ifdef HAVE_NETINET_IF_ETHER_H
-#include <netinet/if_ether.h>
+#  include <netinet/if_ether.h>
 #endif /* HAVE_NETINET_IF_ETHER_H */
 
 
 #ifdef PTPD_PCAP
-#ifdef HAVE_PCAP_PCAP_H
-#include <pcap/pcap.h>
-#else
+#  ifdef HAVE_PCAP_PCAP_H
+#    include <pcap/pcap.h>
+#  else
 /* Cases like RHEL5 and others where only pcap.h exists */
-#ifdef HAVE_PCAP_H
-#include <pcap.h>
-#endif /* HAVE_PCAP_H */
-#endif
+#    ifdef HAVE_PCAP_H
+#      include <pcap.h>
+#    endif /* HAVE_PCAP_H */
+#  endif
 #endif
 #if defined(linux) && defined(HAVE_SCHED_H)
-#include <sched.h>
+#  include <sched.h>
 #endif /* linux && HAVE_SCHED_H */
 
 #ifdef HAVE_SYS_CPUSET_H
-#include <sys/cpuset.h>
+#  include <sys/cpuset.h>
 #endif /* HAVE_SYS_CPUSET_H */
 
 #include "constants.h"
@@ -138,13 +138,9 @@
 
 /* Disable SO_TIMESTAMPING if configured to do so */
 #ifdef PTPD_DISABLE_SOTIMESTAMPING
-
-#ifdef 	SO_TIMESTAMPING
-
-#undef 	SO_TIMESTAMPING
-
-#endif 	/* SO_TIMESTAMPING */
-
+#  ifdef SO_TIMESTAMPING
+#    undef SO_TIMESTAMPING
+#  endif /* SO_TIMESTAMPING */
 #endif /* PTPD_DISABLE_SOTIMESTAMPING */
 
 #include "dep/ipv4_acl.h"
@@ -161,13 +157,13 @@
 #include "timingdomain.h"
 
 #ifdef PTPD_STATISTICS
-#include "dep/outlierfilter.h"
+#  include "dep/outlierfilter.h"
 #endif
 
 #include "datatypes.h"
 
 #ifdef PTPD_STATISTICS
-#include "dep/statistics.h"
+#  include "dep/statistics.h"
 #endif
 
 #include "dep/ptpd_dep.h"
@@ -200,15 +196,15 @@
 	data << bitpos
 
 #ifndef min
-#define min(a,b)     (((a)<(b))?(a):(b))
+#  define min(a,b)     (((a)<(b))?(a):(b))
 #endif /* min */
 
 #ifndef max
-#define max(a,b)     (((a)>(b))?(a):(b))
+#  define max(a,b)     (((a)>(b))?(a):(b))
 #endif /* max */
 
 #ifdef HAVE_LINUX_RTC_H
-#include <linux/rtc.h>
+#  include <linux/rtc.h>
 #endif /* HAVE_LINUX_RTC_H */
 
 #define SET_ALARM(alarm, val) \

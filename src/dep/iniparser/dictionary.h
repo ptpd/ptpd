@@ -23,7 +23,7 @@
 void logMessage(int priority, const char *format, ...);
 
 #ifndef WARNING
-#define WARNING(x, ...)   logMessage(LOG_WARNING, x, ##__VA_ARGS__)
+#  define WARNING(x, ...)   logMessage(LOG_WARNING, x, ##__VA_ARGS__)
 #endif /* WARNING */
 
 #include <stdio.h>

@@ -274,7 +274,6 @@ int dictionary_set(dictionary * d, const char * key, const char * val)
     d->n ++ ;
 
     return 0 ;
-
 }
 
 /*-------------------------------------------------------------------------*/
@@ -340,7 +339,6 @@ void dictionary_unset(dictionary * d, const char * key)
 /*--------------------------------------------------------------------------*/
 void dictionary_replace(dictionary * d, const char * search, const char * replace)
 {
-
     int bufsize = MAXVALSZ;
     char out[bufsize+1];
     char *in = NULL;
@@ -400,10 +398,7 @@ void dictionary_replace(dictionary * d, const char * search, const char * replac
 */
 	}
 	free(data);
-
     }
-
-
 }
 
 
@@ -440,7 +435,6 @@ void dictionary_dump(dictionary * d, FILE * out)
 
 int dictionary_merge(dictionary* source, dictionary* dest, int overwrite, int warn, const char* warnStr)
 {
-
     int i = 0;
     int clobber = 1;
 

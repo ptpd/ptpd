@@ -452,7 +452,8 @@ snmpHeaderIndexBest(struct snmpHeaderIndex *idx)
  * Handle SNMP scalar values.
  */
 static u_char*
-snmpScalars(SNMP_SIGNATURE) {
+snmpScalars(SNMP_SIGNATURE)
+{
     SNMP_LOCAL_VARIABLES;
     if (header_generic(vp, name, length, exact, var_len, write_method))
 	    return NULL;
@@ -469,7 +470,8 @@ snmpScalars(SNMP_SIGNATURE) {
  * Handle ptpbaseSystemTable
  */
 static u_char*
-snmpSystemTable(SNMP_SIGNATURE) {
+snmpSystemTable(SNMP_SIGNATURE)
+{
 	oid index[2];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -493,7 +495,8 @@ snmpSystemTable(SNMP_SIGNATURE) {
  * Handle ptpbaseSystemDomainTable
  */
 static u_char*
-snmpSystemDomainTable(SNMP_SIGNATURE) {
+snmpSystemDomainTable(SNMP_SIGNATURE)
+{
 	oid index[1];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -517,7 +520,8 @@ snmpSystemDomainTable(SNMP_SIGNATURE) {
  * Handle various ptpbaseClock*DSTable
  */
 static u_char*
-snmpClockDSTable(SNMP_SIGNATURE) {
+snmpClockDSTable(SNMP_SIGNATURE)
+{
 	oid index[3];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -630,7 +634,8 @@ snmpClockDSTable(SNMP_SIGNATURE) {
  * Handle ptpbaseClockPort*Table
  */
 static u_char*
-snmpClockPortTable(SNMP_SIGNATURE) {
+snmpClockPortTable(SNMP_SIGNATURE)
+{
 	oid index[4];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -724,7 +729,7 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 		/* None. Moreover, the format is not really described in the MIB... */
 		return SNMP_INTEGER(0);
 	case PTPBASE_CLOCK_PORT_RUNNING_TX_MODE:
-	case PTPBASE_CLOCK_PORT_RUNNING_RX_MODE:	
+	case PTPBASE_CLOCK_PORT_RUNNING_RX_MODE:
 		if (snmpRtOpts->ipMode == IPMODE_UNICAST)
 			return SNMP_INTEGER(SNMP_PTP_TX_UNICAST);
 		if (snmpRtOpts->ipMode == IPMODE_HYBRID)
@@ -744,8 +749,8 @@ snmpClockPortTable(SNMP_SIGNATURE) {
 /* clear counter sets based on oid. WARNING: USES MAGIC NUMBERS... */
 static int
 snmpWriteClearCounters (int action, u_char *var_val, u_char var_val_type, size_t var_val_len,
-			    u_char *statP, oid *name, size_t name_len) {
-
+			    u_char *statP, oid *name, size_t name_len)
+{
 	/* table: 6 oids from end (index fields, entry, field) */
 	oid myOid1 = name[name_len - 1 - 6];
 	/* field: 4 oids from end (index fields) */
@@ -872,14 +877,14 @@ snmpWriteClearCounters (int action, u_char *var_val, u_char var_val_type, size_t
 	}
 
 	return SNMP_ERR_NOERROR;
-
 }
 
 /**
  * Handle ptpbasePtpPortMessageCounters
  */
 static u_char*
-snmpPtpPortMessageCountersTable(SNMP_SIGNATURE) {
+snmpPtpPortMessageCountersTable(SNMP_SIGNATURE)
+{
 	oid index[4];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -959,7 +964,8 @@ snmpPtpPortMessageCountersTable(SNMP_SIGNATURE) {
  * Handle ptpbasePtpPortProtocolCounters
  */
 static u_char*
-snmpPtpPortProtocolCountersTable(SNMP_SIGNATURE) {
+snmpPtpPortProtocolCountersTable(SNMP_SIGNATURE)
+{
 	oid index[4];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -1000,7 +1006,8 @@ snmpPtpPortProtocolCountersTable(SNMP_SIGNATURE) {
  * Handle ptpbasePtpPortErrorCounters
  */
 static u_char*
-snmpPtpPortErrorCountersTable(SNMP_SIGNATURE) {
+snmpPtpPortErrorCountersTable(SNMP_SIGNATURE)
+{
 	oid index[4];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -1043,7 +1050,8 @@ snmpPtpPortErrorCountersTable(SNMP_SIGNATURE) {
  * Handle ptpbasePtpPortUnicastNegotiationCounters
  */
 static u_char*
-snmpPtpPortUnicastNegotiationCountersTable(SNMP_SIGNATURE) {
+snmpPtpPortUnicastNegotiationCountersTable(SNMP_SIGNATURE)
+{
 	oid index[4];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -1084,7 +1092,8 @@ snmpPtpPortUnicastNegotiationCountersTable(SNMP_SIGNATURE) {
  * Handle ptpbasePtpPortPerformanceCounters
  */
 static u_char*
-snmpPtpPortPerformanceCountersTable(SNMP_SIGNATURE) {
+snmpPtpPortPerformanceCountersTable(SNMP_SIGNATURE)
+{
 	oid index[4];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -1113,7 +1122,8 @@ snmpPtpPortPerformanceCountersTable(SNMP_SIGNATURE) {
  * Handle ptpbasePtpPortSecurityCounters
  */
 static u_char*
-snmpPtpPortSecurityCountersTable(SNMP_SIGNATURE) {
+snmpPtpPortSecurityCountersTable(SNMP_SIGNATURE)
+{
 	oid index[4];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -1144,7 +1154,8 @@ snmpPtpPortSecurityCountersTable(SNMP_SIGNATURE) {
  * Handle slaveOfmStatisticsTable
  */
 static u_char*
-snmpSlaveOfmStatsTable(SNMP_SIGNATURE) {
+snmpSlaveOfmStatsTable(SNMP_SIGNATURE)
+{
 	oid index[3];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -1205,7 +1216,8 @@ snmpSlaveOfmStatsTable(SNMP_SIGNATURE) {
  * Handle slaveMpdStatisticsTable
  */
 static u_char*
-snmpSlaveMpdStatsTable(SNMP_SIGNATURE) {
+snmpSlaveMpdStatsTable(SNMP_SIGNATURE)
+{
 	oid index[3];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -1266,7 +1278,8 @@ snmpSlaveMpdStatsTable(SNMP_SIGNATURE) {
  * Handle slaveFreqAdjStatisticsTable
  */
 static u_char*
-snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
+snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE)
+{
 	oid index[3];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -1311,7 +1324,8 @@ snmpSlaveFreqAdjStatsTable(SNMP_SIGNATURE) {
  * Handle ptpbasePtpdSpecificCounters
  */
 static u_char*
-snmpPtpdSpecificCountersTable(SNMP_SIGNATURE) {
+snmpPtpdSpecificCountersTable(SNMP_SIGNATURE)
+{
 	oid index[4];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -1350,7 +1364,8 @@ snmpPtpdSpecificCountersTable(SNMP_SIGNATURE) {
  * Handle ptpBasePtpdSpecificData
  */
 static u_char*
-snmpPtpdSpecificDataTable(SNMP_SIGNATURE) {
+snmpPtpdSpecificDataTable(SNMP_SIGNATURE)
+{
 	oid index[3];
 	SNMP_LOCAL_VARIABLES;
 	SNMP_INDEXED_TABLE;
@@ -1784,8 +1799,8 @@ snmpLogCallback(int major, int minor,
 }
 
 static int
-getNotifIndex(int eventType) {
-
+getNotifIndex(int eventType)
+{
 	switch (eventType) {
 		case PTPBASE_NOTIFS_UNEXPECTED_PORT_STATE:
 		    return 1;
@@ -1831,8 +1846,8 @@ getNotifIndex(int eventType) {
 }
 
 static void
-populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *eventData) {
-
+populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *eventData)
+{
 	switch (eventType) {
 		case PTPBASE_NOTIFS_UNEXPECTED_PORT_STATE:
 		case PTPBASE_NOTIFS_EXPECTED_PORT_STATE:
@@ -2024,12 +2039,11 @@ populateNotif (netsnmp_variable_list** varBinds, int eventType, PtpEventData *ev
 		default:
 		    return;
 	}
-
 }
 
 static void
-sendNotif(int eventType, PtpEventData *eventData) {
-
+sendNotif(int eventType, PtpEventData *eventData)
+{
     /* snmpTrapOID.0 */
     oid trapOid[] = { 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0 };
     netsnmp_variable_list *varBinds = NULL;
@@ -2054,7 +2068,6 @@ sendNotif(int eventType, PtpEventData *eventData) {
     send_v2trap(varBinds);
 
     snmp_free_varbind(varBinds);
-
 }
 
 
@@ -2062,7 +2075,8 @@ sendNotif(int eventType, PtpEventData *eventData) {
  * Initialisation of SNMP subsystem.
  */
 void
-snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
+snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock)
+{
 	netsnmp_enable_subagent();
 	snmp_disable_log();
 	snmp_enable_calllog();
@@ -2078,7 +2092,6 @@ snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 	 * global variable for the need of our subsystem. */
 	snmpPtpClock = ptpClock;
 	snmpRtOpts = rtOpts;
-
 }
 
 /**
@@ -2086,11 +2099,11 @@ snmpInit(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
  */
 
 void
-snmpShutdown() {
+snmpShutdown()
+{
 	unregister_mib(ptp_oid, sizeof(ptp_oid) / sizeof(oid));
 	snmp_shutdown("ptpMib");
 	SOCK_CLEANUP;
-
 }
 
 void
@@ -2182,5 +2195,4 @@ alarmHandler_snmp(AlarmEntry *alarm)
 	}
 
 	DBG("Unhandled SNMP event id 0x%x\n", alarm->id);
-
 }

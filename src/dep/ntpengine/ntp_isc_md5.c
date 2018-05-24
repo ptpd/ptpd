@@ -55,7 +55,8 @@ byteSwap(uint32_t *buf, unsigned words)
  * initialization constants.
  */
 void
-isc_md5_init(isc_md5_t *ctx) {
+isc_md5_init(isc_md5_t *ctx)
+{
 	ctx->buf[0] = 0x67452301;
 	ctx->buf[1] = 0xefcdab89;
 	ctx->buf[2] = 0x98badcfe;
@@ -90,7 +91,8 @@ isc_md5_invalidate(isc_md5_t *ctx) {
  * the data and converts bytes into longwords for this routine.
  */
 static void
-transform(uint32_t buf[4], uint32_t const in[16]) {
+transform(uint32_t buf[4], uint32_t const in[16])
+{
 	register uint32_t a, b, c, d;
 
 	a = buf[0];
@@ -177,7 +179,8 @@ transform(uint32_t buf[4], uint32_t const in[16]) {
  * of bytes.
  */
 void
-isc_md5_update(isc_md5_t *ctx, const unsigned char *buf, unsigned int len) {
+isc_md5_update(isc_md5_t *ctx, const unsigned char *buf, unsigned int len)
+{
 	uint32_t t;
 
 	/* Update byte count */
@@ -216,7 +219,8 @@ isc_md5_update(isc_md5_t *ctx, const unsigned char *buf, unsigned int len) {
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
 void
-isc_md5_final(isc_md5_t *ctx, unsigned char *digest) {
+isc_md5_final(isc_md5_t *ctx, unsigned char *digest)
+{
 	int count = ctx->bytes[0] & 0x3f;    /* Number of bytes in ctx->in */
 	unsigned char *p = (unsigned char *)ctx->in + count;
 

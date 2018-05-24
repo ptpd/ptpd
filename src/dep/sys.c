@@ -169,7 +169,6 @@ char *time2st(const TimeInternal * p)
 void DBG_time(const char *name, const TimeInternal  p)
 {
 	DBG("             %s:   %s\n", name, time2st(&p));
-
 }
 
 
@@ -323,7 +322,7 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 
 #ifdef PRINT_MAC_ADDRESSES
 	len += snprint_ClockIdentity_mac(&s[len], max_len - len, id->clockIdentity);
-#else	
+#else
 	len += snprint_ClockIdentity(&s[len], max_len - len, id->clockIdentity);
 #endif
 
@@ -334,9 +333,8 @@ snprint_PortIdentity(char *s, int max_len, const PortIdentity *id)
 }
 
 /* Write a formatted string to file pointer */
-int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char * format, va_list ap) {
-
-
+int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char * format, va_list ap)
+{
 	extern RunTimeOpts rtOpts;
 	extern Boolean startupInProgress;
 
@@ -410,13 +408,11 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 	}
 	written = vfprintf(destination, format, ap);
 	return written;
-
 }
 
 void
 updateLogSize(LogFileHandler* handler)
 {
-
 	struct stat st;
 	if(handler->logFP == NULL)
 		return;
@@ -428,7 +424,6 @@ updateLogSize(LogFileHandler* handler)
 //		fprintf(stderr, "fstat on %s file failed!\n", handler->logID);
 #endif /* RUNTIME_DEBUG */
 	}
-
 }
 
 
@@ -517,7 +512,6 @@ end:
 int
 restartLog(LogFileHandler* handler, Boolean quiet)
 {
-
         /* The FP is open - close it */
         if(handler->logFP != NULL) {
 		handler->lastHash=0;
@@ -575,7 +569,6 @@ closeLog(LogFileHandler* handler)
 Boolean
 maintainLogSize(LogFileHandler* handler)
 {
-
 	if(handler->maxSize) {
 		if(handler->logFP == NULL)
 		    return FALSE;
@@ -637,7 +630,6 @@ maintainLogSize(LogFileHandler* handler)
 	}
 
 	return FALSE;
-
 }
 
 void
@@ -655,7 +647,6 @@ restartLogging(RunTimeOpts* rtOpts)
 
 	if(!restartLog(&rtOpts->statusLog, TRUE))
 		NOTIFY("Failed logging to %s file\n", rtOpts->statusLog.logID);
-
 }
 
 void
@@ -709,7 +700,7 @@ logStatistics(PtpClock * ptpClock)
 	 */
 
 	if ((ptpClock->portDS.portState == PTP_SLAVE) && (rtOpts.statisticsLogInterval)) {
-			
+
 		switch(ptpClock->char_last_msg) {
 			case 'S':
 			if((now.seconds - prev_now_sync.seconds) < rtOpts.statisticsLogInterval){
@@ -782,7 +773,7 @@ logStatistics(PtpClock * ptpClock)
 
 		/* print MS and SM with sign */
 		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
-			
+
 		if(rtOpts.delayMechanism == E2E) {
 			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
 							&(ptpClock->delaySM));
@@ -828,7 +819,7 @@ logStatistics(PtpClock * ptpClock)
 
 			len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
 				 &ptpClock->parentDS.parentPortIdentity);
-							
+
 			//len += snprintf(sbuf + len, sizeof(sbuf) - len, ")");
 		}
 
@@ -839,7 +830,7 @@ logStatistics(PtpClock * ptpClock)
 						     " %d ", ptpClock->resetCount);
 		}
 	}
-	
+
 	/* add final \n in normal status lines */
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
 
@@ -864,14 +855,12 @@ logStatistics(PtpClock * ptpClock)
 		if (maintainLogSize(&rtOpts.statisticsLog))
 			ptpClock->resetStatisticsLog = TRUE;
 	}
-
 }
 
 /* periodic status update */
 void
 periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-
     char tmpBuf[200];
     char masterIdBuf[150];
     int len = 0;
@@ -946,7 +935,6 @@ periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 void
 displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 {
-
 	static char sbuf[SCREEN_BUFSZ];
 	char strAddr[MAXHOSTNAMELEN];
 	int len = 0;
@@ -978,7 +966,6 @@ displayStatus(PtpClock *ptpClock, const char *prefixMessage)
 void
 writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 {
-
 	char outBuf[2048];
 	char tmpBuf[200];
 
@@ -989,7 +976,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 
 	if(rtOpts->statusLog.logFP == NULL)
 	    return;
-	
+
 	char timeStr[MAXTIMESTR];
 	char hostName[MAXHOSTNAMELEN];
 
@@ -999,7 +986,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	gethostname(hostName, MAXHOSTNAMELEN);
 	gettimeofday(&now, 0);
 	strftime(timeStr, MAXTIMESTR, "%a %b %d %X %Z %Y", localtime((time_t*)&now.tv_sec));
-	
+
 	FILE* out = rtOpts->statusLog.logFP;
 	memset(outBuf, 0, sizeof(outBuf));
 
@@ -1090,7 +1077,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	fprintf(out, ", UTC offset: %d",ptpClock->timePropertiesDS.currentUtcOffset);
 	fprintf(out, "%s",ptpClock->timePropertiesDS.leap61 ?
 			", LEAP61 pending" : ptpClock->timePropertiesDS.leap59 ? ", LEAP59 pending" : "");
-	if (ptpClock->portDS.portState == PTP_SLAVE) {	
+	if (ptpClock->portDS.portState == PTP_SLAVE) {
 	    fprintf(out, "%s", rtOpts->preferUtcValid ? ", prefer UTC" : "");
 	    fprintf(out, "%s", rtOpts->requireUtcValid ? ", require UTC" : "");
 	}
@@ -1149,7 +1136,7 @@ writeStatusFile(PtpClock *ptpClock,const RunTimeOpts *rtOpts, Boolean quiet)
 	if(rtOpts->noAdjust) {
 	    fprintf(out, ", read-only");
 	}
-#ifdef PTPD_STATISTICS	
+#ifdef PTPD_STATISTICS
 	else {
 	    if (rtOpts->servoStabilityDetection) {
 		fprintf(out, ", %s",
@@ -1438,8 +1425,8 @@ static const struct sigevent* timerIntHandler(void* data, int id) {
 }
 #endif
 
- void getTime(TimeInternal *time)
- {
+void getTime(TimeInternal *time)
+{
 #ifdef __QNXNTO__
   static TimerIntData tmpData;
   int ret;
@@ -1493,8 +1480,7 @@ static const struct sigevent* timerIntHandler(void* data, int id) {
     time->nanoseconds = tp.tv_nsec;
   return;
 #else
-
-#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
+#  if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 
 	struct timespec tp;
 	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
@@ -1504,14 +1490,14 @@ static const struct sigevent* timerIntHandler(void* data, int id) {
 	time->seconds = tp.tv_sec;
 	time->nanoseconds = tp.tv_nsec;
 
-#else
+#  else
 
 	struct timeval tv;
 	gettimeofday(&tv, 0);
 	time->seconds = tv.tv_sec;
 	time->nanoseconds = tv.tv_usec * 1000;
 
-#endif /* _POSIX_TIMERS */
+#  endif /* _POSIX_TIMERS */
 #endif /* __QNXNTO__ */
 }
 
@@ -1519,25 +1505,22 @@ void
 getTimeMonotonic(TimeInternal * time)
 {
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
-
 	struct timespec tp;
-#ifndef CLOCK_MONOTINIC                                                                                                      
+#  ifndef CLOCK_MONOTINIC
 	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
-#else
+#  else
 	if (clock_gettime(CLOCK_MONOTONIC, &tp) < 0) {
-#endif /* CLOCK_MONOTONIC */
+#  endif /* CLOCK_MONOTONIC */
 		PERROR("clock_gettime() failed, exiting.");
 		exit(0);
 	}
 	time->seconds = tp.tv_sec;
 	time->nanoseconds = tp.tv_nsec;
 #else
-
 	struct timeval tv;
 	gettimeofday(&tv, 0);
 	time->seconds = tv.tv_sec;
 	time->nanoseconds = tv.tv_usec * 1000;
-
 #endif /* _POSIX_TIMERS */
 }
 
@@ -1545,7 +1528,6 @@ getTimeMonotonic(TimeInternal * time)
 void
 setTime(TimeInternal * time)
 {
-
 #if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
 
 	struct timespec tp;
@@ -1579,7 +1561,6 @@ setTime(TimeInternal * time)
 	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
 	WARNING("Stepped the system clock to: %s.%d\n",
 	       timeStr, time->nanoseconds);
-
 }
 
 #ifdef HAVE_LINUX_RTC_H
@@ -1587,7 +1568,6 @@ setTime(TimeInternal * time)
 /* Set the RTC to the desired time time */
 void setRtc(TimeInternal *timeToSet)
 {
-
 	static Boolean deviceFound = FALSE;
 	static char* rtcDev;
 	struct tm* tmTime;
@@ -1649,7 +1629,6 @@ void setRtc(TimeInternal *timeToSet)
 cleanup:
 
 	close(rtcFd);
-
 }
 
 #endif /* HAVE_LINUX_RTC_H */
@@ -1680,8 +1659,8 @@ lockFile(int fd)
  * lockPid with the PID of the process already holding the lock(s)
  * Return values: -1 = error, 0 = locked, 1 = not locked
  */
-int checkLockStatus(int fd, short lockType, int *lockPid) {
-
+int checkLockStatus(int fd, short lockType, int *lockPid)
+{
     struct flock fl;
 
     memset(&fl, 0, sizeof(fl));
@@ -1697,7 +1676,6 @@ int checkLockStatus(int fd, short lockType, int *lockPid) {
     }
 
     return 1;
-
 }
 
 /*
@@ -1705,8 +1683,8 @@ int checkLockStatus(int fd, short lockType, int *lockPid) {
  * populate lockPid with the PID currently holding the write lock.
  */
 int
-checkFileLockable(const char *fileName, int *lockPid) {
-
+checkFileLockable(const char *fileName, int *lockPid)
+{
     FILE* fileHandle;
     int ret;
 
@@ -1732,14 +1710,12 @@ checkFileLockable(const char *fileName, int *lockPid) {
 Boolean
 checkOtherLocks(RunTimeOpts* rtOpts)
 {
-
-
-char searchPattern[PATH_MAX];
-char * lockPath = 0;
-int lockPid = 0;
-glob_t matchedFiles;
-Boolean ret = TRUE;
-int matches = 0, counter = 0;
+    char searchPattern[PATH_MAX];
+    char * lockPath = 0;
+    int lockPid = 0;
+    glob_t matchedFiles;
+    Boolean ret = TRUE;
+    int matches = 0, counter = 0;
 
 	/* no need to check locks */
 	if(rtOpts->ignore_daemon_lock ||
@@ -1848,7 +1824,6 @@ end:
     if(matches>0)
 	globfree(&matchedFiles);
     return ret;
-
 }
 
 
@@ -1863,18 +1838,15 @@ end:
 Boolean
 adjFreq(double adj)
 {
-
 	extern RunTimeOpts rtOpts;
 	struct timex t;
 
-#ifdef HAVE_STRUCT_TIMEX_TICK
+#  ifdef HAVE_STRUCT_TIMEX_TICK
 	Integer32 tickAdj = 0;
-
-#ifdef PTPD_DBG2
+#    ifdef PTPD_DBG2
 	double oldAdj = adj;
-#endif
-
-#endif /* HAVE_STRUCT_TIMEX_TICK */
+#    endif
+#  endif /* HAVE_STRUCT_TIMEX_TICK */
 
 	memset(&t, 0, sizeof(t));
 
@@ -1886,7 +1858,7 @@ adjFreq(double adj)
 	}
 
 /* Y U NO HAVE TICK? */
-#ifdef HAVE_STRUCT_TIMEX_TICK
+#  ifdef HAVE_STRUCT_TIMEX_TICK
 
 	/* Get the USER_HZ value */
 	Integer32 userHZ = sysconf(_SC_CLK_TCK);
@@ -1929,17 +1901,17 @@ adjFreq(double adj)
 
 	t.modes = ADJ_TICK;
 
-#endif /* HAVE_STRUCT_TIMEX_TICK */
+#  endif /* HAVE_STRUCT_TIMEX_TICK */
 
 	t.modes |= MOD_FREQUENCY;
 
 	double dFreq = adj * ((1 << 16) / 1000.0);
 	t.freq = (int) round(dFreq);
-#ifdef HAVE_STRUCT_TIMEX_TICK
+#  ifdef HAVE_STRUCT_TIMEX_TICK
 	DBG2("adjFreq: oldadj: %.09f, newadj: %.09f, tick: %d, tickadj: %d\n", oldAdj, adj,t.tick,tickAdj);
-#endif /* HAVE_STRUCT_TIMEX_TICK */
+#  endif /* HAVE_STRUCT_TIMEX_TICK */
 	DBG2("        adj is %.09f;  t freq is %d       (float: %.09f)\n", adj, t.freq,  dFreq);
-	
+
 	return !adjtimex(&t);
 }
 
@@ -2014,11 +1986,11 @@ unsetTimexFlags(int flags, Boolean quiet)
 		case TIME_WAIT:
 			WARNING("Adjtimex: leap second already occurred\n");
 			break;
-#if !defined(TIME_BAD)
+#  if !defined(TIME_BAD)
 		case TIME_ERROR:
-#else
+#  else
 		case TIME_BAD:
-#endif /* TIME_BAD */
+#  endif /* TIME_BAD */
 		default:
 			DBGV("unsetTimexFlags: adjtimex() returned TIME_BAD\n");
 			break;
@@ -2038,13 +2010,13 @@ int getTimexFlags(void)
 	if (ret < 0) {
 		PERROR("Could not read adjtimex flags: %s", strerror(errno));
 		return(-1);
-
 	}
 	return( tmx.status );
 }
 
 Boolean
-checkTimexFlags(int flags) {
+checkTimexFlags(int flags)
+{
 	int tflags = getTimexFlags();
 
 	if (tflags == -1)
@@ -2058,10 +2030,10 @@ checkTimexFlags(int flags) {
  * may change with next API versions
  */
 
-#if defined(MOD_TAI) &&  NTP_API == 4
+#  if defined(MOD_TAI) &&  NTP_API == 4
 void
-setKernelUtcOffset(int utc_offset) {
-
+setKernelUtcOffset(int utc_offset)
+{
 	struct timex tmx;
 	int ret;
 
@@ -2079,22 +2051,23 @@ setKernelUtcOffset(int utc_offset) {
 		PERROR("Could not set kernel TAI offset: %s", strerror(errno));
 	}
 }
-Boolean
-getKernelUtcOffset(int *utc_offset) {
 
+Boolean
+getKernelUtcOffset(int *utc_offset)
+{
 	static Boolean warned = FALSE;
 	int ret;
 
-#if defined(HAVE_NTP_GETTIME)
+#    if defined(HAVE_NTP_GETTIME)
 	struct ntptimeval ntpv;
 	memset(&ntpv, 0, sizeof(ntpv));
 	ret = ntp_gettime(&ntpv);
-#else
+#    else
 	struct timex tmx;
 	memset(&tmx, 0, sizeof(tmx));
 	tmx.modes = 0;
 	ret = adjtimex(&tmx);
-#endif /* HAVE_NTP_GETTIME */
+#    endif /* HAVE_NTP_GETTIME */
 
 	if (ret < 0) {
 		if(!warned) {
@@ -2104,20 +2077,22 @@ getKernelUtcOffset(int *utc_offset) {
 		return FALSE;
 
 	}
-#if !defined(HAVE_NTP_GETTIME) && defined(HAVE_STRUCT_TIMEX_TAI)
+
+#    if !defined(HAVE_NTP_GETTIME) && defined(HAVE_STRUCT_TIMEX_TAI)
 	*utc_offset = ( tmx.tai );
 	return TRUE;
-#elif defined(HAVE_NTP_GETTIME) && defined(HAVE_STRUCT_NTPTIMEVAL_TAI)
+#    elif defined(HAVE_NTP_GETTIME) && defined(HAVE_STRUCT_NTPTIMEVAL_TAI)
 	*utc_offset = (int)(ntpv.tai);
 	return TRUE;
-#endif /* HAVE_STRUCT_TIMEX_TAI */
+#    endif /* HAVE_STRUCT_TIMEX_TAI */
 	if(!warned) {
 	    WARNING("No OS support for kernel TAI/UTC offset information. Cannot read UTC offset.\n");
 	}
 	warned = TRUE;
 	return FALSE;
 }
-#endif /* MOD_TAI */
+
+#  endif /* MOD_TAI */
 
 void
 setTimexFlags(int flags, Boolean quiet)
@@ -2149,11 +2124,11 @@ setTimexFlags(int flags, Boolean quiet)
 		case TIME_WAIT:
 			WARNING("Adjtimex: leap second already occurred\n");
 			break;
-#if !defined(TIME_BAD)
+#  if !defined(TIME_BAD)
 		case TIME_ERROR:
-#else
+#  else
 		case TIME_BAD:
-#endif /* TIME_BAD */
+#  endif /* TIME_BAD */
 		default:
 			DBGV("unsetTimexFlags: adjtimex() returned TIME_BAD\n");
 			break;
@@ -2161,14 +2136,13 @@ setTimexFlags(int flags, Boolean quiet)
 	}
 }
 
-#endif /* SYS_TIMEX_H */
+#endif /* HAVE_SYS_TIMEX_H */
 
 #define DRIFTFORMAT "%.0f"
 
 void
 restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 {
-
 	FILE *driftFP;
 	Boolean reset_offset = FALSE;
 	double recovered_drift;
@@ -2254,7 +2228,6 @@ restoreDrift(PtpClock * ptpClock, const RunTimeOpts * rtOpts, Boolean quiet)
 
 	if (!rtOpts->noAdjust)
 		adjFreq_wrapper(rtOpts, ptpClock, -recovered_drift);
-
 }
 
 
@@ -2333,7 +2306,7 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
 
     memset(info, 0, sizeof(LeapSecondInfo));
 
-    while (fgets(lineBuf, PATH_MAX - 1, leapFP) != NULL) { 
+    while (fgets(lineBuf, PATH_MAX - 1, leapFP) != NULL) {
 
 	/* capture file expiry time */
 	res = sscanf(lineBuf, "#@ %lu", &ntpSeconds);
@@ -2362,7 +2335,7 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
 
 	}
 
-    }   
+    }
 
     fclose(leapFP);
 
@@ -2401,13 +2374,11 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
 	info->startTime, info->endTime, info->leapType > 0 ? "positive" : info->leapType < 0 ? "negative" : "unknown");
     info->valid = TRUE;
     return 1;
-
 }
 
 void
 updateXtmp (TimeInternal oldTime, TimeInternal newTime)
 {
-
 /* Add the old time entry to utmp/wtmp */
 
 /* About as long as the ntpd implementation, but not any less ugly */
@@ -2416,85 +2387,85 @@ updateXtmp (TimeInternal oldTime, TimeInternal newTime)
 		struct utmpx utx;
 	memset(&utx, 0, sizeof(utx));
 		strncpy(utx.ut_user, "date", sizeof(utx.ut_user));
-#ifndef OTIME_MSG
+#  ifndef OTIME_MSG
 		strncpy(utx.ut_line, "|", sizeof(utx.ut_line));
-#else
+#  else
 		strncpy(utx.ut_line, OTIME_MSG, sizeof(utx.ut_line));
-#endif /* OTIME_MSG */
-#ifdef OLD_TIME
+#  endif /* OTIME_MSG */
+#  ifdef OLD_TIME
 		utx.ut_tv.tv_sec = oldTime.seconds;
 		utx.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
 		utx.ut_type = OLD_TIME;
-#else /* no ut_type */
+#  else /* no ut_type */
 		utx.ut_time = oldTime.seconds;
-#endif /* OLD_TIME */
+#  endif /* OLD_TIME */
 
 /* ======== BEGIN  OLD TIME EVENT - UTMPX / WTMPX =========== */
-#ifdef HAVE_UTMPXNAME
+#  ifdef HAVE_UTMPXNAME
 		utmpxname("/var/log/utmp");
-#endif /* HAVE_UTMPXNAME */
+#  endif /* HAVE_UTMPXNAME */
 		setutxent();
 		pututxline(&utx);
 		endutxent();
-#ifdef HAVE_UPDWTMPX
+#  ifdef HAVE_UPDWTMPX
 		updwtmpx("/var/log/wtmp", &utx);
-#endif /* HAVE_IPDWTMPX */
+#  endif /* HAVE_IPDWTMPX */
 /* ======== END    OLD TIME EVENT - UTMPX / WTMPX =========== */
 
-#else /* NO UTMPX_H */
+#else /* NO HAVE_UTMPX_H */
 
-#ifdef HAVE_UTMP_H
+#  ifdef HAVE_UTMP_H
 		struct utmp ut;
 		memset(&ut, 0, sizeof(ut));
 		strncpy(ut.ut_name, "date", sizeof(ut.ut_name));
-#ifndef OTIME_MSG
+#    ifndef OTIME_MSG
 		strncpy(ut.ut_line, "|", sizeof(ut.ut_line));
-#else
+#    else
 		strncpy(ut.ut_line, OTIME_MSG, sizeof(ut.ut_line));
-#endif /* OTIME_MSG */
+#    endif /* OTIME_MSG */
 
-#ifdef OLD_TIME
+#    ifdef OLD_TIME
 
-#ifdef HAVE_STRUCT_UTMP_UT_TIME
+#      ifdef HAVE_STRUCT_UTMP_UT_TIME
 		ut.ut_time = oldTime.seconds;
-#else
+#      else
 		ut.ut_tv.tv_sec = oldTime.seconds;
 		ut.ut_tv.tv_usec = oldTime.nanoseconds / 1000;
-#endif /* HAVE_STRUCT_UTMP_UT_TIME */
+#      endif /* HAVE_STRUCT_UTMP_UT_TIME */
 
 		ut.ut_type = OLD_TIME;
-#else /* no ut_type */
+#    else /* no ut_type */
 		ut.ut_time = oldTime.seconds;
-#endif /* OLD_TIME */
+#    endif /* OLD_TIME */
 
 /* ======== BEGIN  OLD TIME EVENT - UTMP / WTMP =========== */
-#ifdef HAVE_UTMPNAME
+#    ifdef HAVE_UTMPNAME
 		utmpname(UTMP_FILE);
-#endif /* HAVE_UTMPNAME */
-#ifdef HAVE_SETUTENT
+#    endif /* HAVE_UTMPNAME */
+#    ifdef HAVE_SETUTENT
 		setutent();
-#endif /* HAVE_SETUTENT */
-#ifdef HAVE_PUTUTLINE
+#    endif /* HAVE_SETUTENT */
+#    ifdef HAVE_PUTUTLINE
 		pututline(&ut);
-#endif /* HAVE_PUTUTLINE */
-#ifdef HAVE_ENDUTENT
+#    endif /* HAVE_PUTUTLINE */
+#    ifdef HAVE_ENDUTENT
 		endutent();
-#endif /* HAVE_ENDUTENT */
-#ifdef HAVE_UTMPNAME
+#    endif /* HAVE_ENDUTENT */
+#    ifdef HAVE_UTMPNAME
 		utmpname(WTMP_FILE);
-#endif /* HAVE_UTMPNAME */
-#ifdef HAVE_SETUTENT
+#    endif /* HAVE_UTMPNAME */
+#    ifdef HAVE_SETUTENT
 		setutent();
-#endif /* HAVE_SETUTENT */
-#ifdef HAVE_PUTUTLINE
+#    endif /* HAVE_SETUTENT */
+#    ifdef HAVE_PUTUTLINE
 		pututline(&ut);
-#endif /* HAVE_PUTUTLINE */
-#ifdef HAVE_ENDUTENT
+#    endif /* HAVE_PUTUTLINE */
+#    ifdef HAVE_ENDUTENT
 		endutent();
-#endif /* HAVE_ENDUTENT */
+#    endif /* HAVE_ENDUTENT */
 /* ======== END    OLD TIME EVENT - UTMP / WTMP =========== */
 
-#endif /* HAVE_UTMP_H */
+#  endif /* HAVE_UTMP_H */
 #endif /* HAVE_UTMPX_H */
 
 /* Add the new time entry to utmp/wtmp */
@@ -2502,88 +2473,87 @@ updateXtmp (TimeInternal oldTime, TimeInternal newTime)
 #ifdef HAVE_UTMPX_H
 		memset(&utx, 0, sizeof(utx));
 		strncpy(utx.ut_user, "date", sizeof(utx.ut_user));
-#ifndef NTIME_MSG
+#  ifndef NTIME_MSG
 		strncpy(utx.ut_line, "{", sizeof(utx.ut_line));
-#else
+#  else
 		strncpy(utx.ut_line, NTIME_MSG, sizeof(utx.ut_line));
-#endif /* NTIME_MSG */
-#ifdef NEW_TIME
+#  endif /* NTIME_MSG */
+#  ifdef NEW_TIME
 		utx.ut_tv.tv_sec = newTime.seconds;
 		utx.ut_tv.tv_usec = newTime.nanoseconds / 1000;
 		utx.ut_type = NEW_TIME;
-#else /* no ut_type */
+#  else /* no ut_type */
 		utx.ut_time = newTime.seconds;
-#endif /* NEW_TIME */
+#  endif /* NEW_TIME */
 
 /* ======== BEGIN  NEW TIME EVENT - UTMPX / WTMPX =========== */
-#ifdef HAVE_UTMPXNAME
+#  ifdef HAVE_UTMPXNAME
 		utmpxname("/var/log/utmp");
-#endif /* HAVE_UTMPXNAME */
+#  endif /* HAVE_UTMPXNAME */
 		setutxent();
 		pututxline(&utx);
 		endutxent();
-#ifdef HAVE_UPDWTMPX
+#  ifdef HAVE_UPDWTMPX
 		updwtmpx("/var/log/wtmp", &utx);
-#endif /* HAVE_UPDWTMPX */
+#  endif /* HAVE_UPDWTMPX */
 /* ======== END    NEW TIME EVENT - UTMPX / WTMPX =========== */
 
-#else /* NO UTMPX_H */
+#else /* NO HAVE_UTMPX_H */
 
-#ifdef HAVE_UTMP_H
+#  ifdef HAVE_UTMP_H
 		memset(&ut, 0, sizeof(ut));
 		strncpy(ut.ut_name, "date", sizeof(ut.ut_name));
-#ifndef NTIME_MSG
+#    ifndef NTIME_MSG
 		strncpy(ut.ut_line, "{", sizeof(ut.ut_line));
-#else
+#    else
 		strncpy(ut.ut_line, NTIME_MSG, sizeof(ut.ut_line));
-#endif /* NTIME_MSG */
-#ifdef NEW_TIME
+#    endif /* NTIME_MSG */
+#    ifdef NEW_TIME
 
-#ifdef HAVE_STRUCT_UTMP_UT_TIME
+#      ifdef HAVE_STRUCT_UTMP_UT_TIME
 		ut.ut_time = newTime.seconds;
-#else
+#      else
 		ut.ut_tv.tv_sec = newTime.seconds;
 		ut.ut_tv.tv_usec = newTime.nanoseconds / 1000;
-#endif /* HAVE_STRUCT_UTMP_UT_TIME */
+#      endif /* HAVE_STRUCT_UTMP_UT_TIME */
 		ut.ut_type = NEW_TIME;
-#else /* no ut_type */
+#    else /* no ut_type */
 		ut.ut_time = newTime.seconds;
-#endif /* NEW_TIME */
+#    endif /* NEW_TIME */
 
 /* ======== BEGIN  NEW TIME EVENT - UTMP / WTMP =========== */
-#ifdef HAVE_UTMPNAME
+#    ifdef HAVE_UTMPNAME
 		utmpname(UTMP_FILE);
-#endif /* HAVE_UTMPNAME */
-#ifdef HAVE_SETUTENT
+#    endif /* HAVE_UTMPNAME */
+#    ifdef HAVE_SETUTENT
 		setutent();
-#endif /* HAVE_SETUTENT */
-#ifdef HAVE_PUTUTLINE
+#    endif /* HAVE_SETUTENT */
+#    ifdef HAVE_PUTUTLINE
 		pututline(&ut);
-#endif /* HAVE_PUTUTLINE */
-#ifdef HAVE_ENDUTENT
+#    endif /* HAVE_PUTUTLINE */
+#    ifdef HAVE_ENDUTENT
 		endutent();
-#endif /* HAVE_ENDUTENT */
-#ifdef HAVE_UTMPNAME
+#    endif /* HAVE_ENDUTENT */
+#    ifdef HAVE_UTMPNAME
 		utmpname(WTMP_FILE);
-#endif /* HAVE_UTMPNAME */
-#ifdef HAVE_SETUTENT
+#    endif /* HAVE_UTMPNAME */
+#    ifdef HAVE_SETUTENT
 		setutent();
-#endif /* HAVE_SETUTENT */
-#ifdef HAVE_PUTUTLINE
+#    endif /* HAVE_SETUTENT */
+#    ifdef HAVE_PUTUTLINE
 		pututline(&ut);
-#endif /* HAVE_PUTUTLINE */
-#ifdef HAVE_ENDUTENT
+#    endif /* HAVE_PUTUTLINE */
+#    ifdef HAVE_ENDUTENT
 		endutent();
-#endif /* HAVE_ENDUTENT */
+#    endif /* HAVE_ENDUTENT */
 /* ======== END    NEW TIME EVENT - UTMP / WTMP =========== */
 
-#endif /* HAVE_UTMP_H */
+#  endif /* HAVE_UTMP_H */
 #endif /* HAVE_UTMPX_H */
-
 }
 
-int setCpuAffinity(int cpu) {
-
+int setCpuAffinity(int cpu)
+{
 #ifdef __QNXNTO__
     unsigned    num_elements = 0;
     int         *rsizep, masksize_bytes, size;
@@ -2656,6 +2626,5 @@ int setCpuAffinity(int cpu) {
 	return sched_setaffinity(0, sizeof(mask), &mask);
 #endif /* linux && HAVE_SCHED_H */
 
-return -1;
-
+    return -1;
 }

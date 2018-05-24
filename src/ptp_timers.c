@@ -72,7 +72,6 @@ timerStart(IntervalTimer * itimer, double interval)
 Boolean
 timerExpired(IntervalTimer * itimer)
 {
-
 	if (itimer == NULL)
 		return FALSE;
 
@@ -84,7 +83,6 @@ timerExpired(IntervalTimer * itimer)
 Boolean
 timerRunning(IntervalTimer * itimer)
 {
-
 	if (itimer==NULL)
 		return FALSE;
 
@@ -93,9 +91,9 @@ timerRunning(IntervalTimer * itimer)
 	return timer->isRunning(timer);
 }
 
-Boolean timerSetup(IntervalTimer *itimers)
+Boolean
+timerSetup(IntervalTimer *itimers)
 {
-
     Boolean ret = TRUE;
 
 /* WARNING: these descriptions MUST be in the same order,
@@ -140,12 +138,11 @@ Boolean timerSetup(IntervalTimer *itimers)
     }
 
     return ret;
-
 }
 
-void timerShutdown(IntervalTimer *itimers)
+void
+timerShutdown(IntervalTimer *itimers)
 {
-
     int i = 0;
     EventTimer *timer = NULL;
 
@@ -156,5 +153,4 @@ void timerShutdown(IntervalTimer *itimers)
     }
 
     shutdownEventTimers();
-
 }

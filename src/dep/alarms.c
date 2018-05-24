@@ -48,9 +48,7 @@ static void eventHandler_log(AlarmEntry *alarm);
 static const char
 *alarmStateToString(AlarmState state)
 {
-
     switch(state) {
-
 	case ALARM_UNSET:
 	    return "NONE";
 	case ALARM_SET:
@@ -60,17 +58,15 @@ static const char
 	default:
 	    return "?";
     }
-
 }
 
 static void
 getAlarmMessage(char *out, int count, AlarmEntry *alarm)
 {
-
     memset(out, 0, count);
 
     switch(alarm->id) {
-	
+
 	case ALRM_PORT_STATE:
 	    if(alarm->state == ALARM_UNSET) {
 		return;
@@ -94,7 +90,7 @@ getAlarmMessage(char *out, int count, AlarmEntry *alarm)
 			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster));
 		return;
 	    }
-	    snprintf(out, count, ": Offset from master is %.09f s, above 1 second", 
+	    snprintf(out, count, ": Offset from master is %.09f s, above 1 second",
 			timeInternalToDouble(&alarm->eventData.currentDS.offsetFromMaster));
 	    return;
 	case ALRM_CLOCK_STEP:
@@ -128,13 +124,11 @@ getAlarmMessage(char *out, int count, AlarmEntry *alarm)
 	default:
 	    return;
     }
-
 }
 
 static void
 alarmHandler_log(AlarmEntry *alarm)
 {
-
 	char message[ALARM_MESSAGE_LENGTH+1];
 	message[ALARM_MESSAGE_LENGTH] = '\0';
 	getAlarmMessage(message, ALARM_MESSAGE_LENGTH, alarm);
@@ -159,8 +153,8 @@ eventHandler_log(AlarmEntry *alarm)
 }
 
 static void
-dispatchEvent(AlarmEntry *alarm) {
-
+dispatchEvent(AlarmEntry *alarm)
+{
 	for(int i=0; alarm->handlers[i] != NULL; i++) {
 	    alarm->handlers[i](alarm);
 	}
@@ -179,7 +173,6 @@ dispatchAlarm(AlarmEntry *alarm)
 void
 initAlarms(AlarmEntry* alarms, int count, void *userData)
 {
-
     static AlarmEntry alarmTemplate[] = {
 
     /* short */	/* name */		/* desc */						/* enabled? */ /* id */		/* eventOnly */	/*handlers */
@@ -205,7 +198,6 @@ initAlarms(AlarmEntry* alarms, int count, void *userData)
     for(int i = 0; i < count; i++) {
 	alarms[i].userData = userData;
     }
-
 }
 
 /*
@@ -215,7 +207,6 @@ initAlarms(AlarmEntry* alarms, int count, void *userData)
 void
 configureAlarms(AlarmEntry *alarms, int count, void * userData)
 {
-
     PtpClock *ptpClock = (PtpClock*) userData;
 
     for(int i = 0; i < count; i++) {
@@ -230,7 +221,6 @@ configureAlarms(AlarmEntry *alarms, int count, void * userData)
 	}
 #endif
     }
-
 }
 
 void
@@ -239,7 +229,6 @@ enableAlarms(AlarmEntry* alarms, int count, Boolean enabled)
     for(int i = 0; i < count; i++) {
 	alarms[i].enabled = enabled;
     }
-
 }
 
 void
@@ -276,13 +265,11 @@ setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock)
 	alarm->age = 0;
 	alarm->condition = condition;
 	alarm->unhandled = TRUE;
-
 }
 
 void
 capturePtpEventData(PtpEventData *eventData, PtpClock *ptpClock, RunTimeOpts *rtOpts)
 {
-
     eventData->defaultDS = ptpClock->defaultDS;
     eventData->currentDS = ptpClock->currentDS;
     eventData->timePropertiesDS = ptpClock->timePropertiesDS;
@@ -308,7 +295,6 @@ capturePtpEventData(PtpEventData *eventData, PtpClock *ptpClock, RunTimeOpts *rt
 void
 updateAlarms(AlarmEntry *alarms, int count)
 {
-
     DBG("updateAlarms()\n");
 
     AlarmEntry *alarm;
@@ -355,13 +341,11 @@ updateAlarms(AlarmEntry *alarms, int count)
 	}
 	alarm->unhandled = FALSE;
     }
-
 }
 
 void
 displayAlarms(AlarmEntry *alarms, int count)
 {
-
     INFO("----------------------------------------------\n");
     INFO("              Alarm status: \n");
     INFO("----------------------------------------------\n");
@@ -369,12 +353,11 @@ displayAlarms(AlarmEntry *alarms, int count)
     INFO("----------------------------------------------\n");
     for(int i=0; i < count; i++) {
 	if(alarms[i].eventOnly) continue;
-	INFO("%-15s\t| %-8s | %s\n",  alarms[i].name, 
-				    alarmStateToString(alarms[i].state), 
+	INFO("%-15s\t| %-8s | %s\n",  alarms[i].name,
+				    alarmStateToString(alarms[i].state),
 				    alarms[i].description);
     }
     INFO("----------------------------------------------\n");
-
 }
 
 /* populate @output with a one-line alarm summary, consisting of multiple:
@@ -391,7 +374,6 @@ displayAlarms(AlarmEntry *alarms, int count)
 int
 getAlarmSummary(char * output, int size, AlarmEntry *alarms, int count)
 {
-
     int len = 0;
     int i = 0;
 
@@ -423,5 +405,4 @@ getAlarmSummary(char * output, int size, AlarmEntry *alarms, int count)
     }
 
     return len + 1;
-
 }
