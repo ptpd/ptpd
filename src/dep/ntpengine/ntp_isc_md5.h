@@ -80,7 +80,7 @@ isc_md5_final(isc_md5_t *ctx, unsigned char *digest);
 # define MD5Init(c)             isc_md5_init(c)
 # define MD5Update(c, p, s)     isc_md5_update(c, p, s)
 # define MD5Final(d, c)         isc_md5_final((c), (d)) /* swapped */
-  typedef MD5_CTX                       EVP_MD_CTX;
+  typedef MD5_CTX                       PTPD_EVP_MD_CTX;
 # define EVP_DigestInit(c)              MD5Init(c)
 # define EVP_DigestUpdate(c, p, s)      MD5Update(c, p, s)
 # define EVP_DigestFinal(c, d, pdl)     \
