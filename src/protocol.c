@@ -1732,6 +1732,13 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			msgUnpackAnnounce(ptpClock->msgIbuf,
 					  &ptpClock->msgTmp.announce);
 
+            /*
+             * Update all information about master every announce
+             * If it's behind the switch and active master dies, IP doesn't change but priority does
+             */
+			memcpy(&ptpClock->bestMaster->announce,
+			       &ptpClock->msgTmp.announce,sizeof(MsgAnnounce));
+
 			/* TODO: not in spec
 			 * datasets should not be updated by another master
 			 * this is the reason why we are PASSIVE and not SLAVE
