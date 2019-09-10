@@ -44,7 +44,6 @@ static EventTimer *_last = NULL;
 EventTimer
 *createEventTimer(const char* id)
 {
-
 	EventTimer *timer;
 
         if ( !(timer = calloc (1, sizeof(EventTimer))) ) {
@@ -129,5 +128,4 @@ freeEventTimer
 	}
 
 	*timer = NULL;
-
 }

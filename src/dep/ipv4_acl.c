@@ -44,8 +44,8 @@
  */
 
 /* count tokens in string delimited by delim */
-static int countTokens(const char* text, const char* delim) {
-
+static int countTokens(const char* text, const char* delim)
+{
     int count=0;
     char* stash = NULL;
     char* text_;
@@ -61,13 +61,11 @@ static int countTokens(const char* text, const char* delim) {
     }
     free(text_);
     return count;
-
 }
 
 /* Parse a dotted-decimal string into an uint8_t array - return -1 on error */
 static int ipToArray(const char* text, uint8_t dest[], int maxOctets, Boolean isMask)
 {
-
     char* text_;
     char* text__;
     char* subtoken;
@@ -113,12 +111,11 @@ static int ipToArray(const char* text, uint8_t dest[], int maxOctets, Boolean is
 
     free(text_);
     return result;
-
 }
 
 /* Parse a single net mask into an AclEntry */
-static int parseAclEntry(const char* line, AclEntry* acl) {
-
+static int parseAclEntry(const char* line, AclEntry* acl)
+{
     int result = 1;
     char* stash = NULL;
     char* text_;
@@ -186,7 +183,6 @@ static int parseAclEntry(const char* line, AclEntry* acl) {
     acl->network &= acl->bitmask;
 
     return result;
-
 }
 
 
@@ -194,7 +190,6 @@ static int parseAclEntry(const char* line, AclEntry* acl) {
 static int
 cmpAclEntry(const void *p1, const void *p2)
 {
-
 	const AclEntry *left = p1;
 	const AclEntry *right = p2;
 
@@ -203,14 +198,12 @@ cmpAclEntry(const void *p1, const void *p2)
 	if(left->network < right->network)
 		return -1;
 	return 0;
-
 }
 
 /* Parse an ACL string into an aclEntry table and return number of entries. output can be NULL */
 int
 maskParser(const char* input, AclEntry* output)
 {
-
     char* token;
     char* stash;
     int found = 0;
@@ -253,7 +246,6 @@ maskParser(const char* input, AclEntry* output)
 
 	free(text_);
 	return found;
-
 }
 
 /* Create a maskTable from a text ACL */
@@ -296,7 +288,6 @@ dumpMaskTable(MaskTable* table)
 		    this.network, this.bitmask, this.hitCount);
 		}
 	}
-
 }
 
 /* Free a MaskTable structure */
@@ -348,7 +339,6 @@ createIpv4AccessList(const char* permitList, const char* denyList, int processin
 static int
 matchAddress(const uint32_t addr, MaskTable* table)
 {
-
 	int i;
 	if(table == NULL || table->entries == NULL || table->numEntries==0)
 	    return -1;
@@ -361,14 +351,12 @@ matchAddress(const uint32_t addr, MaskTable* table)
 	}
 
 	return 0;
-
 }
 
 /* Test an IP address against an ACL */
 int
 matchIpv4AccessList(Ipv4AccessList* acl, const uint32_t addr)
 {
-
 	int ret;
 	int matchPermit = 0;
 	int matchDeny = 0;
@@ -417,13 +405,11 @@ matchIpv4AccessList(Ipv4AccessList* acl, const uint32_t addr)
 	    acl->droppedCounter++;
 
 	return ret;
-
 }
 
 /* Dump the contents and hit counters of an ACL */
 void dumpIpv4AccessList(Ipv4AccessList* acl)
 {
-
 		    INFO("\n\n");
 	if(acl == NULL) {
 		    INFO("(uninitialised ACL)\n");
@@ -461,7 +447,6 @@ void dumpIpv4AccessList(Ipv4AccessList* acl)
 static void
 clearMaskTableCounters(MaskTable* table)
 {
-
 	int i, count;
 	if(table==NULL || table->numEntries==0)
 		return;
@@ -470,17 +455,15 @@ clearMaskTableCounters(MaskTable* table)
 	for(i=0; i<count; i++) {
 		table->entries[i].hitCount = 0;
 	}
-
 }
 
 /* Clear ACL counter */
-void clearIpv4AccessListCounters(Ipv4AccessList* acl) {
-
+void clearIpv4AccessListCounters(Ipv4AccessList* acl)
+{
 	if(acl == NULL)
 		return;
 	acl->passedCounter=0;
 	acl->droppedCounter=0;
 	clearMaskTableCounters(acl->permitTable);
 	clearMaskTableCounters(acl->denyTable);
-
 }

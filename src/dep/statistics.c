@@ -35,32 +35,32 @@
 
 #include "../ptpd.h"
 
-static int cmpInt32 (const void *vA, const void *vB) {
-
+static int cmpInt32 (const void *vA, const void *vB)
+{
 	int32_t a = *(int32_t*)vA;
 	int32_t b = *(int32_t*)vB;
 
 	return ((a < b) ? -1 : (a > b) ? 1 : 0);
 }
 
-static int cmpDouble (const void *vA, const void *vB) {
-
+static int cmpDouble (const void *vA, const void *vB)
+{
 	double a = *(double*)vA;
 	double b = *(double*)vB;
 
 	return ((a < b) ? -1 : (a > b) ? 1 : 0);
 }
 
-static int cmpAbsInt32 (const void *vA, const void *vB) {
-
+static int cmpAbsInt32 (const void *vA, const void *vB)
+{
 	int32_t a = abs(*(int32_t*)vA);
 	int32_t b = abs(*(int32_t*)vB);
 
 	return ((a < b) ? -1 : (a > b) ? 1 : 0);
 }
 
-static int cmpAbsDouble (const void *vA, const void *vB) {
-
+static int cmpAbsDouble (const void *vA, const void *vB)
+{
 	double a = fabs(*(double*)vA);
 	double b = fabs(*(double*)vB);
 
@@ -108,12 +108,10 @@ static double median3Double(double *bucket, int count)
 		return 0;
 
 	}
-
 }
 
 void
 resetIntPermanentMean(IntPermanentMean* container) {
-
 	container->previous = container->mean;
 	container->mean = 0;
 	container->count = 0;
@@ -123,7 +121,6 @@ resetIntPermanentMean(IntPermanentMean* container) {
 int32_t
 feedIntPermanentMean(IntPermanentMean* container, int32_t sample)
 {
-
 	container->mean += ( sample - container-> mean ) / ++container->count;
 
 	if(container->previous) {
@@ -133,22 +130,19 @@ feedIntPermanentMean(IntPermanentMean* container, int32_t sample)
 	}
 
 	return container->mean;
-
 }
 
 void
-resetIntPermanentStdDev(IntPermanentStdDev* container) {
-
+resetIntPermanentStdDev(IntPermanentStdDev* container)
+{
 	resetIntPermanentMean(&container->meanContainer);
 	container->squareSum = 0;
 	container->stdDev = 0;
-
 }
 
 int32_t
 feedIntPermanentStdDev(IntPermanentStdDev* container, int32_t sample)
 {
-
 	container->squareSum += ( sample - container->meanContainer.mean) *
 		    ( sample - feedIntPermanentMean(&container->meanContainer, sample ));
 
@@ -160,20 +154,17 @@ feedIntPermanentStdDev(IntPermanentStdDev* container, int32_t sample)
 	}
 
 	return container->stdDev;
-
 }
 
 void
-resetIntPermanentMedian(IntPermanentMedian* container) {
-
+resetIntPermanentMedian(IntPermanentMedian* container)
+{
 	memset(container, 0, sizeof(IntPermanentMedian));
-
 }
 
 int32_t
 feedIntPermanentMedian(IntPermanentMedian* container, int32_t sample)
 {
-
 	    container->bucket[container->count] = sample;
 	    container->count++;
 
@@ -186,7 +177,6 @@ feedIntPermanentMedian(IntPermanentMedian* container, int32_t sample)
 	    }
 
 	    return container->median;
-
 }
 
 
@@ -198,13 +188,11 @@ resetDoublePermanentMean(DoublePermanentMean* container)
 	container->previous = container->mean;
 	container->mean = 0.0;
 	container->count = 0;
-
 }
 
 double
 feedDoublePermanentMean(DoublePermanentMean* container, double sample)
 {
-
 	container->mean += ( sample - container-> mean ) / ++container->count;
 
 	if(container->previous) {
@@ -214,25 +202,21 @@ feedDoublePermanentMean(DoublePermanentMean* container, double sample)
 	}
 
 	return container->mean;
-
 }
 
 void
 resetDoublePermanentStdDev(DoublePermanentStdDev* container)
 {
-
 	if(container == NULL)
 	    return;
 	resetDoublePermanentMean(&container->meanContainer);
 	container->squareSum = 0.0;
 	container->stdDev = 0.0;
-
 }
 
 double
 feedDoublePermanentStdDev(DoublePermanentStdDev* container, double sample)
 {
-
 	container->squareSum += ( sample - container->meanContainer.mean) *
 		    ( sample - feedDoublePermanentMean(&container->meanContainer, sample )) ;
 
@@ -244,21 +228,17 @@ feedDoublePermanentStdDev(DoublePermanentStdDev* container, double sample)
 	}
 
 	return container->stdDev;
-
 }
 
 void
 resetDoublePermanentMedian(DoublePermanentMedian* container)
 {
-
 	memset(container, 0, sizeof(DoublePermanentMedian));
-
 }
 
 double
 feedDoublePermanentMedian(DoublePermanentMedian* container, double sample)
 {
-
 	container->bucket[container->count] = sample;
 	container->count++;
 
@@ -271,7 +251,6 @@ feedDoublePermanentMedian(DoublePermanentMedian* container, double sample)
 	}
 
 	return container->median;
-
 }
 
 
@@ -280,7 +259,6 @@ feedDoublePermanentMedian(DoublePermanentMedian* container, double sample)
 IntMovingMean*
 createIntMovingMean(int capacity)
 {
-
 	IntMovingMean* container;
 	if ( !(container = calloc (1, sizeof(IntMovingMean))) ) {
 	    return NULL;
@@ -295,36 +273,30 @@ createIntMovingMean(int capacity)
 	}
 
 	return container;
-
 }
 
 void
 freeIntMovingMean(IntMovingMean** container)
 {
-
 	free((*container)->samples);
 	free(*container);
 	*container = NULL;
-
 }
 
 void
 resetIntMovingMean(IntMovingMean* container)
 {
-
 	if(container == NULL)
 	    return;
 	container->sum = 0;
 	container->mean = 0;
 	container->count = 0;
 	memset(container->samples, 0, sizeof(&container->samples));
-
 }
 
 int32_t
 feedIntMovingMean(IntMovingMean* container, int32_t sample)
-{
-
+{ 
 	if(container == NULL) return 0;
 
         /* sample buffer is full */
@@ -344,12 +316,10 @@ feedIntMovingMean(IntMovingMean* container, int32_t sample)
 	container->mean = container->sum / container->count;
 
 	return container->mean;
-
 }
 
 IntMovingStdDev* createIntMovingStdDev(int capacity)
 {
-
 	IntMovingStdDev* container;
 	if ( !(container = calloc (1, sizeof(IntMovingStdDev))) ) {
 		return NULL;
@@ -362,35 +332,29 @@ IntMovingStdDev* createIntMovingStdDev(int capacity)
 	}
 
 	return container;
-
 }
 
 void
 freeIntMovingStdDev(IntMovingStdDev** container)
 {
-
 	freeIntMovingMean(&((*container)->meanContainer));
 	free(*container);
 	*container = NULL;
-
 }
 
 void
 resetIntMovingStdDev(IntMovingStdDev* container)
 {
-
 	if(container == NULL)
 	    return;
 	resetIntMovingMean(container->meanContainer);
 	container->squareSum = 0;
 	container->stdDev = 0;
-
 }
 
 int32_t
 feedIntMovingStdDev(IntMovingStdDev* container, int32_t sample)
 {
-
 	int i = 0;
 
 	if(container == NULL)
@@ -414,13 +378,11 @@ feedIntMovingStdDev(IntMovingStdDev* container, int32_t sample)
 	}
 
 	return container->stdDev;
-
 }
 
 DoubleMovingMean*
 createDoubleMovingMean(int capacity)
 {
-
 	DoubleMovingMean* container;
 	if ( !(container = calloc (1, sizeof(DoubleMovingMean))) ) {
 	    return NULL;
@@ -433,26 +395,22 @@ createDoubleMovingMean(int capacity)
 	    return NULL;
 	}
 	return container;
-
 }
 
 void
 freeDoubleMovingMean(DoubleMovingMean** container)
 {
-
 	if(*container == NULL) {
 	    return;
 	}
 	free((*container)->samples);
 	free(*container);
 	*container = NULL;
-
 }
 
 void
 resetDoubleMovingMean(DoubleMovingMean* container)
 {
-
 	if(container == NULL)
 	    return;
 	container->sum = 0;
@@ -460,14 +418,12 @@ resetDoubleMovingMean(DoubleMovingMean* container)
 	container->count = 0;
 	container->counter = 0;
 	memset(container->samples, 0, sizeof(&container->samples));
-
 }
 
 
 double
 feedDoubleMovingMean(DoubleMovingMean* container, double sample)
 {
-
 	if(container == NULL)
 	    return 0;
         /* sample buffer is full */
@@ -490,12 +446,10 @@ feedDoubleMovingMean(DoubleMovingMean* container, double sample)
 //		INFO("c: %d\n", container->counter);
 
 	return container->mean;
-
 }
 
 DoubleMovingStdDev* createDoubleMovingStdDev(int capacity)
 {
-
 	DoubleMovingStdDev* container;
 	if ( !(container = calloc (1, sizeof(DoubleMovingStdDev))) ) {
 		return NULL;
@@ -508,34 +462,29 @@ DoubleMovingStdDev* createDoubleMovingStdDev(int capacity)
 	}
 
 	return container;
-
 }
 
 void
 freeDoubleMovingStdDev(DoubleMovingStdDev** container)
 {
-
 	freeDoubleMovingMean(&((*container)->meanContainer));
 	free(*container);
 	*container = NULL;
-
 }
 
 void
 resetDoubleMovingStdDev(DoubleMovingStdDev* container)
 {
-
 	if(container == NULL)
 	    return;
 	resetDoubleMovingMean(container->meanContainer);
 	container->squareSum = 0.0;
 	container->stdDev = 0.0;
-
 }
+
 double
 feedDoubleMovingStdDev(DoubleMovingStdDev* container, double sample)
 {
-
 	int i = 0;
 
 	if(container == NULL)
@@ -563,12 +512,10 @@ feedDoubleMovingStdDev(DoubleMovingStdDev* container, double sample)
 	}
 
 	return container->stdDev;
-
 }
 
 IntMovingStatFilter* createIntMovingStatFilter(StatFilterOptions *config, const char* id)
 {
-
 	IntMovingStatFilter* container;
 
 	if(config->filterType > FILTER_MAXVALUE) {
@@ -593,28 +540,23 @@ IntMovingStatFilter* createIntMovingStatFilter(StatFilterOptions *config, const 
 	strncpy(container->identifier, id, 10);
 
 	return container;
-
 }
 
 void
 freeIntMovingStatFilter(IntMovingStatFilter** container)
 {
-
 	freeIntMovingMean(&((*container)->meanContainer));
 	free(*container);
 	*container = NULL;
-
 }
 
 void
 resetIntMovingStatFilter(IntMovingStatFilter* container)
 {
-
 	if(container == NULL)
 	    return;
 	resetIntMovingMean(container->meanContainer);
 	container->output = 0;
-
 }
 
 Boolean
@@ -723,7 +665,6 @@ feedIntMovingStatFilter(IntMovingStatFilter* container, int32_t sample)
 		return FALSE;
 	}
 	return TRUE;
-
 }
 
 DoubleMovingStatFilter* createDoubleMovingStatFilter(StatFilterOptions *config, const char* id)
@@ -752,37 +693,31 @@ DoubleMovingStatFilter* createDoubleMovingStatFilter(StatFilterOptions *config, 
 	strncpy(container->identifier, id, 10);
 
 	return container;
-
 }
 
 void
 freeDoubleMovingStatFilter(DoubleMovingStatFilter** container)
 {
-
 	if((container==NULL) || (*container==NULL)) {
 	    return;
 	}
 	freeDoubleMovingMean(&((*container)->meanContainer));
 	free(*container);
 	*container = NULL;
-
 }
 
 void
 resetDoubleMovingStatFilter(DoubleMovingStatFilter* container)
 {
-
 	if(container == NULL)
 	    return;
 	resetDoubleMovingMean(container->meanContainer);
 	container->output = 0;
-
 }
 
 Boolean
 feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 {
-
 	if(container == NULL)
 		return 0;
 
@@ -884,11 +819,10 @@ feedDoubleMovingStatFilter(DoubleMovingStatFilter* container, double sample)
 		return FALSE;
 	}
 	return TRUE;
-
 }
 
-double getpeircesCriterion(int numObservations, int numDoubtful) {
-
+double getpeircesCriterion(int numObservations, int numDoubtful)
+{
     static const double peircesTable[60][9] = {
 /* 1 - 10 samples */
         {-1,	-1,	-1,	-1,	-1,	-1,	-1,	-1,	-1},
@@ -964,11 +898,10 @@ double getpeircesCriterion(int numObservations, int numDoubtful) {
 	return -1.0;
 
     return(peircesTable[numObservations - 1][numDoubtful - 1]);
-
 }
 
-Boolean isIntPeircesOutlier(IntMovingStdDev *container, int32_t sample, double threshold) {
-
+Boolean isIntPeircesOutlier(IntMovingStdDev *container, int32_t sample, double threshold)
+{
 	double maxDev;
 
 	/* Sanity check - race condition was seen when enabling and disabling filters repeatedly */
@@ -994,11 +927,10 @@ Boolean isIntPeircesOutlier(IntMovingStdDev *container, int32_t sample, double t
 	}
 
 	return FALSE;
-
 }
 
-Boolean isDoublePeircesOutlier(DoubleMovingStdDev *container, double sample, double threshold) {
-
+Boolean isDoublePeircesOutlier(DoubleMovingStdDev *container, double sample, double threshold)
+{
 	double maxDev;
 
 	/* Sanity check - race condition was seen when enabling and disabling filters repeatedly */
@@ -1026,7 +958,6 @@ Boolean isDoublePeircesOutlier(DoubleMovingStdDev *container, double sample, dou
 	}
 
 	return FALSE;
-
 }
 
 void
@@ -1036,8 +967,8 @@ clearPtpEngineSlaveStats(PtpEngineSlaveStats* stats)
 }
 
 void
-resetPtpEngineSlaveStats(PtpEngineSlaveStats* stats) {
-
+resetPtpEngineSlaveStats(PtpEngineSlaveStats* stats)
+{
 	resetDoublePermanentStdDev(&stats->ofmStats);
 	resetDoublePermanentStdDev(&stats->mpdStats);
 	resetDoublePermanentMedian(&stats->ofmMedianContainer);

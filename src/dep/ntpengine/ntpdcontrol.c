@@ -70,7 +70,6 @@ char *ntpdc_pktdata;
 Boolean
 ntpInit(NTPoptions* options, NTPcontrol* control)
 {
-
 	int res = TRUE;
 	TimingService service = control->timingService;
 
@@ -94,7 +93,7 @@ ntpInit(NTPoptions* options, NTPcontrol* control)
 
 	/* This will attempt to read the ntpd control flags for the first time */
 	res = ntpdInControl(options, control);
-	
+
        if (res != INFO_YES && res != INFO_NO) {
 		return FALSE;
 	}
@@ -106,7 +105,6 @@ ntpInit(NTPoptions* options, NTPcontrol* control)
 Boolean
 ntpShutdown(NTPoptions* options, NTPcontrol* control)
 {
-
 	/* Attempt reverting ntpd flags to the original value */
 	if(control->flagsCaptured) {
 		/* we only control the kernel and ntp flags */
@@ -194,11 +192,11 @@ get_systime(
         /*
          * Convert Unix clock from seconds and nanoseconds to seconds.
          */
-# ifdef HAVE_CLOCK_GETTIME
+#  ifdef HAVE_CLOCK_GETTIME
         clock_gettime(CLOCK_REALTIME, &ts);
-# else
+#  else
         getclock(TIMEOFDAY, &ts);
-# endif
+#  endif
         now->l_i = ts.tv_sec + JAN_1970;
         dtemp = ts.tv_nsec / 1e9;
 
@@ -217,7 +215,7 @@ get_systime(
         /*
          * Renormalize to seconds past 1900 and fraction.
          */
-                                                    
+
 //        dtemp += sys_residual;
         if (dtemp >= 1) {
                 dtemp -= 1;
@@ -241,7 +239,6 @@ NTPDCrequest(
 	char *qdata
 	)
 {
-
 	l_fp delay_time = { .l_ui=0, .l_uf=0x51EB852};
 
 	struct req_pkt qpkt;
@@ -287,13 +284,12 @@ NTPDCrequest(
 	maclen = MD5authencrypt(key, (void *)&qpkt, reqsize,options->keyId);
 	free(key);
 	if (!maclen || (maclen != (16 + sizeof(keyid_t))))
-	 { 
+	 {
 		ERROR("Error while computing NTP MD5 hash\n");
 		return 1;
 	}
 
 	return ntpSend(control, (Octet *)&qpkt, reqsize + maclen);
-
 }
 
 
@@ -304,7 +300,6 @@ NTPDCrequest(
 static int
 checkitems(
 	int items
-
 	)
 {
 	if (items == 0) {
@@ -748,7 +743,7 @@ ntpdControlFlags(NTPoptions* options, NTPcontrol* control, int req, int flags)
 	case INFO_ERR_AUTH:
 
 		if(!control->requestFailed) ERROR("NTP permission denied: check key id, password and NTP configuration\n");
-		break;		
+		break;
 
 	case ERR_TIMEOUT:
 
@@ -768,20 +763,17 @@ ntpdControlFlags(NTPoptions* options, NTPcontrol* control, int req, int flags)
 int
 ntpdSetFlags(NTPoptions* options, NTPcontrol* control, int flags)
 {
-
 	int res;
 	ntpdc_pktdata = malloc(INITDATASIZE);
 	DBGV("Setting NTP flags %d\n", flags);
 	res=ntpdControlFlags(options, control, REQ_SET_SYS_FLAG, flags);
 	free(ntpdc_pktdata);
 	return res;
-
 }
 
 int
 ntpdClearFlags(NTPoptions* options, NTPcontrol* control, int flags)
 {
-
 	int res;
 	ntpdc_pktdata = malloc(INITDATASIZE);
 	DBGV("Clearing NTP flags %d\n", flags);
@@ -815,10 +807,10 @@ ntpdInControl(NTPoptions* options, NTPcontrol* control)
 
 	if (!checkitemsize(itemsize, sizeof(struct info_sys)) &&
 	    !checkitemsize(itemsize, v4sizeof(struct info_sys))) {
-	
+
 	    res=INFO_ERR_EMPTY;
 	    goto end;
-	}	
+	}
 
 	if (is->flags & INFO_FLAG_NTP) DBGV("NTP flag seen: ntp\n");
 	if (is->flags & INFO_FLAG_KERNEL) DBGV("NTP flag seen: kernel\n");
@@ -861,7 +853,7 @@ ntpdInControl(NTPoptions* options, NTPcontrol* control)
 	case INFO_ERR_AUTH:
 
 		DBG("NTP permission denied: check NTP key id, key and if key is trusted and is a request key\n");
-		break;		
+		break;
 
 	default:
 	ERROR("NTP protocol error\n");
@@ -869,6 +861,4 @@ ntpdInControl(NTPoptions* options, NTPcontrol* control)
 	}
 	}
 	return res;
-
 }
-

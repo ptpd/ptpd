@@ -170,7 +170,6 @@ PTPText_display(const PTPText *p, const PtpClock *ptpClock)
 void
 iFaceName_display(const Octet * iFaceName)
 {
-
 	int i;
 
 	DBGV("iFaceName : ");
@@ -179,14 +178,12 @@ iFaceName_display(const Octet * iFaceName)
 		DBGV("%c", iFaceName[i]);
 	}
 	DBGV("\n");
-
 }
 
 /**\brief Display an Unicast Adress*/
 void
 unicast_display(const Octet * unicast)
 {
-
 	int i;
 
 	DBGV("Unicast adress : ");
@@ -195,7 +192,6 @@ unicast_display(const Octet * unicast)
 		DBGV("%c", unicast[i]);
 	}
 	DBGV("\n");
-
 }
 
 
@@ -284,7 +280,6 @@ msgPdelayReq_display(const MsgPdelayReq * preq)
 void
 msgPdelayResp_display(const MsgPdelayResp * presp)
 {
-
 	timestamp_display(&presp->requestReceiptTimestamp);
 	portIdentity_display(&presp->requestingPortIdentity);
 }
@@ -293,7 +288,6 @@ msgPdelayResp_display(const MsgPdelayResp * presp)
 void
 msgPdelayRespFollowUp_display(const MsgPdelayRespFollowUp * prespfollow)
 {
-
 	timestamp_display(&prespfollow->responseOriginTimestamp);
 	portIdentity_display(&prespfollow->requestingPortIdentity);
 }
@@ -547,7 +541,6 @@ sMAcknowledgeCancelUnicastTransmission_display(const SMAcknowledgeCancelUnicastT
 void
 displayRunTimeOpts(const RunTimeOpts * rtOpts)
 {
-
 	DBGV("---Run time Options Display-- \n");
 	DBGV("\n");
 	DBGV("announceInterval : %d \n", rtOpts->logAnnounceInterval);
@@ -670,7 +663,6 @@ displayPort(const PtpClock * ptpClock)
 void
 displayForeignMaster(const PtpClock * ptpClock)
 {
-
 	ForeignMasterRecord *foreign;
 	int i;
 
@@ -696,8 +688,6 @@ displayForeignMaster(const PtpClock * ptpClock)
 	}
 
 	DBGV("\n");
-
-
 }
 
 /**\brief Display other data set of a PtpClock*/
@@ -705,7 +695,6 @@ displayForeignMaster(const PtpClock * ptpClock)
 void
 displayOthers(const PtpClock * ptpClock)
 {
-
 	int i;
 
 	/* Usefull to display name of timers */
@@ -726,7 +715,7 @@ displayOthers(const PtpClock * ptpClock)
 	DBGV("slave_to_master_delay : \n");
 	timeInternal_display(&ptpClock->slave_to_master_delay);
 	*/
-	
+
 	DBGV("\n");
 	DBGV("delay_req_receive_time : \n");
 	timeInternal_display(&ptpClock->pdelay_req_receive_time);
@@ -778,7 +767,6 @@ displayOthers(const PtpClock * ptpClock)
 void
 displayBuffer(const PtpClock * ptpClock)
 {
-
 	int i;
 	int j;
 
@@ -824,8 +812,8 @@ displayBuffer(const PtpClock * ptpClock)
 }
 
 /**\convert port state to string*/
-const char
-*portState_getName(Enumeration8 portState)
+const char*
+portState_getName(Enumeration8 portState)
 {
     static const char *ptpStates[] = {
         [PTP_INITIALIZING] = "PTP_INITIALIZING",
@@ -848,14 +836,12 @@ const char
     }
 
     return(ptpStates[portState]);
-
 }
 
 /**\brief Display all PTP clock (port) counters*/
 void
 displayCounters(const PtpClock * ptpClock)
 {
-
 	/* TODO: print port identity */
 	INFO("\n============= PTP port counters =============\n");
 
@@ -983,15 +969,12 @@ displayCounters(const PtpClock * ptpClock)
 	INFO("              delaySMOutliersFound : %lu\n",
 		(unsigned long)ptpClock->counters.delaySMOutliersFound);
 #endif /* PTPD_STATISTICS */
-
 }
 
 const char *
 getTimeSourceName(Enumeration8 timeSource)
 {
-
     switch(timeSource) {
-
         case  ATOMIC_CLOCK:
 	    return "ATOMIC_CLOCK";
 	case  GPS:
@@ -1011,7 +994,6 @@ getTimeSourceName(Enumeration8 timeSource)
 	default:
 	    return "UNKNOWN";
     }
-
 }
 
 const char *
@@ -1042,7 +1024,7 @@ getMessageTypeName(Enumeration8 messageType)
 	break;
     case PDELAY_RESP_FOLLOW_UP:
 	return("PdelayRespFollowUp");
-	break;	
+	break;
     case MANAGEMENT:
 	return("Management");
 	break;
@@ -1053,13 +1035,11 @@ getMessageTypeName(Enumeration8 messageType)
 	return("Unknown");
 	break;
     }
-
 }
 
-const char* accToString(uint8_t acc) {
-
+const char* accToString(uint8_t acc)
+{
 	switch(acc) {
-
 	    case ACC_25NS:
 		return "ACC_25NS";
 	    case ACC_100NS:
@@ -1104,8 +1084,8 @@ const char* accToString(uint8_t acc) {
 	}
 }
 
-const char* delayMechToString(uint8_t mech) {
-
+const char* delayMechToString(uint8_t mech)
+{
 	switch(mech) {
 	    case E2E:
 		return "E2E";
@@ -1116,28 +1096,24 @@ const char* delayMechToString(uint8_t mech) {
 	    default:
 		return NULL;
 	}
-
 }
 
 /**\brief Display all PTP clock (port) statistics*/
 void
 displayStatistics(const PtpClock* ptpClock)
 {
-
 /*
 	INFO("Clock stats: ofm mean: %lu, ofm median: %d,"
 	     "ofm std dev: %lu, observed drift std dev: %d\n",
 	     ptpClock->stats.ofmMean, ptpClock->stats.ofmMedian,
 	     ptpClock->stats.ofmStdDev, ptpClock->stats.driftStdDev);
 */
-
 }
 
 /**\brief Display All data sets and counters of a PtpClock*/
 void
 displayPtpClock(const PtpClock * ptpClock)
 {
-
 	displayDefault(ptpClock);
 	displayCurrent(ptpClock);
 	displayParent(ptpClock);
@@ -1148,5 +1124,4 @@ displayPtpClock(const PtpClock * ptpClock)
 	displayOthers(ptpClock);
 	displayCounters(ptpClock);
 	displayStatistics(ptpClock);
-
 }

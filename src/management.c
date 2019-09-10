@@ -484,8 +484,6 @@ handleManagement(MsgHeader *header,
 	    ptpClock->counters.managementMessagesReceived++;
 	    DBGV("handleManagement: No more TLVs\n");
 	}
-
-
 }
 
 
@@ -549,7 +547,6 @@ void handleMMNullManagement(MsgManagement* incoming, MsgManagement* outgoing, Pt
 			ptpClock, MM_NULL_MANAGEMENT,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming CLOCK_DESCRIPTION management message*/
@@ -705,7 +702,7 @@ void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, P
 		} else {
 			WARNING("management user description exceeds specification length \n");
 		}
-		
+
 		/* intentionally fall through to GET case */
 	case GET:
 		DBGV(" GET action \n");
@@ -728,7 +725,6 @@ void handleMMUserDescription(MsgManagement* incoming, MsgManagement* outgoing, P
 			ptpClock, MM_USER_DESCRIPTION,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming SAVE_IN_NON_VOLATILE_STORAGE management message type*/
@@ -753,7 +749,6 @@ void handleMMSaveInNonVolatileStorage(MsgManagement* incoming, MsgManagement* ou
 			ptpClock, MM_SAVE_IN_NON_VOLATILE_STORAGE,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming RESET_NON_VOLATILE_STORAGE management message type*/
@@ -778,7 +773,6 @@ void handleMMResetNonVolatileStorage(MsgManagement* incoming, MsgManagement* out
 			ptpClock, MM_RESET_NON_VOLATILE_STORAGE,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming INITIALIZE management message type*/
@@ -824,7 +818,6 @@ void handleMMInitialize(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 			ptpClock, MM_INITIALIZE,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming DEFAULT_DATA_SET management message type*/
@@ -874,7 +867,6 @@ void handleMMDefaultDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 			ptpClock, MM_DEFAULT_DATA_SET,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming CURRENT_DATA_SET management message type*/
@@ -920,7 +912,6 @@ void handleMMCurrentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Pt
 			ptpClock, MM_CURRENT_DATA_SET,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming PARENT_DATA_SET management message type*/
@@ -969,7 +960,6 @@ void handleMMParentDataSet(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 			ptpClock, MM_PARENT_DATA_SET,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming PROPERTIES_DATA_SET management message type*/
@@ -1011,7 +1001,6 @@ void handleMMTimePropertiesDataSet(MsgManagement* incoming, MsgManagement* outgo
 			ptpClock, MM_TIME_PROPERTIES_DATA_SET,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming PORT_DATA_SET management message type*/
@@ -1059,7 +1048,6 @@ void handleMMPortDataSet(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 			ptpClock, MM_PORT_DATA_SET,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming PRIORITY1 management message type*/
@@ -1103,7 +1091,6 @@ void handleMMPriority1(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 			ptpClock, MM_PRIORITY1,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming PRIORITY2 management message type*/
@@ -1147,7 +1134,6 @@ void handleMMPriority2(MsgManagement* incoming, MsgManagement* outgoing, PtpCloc
 			ptpClock, MM_PRIORITY2,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming DOMAIN management message type*/
@@ -1191,7 +1177,6 @@ void handleMMDomain(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* 
 			ptpClock, MM_DOMAIN,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming LOG_ANNOUNCE_INTERVAL management message type*/
@@ -1235,7 +1220,6 @@ void handleMMLogAnnounceInterval(MsgManagement* incoming, MsgManagement* outgoin
 			ptpClock, MM_LOG_ANNOUNCE_INTERVAL,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming ANNOUNCE_RECEIPT_TIMEOUT management message type*/
@@ -1279,7 +1263,6 @@ void handleMMAnnounceReceiptTimeout(MsgManagement* incoming, MsgManagement* outg
 			ptpClock, MM_ANNOUNCE_RECEIPT_TIMEOUT,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming LOG_SYNC_INTERVAL management message type*/
@@ -1323,7 +1306,6 @@ void handleMMLogSyncInterval(MsgManagement* incoming, MsgManagement* outgoing, P
 			ptpClock, MM_LOG_SYNC_INTERVAL,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming VERSION_NUMBER management message type*/
@@ -1361,7 +1343,6 @@ void handleMMVersionNumber(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 			ptpClock, MM_VERSION_NUMBER,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming ENABLE_PORT management message type*/
@@ -1391,7 +1372,6 @@ void handleMMEnablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpClo
 			ptpClock, MM_ENABLE_PORT,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming DISABLE_PORT management message type*/
@@ -1422,7 +1402,6 @@ void handleMMDisablePort(MsgManagement* incoming, MsgManagement* outgoing, PtpCl
 			ptpClock, MM_DISABLE_PORT,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming TIME management message type*/
@@ -1467,7 +1446,6 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 			ptpClock, MM_TIME,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming CLOCK_ACCURACY management message type*/
@@ -1513,7 +1491,6 @@ void handleMMClockAccuracy(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 			ptpClock, MM_CLOCK_ACCURACY,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming UTC_PROPERTIES management message type*/
@@ -1567,7 +1544,6 @@ void handleMMUtcProperties(MsgManagement* incoming, MsgManagement* outgoing, Ptp
 			ptpClock, MM_UTC_PROPERTIES,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming TRACEABILITY_PROPERTIES management message type*/
@@ -1614,7 +1590,6 @@ void handleMMTraceabilityProperties(MsgManagement* incoming, MsgManagement* outg
 			ptpClock, MM_TRACEABILITY_PROPERTIES,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming TIMESCALE_PROPERTIES management message type*/
@@ -1656,7 +1631,6 @@ void handleMMTimescaleProperties(MsgManagement* incoming, MsgManagement* outgoin
 			ptpClock, MM_TRACEABILITY_PROPERTIES,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming UNICAST_NEGOTIATION_ENABLE management message type*/
@@ -1698,7 +1672,6 @@ void handleMMUnicastNegotiationEnable(MsgManagement* incoming, MsgManagement* ou
 			ptpClock, MM_UNICAST_NEGOTIATION_ENABLE,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming DELAY_MECHANISM management message type*/
@@ -1744,7 +1717,6 @@ void handleMMDelayMechanism(MsgManagement* incoming, MsgManagement* outgoing, Pt
 			ptpClock, MM_DELAY_MECHANISM,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming LOG_MIN_PDELAY_REQ_INTERVAL management message type*/
@@ -1788,7 +1760,6 @@ void handleMMLogMinPdelayReqInterval(MsgManagement* incoming, MsgManagement* out
 			ptpClock, MM_LOG_MIN_PDELAY_REQ_INTERVAL,
 			NOT_SUPPORTED);
 	}
-
 }
 
 /**\brief Handle incoming ERROR_STATUS management message type*/
@@ -1828,7 +1799,6 @@ void handleErrorManagementMessage(MsgManagement *incoming, MsgManagement *outgoi
 	data->reserved = 0x00;
 	data->displayData.lengthField = 0;
 	data->displayData.textField = NULL;
-
 }
 
 #if 0
@@ -1836,9 +1806,7 @@ static void
 issueManagement(MsgHeader *header,MsgManagement *manage,const RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
-
 	ptpClock->counters.managementMessagesSent++;
-
 }
 #endif
 
@@ -1846,7 +1814,6 @@ static void
 issueManagementRespOrAck(MsgManagement *outgoing, Integer32 dst, const RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
-
 	/* pack ManagementTLV */
 	msgPackManagementTLV( ptpClock->msgObuf, outgoing, ptpClock);
 
@@ -1872,7 +1839,6 @@ issueManagementRespOrAck(MsgManagement *outgoing, Integer32 dst, const RunTimeOp
 static void
 issueManagementErrorStatus(MsgManagement *outgoing, Integer32 dst, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-
 	/* pack ManagementErrorStatusTLV */
 	msgPackManagementErrorStatusTLV( ptpClock->msgObuf, outgoing, ptpClock);
 
@@ -1892,5 +1858,4 @@ issueManagementErrorStatus(MsgManagement *outgoing, Integer32 dst, const RunTime
 		DBGV("Management error status msg sent \n");
 		ptpClock->counters.managementMessagesSent++;
 	}
-
 }

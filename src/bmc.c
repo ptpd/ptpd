@@ -61,7 +61,7 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	int i,j;
 	j=0;
 	DBG("initData\n");
-	
+
 	/* Default data set */
 	ptpClock->defaultDS.twoStepFlag = TWO_STEP_FLAG;
 
@@ -175,7 +175,6 @@ void initData(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 int
 cmpPortIdentity(const PortIdentity *a, const PortIdentity *b)
 {
-
     int comp;
 
     /* compare clock identity first */
@@ -197,12 +196,11 @@ cmpPortIdentity(const PortIdentity *a, const PortIdentity *b)
     }
 
     return 0;
-
 }
 
 /* compare portIdentity to an empty one */
-Boolean portIdentityEmpty(PortIdentity *portIdentity) {
-
+Boolean portIdentityEmpty(PortIdentity *portIdentity)
+{
     PortIdentity zero;
     memset(&zero, 0, sizeof(PortIdentity));
 
@@ -214,8 +212,8 @@ Boolean portIdentityEmpty(PortIdentity *portIdentity) {
 }
 
 /* compare portIdentity to all ones port identity */
-Boolean portIdentityAllOnes(PortIdentity *portIdentity) {
-
+Boolean portIdentityAllOnes(PortIdentity *portIdentity)
+{
     PortIdentity allOnes;
     memset(&allOnes, 0xFF, sizeof(PortIdentity));
 
@@ -231,7 +229,7 @@ void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
 	/*Current data set update*/
 	ptpClock->currentDS.stepsRemoved = 0;
-	
+
 	clearTime(&ptpClock->currentDS.offsetFromMaster);
 	clearTime(&ptpClock->currentDS.meanPathDelay);
 
@@ -270,7 +268,6 @@ void m1(const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    ptpClock->timePropertiesDS.leap59 = FALSE;
 	    ptpClock->timePropertiesDS.leap61 = FALSE;
 	}
-
 }
 
 
@@ -282,14 +279,12 @@ void p1(PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 		ptpClock->timePropertiesDS.currentUtcOffsetValid = rtOpts->timeProperties.currentUtcOffsetValid;
 		ptpClock->timePropertiesDS.currentUtcOffset = rtOpts->timeProperties.currentUtcOffset;
 	}
-	
 }
 
 
 /*Local clock is synchronized to Ebest Table 16 (9.3.5) of the spec*/
 void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 {
-
 	Boolean firstUpdate = !cmpPortIdentity(&ptpClock->parentDS.parentPortIdentity, &ptpClock->portDS.portIdentity);
 	TimePropertiesDS tpPrevious = ptpClock->timePropertiesDS;
 
@@ -387,7 +382,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	if(!firstUpdate && memcmp(&tpPrevious,&ptpClock->timePropertiesDS, sizeof(TimePropertiesDS))) {
 	    /* this is an event - will be picked up and dispatched, no need to set false */
 	    SET_ALARM(ALRM_TIMEPROP_CHANGE, TRUE);
-	} 
+	}
 
 	/* non-slave logic done, exit if not slave */
         if (ptpClock->portDS.portState != PTP_SLAVE) {
@@ -424,7 +419,7 @@ void s1(MsgHeader *header,MsgAnnounce *announce,PtpClock *ptpClock, const RunTim
 	/* changes in flags while not waiting for leap second */
 
 	if(!ptpClock->leapSecondPending &&  !ptpClock->leapSecondInProgress) {
-	
+
 	    if(rtOpts->leapSecondHandling == LEAP_ACCEPT) {
 		ptpClock->clockStatus.leapInsert = ptpClock->timePropertiesDS.leap61;
 		ptpClock->clockStatus.leapDelete = ptpClock->timePropertiesDS.leap59;
@@ -477,7 +472,6 @@ copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
         header->flagField1 |= ptpClock->timePropertiesDS.ptpTimescale		<< 3;
         header->flagField1 |= ptpClock->timePropertiesDS.timeTraceable		<< 4;
         header->flagField1 |= ptpClock->timePropertiesDS.frequencyTraceable	<< 5;
-
 }
 
 
@@ -487,8 +481,6 @@ copyD0(MsgHeader *header, MsgAnnounce *announce, PtpClock *ptpClock)
 static Integer8
 bmcDataSetComparison(const ForeignMasterRecord *a, const ForeignMasterRecord *b, const PtpClock *ptpClock, const RunTimeOpts *rtOpts)
 {
-
-
 	DBGV("Data set comparison \n");
 	short comp = 0;
 
@@ -562,14 +554,14 @@ bmcDataSetComparison(const ForeignMasterRecord *a, const ForeignMasterRecord *b,
 dataset_comp_part_1:
 
 	/* OPTIONAL domain comparison / any domain */
-	
+
 	if(rtOpts->anyDomain) {
 	    /* part 1: preferred domain wins */
 	    if(a->header.domainNumber == rtOpts->domainNumber && b->header.domainNumber != ptpClock->defaultDS.domainNumber)
 		return -1;
 	    if(a->header.domainNumber != rtOpts->domainNumber && b->header.domainNumber == ptpClock->defaultDS.domainNumber)
 		return 1;
-	
+
 	    /* part 2: lower domain wins */
 	    if(a->header.domainNumber < b->header.domainNumber)
 		return -1;
@@ -610,7 +602,7 @@ dataset_comp_part_1:
 	if (a->announce.grandmasterClockQuality.clockClass >
 			b->announce.grandmasterClockQuality.clockClass)
 		return 1;
-	
+
 	/* Compare GM accuracy */
 	if (a->announce.grandmasterClockQuality.clockAccuracy <
 			b->announce.grandmasterClockQuality.clockAccuracy)
@@ -626,7 +618,7 @@ dataset_comp_part_1:
 	if (a->announce.grandmasterClockQuality.offsetScaledLogVariance >
 			b->announce.grandmasterClockQuality.offsetScaledLogVariance)
 		return 1;
-	
+
 	/* Compare GM priority2 */
 	if (a->announce.grandmasterPriority2 < b->announce.grandmasterPriority2)
 		return -1;
@@ -657,7 +649,7 @@ bmcStateDecision(ForeignMasterRecord *foreign, const RunTimeOpts *rtOpts, PtpClo
 		(foreign->header.sourcePortIdentity.portNumber != ptpClock->parentDS.parentPortIdentity.portNumber));
 
 
-	
+
 	if (ptpClock->defaultDS.slaveOnly) {
 		/* master has changed: mark old grants for cancellation - refreshUnicastGrants will pick this up */
 		if(newBM && (ptpClock->parentGrants != NULL)) {

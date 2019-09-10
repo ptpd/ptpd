@@ -17,108 +17,102 @@
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) && \
   !defined(__APPLE__) && !defined(__OpenBSD__) && !defined(__sun) && !defined(__QNXNTO__)
-#error PTPD hasn't been ported to this OS - should be possible \
+#  error PTPD hasn't been ported to this OS - should be possible \
 if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.net
 #endif
 
-#ifdef	linux
-#include<netinet/in.h>
-#include<net/if.h>
-#include<net/if_arp.h>
-#include <ifaddrs.h>
-#define IFACE_NAME_LENGTH         IF_NAMESIZE
-#define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
+#ifdef linux
+#  include<netinet/in.h>
+#  include<net/if.h>
+#  include<net/if_arp.h>
+#  include <ifaddrs.h>
 
-#define IFCONF_LENGTH 10
-
-#define octet ether_addr_octet
+#  define IFACE_NAME_LENGTH         IF_NAMESIZE
+#  define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
+#  define IFCONF_LENGTH 10
+#  define octet ether_addr_octet
 #endif /* linux */
 
-#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__OpenBSD__) || defined(__sun) || defined(__QNXNTO__)
-# include <sys/types.h>
-# include <sys/socket.h>
-#ifdef HAVE_SYS_SOCKIO_H
-#include <sys/sockio.h>
-#endif /* HAVE_SYS_SOCKIO_H */
-# include <netinet/in.h>
-# include <net/if.h>
-# include <net/if_dl.h>
-# include <net/if_types.h>
-#ifdef HAVE_NET_IF_ETHER_H
-#  include <net/if_ether.h>
-#endif
-#ifdef HAVE_SYS_UIO_H
-#  include <sys/uio.h>
-#endif
-#ifdef HAVE_NET_ETHERNET_H
-#  include <net/ethernet.h>
-#endif
-#include <ifaddrs.h>
-# define IFACE_NAME_LENGTH         IF_NAMESIZE
-# define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
+#if defined(__NetBSD__) || defined(__FreeBSD__) || defined(__APPLE__) \
+  || defined(__OpenBSD__) || defined(__sun) || defined(__QNXNTO__)
+#  include <sys/types.h>
+#  include <sys/socket.h>
+#  ifdef HAVE_SYS_SOCKIO_H
+#    include <sys/sockio.h>
+#  endif /* HAVE_SYS_SOCKIO_H */
+#  include <netinet/in.h>
+#  include <net/if.h>
+#  include <net/if_dl.h>
+#  include <net/if_types.h>
+#  ifdef HAVE_NET_IF_ETHER_H
+#    include <net/if_ether.h>
+#  endif
+#  ifdef HAVE_SYS_UIO_H
+#    include <sys/uio.h>
+#  endif
+#  ifdef HAVE_NET_ETHERNET_H
+#    include <net/ethernet.h>
+#  endif
+#  include <ifaddrs.h>
+#  define IFACE_NAME_LENGTH         IF_NAMESIZE
+#  define NET_ADDRESS_LENGTH        INET_ADDRSTRLEN
 
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif /* HAVE_SYS_PARAM_H */
+#  ifdef HAVE_SYS_PARAM_H
+#    include <sys/param.h>
+#  endif /* HAVE_SYS_PARAM_H */
 
-#ifdef __QNXNTO__
-#include <sys/neutrino.h>
-#include <sys/syspage.h>
-#define BSD_INTERFACE_FUNCTIONS
-#endif /* __QNXNTO __ */
+#  ifdef __QNXNTO__
+#    include <sys/neutrino.h>
+#    include <sys/syspage.h>
+#    define BSD_INTERFACE_FUNCTIONS
+#  endif /* __QNXNTO __ */
 
+#  if !defined(ETHER_ADDR_LEN) && defined(ETHERADDRL)
+#    define ETHER_ADDR_LEN ETHERADDRL
+#  endif /* ETHER_ADDR_LEN && ETHERADDRL */
 
-#if !defined(ETHER_ADDR_LEN) && defined(ETHERADDRL)
-#	define ETHER_ADDR_LEN ETHERADDRL
-#endif /* ETHER_ADDR_LEN && ETHERADDRL */
+#  ifndef ETHER_HDR_LEN
+#    define ETHER_HDR_LEN sizeof (struct ether_header)
+#  endif /* ETHER_ADDR_LEN && ETHERADDRL */
 
-#ifndef ETHER_HDR_LEN
-#	define ETHER_HDR_LEN sizeof (struct ether_header)
-#endif /* ETHER_ADDR_LEN && ETHERADDRL */
-
-
-# define IFCONF_LENGTH 10
-
-# define adjtimex ntp_adjtime
-
-
+#  define IFCONF_LENGTH 10
+#  define adjtimex ntp_adjtime
 #endif
 
 #ifdef HAVE_MACHINE_ENDIAN_H
-#	include <machine/endian.h>
+#  include <machine/endian.h>
 #endif /* HAVE_MACHINE_ENDIAN_H */
 
 #ifdef HAVE_ENDIAN_H
-#	include <endian.h>
+#  include <endian.h>
 #endif /* HAVE_ENDIAN_H */
 
 #ifdef HAVE_SYS_ISA_DEFS_H
-#	include <sys/isa_defs.h>
+#  include <sys/isa_defs.h>
 #endif /* HAVE_SYS_ISA_DEFS_H */
 
-# if BYTE_ORDER == LITTLE_ENDIAN || defined(_LITTLE_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
-#   define PTPD_LSBF
-# elif BYTE_ORDER == BIG_ENDIAN || defined(_BIG_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN)
-#   define PTPD_MSBF
-# endif
+#if BYTE_ORDER == LITTLE_ENDIAN || defined(_LITTLE_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
+#  define PTPD_LSBF
+#elif BYTE_ORDER == BIG_ENDIAN || defined(_BIG_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN)
+#  define PTPD_MSBF
+#endif
 
 #define CLOCK_IDENTITY_LENGTH 8
 #define ADJ_FREQ_MAX 500000
 
 /* UDP/IPv4 dependent */
 #ifndef INADDR_LOOPBACK
-#define INADDR_LOOPBACK 0x7f000001UL
+#  define INADDR_LOOPBACK 0x7f000001UL
 #endif
 
 #define SUBDOMAIN_ADDRESS_LENGTH  4
 #define PORT_ADDRESS_LENGTH       2
 #define PTP_UUID_LENGTH           6
-#define CLOCK_IDENTITY_LENGTH	  8
+#define CLOCK_IDENTITY_LENGTH     8
 #define FLAG_FIELD_LENGTH         2
 
 #define PACKET_SIZE  300
-#define PACKET_BEGIN_UDP (ETHER_HDR_LEN + sizeof(struct ip) + \
-	    sizeof(struct udphdr))
+#define PACKET_BEGIN_UDP (ETHER_HDR_LEN + sizeof(struct ip) + sizeof(struct udphdr))
 #define PACKET_BEGIN_ETHER (ETHER_HDR_LEN)
 
 #define PTP_EVENT_PORT    319
@@ -134,9 +128,9 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #define PTP_ETHER_PEER "01:80:c2:00:00:0E"
 
 #ifdef PTPD_UNICAST_MAX
-#define UNICAST_MAX_DESTINATIONS PTPD_UNICAST_MAX
+#  define UNICAST_MAX_DESTINATIONS PTPD_UNICAST_MAX
 #else
-#define UNICAST_MAX_DESTINATIONS 16
+#  define UNICAST_MAX_DESTINATIONS 16
 #endif /* PTPD_UNICAST_MAX */
 
 /* dummy clock driver designation in preparation for generic clock driver API */

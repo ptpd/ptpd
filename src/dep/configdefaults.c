@@ -158,7 +158,6 @@ static const ConfigTemplate configTemplates[] = {
 void
 loadDefaultSettings( RunTimeOpts* rtOpts )
 {
-
 	/* Wipe the memory first to avoid unconsistent behaviour - no need to set Boolean to FALSE, int to 0 etc. */
 	memset(rtOpts, 0, sizeof(RunTimeOpts));
 
@@ -442,7 +441,6 @@ loadDefaultSettings( RunTimeOpts* rtOpts )
 	// by default we don't check Sync message sequence continuity
 	rtOpts->syncSequenceChecking = FALSE;
 	rtOpts->clockUpdateTimeout = 0;
-
 }
 
 /* The PtpEnginePreset structure for reference:
@@ -460,7 +458,6 @@ typedef struct {
 PtpEnginePreset
 getPtpPreset(int presetNumber, RunTimeOpts* rtOpts)
 {
-
 	PtpEnginePreset ret;
 
 	memset(&ret,0,sizeof(ret));
@@ -505,8 +502,8 @@ getPtpPreset(int presetNumber, RunTimeOpts* rtOpts)
 
 /* Apply template search from dictionary src to dictionary dst */
 static int
-applyTemplateFromDictionary(dictionary *dict, dictionary *src, char *search, int overwrite) {
-
+applyTemplateFromDictionary(dictionary *dict, dictionary *src, char *search, int overwrite)
+{
 	char *key, *value, *pos;
 	int i = 0;
 	int found;
@@ -536,11 +533,10 @@ applyTemplateFromDictionary(dictionary *dict, dictionary *src, char *search, int
 	}
 
 	return found;
-
 }
 
-static void loadFileList(dictionary *dict, char *list) {
-
+static void loadFileList(dictionary *dict, char *list)
+{
     char* stash;
     char* text_;
     char* text__;
@@ -564,13 +560,12 @@ static void loadFileList(dictionary *dict, char *list) {
     if(text_ != NULL) {
 	free(text_);
     }
-
 }
 
 /* split list to tokens, look for each template and apply it if found */
 int
-applyConfigTemplates(dictionary *target, char *templateNames, char *files) {
-
+applyConfigTemplates(dictionary *target, char *templateNames, char *files)
+{
     ConfigTemplate *template = NULL;
     TemplateOption *option = NULL;
     char *templateName = NULL;
@@ -649,13 +644,12 @@ applyConfigTemplates(dictionary *target, char *templateNames, char *files) {
     dictionary_del(&fileDict);
     dictionary_del(&dict);
     return 0;
-
 }
 
 /* dump the list of templates provided */
 void
-dumpConfigTemplates() {
-
+dumpConfigTemplates()
+{
     ConfigTemplate *template = NULL;
     TemplateOption *option = NULL;
 	printf("\n");
@@ -671,5 +665,4 @@ dumpConfigTemplates() {
 	    template++;
 	    printf("\n-\n\n");
 	}
-
 }

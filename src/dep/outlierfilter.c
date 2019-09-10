@@ -38,7 +38,7 @@
 #include "../ptpd.h"
 
 #ifdef LOCAL_PREFIX
-#undef LOCAL_PREFIX
+#  undef LOCAL_PREFIX
 #endif
 
 #define LOCAL_PREFIX "OutlierFilter"
@@ -55,7 +55,6 @@ static int outlierFilterDisplay(OutlierFilter *filter);
 int
 outlierFilterSetup(OutlierFilter *filter)
 {
-
 	if(filter == NULL) {
 	    return 0;
 	}
@@ -71,12 +70,11 @@ outlierFilterSetup(OutlierFilter *filter)
 	filter->update		= outlierFilterUpdate;
 
 	return 1;
-
 }
 
 static int
-outlierFilterInit(OutlierFilter *filter, OutlierFilterConfig *config, const char* id) {
-
+outlierFilterInit(OutlierFilter *filter, OutlierFilterConfig *config, const char* id)
+{
 	filter->config = *config;
 
 	 if (config->enabled) {
@@ -95,12 +93,11 @@ outlierFilterInit(OutlierFilter *filter, OutlierFilterConfig *config, const char
 		filter->delayCredit = filter->config.delayCredit;
 
 	return 1;
-
 }
 
 static int
-outlierFilterReset(OutlierFilter *filter) {
-
+outlierFilterReset(OutlierFilter *filter)
+{
 	resetDoubleMovingStdDev(filter->rawStats);
 	resetDoubleMovingMean(filter->filteredStats);
 	filter->lastOutlier = FALSE;
@@ -113,12 +110,11 @@ outlierFilterReset(OutlierFilter *filter) {
 	filter->blocking = FALSE;
 
 	return 1;
-
 }
 
 static int
-outlierFilterShutdown(OutlierFilter *filter) {
-
+outlierFilterShutdown(OutlierFilter *filter)
+{
          if(filter->rawStats != NULL ) {
         	freeDoubleMovingStdDev(&filter->rawStats);
 	}
@@ -130,12 +126,11 @@ outlierFilterShutdown(OutlierFilter *filter) {
         resetDoublePermanentMean(&filter->acceptedStats);
 
 	return 1;
-
 }
 
 static
-int outlierFilterTune(OutlierFilter *filter) {
-
+int outlierFilterTune(OutlierFilter *filter)
+{
 	DBG("tuning outlier filter: %s\n", filter->id);
 
 	if(!filter->config.autoTune || (filter->autoTuneSamples < 1)) {
@@ -173,40 +168,33 @@ int outlierFilterTune(OutlierFilter *filter) {
 	filter->autoTuneOutliers  = 0;
 
 	return 1;
-
 }
 
 static void
 outlierFilterUpdate(OutlierFilter *filter)
 {
-
 	/* not used yet */
-
-
 }
 
 static Boolean
 outlierFilterConfigure(OutlierFilter *filter, OutlierFilterConfig *config)
 {
-
 	/* restart needed */
 	if(filter->config.capacity != config->capacity) {
 		return TRUE;
 	}
-	
+
 	filter->config = *config;
 
 	filter->reset(filter);
 
 	return FALSE;
-
 }
 
 /* 2 x fairy dust, 3 x unicorn droppings, 1 x magic beanstalk juice. blend, spray on the affected area twice per day */
 static Boolean
 outlierFilterFilter(OutlierFilter *filter, double sample)
 {
-
 	/* true = accepted - this is to tell the user if we advised to throw away the sample */
 	Boolean ret = TRUE;
 
@@ -335,12 +323,11 @@ outlierFilterFilter(OutlierFilter *filter, double sample)
 	}
 
 	return ret;
-
 }
 
 
-static int outlierFilterDisplay(OutlierFilter *filter) {
-
+static int outlierFilterDisplay(OutlierFilter *filter)
+{
 	char *id = filter->id;
 
 	INFO("%s outlier filter info:\n",
@@ -363,7 +350,5 @@ static int outlierFilterDisplay(OutlierFilter *filter) {
 	INFO("                 %s.thresholdStep : %.02f\n",
 	    id, filter->config.thresholdStep);
 
-
 	return 1;
 }
-

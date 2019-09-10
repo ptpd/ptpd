@@ -33,7 +33,7 @@
 
 #ifdef PTPD_STATISTICS
 /* Configuration changes require filter restart */
-#define PTPD_RESTART_FILTERS	1 << 8
+#  define PTPD_RESTART_FILTERS	1 << 8
 #endif
 
 #define PTPD_RESTART_ACLS	1 << 9

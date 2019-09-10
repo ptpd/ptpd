@@ -57,32 +57,32 @@
 #include "../ptpd.h"
 
 #ifdef PTPD_PCAP
-#ifdef HAVE_PCAP_PCAP_H
-#include <pcap/pcap.h>
-#else /* !HAVE_PCAP_PCAP_H */
+#  ifdef HAVE_PCAP_PCAP_H
+#    include <pcap/pcap.h>
+#  else /* !HAVE_PCAP_PCAP_H */
 /* Cases like RHEL5 and others where only pcap.h exists */
-#ifdef HAVE_PCAP_H
-#include <pcap.h>
-#endif /* HAVE_PCAP_H */
-#endif
-#define PCAP_TIMEOUT 1 /* expressed in milliseconds */
+#    ifdef HAVE_PCAP_H
+#      include <pcap.h>
+#    endif /* HAVE_PCAP_H */
+#  endif
+#  define PCAP_TIMEOUT 1 /* expressed in milliseconds */
 #endif
 
 #if defined PTPD_SNMP
-#include <net-snmp/net-snmp-config.h>
-#include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/agent/net-snmp-agent-includes.h>
+#  include <net-snmp/net-snmp-config.h>
+#  include <net-snmp/net-snmp-includes.h>
+#  include <net-snmp/agent/net-snmp-agent-includes.h>
 #endif
 
 /* choose kernel-level nanoseconds or microseconds resolution on the client-side */
 #if !defined(SO_TIMESTAMPING) && !defined(SO_TIMESTAMPNS) && !defined(SO_TIMESTAMP) && !defined(SO_BINTIME)
-#error No kernel-level support for packet timestamping detected!
+#  error No kernel-level support for packet timestamping detected!
 #endif
 
 #ifdef SO_TIMESTAMPING
-#include <linux/net_tstamp.h>
-#include <linux/sockios.h>
-#include <linux/ethtool.h>
+#  include <linux/net_tstamp.h>
+#  include <linux/sockios.h>
+#  include <linux/ethtool.h>
 #endif /* SO_TIMESTAMPING */
 
 /**
@@ -131,7 +131,7 @@ netShutdownMulticast(NetPath * netPath)
 	/* Close Peer Multicast */
 	netShutdownMulticastIPv4(netPath, netPath->peerMulticastAddr);
 	netPath->peerMulticastAddr = 0;
-	
+
 	return TRUE;
 }
 
@@ -187,7 +187,6 @@ netShutdown(NetPath * netPath)
 static int
 interfaceExists(char* ifaceName)
 {
-
     int ret;
     struct ifaddrs *ifaddr, *ifa;
 
@@ -223,7 +222,6 @@ end:
 static int
 getInterfaceFlags(char* ifaceName, unsigned int* flags)
 {
-
     int ret;
     struct ifaddrs *ifaddr, *ifa;
 
@@ -262,8 +260,8 @@ end:
    Return 1 on success, 0 when no suitable address available, -1 on failure.
  */
 static int
-getInterfaceAddress(char* ifaceName, int family, struct sockaddr* addr) {
-
+getInterfaceAddress(char* ifaceName, int family, struct sockaddr* addr)
+{
     int ret;
     struct ifaddrs *ifaddr, *ifa;
 
@@ -307,7 +305,6 @@ end:
 static int
 getHwAddress (char* ifaceName, unsigned char* hwAddr, int hwAddrSize)
 {
-
     int ret;
     if(!strlen(ifaceName))
 	return 0;
@@ -437,13 +434,13 @@ static int getInterfaceIndex(char *ifaceName)
 
     close(sockfd);
 
-#if defined(HAVE_STRUCT_IFREQ_IFR_INDEX)
+#  if defined(HAVE_STRUCT_IFREQ_IFR_INDEX)
     return ifr.ifr_index;
-#elif defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
+#  elif defined(HAVE_STRUCT_IFREQ_IFR_IFINDEX)
     return ifr.ifr_ifindex;
-#else
+#  else
     return 0;
-#endif
+#  endif
 
 #endif /* !SIOCGIFINDEX */
 
@@ -451,17 +448,13 @@ static int getInterfaceIndex(char *ifaceName)
 
 static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
 {
-
     int res;
 
     res = interfaceExists(ifaceName);
 
     if (res == -1) {
-
 	return FALSE;
-
     } else if (res == 0) {
-
 	ERROR("Interface %s does not exist.\n", ifaceName);
 	return FALSE;
     }
@@ -469,9 +462,7 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
     res = getInterfaceAddress(ifaceName, ifaceInfo->addressFamily, &ifaceInfo->afAddress);
 
     if (res == -1) {
-
 	return FALSE;
-
     }
 
     ifaceInfo->hasAfAddress = res;
@@ -479,9 +470,7 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
     res = getHwAddress(ifaceName, (unsigned char*)ifaceInfo->hwAddress, 6);
 
     if (res == -1) {
-
 	return FALSE;
-
     }
 
     ifaceInfo->hasHwAddress = res;
@@ -489,9 +478,7 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
     res = getInterfaceFlags(ifaceName, &ifaceInfo->flags);
 
     if (res == -1) {
-
 	return FALSE;
-
     }
 
     res  = getInterfaceIndex(ifaceName);
@@ -503,14 +490,11 @@ static Boolean getInterfaceInfo(char* ifaceName, InterfaceInfo* ifaceInfo)
     }
 
     return TRUE;
-
-
 }
 
 Boolean
 testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
 {
-
 	InterfaceInfo info;
 
 	info.addressFamily = AF_INET;
@@ -553,7 +537,6 @@ testInterface(char * ifaceName, const RunTimeOpts* rtOpts)
     }
 
 	return TRUE;
-
 }
 
 /**
@@ -647,7 +630,7 @@ netInitMulticast(NetPath * netPath,  const RunTimeOpts * rtOpts)
 		return FALSE;
 	}
 	/* End of Peer multicast Ip address init */
-	
+
 	return TRUE;
 }
 
@@ -682,7 +665,7 @@ netSetMulticastLoopback(NetPath * netPath, Boolean value) {
 		PERROR("Failed to set multicast loopback");
 		return FALSE;
 	}
-	
+
 	return TRUE;
 }
 
@@ -767,7 +750,6 @@ failure:
 static Boolean
 netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 {
-
 	int val = 1;
 	Boolean result = TRUE;
 #if defined(SO_TIMESTAMPING) && defined(SO_TIMESTAMPNS)/* Linux - current API */
@@ -777,8 +759,8 @@ netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 	    SOF_TIMESTAMPING_SOFTWARE;
 
 /* unless compiled with PTPD_EXPERIMENTAL, check if we support the desired tstamp capabilities */
-#ifndef PTPD_EXPERIMENTAL
-#ifdef ETHTOOL_GET_TS_INFO
+#  ifndef PTPD_EXPERIMENTAL
+#    ifdef ETHTOOL_GET_TS_INFO
 
        struct ethtool_ts_info tsInfo;
 	struct ifreq ifRequest;
@@ -801,11 +783,11 @@ netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 		val = 1;
 		netPath->txTimestampFailure = TRUE;
 	}
-#else
+#    else
 	netPath->txTimestampFailure = TRUE;
 	val = 1;
-#endif /* ETHTOOL_GET_TS_INFO */
-#endif /* PTPD_EXPERIMENTAL */
+#    endif /* ETHTOOL_GET_TS_INFO */
+#  endif /* PTPD_EXPERIMENTAL */
 
 	if(val == 1) {
 	    if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
@@ -825,14 +807,14 @@ netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 
 #elif defined(SO_TIMESTAMPNS) /* Linux, Apple */
 	DBG("netInitTimestamping: trying to use SO_TIMESTAMPNS\n");
-	
+
 	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMPNS, &val, sizeof(int)) < 0) {
 		PERROR("netInitTimestamping: failed to enable SO_TIMESTAMPNS");
 		result = FALSE;
 	}
 #elif defined(SO_BINTIME) /* FreeBSD */
 	DBG("netInitTimestamping: trying to use SO_BINTIME\n");
-		
+
 	if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINTIME, &val, sizeof(int)) < 0) {
 		PERROR("netInitTimestamping: failed to enable SO_BINTIME");
 		result = FALSE;
@@ -840,12 +822,12 @@ netInitTimestamping(NetPath * netPath, const RunTimeOpts * rtOpts)
 #else
 	result = FALSE;
 #endif
-			
+
 /* fallback method */
 #if defined(SO_TIMESTAMP) /* Linux, Apple, FreeBSD */
 	if (!result) {
 		DBG("netInitTimestamping: trying to use SO_TIMESTAMP\n");
-		
+
 		if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_TIMESTAMP, &val, sizeof(int)) < 0) {
 			PERROR("netInitTimestamping: failed to enable SO_TIMESTAMP");
 			result = FALSE;
@@ -891,8 +873,7 @@ hostLookup(const char* hostname, Integer32* addr)
                 }
 	}
 
-return FALSE;
-
+    return FALSE;
 }
 
 /* parse a list of hosts to a list of IP addresses */
@@ -975,7 +956,6 @@ static int parseUnicastConfig(const RunTimeOpts *rtOpts, int maxCount, UnicastDe
     }
 
     return total;
-
 }
 
 
@@ -1019,13 +999,13 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #ifdef PTPD_PCAP
 	if (rtOpts->transport == IEEE_802_3) {
 		netPath->headerOffset = PACKET_BEGIN_ETHER;
-#ifdef HAVE_STRUCT_ETHER_ADDR_OCTET
+#  ifdef HAVE_STRUCT_ETHER_ADDR_OCTET
 		memcpy(netPath->etherDest.octet, ether_aton(PTP_ETHER_DST), ETHER_ADDR_LEN);
 		memcpy(netPath->peerEtherDest.octet, ether_aton(PTP_ETHER_PEER), ETHER_ADDR_LEN);
-#else
+#  else
 		memcpy(netPath->etherDest.ether_addr_octet, ether_aton(PTP_ETHER_DST), ETHER_ADDR_LEN);
 		memcpy(netPath->peerEtherDest.ether_addr_octet, ether_aton(PTP_ETHER_PEER), ETHER_ADDR_LEN);
-#endif /* HAVE_STRUCT_ETHER_ADDR_OCTET */
+#  endif /* HAVE_STRUCT_ETHER_ADDR_OCTET */
 	} else
 #endif
 		netPath->headerOffset = PACKET_BEGIN_UDP;
@@ -1127,7 +1107,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		     pcap_get_selectable_fd(netPath->pcapEvent)) < 0) {
 			PERROR("failed to get pcap event fd");
 			return FALSE;
-		}		
+		}
 		if ((netPath->pcapGeneral = pcap_open_live(rtOpts->ifaceName,
 							   PACKET_SIZE, promisc,
 							   PCAP_TIMEOUT,
@@ -1168,9 +1148,9 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		close(netPath->generalSock);
 		netPath->generalSock = -1;
 		/* TX timestamp is not generated for PCAP mode and Ethernet transport */
-#ifdef SO_TIMESTAMPING
+#  ifdef SO_TIMESTAMPING
 		netPath->txTimestampFailure = TRUE;
-#endif /* SO_TIMESTAMPING */
+#  endif /* SO_TIMESTAMPING */
 	} else {
 #endif
 		/* save interface address for IGMP refresh */
@@ -1263,7 +1243,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 #endif /* SO_RCVBUF */
 
 #ifdef USE_BINDTODEVICE
-#ifdef linux
+#  ifdef linux
 		/*
 		 * The following code makes sure that the data is only
 		 * received on the specified interface.  Without this option,
@@ -1280,7 +1260,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		 * wowczarek: 2.3.1-rc4@jun0215: this breaks the manual packet looping,
 		 * so may only be used for multicast-only
 		 */
-		
+
 		if ( rtOpts->ipMode == IPMODE_MULTICAST ) {
 		    if (setsockopt(netPath->eventSock, SOL_SOCKET, SO_BINDTODEVICE,
 				rtOpts->ifaceName, strlen(rtOpts->ifaceName)) < 0
@@ -1291,7 +1271,7 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		    }
 		}
 
-#endif
+#  endif
 #endif
 
 		/* Set socket dscp */
@@ -1543,7 +1523,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 	struct bintime * bt;
 	struct timespec ts;
 #endif
-	
+
 #if defined(SO_TIMESTAMP)
 	struct timeval * tv;
 #endif
@@ -1666,7 +1646,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 					break;
 				}
 #endif
-			
+
 #if defined(SO_TIMESTAMP)
 				if(cmsg->cmsg_type == SCM_TIMESTAMP) {
 					tv = (struct timeval *)CMSG_DATA(cmsg);
@@ -1702,7 +1682,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 		if (netPath->eventSock >= 0) {
 			recv(netPath->eventSock, buf, PACKET_SIZE, MSG_DONTWAIT);
 		}
-		
+
 		if ((ret = pcap_next_ex(netPath->pcapEvent, &pkt_header,
 					&pkt_data)) < 1) {
 			if (ret < 0)
@@ -1803,7 +1783,7 @@ netRecvGeneral(Octet * buf, NetPath * netPath)
 		if (netPath->generalSock >= 0)
 			recv(netPath->generalSock, buf, PACKET_SIZE, MSG_DONTWAIT);
 
-		
+
 		if (( ret = pcap_next_ex(netPath->pcapGeneral, &pkt_header,
 					 &pkt_data)) < 1) {
 			if (ret < 0)
@@ -1851,13 +1831,13 @@ netSendPcapEther(Octet * buf,  UInteger16 length,
 			struct ether_addr * dst, struct ether_addr * src,
 			pcap_t * pcap) {
 	Octet ether[ETHER_HDR_LEN + PACKET_SIZE];
-#ifdef HAVE_STRUCT_ETHER_ADDR_OCTET
+#  ifdef HAVE_STRUCT_ETHER_ADDR_OCTET
 	memcpy(ether, dst->octet, ETHER_ADDR_LEN);
 	memcpy(ether + ETHER_ADDR_LEN, src->octet, ETHER_ADDR_LEN);
-#else
+#  else
 	memcpy(ether, dst->ether_addr_octet, ETHER_ADDR_LEN);
 	memcpy(ether + ETHER_ADDR_LEN, src->ether_addr_octet, ETHER_ADDR_LEN);
-#endif /* HAVE_STRUCT_ETHER_ADDR_OCTET */
+#  endif /* HAVE_STRUCT_ETHER_ADDR_OCTET */
 	*((short *)&ether[2 * ETHER_ADDR_LEN]) = htons(PTP_ETHER_TYPE);
 	memcpy(ether + ETHER_HDR_LEN, buf, length);
 
@@ -1928,9 +1908,9 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				netPath->sentPacketsTotal++;
 			}
 #ifndef SO_TIMESTAMPING
-#if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
+#  if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 			*tim = tmpTime;
-#else
+#  else
 			/*
 			 * Need to forcibly loop back the packet since
 			 * we are not using multicast.
@@ -1941,15 +1921,15 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				     sizeof(struct sockaddr_in));
 			if (ret <= 0)
 				DBGV("Error looping back unicast event message\n");
-#endif
+#  endif
 
 #else
 
-#ifdef PTPD_PCAP
+#  ifdef PTPD_PCAP
 			if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
-#else
+#  else
 			if(!netPath->txTimestampFailure) {
-#endif /* PTPD_PCAP */
+#  endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
 					netPath->txTimestampFailure = TRUE;
 					if (tim) {
@@ -1968,7 +1948,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 				if (ret <= 0)
 					DBG("Error looping back unicast event message\n");
 			}
-#endif /* SO_TIMESTAMPING */		
+#endif /* SO_TIMESTAMPING */
 		} else {
 			addr.sin_addr.s_addr = netPath->multicastAddr;
                         /* Is TTL OK? */
@@ -1990,16 +1970,16 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 			}
 #ifdef SO_TIMESTAMPING
 
-#ifdef PTPD_PCAP
+#  ifdef PTPD_PCAP
 			if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
-#else
+#  else
 			if(!netPath->txTimestampFailure) {
-#endif /* PTPD_PCAP */
+#  endif /* PTPD_PCAP */
 				if(!getTxTimestamp(netPath, tim)) {
 					if (tim) {
 						clearTime(tim);
 					}
-					
+
 					netPath->txTimestampFailure = TRUE;
 
 					/* Try re-enabling MULTICAST_LOOP */
@@ -2089,7 +2069,6 @@ netSendGeneral(Octet * buf, UInteger16 length, NetPath * netPath,
 ssize_t
 netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, const RunTimeOpts *rtOpts, Integer32 dst)
 {
-
 	ssize_t ret;
 	struct sockaddr_in addr;
 
@@ -2127,7 +2106,7 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, const RunT
 
 	} else {
 		addr.sin_addr.s_addr = netPath->peerMulticastAddr;
-		
+
 		/* is TTL already 1 ? */
 		if(netPath->ttlGeneral != 1) {
 			/* Try setting TTL to 1 */
@@ -2147,9 +2126,8 @@ netSendPeerGeneral(Octet * buf, UInteger16 length, NetPath * netPath, const RunT
 			netPath->sentPackets++;
 			netPath->sentPacketsTotal++;
 		}
-	
-	return ret;
 
+	return ret;
 }
 
 ssize_t
@@ -2203,11 +2181,11 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 			DBG("Error looping back unicast peer event message\n");
 #else
 
-#ifdef PTPD_PCAP
+#  ifdef PTPD_PCAP
 		if((netPath->pcapEvent == NULL) && !netPath->txTimestampFailure) {
-#else
+#  else
 		if(!netPath->txTimestampFailure) {
-#endif /* PTPD_PCAP */
+#  endif /* PTPD_PCAP */
 			if(!getTxTimestamp(netPath, tim)) {
 				netPath->txTimestampFailure = TRUE;
 				if (tim) {
@@ -2248,7 +2226,7 @@ netSendPeerEvent(Octet * buf, UInteger16 length, NetPath * netPath, const RunTim
 				if (tim) {
 					clearTime(tim);
 				}
-					
+
 				netPath->txTimestampFailure = TRUE;
 
 				/* Try re-enabling MULTICAST_LOOP */

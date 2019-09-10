@@ -76,7 +76,7 @@ integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)
 	scaledNanoseconds = bigint.msb;
 	scaledNanoseconds <<=32;
 	scaledNanoseconds += bigint.lsb;
-	
+
 	/*determine sign of result big integer number*/
 
 	if (scaledNanoseconds < 0) {
@@ -96,7 +96,6 @@ integer64_to_internalTime(Integer64 bigint, TimeInternal * internal)
 void
 fromInternalTime(const TimeInternal * internal, Timestamp * external)
 {
-
 	/*
 	 * fromInternalTime is only used to convert time given by the system
 	 * to a timestamp.  As a consequence, no negative value can normally
@@ -121,7 +120,6 @@ fromInternalTime(const TimeInternal * internal, Timestamp * external)
 void
 toInternalTime(TimeInternal * internal, const Timestamp * external)
 {
-
 	/* Program will not run after 2038... */
 	if (external->secondsField.lsb < INT_MAX) {
 		internal->seconds = external->secondsField.lsb;
@@ -136,7 +134,6 @@ toInternalTime(TimeInternal * internal, const Timestamp * external)
 void
 ts_to_InternalTime(const struct timespec *a,  TimeInternal * b)
 {
-
 	b->seconds = a->tv_sec;
 	b->nanoseconds = a->tv_nsec;
 }
@@ -144,7 +141,6 @@ ts_to_InternalTime(const struct timespec *a,  TimeInternal * b)
 void
 tv_to_InternalTime(const struct timeval *a,  TimeInternal * b)
 {
-
 	b->seconds = a->tv_sec;
 	b->nanoseconds = a->tv_usec * 1000;
 }
@@ -194,7 +190,6 @@ subTime(TimeInternal * r, const TimeInternal * x, const TimeInternal * y)
 void
 divTime(TimeInternal *r, int divisor)
 {
-
 	uint64_t nanoseconds;
 
 	if (divisor <= 0)
@@ -273,7 +268,7 @@ is_Time_close(const TimeInternal *x, const TimeInternal *y, int nanos)
 	absTime(&r1);
 
 	nano_to_Time(&r2, nanos);
-	
+
 	return !gtTime(&r1, &r2);
 }
 
@@ -283,7 +278,7 @@ check_timestamp_is_fresh2(const TimeInternal * timeA, const TimeInternal * timeB
 {
 	int ret;
 
-	// maximum 1 millisecond offset	
+	// maximum 1 millisecond offset
 	ret = is_Time_close(timeA, timeB, 1000000);
 	DBG2("check_timestamp_is_fresh: %d\n ", ret);
 	return ret;
@@ -331,30 +326,25 @@ getPauseAfterMidnight(Integer8 announceInterval, int pausePeriod)
 double
 timeInternalToDouble(const TimeInternal * p)
 {
-
 	double sign = (p->seconds < 0 || p->nanoseconds < 0 ) ? -1.0 : 1.0;
 	return (sign * ( abs(p->seconds) + abs(p->nanoseconds) / 1E9 ));
-
 }
 
 TimeInternal
 doubleToTimeInternal(const double d)
 {
-
 	TimeInternal t = {0, 0};
 
 	t.seconds = trunc(d);
 	t.nanoseconds = (d - (t.seconds + 0.0)) * 1E9;
 
 	return t;
-
 }
 
 /* FNV-1 hash, 32-bit, optional modulo limiter */
 uint32_t
 fnvHash(void *input, size_t len, int modulo)
 {
-
     int i = 0;
 
     static uint32_t prime = 16777619;
@@ -369,5 +359,4 @@ fnvHash(void *input, size_t len, int modulo)
     }
 
     return (modulo > 0 ? hash % modulo : hash);
-
 }

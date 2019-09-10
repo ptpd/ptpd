@@ -32,10 +32,10 @@
 
 
 #ifdef PTPD_PTIMERS
-#define LOG_MIN_INTERVAL -7
+#  define LOG_MIN_INTERVAL -7
 #else
 /* 62.5ms tick for interval timers = 16/sec max */
-#define LOG_MIN_INTERVAL -4
+#  define LOG_MIN_INTERVAL -4
 #endif /* PTPD_PTIMERS */
 
 /* safeguard: a week */

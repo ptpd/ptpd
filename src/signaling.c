@@ -63,9 +63,7 @@ static void cancelNodeGrants(UnicastGrantTable *nodeTable, const RunTimeOpts *rt
 int
 msgIndex(Enumeration8 messageType)
 {
-
     switch(messageType) {
-
 	case ANNOUNCE:
 	    return ANNOUNCE_INDEXED;
 	case SYNC:
@@ -78,9 +76,7 @@ msgIndex(Enumeration8 messageType)
 	    return SIGNALING_INDEXED;
 	default:
 	    return -1;
-
     }
-
 }
 /* xedni yarra ot gnidnopserroc epyt egassem PTP eht nruteR */
 static Enumeration8
@@ -100,7 +96,6 @@ msgXedni(int messageIndex)
 	default:
 	    return 0xFF;
     }
-
 }
 
 /* update index table */
@@ -113,14 +108,12 @@ updateUnicastIndex(UnicastGrantTable *table, UnicastGrantIndex *index)
     if(!table->isPeer && index != NULL) {
 	index->data[hash] = table;
     }
-
 }
 
 /* return matching entry from index table */
 static UnicastGrantTable*
 lookupUnicastIndex(PortIdentity *portIdentity, Integer32 transportAddress, UnicastGrantIndex *index)
 {
-
     uint32_t hash = fnvHash((void*)portIdentity, sizeof(PortIdentity), UNICAST_MAX_DESTINATIONS);
 
     UnicastGrantTable* table;
@@ -144,7 +137,6 @@ lookupUnicastIndex(PortIdentity *portIdentity, Integer32 transportAddress, Unica
 	DBG("lookupUnicastIndex: hash collision\n");
 	return NULL;
     }
-
 }
 
 
@@ -158,7 +150,6 @@ UnicastGrantTable*
 findUnicastGrants
 (const PortIdentity* portIdentity, Integer32 transportAddress, UnicastGrantTable *grantTable, UnicastGrantIndex *index, int nodeCount, Boolean update)
 {
-
 	int i;
 
 	UnicastGrantTable *found = NULL;
@@ -173,7 +164,7 @@ findUnicastGrants
 	    tmpIdentity.portNumber |= index->portMask;
 	    found = lookupUnicastIndex(&tmpIdentity, transportAddress, index);
 	}
-	
+
 	if(found != NULL) {
 	    DBG("findUnicastGrants: cache hit\n");
 		/* do not overwrite address if zero given
@@ -264,7 +255,6 @@ findUnicastGrants
     }
 
     return firstFree;
-
 }
 
 
@@ -304,7 +294,6 @@ initOutgoingMsgSignaling(PortIdentity* targetPortIdentity, MsgSignaling* outgoin
 static void
 handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* outgoing, Integer32 sourceAddress, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-
 	char portId[PATH_MAX];
 	UnicastGrantData *myGrant;
 	UnicastGrantTable *nodeTable;
@@ -380,7 +369,7 @@ handleSMRequestUnicastTransmission(MsgSignaling* incoming, MsgSignaling* outgoin
 
 
 	if (granted) {
-	   
+
 	    /* do not deny if requested longer interval than supported - just offer the longest */
 	    if(requestData->logInterMessagePeriod > myGrant->logMaxInterval) {
 		    grantData->logInterMessagePeriod = myGrant->logMaxInterval;
@@ -447,7 +436,6 @@ finaliseResponse:
 static void
 handleSMGrantUnicastTransmission(MsgSignaling* incoming, Integer32 sourceAddress, UnicastGrantTable *grantTable, int nodeCount, PtpClock *ptpClock)
 {
-
 	char portId[PATH_MAX];
 	SMGrantUnicastTransmission *incomingGrant = (SMGrantUnicastTransmission*)incoming->tlv->valueField;
 	UnicastGrantData *myGrant;
@@ -499,7 +487,7 @@ handleSMGrantUnicastTransmission(MsgSignaling* incoming, Integer32 sourceAddress
 
 		/* grant was denied so let's try a higher interval next time */
     		myGrant->logInterval++;
-		
+
 		/* if we're above max, cycle through back to minimum */
 		if(myGrant->logInterval > myGrant->logMaxInterval) {
 			myGrant->logInterval = myGrant->logMinInterval;
@@ -523,7 +511,6 @@ handleSMGrantUnicastTransmission(MsgSignaling* incoming, Integer32 sourceAddress
 	myGrant->timeLeft = myGrant->duration;
 	myGrant->canceled = FALSE;
 	myGrant->cancelCount = 0;
-
 }
 
 /**\brief Handle incoming CANCEL_UNICAST_TRANSMISSION signaling message type*/
@@ -615,7 +602,6 @@ handleSMCancelUnicastTransmission(MsgSignaling* incoming, MsgSignaling* outgoing
 static void
 handleSMAcknowledgeCancelUnicastTransmission(MsgSignaling* incoming, Integer32 sourceAddress, PtpClock* ptpClock)
 {
-
 	char portId[PATH_MAX];
 	SMAcknowledgeCancelUnicastTransmission* requestData = (SMAcknowledgeCancelUnicastTransmission*)incoming->tlv->valueField;
 
@@ -668,13 +654,11 @@ handleSMAcknowledgeCancelUnicastTransmission(MsgSignaling* incoming, Integer32 s
 
 	DBG("Accepted ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION message for message %s from %s(%s)\n",
 			getMessageTypeName(messageType), portId, inet_ntoa(tmpAddr));
-
 }
 
 static Boolean
 prepareSMRequestUnicastTransmission(MsgSignaling* outgoing, UnicastGrantData *grant, PtpClock* ptpClock)
 {
-
 	DBGV("Preparing CANCEL_UNICAST_TRANSMISSION message\n");
 
 	/* Clause 16.1.4.1.3 */
@@ -705,13 +689,11 @@ prepareSMRequestUnicastTransmission(MsgSignaling* outgoing, UnicastGrantData *gr
 	grant->parent->grantData[SIGNALING_INDEXED].sentSeqId++;
 
 	return TRUE;
-
 }
 
 static Boolean
 prepareSMCancelUnicastTransmission(MsgSignaling* outgoing, UnicastGrantData* grant, PtpClock* ptpClock)
 {
-
 	DBGV("Preparing CANCEL_UNICAST_TRANSMISSION message\n");
 
 	initOutgoingMsgSignaling(&grant->parent->portIdentity, outgoing, ptpClock);
@@ -754,7 +736,6 @@ prepareSMCancelUnicastTransmission(MsgSignaling* outgoing, UnicastGrantData* gra
 	grant->parent->grantData[SIGNALING_INDEXED].sentSeqId++;
 
 	return TRUE;
-
 }
 
 /* prepare unicast grant table for use, and mark the right ones requestable */
@@ -762,7 +743,6 @@ void
 initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism, int nodeCount, UnicastDestination *destinations,
 			const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-
     int i,j;
 
     UnicastGrantData *grantData;
@@ -776,10 +756,10 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
 
     ptpClock->grantIndex.portMask = rtOpts->unicastPortMask;
 
-    for(j=0; j<nodeCount; j++) {   
+    for(j=0; j<nodeCount; j++) {
 
 	nodeTable = &grantTable[j];
-	
+
 	memset(nodeTable, 0, sizeof(UnicastGrantTable));
 
 	if(destinations != NULL && (destinations[j].transportAddress != 0)) {
@@ -821,7 +801,7 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
 		    grantData->logMaxInterval = rtOpts->logMaxAnnounceInterval;
 		    grantData->logInterval = grantData->logMinInterval;
 		    grantData->requestable = TRUE;
-		    break;		   
+		    break;
 
 		case SYNC:
 
@@ -829,7 +809,7 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
 		    grantData->logMaxInterval = rtOpts->logMaxSyncInterval;
 		    grantData->logInterval = grantData->logMinInterval;
 		    grantData->requestable = TRUE;
-		    break;		   
+		    break;
 
 		case DELAY_RESP:
 
@@ -838,7 +818,7 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
 		    grantData->logMaxInterval = rtOpts->logMaxDelayReqInterval;
 		    grantData->logInterval = grantData->logMinInterval;
 		    grantData->requestable = TRUE;
-		    break;		   
+		    break;
 
 		default:
 		    break;
@@ -847,8 +827,6 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
 	}
 
     }
-
-
 }
 
 
@@ -858,15 +836,14 @@ initUnicastGrantTable(UnicastGrantTable *grantTable, Enumeration8 delayMechanism
 void
 updateUnicastGrantTable(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts)
 {
-
     int i,j;
 
     UnicastGrantData *grantData;
     UnicastGrantTable *nodeTable;
 
-    for(j=0; j<nodeCount; j++) {   
+    for(j=0; j<nodeCount; j++) {
 	nodeTable = &grantTable[j];
-	
+
 	for(i=0; i < PTP_MAX_MESSAGE_INDEXED; i++) {
 
 	    grantData = &nodeTable->grantData[i];
@@ -887,12 +864,12 @@ updateUnicastGrantTable(UnicastGrantTable *grantTable, int nodeCount, const RunT
 
 		case ANNOUNCE:
 
-		   
+
 		    grantData->logMinInterval = rtOpts->logAnnounceInterval;
 		    grantData->logMaxInterval = rtOpts->logMaxAnnounceInterval;
 		    grantData->logInterval = grantData->logMinInterval;
 		    grantData->timeLeft = 0;
-		    break;		   
+		    break;
 
 		case SYNC:
 
@@ -900,7 +877,7 @@ updateUnicastGrantTable(UnicastGrantTable *grantTable, int nodeCount, const RunT
 		    grantData->logMaxInterval = rtOpts->logMaxSyncInterval;
 		    grantData->logInterval = grantData->logMinInterval;
 		    grantData->timeLeft = 0;
-		    break;		   
+		    break;
 
 		case DELAY_RESP:
 
@@ -908,7 +885,7 @@ updateUnicastGrantTable(UnicastGrantTable *grantTable, int nodeCount, const RunT
 		    grantData->logMaxInterval = rtOpts->logMaxDelayReqInterval;
 		    grantData->logInterval = grantData->logMinInterval;
 		    grantData->timeLeft = 0;
-		    break;		   
+		    break;
 
 		default:
 		    break;
@@ -919,14 +896,11 @@ updateUnicastGrantTable(UnicastGrantTable *grantTable, int nodeCount, const RunT
 	}
 
     }
-
-
 }
 
 static void
 requestUnicastTransmission(UnicastGrantData *grant, UInteger32 duration, const RunTimeOpts* rtOpts, PtpClock* ptpClock)
 {
-
 	if(duration == 0) {
 		DBG("Will not request unicast transmission for 0 duration\n");
 	}
@@ -961,8 +935,7 @@ requestUnicastTransmission(UnicastGrantData *grant, UInteger32 duration, const R
 void
 cancelUnicastTransmission(UnicastGrantData* grant, const const RunTimeOpts* rtOpts, PtpClock* ptpClock)
 {
-
-/* todo: dbg sending */
+	/* todo: dbg sending */
 
 	if(prepareSMCancelUnicastTransmission(&ptpClock->outgoingSignalingTmp, grant, ptpClock)) {
 			if(grant->parent->domainNumber != 0) {
@@ -982,7 +955,6 @@ static void
 issueSignaling(MsgSignaling *outgoing, Integer32 destination, const const RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
 {
-
 	/* pack SignalingTLV */
 	msgPackSignalingTLV( ptpClock->msgObuf, outgoing, ptpClock);
 
@@ -1008,7 +980,7 @@ issueSignaling(MsgSignaling *outgoing, Integer32 destination, const const RunTim
 static void
 cancelNodeGrants(UnicastGrantTable *nodeTable, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-
+\
     int i;
     UnicastGrantData *grantData;
 
@@ -1032,13 +1004,11 @@ cancelNodeGrants(UnicastGrantTable *nodeTable, const RunTimeOpts *rtOpts, PtpClo
 void
 cancelAllGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-
     int i;
 
     for(i=0; i<nodeCount; i++) {
 	cancelNodeGrants(&grantTable[i], rtOpts, ptpClock);
     }
-
 }
 
 void
@@ -1192,13 +1162,11 @@ handleSignaling(MsgHeader *header,
 	    ptpClock->counters.signalingMessagesReceived++;
 	    DBGV("handleSignaling: No more TLVs\n");
 	}
-
 }
 
 void
 refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 {
-
     static int everyN = 0;
     int i,j;
 
@@ -1241,7 +1209,7 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 		}
 
 		actionRequired = FALSE;
-	
+
 		if(grantData->granted) {
 		    /* re-request 5 seconds before expiry for continuous service.
 		     * masters set this to +10 sec so will keep +5 sec extra
@@ -1346,7 +1314,7 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 			grantData=&nodeTable->grantData[SYNC_INDEXED];
 			requestUnicastTransmission(grantData,
 			    rtOpts->unicastGrantDuration, rtOpts, ptpClock);
-		
+
 		}
 
 		if (nodeTable->grantData[SYNC_INDEXED].granted) {
@@ -1370,7 +1338,6 @@ refreshUnicastGrants(UnicastGrantTable *grantTable, int nodeCount, const RunTime
 		    }
 
 		}
-	
-	}
 
+	}
 }
