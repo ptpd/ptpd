@@ -165,7 +165,7 @@ typedef struct {
 	Boolean		requestable;		/* is this mesage type even requestable? */
 	Boolean		requested;		/* slave: we have requested this */
 	Boolean		canceled;		/* this has been canceled (awaiting ack) */
-	Boolean		cancelCount;		/* how many times we sent the cancel message while waiting for ack */
+	UInteger8	cancelCount;		/* how many times we sent the cancel message while waiting for ack */
 	Integer8	logInterval;		/* interval we granted or got granted */
 	Integer8	logMinInterval;		/* minimum interval we're going to request */
 	Integer8	logMaxInterval;		/* maximum interval we're going to request */
