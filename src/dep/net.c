@@ -82,7 +82,6 @@
 #ifdef SO_TIMESTAMPING
 #include <linux/net_tstamp.h>
 #include <linux/sockios.h>
-#include <linux/ethtool.h>
 #endif /* SO_TIMESTAMPING */
 
 /**
