@@ -369,7 +369,7 @@ void dictionary_replace(dictionary * d, const char * search, const char * replac
 	     do {
 		pos=found;
 
-		for (j=0; j < strlen(search); j++) {
+		for (j=0; j < (int) strlen(search); j++) {
 		    *pos='\0';
 		    pos++;
 		}
