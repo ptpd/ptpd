@@ -183,12 +183,21 @@
 
 
 /* NOTE: this macro can be refactored into a function */
+#ifndef __rtems__
 #define XMALLOC(ptr,size) \
 	if(!((ptr)=malloc(size))) { \
 		PERROR("failed to allocate memory"); \
 		ptpdShutdown(ptpClock); \
 		exit(1); \
 	}
+#else /* __rtems__ */
+#define XMALLOC(ptr,size) \
+     if(!((ptr)=rtems_malloc(size))) { \
+             PERROR("failed to allocate memory"); \
+             ptpdShutdown(ptpClock); \
+             exit(1); \
+     }
+#endif /* __rtems__ */
 
 #define SAFE_FREE(pointer) \
 	if(pointer != NULL) { \
