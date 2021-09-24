@@ -69,6 +69,10 @@
 #  include <net/if_ether.h>
 #endif
 
+#if !defined(GLOB_ABORTED)
+#define GLOB_ABORTED GLOB_ABEND
+#endif
+
 /* only C99 has the round function built-in */
 double round (double __x);
 
