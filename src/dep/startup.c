@@ -846,6 +846,8 @@ configcheck:
 		}
 	}
 
+	ptpClock->rtOpts = rtOpts;
+
 	if(rtOpts->statisticsLog.logEnabled)
 		ptpClock->resetStatisticsLog = TRUE;
 
@@ -917,8 +919,6 @@ configcheck:
 		free(ptpClock);
 		goto fail;
 	}
-
-	ptpClock->rtOpts = rtOpts;
 
 	/* init alarms */
 	initAlarms(ptpClock->alarms, ALRM_MAX, (void*)ptpClock);
