@@ -377,7 +377,8 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
 Boolean testInterface(char* ifaceName, const RunTimeOpts* rtOpts);
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
 Boolean netShutdown(NetPath*);
-int netSelect(TimeInternal*,NetPath*,fd_set*);
+int netWait(TimeInternal*,NetPath*,PtpNetWaitEvents*);
+Boolean netCheckEvent(int,PtpNetWaitEvents*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*,int);
 ssize_t netRecvGeneral(Octet*,NetPath*);
 ssize_t netSendEvent(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32,TimeInternal*);
@@ -386,6 +387,14 @@ ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*,const RunTimeOpts*, Intege
 ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32,TimeInternal*);
 Boolean netRefreshIGMP(NetPath *, const RunTimeOpts *, PtpClock *);
 Boolean hostLookup(const char* hostname, Integer32* addr);
+
+/** \}*/
+
+/** \name kqueue.c (Kqueue support) */
+/**\{*/
+
+int ptpKqueueGet(void);
+int ptpKqueueWait(struct timespec*, struct kevent*, int);
 
 /** \}*/
 

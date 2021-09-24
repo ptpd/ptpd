@@ -83,6 +83,9 @@
 #include <utmp.h>
 #endif /* HAVE_UTMP_H */
 #endif /* HAVE_UTMPX_H */
+#ifdef HAVE_KQUEUE
+#include <sys/event.h>
+#endif /* HAVE_KQUEUE */
 
 #ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>

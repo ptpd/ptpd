@@ -44,6 +44,16 @@ typedef struct {
 } InterfaceInfo;
 
 /**
+* \brief Support for kqueue or select
+ */
+#ifdef HAVE_KQUEUE
+#define PTPD_KQUEUE_EVENTS (4) /* 2 for PTP, 2 for PCAP */
+typedef struct kevent PtpNetWaitEvents;
+#else
+typedef struct fd_set PtpNetWaitEvents;
+#endif
+
+/**
 * \brief Struct describing network transport data
  */
 typedef struct {

@@ -149,6 +149,41 @@ isIpMulticast(struct in_addr in)
 }
 */
 
+/* KQUEUE support to add and delete events */
+static int netKqueueAdd(int fd)
+{
+    int res = 0;
+#ifdef HAVE_KQUEUE
+    int kq = ptpKqueueGet();
+    if (fd >= 0 && kq >= 0) {
+      struct kevent evset;
+      EV_SET(&evset, fd, EVFILT_READ, EV_ADD, 0, 0, NULL);
+      res = kevent(kq, &evset, 1, NULL, 0, NULL);
+      if (res == -1)
+        PERROR("kevent sock read add");
+      DBG("add sock kevent: %d --> %d\n", fd, kq);
+    }
+#endif
+    return res;
+}
+
+static int netKqueueDelete(int fd)
+{
+    int res = 0;
+#ifdef HAVE_KQUEUE
+    int kq = ptpKqueueGet();
+    if (fd >= 0 && kq >= 0) {
+      struct kevent evset;
+      EV_SET(&evset, fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
+      res = kevent(kq, &evset, 1, NULL, 0, NULL);
+      if (res == -1)
+        PERROR("kevent sock read delete");
+      DBG("delete sock kevent: %d x-> %d\n", fd, kq);
+    }
+#endif
+    return res;
+}
+
 /* shut down the UDP stuff */
 Boolean
 netShutdown(NetPath * netPath)
@@ -156,20 +191,26 @@ netShutdown(NetPath * netPath)
 	netShutdownMulticast(netPath);
 
 	/* Close sockets */
-	if (netPath->eventSock >= 0)
+	if (netPath->eventSock >= 0) {
+    netKqueueDelete(netPath->eventSock);
 		close(netPath->eventSock);
+  }
 	netPath->eventSock = -1;
 
-	if (netPath->generalSock >= 0)
+	if (netPath->generalSock >= 0) {
+    netKqueueDelete(netPath->generalSock);
 		close(netPath->generalSock);
+  }
 	netPath->generalSock = -1;
 
 #ifdef PTPD_PCAP
 	if (netPath->pcapEvent != NULL) {
+    netKqueueDelete(netPath->pcapEventSock);
 		pcap_close(netPath->pcapEvent);
 		netPath->pcapEventSock = -1;
 	}
 	if (netPath->pcapGeneral != NULL) {
+    netKqueueDelete(netPath->pcapGeneralSock);
 		pcap_close(netPath->pcapGeneral);
 		netPath->pcapGeneralSock = -1;
 	}
@@ -1039,6 +1080,10 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		return FALSE;
 	}
 
+  if((netKqueueAdd(netPath->eventSock) < 0)
+     || (netKqueueAdd(netPath->generalSock) < 0))
+    return FALSE;
+
 	/* let's see if we have another interface left before we die */
 	if(!testInterface(rtOpts->ifaceName, rtOpts)) {
 
@@ -1127,7 +1172,8 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		     pcap_get_selectable_fd(netPath->pcapEvent)) < 0) {
 			PERROR("failed to get pcap event fd");
 			return FALSE;
-		}		
+		}
+    netKqueueAdd(netPath->pcapEventSock);
 		if ((netPath->pcapGeneral = pcap_open_live(rtOpts->ifaceName,
 							   PACKET_SIZE, promisc,
 							   PCAP_TIMEOUT,
@@ -1157,14 +1203,17 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 				PERROR("failed to get pcap general fd");
 				return FALSE;
 			}
+      netKqueueAdd(netPath->pcapGeneralSock);
 		}
 	}
 #endif
 
 #ifdef PTPD_PCAP
 	if(rtOpts->transport == IEEE_802_3) {
+    netKqueueDelete(netPath->eventSock);
 		close(netPath->eventSock);
 		netPath->eventSock = -1;
+    netKqueueDelete(netPath->generalSock);
 		close(netPath->generalSock);
 		netPath->generalSock = -1;
 		/* TX timestamp is not generated for PCAP mode and Ethernet transport */
@@ -1409,17 +1458,51 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 			rtOpts->managementAclDenyText, rtOpts->managementAclOrder);
 	}
 
-
 	return TRUE;
 }
 
 /*Check if data has been received*/
+#ifdef HAVE_KQUEUE
+
+#if defined PTPD_SNMP
+#error No KQUEUE support for SNMP
+#endif
+
 int
-netSelect(TimeInternal * timeout, NetPath * netPath, fd_set *readfds)
+netWait(TimeInternal * timeout, NetPath * netPath, PtpNetWaitEvents *readfds)
+{
+	int ret;
+	struct timespec ts, *ts_ptr;
+
+	if (timeout) {
+		if(isTimeInternalNegative(timeout)) {
+			ERROR("Negative timeout attempted for kevent()\n");
+			return -1;
+		}
+		ts.tv_sec = timeout->seconds;
+		ts.tv_nsec = timeout->nanoseconds;
+		ts_ptr = &ts;
+	} else {
+		ts_ptr = NULL;
+	}
+
+  ret = ptpKqueueWait(ts_ptr, readfds, PTPD_KQUEUE_EVENTS);
+
+	if (ret < 0) {
+		if (errno == EAGAIN || errno == EINTR)
+			ret = 0;
+	}
+
+  return ret;
+}
+
+#else /* HAVE_KQUEUE */
+
+int
+netWait(TimeInternal * timeout, NetPath * netPath, PtpNetWaitEvents *readfds)
 {
 	int ret, nfds;
 	struct timeval tv, *tv_ptr;
-
 
 #if defined PTPD_SNMP
 	extern const RunTimeOpts rtOpts;
@@ -1497,6 +1580,22 @@ if (rtOpts.snmpEnabled) {
 }
 #endif
 	return ret;
+}
+
+#endif /* HAVE_KQUEUE */
+
+Boolean netCheckEvent(int fd, PtpNetWaitEvents * readfds)
+{
+#ifdef HAVE_KQUEUE
+  size_t e;
+  for (e = 0; e < PTPD_KQUEUE_EVENTS; ++e) {
+    if (readfds[e].ident == fd && readfds[e].filter == EVFILT_READ)
+      return TRUE;
+  }
+  return FALSE;
+#else
+  return FD_ISSET(fd, readfds);
+#endif
 }
 
 /**
