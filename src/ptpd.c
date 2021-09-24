@@ -75,7 +75,11 @@ PtpClock *G_ptpClock = NULL;
 TimingDomain timingDomain;
 
 int
+#ifndef __rtems__
 main(int argc, char **argv)
+#else
+ptpd_main(int argc, char **argv)
+#endif /* __rtems__ */
 {
 	PtpClock *ptpClock;
 	Integer16 ret;
