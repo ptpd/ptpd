@@ -102,6 +102,12 @@ netShutdownMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 		return TRUE;
 	}
 
+  DBG("shutdown multicast ipv4: %02d.%02d.%02d.%02d\n",
+      (multicastAddr >> 24) & 0xff,
+      (multicastAddr >> 16) & 0xff,
+      (multicastAddr >>  8) & 0xff,
+      (multicastAddr >>  0) & 0xff);
+
 	/* Close General Multicast */
 	imr.imr_multiaddr.s_addr = multicastAddr;
 	imr.imr_interface.s_addr = netPath->interfaceAddr.s_addr;
@@ -613,6 +619,12 @@ netInitMulticastIPv4(NetPath * netPath, Integer32 multicastAddr)
 	/* multicast send only on specified interface */
 	imr.imr_multiaddr.s_addr = multicastAddr;
 	imr.imr_interface.s_addr = netPath->interfaceAddr.s_addr;
+
+  DBG("init multicast ipv4: %02d.%02d.%02d.%02d\n",
+      (multicastAddr >> 24) & 0xff,
+      (multicastAddr >> 16) & 0xff,
+      (multicastAddr >>  8) & 0xff,
+      (multicastAddr >>  0) & 0xff);
 
 	if (setsockopt(netPath->eventSock, IPPROTO_IP, IP_MULTICAST_IF,
 		       &netPath->interfaceAddr, sizeof(struct in_addr)) < 0
