@@ -679,7 +679,9 @@ ptpdStartup(int argc, char **argv, Integer16 * ret, RunTimeOpts * rtOpts)
 	 * this was not the case for log files. This adds consistency
 	 * and allows to use FILE* vs. fds everywhere
 	 */
+#ifndef __rtems__
 	umask(~DEFAULT_FILE_PERMS);
+#endif /* __rtems__ */
 
 	/* get some entropy in... */
 	getTime(&tmpTime);

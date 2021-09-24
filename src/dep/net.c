@@ -1208,7 +1208,12 @@ netInit(NetPath * netPath, RunTimeOpts * rtOpts, PtpClock * ptpClock)
 		 */
 
 		if(rtOpts->ipMode == IPMODE_UNICAST ||
-		   rtOpts->ignore_daemon_lock) {
+#ifdef __rtems__
+       FALSE
+#else
+		   rtOpts->ignore_daemon_lock
+#endif
+       ) {
 			addr.sin_addr = netPath->interfaceAddr;
 		} else {
 			addr.sin_addr.s_addr = htonl(INADDR_ANY);

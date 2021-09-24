@@ -390,8 +390,13 @@ int writeMessage(FILE* destination, uint32_t *lastHash, int priority, const char
 		gettimeofday(&now, 0);
 		strftime(time_str, MAXTIMESTR, "%F %X", localtime((time_t*)&now.tv_sec));
 		fprintf(destination, "%s.%06d ", time_str, (int)now.tv_usec  );
+#ifndef __rtems__
 		fprintf(destination,PTPD_PROGNAME"[%d].%s (%-9s ",
 		(int)getpid(), startupInProgress ? "startup" : rtOpts.ifaceName,
+#else
+		fprintf(destination,PTPD_PROGNAME"[%08x].%s (%-9s ",
+		rtems_task_self(), startupInProgress ? "startup" : rtOpts.ifaceName,
+#endif /* __rtems__ */
 		priority == LOG_EMERG   ? "emergency)" :
 		priority == LOG_ALERT   ? "alert)" :
 		priority == LOG_CRIT    ? "critical)" :
@@ -2627,7 +2632,7 @@ int setCpuAffinity(int cpu) {
 
 #endif
 
-#ifdef HAVE_SYS_CPUSET_H
+#if defined(HAVE_SYS_CPUSET_H) && !defined(__rtems__)
 	cpuset_t mask;
     	CPU_ZERO(&mask);
 	if(cpu >= 0) {

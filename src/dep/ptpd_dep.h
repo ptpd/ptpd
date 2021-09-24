@@ -14,6 +14,10 @@
 #define PTPD_DBGV
 #endif
 
+#ifdef __rtems__
+#include <errno.h>
+#endif /* __rtems__ */
+
  /** \name System messages*/
  /**\{*/
 
@@ -31,7 +35,11 @@
 #define ALERT(x, ...)     logMessage(LOG_ALERT, x, ##__VA_ARGS__)
 #define CRITICAL(x, ...)  logMessage(LOG_CRIT, x, ##__VA_ARGS__)
 #define ERROR(x, ...)  logMessage(LOG_ERR, x, ##__VA_ARGS__)
+#ifdef __rtems__
+#define PERROR(x, ...)    logMessage(LOG_ERR, x "      (strerror: %s)\n", ##__VA_ARGS__, strerror(errno))
+#else
 #define PERROR(x, ...)    logMessage(LOG_ERR, x "      (strerror: %m)\n", ##__VA_ARGS__)
+#endif /* __rtems__ */
 #define WARNING(x, ...)   logMessage(LOG_WARNING, x, ##__VA_ARGS__)
 #define NOTIFY(x, ...) logMessage(LOG_NOTICE, x, ##__VA_ARGS__)
 #define NOTICE(x, ...)    logMessage(LOG_NOTICE, x, ##__VA_ARGS__)
