@@ -53,6 +53,10 @@
 
 #include "../ptpd.h"
 
+#ifdef __rtems__
+#include <sys/timex.h>
+#endif /* __rtems__ */
+
 #ifdef HAVE_NETINET_ETHER_H
 #  include <netinet/ether.h>
 #endif

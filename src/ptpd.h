@@ -18,9 +18,15 @@
 #ifndef PTPD_H_
 #define PTPD_H_
 
+#ifndef __rtems__
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif /* HAVE_CONFIG_H */
+
+#else /* __rtems__ */
+#include <ptpd/config.h>
+#endif /* __rtems__ */
 
 
 #ifdef linux

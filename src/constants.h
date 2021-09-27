@@ -1,6 +1,10 @@
 #ifndef CONSTANTS_H_
 #define CONSTANTS_H_
 
+#ifdef __rtems__
+#include <ptpd/config.h>
+#endif /* __rtems__ */
+
 /**
 *\file
 * \brief Default values and constants used in ptpdv2

@@ -1,6 +1,10 @@
 #include "ptpd.h"
 #include "dep/ntpengine/ntpdcontrol.h"
 
+#ifdef __rtems__
+#include <sys/timex.h>
+#endif /* __rtems__ */
+
 #ifdef LOCAL_PREFIX
 #undef LOCAL_PREFIX
 #endif

@@ -3,6 +3,13 @@
 
 #include "../ptp_primitives.h"
 
+#ifdef __rtems__
+#include <net/ethernet.h>
+#endif /* __rtems__ */
+
+#ifdef HAVE_KQUEUE
+#include <sys/event.h>
+#endif /* HAVE_KQUEUE */
 /**
 *\file
 * \brief Implementation specific datatype
