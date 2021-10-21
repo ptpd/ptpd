@@ -169,13 +169,13 @@
 
 #include "timingdomain.h"
 
-#ifdef PTPD_STATISTICS
+#if defined(PTPD_STATISTICS) || defined(__rtems__)
 #include "dep/outlierfilter.h"
 #endif
 
 #include "datatypes.h"
 
-#ifdef PTPD_STATISTICS
+#if defined(PTPD_STATISTICS) || defined(__rtems__)
 #include "dep/statistics.h"
 #endif
 
