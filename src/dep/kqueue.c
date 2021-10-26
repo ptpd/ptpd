@@ -1,10 +1,5 @@
-#ifndef EVENTTIMER_H_
-#define EVENTTIMER_H_
-
-#include "../ptpd.h"
-
 /*-
- * Copyright (c) 2015 Wojciech Owczarek,
+ * Copyright (c) 2020      Chris Johns,
  *
  * All Rights Reserved
  *
@@ -30,50 +25,56 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define EVENTTIMER_MAX_DESC		20
-#define EVENTTIMER_MIN_INTERVAL_US	250 /* 4000/sec */
+/**
+ * @file   kqueue.c
+ * @date
+ *
+ * @brief  Kqueue support code
+ *
+ * The kqueue is shared between the networking and timer code and there
+ * no shared data in their interfaces so kqueue handle is held here.
+ */
 
-typedef struct EventTimer EventTimer;
+#include "../ptpd.h"
 
-struct EventTimer {
+static int kq = -1;
 
-	/* data */
-	char id[EVENTTIMER_MAX_DESC + 1];
-	Boolean expired;
-	Boolean running;
-
-	/* "methods" */
-	void (*start) (EventTimer* timer, double interval);
-	void (*stop) (EventTimer* timer);
-	void (*reset) (EventTimer* timer);
-	void (*shutdown) (EventTimer* timer);
-	Boolean (*isExpired) (EventTimer* timer);
-	Boolean (*isRunning) (EventTimer* timer);	
-
-	/* implementation data */
+int
+ptpKqueueGet(void)
+{
 #ifdef HAVE_KQUEUE
-  int timerId;
-#elif defined PTPD_PTIMERS
-	timer_t timerId;
-#else /* HAVE_KQUEUE */
-	int32_t itimerInterval;
-	int32_t itimerLeft;
-#endif /* PTPD_PTIMERS */
+	if(kq < 0) {
+    kq = kqueue();
+    if (kq < 0)
+      PERROR("kqueue failed");
+  }
+#endif
+  return kq;
+}
 
-	/* linked list */
-	EventTimer *_first;
-	EventTimer *_next;
-	EventTimer *_prev;
+int
+ptpKqueueWait(struct timespec* ts, struct kevent* events, int nevents)
+{
+  int ret;
 
-};
+  if (kq < 0) {
+    PERROR("kqueue not initialised");
+    return -1;
+  }
 
-EventTimer *createEventTimer(const char *id);
-void freeEventTimer(EventTimer **timer);
-void setupEventTimer(EventTimer *timer);
+  ret = kevent(kq, NULL, 0, events, nevents, ts);
 
-void startEventTimers();
-void shutdownEventTimers();
+  if (ret > 0) {
+    int e;
+    for (e = 0; e < ret; ++e) {
+      DBG2("kevent: %d: %2d: %s\n", e, events[e].ident,
+           events[e].filter == EVFILT_TIMER ? "timer" : "sock");
+      if (events[e].filter == EVFILT_TIMER) {
+        EventTimer* timer = events[e].udata;
+        timer->expired = TRUE;
+      }
+    }
+  }
 
-
-#endif /* EVENTTIMER_H_ */
-
+  return ret;
+}

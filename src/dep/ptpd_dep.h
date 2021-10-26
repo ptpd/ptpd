@@ -14,6 +14,10 @@
 #define PTPD_DBGV
 #endif
 
+#ifdef __rtems__
+#include <errno.h>
+#endif /* __rtems__ */
+
  /** \name System messages*/
  /**\{*/
 
@@ -31,7 +35,11 @@
 #define ALERT(x, ...)     logMessage(LOG_ALERT, x, ##__VA_ARGS__)
 #define CRITICAL(x, ...)  logMessage(LOG_CRIT, x, ##__VA_ARGS__)
 #define ERROR(x, ...)  logMessage(LOG_ERR, x, ##__VA_ARGS__)
+#ifdef __rtems__
+#define PERROR(x, ...)    logMessage(LOG_ERR, x "      (strerror: %s)\n", ##__VA_ARGS__, strerror(errno))
+#else
 #define PERROR(x, ...)    logMessage(LOG_ERR, x "      (strerror: %m)\n", ##__VA_ARGS__)
+#endif /* __rtems__ */
 #define WARNING(x, ...)   logMessage(LOG_WARNING, x, ##__VA_ARGS__)
 #define NOTIFY(x, ...) logMessage(LOG_NOTICE, x, ##__VA_ARGS__)
 #define NOTICE(x, ...)    logMessage(LOG_NOTICE, x, ##__VA_ARGS__)
@@ -369,7 +377,8 @@ UInteger16 msgPackManagementResponse(Octet * buf,MsgHeader*,MsgManagement*,PtpCl
 Boolean testInterface(char* ifaceName, const RunTimeOpts* rtOpts);
 Boolean netInit(NetPath*,RunTimeOpts*,PtpClock*);
 Boolean netShutdown(NetPath*);
-int netSelect(TimeInternal*,NetPath*,fd_set*);
+int netWait(TimeInternal*,NetPath*,PtpNetWaitEvents*);
+Boolean netCheckEvent(int,PtpNetWaitEvents*);
 ssize_t netRecvEvent(Octet*,TimeInternal*,NetPath*,int);
 ssize_t netRecvGeneral(Octet*,NetPath*);
 ssize_t netSendEvent(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32,TimeInternal*);
@@ -378,6 +387,14 @@ ssize_t netSendPeerGeneral(Octet*,UInteger16,NetPath*,const RunTimeOpts*, Intege
 ssize_t netSendPeerEvent(Octet*,UInteger16,NetPath*,const RunTimeOpts*,Integer32,TimeInternal*);
 Boolean netRefreshIGMP(NetPath *, const RunTimeOpts *, PtpClock *);
 Boolean hostLookup(const char* hostname, Integer32* addr);
+
+/** \}*/
+
+/** \name kqueue.c (Kqueue support) */
+/**\{*/
+
+int ptpKqueueGet(void);
+int ptpKqueueWait(struct timespec*, struct kevent*, int);
 
 /** \}*/
 

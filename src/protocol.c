@@ -1450,11 +1450,17 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
     ssize_t length = -1;
 
     TimeInternal timeStamp = { 0, 0 };
-    fd_set readfds;
-
+#ifdef HAVE_KQUEUE
+    PtpNetWaitEvents readfds[PTPD_KQUEUE_EVENTS] = { 0 };
+    PtpNetWaitEvents * readfds_ptr = &readfds[0];
+#else
+    PtpNetWaitEvents readfds;
+    PtpNetWaitEvents * readfds_ptr = &readfds;
     FD_ZERO(&readfds);
+#endif
+
     if (!ptpClock->message_activity) {
-	ret = netSelect(NULL, &ptpClock->netPath, &readfds);
+	ret = netWait(NULL, &ptpClock->netPath, readfds_ptr);
 	if (ret < 0) {
 	    PERROR("failed to poll sockets");
 	    ptpClock->counters.messageRecvErrors++;
@@ -1471,7 +1477,8 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 #ifdef PTPD_PCAP
     if (rtOpts->pcap == TRUE) {
-	if (ptpClock->netPath.pcapEventSock >=0 && FD_ISSET(ptpClock->netPath.pcapEventSock, &readfds)) {
+	if (ptpClock->netPath.pcapEventSock >=0
+      && netCheckEvent(ptpClock->netPath.pcapEventSock, readfds_ptr)) {
 	    length = netRecvEvent(ptpClock->msgIbuf, &timeStamp,
 		          &ptpClock->netPath,0);
 	    if (length == 0){ /* timeout, return for now */
@@ -1493,7 +1500,8 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		processMessage(rtOpts, ptpClock, &timeStamp, length);
 	    }
 	}
-	if (ptpClock->netPath.pcapGeneralSock >=0 && FD_ISSET(ptpClock->netPath.pcapGeneralSock, &readfds)) {
+	if (ptpClock->netPath.pcapGeneralSock >=0
+      && netCheckEvent(ptpClock->netPath.pcapGeneralSock, readfds_ptr)) {
 	    length = netRecvGeneral(ptpClock->msgIbuf, &ptpClock->netPath);
 	    if (length == 0) /* timeout, return for now */
 		return;
@@ -1507,7 +1515,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	}
     } else {
 #endif
-	if (FD_ISSET(ptpClock->netPath.eventSock, &readfds)) {
+	if (netCheckEvent(ptpClock->netPath.eventSock, readfds_ptr)) {
 	    length = netRecvEvent(ptpClock->msgIbuf, &timeStamp,
 		          &ptpClock->netPath, 0);
 	    if (length < 0) {
@@ -1523,7 +1531,7 @@ handle(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 	    }
 	}
 
-	if (FD_ISSET(ptpClock->netPath.generalSock, &readfds)) {
+	if (netCheckEvent(ptpClock->netPath.generalSock, readfds_ptr)) {
 	    length = netRecvGeneral(ptpClock->msgIbuf, &ptpClock->netPath);
 	    if (length < 0) {
 		PERROR("failed to receive on the general socket");

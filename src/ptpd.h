@@ -18,9 +18,15 @@
 #ifndef PTPD_H_
 #define PTPD_H_
 
+#ifndef __rtems__
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif /* HAVE_CONFIG_H */
+
+#else /* __rtems__ */
+#include <ptpd/config.h>
+#endif /* __rtems__ */
 
 
 #ifdef linux
@@ -83,6 +89,9 @@
 #include <utmp.h>
 #endif /* HAVE_UTMP_H */
 #endif /* HAVE_UTMPX_H */
+#ifdef HAVE_KQUEUE
+#include <sys/event.h>
+#endif /* HAVE_KQUEUE */
 
 #ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>
@@ -160,13 +169,13 @@
 
 #include "timingdomain.h"
 
-#ifdef PTPD_STATISTICS
+#if defined(PTPD_STATISTICS) || defined(__rtems__)
 #include "dep/outlierfilter.h"
 #endif
 
 #include "datatypes.h"
 
-#ifdef PTPD_STATISTICS
+#if defined(PTPD_STATISTICS) || defined(__rtems__)
 #include "dep/statistics.h"
 #endif
 
@@ -180,12 +189,21 @@
 
 
 /* NOTE: this macro can be refactored into a function */
+#ifndef __rtems__
 #define XMALLOC(ptr,size) \
 	if(!((ptr)=malloc(size))) { \
 		PERROR("failed to allocate memory"); \
 		ptpdShutdown(ptpClock); \
 		exit(1); \
 	}
+#else /* __rtems__ */
+#define XMALLOC(ptr,size) \
+     if(!((ptr)=rtems_malloc(size))) { \
+             PERROR("failed to allocate memory"); \
+             ptpdShutdown(ptpClock); \
+             exit(1); \
+     }
+#endif /* __rtems__ */
 
 #define SAFE_FREE(pointer) \
 	if(pointer != NULL) { \
