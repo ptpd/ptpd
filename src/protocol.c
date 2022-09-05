@@ -534,7 +534,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		/*
 		 *  Count how many _unique_ timeouts happen to us.
-		 *  If we were already in Listen mode, then do not count this as a seperate reset, but stil do a new IGMP refresh
+		 *  If we were already in Listen mode, then do not count this as a separate reset, but still do a new IGMP refresh
 		 */
 		if (ptpClock->portDS.portState != PTP_LISTENING) {
 			ptpClock->resetCount++;
@@ -572,7 +572,7 @@ toState(UInteger8 state, const RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
 		/*
 		 * Log status update only once - condition must be checked before we write the new state,
-		 * but the new state must be eritten before the log message...
+		 * but the new state must be written before the log message...
 		 */
 		if (ptpClock->portDS.portState != state) {
 			setPortState(ptpClock, PTP_LISTENING);
@@ -836,7 +836,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 		/*
 		 * handle SLAVE timers:
 		 *   - No Announce message was received
-		 *   - Time to send new delayReq  (miss of delayResp is not monitored explicitelly)
+		 *   - Time to send new delayReq  (miss of delayResp is not monitored explicitly)
 		 */
 		if (timerExpired(&ptpClock->timers[ANNOUNCE_RECEIPT_TIMER]))
 		{
@@ -886,7 +886,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					ptpClock->number_foreign_records = 0;
 					ptpClock->foreign_record_i = 0;
 					ptpClock->bestMaster = NULL;
-					/* if flipping between primary and backup interface, a full nework re-init is required */
+					/* if flipping between primary and backup interface, a full network re-init is required */
 					if(rtOpts->backupIfaceEnabled) {
 						ptpClock->runningBackupInterface = !ptpClock->runningBackupInterface;
 						toState(PTP_INITIALIZING, rtOpts, ptpClock);
@@ -900,7 +900,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 					}
 			} else {
 
-				    /* if flipping between primary and backup interface, a full nework re-init is required */
+				    /* if flipping between primary and backup interface, a full network re-init is required */
 				    if(rtOpts->backupIfaceEnabled) {
 					ptpClock->runningBackupInterface = !ptpClock->runningBackupInterface;
 					toState(PTP_INITIALIZING, rtOpts, ptpClock);
@@ -1179,7 +1179,7 @@ doState(RunTimeOpts *rtOpts, PtpClock *ptpClock)
 
         if(rtOpts->statusLog.logEnabled && timerExpired(&ptpClock->timers[STATUSFILE_UPDATE_TIMER])) {
                 writeStatusFile(ptpClock,rtOpts,TRUE);
-		/* ensures that the current updare interval is used */
+		/* ensures that the current update interval is used */
 		timerStart(&ptpClock->timers[STATUSFILE_UPDATE_TIMER],rtOpts->statusFileUpdateInterval);
         }
 
@@ -1381,7 +1381,7 @@ processMessage(RunTimeOpts* rtOpts, PtpClock* ptpClock, TimeInternal* timeStamp,
 							ptpClock->msgTmpHeader.sequenceId);
 
     /*
-     *  on the table below, note that only the event messsages are passed the local time,
+     *  on the table below, note that only the event messages are passed the local time,
      *  (collected by us by loopback+kernel TS, and adjusted with UTC seconds
      *
      *  (SYNC / DELAY_REQ / PDELAY_REQ / PDELAY_RESP)
@@ -1754,7 +1754,7 @@ handleAnnounce(MsgHeader *header, ssize_t length,
 			/* the original code always called: addforeign(new master) + timerstart(announce) */
 
 			DBG("___ Announce: received Announce from another master, will add to the list, as it might be better\n\n");
-			DBGV("this is to be decided immediatly by bmc())\n\n");
+			DBGV("this is to be decided immediately by bmc())\n\n");
 			addForeign(ptpClock->msgIbuf,header,ptpClock,localPreference,ptpClock->netPath.lastSourceAddr);
 		}
 		break;
@@ -3070,7 +3070,7 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 
 
 
-/*Pack and send on general multicast ip adress a FollowUp message*/
+/*Pack and send on general multicast ip address a FollowUp message*/
 static void
 issueFollowup(const TimeInternal *tint,const RunTimeOpts *rtOpts,PtpClock *ptpClock, Integer32 dst, UInteger16 sequenceId)
 {
@@ -3092,7 +3092,7 @@ issueFollowup(const TimeInternal *tint,const RunTimeOpts *rtOpts,PtpClock *ptpCl
 
 #endif /* PTPD_SLAVE_ONLY */
 
-/*Pack and send on event multicast ip adress a DelayReq message*/
+/*Pack and send on event multicast ip address a DelayReq message*/
 static void
 issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
@@ -3183,7 +3183,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	}
 }
 
-/*Pack and send on event multicast ip adress a PdelayReq message*/
+/*Pack and send on event multicast ip address a PdelayReq message*/
 static void
 issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 {
@@ -3193,7 +3193,7 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 
 	/* see LEAPNOTE01# in this file */
 	if(ptpClock->leapSecondInProgress) {
-	    DBG("Leap secon in progress - will not send PDELAY_REQ\n");
+	    DBG("Leap second in progress - will not send PDELAY_REQ\n");
 	    return;
 	}
 
@@ -3235,7 +3235,7 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	}
 }
 
-/*Pack and send on event multicast ip adress a PdelayResp message*/
+/*Pack and send on event multicast ip address a PdelayResp message*/
 static void
 issuePdelayResp(const TimeInternal *tint,MsgHeader *header, Integer32 sourceAddress, const RunTimeOpts *rtOpts,
 		PtpClock *ptpClock)
@@ -3399,7 +3399,7 @@ addForeign(Octet *buf,MsgHeader *header,PtpClock *ptpClock, UInteger8 localPrefe
 		ptpClock->foreign[j].disqualified = FALSE;
 		/*
 		 * header and announce field of each Foreign Master are
-		 * usefull to run Best Master Clock Algorithm
+		 * useful to run Best Master Clock Algorithm
 		 */
 		msgUnpackHeader(buf,&ptpClock->foreign[j].header);
 		msgUnpackAnnounce(buf,&ptpClock->foreign[j].announce);
