@@ -10,9 +10,12 @@
  */
 
 #include "sys.h"
-#define _GNU_SOURCE
-#include <sched.h>
 #include "ptpd_config.h"
+
+#define _GNU_SOURCE // For sched_setaffinity
+#define __USE_GNU   // For sched_setaffinity
+
+#include <sched.h>
 
 int
 set_cpu_affinity(int cpu)
@@ -30,7 +33,7 @@ set_cpu_affinity(int cpu)
 	}
 	return sched_setaffinity(0, sizeof(mask), &mask);
 #else
-	#pragma message("[unimplemented] set_cpu_affinity")
+#pragma message("[unimplemented] __func__")
 #endif /* HAVE_SCHED_H */
 
 	return -1;

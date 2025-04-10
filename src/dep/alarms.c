@@ -248,9 +248,9 @@ setAlarmCondition(AlarmEntry *alarm, Boolean condition, PtpClock *ptpClock)
 	capturePtpEventData(&alarm->eventData, ptpClock, ptpClock->rtOpts);
 
 	if(condition) {
-	    getTime(&alarm->timeSet);
+		g_impl.get_time(CLOCK_SYSTEM, &alarm->timeSet);
 	} else {
-	    getTime(&alarm->timeCleared);
+		g_impl.get_time(CLOCK_SYSTEM, &alarm->timeCleared);
 	}
 
 	DBG("Alarm %s condition set to %s\n", alarm->name, condition ? "TRUE" : "FALSE");

@@ -1508,7 +1508,7 @@ netRecvEvent(Octet * buf, TimeInternal * time, NetPath * netPath, int flags)
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 	TimeInternal tmpTime;
 	/* get system time interpolated with TSC / clockCycles as soon as we have data on the socket */
-	getTime(&tmpTime);
+	g_impl.get_time(CLOCK_SYSTEM, &tmpTime);
 #endif
 
 	union {
@@ -1863,7 +1863,7 @@ netSendEvent(Octet * buf, UInteger16 length, NetPath * netPath,
 #if defined(__QNXNTO__) && defined(PTPD_EXPERIMENTAL)
 	TimeInternal tmpTime;
 	/* get system time interpolated with TSC / clockCycles as soon as we have data on the socket */
-	getTime(&tmpTime);
+	g_impl.get_time(CLOCK_SYSTEM, &tmpTime);
 #endif
 
 #ifdef PTPD_PCAP

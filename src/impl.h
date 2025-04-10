@@ -13,6 +13,7 @@
 #define IMPL_H_
 
 #include "ptp_datatypes.h"
+#include "unix/sys.h"
 
 struct impl
 {
@@ -25,6 +26,8 @@ struct impl
 
 	void (*sleep_for)(double duration);
 	int (*set_cpu_affinity)(int cpu);
+	void (*get_time)(enum clock_type type, TimeInternal *time);
+	void (*set_time)(const TimeInternal *time);
 };
 
 /**

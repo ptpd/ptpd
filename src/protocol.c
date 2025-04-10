@@ -2889,7 +2889,7 @@ issueAnnounceSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rt
 	Timestamp originTimestamp;
 	TimeInternal internalTime;
 
-	getTime(&internalTime);
+	g_impl.get_time(CLOCK_SYSTEM, &internalTime);
 	ti_to_timestamp(&internalTime, &originTimestamp);
 
 	msgPackAnnounce(ptpClock->msgObuf, *sequenceId, &originTimestamp, ptpClock);
@@ -2969,7 +2969,7 @@ issueSyncSingle(Integer32 dst, UInteger16 *sequenceId, const RunTimeOpts *rtOpts
 	Timestamp originTimestamp;
 	TimeInternal internalTime, now;
 
-	getTime(&internalTime);
+	g_impl.get_time(CLOCK_SYSTEM, &internalTime);
 
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		ti_inc(&internalTime, ptpClock->timePropertiesDS.currentUtcOffset, INC_SECONDS);
@@ -3102,7 +3102,7 @@ issueDelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	 * call GTOD. This time is later replaced in handleDelayReq,
 	 * to get the actual send timestamp from the OS
 	 */
-	getTime(&internalTime);
+	g_impl.get_time(CLOCK_SYSTEM, &internalTime);
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		ti_inc(&internalTime, ptpClock->timePropertiesDS.currentUtcOffset, INC_SECONDS);
 	}
@@ -3186,7 +3186,7 @@ issuePdelayReq(const RunTimeOpts *rtOpts,PtpClock *ptpClock)
 	    return;
 	}
 
-	getTime(&internalTime);
+	g_impl.get_time(CLOCK_SYSTEM, &internalTime);
 	if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 		ti_inc(&internalTime, ptpClock->timePropertiesDS.currentUtcOffset, INC_SECONDS);
 	}

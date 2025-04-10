@@ -686,10 +686,10 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 
 	TimeInternal oldTime, newTime;
 	/*No need to reset the frequency offset: if we're far off, it will quickly get back to a high value */
-	getTime(&oldTime);
+	g_impl.get_time(CLOCK_SYSTEM, &oldTime);
 	ti_sub(&newTime, &oldTime, &ptpClock->currentDS.offsetFromMaster);
 
-	setTime(&newTime);
+	g_impl.set_time(&newTime);
 
 	ptpClock->clockStatus.majorChange = TRUE;
 
@@ -1064,7 +1064,7 @@ runPIservo(PIservo* servo, const Integer32 input)
 
         case DT_MEASURED:
 
-                getTimeMonotonic(&now);
+		g_impl.get_time(CLOCK_STEADY, &now);
 		if (ti_is_zero(&servo->lastUpdate)) {
 			dt = servo->dT;
 		} else {

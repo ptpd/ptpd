@@ -696,7 +696,7 @@ logStatistics(PtpClock * ptpClock)
 
 	memset(sbuf, 0, sizeof(sbuf));
 
-	getTime(&now);
+	g_impl.get_time(CLOCK_SYSTEM, &now);
 
 	/*
 	 * print one log entry per X seconds for Sync and DelayResp messages, to reduce disk usage.
@@ -1389,176 +1389,6 @@ recordSync(UInteger16 sequenceId, TimeInternal * time)
 	}
 }
 
-#ifdef __QNXNTO__
-
-static const struct sigevent* timerIntHandler(void* data, int id) {
-  struct timespec tp;
-  TimerIntData* myData = (TimerIntData*)data;
-  uint64_t new_tsc = ClockCycles();
-
-  clock_gettime(CLOCK_REALTIME, &tp);
-
-  if(new_tsc > myData->prev_tsc) {
-    myData->cur_delta = new_tsc - myData->prev_tsc;
-  /* when hell freezeth over, thy TSC shall roll over */
-  } else {
-    myData->cur_delta = myData->prev_delta;
-  }
-  /* 4/6 weighted average */
-  myData->filtered_delta = (40 * myData->cur_delta + 60 * myData->prev_delta) / 100;
-  myData->prev_delta = myData->cur_delta;
-  myData->prev_tsc = new_tsc;
-
-  if(myData->counter < 2) {
-    myData->counter++;
-  }
-
-  myData->last_clock = timespec2nsec(&tp);
-  return NULL;
-
-}
-#endif
-
-void
-getTime(TimeInternal *time)
-{
-#ifdef __QNXNTO__
-	static TimerIntData tmpData;
-	int ret;
-	uint64_t delta;
-	double tick_delay;
-	uint64_t clock_offset;
-	struct timespec tp;
-	if (!tDataUpdated) {
-		memset(&tData, 0, sizeof(TimerIntData));
-		if (ThreadCtl(_NTO_TCTL_IO, 0) == -1) {
-			ERROR("QNX: could not give process I/O privileges");
-			return;
-		}
-
-		tData.cps = SYSPAGE_ENTRY(qtime)->cycles_per_sec;
-		tData.ns_per_tick = 1000000000.0 / tData.cps;
-		tData.prev_tsc = ClockCycles();
-		clock_gettime(CLOCK_REALTIME, &tp);
-		tData.last_clock = timespec2nsec(&tp);
-		ret = InterruptAttach(0, timerIntHandler, &tData, sizeof(TimerIntData),
-				      _NTO_INTR_FLAGS_END | _NTO_INTR_FLAGS_TRK_MSK);
-
-		if (ret == -1) {
-			ERROR("QNX: could not attach to timer interrupt");
-			return;
-		}
-		tDataUpdated = TRUE;
-
-		ti_from_timespec(&tp, time);
-		return;
-	}
-
-	memcpy(&tmpData, &tData, sizeof(TimerIntData));
-
-	delta = ClockCycles() - tmpData.prev_tsc;
-
-	/* compute time since last clock update */
-	tick_delay = (double)delta / (double)tmpData.filtered_delta;
-	clock_offset =
-		(uint64_t)(tick_delay * tmpData.ns_per_tick * (double)tmpData.filtered_delta);
-
-	/* not filtered yet */
-	if (tData.counter < 2) {
-		clock_offset = 0;
-	}
-
-	DBGV("QNX getTime cps: %lld tick interval: %.09f, time since last tick: %lld\n",
-	     tmpData.cps, tmpData.filtered_delta * tmpData.ns_per_tick, clock_offset);
-
-	nsec2timespec(&tp, tmpData.last_clock + clock_offset);
-
-	ti_from_timespec(&tp, time);
-	return;
-#else
-
-#ifdef HAVE_POSIX_TIMER
-
-	struct timespec tp;
-	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
-		PERROR("clock_gettime() failed, exiting.");
-		exit(0);
-	}
-	ti_from_timespec(&tp, time);
-
-#else
-
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	ti_from_timeval(&tv, time);
-
-#endif /* HAVE_POSIX_TIMER */
-#endif /* __QNXNTO__ */
-}
-
-void
-getTimeMonotonic(TimeInternal * time)
-{
-#ifdef HAVE_POSIX_TIMER
-
-	struct timespec tp;
-#ifndef CLOCK_MONOTINIC                                                                                                      
-	if (clock_gettime(CLOCK_REALTIME, &tp) < 0) {
-#else
-	if (clock_gettime(CLOCK_MONOTONIC, &tp) < 0) {
-#endif /* CLOCK_MONOTONIC */
-		PERROR("clock_gettime() failed, exiting.");
-		exit(0);
-	}
-	ti_from_timespec(&tp, time);
-#else
-
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	ti_from_timeval(&tv, time);
-
-#endif /* HAVE_POSIX_TIMER */
-}
-
-
-void
-setTime(TimeInternal * time)
-{
-
-#ifdef HAVE_POSIX_TIMER
-
-	struct timespec tp;
-	ti_to_timespec(time, &tp);
-
-#else
-
-	struct timeval tv;
-	ti_to_timeval(time, &tv);
-
-#endif /* HAVE_POSIX_TIMER */
-
-#ifdef HAVE_POSIX_TIMER
-
-	if (clock_settime(CLOCK_REALTIME, &tp) < 0) {
-		PERROR("Could not set system time");
-		return;
-	}
-
-#else
-
-	settimeofday(&tv, 0);
-
-#endif /* HAVE_POSIX_TIMER */
-
-	struct timespec tmpTs = {ti_seconds(time), 0};
-
-	char timeStr[MAXTIMESTR];
-	strftime(timeStr, MAXTIMESTR, "%x %X", localtime(&tmpTs.tv_sec));
-	WARNING("Stepped the system clock to: %s.%d\n",
-	       timeStr, time->nanoseconds);
-
-}
-
 #ifdef HAVE_LINUX_RTC_H
 
 /* Set the RTC to the desired time time */
@@ -1600,7 +1430,7 @@ void setRtc(TimeInternal *timeToSet)
 	DBGV("Usable RTC device: %s\n",rtcDev);
 
 	if (ti_is_zero(timeToSet)) {
-		getTime(timeToSet);
+		g_impl.get_time(CLOCK_SYSTEM, timeToSet);
 	}
 
 	if((rtcFd = open(rtcDev, O_RDONLY)) < 0) {
@@ -2306,7 +2136,7 @@ int parseLeapFile(char *path, LeapSecondInfo *info)
     int ntpOffset = 0;
     int res;
 
-    getTime(&now);
+    g_impl.get_time(CLOCK_SYSTEM, &now);
 
     info->valid = FALSE;
 

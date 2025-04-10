@@ -478,9 +478,6 @@ void periodicUpdate(const RunTimeOpts *rtOpts, PtpClock *ptpClock);
 void displayStatus(PtpClock *ptpClock, const char *prefixMessage);
 void displayPortIdentity(PortIdentity *port, const char *prefixMessage);
 int snprint_PortIdentity(char *s, int max_len, const PortIdentity *id);
-void getTime(TimeInternal*);
-void getTimeMonotonic(TimeInternal*);
-void setTime(TimeInternal*);
 #ifdef linux
 void setRtc(TimeInternal *);
 #endif /* linux */

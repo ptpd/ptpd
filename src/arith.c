@@ -42,7 +42,7 @@ int
 check_timestamp_is_fresh(const TimeInternal *timeA)
 {
 	TimeInternal timeB;
-	getTime(&timeB);
+	g_impl.get_time(CLOCK_SYSTEM, &timeB);
 	return ti_is_close(timeA, &timeB, 1000000);
 }
 
@@ -50,7 +50,7 @@ double
 secondsToMidnight(void)
 {
 	TimeInternal now;
-	getTime(&now);
+	g_impl.get_time(CLOCK_SYSTEM, &now);
 
 	const uint64_t nanoseconds_in_day = 86400UL * 1000000000ULL;
 	const double nanoseconds_this_day = now.nanoseconds % nanoseconds_in_day;

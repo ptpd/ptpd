@@ -236,8 +236,7 @@ prepareLeapFlags(RunTimeOpts *rtOpts, PtpClock *ptpClock) {
 
 #endif 	/* HAVE_SYS_TIMEX_H  */
 
-	getTime(&now);
-
+	g_impl.get_time(CLOCK_SYSTEM, &now);
 
 	ptpClock->clockStatus.override = FALSE;
 
@@ -476,11 +475,11 @@ ptpServiceClockUpdate (TimingService* service)
 	}
 #endif /* HAVE_SYS_TIMEX_H */
 
-	getTime(&oldTime);
-	ti_sub(&newTime, &oldTime, &ptpClock->currentDS.offsetFromMaster);
+    g_impl.get_time(CLOCK_SYSTEM, &oldTime);
+    ti_sub(&newTime, &oldTime, &ptpClock->currentDS.offsetFromMaster);
 
-	/* Major time change */
-	if(clockStatus->majorChange){
+    /* Major time change */
+    if (clockStatus->majorChange) {
 	    /* re-parse leap seconds file */
 	    if(strcmp(rtOpts->leapFile,"")) {
 		memset(&rtOpts->leapInfo, 0, sizeof(LeapSecondInfo));

@@ -1423,7 +1423,7 @@ void handleMMTime(MsgManagement* incoming, MsgManagement* outgoing, PtpClock* pt
 		data = (MMTime*)outgoing->tlv->dataField;
 		/* GET actions */
 		TimeInternal internalTime;
-		getTime(&internalTime);
+		g_impl.get_time(CLOCK_SYSTEM, &internalTime);
 		if (respectUtcOffset(rtOpts, ptpClock) == TRUE) {
 			ti_inc(&internalTime, ptpClock->timePropertiesDS.currentUtcOffset,
 			       INC_SECONDS);

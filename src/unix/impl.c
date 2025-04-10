@@ -26,4 +26,6 @@ const struct impl g_impl = {
 #endif /* HAVE_POSIX_TIMERS */
 	.sleep_for = sleep_for,
 	.set_cpu_affinity = set_cpu_affinity,
+	.get_time = get_time,
+	.set_time = set_time,
 };
