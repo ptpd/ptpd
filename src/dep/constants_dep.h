@@ -102,7 +102,6 @@ if it's POSIX compatible, if you succeed, report it to ptpd-devel@sourceforge.ne
 #   define PTPD_MSBF
 # endif
 
-#define CLOCK_IDENTITY_LENGTH 8
 #define ADJ_FREQ_MAX 500000
 
 /* UDP/IPv4 dependent */
