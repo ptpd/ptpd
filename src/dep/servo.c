@@ -718,13 +718,20 @@ stepClock(const RunTimeOpts * rtOpts, PtpClock * ptpClock)
 void
 warn_operator_fast_slewing(const RunTimeOpts * rtOpts, PtpClock * ptpClock, double adj)
 {
-	if(ptpClock->warned_operator_fast_slewing == 0){
+
+if (ptpClock->warned_operator_fast_slewing == 0)
+    if (rtOpts->servoMaxPpb >= 0){ 
 		if ((adj >= rtOpts->servoMaxPpb) || ((adj <= -rtOpts->servoMaxPpb))){
 			ptpClock->warned_operator_fast_slewing = 1;
 			NOTICE("Servo: Going to slew the clock with the maximum frequency adjustment\n");
 		}
 	}
-
+	else{
+		if (!((adj >= rtOpts->servoMaxPpb) && ((adj <= -rtOpts->servoMaxPpb)))){
+			ptpClock->warned_operator_fast_slewing = 1;
+			NOTICE("Servo: Going to slew the clock with the maximum frequency adjustment\n");
+		}
+	}
 }
 
 void
