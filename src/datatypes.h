@@ -395,7 +395,7 @@ typedef struct {
 
 	Enumeration8 selectedPreset;
 
-	int servoMaxPpb;
+	unsigned int servoMaxPpb;
 	double servoKP;
 	double servoKI;
 	Enumeration8 servoDtMethod;
