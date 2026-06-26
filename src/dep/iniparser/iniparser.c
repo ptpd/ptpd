@@ -337,7 +337,7 @@ char ** iniparser_getseckeys(dictionary * d, char * s)
    
     i = 0;
 
-    for (j=0 ; j<d->size ; j++) {
+    for (j=0 ; j<d->size && i<nkeys; j++) {
         if (d->key[j]==NULL)
             continue ;
         if (!strncmp(d->key[j], keym, seclen+1)) {
