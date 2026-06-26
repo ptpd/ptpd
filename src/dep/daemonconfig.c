@@ -3108,7 +3108,8 @@ compareConfig(dictionary* newConfig, dictionary* oldConfig)
 
     int i = 0;
 
-    if( newConfig == NULL || oldConfig == NULL) return -1;
+    if( newConfig == oldConfig) return TRUE;
+    if( newConfig == NULL || oldConfig == NULL ) return FALSE;
 
     for(i = 0; i < newConfig->n; i++) {
 
