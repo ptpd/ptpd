@@ -180,10 +180,9 @@ static int parseAclEntry(const char* line, AclEntry* acl) {
 	acl->netmask=count;
     }
 
+    acl->network &= acl->bitmask;
     end:
     free(text_);
-
-    acl->network &= acl->bitmask;
 
     return result;
 
