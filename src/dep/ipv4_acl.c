@@ -413,12 +413,12 @@ matchIpv4AccessList(Ipv4AccessList* acl, const uint32_t addr)
 			}
 	}
 
-	end:
-
 	if(ret)
 	    acl->passedCounter++;
 	else
 	    acl->droppedCounter++;
+
+	end:
 
 	return ret;
 

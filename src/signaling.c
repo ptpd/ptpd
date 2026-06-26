@@ -636,6 +636,7 @@ handleSMAcknowledgeCancelUnicastTransmission(MsgSignaling* incoming, Integer32 s
 
 	if(nodeTable == NULL) {
 		DBG("ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION: did not find node in slave table: %s\n", portId);
+		return;
 	}
 
 	if(msgIndex(messageType) < 0) {
