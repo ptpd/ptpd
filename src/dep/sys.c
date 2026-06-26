@@ -69,9 +69,6 @@
 #  include <net/if_ether.h>
 #endif
 
-/* only C99 has the round function built-in */
-double round (double __x);
-
 static int closeLog(LogFileHandler* handler);
 
 #ifdef __QNXNTO__

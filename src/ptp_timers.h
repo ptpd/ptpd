@@ -1,7 +1,7 @@
 #ifndef PTP_TIMERS_H_
 #define PTP_TIMERS_H_
 
-#include "ptpd.h"
+#include "ptp_primitives.h"
 
 /*-
  * Copyright (c) 2015 Wojciech Owczarek,

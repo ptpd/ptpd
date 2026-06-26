@@ -1,7 +1,7 @@
 #ifndef EVENTTIMER_H_
 #define EVENTTIMER_H_
 
-#include "../ptpd.h"
+#include "../ptp_primitives.h"
 
 /*-
  * Copyright (c) 2015 Wojciech Owczarek,

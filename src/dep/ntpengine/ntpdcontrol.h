@@ -5,7 +5,7 @@
 #ifndef NTPDCONTROL_H
 #define NTPDCONTROL_H
 
-#include "../../ptpd.h"
+#include "../../ptp_primitives.h"
 
 #include "../../timingdomain.h"
 
