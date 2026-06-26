@@ -264,8 +264,13 @@ createMaskTable(const char* input)
 	int masksFound = maskParser(input, NULL);
 	if(masksFound>=0) {
 		ret=(MaskTable*)calloc(1,sizeof(MaskTable));
-		ret->entries = (AclEntry*)calloc(masksFound, sizeof(AclEntry));
-		ret->numEntries = maskParser(input,ret->entries);
+		if (masksFound) {
+			ret->entries = (AclEntry*)calloc(masksFound, sizeof(AclEntry));
+			ret->numEntries = maskParser(input,ret->entries);
+		} else {
+			ret->entries = NULL;
+			ret->numEntries = 0;
+		}
 		return ret;
 	} else {
 		ERROR("Error while parsing access list: \"%s\"\n", input);

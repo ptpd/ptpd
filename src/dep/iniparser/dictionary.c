@@ -38,6 +38,9 @@
 static void * mem_double(void * ptr, int size)
 {
     void * newptr ;
+    if (size == 0) {
+        return NULL;
+    }
 
     newptr = calloc(2*size, 1);
     if (newptr==NULL) {
