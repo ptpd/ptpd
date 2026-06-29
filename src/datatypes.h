@@ -493,7 +493,7 @@ typedef struct {
 	ForeignMasterRecord *bestMaster;
 
 	/* Other things we need for the protocol */
-	UInteger16 number_foreign_records;
+	Integer16  number_foreign_records;
 	Integer16  max_foreign_records;
 	Integer16  foreign_record_i;
 	Integer16  foreign_record_best;

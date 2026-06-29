@@ -38,6 +38,9 @@
 static void * mem_double(void * ptr, int size)
 {
     void * newptr ;
+    if (size == 0) {
+        return NULL;
+    }
 
     newptr = calloc(2*size, 1);
     if (newptr==NULL) {
@@ -225,7 +228,8 @@ int dictionary_set(dictionary * d, const char * key, const char * val)
     unsigned    hash ;
 
     if (d==NULL || key==NULL) return -1 ;
-   
+    if (d->n<0 || d->size<0) return -1 ;
+
     /* Compute hash for this key */
     hash = dictionary_hash(key) ;
     /* Find if value is already in dictionary */

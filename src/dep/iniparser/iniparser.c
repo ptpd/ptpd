@@ -329,6 +329,7 @@ char ** iniparser_getseckeys(dictionary * d, char * s)
     if (! iniparser_find_entry(d, s)) return keys;
 
     nkeys = iniparser_getsecnkeys(d, s);
+    if (nkeys == 0) return NULL;
 
     keys = (char**) malloc(nkeys*sizeof(char*));
 
@@ -337,7 +338,7 @@ char ** iniparser_getseckeys(dictionary * d, char * s)
    
     i = 0;
 
-    for (j=0 ; j<d->size ; j++) {
+    for (j=0 ; j<d->size && i<nkeys; j++) {
         if (d->key[j]==NULL)
             continue ;
         if (!strncmp(d->key[j], keym, seclen+1)) {

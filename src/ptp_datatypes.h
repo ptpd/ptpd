@@ -201,7 +201,7 @@ typedef struct {
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
 	#include "def/managementTLV/managementTLV.def"
-	Octet* dataField;
+	void* dataField;
 } ManagementTLV;
 
 /**
@@ -446,7 +446,7 @@ typedef struct {
 typedef struct {
 	#define OPERATE( name, size, type ) type name;
 	#include "def/signalingTLV/signalingTLV.def"
-	Octet* valueField;
+	void* valueField;
 } SignalingTLV;
 
 /**

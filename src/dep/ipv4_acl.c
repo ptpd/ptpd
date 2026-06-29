@@ -180,10 +180,9 @@ static int parseAclEntry(const char* line, AclEntry* acl) {
 	acl->netmask=count;
     }
 
+    acl->network &= acl->bitmask;
     end:
     free(text_);
-
-    acl->network &= acl->bitmask;
 
     return result;
 
@@ -264,8 +263,13 @@ createMaskTable(const char* input)
 	int masksFound = maskParser(input, NULL);
 	if(masksFound>=0) {
 		ret=(MaskTable*)calloc(1,sizeof(MaskTable));
-		ret->entries = (AclEntry*)calloc(masksFound, sizeof(AclEntry));
-		ret->numEntries = maskParser(input,ret->entries);
+		if (masksFound) {
+			ret->entries = (AclEntry*)calloc(masksFound, sizeof(AclEntry));
+			ret->numEntries = maskParser(input,ret->entries);
+		} else {
+			ret->entries = NULL;
+			ret->numEntries = 0;
+		}
 		return ret;
 	} else {
 		ERROR("Error while parsing access list: \"%s\"\n", input);
@@ -409,12 +413,12 @@ matchIpv4AccessList(Ipv4AccessList* acl, const uint32_t addr)
 			}
 	}
 
-	end:
-
 	if(ret)
 	    acl->passedCounter++;
 	else
 	    acl->droppedCounter++;
+
+	end:
 
 	return ret;
 

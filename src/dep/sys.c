@@ -69,9 +69,6 @@
 #  include <net/if_ether.h>
 #endif
 
-/* only C99 has the round function built-in */
-double round (double __x);
-
 static int closeLog(LogFileHandler* handler);
 
 #ifdef __QNXNTO__
@@ -443,9 +440,8 @@ logMessage(int priority, const char * format, ...)
 	extern Boolean startupInProgress;
 	va_list ap , ap1;
 
-	va_copy(ap1, ap);
-	va_start(ap1, format);
 	va_start(ap, format);
+	va_copy(ap1, ap);
 
 #ifdef RUNTIME_DEBUG
 	if ((priority >= LOG_DEBUG) && (priority > rtOpts.debug_level)) {

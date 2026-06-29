@@ -682,6 +682,9 @@ const char* key, int restartFlags, uint8_t *var, int def, const char *helptext, 
 	len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s ", name);
 
 	if(value == def) {
+		if (defValue) {
+			free (defValue);
+		}
 	    defValue = strdup(name);
 	}
 
@@ -704,14 +707,15 @@ const char* key, int restartFlags, uint8_t *var, int def, const char *helptext, 
 		    warnRestart(key, restartFlags);
 		}
 	    }
-	    return 1;
+		ret = 1;
 	} else if(opCode & CFGOP_HELP_FULL || opCode & CFGOP_HELP_SINGLE) {
 
 		char *helpKey = (char*)opArg;
 
 		if((opCode & CFGOP_HELP_SINGLE)){
 		    if (strcmp(key, helpKey)) {
-			return 1;
+			ret = 1;
+			goto result;
 		    } else {
 			/* this way we tell the caller that we have already found the setting we were looking for */
 			helpKey[0] = '\0';
@@ -3104,7 +3108,8 @@ compareConfig(dictionary* newConfig, dictionary* oldConfig)
 
     int i = 0;
 
-    if( newConfig == NULL || oldConfig == NULL) return -1;
+    if( newConfig == oldConfig) return TRUE;
+    if( newConfig == NULL || oldConfig == NULL ) return FALSE;
 
     for(i = 0; i < newConfig->n; i++) {
 

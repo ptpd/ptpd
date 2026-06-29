@@ -64,7 +64,7 @@ static const ConfigTemplate configTemplates[] = {
 	{"ptpengine:announce_receipt_timeout", "3"},
 	{"ptpengine:priority1", "128"},
 	{"ptpengine:priority2", "128"},
-	{NULL}}
+	{NULL, NULL}}
     },
 
     { "g8265-e2e-slave", "ITU-T G.8265.1 (Telecom profile) unicast slave", {
@@ -74,7 +74,7 @@ static const ConfigTemplate configTemplates[] = {
 	{"ptpengine:domain", "4"},
 	{"ptpengine:delay_mechanism", "E2E"},
 	{"ptpengine:announce_receipt_timeout", "3"},
-	{NULL}}
+	{NULL, NULL}}
     },
 
     { "layer2-p2p-master", "Layer 2 master using Peer to Peer", {
@@ -82,7 +82,7 @@ static const ConfigTemplate configTemplates[] = {
 	{"ptpengine:delay_mechanism","P2P"},
 	{"ptpengine:preset","masteronly"},
 //	{"",""},
-	{NULL}}
+	{NULL, NULL}}
     },
 
     { "layer2-p2p-slave", "Layer 2 slave running End to End", {
@@ -90,7 +90,7 @@ static const ConfigTemplate configTemplates[] = {
 	{"ptpengine:delay_mechanism","E2E"},
 	{"ptpengine:preset","slaveonly"},
 //	{"",""},
-	{NULL}}
+	{NULL, NULL}}
     },
 
     { "valid-utc-properties", "Basic property set to announce valid UTC, UTC offset and leap seconds", {
@@ -102,7 +102,7 @@ static const ConfigTemplate configTemplates[] = {
 	 * UTC offset value and UTC offset valid flag
 	 * will be announced if leap file is parsed and up to date
 	 */
-	{NULL}}
+	{NULL, NULL}}
     },
 
     { "full-logging", "Enable logging for all facilities (statistics, status, log file)", {
@@ -115,7 +115,7 @@ static const ConfigTemplate configTemplates[] = {
 //	{"global:statistics_file_truncate", "n"},
 	{"global:log_file", "/var/log/ptpd2.log"},
 	{"global:statistics_timestamp_format", "both"},
-	{NULL}}
+	{NULL, NULL}}
     },
 
     { "full-logging-instance", "Logging for all facilities using 'instance' variable which the user should provide", {
@@ -128,10 +128,10 @@ static const ConfigTemplate configTemplates[] = {
 //	{"global:statistics_file_truncate", "n"},
 	{"global:log_file", "@logdir@/ptpd2.@instance@.log"},
 	{"global:statistics_timestamp_format", "both"},
-	{NULL}}
+	{NULL, NULL}}
     },
 
-    {NULL}
+    {NULL, NULL, {}}
 };
 
 /* =============== configuration templates end ===============*/
