@@ -667,13 +667,38 @@ stopLogging(RunTimeOpts* rtOpts)
 	closeLog(&rtOpts->statusLog);
 }
 
+static int
+appendStatisticsFormat(char *buffer, size_t capacity, size_t *length,
+		      const char *format, ...)
+{
+	va_list args;
+	size_t remaining;
+	int written;
+
+	if (capacity == 0 || *length >= capacity)
+		return 0;
+
+	remaining = capacity - *length;
+	va_start(args, format);
+	written = vsnprintf(buffer + *length, remaining, format, args);
+	va_end(args);
+	if (written < 0 || (size_t)written >= remaining)
+		return 0;
+
+	*length += (size_t)written;
+	return 1;
+}
+
 void
 logStatistics(PtpClock * ptpClock)
 {
 	extern RunTimeOpts rtOpts;
 	static int errorMsg = 0;
-	static char sbuf[SCREEN_BUFSZ * 2];
-	int len = 0;
+	static int bufferErrorMsg = 0;
+	static char sbuf[BUF_SIZE];
+	size_t len = 0;
+	char rendered[256];
+	int rendered_len;
 	TimeInternal now;
 	time_t time_s;
 	FILE* destination;
@@ -700,7 +725,7 @@ logStatistics(PtpClock * ptpClock)
 			"\n", (rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) ? "Timestamp, Unix timestamp" : "Timestamp");
 	}
 
-	memset(sbuf, 0, sizeof(sbuf));
+	sbuf[0] = '\0';
 
 	getTime(&now);
 
@@ -736,22 +761,28 @@ logStatistics(PtpClock * ptpClock)
 	if (rtOpts.statisticsTimestamp == TIMESTAMP_DATETIME ||
 	    rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) {
 	    strftime(time_str, MAXTIMESTR, "%Y-%m-%d %X", localtime(&time_s));
-	    len += snprintf(sbuf + len, sizeof(sbuf) - len, "%s.%06d, %s, ",
-		       time_str, (int)now.nanoseconds/1000, /* Timestamp */
-		       translatePortState(ptpClock)); /* State */
+	    if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len,
+					"%s.%06d, %s, ", time_str,
+					(int)now.nanoseconds/1000,
+					translatePortState(ptpClock)))
+		goto statistics_buffer_overflow;
 	}
 
 	/* output unix timestamp s.ns if configured */
 	if (rtOpts.statisticsTimestamp == TIMESTAMP_UNIX ||
 	    rtOpts.statisticsTimestamp == TIMESTAMP_BOTH) {
-	    len += snprintf(sbuf + len, sizeof(sbuf) - len, "%d.%06d, %s,",
-		       now.seconds, now.nanoseconds, /* Timestamp */
-		       translatePortState(ptpClock)); /* State */
+	    if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len,
+					"%d.%06d, %s,", now.seconds,
+					now.nanoseconds, translatePortState(ptpClock)))
+		goto statistics_buffer_overflow;
 	}
 
 	if (ptpClock->portDS.portState == PTP_SLAVE) {
-		len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-			 &ptpClock->parentDS.parentPortIdentity); /* Clock ID */
+		rendered_len = snprint_PortIdentity(rendered, sizeof(rendered),
+					    &ptpClock->parentDS.parentPortIdentity);
+		if (rendered_len < 0 || (size_t)rendered_len >= sizeof(rendered) ||
+		    !appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "%s", rendered))
+			goto statistics_buffer_overflow;
 
 		/*
 		 * if grandmaster ID differs from parent port ID then
@@ -760,111 +791,153 @@ logStatistics(PtpClock * ptpClock)
 		if (memcmp(ptpClock->parentDS.grandmasterIdentity,
 			   ptpClock->parentDS.parentPortIdentity.clockIdentity,
 			   CLOCK_IDENTITY_LENGTH)) {
-			len += snprint_ClockIdentity(sbuf + len,
-						     sizeof(sbuf) - len,
+			rendered_len = snprint_ClockIdentity(rendered, sizeof(rendered),
 						     ptpClock->parentDS.grandmasterIdentity);
+			if (rendered_len < 0 || (size_t)rendered_len >= sizeof(rendered) ||
+			    !appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "%s", rendered))
+				goto statistics_buffer_overflow;
 		}
 
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
+		if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len, ", "))
+			goto statistics_buffer_overflow;
 
 		if(rtOpts.delayMechanism == E2E) {
-			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+			rendered_len = snprint_TimeInternal(rendered, sizeof(rendered),
 						    &ptpClock->currentDS.meanPathDelay);
 		} else {
-			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+			rendered_len = snprint_TimeInternal(rendered, sizeof(rendered),
 						    &ptpClock->portDS.peerMeanPathDelay);
 		}
+		if (rendered_len < 0 || (size_t)rendered_len >= sizeof(rendered) ||
+		    !appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "%s", rendered))
+			goto statistics_buffer_overflow;
 
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
-
-		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
-		    &ptpClock->currentDS.offsetFromMaster);
+		if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len, ", "))
+			goto statistics_buffer_overflow;
+		rendered_len = snprint_TimeInternal(rendered, sizeof(rendered),
+						    &ptpClock->currentDS.offsetFromMaster);
+		if (rendered_len < 0 || (size_t)rendered_len >= sizeof(rendered) ||
+		    !appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "%s", rendered))
+			goto statistics_buffer_overflow;
 
 		/* print MS and SM with sign */
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
-			
+		if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len, ", "))
+			goto statistics_buffer_overflow;
 		if(rtOpts.delayMechanism == E2E) {
-			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+			rendered_len = snprint_TimeInternal(rendered, sizeof(rendered),
 							&(ptpClock->delaySM));
 		} else {
-			len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
+			rendered_len = snprint_TimeInternal(rendered, sizeof(rendered),
 							&(ptpClock->pdelaySM));
 		}
+		if (rendered_len < 0 || (size_t)rendered_len >= sizeof(rendered) ||
+		    !appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "%s", rendered))
+			goto statistics_buffer_overflow;
 
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
+		if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len, ", "))
+			goto statistics_buffer_overflow;
+		rendered_len = snprint_TimeInternal(rendered, sizeof(rendered),
+						    &(ptpClock->delayMS));
+		if (rendered_len < 0 || (size_t)rendered_len >= sizeof(rendered) ||
+		    !appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "%s", rendered))
+			goto statistics_buffer_overflow;
 
-		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
-				&(ptpClock->delayMS));
-
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %c, %05d",
-			       ptpClock->servo.observedDrift,
-			       ptpClock->char_last_msg,
-			       ptpClock->msgTmpHeader.sequenceId);
+		if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len,
+					    ", %.09f, %c, %05d",
+					    ptpClock->servo.observedDrift,
+					    ptpClock->char_last_msg,
+					    ptpClock->msgTmpHeader.sequenceId))
+			goto statistics_buffer_overflow;
 
 #ifdef PTPD_STATISTICS
 
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.09f, %.00f, %.09f, %.00f",
-			       ptpClock->slaveStats.mpdMean,
-			       ptpClock->slaveStats.mpdStdDev * 1E9,
-			       ptpClock->slaveStats.ofmMean,
-			       ptpClock->slaveStats.ofmStdDev * 1E9);
+		if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len,
+					    ", %.09f, %.00f, %.09f, %.00f",
+					    ptpClock->slaveStats.mpdMean,
+					    ptpClock->slaveStats.mpdStdDev * 1E9,
+					    ptpClock->slaveStats.ofmMean,
+					    ptpClock->slaveStats.ofmStdDev * 1E9))
+			goto statistics_buffer_overflow;
 
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", %.0f, %.0f, ",
-			       ptpClock->servo.driftMean,
-			       ptpClock->servo.driftStdDev);
+		if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len,
+					    ", %.0f, %.0f, ",
+					    ptpClock->servo.driftMean,
+					    ptpClock->servo.driftStdDev))
+			goto statistics_buffer_overflow;
 
-		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
-							&(ptpClock->rawDelayMS));
-
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, ", ");
-
-		len += snprint_TimeInternal(sbuf + len, sizeof(sbuf) - len,
-							&(ptpClock->rawDelaySM));
+		rendered_len = snprint_TimeInternal(rendered, sizeof(rendered),
+						    &(ptpClock->rawDelayMS));
+		if (rendered_len < 0 || (size_t)rendered_len >= sizeof(rendered) ||
+		    !appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "%s", rendered))
+			goto statistics_buffer_overflow;
+		if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len, ", "))
+			goto statistics_buffer_overflow;
+		rendered_len = snprint_TimeInternal(rendered, sizeof(rendered),
+						    &(ptpClock->rawDelaySM));
+		if (rendered_len < 0 || (size_t)rendered_len >= sizeof(rendered) ||
+		    !appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "%s", rendered))
+			goto statistics_buffer_overflow;
 
 #endif /* PTPD_STATISTICS */
 
 	} else {
 		if ((ptpClock->portDS.portState == PTP_MASTER) || (ptpClock->portDS.portState == PTP_PASSIVE)) {
 
-			len += snprint_PortIdentity(sbuf + len, sizeof(sbuf) - len,
-				 &ptpClock->parentDS.parentPortIdentity);
+			rendered_len = snprint_PortIdentity(rendered, sizeof(rendered),
+						    &ptpClock->parentDS.parentPortIdentity);
+			if (rendered_len < 0 || (size_t)rendered_len >= sizeof(rendered) ||
+			    !appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "%s", rendered))
+				goto statistics_buffer_overflow;
 							
 			//len += snprintf(sbuf + len, sizeof(sbuf) - len, ")");
 		}
 
 		/* show the current reset number on the log */
 		if (ptpClock->portDS.portState == PTP_LISTENING) {
-			len += snprintf(sbuf + len,
-						     sizeof(sbuf) - len,
-						     " %d ", ptpClock->resetCount);
+			if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len,
+						     " %d ", ptpClock->resetCount))
+				goto statistics_buffer_overflow;
 		}
 	}
 	
 	/* add final \n in normal status lines */
-	len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
+	if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "\n"))
+		goto statistics_buffer_overflow;
 
 #if 0   /* NOTE: Do we want this? */
 	if (rtOpts.nonDaemon) {
 		/* in -C mode, adding an extra \n makes stats more clear intermixed with debug comments */
-		len += snprintf(sbuf + len, sizeof(sbuf) - len, "\n");
+		if (!appendStatisticsFormat(sbuf, sizeof(sbuf), &len, "\n"))
+			goto statistics_buffer_overflow;
 	}
 #endif
 
 	/* fprintf may get interrupted by a signal - silently retry once */
-	if (fprintf(destination, "%s", sbuf) < len) {
-	    if (fprintf(destination, "%s", sbuf) < len) {
-		if(!errorMsg) {
-		    PERROR("Error while writing statistics");
+	{
+		int written = fprintf(destination, "%s", sbuf);
+		if (written < 0 || (size_t)written < len) {
+			written = fprintf(destination, "%s", sbuf);
+			if (written < 0 || (size_t)written < len) {
+				if(!errorMsg) {
+					PERROR("Error while writing statistics");
+				}
+				errorMsg = TRUE;
+			}
 		}
-		errorMsg = TRUE;
-	    }
 	}
 
 	if(destination == rtOpts.statisticsLog.logFP) {
 		if (maintainLogSize(&rtOpts.statisticsLog))
 			ptpClock->resetStatisticsLog = TRUE;
 	}
+	return;
 
+statistics_buffer_overflow:
+	sbuf[sizeof(sbuf) - 1] = '\0';
+	if (!bufferErrorMsg) {
+		PERROR("Statistics log entry exceeds buffer size");
+		bufferErrorMsg = TRUE;
+	}
 }
 
 /* periodic status update */
